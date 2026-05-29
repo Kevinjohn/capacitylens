@@ -1,0 +1,131 @@
+import { describe, it, expect, beforeEach } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { ProjectList } from './ProjectList'
+import { useStore } from '../../store/useStore'
+import { emptyAppData } from '../../types/entities'
+
+beforeEach(() => {
+  useStore.getState().replaceAll(emptyAppData())
+  useStore.getState().clearFilters()
+})
+
+describe('ProjectList', () => {
+  it('shows empty state when there are no projects', () => {
+    render(<ProjectList />)
+    expect(screen.getByText('No projects yet.')).toBeInTheDocument()
+  })
+
+  it('lists a seeded project with its client name', () => {
+    const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
+    useStore.getState().addProject({ name: 'Alpha Project', clientId: client.id, color: '#ec4899' })
+
+    render(<ProjectList />)
+
+    expect(screen.getByText('Alpha Project')).toBeInTheDocument()
+    expect(screen.getByText('· Acme Corp')).toBeInTheDocument()
+  })
+
+  it('adds a project via the form and displays it with the client name', async () => {
+    const user = userEvent.setup()
+    const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
+
+    render(<ProjectList />)
+
+    // Open the add form
+    await user.click(screen.getByRole('button', { name: 'Add project' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Add project' })
+    expect(dialog).toBeInTheDocument()
+
+    // Fill in Name and Client
+    await user.type(within(dialog).getByLabelText('Name'), 'New Project')
+    await user.selectOptions(within(dialog).getByLabelText('Client', { exact: true }), client.id)
+
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }))
+
+    // Dialog closes and project appears in the list
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('New Project')).toBeInTheDocument()
+    expect(screen.getByText('· Acme Corp')).toBeInTheDocument()
+
+    // Store is updated
+    const projects = useStore.getState().data.projects
+    expect(projects).toHaveLength(1)
+    expect(projects[0].clientId).toBe(client.id)
+  })
+
+  it('shows the cascade ConfirmDialog when delete is clicked', async () => {
+    const user = userEvent.setup()
+    const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
+    useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
+
+    render(<ProjectList />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete project?' })
+    expect(dialog).toBeInTheDocument()
+    expect(dialog).toHaveTextContent(/Delete "Doomed Project"/)
+    expect(dialog).toHaveTextContent(/phases, tasks and allocations/)
+  })
+
+  it('cancels deletion and keeps the project', async () => {
+    const user = userEvent.setup()
+    const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
+    useStore.getState().addProject({ name: 'Kept Project', clientId: client.id, color: '#ec4899' })
+
+    render(<ProjectList />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete project?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(useStore.getState().data.projects).toHaveLength(1)
+    expect(screen.getByText('Kept Project')).toBeInTheDocument()
+  })
+
+  it('confirms deletion and removes the project from the list and store', async () => {
+    const user = userEvent.setup()
+    const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
+    const project = useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
+    useStore.getState().addTask({ name: 'Task 1', projectId: project.id })
+
+    render(<ProjectList />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+
+    const dialog = screen.getByRole('dialog', { name: 'Delete project?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(useStore.getState().data.projects).toHaveLength(0)
+    expect(useStore.getState().data.tasks).toHaveLength(0)
+    expect(screen.queryByText('Doomed Project')).not.toBeInTheDocument()
+    expect(screen.getByText('No projects yet.')).toBeInTheDocument()
+  })
+
+  it('shows (no client) when project has an unresolved client id', () => {
+    // Seed via replaceAll to inject a project with an orphaned clientId
+    useStore.getState().replaceAll({
+      ...emptyAppData(),
+      projects: [
+        {
+          id: 'proj-orphan',
+          createdAt: 't',
+          updatedAt: 't',
+          name: 'Orphan Project',
+          clientId: 'nonexistent-client',
+          color: '#abc',
+        },
+      ],
+    })
+
+    render(<ProjectList />)
+
+    expect(screen.getByText('Orphan Project')).toBeInTheDocument()
+    expect(screen.getByText('· (no client)')).toBeInTheDocument()
+  })
+})

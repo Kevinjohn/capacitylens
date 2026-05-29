@@ -1,0 +1,109 @@
+import { widthForRange, xForDate } from '../../lib/dateMath'
+import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
+import { dayCapacity, utilization } from '../../lib/capacity'
+import { resolveBarColor } from '../../lib/color'
+import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
+import { resourcesByDiscipline } from '../../store/selectors'
+import { laneLayout } from './layout'
+import type { BarLayout } from './AllocationBar'
+import type { DayState, TimeOffBlock } from './ResourceLane'
+import type { Filters } from '../../store/useStore'
+import type { Allocation, AppData, ISODate, Resource } from '../../types/entities'
+
+// Pure view-model builder for the scheduler: turns the dataset + window + filters
+// into positioned bars, per-day capacity states, time-off blocks and utilisation,
+// grouped by discipline. No React — independently unit-testable.
+
+export interface RowModel {
+  resource: Resource
+  rowHeight: number
+  bars: BarLayout[]
+  dayStates: DayState[]
+  timeOff: TimeOffBlock[]
+  utilization: number
+}
+
+export interface GroupModel {
+  key: string
+  title: string
+  color?: string
+  rows: RowModel[]
+}
+
+export function buildSchedulerModel(
+  data: AppData,
+  origin: ISODate,
+  dayWidth: number,
+  days: ISODate[],
+  start: ISODate,
+  end: ISODate,
+  filters: Filters,
+): GroupModel[] {
+  const search = filters.search.trim().toLowerCase()
+  const taskMeta = new Map(
+    data.tasks.map((t) => {
+      const project = data.projects.find((p) => p.id === t.projectId)
+      return [t.id, { projectId: t.projectId, clientId: project?.clientId }]
+    }),
+  )
+
+  const allocVisible = (a: Allocation): boolean => {
+    const meta = taskMeta.get(a.taskId)
+    if (filters.projectId && meta?.projectId !== filters.projectId) return false
+    if (filters.clientId && meta?.clientId !== filters.clientId) return false
+    if (filters.hideTentative && a.status === 'tentative') return false
+    return true
+  }
+  const resourceVisible = (r: Resource): boolean => {
+    if (filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
+    if (search && !`${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false
+    return true
+  }
+
+  return resourcesByDiscipline(data)
+    .map((group) => ({
+      key: group.discipline?.id ?? 'none',
+      title: group.discipline?.name ?? 'No discipline',
+      color: group.discipline?.color,
+      rows: group.resources.filter(resourceVisible).map((resource) => {
+        const allAllocs = data.allocations.filter((a) => a.resourceId === resource.id)
+        const visibleAllocs = allAllocs.filter(allocVisible)
+        const { lanes, laneCount } = packLanes(visibleAllocs)
+        const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
+        const bars: BarLayout[] = visibleAllocs.map((a) => {
+          const task = data.tasks.find((t) => t.id === a.taskId)
+          return {
+            allocation: a,
+            x: xForDate(a.startDate, origin, dayWidth),
+            width: widthForRange(a.startDate, a.endDate, dayWidth),
+            top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
+            color: resolveBarColor(a, data),
+            label: task?.name ?? 'Task',
+          }
+        })
+        // Capacity reflects ALL allocations (truthful load), not the filtered view.
+        const dayStates: DayState[] = days.map((d) => {
+          const cap = dayCapacity(resource, d, data.allocations, data.timeOff)
+          return { over: cap.over, unavailable: cap.available === 0 }
+        })
+        const timeOff: TimeOffBlock[] = data.timeOff
+          .filter((t) => t.resourceId === resource.id)
+          .map((t) => ({
+            id: t.id,
+            x: xForDate(t.startDate, origin, dayWidth),
+            width: widthForRange(t.startDate, t.endDate, dayWidth),
+            label: TIME_OFF_TYPE_LABELS[t.type],
+            note: t.note,
+          }))
+        return {
+          resource,
+          rowHeight: rowHeightForLanes(laneCount, laneLayout),
+          bars,
+          dayStates,
+          timeOff,
+          utilization: utilization(resource, data.allocations, data.timeOff, start, end),
+        }
+      }),
+    }))
+    .filter((g) => g.rows.length > 0)
+}

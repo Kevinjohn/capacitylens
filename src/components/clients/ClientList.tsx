@@ -1,0 +1,54 @@
+import { useState } from 'react'
+import { useStore } from '../../store/useStore'
+import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { ClientForm } from './ClientForm'
+import type { Client } from '../../types/entities'
+
+export function ClientList() {
+  const clients = useStore((s) => s.data.clients)
+  const deleteClient = useStore((s) => s.deleteClient)
+  const [creating, setCreating] = useState(false)
+  const [editing, setEditing] = useState<Client | null>(null)
+  const [confirming, setConfirming] = useState<Client | null>(null)
+
+  return (
+    <ListPage title="Clients" addLabel="Add client" onAdd={() => setCreating(true)}>
+      {clients.length === 0 ? (
+        <EmptyState>No clients yet.</EmptyState>
+      ) : (
+        <ul className="divide-y divide-line rounded border border-line bg-surface">
+          {clients.map((c) => (
+            <li key={c.id} data-testid="client-row" className="flex items-center justify-between px-3 py-2">
+              <span className="flex items-center gap-2">
+                <ColorSwatch color={c.color} />
+                {c.name}
+              </span>
+              <span className="flex gap-2">
+                <Button variant="ghost" onClick={() => setEditing(c)}>
+                  Edit
+                </Button>
+                <Button variant="danger" onClick={() => setConfirming(c)}>
+                  Delete
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {creating && <ClientForm onClose={() => setCreating(false)} />}
+      {editing && <ClientForm client={editing} onClose={() => setEditing(null)} />}
+      {confirming && (
+        <ConfirmDialog
+          title="Delete client?"
+          message={`Delete "${confirming.name}" and all of its projects, phases, tasks and allocations? This cannot be undone.`}
+          onConfirm={() => {
+            deleteClient(confirming.id)
+            setConfirming(null)
+          }}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+    </ListPage>
+  )
+}

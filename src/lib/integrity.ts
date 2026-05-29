@@ -1,0 +1,102 @@
+import type { AppData, EmploymentType, ID, Resource } from '../types/entities'
+
+// Referential-integrity rules and cascade-delete transforms. All pure: cascade
+// helpers return a NEW AppData rather than mutating. Timestamp bumping on edited
+// rows is the store's job (it owns the clock).
+
+export function isTemporary(resource: { employmentType: EmploymentType }): boolean {
+  return resource.employmentType !== 'permanent'
+}
+
+export interface ValidationResult {
+  ok: boolean
+  errors: string[]
+}
+
+const toResult = (errors: string[]): ValidationResult => ({ ok: errors.length === 0, errors })
+
+/** A project must belong to a client. */
+export function validateProjectClient(clientId: ID | undefined | null): ValidationResult {
+  return toResult(clientId ? [] : ['A project must belong to a client.'])
+}
+
+/** Placeholder rule: a placeholder is bound to one project and only that project. */
+export function validateAllocationAssignment(
+  resource: Resource,
+  taskProjectId: ID,
+): ValidationResult {
+  const errors: string[] = []
+  if (resource.kind === 'placeholder') {
+    if (!resource.projectId) {
+      errors.push('This placeholder is not bound to a project yet.')
+    } else if (resource.projectId !== taskProjectId) {
+      errors.push('A placeholder can only be assigned to tasks from its bound project.')
+    }
+  }
+  return toResult(errors)
+}
+
+// ---- Cascade deletes ----
+
+export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
+  return {
+    ...data,
+    resources: data.resources.filter((r) => r.id !== resourceId),
+    allocations: data.allocations.filter((a) => a.resourceId !== resourceId),
+    timeOff: data.timeOff.filter((t) => t.resourceId !== resourceId),
+  }
+}
+
+export function deleteTaskCascade(data: AppData, taskId: ID): AppData {
+  return {
+    ...data,
+    tasks: data.tasks.filter((t) => t.id !== taskId),
+    allocations: data.allocations.filter((a) => a.taskId !== taskId),
+  }
+}
+
+/** Deleting a phase is non-destructive to its tasks — it just ungroups them. */
+export function deletePhaseCascade(data: AppData, phaseId: ID): AppData {
+  return {
+    ...data,
+    phases: data.phases.filter((p) => p.id !== phaseId),
+    tasks: data.tasks.map((t) => (t.phaseId === phaseId ? { ...t, phaseId: undefined } : t)),
+  }
+}
+
+export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
+  const removedTaskIds = new Set(
+    data.tasks.filter((t) => t.projectId === projectId).map((t) => t.id),
+  )
+  return {
+    ...data,
+    projects: data.projects.filter((p) => p.id !== projectId),
+    phases: data.phases.filter((p) => p.projectId !== projectId),
+    tasks: data.tasks.filter((t) => t.projectId !== projectId),
+    allocations: data.allocations.filter((a) => !removedTaskIds.has(a.taskId)),
+    // A placeholder bound to this project is unbound (not deleted).
+    resources: data.resources.map((r) =>
+      r.projectId === projectId ? { ...r, projectId: undefined } : r,
+    ),
+  }
+}
+
+export function deleteClientCascade(data: AppData, clientId: ID): AppData {
+  const removedProjectIds = data.projects
+    .filter((p) => p.clientId === clientId)
+    .map((p) => p.id)
+  let next: AppData = { ...data, clients: data.clients.filter((c) => c.id !== clientId) }
+  for (const projectId of removedProjectIds) next = deleteProjectCascade(next, projectId)
+  return next
+}
+
+/** Deleting a discipline ungroups its resources rather than deleting them. */
+export function deleteDisciplineCascade(data: AppData, disciplineId: ID): AppData {
+  return {
+    ...data,
+    disciplines: data.disciplines.filter((d) => d.id !== disciplineId),
+    resources: data.resources.map((r) =>
+      r.disciplineId === disciplineId ? { ...r, disciplineId: undefined } : r,
+    ),
+  }
+}

@@ -1,0 +1,155 @@
+@import "tailwindcss";
+
+/* ── Design tokens ──────────────────────────────────────────────────────────
+   Semantic Tailwind colours map to CSS custom properties so the whole UI flips
+   to dark automatically via prefers-color-scheme — no per-component dark: classes. */
+@theme {
+  --color-base: var(--c-base);
+  --color-surface: var(--c-surface);
+  --color-elevated: var(--c-elevated);
+  --color-line: var(--c-line);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-brand: var(--c-brand);
+  --color-brand-strong: var(--c-brand-strong);
+  --color-brand-soft: var(--c-brand-soft);
+  --color-danger: var(--c-danger);
+  --color-warn: var(--c-warn);
+  --color-ok: var(--c-ok);
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  --shadow-pop: 0 10px 30px -10px rgb(0 0 0 / 0.3);
+}
+
+:root {
+  --c-base: #f4f5f8;
+  --c-surface: #ffffff;
+  --c-elevated: #ffffff;
+  --c-line: #e6e8ee;
+  --c-ink: #1c2230;
+  --c-muted: #5b6472;
+  --c-faint: #98a1b1;
+  --c-brand: #6366f1;
+  --c-brand-strong: #4f46e5;
+  --c-brand-soft: color-mix(in oklab, var(--c-brand) 14%, white);
+  --c-danger: #e11d48;
+  --c-warn: #d97706;
+  --c-ok: #059669;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-base: #0e1016;
+    --c-surface: #161922;
+    --c-elevated: #1d212c;
+    --c-line: #2a2f3c;
+    --c-ink: #e7eaf0;
+    --c-muted: #a3acbd;
+    --c-faint: #6b7486;
+    --c-brand: #818cf8;
+    --c-brand-strong: #6366f1;
+    --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
+    --c-danger: #fb7185;
+    --c-warn: #fbbf24;
+    --c-ok: #34d399;
+    color-scheme: dark;
+
+    /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */
+    --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6);
+  }
+}
+
+/* Default border colour for the bare `border` utility. */
+*,
+*::before,
+*::after {
+  border-color: var(--color-line);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--color-base);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-brand);
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-brand) 28%, transparent);
+}
+
+/* Thin, theme-aware scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-faint) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-faint) 55%, transparent);
+  border-radius: 9999px;
+}
+
+/* Drop-target row highlight while dragging an allocation between rows. */
+[data-droptarget] {
+  background: color-mix(in oklab, var(--color-brand) 9%, transparent);
+  box-shadow: inset 0 0 0 2px var(--color-brand);
+}
+
+@keyframes floaty-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes floaty-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

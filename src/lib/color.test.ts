@@ -1,0 +1,61 @@
+import { describe, it, expect } from 'vitest'
+import { resolveBarColor, readableTextColor, contrastRatio } from './color'
+import { emptyAppData } from '../types/entities'
+import type { AppData } from '../types/entities'
+
+function dataWith(projectColor: string, clientColor = '#client'): AppData {
+  return {
+    ...emptyAppData(),
+    clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'Acme', color: clientColor }],
+    projects: [{ id: 'p1', createdAt: 't', updatedAt: 't', name: 'P', clientId: 'c1', color: projectColor }],
+    tasks: [{ id: 't1', createdAt: 't', updatedAt: 't', name: 'T', projectId: 'p1' }],
+    resources: [{ id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#resource' }],
+  }
+}
+
+const alloc = { id: 'a1', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' as const }
+
+describe('resolveBarColor', () => {
+  it('prefers the project colour', () => {
+    expect(resolveBarColor(alloc, dataWith('#project'))).toBe('#project')
+  })
+
+  it('falls back to the client colour when the project has none', () => {
+    expect(resolveBarColor(alloc, dataWith('', '#client'))).toBe('#client')
+  })
+
+  it('falls back to the resource colour when project and client have none', () => {
+    expect(resolveBarColor(alloc, dataWith('', ''))).toBe('#resource')
+  })
+
+  it('uses a neutral grey when nothing resolves', () => {
+    expect(resolveBarColor(alloc, emptyAppData())).toBe('#9ca3af')
+  })
+})
+
+describe('readableTextColor', () => {
+  it('uses dark ink on light backgrounds', () => {
+    expect(readableTextColor('#ffffff')).toBe('#1c2230')
+    expect(readableTextColor('#fbbf24')).toBe('#1c2230') // amber
+  })
+  it('uses white on dark/saturated backgrounds', () => {
+    expect(readableTextColor('#1c2230')).toBe('#ffffff')
+    expect(readableTextColor('#4f46e5')).toBe('#ffffff') // indigo
+  })
+  it('falls back to dark ink for malformed input', () => {
+    expect(readableTextColor('#abc')).toBe('#1c2230')
+    expect(readableTextColor('not-a-color')).toBe('#1c2230')
+  })
+})
+
+describe('contrastRatio', () => {
+  it('black on white is the maximum ~21:1', () => {
+    expect(contrastRatio('#000000', '#ffffff')).toBeGreaterThan(20)
+  })
+  it('identical colours are 1:1', () => {
+    expect(contrastRatio('#777777', '#777777')).toBeCloseTo(1)
+  })
+  it('returns 1 for malformed input', () => {
+    expect(contrastRatio('nope', '#ffffff')).toBe(1)
+  })
+})

@@ -1,0 +1,116 @@
+// Core domain types for Floaty. Pure data shapes — no behaviour lives here.
+
+export type ID = string // crypto.randomUUID()
+export type ISODate = string // date-only, "YYYY-MM-DD"
+export type ISOTimestamp = string // full ISO datetime, e.g. new Date().toISOString()
+
+/** 0 = Sunday … 6 = Saturday (matches JS Date.getDay()). */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
+
+export type AllocationStatus = 'confirmed' | 'tentative' | 'completed'
+export type ResourceKind = 'person' | 'placeholder'
+export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
+export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
+
+/** Fields every persisted entity carries — cheap now, impossible to backfill later. */
+export interface Entity {
+  id: ID
+  createdAt: ISOTimestamp
+  updatedAt: ISOTimestamp
+}
+
+export interface Discipline extends Entity {
+  name: string
+  color?: string
+  sortOrder: number // controls grouping order in the scheduler
+}
+
+export interface Resource extends Entity {
+  kind: ResourceKind
+  /** Optional: placeholders may be nameless (shown by `role`). */
+  name?: string
+  /** e.g. "Senior Designer" — the label used for nameless placeholders. */
+  role: string
+  disciplineId?: ID
+  employmentType: EmploymentType
+  workingHoursPerDay: number
+  /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. */
+  workingDays: Weekday[]
+  /** PLACEHOLDERS ONLY: the single project a placeholder is bound to. */
+  projectId?: ID
+  color: string
+}
+
+export interface Client extends Entity {
+  name: string
+  color: string
+}
+
+export interface Project extends Entity {
+  name: string
+  clientId: ID // REQUIRED — a project must belong to a client
+  color: string
+}
+
+export interface Phase extends Entity {
+  name: string
+  projectId: ID
+}
+
+export interface Task extends Entity {
+  name: string
+  projectId: ID
+  phaseId?: ID
+}
+
+export interface Allocation extends Entity {
+  resourceId: ID
+  taskId: ID
+  startDate: ISODate // inclusive
+  endDate: ISODate // inclusive
+  hoursPerDay: number
+  status: AllocationStatus
+  note?: string
+  // future-additive (NOT built in v1): startTime?/endTime? for "9am–1pm" allocations
+}
+
+export interface TimeOff extends Entity {
+  resourceId: ID
+  startDate: ISODate // inclusive
+  endDate: ISODate // inclusive
+  type: TimeOffType
+  note?: string
+}
+
+export interface AppData {
+  disciplines: Discipline[]
+  resources: Resource[]
+  clients: Client[]
+  projects: Project[]
+  phases: Phase[]
+  tasks: Task[]
+  allocations: Allocation[]
+  timeOff: TimeOff[]
+}
+
+/** Bump when the persisted shape changes; drives data/migrate.ts. */
+export const SCHEMA_VERSION = 2
+
+export interface PersistedState {
+  schemaVersion: number
+  data: AppData
+}
+
+/** A fresh, empty dataset — the starting point before seeding. */
+export function emptyAppData(): AppData {
+  return {
+    disciplines: [],
+    resources: [],
+    clients: [],
+    projects: [],
+    phases: [],
+    tasks: [],
+    allocations: [],
+    timeOff: [],
+  }
+}
