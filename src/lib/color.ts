@@ -55,3 +55,50 @@ export function readableTextColor(hex: string): string {
   const contrastDark = (Math.max(bg, DARK_INK_LUM) + 0.05) / (Math.min(bg, DARK_INK_LUM) + 0.05)
   return contrastWhite >= contrastDark ? LIGHT_INK : DARK_INK
 }
+
+const AA_NORMAL = 4.5
+
+function toRgb(hex: string): [number, number, number] | null {
+  const c = hex.replace('#', '')
+  if (c.length < 6) return null
+  const r = parseInt(c.slice(0, 2), 16)
+  const g = parseInt(c.slice(2, 4), 16)
+  const b = parseInt(c.slice(4, 6), 16)
+  return [r, g, b].some(Number.isNaN) ? null : [r, g, b]
+}
+
+const toHex = (r: number, g: number, b: number) =>
+  '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')
+
+/**
+ * Bar label legibility: many mid-tone colours give neither white nor dark ink a
+ * 4.5:1 ratio (e.g. the default indigo/blue/purple all land ~4.0–4.5). Keep the
+ * chosen hue but nudge its lightness — darker under white ink, lighter under dark
+ * ink — until the label clears WCAG AA. Returns the adjusted background + its ink.
+ */
+export function ensureBarColors(hex: string): { bg: string; ink: string } {
+  const rgb = toRgb(hex)
+  const ink = readableTextColor(hex)
+  if (!rgb) return { bg: FALLBACK, ink: readableTextColor(FALLBACK) }
+  let [r, g, b] = rgb
+  const darken = ink === LIGHT_INK
+  let bg = hex
+  for (let i = 0; i < 30 && contrastRatio(bg, ink) < AA_NORMAL; i++) {
+    if (darken) {
+      r *= 0.92
+      g *= 0.92
+      b *= 0.92
+    } else {
+      r += (255 - r) * 0.12
+      g += (255 - g) * 0.12
+      b += (255 - b) * 0.12
+    }
+    bg = toHex(r, g, b)
+  }
+  return { bg, ink }
+}
+
+/** True when 6-digit hex `#rrggbb`. Used to validate user colour input. */
+export function isHexColor(value: string): boolean {
+  return /^#[0-9a-fA-F]{6}$/.test(value.trim())
+}

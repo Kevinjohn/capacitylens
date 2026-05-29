@@ -105,8 +105,9 @@ test.describe('Feature flows', () => {
     await page.mouse.up()
 
     // Opens the time-off form (not the allocation modal), prefilled with the row's resource.
-    await expect(page.getByRole('dialog', { name: 'Add time off' })).toBeVisible()
-    await expect(page.getByLabel('Resource')).toHaveValue('r-nike')
+    const dialog = page.getByRole('dialog', { name: 'Add time off' })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByLabel('Resource')).toHaveValue('r-nike')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0)
   })

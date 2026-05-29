@@ -47,6 +47,14 @@ describe('SchedulerGrid', () => {
     expect(screen.getByText(/Wireframes/)).toBeInTheDocument()
   })
 
+  it('exposes grid semantics + an sr-only capacity summary for screen readers', () => {
+    render(<SchedulerGrid />)
+    expect(screen.getByRole('grid', { name: 'Resource schedule' })).toBeInTheDocument()
+    expect(screen.getAllByRole('row').length).toBeGreaterThan(0)
+    expect(screen.getByRole('rowheader', { name: /Tyler/ })).toBeInTheDocument()
+    expect(screen.getByText(/1 allocation\./)).toBeInTheDocument() // sr-only row summary
+  })
+
   it('marks over-allocated days and shows a utilization figure', () => {
     // Tyler has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({

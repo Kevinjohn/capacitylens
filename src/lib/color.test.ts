@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { resolveBarColor, readableTextColor, contrastRatio } from './color'
+import { resolveBarColor, readableTextColor, contrastRatio, ensureBarColors, isHexColor } from './color'
+import { DEFAULT_COLORS } from './palette'
 import { emptyAppData } from '../types/entities'
 import type { AppData } from '../types/entities'
 
@@ -45,6 +46,34 @@ describe('readableTextColor', () => {
   it('falls back to dark ink for malformed input', () => {
     expect(readableTextColor('#abc')).toBe('#1c2230')
     expect(readableTextColor('not-a-color')).toBe('#1c2230')
+  })
+})
+
+describe('ensureBarColors', () => {
+  it('guarantees the label clears WCAG AA (4.5:1) for every default colour', () => {
+    for (const hex of Object.values(DEFAULT_COLORS)) {
+      const { bg, ink } = ensureBarColors(hex)
+      expect(contrastRatio(bg, ink)).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+  it('leaves an already-compliant colour effectively unchanged', () => {
+    const { bg, ink } = ensureBarColors('#000000')
+    expect(ink).toBe('#ffffff')
+    expect(contrastRatio(bg, ink)).toBeGreaterThanOrEqual(4.5)
+  })
+  it('falls back for malformed input', () => {
+    const { bg, ink } = ensureBarColors('nope')
+    expect(contrastRatio(bg, ink)).toBeGreaterThan(1)
+  })
+})
+
+describe('isHexColor', () => {
+  it('accepts 6-digit hex and rejects everything else', () => {
+    expect(isHexColor('#3b82f6')).toBe(true)
+    expect(isHexColor('#ABCDEF')).toBe(true)
+    expect(isHexColor('#abc')).toBe(false)
+    expect(isHexColor('3b82f6')).toBe(false)
+    expect(isHexColor('rgb(0,0,0)')).toBe(false)
   })
 })
 

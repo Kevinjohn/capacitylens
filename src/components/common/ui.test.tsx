@@ -84,6 +84,15 @@ describe('Modal', () => {
     expect(screen.getByText('Content')).toBeInTheDocument()
   })
 
+  it('exposes the title as a navigable heading (aria-labelledby)', () => {
+    render(
+      <Modal title="Heady" onClose={vi.fn()}>
+        <p>Body</p>
+      </Modal>,
+    )
+    expect(screen.getByRole('heading', { name: 'Heady' })).toBeInTheDocument()
+  })
+
   it('calls onClose when Escape is pressed', () => {
     const onClose = vi.fn()
     render(

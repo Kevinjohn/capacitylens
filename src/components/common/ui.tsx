@@ -1,5 +1,6 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { isTemporary } from '../../lib/integrity'
+import { isHexColor } from '../../lib/color'
 import type { Resource, Weekday } from '../../types/entities'
 
 // Shared presentational kit. Colours come from semantic tokens (see index.css),
@@ -57,6 +58,7 @@ export function Modal({
   footer?: ReactNode
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
 
   // Read onClose through a ref so the focus effect can run exactly once on open —
   // otherwise a store mutation while the dialog is open (e.g. "Add task") mints a
@@ -117,11 +119,15 @@ export function Modal({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-labelledby={titleId}
         tabIndex={-1}
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[floaty-pop_0.16s_ease-out]"
       >
-        <header className="border-b px-4 py-3 text-base font-semibold">{title}</header>
+        <header className="border-b px-4 py-3">
+          <h2 id={titleId} className="text-base font-semibold">
+            {title}
+          </h2>
+        </header>
         <div className="space-y-3 p-4">{children}</div>
         {footer && <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">{footer}</footer>}
       </div>
@@ -347,6 +353,9 @@ export function ColorField({ label, value, onChange }: { label: string; value: s
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label={`${label} hex value`}
+          aria-invalid={!isHexColor(value)}
+          pattern="#[0-9a-fA-F]{6}"
+          title="6-digit hex colour, e.g. #3b82f6"
         />
       </span>
     </label>

@@ -31,7 +31,7 @@
   --c-line: #e6e8ee;
   --c-ink: #1c2230;
   --c-muted: #5b6472;
-  --c-faint: #98a1b1;
+  --c-faint: #6b7280; /* darkened from #98a1b1 to clear WCAG AA (~4.5:1) for small text */
   --c-brand: #6366f1;
   --c-brand-strong: #4f46e5;
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 14%, white);
@@ -49,7 +49,7 @@
     --c-line: #2a2f3c;
     --c-ink: #e7eaf0;
     --c-muted: #a3acbd;
-    --c-faint: #6b7486;
+    --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
     --c-brand: #818cf8;
     --c-brand-strong: #6366f1;
     --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);

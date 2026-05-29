@@ -41,6 +41,21 @@ describe('AllocationBar interactions', () => {
     expect(onEdit).toHaveBeenCalled()
   })
 
+  it('moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)', () => {
+    const a = seedAllocation() // 2026-06-01 → 2026-06-03
+    const { rerender } = render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
+    let moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+    expect([moved.startDate, moved.endDate]).toEqual(['2026-06-02', '2026-06-04'])
+
+    // Reflect the new dates in the bar prop (as the grid would re-render), then resize the end.
+    rerender(<AllocationBar bar={barFor(moved)} dayWidth={48} onEdit={vi.fn()} />)
+    fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
+    moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+    expect([moved.startDate, moved.endDate]).toEqual(['2026-06-02', '2026-06-05']) // end extended, start fixed
+  })
+
   it('commits a move drag to the store (shifts both dates by a day)', () => {
     const a = seedAllocation()
     render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)

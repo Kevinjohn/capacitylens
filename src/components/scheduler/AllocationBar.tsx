@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DragMode } from '../../lib/gestureMath'
-import { readableTextColor } from '../../lib/color'
+import { ensureBarColors } from '../../lib/color'
 import { parseDate } from '../../lib/dateMath'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
@@ -126,7 +126,19 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
   const dragging = preview !== null
   const tentative = bar.allocation.status === 'tentative'
   const completed = bar.allocation.status === 'completed'
-  const textColor = readableTextColor(bar.color)
+  // Nudge the bar colour so the label clears WCAG AA against its ink (many mid-tones don't).
+  const { bg, ink } = ensureBarColors(bar.color)
+
+  // Keyboard equivalent of drag: ←/→ move a day, Shift+←/→ resize the end a day.
+  const nudge = (mode: DragMode, delta: number) => {
+    const next = applyGesture(mode, { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }, delta)
+    if (next.endDate < next.startDate) return
+    try {
+      updateAllocation(bar.allocation.id, next)
+    } catch {
+      /* e.g. integrity rejected — ignore, the bar stays put */
+    }
+  }
 
   const fmt = (d: string) => format(parseDate(d), 'd MMM')
   const gripClass = 'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center'
@@ -141,7 +153,7 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
         data-status={bar.allocation.status}
         role="button"
         tabIndex={0}
-        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Press Enter to edit.`}
+        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize.`}
         onPointerDown={(e) => {
           hidePopover()
           lanesRef.current = snapshotLanes()
@@ -155,6 +167,9 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
             onEdit()
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault()
+            nudge(e.shiftKey ? 'resize-end' : 'move', e.key === 'ArrowRight' ? 1 : -1)
           }
         }}
         className={`group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}
@@ -163,10 +178,11 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
           width,
           top: bar.top,
           height: LAYOUT.barHeight,
-          backgroundColor: bar.color,
-          color: textColor,
-          opacity: tentative ? 0.62 : 1,
-          border: tentative ? `1px dashed ${textColor}` : undefined,
+          backgroundColor: bg,
+          color: ink,
+          // Tentative is signalled by the dashed border + hatch overlay below — NOT by
+          // element opacity, which used to wash out the label and break its contrast.
+          border: tentative ? `1px dashed ${ink}` : undefined,
           transform: translateY ? `translateY(${translateY}px)` : undefined,
           zIndex: dragging ? 50 : undefined,
           cursor: dragging ? 'grabbing' : 'grab',
@@ -176,6 +192,13 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
         <span data-handle="start" data-testid="resize-start" className={`left-0 ${gripClass}`}>
           {gripLine}
         </span>
+        {tentative && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{ background: 'repeating-linear-gradient(45deg, color-mix(in oklab, currentColor 16%, transparent) 0 4px, transparent 4px 8px)' }}
+          />
+        )}
         <span className="truncate px-2.5">
           {completed ? '✓ ' : ''}
           {bar.label} · {bar.allocation.hoursPerDay}h
@@ -196,7 +219,7 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
             style={{ left: pop.left, top: pop.top }}
           >
             <div className="mb-1 flex items-center gap-2">
-              <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bar.color }} />
+              <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bg }} />
               <span className="font-semibold">{bar.label}</span>
             </div>
             {(bar.project || bar.client) && (

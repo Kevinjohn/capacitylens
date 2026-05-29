@@ -84,6 +84,7 @@ export function ResourceLane({
       ref={laneRef}
       data-testid="resource-lane"
       data-resource-id={resourceId}
+      role="gridcell"
       className="relative shrink-0 transition-colors"
       style={{ width: totalWidth, height: rowHeight }}
       onPointerDown={onPointerDown}

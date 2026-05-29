@@ -104,9 +104,17 @@ export function SchedulerGrid() {
     : 0
 
   return (
-    <div ref={scrollRef} className="relative h-full overflow-auto" data-testid="scheduler-grid">
-      <div className="sticky top-0 z-20 flex border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
+    <div
+      ref={scrollRef}
+      className="relative h-full overflow-auto"
+      data-testid="scheduler-grid"
+      role="grid"
+      aria-label="Resource schedule"
+      aria-rowcount={allRows.length}
+    >
+      <div role="row" className="sticky top-0 z-20 flex border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
         <div
+          role="columnheader"
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
           style={{ width: LAYOUT.leftColWidth }}
         >
@@ -139,6 +147,7 @@ export function SchedulerGrid() {
       {model.map((group) => (
         <div key={group.key}>
           <div
+            role="row"
             data-testid="discipline-group"
             className="flex border-y border-line bg-surface"
             style={{ height: LAYOUT.groupHeaderHeight }}
@@ -168,11 +177,18 @@ export function SchedulerGrid() {
 
           {!ui.collapsedGroups.includes(group.key) &&
             group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon }) => (
-            <div key={resource.id} data-testid="scheduler-row" className="flex border-b border-line" style={{ height: rowHeight }}>
+            <div key={resource.id} role="row" data-testid="scheduler-row" className="flex border-b border-line" style={{ height: rowHeight }}>
               <div
+                role="rowheader"
                 className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-3"
                 style={{ width: LAYOUT.leftColWidth }}
               >
+                {/* Text equivalent of the colour-only capacity cues (over-marker, time-off tint). */}
+                <span className="sr-only">
+                  {overSoon ? 'Overbooked in the next two weeks. ' : ''}
+                  {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
+                  {bars.length} allocation{bars.length === 1 ? '' : 's'}.
+                </span>
                 <Avatar name={resource.name ?? resource.role} color={resource.color} />
                 <div className="min-w-0 flex-1">
                   <span className="flex items-center gap-1 truncate text-sm font-medium">
