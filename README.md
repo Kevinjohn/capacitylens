@@ -8,9 +8,15 @@ server, no accounts, no per-seat pricing.
 - Manage **resources** (people **and** unnamed placeholders) grouped by **discipline**,
   **clients → projects → phases → tasks**, and **time off**.
 - A **timeline scheduler**: draw / drag / resize allocations, lane-stacking, per-day
-  **capacity** with over-allocation flags, **utilisation %**, time-off blocks, a today line,
-  **collapsible** discipline groups, and **drag-between-rows** reassignment (with a
-  drop-target highlight).
+  **capacity** with over-allocation flags, a near-term **load %** (red when overbooked in the
+  next two weeks), time-off blocks, a today line, **collapsible** discipline groups,
+  **drag-between-rows** reassignment (with a drop-target highlight and a toast when a move is
+  rejected), and a **hover/focus detail popover** on each bar.
+- **Multi-week zoom** (1 / 2 / 4 / 6 / 8 weeks), a **jump-to-date** picker, a **Today**
+  re-centre, and a **Work / Time-off draw mode** so you can draw time off on the timeline too.
+- **Keyboard & screen-reader support**: bars are focusable (Enter edits, arrows move, Shift+arrow
+  resizes), the grid exposes row/cell semantics with per-row capacity summaries, labels meet
+  WCAG AA contrast, and an axe check guards it (`e2e/a11y.spec.ts`).
 - **Filters** (discipline / client / project / search / hide-tentative), **undo/redo**,
   **JSON import/export**, and automatic **dark mode**.
 
@@ -42,5 +48,6 @@ Playwright.
 - **Design tokens** in `src/index.css` (`@theme` + CSS custom properties) drive light/dark.
 
 ## Project docs
-- **`DECISIONS.md`** — running log of design and judgement calls.
-- **`ZOOM_PLAN.md`** — plan for the multi-week (1 / 2 / 4 / 6 / 8) timeline zoom *(in progress)*.
+- **`DECISIONS.md`** — running log of design and judgement calls (incl. the grumpy multi-agent
+  review and the bug / DX / UX / perf / a11y passes that followed).
+- **`ZOOM_PLAN.md`** — the original plan for the multi-week timeline zoom *(shipped)*.

@@ -40,7 +40,7 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
   const totalWidth = days.length * dayWidth
 
   return (
-    <div className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
+    <div role="columnheader" aria-label="Dates" className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
       {/* Month tier */}
       <div className="flex border-b border-line" style={{ height: 16 }}>
         {monthSpans(days).map((m) => (
@@ -67,7 +67,7 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
               <div
                 key={d}
                 className={`flex flex-col items-center justify-center text-xs ${weekStart ? 'border-l border-line' : ''} ${
-                  isToday ? 'bg-brand-soft font-semibold text-brand' : weekend ? 'bg-base text-faint' : 'text-muted'
+                  isToday ? 'bg-brand-soft font-semibold text-ink' : weekend ? 'bg-base text-muted' : 'text-muted'
                 }`}
                 style={{ width: dayWidth }}
               >

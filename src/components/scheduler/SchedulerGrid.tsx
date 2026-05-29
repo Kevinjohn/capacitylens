@@ -110,7 +110,6 @@ export function SchedulerGrid() {
       data-testid="scheduler-grid"
       role="grid"
       aria-label="Resource schedule"
-      aria-rowcount={allRows.length}
     >
       <div role="row" className="sticky top-0 z-20 flex border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
         <div
@@ -145,30 +144,31 @@ export function SchedulerGrid() {
       )}
 
       {model.map((group) => (
-        <div key={group.key}>
+        <div key={group.key} role="rowgroup">
           <div
             role="row"
             data-testid="discipline-group"
             className="flex border-y border-line bg-surface"
             style={{ height: LAYOUT.groupHeaderHeight }}
           >
-            <button
-              type="button"
-              onClick={() => toggleGroup(group.key)}
-              aria-expanded={!ui.collapsedGroups.includes(group.key)}
-              className="sticky left-0 z-10 flex shrink-0 items-center gap-2 bg-surface px-3 text-xs font-semibold uppercase tracking-wide hover:bg-base"
-              style={{ width: LAYOUT.leftColWidth }}
-            >
-              <span className="text-faint" aria-hidden>
-                {ui.collapsedGroups.includes(group.key) ? '▸' : '▾'}
-              </span>
-              <span
-                className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
-                style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
-              />
-              <span className="truncate text-ink">{group.title}</span>
-            </button>
-            <div className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
+            <div role="rowheader" className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.key)}
+                aria-expanded={!ui.collapsedGroups.includes(group.key)}
+                className="flex h-full w-full items-center gap-2 bg-surface px-3 text-xs font-semibold uppercase tracking-wide hover:bg-base"
+              >
+                <span className="text-faint" aria-hidden>
+                  {ui.collapsedGroups.includes(group.key) ? '▸' : '▾'}
+                </span>
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
+                  style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
+                />
+                <span className="truncate text-ink">{group.title}</span>
+              </button>
+            </div>
+            <div role="gridcell" className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
               {ui.collapsedGroups.includes(group.key)
                 ? `${group.rows.length} hidden`
                 : `${group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0}% avg load`}

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { isTemporary } from '../../lib/integrity'
-import { isHexColor } from '../../lib/color'
+import { ensureBarColors, isHexColor } from '../../lib/color'
 import type { Resource, Weekday } from '../../types/entities'
 
 // Shared presentational kit. Colours come from semantic tokens (see index.css),
@@ -124,7 +124,9 @@ export function Modal({
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[floaty-pop_0.16s_ease-out]"
       >
         <header className="border-b px-4 py-3">
-          <h2 id={titleId} className="text-base font-semibold">
+          {/* NB: `text-base` is a COLOUR utility here (--color-base is a registered token),
+              not a font size — use an explicit size so the title inherits the dark ink. */}
+          <h2 id={titleId} className="text-[1rem] font-semibold">
             {title}
           </h2>
         </header>
@@ -405,7 +407,7 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
 export function TemporaryTag({ resource }: { resource: Resource }) {
   if (!isTemporary(resource)) return null
   return (
-    <span className="rounded border border-warn/40 bg-warn/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warn">
+    <span className="rounded border border-warn/40 bg-warn/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
       Temp
     </span>
   )
@@ -424,11 +426,13 @@ export function Avatar({ name, color, size = 28 }: { name: string; color: string
       .slice(0, 2)
       .join('')
       .toUpperCase() || '—'
+  // Keep the initials legible (white-on-mid-tone often fails AA) by nudging the fill.
+  const { bg, ink } = ensureBarColors(color)
   return (
     <span
       aria-hidden
-      style={{ width: size, height: size, backgroundColor: color }}
-      className="inline-flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold text-white ring-2 ring-surface"
+      style={{ width: size, height: size, backgroundColor: bg, color: ink }}
+      className="inline-flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ring-2 ring-surface"
     >
       {initials}
     </span>

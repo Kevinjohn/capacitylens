@@ -46,7 +46,7 @@ export function AppShell() {
   return (
     <div className="flex h-full">
       <nav className="w-48 shrink-0 border-r border-line bg-surface p-3">
-        <div className="mb-4 px-2 text-lg font-bold text-brand">Floaty</div>
+        <div className="mb-4 px-2 text-xl font-bold text-brand">Floaty</div>
         <ul className="space-y-1">
           {LINKS.map(([to, label]) => (
             <li key={to}>
@@ -55,7 +55,7 @@ export function AppShell() {
                 end={to === '/'}
                 className={({ isActive }) =>
                   `block rounded px-2 py-1.5 text-sm ${
-                    isActive ? 'bg-brand-soft font-medium text-brand' : 'text-ink hover:bg-base'
+                    isActive ? 'bg-brand-soft font-semibold text-ink' : 'text-ink hover:bg-base'
                   }`
                 }
               >
