@@ -53,14 +53,19 @@ export function hasActiveFilters(f: Filters): boolean {
   return !!f.disciplineId || !!f.clientId || !!f.projectId || f.search.trim() !== '' || f.hideTentative
 }
 
+/** What a draw-on-a-lane gesture creates. */
+export type DrawMode = 'work' | 'timeoff'
+
 export interface SchedulerUI {
   zoom: WeeksZoom // number of weeks visible; day-column width is derived from it
   originDate: ISODate
   rangeDays: number
+  focusDate: ISODate // the date the grid scrolls to when recenterToken bumps
+  drawMode: DrawMode // draw-to-create makes an allocation ('work') or time off
   selectedAllocationId: ID | null
   filters: Filters
   collapsedGroups: string[] // discipline group keys that are collapsed
-  recenterToken: number // bumped to ask the grid to scroll "today" back into view
+  recenterToken: number // bumped to ask the grid to scroll focusDate back into view
 }
 
 export interface StoreState {
@@ -115,6 +120,8 @@ export interface StoreState {
   setOriginDate: (date: ISODate) => void
   panDays: (delta: number) => void
   goToToday: () => void
+  goToDate: (date: ISODate) => void
+  setDrawMode: (mode: DrawMode) => void
   selectAllocation: (id: ID | null) => void
   setFilters: (patch: Partial<Filters>) => void
   clearFilters: () => void
@@ -131,6 +138,8 @@ const defaultUI = (): SchedulerUI => ({
   zoom: DEFAULT_ZOOM,
   originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS),
   rangeDays: DEFAULT_RANGE_DAYS,
+  focusDate: todayISO(),
+  drawMode: 'work',
   selectedAllocationId: null,
   filters: emptyFilters(),
   collapsedGroups: [],
@@ -267,9 +276,20 @@ export const useStore = create<StoreState>()((set, get) => {
         ui: {
           ...s.ui,
           originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS),
+          focusDate: todayISO(),
           recenterToken: s.ui.recenterToken + 1,
         },
       })),
+    goToDate: (date) =>
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          originDate: addDaysISO(date, DEFAULT_ORIGIN_OFFSET_DAYS),
+          focusDate: date,
+          recenterToken: s.ui.recenterToken + 1,
+        },
+      })),
+    setDrawMode: (mode) => set((s) => ({ ui: { ...s.ui, drawMode: mode } })),
     selectAllocation: (id) => set((s) => ({ ui: { ...s.ui, selectedAllocationId: id } })),
     setFilters: (patch) => set((s) => ({ ui: { ...s.ui, filters: { ...s.ui.filters, ...patch } } })),
     clearFilters: () => set((s) => ({ ui: { ...s.ui, filters: emptyFilters() } })),

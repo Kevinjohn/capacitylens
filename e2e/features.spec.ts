@@ -87,6 +87,30 @@ test.describe('Feature flows', () => {
     await expect(nikeLane).not.toHaveAttribute('data-droptarget', '')
   })
 
+  test('drawing in Time off mode opens a prefilled time-off form', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByTestId('scheduler-grid').evaluate((el) => {
+      ;(el as HTMLElement).scrollLeft = 0
+    })
+    // Toolbar draw-mode toggle (a button — distinct from the "Time off" nav link).
+    await page.getByRole('button', { name: 'Time off', exact: true }).click()
+
+    const lane = page.locator('[data-resource-id="r-nike"]')
+    const b = await box(lane)
+    const y = b.y + b.height / 2
+    await page.mouse.move(b.x + 8, y)
+    await page.mouse.down()
+    await page.mouse.move(b.x + 80, y, { steps: 6 })
+    await page.mouse.up()
+
+    // Opens the time-off form (not the allocation modal), prefilled with the row's resource.
+    await expect(page.getByRole('dialog', { name: 'Add time off' })).toBeVisible()
+    await expect(page.getByLabel('Resource')).toHaveValue('r-nike')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0)
+  })
+
   test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
     await page.goto('/')
     await page.getByRole('button', { name: '4w', exact: true }).click()

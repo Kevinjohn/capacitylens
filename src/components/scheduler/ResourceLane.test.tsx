@@ -118,6 +118,20 @@ describe('ResourceLane draw interaction', () => {
     expect(endDate).toBe('2026-06-03')
   })
 
+  it('treats a bare click (no movement) as a no-op rather than drawing', () => {
+    const { onDraw } = renderLane()
+    const lane = screen.getByTestId('resource-lane')
+    lane.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 1000, bottom: 64, width: 1000, height: 64, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
+
+    fireEvent.pointerDown(lane, { clientX: 30, button: 0 })
+    act(() => {
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 30, bubbles: true }))
+    })
+
+    expect(onDraw).not.toHaveBeenCalled()
+  })
+
   it('does not call onDraw when pointerDown uses a non-primary button', () => {
     const { onDraw } = renderLane()
     const lane = screen.getByTestId('resource-lane')

@@ -6,6 +6,9 @@ import { LAYOUT } from './layout'
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
 import type { ID, ISODate } from '../../types/entities'
 
+/** Min pointer travel to treat a lane gesture as a draw (vs a bare click). */
+const DRAW_THRESHOLD_PX = 4
+
 export function ResourceLane({
   resourceId,
   days,
@@ -46,6 +49,7 @@ export function ResourceLane({
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
+    const startX = e.clientX
     const start = indexAt(e.clientX)
     setDraw({ a: start, b: start })
     const onMove = (ev: PointerEvent) => setDraw({ a: start, b: indexAt(ev.clientX) })
@@ -57,8 +61,11 @@ export function ResourceLane({
     }
     const onUp = (ev: PointerEvent) => {
       detach()
-      const end = indexAt(ev.clientX)
       setDraw(null)
+      // A bare click (sub-threshold) is a no-op — matches the bar's click/drag split and
+      // avoids popping a "New …" modal on a stray click. Use the row "+" for single-day.
+      if (Math.abs(ev.clientX - startX) < DRAW_THRESHOLD_PX) return
+      const end = indexAt(ev.clientX)
       onDraw(resourceId, addDaysISO(origin, Math.min(start, end)), addDaysISO(origin, Math.max(start, end)))
     }
     const onCancel = () => {

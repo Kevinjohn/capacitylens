@@ -19,6 +19,20 @@ const barFor = (allocation: Allocation): BarLayout => ({ allocation, x: 0, width
 beforeEach(() => useStore.getState().replaceAll(emptyAppData()))
 
 describe('AllocationBar interactions', () => {
+  it('shows a detail popover on hover and hides it on leave', () => {
+    const a = seedAllocation()
+    render(<AllocationBar bar={{ ...barFor(a), project: 'Project Lightning', client: 'Acme' }} dayWidth={48} onEdit={vi.fn()} />)
+    const bar = screen.getByTestId('allocation-bar')
+
+    expect(screen.queryByTestId('allocation-popover')).toBeNull()
+    fireEvent.mouseEnter(bar)
+    const pop = screen.getByTestId('allocation-popover')
+    expect(pop).toHaveTextContent('Project Lightning')
+    expect(pop).toHaveTextContent('Acme')
+    fireEvent.mouseLeave(bar)
+    expect(screen.queryByTestId('allocation-popover')).toBeNull()
+  })
+
   it('opens the editor on Enter (keyboard operable)', () => {
     const a = seedAllocation()
     const onEdit = vi.fn()

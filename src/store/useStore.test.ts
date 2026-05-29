@@ -100,6 +100,21 @@ describe('store scheduler UI', () => {
     expect(s().notice).toBeNull()
   })
 
+  it('goToDate sets focusDate + origin and bumps recenterToken', () => {
+    const before = s().ui.recenterToken
+    s().goToDate('2026-08-15')
+    expect(s().ui.focusDate).toBe('2026-08-15')
+    expect(s().ui.recenterToken).toBe(before + 1)
+    expect(s().ui.originDate < '2026-08-15').toBe(true) // offset back for lead context
+  })
+
+  it('setDrawMode toggles between work and time off', () => {
+    s().setDrawMode('timeoff')
+    expect(s().ui.drawMode).toBe('timeoff')
+    s().setDrawMode('work')
+    expect(s().ui.drawMode).toBe('work')
+  })
+
   it('toggleGroup collapses and expands a discipline', () => {
     s().toggleGroup('d-design')
     expect(s().ui.collapsedGroups).toContain('d-design')

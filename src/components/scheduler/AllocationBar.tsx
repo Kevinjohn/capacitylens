@@ -1,8 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DragMode } from '../../lib/gestureMath'
 import { readableTextColor } from '../../lib/color'
+import { parseDate } from '../../lib/dateMath'
+import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
 import type { BarLayout } from './schedulerModel'
 
@@ -30,6 +34,14 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
   const updateAllocation = useStore((s) => s.updateAllocation)
   const setNotice = useStore((s) => s.setNotice)
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
+  const [pop, setPop] = useState<{ left: number; top: number } | null>(null)
+  const showPopover = () => {
+    const r = barRef.current?.getBoundingClientRect()
+    if (r) setPop({ left: r.left, top: r.bottom + 6 })
+  }
+  const hidePopover = () => setPop(null)
 
   // Clear any drop highlight if this bar unmounts mid-drag (e.g. undo).
   useEffect(() => () => markDropTarget(null), [])
@@ -93,44 +105,90 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
   const completed = bar.allocation.status === 'completed'
   const textColor = readableTextColor(bar.color)
 
+  const fmt = (d: string) => format(parseDate(d), 'd MMM')
+  const gripClass = 'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center'
+  const gripLine = <span aria-hidden className="pointer-events-none h-4 w-0.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-60" />
+
   return (
-    <div
-      data-testid="allocation-bar"
-      data-alloc-id={bar.allocation.id}
-      data-status={bar.allocation.status}
-      role="button"
-      tabIndex={0}
-      aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Press Enter to edit.`}
-      onPointerDown={onPointerDown}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          onEdit()
-        }
-      }}
-      title={`${bar.label} · ${bar.allocation.hoursPerDay}h/day · ${bar.allocation.status}${bar.allocation.note ? ` · ${bar.allocation.note}` : ''}`}
-      className={`absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}
-      style={{
-        left,
-        width,
-        top: bar.top,
-        height: LAYOUT.barHeight,
-        backgroundColor: bar.color,
-        color: textColor,
-        opacity: tentative ? 0.62 : 1,
-        border: tentative ? `1px dashed ${textColor}` : undefined,
-        transform: translateY ? `translateY(${translateY}px)` : undefined,
-        zIndex: dragging ? 50 : undefined,
-        cursor: dragging ? 'grabbing' : 'grab',
-      }}
-    >
-      <span data-handle="start" data-testid="resize-start" className="absolute inset-y-0 left-0 w-1.5" style={{ cursor: 'ew-resize' }} />
-      <span className="truncate px-2">
-        {completed ? '✓ ' : ''}
-        {bar.label} · {bar.allocation.hoursPerDay}h
-        {bar.allocation.note ? ' •' : ''}
-      </span>
-      <span data-handle="end" data-testid="resize-end" className="absolute inset-y-0 right-0 w-1.5" style={{ cursor: 'ew-resize' }} />
-    </div>
+    <>
+      <div
+        ref={barRef}
+        data-testid="allocation-bar"
+        data-alloc-id={bar.allocation.id}
+        data-status={bar.allocation.status}
+        role="button"
+        tabIndex={0}
+        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Press Enter to edit.`}
+        onPointerDown={(e) => {
+          hidePopover()
+          onPointerDown(e)
+        }}
+        onMouseEnter={showPopover}
+        onMouseLeave={hidePopover}
+        onFocus={showPopover}
+        onBlur={hidePopover}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onEdit()
+          }
+        }}
+        className={`group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}
+        style={{
+          left,
+          width,
+          top: bar.top,
+          height: LAYOUT.barHeight,
+          backgroundColor: bar.color,
+          color: textColor,
+          opacity: tentative ? 0.62 : 1,
+          border: tentative ? `1px dashed ${textColor}` : undefined,
+          transform: translateY ? `translateY(${translateY}px)` : undefined,
+          zIndex: dragging ? 50 : undefined,
+          cursor: dragging ? 'grabbing' : 'grab',
+          touchAction: 'none', // bar drag/resize should win over the browser's touch-scroll
+        }}
+      >
+        <span data-handle="start" data-testid="resize-start" className={`left-0 ${gripClass}`}>
+          {gripLine}
+        </span>
+        <span className="truncate px-2.5">
+          {completed ? '✓ ' : ''}
+          {bar.label} · {bar.allocation.hoursPerDay}h
+          {bar.allocation.note ? ' •' : ''}
+        </span>
+        <span data-handle="end" data-testid="resize-end" className={`right-0 ${gripClass}`}>
+          {gripLine}
+        </span>
+      </div>
+
+      {pop &&
+        !dragging &&
+        createPortal(
+          <div
+            data-testid="allocation-popover"
+            aria-hidden
+            className="pointer-events-none fixed z-[60] w-60 rounded-lg bg-elevated p-3 text-xs text-ink shadow-pop ring-1 ring-line"
+            style={{ left: pop.left, top: pop.top }}
+          >
+            <div className="mb-1 flex items-center gap-2">
+              <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bar.color }} />
+              <span className="font-semibold">{bar.label}</span>
+            </div>
+            {(bar.project || bar.client) && (
+              <div className="mb-1 text-muted">
+                {bar.project}
+                {bar.project && bar.client ? ' · ' : ''}
+                {bar.client}
+              </div>
+            )}
+            <div className="text-muted">
+              {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)} · {bar.allocation.hoursPerDay}h/day · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
+            </div>
+            {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted">{bar.allocation.note}</div>}
+          </div>,
+          document.body,
+        )}
+    </>
   )
 }

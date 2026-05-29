@@ -3,16 +3,25 @@ import { useStore } from '../../store/useStore'
 import { todayISO } from '../../lib/dateMath'
 import { Button, DateField, FieldError, Modal, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS } from '../../lib/metadata'
-import type { TimeOff, TimeOffType } from '../../types/entities'
+import type { ISODate, TimeOff, TimeOffType } from '../../types/entities'
 
-export function TimeOffForm({ timeOff, onClose }: { timeOff?: TimeOff; onClose: () => void }) {
+export function TimeOffForm({
+  timeOff,
+  defaults,
+  onClose,
+}: {
+  timeOff?: TimeOff
+  /** Prefill for a new entry (e.g. drawn on the timeline). */
+  defaults?: { resourceId?: string; startDate?: ISODate; endDate?: ISODate }
+  onClose: () => void
+}) {
   const add = useStore((s) => s.addTimeOff)
   const update = useStore((s) => s.updateTimeOff)
   const resources = useStore((s) => s.data.resources)
 
-  const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? '')
-  const [startDate, setStartDate] = useState(timeOff?.startDate ?? todayISO())
-  const [endDate, setEndDate] = useState(timeOff?.endDate ?? todayISO())
+  const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? '')
+  const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO())
+  const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO())
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? 'holiday')
   const [note, setNote] = useState(timeOff?.note ?? '')
   const [error, setError] = useState<string | null>(null)

@@ -76,3 +76,16 @@ Five hostile specialist reviewers produced 43 findings (10 high). User-set fix p
 - Tests: +2 unit (bad-import notice, successful cross-row reassign + highlight). **284 unit + 16 E2E + build green.**
 
 **Deferred (DX low):** the repeated `workingDays: [...] as Weekday[]` casts across ~7 test fixtures — pure test hygiene (production code has no such cast); a shared `makeResource`/`WORKDAYS` factory is a nice-to-have, not done this pass.
+
+## 2026-05-29 — Phase 3: User experience (fixes + features). Gate green.
+User scope: **fixes + features** (incl. the bigger product additions). Committed `648b6dc` precedes this phase.
+- **Fixes:**
+  - `touch-action: none` on allocation bars so a touch-drag moves/resizes the bar instead of fighting the browser's scroll.
+  - The row **"+" quick-create defaults to the visible window** (date at the current scroll-left), not always today, so it lands where the user is looking.
+  - **Lane-draw click threshold** (`DRAW_THRESHOLD_PX`): a bare click is now a no-op (use "+" for a single day); only a real drag opens the create flow — matches the bar's click/drag split.
+  - **Visible, wider resize grips:** 6px invisible spans → 10px hit zones with a grip handle that appears on hover (pointer-events-none inner line so it doesn't steal the resize target).
+- **Features:**
+  - **Hover/focus detail popover** on bars (portal, so the bar's `overflow-hidden` can't clip it): task, project · client, date range, h/day, status, note. Available on focus too (keyboard/touch), `aria-hidden` so it doesn't double-announce the bar's `aria-label`. Replaces the bare `title` tooltip. `BarLayout` gained optional `project`/`client` names (populated in the model from id→name maps).
+  - **Jump-to-date picker** in the toolbar → `goToDate` (new store action): sets `originDate` (with the standard lead offset) + a new `ui.focusDate` and bumps `recenterToken`; the grid's recenter effect now scrolls to `focusDate` (generalised from "today only"), so Today and date-jump share one path.
+  - **Draw time off on the timeline:** a Work / Time-off **draw-mode toggle** (`ui.drawMode`) in the toolbar; in Time-off mode a lane draw opens `TimeOffForm` (now accepts `defaults` for resource + dates) instead of the allocation modal.
+- Tests: +4 unit (popover hover, lane-draw no-op, `goToDate`, `setDrawMode`) and +2 E2E (date-jump moves the month into view; Time-off-mode draw opens a prefilled time-off form). 288 unit + 18 E2E + build green; verified visually (toolbar controls + popover).

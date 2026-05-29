@@ -24,6 +24,8 @@ export interface BarLayout {
   top: number
   color: string
   label: string
+  project?: string
+  client?: string
 }
 
 /** Per-day capacity state for a lane background cell. */
@@ -71,9 +73,12 @@ export function buildSchedulerModel(
   filters: Filters,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
+  const projectById = new Map(data.projects.map((p) => [p.id, p]))
+  const clientById = new Map(data.clients.map((c) => [c.id, c]))
+  const taskById = new Map(data.tasks.map((t) => [t.id, t]))
   const taskMeta = new Map(
     data.tasks.map((t) => {
-      const project = data.projects.find((p) => p.id === t.projectId)
+      const project = projectById.get(t.projectId)
       return [t.id, { projectId: t.projectId, clientId: project?.clientId }]
     }),
   )
@@ -102,14 +107,18 @@ export function buildSchedulerModel(
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
         const bars: BarLayout[] = visibleAllocs.map((a) => {
-          const task = data.tasks.find((t) => t.id === a.taskId)
+          const meta = taskMeta.get(a.taskId)
+          const project = meta ? projectById.get(meta.projectId) : undefined
+          const client = meta?.clientId ? clientById.get(meta.clientId) : undefined
           return {
             allocation: a,
             x: xForDate(a.startDate, origin, dayWidth),
             width: widthForRange(a.startDate, a.endDate, dayWidth),
             top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
             color: resolveBarColor(a, data),
-            label: task?.name ?? 'Task',
+            label: taskById.get(a.taskId)?.name ?? 'Task',
+            project: project?.name,
+            client: client?.name,
           }
         })
         // Capacity reflects ALL allocations (truthful load), not the filtered view.

@@ -8,12 +8,14 @@ import { LAYOUT } from './layout'
 import { DateHeader } from './DateHeader'
 import { ResourceLane } from './ResourceLane'
 import { AllocationModal } from './AllocationModal'
+import { TimeOffForm } from '../timeoff/TimeOffForm'
 import { buildSchedulerModel } from './schedulerModel'
 import type { ID, ISODate } from '../../types/entities'
 
 type ModalState =
   | { kind: 'edit'; allocationId: ID }
   | { kind: 'create'; resourceId: ID; startDate: ISODate; endDate: ISODate }
+  | { kind: 'timeoff'; resourceId: ID; startDate: ISODate; endDate: ISODate }
 
 export function SchedulerGrid() {
   const data = useStore((s) => s.data)
@@ -55,27 +57,37 @@ export function SchedulerGrid() {
 
   const todayX = today >= start && today <= end ? xForDate(today, ui.originDate, dayWidth) : null
 
-  // Keep the latest todayX without re-triggering the re-centre effect on zoom/resize.
-  const todayXRef = useRef(todayX)
+  // Where the grid scrolls on a focus request (Today / jump-to-date). Held in a ref
+  // so zoom/resize re-renders don't re-fire the recenter effect.
+  const focusX = xForDate(ui.focusDate, ui.originDate, dayWidth)
+  const focusXRef = useRef(focusX)
   useEffect(() => {
-    todayXRef.current = todayX
+    focusXRef.current = focusX
   })
 
-  // Bring "today" into view on first render.
+  // Bring the focus date (today by default) into view on first render.
   useEffect(() => {
-    if (didScroll.current || !scrollRef.current || todayX === null) return
-    scrollRef.current.scrollLeft = Math.max(0, todayX - 120)
+    if (didScroll.current || !scrollRef.current) return
+    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - 120)
     didScroll.current = true
-  }, [todayX])
+  }, [])
 
-  // Re-centre on "today" when the user clicks Today (which bumps recenterToken).
+  // Re-centre when the user clicks Today / picks a date (which bumps recenterToken).
   const recenterToken = ui.recenterToken
   useEffect(() => {
-    if (recenterToken === 0 || !scrollRef.current || todayXRef.current === null) return
-    scrollRef.current.scrollLeft = Math.max(0, todayXRef.current - 120)
+    if (recenterToken === 0 || !scrollRef.current) return
+    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - 120)
   }, [recenterToken])
 
   const filtersActive = hasActiveFilters(ui.filters)
+
+  // The date currently at the left edge of the viewport — what the "+" quick-create
+  // should default to, so it lands where the user is looking (not always today).
+  const visibleStartDate = (): ISODate => {
+    const el = scrollRef.current
+    const offsetDays = el ? Math.max(0, Math.floor(el.scrollLeft / dayWidth)) : 0
+    return addDaysISO(ui.originDate, offsetDays)
+  }
 
   const allRows = model.flatMap((g) => g.rows)
   const overallUtil = allRows.length
@@ -176,7 +188,10 @@ export function SchedulerGrid() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setModal({ kind: 'create', resourceId: resource.id, startDate: today, endDate: today })}
+                  onClick={() => {
+                    const d = visibleStartDate()
+                    setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
+                  }}
                   aria-label={`Add allocation for ${resource.name ?? resource.role}`}
                   title="Add allocation"
                   className="shrink-0 rounded p-1 text-lg leading-none text-muted hover:bg-base hover:text-ink"
@@ -197,7 +212,9 @@ export function SchedulerGrid() {
                 rowHeight={rowHeight}
                 bars={bars}
                 onEdit={(allocationId) => setModal({ kind: 'edit', allocationId })}
-                onDraw={(resourceId, startDate, endDate) => setModal({ kind: 'create', resourceId, startDate, endDate })}
+                onDraw={(resourceId, startDate, endDate) =>
+                  setModal({ kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate })
+                }
               />
             </div>
           ))}
@@ -207,6 +224,11 @@ export function SchedulerGrid() {
       {modal &&
         (modal.kind === 'edit' ? (
           <AllocationModal allocationId={modal.allocationId} onClose={() => setModal(null)} />
+        ) : modal.kind === 'timeoff' ? (
+          <TimeOffForm
+            defaults={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+            onClose={() => setModal(null)}
+          />
         ) : (
           <AllocationModal
             create={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}

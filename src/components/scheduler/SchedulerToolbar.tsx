@@ -9,6 +9,10 @@ export function SchedulerToolbar() {
   const setZoom = useStore((s) => s.setZoom)
   const panDays = useStore((s) => s.panDays)
   const goToToday = useStore((s) => s.goToToday)
+  const goToDate = useStore((s) => s.goToDate)
+  const focusDate = useStore((s) => s.ui.focusDate)
+  const drawMode = useStore((s) => s.ui.drawMode)
+  const setDrawMode = useStore((s) => s.setDrawMode)
   const filters = useStore((s) => s.ui.filters)
   const setFilters = useStore((s) => s.setFilters)
   const clearFilters = useStore((s) => s.clearFilters)
@@ -41,6 +45,14 @@ export function SchedulerToolbar() {
         <Button variant="ghost" onClick={() => panDays(7)} title="Forward one week">
           Next ›
         </Button>
+        <input
+          type="date"
+          value={focusDate}
+          onChange={(e) => e.target.value && goToDate(e.target.value)}
+          aria-label="Jump to date"
+          title="Jump to date"
+          className="rounded-md border bg-surface px-2 py-1 text-sm text-ink"
+        />
         <div className="ml-2 flex overflow-hidden rounded-md border border-line" role="group" aria-label="Weeks visible">
           {ZOOM_LEVELS.map((w) => (
             <button
@@ -52,6 +64,20 @@ export function SchedulerToolbar() {
               className={`px-2.5 py-1 text-sm transition ${zoom === w ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-base'}`}
             >
               {w}w
+            </button>
+          ))}
+        </div>
+        <div className="flex overflow-hidden rounded-md border border-line" role="group" aria-label="Draw mode">
+          {(['work', 'timeoff'] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              aria-pressed={drawMode === m}
+              onClick={() => setDrawMode(m)}
+              title={m === 'work' ? 'Draw allocations' : 'Draw time off'}
+              className={`px-2.5 py-1 text-sm transition ${drawMode === m ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-base'}`}
+            >
+              {m === 'work' ? 'Work' : 'Time off'}
             </button>
           ))}
         </div>

@@ -42,7 +42,7 @@ describe('tasksForProject', () => {
 
 describe('visibleRange', () => {
   it('spans rangeDays inclusive from the origin', () => {
-    const range = visibleRange({ zoom: 4, originDate: '2026-06-01', rangeDays: 7, selectedAllocationId: null, filters: emptyFilters(), collapsedGroups: [], recenterToken: 0 })
+    const range = visibleRange({ zoom: 4, originDate: '2026-06-01', rangeDays: 7, focusDate: '2026-06-01', drawMode: 'work', selectedAllocationId: null, filters: emptyFilters(), collapsedGroups: [], recenterToken: 0 })
     expect(range).toEqual({ start: '2026-06-01', end: '2026-06-07' })
   })
 })

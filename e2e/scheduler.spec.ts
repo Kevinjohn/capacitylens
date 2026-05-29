@@ -119,4 +119,13 @@ test.describe('Scheduler', () => {
     // The grid re-scrolls back towards today (much smaller scrollLeft than where we were).
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(scrolled - 400)
   })
+
+  test('jumping to a date moves the timeline to that month', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+
+    await page.getByLabel('Jump to date').fill('2026-08-10')
+    await expect(page.getByLabel('Jump to date')).toHaveValue('2026-08-10')
+    await expect(page.getByText('Aug 2026')).toBeVisible()
+  })
 })
