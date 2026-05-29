@@ -33,9 +33,18 @@ export function SchedulerGrid() {
     const measure = () => setTimelineWidth(el.clientWidth)
     measure()
     if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(measure)
+    // rAF-throttle so a live window drag-resize coalesces to one rebuild per frame.
+    let raf = 0
+    const onResize = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(measure)
+    }
+    const ro = new ResizeObserver(onResize)
     ro.observe(el)
-    return () => ro.disconnect()
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
   }, [])
 
   const dayWidth = resolveDayWidth((timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth, ui.zoom)

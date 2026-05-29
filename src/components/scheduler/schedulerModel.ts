@@ -102,7 +102,10 @@ export function buildSchedulerModel(
       title: group.discipline?.name ?? 'No discipline',
       color: group.discipline?.color,
       rows: group.resources.filter(resourceVisible).map((resource) => {
+        // Slice this resource's data ONCE; capacity then scans only its own
+        // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
         const allAllocs = data.allocations.filter((a) => a.resourceId === resource.id)
+        const resTimeOff = data.timeOff.filter((t) => t.resourceId === resource.id)
         const visibleAllocs = allAllocs.filter(allocVisible)
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
@@ -121,14 +124,12 @@ export function buildSchedulerModel(
             client: client?.name,
           }
         })
-        // Capacity reflects ALL allocations (truthful load), not the filtered view.
+        // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
         const dayStates: DayState[] = days.map((d) => {
-          const cap = dayCapacity(resource, d, data.allocations, data.timeOff)
+          const cap = dayCapacity(resource, d, allAllocs, resTimeOff)
           return { over: cap.over, unavailable: cap.available === 0 }
         })
-        const timeOff: TimeOffBlock[] = data.timeOff
-          .filter((t) => t.resourceId === resource.id)
-          .map((t) => ({
+        const timeOff: TimeOffBlock[] = resTimeOff.map((t) => ({
             id: t.id,
             x: xForDate(t.startDate, origin, dayWidth),
             width: widthForRange(t.startDate, t.endDate, dayWidth),
@@ -137,7 +138,7 @@ export function buildSchedulerModel(
           }))
         // Compute the utilisation window once and derive both the % and the
         // near-term overbooked flag from it (over-allocated on any day in window).
-        const winCaps = capacityForWindow(resource, data.allocations, data.timeOff, utilStart, utilEnd)
+        const winCaps = capacityForWindow(resource, allAllocs, resTimeOff, utilStart, utilEnd)
         let alloc = 0
         let avail = 0
         for (const c of winCaps) {

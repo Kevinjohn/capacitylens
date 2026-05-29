@@ -10,24 +10,29 @@ import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
 import type { BarLayout } from './schedulerModel'
 
-/** Find the resource row whose lane contains the drop point (by data-resource-id). */
-function resourceLaneAt(clientX: number, clientY: number): string | null {
-  const lanes = Array.from(document.querySelectorAll<HTMLElement>('[data-resource-id]'))
-  for (const el of lanes) {
-    const r = el.getBoundingClientRect()
-    if (clientY >= r.top && clientY <= r.bottom && clientX >= r.left && clientX <= r.right) {
-      return el.getAttribute('data-resource-id')
-    }
-  }
-  return null
+interface LaneSnapshot {
+  id: string
+  el: HTMLElement
+  rect: DOMRect
 }
 
-/** Highlight the row currently being dragged over (or clear, when null). */
-function markDropTarget(resourceId: string | null) {
-  document.querySelectorAll<HTMLElement>('[data-resource-id]').forEach((el) => {
-    if (resourceId && el.dataset.resourceId === resourceId) el.setAttribute('data-droptarget', '')
-    else el.removeAttribute('data-droptarget')
-  })
+/** Snapshot lane rects once at drag start — avoids a full-document querySelectorAll +
+ *  getBoundingClientRect on every pointermove (layout thrash). A drag doesn't scroll the grid. */
+function snapshotLanes(): LaneSnapshot[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('[data-resource-id]')).map((el) => ({
+    id: el.getAttribute('data-resource-id') ?? '',
+    el,
+    rect: el.getBoundingClientRect(),
+  }))
+}
+
+/** Hit-test the drop point against the cached lane rects. */
+function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSnapshot | null {
+  for (const l of lanes) {
+    const r = l.rect
+    if (clientY >= r.top && clientY <= r.bottom && clientX >= r.left && clientX <= r.right) return l
+  }
+  return null
 }
 
 export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWidth: number; onEdit: () => void }) {
@@ -35,6 +40,7 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
   const setNotice = useStore((s) => s.setNotice)
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
+  const resourceId = bar.allocation.resourceId
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   const [pop, setPop] = useState<{ left: number; top: number } | null>(null)
   const showPopover = () => {
@@ -43,33 +49,50 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
   }
   const hidePopover = () => setPop(null)
 
+  // Lane rects snapshotted at drag start; the drop highlight is toggled on just the
+  // changed element (no per-move full-document query + class sweep).
+  const lanesRef = useRef<LaneSnapshot[]>([])
+  const dropElRef = useRef<HTMLElement | null>(null)
+  const setDropTarget = (el: HTMLElement | null) => {
+    if (dropElRef.current === el) return
+    dropElRef.current?.removeAttribute('data-droptarget')
+    el?.setAttribute('data-droptarget', '')
+    dropElRef.current = el
+  }
+
   // Clear any drop highlight if this bar unmounts mid-drag (e.g. undo).
-  useEffect(() => () => markDropTarget(null), [])
+  useEffect(
+    () => () => {
+      dropElRef.current?.removeAttribute('data-droptarget')
+      dropElRef.current = null
+    },
+    [],
+  )
 
   const { onPointerDown } = useDragResize({
     dayWidth,
     onPreview: (mode, deltaDays, deltaY, pointer) => {
       setPreview({ mode, deltaDays, deltaY })
       if (mode === 'move') {
-        const target = resourceLaneAt(pointer.clientX, pointer.clientY)
-        markDropTarget(target && target !== bar.allocation.resourceId ? target : null)
+        const target = laneAt(lanesRef.current, pointer.clientX, pointer.clientY)
+        setDropTarget(target && target.id !== resourceId ? target.el : null)
       }
     },
     onClick: onEdit,
     onCancel: () => {
       // Gesture cancelled (e.g. the browser stole the pointer to scroll) — abort cleanly.
       setPreview(null)
-      markDropTarget(null)
+      setDropTarget(null)
     },
     onCommit: (mode, deltaDays, pointer) => {
       setPreview(null)
-      markDropTarget(null)
       const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
       const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays) : current
 
       // Dropping on another resource's row reassigns the allocation.
-      const target = mode === 'move' ? resourceLaneAt(pointer.clientX, pointer.clientY) : null
-      const reassignTo = target && target !== bar.allocation.resourceId ? target : null
+      const target = mode === 'move' ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null
+      const reassignTo = target && target.id !== resourceId ? target.id : null
+      setDropTarget(null)
 
       if (deltaDays === 0 && !reassignTo) return
       try {
@@ -121,6 +144,7 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
         aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Press Enter to edit.`}
         onPointerDown={(e) => {
           hidePopover()
+          lanesRef.current = snapshotLanes()
           onPointerDown(e)
         }}
         onMouseEnter={showPopover}

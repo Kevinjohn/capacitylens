@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { format } from 'date-fns'
 import { parseDate, todayISO, weekdayOf } from '../../lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
@@ -30,7 +31,9 @@ function weekBlocks(days: string[]): Span[] {
   return blocks
 }
 
-export function DateHeader({ days, dayWidth }: { days: string[]; dayWidth: number }) {
+// Memoised: its props (the memoised `days` array + numeric dayWidth) are stable
+// across data mutations, so it stops re-rendering ~120 cells on every store change.
+export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: string[]; dayWidth: number }) {
   const showDays = dayWidth >= DAY_COLUMN_MIN_WIDTH // per-day columns vs per-week blocks
   const showWeekday = dayWidth >= WEEKDAY_LABEL_MIN_WIDTH
   const today = todayISO()
@@ -89,4 +92,4 @@ export function DateHeader({ days, dayWidth }: { days: string[]; dayWidth: numbe
       )}
     </div>
   )
-}
+})
