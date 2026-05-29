@@ -63,6 +63,7 @@ export function ResourceLane({
     const detach = () => {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onCancel)
       teardownRef.current = null
     }
     const onUp = (ev: PointerEvent) => {
@@ -71,8 +72,14 @@ export function ResourceLane({
       setDraw(null)
       onDraw(resourceId, addDaysISO(origin, Math.min(start, end)), addDaysISO(origin, Math.max(start, end)))
     }
+    const onCancel = () => {
+      // Browser took over the gesture (e.g. to scroll): drop the ghost, don't create.
+      detach()
+      setDraw(null)
+    }
     document.addEventListener('pointermove', onMove)
     document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onCancel)
     teardownRef.current = detach
   }
 
@@ -105,13 +112,15 @@ export function ResourceLane({
           ) : null,
         )}
 
-      {/* over-allocation markers (any zoom, only on over days) */}
+      {/* over-allocation markers (any zoom, only on over days): a full-height tint
+          plus a solid top band so overbooked days read at a glance, not a hairline */}
       {days.map((d, i) =>
         dayStates[i]?.over ? (
           <div
             key={`o-${d}`}
             data-testid="over-marker"
-            className="absolute top-0 h-1 bg-danger"
+            title="Overbooked"
+            className="pointer-events-none absolute top-0 h-full border-t-[3px] border-danger bg-danger/12"
             style={{ left: i * dayWidth, width: dayWidth }}
           />
         ) : null,

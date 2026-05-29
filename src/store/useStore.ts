@@ -60,6 +60,7 @@ export interface SchedulerUI {
   selectedAllocationId: ID | null
   filters: Filters
   collapsedGroups: string[] // discipline group keys that are collapsed
+  recenterToken: number // bumped to ask the grid to scroll "today" back into view
 }
 
 export interface StoreState {
@@ -69,10 +70,12 @@ export interface StoreState {
   past: AppData[]
   future: AppData[]
   persistError: boolean
+  notice: string | null // transient user message (e.g. a rejected drag); auto-dismissed by the UI
 
   replaceAll: (data: AppData) => void
   setHydrated: (v: boolean) => void
   setPersistError: (v: boolean) => void
+  setNotice: (message: string | null) => void
   undo: () => void
   redo: () => void
 
@@ -131,6 +134,7 @@ const defaultUI = (): SchedulerUI => ({
   selectedAllocationId: null,
   filters: emptyFilters(),
   collapsedGroups: [],
+  recenterToken: 0,
 })
 
 const HISTORY_LIMIT = 50
@@ -162,10 +166,12 @@ export const useStore = create<StoreState>()((set, get) => {
     past: [],
     future: [],
     persistError: false,
+    notice: null,
 
     replaceAll: (data) => set({ data, past: [], future: [] }),
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
+    setNotice: (message) => set({ notice: message }),
 
     undo: () =>
       set((s) => {
@@ -256,7 +262,14 @@ export const useStore = create<StoreState>()((set, get) => {
     setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom } })),
     setOriginDate: (date) => set((s) => ({ ui: { ...s.ui, originDate: date } })),
     panDays: (delta) => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(s.ui.originDate, delta) } })),
-    goToToday: () => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS) } })),
+    goToToday: () =>
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS),
+          recenterToken: s.ui.recenterToken + 1,
+        },
+      })),
     selectAllocation: (id) => set((s) => ({ ui: { ...s.ui, selectedAllocationId: id } })),
     setFilters: (patch) => set((s) => ({ ui: { ...s.ui, filters: { ...s.ui.filters, ...patch } } })),
     clearFilters: () => set((s) => ({ ui: { ...s.ui, filters: emptyFilters() } })),

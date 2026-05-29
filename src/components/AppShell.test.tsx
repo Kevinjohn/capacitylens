@@ -122,3 +122,20 @@ describe('AppShell Export/Import section', () => {
     expect(input).toHaveAttribute('accept', 'application/json')
   })
 })
+
+describe('AppShell transient notice', () => {
+  it('renders a toast for a store notice and clears it on dismiss', () => {
+    renderAppShell()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+
+    act(() => {
+      useStore.getState().setNotice('That allocation could not be moved there.')
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('could not be moved')
+
+    act(() => {
+      screen.getByRole('button', { name: 'Dismiss' }).click()
+    })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})

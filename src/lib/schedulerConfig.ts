@@ -18,6 +18,15 @@ export const DEFAULT_RANGE_DAYS = 120
 /** Timeline origin = today + this offset, so a little past context shows on the left. */
 export const DEFAULT_ORIGIN_OFFSET_DAYS = -7
 
+/**
+ * The per-resource utilisation % is a near-term overbooking radar, not a
+ * whole-timeline average: it's computed over a fixed forward window from TODAY
+ * (not the 120-day range, and not the zoom level), so a person slammed this week
+ * actually reads as overbooked instead of being diluted by an idle next month.
+ * Per-day over-markers still flag every over-allocated day across the timeline.
+ */
+export const UTILIZATION_WINDOW_DAYS = 14
+
 /** Day-column width (px) that fits `weeks` weeks into `availableWidth`, clamped legible. */
 export function resolveDayWidth(availableWidth: number, weeks: WeeksZoom): number {
   if (availableWidth <= 0) return MIN_DAY_WIDTH

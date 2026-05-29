@@ -101,4 +101,22 @@ test.describe('Scheduler', () => {
     // Same 9-day allocation is physically narrower when more weeks are visible.
     expect(narrow.width).toBeLessThan(wide.width)
   })
+
+  test('clicking Today re-centres the timeline after scrolling away', async ({ page }) => {
+    await page.goto('/')
+    const grid = page.getByTestId('scheduler-grid')
+    await expect(grid).toBeVisible()
+
+    // Scroll far to the right, then ask to go back to Today.
+    await grid.evaluate((el) => {
+      ;(el as HTMLElement).scrollLeft = 5000
+    })
+    const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft)
+    expect(scrolled).toBeGreaterThan(800)
+
+    await page.getByRole('button', { name: 'Today', exact: true }).click()
+
+    // The grid re-scrolls back towards today (much smaller scrollLeft than where we were).
+    await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(scrolled - 400)
+  })
 })

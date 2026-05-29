@@ -37,6 +37,7 @@ function markDropTarget(resourceId: string | null) {
 
 export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWidth: number; onEdit: () => void }) {
   const updateAllocation = useStore((s) => s.updateAllocation)
+  const setNotice = useStore((s) => s.setNotice)
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
 
   // Clear any drop highlight if this bar unmounts mid-drag (e.g. undo).
@@ -52,6 +53,11 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
       }
     },
     onClick: onEdit,
+    onCancel: () => {
+      // Gesture cancelled (e.g. the browser stole the pointer to scroll) — abort cleanly.
+      setPreview(null)
+      markDropTarget(null)
+    },
     onCommit: (mode, deltaDays, pointer) => {
       setPreview(null)
       markDropTarget(null)
@@ -65,10 +71,11 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
       if (deltaDays === 0 && !reassignTo) return
       try {
         updateAllocation(bar.allocation.id, reassignTo ? { ...dates, resourceId: reassignTo } : dates)
-      } catch {
-        // Reassignment rejected (e.g. a placeholder bound to another project) —
-        // keep the original resource, still apply the date move if there was one.
+      } catch (e) {
+        // Reassignment rejected (e.g. a placeholder bound to another project): tell
+        // the user why instead of silently snapping back, and still apply any date move.
         if (deltaDays !== 0) updateAllocation(bar.allocation.id, dates)
+        setNotice(e instanceof Error ? e.message : 'That allocation could not be moved there.')
       }
     },
   })

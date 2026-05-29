@@ -85,6 +85,21 @@ describe('store scheduler UI', () => {
     expect(s().ui.originDate).toBe('2026-06-08')
   })
 
+  it('goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)', () => {
+    const before = s().ui.recenterToken
+    s().setOriginDate('2020-01-01')
+    s().goToToday()
+    expect(s().ui.recenterToken).toBe(before + 1)
+    expect(s().ui.originDate).not.toBe('2020-01-01')
+  })
+
+  it('setNotice sets and clears the transient message', () => {
+    s().setNotice('Nope')
+    expect(s().notice).toBe('Nope')
+    s().setNotice(null)
+    expect(s().notice).toBeNull()
+  })
+
   it('toggleGroup collapses and expands a discipline', () => {
     s().toggleGroup('d-design')
     expect(s().ui.collapsedGroups).toContain('d-design')

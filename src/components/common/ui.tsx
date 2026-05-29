@@ -58,6 +58,15 @@ export function Modal({
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // Read onClose through a ref so the focus effect can run exactly once on open —
+  // otherwise a store mutation while the dialog is open (e.g. "Add task") mints a
+  // fresh onClose, re-fires the effect, yanks focus back to the first control, and
+  // clobbers the "restore focus on close" target. (Empty deps, ref for the latest.)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
+
   // Accessible dialog: trap Tab, focus the first control on open, restore on close.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
@@ -74,7 +83,7 @@ export function Modal({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onClose()
+        onCloseRef.current()
         return
       }
       if (e.key !== 'Tab') return
@@ -95,7 +104,7 @@ export function Modal({
       window.removeEventListener('keydown', onKey)
       previouslyFocused?.focus?.()
     }
-  }, [onClose])
+  }, [])
 
   return (
     <div
@@ -189,6 +198,28 @@ export function FieldError({ children }: { children?: ReactNode }) {
     <p role="alert" className="text-sm font-medium text-danger">
       {children}
     </p>
+  )
+}
+
+/** Transient bottom-centre message (rejected drag, failed import…). Caller owns dismissal. */
+export function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4">
+      <div
+        role="alert"
+        className="pointer-events-auto flex max-w-md items-start gap-3 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-pop ring-1 ring-black/10 animate-[floaty-pop_0.16s_ease-out]"
+      >
+        <span>{message}</span>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="-mr-1 shrink-0 rounded px-1 leading-none opacity-70 hover:opacity-100"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
   )
 }
 

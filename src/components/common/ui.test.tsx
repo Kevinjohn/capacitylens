@@ -130,6 +130,41 @@ describe('Modal', () => {
     )
     expect(screen.getByText('Footer content')).toBeInTheDocument()
   })
+
+  it('keeps focus stable and restores it when onClose identity churns mid-open', () => {
+    // Simulate a real trigger having focus before the dialog opens.
+    const trigger = document.createElement('button')
+    document.body.appendChild(trigger)
+    trigger.focus()
+
+    const body = (
+      <>
+        <button>First</button>
+        <button>Second</button>
+      </>
+    )
+    const { rerender, unmount } = render(
+      <Modal title="Churn" onClose={() => {}}>
+        {body}
+      </Modal>,
+    )
+    const first = screen.getByRole('button', { name: 'First' })
+    const second = screen.getByRole('button', { name: 'Second' })
+    expect(document.activeElement).toBe(first) // focuses first control on open
+
+    second.focus()
+    // Parent re-renders with a BRAND-NEW onClose (as a store mutation would cause).
+    rerender(
+      <Modal title="Churn" onClose={() => {}}>
+        {body}
+      </Modal>,
+    )
+    expect(document.activeElement).toBe(second) // focus not yanked back to first
+
+    unmount()
+    expect(document.activeElement).toBe(trigger) // focus returns to the opener
+    trigger.remove()
+  })
 })
 
 // ─── ConfirmDialog ─────────────────────────────────────────────────────────

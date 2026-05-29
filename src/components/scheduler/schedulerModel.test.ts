@@ -60,6 +60,26 @@ describe('buildSchedulerModel', () => {
     expect(r1.utilization).toBeCloseTo(0.6)
   })
 
+  it('utilisation uses its own window, decoupled from the visible `days` range', () => {
+    // `days` spans the full week (6/1–6/7), but the utilisation window is just 6/3–6/4.
+    // Over that window r1 has only a2 (4h × 2 working days) / (8h × 2) = 0.5,
+    // proving the headline % is no longer averaged across the whole timeline.
+    const model = buildSchedulerModel(dataset(), start, 48, days, '2026-06-03', '2026-06-04', emptyFilters())
+    const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!
+    expect(r1.utilization).toBeCloseTo(0.5)
+    // The visible model (bars/day-states) still covers the full `days` range.
+    expect(r1.dayStates.length).toBe(days.length)
+  })
+
+  it('flags overSoon when a resource is over-allocated on a day in the utilisation window', () => {
+    const d = dataset()
+    // Stack a second 8h allocation on r1's 6/1–6/2 (8 + 8 > 8 available -> over).
+    d.allocations.push({ id: 'a4', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    const rows = buildSchedulerModel(d, start, 48, days, start, end, emptyFilters()).flatMap((g) => g.rows)
+    expect(rows.find((r) => r.resource.id === 'r1')!.overSoon).toBe(true)
+    expect(rows.find((r) => r.resource.id === 'r2')!.overSoon).toBe(false) // 8h == 8h available, not over
+  })
+
   it('project filter limits bars to that project (resources still listed)', () => {
     expect(barIds(build({ ...emptyFilters(), projectId: 'p2' }))).toEqual(['a2', 'a3'])
   })

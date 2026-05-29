@@ -51,7 +51,7 @@ export function ResourceList() {
       {confirming && (
         <ConfirmDialog
           title="Delete resource?"
-          message={`Delete "${confirming.name ?? confirming.role}" and all of their allocations and time off?`}
+          message={`Delete "${confirming.name ?? confirming.role}" and all of their allocations and time off? You can undo this with ⌘Z.`}
           onConfirm={() => {
             del(confirming.id)
             setConfirming(null)

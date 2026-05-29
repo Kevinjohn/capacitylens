@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ImportExport } from './ImportExport'
+import { Toast } from './common/ui'
 
 const LINKS: [string, string][] = [
   ['/', 'Schedule'],
@@ -16,8 +17,17 @@ const LINKS: [string, string][] = [
 export function AppShell() {
   const hydrated = useStore((s) => s.hydrated)
   const persistError = useStore((s) => s.persistError)
+  const notice = useStore((s) => s.notice)
+  const setNotice = useStore((s) => s.setNotice)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
+
+  // Auto-dismiss transient notices after a few seconds.
+  useEffect(() => {
+    if (!notice) return
+    const t = setTimeout(() => setNotice(null), 4000)
+    return () => clearTimeout(t)
+  }, [notice, setNotice])
 
   // Global undo/redo: ⌘Z / ⌘⇧Z (ignored while typing in a field).
   useEffect(() => {
@@ -64,6 +74,7 @@ export function AppShell() {
         )}
         {hydrated ? <Outlet /> : <div className="p-6 text-muted">Loading…</div>}
       </main>
+      {notice && <Toast message={notice} onDismiss={() => setNotice(null)} />}
     </div>
   )
 }

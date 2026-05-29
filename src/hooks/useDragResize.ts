@@ -18,6 +18,8 @@ export interface UseDragResizeArgs {
   onPreview: (mode: DragMode, deltaDays: number, deltaY: number, pointer: Pointer) => void
   onCommit: (mode: DragMode, deltaDays: number, pointer: Pointer) => void
   onClick?: () => void
+  /** Pointer was cancelled mid-gesture (e.g. the browser took over for scrolling). */
+  onCancel?: () => void
   threshold?: number
 }
 
@@ -54,6 +56,7 @@ export function useDragResize(args: UseDragResizeArgs) {
     const detach = () => {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerup', onUp)
+      document.removeEventListener('pointercancel', onCancel)
       teardownRef.current = null
     }
     const onUp = (ev: PointerEvent) => {
@@ -67,9 +70,14 @@ export function useDragResize(args: UseDragResizeArgs) {
         clientY: ev.clientY,
       })
     }
+    const onCancel = () => {
+      detach()
+      if (dragging) argsRef.current.onCancel?.()
+    }
 
     document.addEventListener('pointermove', onMove)
     document.addEventListener('pointerup', onUp)
+    document.addEventListener('pointercancel', onCancel)
     teardownRef.current = detach
   }, [])
 

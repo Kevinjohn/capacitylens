@@ -1,6 +1,6 @@
 import { widthForRange, xForDate } from '../../lib/dateMath'
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
-import { dayCapacity, utilization } from '../../lib/capacity'
+import { capacityForWindow, dayCapacity } from '../../lib/capacity'
 import { resolveBarColor } from '../../lib/color'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { resourcesByDiscipline } from '../../store/selectors'
@@ -21,6 +21,7 @@ export interface RowModel {
   dayStates: DayState[]
   timeOff: TimeOffBlock[]
   utilization: number
+  overSoon: boolean // over-allocated on at least one day inside the utilisation window
 }
 
 export interface GroupModel {
@@ -35,8 +36,11 @@ export function buildSchedulerModel(
   origin: ISODate,
   dayWidth: number,
   days: ISODate[],
-  start: ISODate,
-  end: ISODate,
+  // The utilisation window is deliberately decoupled from `days`: per-day states
+  // span the whole visible timeline, but the headline % is a fixed near-term
+  // window (see UTILIZATION_WINDOW_DAYS) so overbooking isn't averaged away.
+  utilStart: ISODate,
+  utilEnd: ISODate,
   filters: Filters,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
@@ -95,13 +99,23 @@ export function buildSchedulerModel(
             label: TIME_OFF_TYPE_LABELS[t.type],
             note: t.note,
           }))
+        // Compute the utilisation window once and derive both the % and the
+        // near-term overbooked flag from it (over-allocated on any day in window).
+        const winCaps = capacityForWindow(resource, data.allocations, data.timeOff, utilStart, utilEnd)
+        let alloc = 0
+        let avail = 0
+        for (const c of winCaps) {
+          alloc += c.allocated
+          avail += c.available
+        }
         return {
           resource,
           rowHeight: rowHeightForLanes(laneCount, laneLayout),
           bars,
           dayStates,
           timeOff,
-          utilization: utilization(resource, data.allocations, data.timeOff, start, end),
+          utilization: avail === 0 ? 0 : alloc / avail,
+          overSoon: winCaps.some((c) => c.over),
         }
       }),
     }))

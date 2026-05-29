@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { visibleRange } from '../../store/selectors'
-import { eachDayISO, todayISO, xForDate } from '../../lib/dateMath'
-import { FALLBACK_TIMELINE_WIDTH, resolveDayWidth } from '../../lib/schedulerConfig'
+import { addDaysISO, eachDayISO, todayISO, xForDate } from '../../lib/dateMath'
+import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, TemporaryTag } from '../common/ui'
 import { LAYOUT } from './layout'
 import { DateHeader } from './DateHeader'
@@ -41,13 +41,25 @@ export function SchedulerGrid() {
   const { start, end } = visibleRange(ui)
   const days = useMemo(() => eachDayISO(start, end), [start, end])
   const totalWidth = days.length * dayWidth
-  const model = useMemo(
-    () => buildSchedulerModel(data, ui.originDate, dayWidth, days, start, end, ui.filters),
-    [data, ui.originDate, dayWidth, days, start, end, ui.filters],
-  )
 
   const today = todayISO()
+  // Utilisation is a near-term radar: a fixed forward window from today, independent
+  // of zoom and pan, so the per-resource overbooked flag actually fires.
+  const utilStart = today
+  const utilEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
+
+  const model = useMemo(
+    () => buildSchedulerModel(data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters),
+    [data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters],
+  )
+
   const todayX = today >= start && today <= end ? xForDate(today, ui.originDate, dayWidth) : null
+
+  // Keep the latest todayX without re-triggering the re-centre effect on zoom/resize.
+  const todayXRef = useRef(todayX)
+  useEffect(() => {
+    todayXRef.current = todayX
+  })
 
   // Bring "today" into view on first render.
   useEffect(() => {
@@ -55,6 +67,13 @@ export function SchedulerGrid() {
     scrollRef.current.scrollLeft = Math.max(0, todayX - 120)
     didScroll.current = true
   }, [todayX])
+
+  // Re-centre on "today" when the user clicks Today (which bumps recenterToken).
+  const recenterToken = ui.recenterToken
+  useEffect(() => {
+    if (recenterToken === 0 || !scrollRef.current || todayXRef.current === null) return
+    scrollRef.current.scrollLeft = Math.max(0, todayXRef.current - 120)
+  }, [recenterToken])
 
   const filtersActive = hasActiveFilters(ui.filters)
 
@@ -70,7 +89,12 @@ export function SchedulerGrid() {
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
           style={{ width: LAYOUT.leftColWidth }}
         >
-          <span className="text-[10px] font-medium uppercase tracking-wide text-faint">Avg load</span>
+          <span
+            className="text-[10px] font-medium uppercase tracking-wide text-faint"
+            title={`Average load over the next ${UTILIZATION_WINDOW_DAYS} days`}
+          >
+            Load · next 2w
+          </span>
           <span data-testid="overall-utilization" className="text-sm font-semibold">
             {overallUtil}%
           </span>
@@ -122,7 +146,7 @@ export function SchedulerGrid() {
           </div>
 
           {!ui.collapsedGroups.includes(group.key) &&
-            group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util }) => (
+            group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon }) => (
             <div key={resource.id} data-testid="resource-row" className="flex border-b border-line" style={{ height: rowHeight }}>
               <div
                 className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-3"
@@ -137,7 +161,15 @@ export function SchedulerGrid() {
                   </span>
                   <span className="flex items-center gap-2 truncate text-xs text-muted">
                     <span className="truncate">{resource.role}</span>
-                    <span data-testid="utilization" className={util > 1 ? 'font-semibold text-danger' : 'text-faint'}>
+                    <span
+                      data-testid="utilization"
+                      title={
+                        overSoon
+                          ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
+                          : `Load over the next ${UTILIZATION_WINDOW_DAYS} days`
+                      }
+                      className={overSoon ? 'font-semibold text-danger' : 'text-faint'}
+                    >
                       {Math.round(util * 100)}%
                     </span>
                   </span>

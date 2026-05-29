@@ -53,4 +53,55 @@ describe('AllocationBar interactions', () => {
     const unchanged = useStore.getState().data.allocations.find((x) => x.id === a.id)!
     expect(unchanged.startDate).toBe('2026-06-01')
   })
+
+  it('surfaces a notice (instead of failing silently) when a reassign is rejected', () => {
+    const st = useStore.getState()
+    const c = st.addClient({ name: 'Acme', color: '#1' })
+    const p1 = st.addProject({ name: 'P1', clientId: c.id, color: '#2' })
+    const p2 = st.addProject({ name: 'P2', clientId: c.id, color: '#3' })
+    const t1 = st.addTask({ name: 'Wires', projectId: p1.id })
+    const person = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+    // A placeholder bound to p2 cannot take a p1 task — dropping onto it must be rejected.
+    const slot = st.addResource({ kind: 'placeholder', role: 'Slot', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4', projectId: p2.id })
+    const a = st.addAllocation({ resourceId: person.id, taskId: t1.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+
+    const rect = (top: number, bottom: number): DOMRect =>
+      ({ left: 0, right: 500, top, bottom, width: 500, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect
+
+    render(
+      <>
+        <div data-resource-id={person.id} data-testid="lane-src" />
+        <div data-resource-id={slot.id} data-testid="lane-dst" />
+        <AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />
+      </>,
+    )
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150)
+
+    const bar = screen.getByTestId('allocation-bar')
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true })) // drop onto lane-dst
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 55, clientY: 125, bubbles: true }))
+
+    // Reassign rejected -> the bar stays on its original resource AND the user is told why.
+    const alloc = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+    expect(alloc.resourceId).toBe(person.id)
+    expect(useStore.getState().notice).toMatch(/placeholder/i)
+  })
+
+  it('aborts a drag on pointercancel without committing or leaking listeners', () => {
+    const a = seedAllocation()
+    render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    const bar = screen.getByTestId('allocation-bar')
+
+    fireEvent.pointerDown(bar, { clientX: 50, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 120, bubbles: true })) // start dragging
+    document.dispatchEvent(new Event('pointercancel')) // browser steals the gesture (e.g. to scroll)
+
+    expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe('2026-06-01')
+
+    // Listeners were torn down: a stray later pointerup must not commit a stale move.
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 300, bubbles: true }))
+    expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe('2026-06-01')
+  })
 })
