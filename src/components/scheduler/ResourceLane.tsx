@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { addDaysISO } from '../../lib/dateMath'
+import { addDaysISO, weekdayOf } from '../../lib/dateMath'
 import { AllocationBar, type BarLayout } from './AllocationBar'
 import { LAYOUT } from './layout'
 import type { ID, ISODate } from '../../types/entities'
@@ -85,20 +85,37 @@ export function ResourceLane({
       style={{ width: totalWidth, height: rowHeight }}
       onPointerDown={onPointerDown}
     >
-      {/* day grid + capacity tints */}
-      {days.map((d, i) => {
-        const st = dayStates[i]
-        return (
+      {/* week separators (always) */}
+      {days.map((d, i) =>
+        i !== 0 && weekdayOf(d) === 1 ? (
+          <div key={`w-${d}`} className="absolute top-0 h-full border-l border-line" style={{ left: i * dayWidth }} />
+        ) : null,
+      )}
+
+      {/* weekend / unavailable tint — only at fine zoom (keeps the DOM light when zoomed out) */}
+      {dayWidth >= 20 &&
+        days.map((d, i) =>
+          dayStates[i]?.unavailable ? (
+            <div
+              key={`u-${d}`}
+              data-testid="unavailable-day"
+              className="absolute top-0 h-full bg-base"
+              style={{ left: i * dayWidth, width: dayWidth }}
+            />
+          ) : null,
+        )}
+
+      {/* over-allocation markers (any zoom, only on over days) */}
+      {days.map((d, i) =>
+        dayStates[i]?.over ? (
           <div
-            key={d}
-            data-testid={st?.unavailable ? 'unavailable-day' : undefined}
-            className={`absolute top-0 h-full border-r border-line ${st?.unavailable ? 'bg-base' : ''}`}
+            key={`o-${d}`}
+            data-testid="over-marker"
+            className="absolute top-0 h-1 bg-danger"
             style={{ left: i * dayWidth, width: dayWidth }}
-          >
-            {st?.over && <div data-testid="over-marker" className="absolute inset-x-0 top-0 h-1 bg-danger" />}
-          </div>
-        )
-      })}
+          />
+        ) : null,
+      )}
 
       {/* time-off blocks (hatched, labelled) */}
       {timeOff.map((b) => (

@@ -1,4 +1,5 @@
 import { hasActiveFilters, useStore } from '../../store/useStore'
+import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
 import { Button } from '../common/ui'
 
 const selectClass = 'rounded-md border bg-surface px-2 py-1 text-sm text-ink'
@@ -40,23 +41,19 @@ export function SchedulerToolbar() {
         <Button variant="ghost" onClick={() => panDays(7)} title="Forward one week">
           Next ›
         </Button>
-        <div className="ml-2 flex overflow-hidden rounded-md border border-line">
-          <button
-            type="button"
-            aria-pressed={zoom === 'day'}
-            onClick={() => setZoom('day')}
-            className={`px-3 py-1 text-sm transition ${zoom === 'day' ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-base'}`}
-          >
-            Day
-          </button>
-          <button
-            type="button"
-            aria-pressed={zoom === 'week'}
-            onClick={() => setZoom('week')}
-            className={`px-3 py-1 text-sm transition ${zoom === 'week' ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-base'}`}
-          >
-            Week
-          </button>
+        <div className="ml-2 flex overflow-hidden rounded-md border border-line" role="group" aria-label="Weeks visible">
+          {ZOOM_LEVELS.map((w) => (
+            <button
+              key={w}
+              type="button"
+              aria-pressed={zoom === w}
+              onClick={() => setZoom(w)}
+              title={`${w} week${w > 1 ? 's' : ''} visible`}
+              className={`px-2.5 py-1 text-sm transition ${zoom === w ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-base'}`}
+            >
+              {w}w
+            </button>
+          ))}
         </div>
       </div>
 

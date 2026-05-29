@@ -8,28 +8,19 @@ import { emptyAppData } from '../../types/entities'
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
   useStore.getState().clearFilters()
-  useStore.getState().setZoom('day')
+  useStore.getState().setZoom(4)
 })
 
-describe('SchedulerToolbar zoom toggle', () => {
-  it('clicking Week sets ui.zoom to "week"', async () => {
+describe('SchedulerToolbar zoom control', () => {
+  it('clicking a zoom level sets ui.zoom (weeks visible)', async () => {
     const user = userEvent.setup()
     render(<SchedulerToolbar />)
 
-    await user.click(screen.getByRole('button', { name: 'Week' }))
+    await user.click(screen.getByRole('button', { name: '8w' }))
+    expect(useStore.getState().ui.zoom).toBe(8)
 
-    expect(useStore.getState().ui.zoom).toBe('week')
-  })
-
-  it('clicking Day sets ui.zoom to "day"', async () => {
-    const user = userEvent.setup()
-    // Start at week so the click is meaningful
-    useStore.getState().setZoom('week')
-    render(<SchedulerToolbar />)
-
-    await user.click(screen.getByRole('button', { name: 'Day' }))
-
-    expect(useStore.getState().ui.zoom).toBe('day')
+    await user.click(screen.getByRole('button', { name: '1w' }))
+    expect(useStore.getState().ui.zoom).toBe(1)
   })
 })
 

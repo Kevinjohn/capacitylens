@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { newId } from '../lib/id'
 import { addDaysISO, todayISO } from '../lib/dateMath'
-import { DAY_WIDTH, DEFAULT_ORIGIN_OFFSET_DAYS, DEFAULT_RANGE_DAYS, type Zoom } from '../lib/schedulerConfig'
+import { DEFAULT_ORIGIN_OFFSET_DAYS, DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, type WeeksZoom } from '../lib/schedulerConfig'
 import {
   deleteClientCascade,
   deleteDisciplineCascade,
@@ -30,9 +30,8 @@ import type {
 export type Draft<T extends Entity> = Omit<T, 'id' | 'createdAt' | 'updatedAt'>
 export type Patch<T extends Entity> = Partial<Draft<T>>
 
-// Re-exported for back-compat with existing imports from the store.
-export type { Zoom }
-export { DAY_WIDTH }
+// Re-exported for convenience.
+export type { WeeksZoom }
 
 export interface Filters {
   disciplineId: ID | null
@@ -55,8 +54,7 @@ export function hasActiveFilters(f: Filters): boolean {
 }
 
 export interface SchedulerUI {
-  zoom: Zoom
-  dayWidth: number
+  zoom: WeeksZoom // number of weeks visible; day-column width is derived from it
   originDate: ISODate
   rangeDays: number
   selectedAllocationId: ID | null
@@ -110,7 +108,7 @@ export interface StoreState {
   updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void
   deleteTimeOff: (id: ID) => void
 
-  setZoom: (zoom: Zoom) => void
+  setZoom: (zoom: WeeksZoom) => void
   setOriginDate: (date: ISODate) => void
   panDays: (delta: number) => void
   goToToday: () => void
@@ -127,8 +125,7 @@ const stamp = () => {
 const touch = () => new Date().toISOString()
 
 const defaultUI = (): SchedulerUI => ({
-  zoom: 'day',
-  dayWidth: DAY_WIDTH.day,
+  zoom: DEFAULT_ZOOM,
   originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS),
   rangeDays: DEFAULT_RANGE_DAYS,
   selectedAllocationId: null,
@@ -256,7 +253,7 @@ export const useStore = create<StoreState>()((set, get) => {
     updateTimeOff: (id, patch) => mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) })),
     deleteTimeOff: (id) => mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) })),
 
-    setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom, dayWidth: DAY_WIDTH[zoom] } })),
+    setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom } })),
     setOriginDate: (date) => set((s) => ({ ui: { ...s.ui, originDate: date } })),
     panDays: (delta) => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(s.ui.originDate, delta) } })),
     goToToday: () => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS) } })),

@@ -19,7 +19,7 @@ test.describe('Scheduler', () => {
 
   test('draws a new allocation on an empty part of a lane', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Day', exact: true }).click()
+    await page.getByRole('button', { name: '4w', exact: true }).click()
 
     const before = await page.getByTestId('allocation-bar').count()
 
@@ -46,7 +46,7 @@ test.describe('Scheduler', () => {
 
   test('drags a bar to move it later', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Day', exact: true }).click()
+    await page.getByRole('button', { name: '4w', exact: true }).click()
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
@@ -64,7 +64,7 @@ test.describe('Scheduler', () => {
 
   test('resizes a bar via its end handle', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Day', exact: true }).click()
+    await page.getByRole('button', { name: '4w', exact: true }).click()
 
     // "Wireframes" (4 days) keeps its right edge on-screen, unlike the 9-day "Brand System".
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })
@@ -79,5 +79,26 @@ test.describe('Scheduler', () => {
 
     const b1 = await box(bar)
     expect(b1.width).toBeGreaterThan(b0.width + 20)
+  })
+
+  test('zooming to more weeks shrinks the day columns (same bar gets narrower)', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+    const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
+
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('button', { name: '4w', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    const wide = await box(bar)
+    await page.screenshot({ path: 'test-results/floaty-1week.png' })
+
+    await page.getByRole('button', { name: '8w', exact: true }).click()
+    await expect(page.getByRole('button', { name: '8w', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    const narrow = await box(bar)
+    await page.screenshot({ path: 'test-results/floaty-8week.png' })
+
+    // Same 9-day allocation is physically narrower when more weeks are visible.
+    expect(narrow.width).toBeLessThan(wide.width)
   })
 })

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { visibleRange } from '../../store/selectors'
 import { eachDayISO, todayISO, xForDate } from '../../lib/dateMath'
+import { FALLBACK_TIMELINE_WIDTH, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, TemporaryTag } from '../common/ui'
 import { LAYOUT } from './layout'
 import { DateHeader } from './DateHeader'
@@ -21,17 +22,32 @@ export function SchedulerGrid() {
   const [modal, setModal] = useState<ModalState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const didScroll = useRef(false)
+  const [timelineWidth, setTimelineWidth] = useState(0)
+
+  // Measure the scroll container so the day-column width can fit ui.zoom weeks.
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const measure = () => setTimelineWidth(el.clientWidth)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const dayWidth = resolveDayWidth((timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth, ui.zoom)
 
   const { start, end } = visibleRange(ui)
   const days = useMemo(() => eachDayISO(start, end), [start, end])
-  const totalWidth = days.length * ui.dayWidth
+  const totalWidth = days.length * dayWidth
   const model = useMemo(
-    () => buildSchedulerModel(data, ui.originDate, ui.dayWidth, days, start, end, ui.filters),
-    [data, ui.originDate, ui.dayWidth, days, start, end, ui.filters],
+    () => buildSchedulerModel(data, ui.originDate, dayWidth, days, start, end, ui.filters),
+    [data, ui.originDate, dayWidth, days, start, end, ui.filters],
   )
 
   const today = todayISO()
-  const todayX = today >= start && today <= end ? xForDate(today, ui.originDate, ui.dayWidth) : null
+  const todayX = today >= start && today <= end ? xForDate(today, ui.originDate, dayWidth) : null
 
   // Bring "today" into view on first render.
   useEffect(() => {
@@ -59,7 +75,7 @@ export function SchedulerGrid() {
             {overallUtil}%
           </span>
         </div>
-        <DateHeader days={days} dayWidth={ui.dayWidth} />
+        <DateHeader days={days} dayWidth={dayWidth} />
       </div>
 
       {model.length === 0 && (
@@ -143,7 +159,7 @@ export function SchedulerGrid() {
                 dayStates={dayStates}
                 timeOff={timeOff}
                 todayX={todayX}
-                dayWidth={ui.dayWidth}
+                dayWidth={dayWidth}
                 origin={ui.originDate}
                 totalWidth={totalWidth}
                 rowHeight={rowHeight}

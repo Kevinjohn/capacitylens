@@ -72,12 +72,11 @@ describe('store CRUD', () => {
 })
 
 describe('store scheduler UI', () => {
-  it('setZoom updates dayWidth', () => {
-    s().setZoom('week')
-    expect(s().ui.zoom).toBe('week')
-    expect(s().ui.dayWidth).toBe(20)
-    s().setZoom('day')
-    expect(s().ui.dayWidth).toBe(48)
+  it('setZoom sets the weeks-visible level', () => {
+    s().setZoom(8)
+    expect(s().ui.zoom).toBe(8)
+    s().setZoom(1)
+    expect(s().ui.zoom).toBe(1)
   })
 
   it('panDays shifts the origin', () => {

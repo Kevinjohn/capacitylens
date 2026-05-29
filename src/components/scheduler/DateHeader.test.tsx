@@ -5,6 +5,19 @@ import { DateHeader } from './DateHeader'
 const DAYS = ['2026-06-01', '2026-06-02', '2026-06-06']
 
 describe('DateHeader', () => {
+  it('always shows the month tier', () => {
+    render(<DateHeader days={DAYS} dayWidth={48} />)
+    expect(screen.getByText('Jun 2026')).toBeInTheDocument()
+  })
+
+  describe('at a coarse zoom (dayWidth < 18)', () => {
+    it('shows week-start labels instead of day numbers', () => {
+      render(<DateHeader days={DAYS} dayWidth={12} />)
+      expect(screen.getByText('1 Jun')).toBeInTheDocument()
+      expect(screen.queryByText('2')).not.toBeInTheDocument()
+    })
+  })
+
   describe('with dayWidth={48} (>= 36)', () => {
     it('shows day numbers 1, 2, and 6', () => {
       render(<DateHeader days={DAYS} dayWidth={48} />)

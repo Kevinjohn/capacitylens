@@ -61,7 +61,7 @@ test.describe('Feature flows', () => {
 
   test('dragging an allocation onto another row reassigns it', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Day', exact: true }).click()
+    await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0
     })
@@ -88,7 +88,7 @@ test.describe('Feature flows', () => {
 
   test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
     await page.goto('/')
-    await page.getByRole('button', { name: 'Day', exact: true }).click()
+    await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0
     })
