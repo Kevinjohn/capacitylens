@@ -1,5 +1,6 @@
 import { format } from 'date-fns'
 import { parseDate, todayISO, weekdayOf } from '../../lib/dateMath'
+import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
 
 interface Span {
   key: string
@@ -30,8 +31,8 @@ function weekBlocks(days: string[]): Span[] {
 }
 
 export function DateHeader({ days, dayWidth }: { days: string[]; dayWidth: number }) {
-  const showDays = dayWidth >= 18 // per-day columns vs per-week blocks
-  const showWeekday = dayWidth >= 36
+  const showDays = dayWidth >= DAY_COLUMN_MIN_WIDTH // per-day columns vs per-week blocks
+  const showWeekday = dayWidth >= WEEKDAY_LABEL_MIN_WIDTH
   const today = todayISO()
   const totalWidth = days.length * dayWidth
 

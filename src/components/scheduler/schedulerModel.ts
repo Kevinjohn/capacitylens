@@ -5,14 +5,41 @@ import { resolveBarColor } from '../../lib/color'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { resourcesByDiscipline } from '../../store/selectors'
 import { laneLayout } from './layout'
-import type { BarLayout } from './AllocationBar'
-import type { DayState, TimeOffBlock } from './ResourceLane'
 import type { Filters } from '../../store/useStore'
-import type { Allocation, AppData, ISODate, Resource } from '../../types/entities'
+import type { Allocation, AppData, ID, ISODate, Resource } from '../../types/entities'
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
 // grouped by discipline. No React — independently unit-testable.
+//
+// The model OWNS the shapes the view renders (one-way data -> model -> view), so
+// these live here and the presentational components import them from the model —
+// not the other way round.
+
+/** A positioned allocation bar. */
+export interface BarLayout {
+  allocation: Allocation
+  x: number
+  width: number
+  top: number
+  color: string
+  label: string
+}
+
+/** Per-day capacity state for a lane background cell. */
+export interface DayState {
+  over: boolean
+  unavailable: boolean
+}
+
+/** A positioned time-off block. */
+export interface TimeOffBlock {
+  id: ID
+  x: number
+  width: number
+  label: string
+  note?: string
+}
 
 export interface RowModel {
   resource: Resource

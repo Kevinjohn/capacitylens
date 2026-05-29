@@ -1,21 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { addDaysISO, weekdayOf } from '../../lib/dateMath'
-import { AllocationBar, type BarLayout } from './AllocationBar'
+import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
+import { AllocationBar } from './AllocationBar'
 import { LAYOUT } from './layout'
+import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
 import type { ID, ISODate } from '../../types/entities'
-
-export interface DayState {
-  over: boolean
-  unavailable: boolean
-}
-
-export interface TimeOffBlock {
-  id: ID
-  x: number
-  width: number
-  label: string
-  note?: string
-}
 
 export function ResourceLane({
   resourceId,
@@ -100,7 +89,7 @@ export function ResourceLane({
       )}
 
       {/* weekend / unavailable tint — only at fine zoom (keeps the DOM light when zoomed out) */}
-      {dayWidth >= 20 &&
+      {dayWidth >= DAY_COLUMN_MIN_WIDTH &&
         days.map((d, i) =>
           dayStates[i]?.unavailable ? (
             <div

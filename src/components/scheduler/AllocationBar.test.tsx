@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
-import type { BarLayout } from './AllocationBar'
+import type { BarLayout } from './schedulerModel'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '../../types/entities'
 import type { Allocation } from '../../types/entities'

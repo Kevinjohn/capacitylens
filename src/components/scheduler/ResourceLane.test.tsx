@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import { ResourceLane } from './ResourceLane'
-import type { DayState, TimeOffBlock } from './ResourceLane'
-import type { BarLayout } from './AllocationBar'
+import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '../../types/entities'
 
@@ -97,9 +96,11 @@ describe('ResourceLane draw interaction', () => {
     const { onDraw } = renderLane()
     const lane = screen.getByTestId('resource-lane')
 
-    // jsdom getBoundingClientRect returns all-zeros, so rect.left = 0
-    // index at clientX=0  → floor(0/48)=0  → day '2026-06-01'
-    // index at clientX=100 → floor(100/48)=2 → day '2026-06-03'
+    // Own the geometry explicitly (don't depend on jsdom's zero-rect default):
+    // with left=0 and dayWidth=48, clientX=0 → day 0 ('2026-06-01'),
+    // clientX=100 → floor(100/48)=2 → day 2 ('2026-06-03').
+    lane.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, right: 1000, bottom: 64, width: 1000, height: 64, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
     fireEvent.pointerDown(lane, { clientX: 0, button: 0 })
 
     act(() => {

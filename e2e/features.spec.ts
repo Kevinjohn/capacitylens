@@ -68,22 +68,23 @@ test.describe('Feature flows', () => {
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
-    // Resource lanes in order: Tyler, Senior Designer, Nike (index 2), Alex, Pam.
-    const nike = await box(page.getByTestId('resource-lane').nth(2))
+    // Address the target row by identity, not position — robust to seed re-ordering.
+    const nikeLane = page.locator('[data-resource-id="r-nike"]')
+    const nike = await box(nikeLane)
     const cx = b0.x + b0.width / 2
 
     await page.mouse.move(cx, b0.y + b0.height / 2)
     await page.mouse.down()
     await page.mouse.move(cx, nike.y + nike.height / 2, { steps: 10 })
     // Nike's row is highlighted as the drop target mid-drag.
-    await expect(page.getByTestId('resource-lane').nth(2)).toHaveAttribute('data-droptarget', '')
+    await expect(nikeLane).toHaveAttribute('data-droptarget', '')
     await page.screenshot({ path: 'test-results/floaty-drophighlight.png' })
     await page.mouse.up()
 
-    const b1 = await box(bar)
-    expect(b1.y).toBeLessThan(b0.y - 30) // moved up into Nike's row
+    // Assert the resulting state, not a pixel delta: the bar now lives inside Nike's lane.
+    await expect(nikeLane.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
     // Highlight cleared after drop.
-    await expect(page.getByTestId('resource-lane').nth(2)).not.toHaveAttribute('data-droptarget', '')
+    await expect(nikeLane).not.toHaveAttribute('data-droptarget', '')
   })
 
   test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
@@ -93,13 +94,14 @@ test.describe('Feature flows', () => {
       ;(el as HTMLElement).scrollLeft = 0
     })
 
-    // 2nd lane in the Design group is the "Senior Designer" placeholder (bound to p-acme).
-    const lane = page.getByTestId('resource-lane').nth(1)
+    // The "Senior Designer" placeholder is bound to p-acme — select it by id, not position.
+    const lane = page.locator('[data-resource-id="r-ph-designer"]')
     const b = await box(lane)
     const y = b.y + b.height / 2
-    await page.mouse.move(b.x + 6, y)
+    // A short left-to-right draw near the lane origin (distance isn't load-bearing — it just opens the create modal).
+    await page.mouse.move(b.x + 8, y)
     await page.mouse.down()
-    await page.mouse.move(b.x + 6 + 48, y, { steps: 6 })
+    await page.mouse.move(b.x + 48, y, { steps: 6 })
     await page.mouse.up()
 
     await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible()

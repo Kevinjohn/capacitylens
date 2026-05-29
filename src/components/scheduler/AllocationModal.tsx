@@ -126,7 +126,7 @@ export function AllocationModal(props: AllocationModalProps) {
       else addAllocation({ resourceId, ...fields })
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(e instanceof Error ? e.message : 'Could not save this allocation.')
     }
   }
 
@@ -144,7 +144,7 @@ export function AllocationModal(props: AllocationModalProps) {
       })
       onClose()
     } catch (e) {
-      setError((e as Error).message)
+      setError(e instanceof Error ? e.message : 'Could not save this allocation.')
     }
   }
 

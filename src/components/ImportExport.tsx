@@ -5,6 +5,7 @@ import { parseData, serializeData } from '../data/transfer'
 export function ImportExport() {
   const data = useStore((s) => s.data)
   const replaceAll = useStore((s) => s.replaceAll)
+  const setNotice = useStore((s) => s.setNotice)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const onExport = () => {
@@ -20,8 +21,9 @@ export function ImportExport() {
   const onImport = async (file: File) => {
     try {
       replaceAll(parseData(await file.text()))
+      setNotice(`Imported ${file.name}.`)
     } catch {
-      window.alert('Could not import that file — it is not valid Floaty JSON.')
+      setNotice('Could not import that file — it is not valid Floaty JSON.')
     }
   }
 

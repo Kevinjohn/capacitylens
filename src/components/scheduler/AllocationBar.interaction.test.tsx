@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { AllocationBar, type BarLayout } from './AllocationBar'
+import { AllocationBar } from './AllocationBar'
+import type { BarLayout } from './schedulerModel'
 import { useStore } from '../../store/useStore'
 import { emptyAppData, type Allocation } from '../../types/entities'
 
@@ -87,6 +88,40 @@ describe('AllocationBar interactions', () => {
     const alloc = useStore.getState().data.allocations.find((x) => x.id === a.id)!
     expect(alloc.resourceId).toBe(person.id)
     expect(useStore.getState().notice).toMatch(/placeholder/i)
+  })
+
+  it('reassigns to another row (and highlights it mid-drag) when dropped on a valid lane', () => {
+    const st = useStore.getState()
+    const c = st.addClient({ name: 'Acme', color: '#1' })
+    const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = st.addTask({ name: 'Wires', projectId: p.id })
+    const r1 = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+    const r2 = st.addResource({ kind: 'person', name: 'Sam', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' })
+    const a = st.addAllocation({ resourceId: r1.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+
+    const rect = (top: number, bottom: number): DOMRect =>
+      ({ left: 0, right: 500, top, bottom, width: 500, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect
+
+    render(
+      <>
+        <div data-resource-id={r1.id} data-testid="lane-src" />
+        <div data-resource-id={r2.id} data-testid="lane-dst" />
+        <AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />
+      </>,
+    )
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150)
+
+    const bar = screen.getByTestId('allocation-bar')
+    fireEvent.pointerDown(bar, { clientX: 50, clientY: 25, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 55, clientY: 125, bubbles: true }))
+    // resourceLaneAt picks lane-dst, markDropTarget highlights exactly that lane.
+    expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(true)
+    expect(screen.getByTestId('lane-src').hasAttribute('data-droptarget')).toBe(false)
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 55, clientY: 125, bubbles: true }))
+
+    expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.resourceId).toBe(r2.id)
+    expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(false) // cleared on commit
   })
 
   it('aborts a drag on pointercancel without committing or leaking listeners', () => {

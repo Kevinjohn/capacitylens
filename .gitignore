@@ -29,3 +29,6 @@ dist-ssr
 /blob-report/
 /playwright/.cache/
 coverage/
+
+# Design/competitor reference scraps — not app assets
+/_input/

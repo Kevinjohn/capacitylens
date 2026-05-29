@@ -147,7 +147,7 @@ export function SchedulerGrid() {
 
           {!ui.collapsedGroups.includes(group.key) &&
             group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon }) => (
-            <div key={resource.id} data-testid="resource-row" className="flex border-b border-line" style={{ height: rowHeight }}>
+            <div key={resource.id} data-testid="scheduler-row" className="flex border-b border-line" style={{ height: rowHeight }}>
               <div
                 className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-3"
                 style={{ width: LAYOUT.leftColWidth }}

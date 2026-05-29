@@ -4,16 +4,7 @@ import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DragMode } from '../../lib/gestureMath'
 import { readableTextColor } from '../../lib/color'
 import { LAYOUT } from './layout'
-import type { Allocation } from '../../types/entities'
-
-export interface BarLayout {
-  allocation: Allocation
-  x: number
-  width: number
-  top: number
-  color: string
-  label: string
-}
+import type { BarLayout } from './schedulerModel'
 
 /** Find the resource row whose lane contains the drop point (by data-resource-id). */
 function resourceLaneAt(clientX: number, clientY: number): string | null {

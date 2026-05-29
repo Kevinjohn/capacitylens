@@ -13,6 +13,14 @@ export const MAX_DAY_WIDTH = 120
 /** Used when the real timeline width can't be measured (tests / first paint / SSR). */
 export const FALLBACK_TIMELINE_WIDTH = 1000
 
+// Density thresholds shared by the header and the lanes so they flip together as
+// you zoom (avoids the old 18-vs-20 mismatch where weekend tint vanished a step
+// before the per-day columns did).
+/** At/above this day width the header shows per-day columns and lanes paint weekend/unavailable tint. */
+export const DAY_COLUMN_MIN_WIDTH = 18
+/** At/above this day width the header also shows weekday letters (Mon/Tue…). */
+export const WEEKDAY_LABEL_MIN_WIDTH = 36
+
 /** How many days the timeline spans. */
 export const DEFAULT_RANGE_DAYS = 120
 /** Timeline origin = today + this offset, so a little past context shows on the left. */
