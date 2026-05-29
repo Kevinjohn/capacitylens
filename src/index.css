@@ -51,7 +51,7 @@
     --c-muted: #a3acbd;
     --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
     --c-brand: #818cf8;
-    --c-brand-strong: #6366f1;
+    --c-brand-strong: #4f46e5; /* deep enough that white button text clears AA (4.5:1) on dark too */
     --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
     --c-danger: #fb7185;
     --c-warn: #fbbf24;

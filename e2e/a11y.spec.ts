@@ -17,6 +17,15 @@ test('scheduler has no serious or critical accessibility violations', async ({ p
   expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
 })
 
+test('scheduler in dark mode has no serious or critical violations', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.goto('/')
+  await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+})
+
 test('a resource form modal has no serious or critical violations', async ({ page }) => {
   await page.goto('/resources')
   await page.getByRole('button', { name: 'Add resource' }).click()
