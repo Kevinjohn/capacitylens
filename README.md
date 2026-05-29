@@ -47,6 +47,19 @@ Playwright.
   is a pure, tested builder (`components/scheduler/schedulerModel.ts`); the component renders it.
 - **Design tokens** in `src/index.css` (`@theme` + CSS custom properties) drive light/dark.
 
+## Testing & quality
+- **Unit / component** — Vitest + Testing Library across the pure domain layer, the store, and
+  components (`npm test`; `npm run coverage` for a report).
+- **End-to-end** — Playwright drives the real app: CRUD + persistence, drag / resize / draw,
+  reassignment, zoom, filters, undo, time-off, and the feature flows (`npm run e2e`).
+- **Accessibility** — `@axe-core/playwright` runs against the scheduler (light **and** dark) and a
+  form modal, failing on any serious/critical WCAG 2.1 AA violation (`e2e/a11y.spec.ts`).
+- **CI** — `.github/workflows/ci.yml` runs type-check → lint → unit → build → E2E on every push
+  and PR.
+- **Working principle:** automated checks prove behaviour and structure; **screenshots are the
+  visual oracle and axe is the a11y oracle** — a passing `toBeVisible`/`getByRole` is necessary,
+  not sufficient (see `DECISIONS.md`).
+
 ## Project docs
 - **`DECISIONS.md`** — running log of design and judgement calls (incl. the grumpy multi-agent
   review and the bug / DX / UX / perf / a11y passes that followed).
