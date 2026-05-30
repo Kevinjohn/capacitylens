@@ -36,6 +36,12 @@ import type {
 export type Draft<T extends Entity> = Omit<T, 'id' | 'accountId' | 'createdAt' | 'updatedAt'>
 export type Patch<T extends Entity> = Partial<Draft<T>>
 
+/** A transient toast message + severity. */
+export interface Notice {
+  message: string
+  tone: 'info' | 'error'
+}
+
 /** Outcome of an import: how many records landed vs. were dropped as invalid
  *  (broken date range / dangling ref). Lets the UI report the delta honestly. */
 export interface ImportSummary {
@@ -97,10 +103,10 @@ export interface StoreState {
   past: AppData[]
   future: AppData[]
   persistError: boolean
-  notice: string | null // transient user message (e.g. a rejected drag)
-  /** Severity of the current notice. 'info' auto-dismisses; 'error' persists until
-   *  the user dismisses it (an error that vanishes before it's read is useless). */
-  noticeTone: 'info' | 'error'
+  /** Transient user message (e.g. a rejected drag) + its severity, as ONE value so the
+   *  two can't desync. 'info' auto-dismisses; 'error' persists until dismissed (an error
+   *  that vanishes before it's read is useless). Null = no notice. */
+  notice: Notice | null
   /** True while an open form has unsaved edits — drives the unsaved-changes guards
    *  (modal backdrop/Escape, beforeunload). Set by the Modal, never persisted. */
   dirtyForm: boolean
@@ -238,7 +244,6 @@ export const useStore = create<StoreState>()((set, get) => {
     future: [],
     persistError: false,
     notice: null,
-    noticeTone: 'info',
     dirtyForm: false,
 
     addAccount: (input) => {
@@ -354,7 +359,7 @@ export const useStore = create<StoreState>()((set, get) => {
     },
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
-    setNotice: (message, tone = 'info') => set({ notice: message, noticeTone: message ? tone : 'info' }),
+    setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
     setDirtyForm: (v) => set({ dirtyForm: v }),
 
     undo: () =>

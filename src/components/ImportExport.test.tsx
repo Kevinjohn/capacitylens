@@ -118,7 +118,7 @@ describe('ImportExport – Import', () => {
     fireEvent.change(input)
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(useStore.getState().notice).toMatch(/valid Floaty JSON/i)
+    expect(useStore.getState().notice?.message).toMatch(/valid Floaty JSON/i)
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0) // data preserved
   })
 })

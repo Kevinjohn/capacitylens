@@ -95,19 +95,19 @@ describe('store scheduler UI', () => {
 
   it('setNotice sets and clears the transient message', () => {
     s().setNotice('Nope')
-    expect(s().notice).toBe('Nope')
+    expect(s().notice?.message).toBe('Nope')
     s().setNotice(null)
     expect(s().notice).toBeNull()
   })
 
   it('setNotice records severity (info default, error opt-in) so the UI can persist errors', () => {
     s().setNotice('Heads up')
-    expect(s().noticeTone).toBe('info')
+    expect(s().notice?.tone).toBe('info')
     s().setNotice('Boom', 'error')
-    expect(s().noticeTone).toBe('error')
-    // Clearing resets the tone so a stale error tone can't linger.
+    expect(s().notice?.tone).toBe('error')
+    // Clearing drops the whole notice (message + tone together — they can't desync).
     s().setNotice(null)
-    expect(s().noticeTone).toBe('info')
+    expect(s().notice).toBeNull()
   })
 
   it('goToDate sets focusDate + origin and bumps recenterToken', () => {

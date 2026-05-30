@@ -110,12 +110,8 @@ export function buildSchedulerModel(
     if (filters.clientId && meta?.clientId !== filters.clientId) return false
     return true
   }
-  const allocVisible = (a: Allocation): boolean => {
-    if (!matchesProjectClient(a)) return false
-    if (filters.hideTentative && a.status === 'tentative') return false
-    return true
-  }
   const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === 'tentative')
+  const allocVisible = (a: Allocation): boolean => matchesProjectClient(a) && notTentativeHidden(a)
   const resourceVisible = (r: Resource): boolean => {
     if (filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
     if (search && !`${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false

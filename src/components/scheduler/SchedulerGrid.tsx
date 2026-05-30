@@ -12,7 +12,7 @@ import { ResourceLane } from './ResourceLane'
 import { AllocationModal } from './AllocationModal'
 import { TimeOffForm } from '../timeoff/TimeOffForm'
 import { buildSchedulerModel } from './schedulerModel'
-import { computeWindow } from './virtualWindow'
+import { buildLayout, windowFromLayout } from './virtualWindow'
 import type { GroupModel, RowModel } from './schedulerModel'
 import type { ID, ISODate } from '../../types/entities'
 
@@ -142,8 +142,14 @@ export function SchedulerGrid() {
     return out
   }, [model, ui.collapsedGroups])
 
-  const heights = items.map((it) => (it.kind === 'group' ? LAYOUT.groupHeaderHeight : it.row.rowHeight))
-  const { first, last, topPad, bottomPad } = computeWindow(heights, scrollTop, timelineHeight)
+  // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
+  // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
+  const heights = useMemo(
+    () => items.map((it) => (it.kind === 'group' ? LAYOUT.groupHeaderHeight : it.row.rowHeight)),
+    [items],
+  )
+  const layout = useMemo(() => buildLayout(heights), [heights])
+  const { first, last, topPad, bottomPad } = windowFromLayout(layout, heights, scrollTop, timelineHeight)
   const visible = items.slice(first, last + 1)
 
   // rAF-coalesced vertical scroll → recompute the window. Horizontal scroll lands here

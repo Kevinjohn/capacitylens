@@ -12,7 +12,28 @@ export interface VirtualWindow {
   bottomPad: number // spacer height below the rendered slice
 }
 
-export function computeWindow(
+/** Cumulative offsets (prefix sums) of every item + the total. Depends ONLY on
+ *  heights, so callers memoise it on `heights` and rebuild it only when the row set
+ *  changes — not on every scroll frame. */
+export interface RowLayout {
+  tops: number[]
+  total: number
+}
+
+export function buildLayout(heights: number[]): RowLayout {
+  const tops: number[] = new Array(heights.length)
+  let acc = 0
+  for (let i = 0; i < heights.length; i++) {
+    tops[i] = acc
+    acc += heights[i]
+  }
+  return { tops, total: acc }
+}
+
+/** The per-scroll-frame work: given a precomputed layout, find the visible slice.
+ *  Only two short edge-scans — no O(n) prefix-sum rebuild. */
+export function windowFromLayout(
+  layout: RowLayout,
   heights: number[],
   scrollTop: number,
   viewportHeight: number,
@@ -20,14 +41,7 @@ export function computeWindow(
 ): VirtualWindow {
   const n = heights.length
   if (n === 0) return { first: 0, last: -1, topPad: 0, bottomPad: 0 }
-
-  const tops: number[] = new Array(n)
-  let acc = 0
-  for (let i = 0; i < n; i++) {
-    tops[i] = acc
-    acc += heights[i]
-  }
-  const total = acc
+  const { tops, total } = layout
 
   // No measured viewport (jsdom/SSR) or everything fits in view + overscan → render
   // everything (no windowing), mirroring the FALLBACK_TIMELINE_WIDTH approach.
@@ -43,4 +57,14 @@ export function computeWindow(
   while (last < n - 1 && tops[last + 1] < bottom) last++
 
   return { first, last, topPad: tops[first], bottomPad: total - (tops[last] + heights[last]) }
+}
+
+/** Convenience composing buildLayout + windowFromLayout (used by tests / one-shot callers). */
+export function computeWindow(
+  heights: number[],
+  scrollTop: number,
+  viewportHeight: number,
+  overscanPx = 300,
+): VirtualWindow {
+  return windowFromLayout(buildLayout(heights), heights, scrollTop, viewportHeight, overscanPx)
 }

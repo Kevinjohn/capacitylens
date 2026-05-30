@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
-import { eachDayISO, todayISO } from '../../lib/dateMath'
-import { allocatedHoursOnDay, availableHoursOnDay, isOnTimeOff } from '../../lib/capacity'
+import { todayISO } from '../../lib/dateMath'
+import { capacityAdvisory } from '../../lib/capacity'
 import { validateAllocationAssignment } from '../../lib/integrity'
 import {
   Button,
@@ -90,13 +90,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const capacityWarning = useMemo(() => {
     if (!selectedResource || !startDate || !endDate || endDate < startDate || !(hoursPerDay > 0)) return null
     const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId)
-    let overDays = 0
-    let timeOffDays = 0
-    for (const day of eachDayISO(startDate, endDate)) {
-      if (isOnTimeOff(resourceId, day, data.timeOff)) timeOffDays++
-      const available = availableHoursOnDay(selectedResource, day, data.timeOff)
-      if (available > 0 && allocatedHoursOnDay(resourceId, day, others) + hoursPerDay > available) overDays++
-    }
+    const { overDays, timeOffDays } = capacityAdvisory(selectedResource, others, data.timeOff, startDate, endDate, hoursPerDay)
     if (!overDays && !timeOffDays) return null
     const who = selectedResource.name ?? selectedResource.role
     const parts: string[] = []

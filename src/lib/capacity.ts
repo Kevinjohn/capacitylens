@@ -89,6 +89,44 @@ export function utilization(
   return available === 0 ? 0 : allocated / available
 }
 
+export interface CapacityAdvisory {
+  overDays: number // working days in the window where existing + proposed hours exceed availability
+  timeOffDays: number // days in the window the resource is on time off
+}
+
+/** Non-blocking advisory for a PROPOSED allocation of `hoursPerDay` over [start, end]:
+ *  how many working days it would push the resource over capacity, and how many fall on
+ *  time off. `otherAllocations` is the resource's existing load to count against (caller
+ *  excludes the allocation being edited). Shared by the modal and the drag-commit path so
+ *  the rule lives in one place. Buckets the other allocations' hours by day ONCE (clamped
+ *  to the window) so it's O(window + load), not O(windowDays × allocations). */
+export function capacityAdvisory(
+  resource: Resource,
+  otherAllocations: Allocation[],
+  timeOff: TimeOff[],
+  start: ISODate,
+  end: ISODate,
+  hoursPerDay: number,
+): CapacityAdvisory {
+  const days = eachDayISO(start, end)
+  if (days.length === 0) return { overDays: 0, timeOffDays: 0 }
+  // Zero-padded ISO dates compare lexicographically, so these min/max clamps are correct.
+  const allocatedByDay = new Map<ISODate, number>()
+  for (const a of otherAllocations) {
+    const from = a.startDate > start ? a.startDate : start
+    const to = a.endDate < end ? a.endDate : end
+    for (const d of eachDayISO(from, to)) allocatedByDay.set(d, (allocatedByDay.get(d) ?? 0) + a.hoursPerDay)
+  }
+  let overDays = 0
+  let timeOffDays = 0
+  for (const day of days) {
+    if (isOnTimeOff(resource.id, day, timeOff)) timeOffDays++
+    const available = availableHoursOnDay(resource, day, timeOff)
+    if (available > 0 && (allocatedByDay.get(day) ?? 0) + hoursPerDay > available) overDays++
+  }
+  return { overDays, timeOffDays }
+}
+
 /** Over-allocated on a working day inside the window — the near-term "overbooked"
  *  radar. Unlike the per-day over-marker (which flags ANY allocation on a
  *  zero-capacity day), this ignores weekend/time-off days so an ordinary

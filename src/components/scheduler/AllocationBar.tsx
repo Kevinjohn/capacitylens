@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore'
 import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DragMode } from '../../lib/gestureMath'
 import { ensureBarColors } from '../../lib/color'
+import { capacityAdvisory } from '../../lib/capacity'
 import { parseDate } from '../../lib/dateMath'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
@@ -140,9 +141,23 @@ export const AllocationBar = memo(function AllocationBar({
       if (deltaDays === 0 && !reassignTo) return
       try {
         updateAllocation(bar.allocation.id, reassignTo ? { ...dates, resourceId: reassignTo } : dates)
-        // Confirm the commit + advertise undo (the only other feedback is the bar
-        // quietly being somewhere new).
-        setNotice(reassignTo ? 'Allocation reassigned. Press ⌘Z to undo.' : 'Allocation moved. Press ⌘Z to undo.')
+        // Confirm the commit + advertise undo, and run the SAME capacity advisory the
+        // modal shows so the two write paths stay consistent. Read the store imperatively
+        // (getState, not a subscription) so this stays off the bar's render/memo path.
+        const rid = reassignTo ?? resourceId
+        const { data } = useStore.getState()
+        const resource = data.resources.find((r) => r.id === rid)
+        let advisory = ''
+        if (resource) {
+          const others = data.allocations.filter((a) => a.resourceId === rid && a.id !== bar.allocation.id)
+          const overTimeOff = data.timeOff.filter((t) => t.resourceId === rid)
+          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, bar.allocation.hoursPerDay)
+          const bits: string[] = []
+          if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
+          if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
+          if (bits.length) advisory = ` — now ${bits.join(' and ')}`
+        }
+        setNotice(`${reassignTo ? 'Allocation reassigned' : 'Allocation moved'}${advisory}. Press ⌘Z to undo.`)
       } catch (e) {
         // Reassignment rejected (e.g. a placeholder bound to another project): tell
         // the user why instead of silently snapping back, and still apply any date move.

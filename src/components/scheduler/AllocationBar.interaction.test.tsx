@@ -117,7 +117,7 @@ describe('AllocationBar interactions', () => {
     // Reassign rejected -> the bar stays on its original resource AND the user is told why.
     const alloc = useStore.getState().data.allocations.find((x) => x.id === a.id)!
     expect(alloc.resourceId).toBe(person.id)
-    expect(useStore.getState().notice).toMatch(/placeholder/i)
+    expect(useStore.getState().notice?.message).toMatch(/placeholder/i)
   })
 
   it('reassigns to another row (and highlights it mid-drag) when dropped on a valid lane', () => {

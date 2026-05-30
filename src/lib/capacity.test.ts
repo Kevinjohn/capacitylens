@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   allocatedHoursOnDay,
   availableHoursOnDay,
+  capacityAdvisory,
   dayCapacity,
   isOnTimeOff,
   isWorkingDay,
@@ -145,5 +146,28 @@ describe('overAllocatedInWindow', () => {
     // must not count as over-allocation for the near-term radar.
     const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-14', hoursPerDay: 8 })]
     expect(overAllocatedInWindow(r, allocs, [], '2026-06-01', '2026-06-14')).toBe(false)
+  })
+})
+
+describe('capacityAdvisory', () => {
+  const r = makeResource()
+
+  it('counts working days the proposed hours push over capacity', () => {
+    const others = [makeAlloc({ hoursPerDay: 4 })] // 4h Mon–Fri 06-01..05
+    const { overDays, timeOffDays } = capacityAdvisory(r, others, [], '2026-06-01', '2026-06-05', 8)
+    expect(overDays).toBe(5) // 4 + 8 > 8 on all five weekdays
+    expect(timeOffDays).toBe(0)
+  })
+
+  it('counts time-off days and excludes them from over (availability is 0 there)', () => {
+    const others = [makeAlloc({ hoursPerDay: 4 })]
+    const timeOff = [makeTimeOff({ startDate: '2026-06-03', endDate: '2026-06-03' })]
+    const { overDays, timeOffDays } = capacityAdvisory(r, others, timeOff, '2026-06-01', '2026-06-05', 8)
+    expect(timeOffDays).toBe(1)
+    expect(overDays).toBe(4) // 06-03 is unavailable → not "over", the other 4 weekdays are
+  })
+
+  it('is clean when the proposal fits within availability', () => {
+    expect(capacityAdvisory(r, [], [], '2026-06-01', '2026-06-05', 8)).toEqual({ overDays: 0, timeOffDays: 0 })
   })
 })
