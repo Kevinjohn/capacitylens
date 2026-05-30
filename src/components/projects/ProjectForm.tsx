@@ -22,6 +22,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project)
   const { error, errorField, errorId, fail } = useFieldError()
   const [newPhase, setNewPhase] = useState('')
+  // Two-click inline confirm for phase removal (consistent with every other delete,
+  // but modal-free so it doesn't nest a second dialog inside this one).
+  const [confirmingPhase, setConfirmingPhase] = useState<string | null>(null)
 
   const clientOptions: Option[] = clients.map((c) => ({ value: c.id, label: c.name }))
   const myPhases = project ? phases.filter((p) => p.projectId === project.id) : []
@@ -66,11 +69,26 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
           ) : (
             <ul className="mb-2 space-y-1">
               {myPhases.map((ph) => (
-                <li key={ph.id} className="flex items-center justify-between text-sm">
+                <li key={ph.id} className="flex items-center justify-between gap-2 text-sm">
                   <span>{ph.name}</span>
-                  <Button variant="ghost" onClick={() => deletePhase(ph.id)}>
-                    Remove
-                  </Button>
+                  {confirmingPhase === ph.id ? (
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs text-muted">Ungroup its tasks?</span>
+                      <Button
+                        variant="danger"
+                        onClick={() => {
+                          deletePhase(ph.id)
+                          setConfirmingPhase(null)
+                        }}
+                      >
+                        Confirm
+                      </Button>
+                    </span>
+                  ) : (
+                    <Button variant="ghost" onClick={() => setConfirmingPhase(ph.id)}>
+                      Remove
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

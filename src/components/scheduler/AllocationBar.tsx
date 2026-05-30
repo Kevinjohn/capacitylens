@@ -140,11 +140,14 @@ export const AllocationBar = memo(function AllocationBar({
       if (deltaDays === 0 && !reassignTo) return
       try {
         updateAllocation(bar.allocation.id, reassignTo ? { ...dates, resourceId: reassignTo } : dates)
+        // Confirm the commit + advertise undo (the only other feedback is the bar
+        // quietly being somewhere new).
+        setNotice(reassignTo ? 'Allocation reassigned. Press ⌘Z to undo.' : 'Allocation moved. Press ⌘Z to undo.')
       } catch (e) {
         // Reassignment rejected (e.g. a placeholder bound to another project): tell
         // the user why instead of silently snapping back, and still apply any date move.
         if (deltaDays !== 0) updateAllocation(bar.allocation.id, dates)
-        setNotice(e instanceof Error ? e.message : 'That allocation could not be moved there.')
+        setNotice(e instanceof Error ? e.message : 'That allocation could not be moved there.', 'error')
       }
     },
   })
@@ -197,7 +200,7 @@ export const AllocationBar = memo(function AllocationBar({
         data-status={bar.allocation.status}
         role="button"
         tabIndex={0}
-        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize; drag to another row to reassign.`}
+        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
         onPointerDown={(e) => {
           hidePopover()
           lanesRef.current = snapshotLanes()
@@ -214,7 +217,9 @@ export const AllocationBar = memo(function AllocationBar({
             onEdit(bar.allocation.id)
           } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             e.preventDefault()
-            nudge(e.shiftKey ? 'resize-end' : 'move', e.key === 'ArrowRight' ? 1 : -1)
+            // Alt = resize the start edge, Shift = resize the end edge, neither = move.
+            const mode = e.altKey ? 'resize-start' : e.shiftKey ? 'resize-end' : 'move'
+            nudge(mode, e.key === 'ArrowRight' ? 1 : -1)
           }
         }}
         className={`group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}

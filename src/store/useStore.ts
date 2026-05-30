@@ -97,7 +97,10 @@ export interface StoreState {
   past: AppData[]
   future: AppData[]
   persistError: boolean
-  notice: string | null // transient user message (e.g. a rejected drag); auto-dismissed by the UI
+  notice: string | null // transient user message (e.g. a rejected drag)
+  /** Severity of the current notice. 'info' auto-dismisses; 'error' persists until
+   *  the user dismisses it (an error that vanishes before it's read is useless). */
+  noticeTone: 'info' | 'error'
   /** True while an open form has unsaved edits — drives the unsaved-changes guards
    *  (modal backdrop/Escape, beforeunload). Set by the Modal, never persisted. */
   dirtyForm: boolean
@@ -113,7 +116,7 @@ export interface StoreState {
   importData: (data: AppData) => ImportSummary
   setHydrated: (v: boolean) => void
   setPersistError: (v: boolean) => void
-  setNotice: (message: string | null) => void
+  setNotice: (message: string | null, tone?: 'info' | 'error') => void
   setDirtyForm: (v: boolean) => void
   undo: () => void
   redo: () => void
@@ -235,6 +238,7 @@ export const useStore = create<StoreState>()((set, get) => {
     future: [],
     persistError: false,
     notice: null,
+    noticeTone: 'info',
     dirtyForm: false,
 
     addAccount: (input) => {
@@ -350,7 +354,7 @@ export const useStore = create<StoreState>()((set, get) => {
     },
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
-    setNotice: (message) => set({ notice: message }),
+    setNotice: (message, tone = 'info') => set({ notice: message, noticeTone: message ? tone : 'info' }),
     setDirtyForm: (v) => set({ dirtyForm: v }),
 
     undo: () =>

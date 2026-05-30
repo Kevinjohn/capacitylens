@@ -50,14 +50,14 @@ export function ImportExport() {
   const onImport = async (file: File) => {
     // Reject an oversized file before reading it into memory (self-DoS guard).
     if (file.size > MAX_IMPORT_BYTES) {
-      setNotice(`That file is too large to import (max ${MAX_IMPORT_BYTES / 1_000_000}MB).`)
+      setNotice(`That file is too large to import (max ${MAX_IMPORT_BYTES / 1_000_000}MB).`, 'error')
       return
     }
     try {
       const parsed = parseData(await file.text())
       setPendingImport({ data: parsed, name: file.name })
     } catch {
-      setNotice('Could not import that file — it is not valid Floaty JSON.')
+      setNotice('Could not import that file — it is not valid Floaty JSON.', 'error')
     }
   }
 

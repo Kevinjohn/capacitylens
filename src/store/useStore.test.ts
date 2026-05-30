@@ -100,6 +100,16 @@ describe('store scheduler UI', () => {
     expect(s().notice).toBeNull()
   })
 
+  it('setNotice records severity (info default, error opt-in) so the UI can persist errors', () => {
+    s().setNotice('Heads up')
+    expect(s().noticeTone).toBe('info')
+    s().setNotice('Boom', 'error')
+    expect(s().noticeTone).toBe('error')
+    // Clearing resets the tone so a stale error tone can't linger.
+    s().setNotice(null)
+    expect(s().noticeTone).toBe('info')
+  })
+
   it('goToDate sets focusDate + origin and bumps recenterToken', () => {
     const before = s().ui.recenterToken
     s().goToDate('2026-08-15')

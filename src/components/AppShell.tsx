@@ -19,6 +19,7 @@ export function AppShell() {
   const hydrated = useStore((s) => s.hydrated)
   const persistError = useStore((s) => s.persistError)
   const notice = useStore((s) => s.notice)
+  const noticeTone = useStore((s) => s.noticeTone)
   const setNotice = useStore((s) => s.setNotice)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
@@ -40,12 +41,13 @@ export function AppShell() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [dirtyForm])
 
-  // Auto-dismiss transient notices after a few seconds.
+  // Auto-dismiss info notices after a few seconds; ERROR notices persist until the
+  // user dismisses them (an error toast that vanishes before it's read is useless).
   useEffect(() => {
-    if (!notice) return
+    if (!notice || noticeTone === 'error') return
     const t = setTimeout(() => setNotice(null), 4000)
     return () => clearTimeout(t)
-  }, [notice, setNotice])
+  }, [notice, noticeTone, setNotice])
 
   // Global undo/redo: ⌘Z / ⌘⇧Z (ignored while typing in a field).
   useEffect(() => {
@@ -124,7 +126,7 @@ export function AppShell() {
           loader
         )}
       </main>
-      {notice && <Toast message={notice} onDismiss={() => setNotice(null)} />}
+      {notice && <Toast message={notice} tone={noticeTone} onDismiss={() => setNotice(null)} />}
     </div>
   )
 }

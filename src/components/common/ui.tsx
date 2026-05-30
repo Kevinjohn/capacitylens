@@ -262,13 +262,16 @@ export function FieldError({ id, children }: { id?: string; children?: ReactNode
   )
 }
 
-/** Transient bottom-centre message (rejected drag, failed import…). Caller owns dismissal. */
-export function Toast({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+/** Transient bottom-centre message (rejected drag, failed import…). Caller owns dismissal.
+ *  `error` toasts get a danger ring (and the caller keeps them on screen until dismissed). */
+export function Toast({ message, tone = 'info', onDismiss }: { message: string; tone?: 'info' | 'error'; onDismiss: () => void }) {
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4">
       <div
         role="alert"
-        className="pointer-events-auto flex max-w-md items-start gap-3 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-pop ring-1 ring-black/10 animate-[floaty-pop_0.16s_ease-out]"
+        className={`pointer-events-auto flex max-w-md items-start gap-3 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-pop ring-1 animate-[floaty-pop_0.16s_ease-out] ${
+          tone === 'error' ? 'ring-2 ring-danger' : 'ring-black/10'
+        }`}
       >
         <span>{message}</span>
         <button

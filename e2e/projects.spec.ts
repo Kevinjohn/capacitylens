@@ -32,8 +32,10 @@ test.describe('Projects', () => {
     await dialog.getByRole('button', { name: 'Add phase' }).click()
     await expect(dialog.getByText('Launch')).toBeVisible()
 
-    // Remove the seeded "Discovery" phase.
-    await dialog.locator('li').filter({ hasText: 'Discovery' }).getByRole('button', { name: 'Remove' }).click()
+    // Remove the seeded "Discovery" phase (two-click inline confirm).
+    const discovery = dialog.locator('li').filter({ hasText: 'Discovery' })
+    await discovery.getByRole('button', { name: 'Remove' }).click()
+    await discovery.getByRole('button', { name: 'Confirm' }).click()
     await expect(dialog.getByText('Discovery')).toHaveCount(0)
   })
 
