@@ -12,6 +12,8 @@ import { ResourceLane } from './ResourceLane'
 import { AllocationModal } from './AllocationModal'
 import { TimeOffForm } from '../timeoff/TimeOffForm'
 import { buildSchedulerModel } from './schedulerModel'
+import { computeWindow } from './virtualWindow'
+import type { GroupModel, RowModel } from './schedulerModel'
 import type { ID, ISODate } from '../../types/entities'
 
 type ModalState =
@@ -27,12 +29,19 @@ export function SchedulerGrid() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const didScroll = useRef(false)
   const [timelineWidth, setTimelineWidth] = useState(0)
+  const [timelineHeight, setTimelineHeight] = useState(0) // viewport height for row virtualization
+  const [scrollTop, setScrollTop] = useState(0)
+  const scrollRaf = useRef(0)
 
-  // Measure the scroll container so the day-column width can fit ui.zoom weeks.
+  // Measure the scroll container so the day-column width can fit ui.zoom weeks (and
+  // the height drives row virtualization).
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
-    const measure = () => setTimelineWidth(el.clientWidth)
+    const measure = () => {
+      setTimelineWidth(el.clientWidth)
+      setTimelineHeight(el.clientHeight)
+    }
     measure()
     if (typeof ResizeObserver === 'undefined') return
     // rAF-throttle so a live window drag-resize coalesces to one rebuild per frame.
@@ -119,6 +128,160 @@ export function SchedulerGrid() {
     return rows.length ? Math.round((rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100) : 0
   }, [model])
 
+  // Flatten the visible model into one ordered list of renderable items (group
+  // headers + the rows of expanded groups) so the grid can window them vertically:
+  // at small scale everything renders; past a viewport's worth, only the on-screen
+  // slice is in the DOM (the rest is reserved by top/bottom spacers).
+  type Item = { kind: 'group'; group: GroupModel } | { kind: 'row'; group: GroupModel; row: RowModel }
+  const items = useMemo(() => {
+    const out: Item[] = []
+    for (const group of model) {
+      out.push({ kind: 'group', group })
+      if (!ui.collapsedGroups.includes(group.key)) for (const row of group.rows) out.push({ kind: 'row', group, row })
+    }
+    return out
+  }, [model, ui.collapsedGroups])
+
+  const heights = items.map((it) => (it.kind === 'group' ? LAYOUT.groupHeaderHeight : it.row.rowHeight))
+  const { first, last, topPad, bottomPad } = computeWindow(heights, scrollTop, timelineHeight)
+  const visible = items.slice(first, last + 1)
+
+  // rAF-coalesced vertical scroll → recompute the window. Horizontal scroll lands here
+  // too but setScrollTop with an unchanged value is a no-op (React bails the re-render).
+  const onScroll = () => {
+    if (scrollRaf.current) return
+    scrollRaf.current = requestAnimationFrame(() => {
+      scrollRaf.current = 0
+      if (scrollRef.current) setScrollTop(scrollRef.current.scrollTop)
+    })
+  }
+  useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
+
+  const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => (
+    <div
+      key={key}
+      role="row"
+      aria-rowindex={rowIndex}
+      data-testid="discipline-group"
+      className="flex border-y border-line bg-surface"
+      style={{ height: LAYOUT.groupHeaderHeight }}
+    >
+      <div role="rowheader" className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
+        <button
+          type="button"
+          onClick={() => toggleGroup(group.key)}
+          aria-expanded={!ui.collapsedGroups.includes(group.key)}
+          className="flex h-full w-full items-center gap-2 bg-surface px-3 text-xs font-semibold uppercase tracking-wide hover:bg-canvas"
+        >
+          <Icon
+            name={ui.collapsedGroups.includes(group.key) ? 'chevron-right' : 'chevron-down'}
+            size={14}
+            className="text-faint"
+          />
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
+            style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
+          />
+          <span className="truncate text-ink">{group.title}</span>
+        </button>
+      </div>
+      <div role="gridcell" className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
+        {ui.collapsedGroups.includes(group.key)
+          ? `${group.rows.length} hidden`
+          : `${group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0}% avg load`}
+      </div>
+    </div>
+  )
+
+  const renderRow = (group: GroupModel, row: RowModel, rowIndex: number, key: string) => {
+    const { resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon, dimmed } = row
+    return (
+      /* bg-surface on the whole row (not just the sticky header) so the row divider
+         sits on ONE background — without it the border crosses the surface left column
+         and the darker timeline, reading as a two-tone line. */
+      <div
+        key={key}
+        role="row"
+        aria-rowindex={rowIndex}
+        data-testid="scheduler-row"
+        data-dimmed={dimmed || undefined}
+        title={dimmed ? 'No work on this project — available to staff (drag work onto this row)' : undefined}
+        className={`flex border-b border-line bg-surface ${dimmed ? 'opacity-45' : ''}`}
+        style={{ height: rowHeight }}
+      >
+        <div
+          role="rowheader"
+          className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-3"
+          style={{ width: LAYOUT.leftColWidth }}
+        >
+          {/* Text equivalent of the colour-only capacity cues (over-marker, time-off tint). */}
+          <span className="sr-only">
+            {overSoon ? 'Overbooked in the next two weeks. ' : ''}
+            {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
+            {bars.length} allocation{bars.length === 1 ? '' : 's'}.
+          </span>
+          {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
+              discipline reads as one colour; fall back to the resource's own colour for
+              the ungrouped "No discipline" bucket. */}
+          <Avatar name={resource.name ?? resource.role} color={group.color ?? resource.color} />
+          {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
+          <div className="ms-1.5 min-w-0 flex-1">
+            <span className="flex items-center gap-1 truncate text-sm font-medium">
+              {resource.name ?? resource.role}
+              {resource.kind === 'placeholder' && <span className="rounded bg-canvas px-1 text-2xs text-muted">slot</span>}
+              <TemporaryTag resource={resource} />
+            </span>
+            <span className="block truncate text-xs text-muted">{resource.role}</span>
+          </div>
+          {/* Right column as a structured 2-cell grid: the add button on top, the
+              allocation % beneath it, split by a divider inside one rounded box. */}
+          <div className="flex shrink-0 flex-col overflow-hidden rounded-md border border-line text-center leading-none">
+            <button
+              type="button"
+              onClick={() => {
+                const d = visibleStartDate()
+                setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
+              }}
+              aria-label={`Add allocation for ${resource.name ?? resource.role}`}
+              title="Add allocation"
+              className="flex h-6 w-11 items-center justify-center text-muted transition hover:bg-canvas hover:text-ink"
+            >
+              <Icon name="plus" size={15} />
+            </button>
+            <span
+              data-testid="utilization"
+              title={
+                overSoon
+                  ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
+                  : `Load over the next ${UTILIZATION_WINDOW_DAYS} days`
+              }
+              className={`flex h-5 w-11 items-center justify-center border-t border-line text-2xs ${
+                overSoon ? 'font-semibold text-danger' : 'text-faint'
+              }`}
+            >
+              {Math.round(util * 100)}%
+            </span>
+          </div>
+        </div>
+
+        <ResourceLane
+          resourceId={resource.id}
+          days={days}
+          dayStates={dayStates}
+          timeOff={timeOff}
+          todayX={todayX}
+          dayWidth={dayWidth}
+          origin={ui.originDate}
+          totalWidth={totalWidth}
+          rowHeight={rowHeight}
+          bars={bars}
+          onEdit={handleEdit}
+          onDraw={handleDraw}
+        />
+      </div>
+    )
+  }
+
   return (
     <div
       ref={scrollRef}
@@ -126,8 +289,10 @@ export function SchedulerGrid() {
       data-testid="scheduler-grid"
       role="grid"
       aria-label="Resource schedule"
+      aria-rowcount={items.length + 1}
+      onScroll={onScroll}
     >
-      <div role="row" className="sticky top-0 z-20 flex border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
+      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
         <div
           role="columnheader"
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
@@ -159,127 +324,20 @@ export function SchedulerGrid() {
         </div>
       )}
 
-      {model.map((group) => (
-        <div key={group.key} role="rowgroup">
-          <div
-            role="row"
-            data-testid="discipline-group"
-            className="flex border-y border-line bg-surface"
-            style={{ height: LAYOUT.groupHeaderHeight }}
-          >
-            <div role="rowheader" className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
-              <button
-                type="button"
-                onClick={() => toggleGroup(group.key)}
-                aria-expanded={!ui.collapsedGroups.includes(group.key)}
-                className="flex h-full w-full items-center gap-2 bg-surface px-3 text-xs font-semibold uppercase tracking-wide hover:bg-canvas"
-              >
-                <Icon
-                  name={ui.collapsedGroups.includes(group.key) ? 'chevron-right' : 'chevron-down'}
-                  size={14}
-                  className="text-faint"
-                />
-                <span
-                  className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
-                  style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
-                />
-                <span className="truncate text-ink">{group.title}</span>
-              </button>
-            </div>
-            <div role="gridcell" className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
-              {ui.collapsedGroups.includes(group.key)
-                ? `${group.rows.length} hidden`
-                : `${group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0}% avg load`}
-            </div>
-          </div>
-
-          {!ui.collapsedGroups.includes(group.key) &&
-            group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon, dimmed }) => (
-            /* bg-surface on the whole row (not just the sticky header) so the row divider
-               sits on ONE background — without it the border crosses the surface left column
-               and the darker timeline, reading as a two-tone line. */
-            <div
-              key={resource.id}
-              role="row"
-              data-testid="scheduler-row"
-              data-dimmed={dimmed || undefined}
-              title={dimmed ? 'No work on this project — available to staff (drag work onto this row)' : undefined}
-              className={`flex border-b border-line bg-surface ${dimmed ? 'opacity-45' : ''}`}
-              style={{ height: rowHeight }}
-            >
-              <div
-                role="rowheader"
-                className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-3"
-                style={{ width: LAYOUT.leftColWidth }}
-              >
-                {/* Text equivalent of the colour-only capacity cues (over-marker, time-off tint). */}
-                <span className="sr-only">
-                  {overSoon ? 'Overbooked in the next two weeks. ' : ''}
-                  {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
-                  {bars.length} allocation{bars.length === 1 ? '' : 's'}.
-                </span>
-                {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
-                    discipline reads as one colour; fall back to the resource's own colour for
-                    the ungrouped "No discipline" bucket. */}
-                <Avatar name={resource.name ?? resource.role} color={group.color ?? resource.color} />
-                {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
-                <div className="ms-1.5 min-w-0 flex-1">
-                  <span className="flex items-center gap-1 truncate text-sm font-medium">
-                    {resource.name ?? resource.role}
-                    {resource.kind === 'placeholder' && <span className="rounded bg-canvas px-1 text-2xs text-muted">slot</span>}
-                    <TemporaryTag resource={resource} />
-                  </span>
-                  <span className="block truncate text-xs text-muted">{resource.role}</span>
-                </div>
-                {/* Right column as a structured 2-cell grid: the add button on top, the
-                    allocation % beneath it, split by a divider inside one rounded box. */}
-                <div className="flex shrink-0 flex-col overflow-hidden rounded-md border border-line text-center leading-none">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = visibleStartDate()
-                      setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
-                    }}
-                    aria-label={`Add allocation for ${resource.name ?? resource.role}`}
-                    title="Add allocation"
-                    className="flex h-6 w-11 items-center justify-center text-muted transition hover:bg-canvas hover:text-ink"
-                  >
-                    <Icon name="plus" size={15} />
-                  </button>
-                  <span
-                    data-testid="utilization"
-                    title={
-                      overSoon
-                        ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
-                        : `Load over the next ${UTILIZATION_WINDOW_DAYS} days`
-                    }
-                    className={`flex h-5 w-11 items-center justify-center border-t border-line text-2xs ${
-                      overSoon ? 'font-semibold text-danger' : 'text-faint'
-                    }`}
-                  >
-                    {Math.round(util * 100)}%
-                  </span>
-                </div>
-              </div>
-
-              <ResourceLane
-                resourceId={resource.id}
-                days={days}
-                dayStates={dayStates}
-                timeOff={timeOff}
-                todayX={todayX}
-                dayWidth={dayWidth}
-                origin={ui.originDate}
-                totalWidth={totalWidth}
-                rowHeight={rowHeight}
-                bars={bars}
-                onEdit={handleEdit}
-                onDraw={handleDraw}
-              />
-            </div>
-          ))}
+      {items.length > 0 && (
+        <div role="rowgroup">
+          {/* Spacer reserving the scroll height of the rows above the rendered slice. */}
+          {topPad > 0 && <div aria-hidden style={{ height: topPad }} />}
+          {visible.map((item, i) => {
+            // aria-rowindex is 1-based and global: header is 1, so items start at 2.
+            const rowIndex = first + i + 2
+            return item.kind === 'group'
+              ? renderGroupHeader(item.group, rowIndex, `g-${item.group.key}`)
+              : renderRow(item.group, item.row, rowIndex, `r-${item.row.resource.id}`)
+          })}
+          {bottomPad > 0 && <div aria-hidden style={{ height: bottomPad }} />}
         </div>
-      ))}
+      )}
 
       {modal &&
         (modal.kind === 'edit' ? (

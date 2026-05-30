@@ -187,22 +187,24 @@ gate (tsc + eslint + unit + e2e). Highlights:
   6×list + 7×form boilerplate (thin hooks only — the heavy generic-CRUD factory stays
   rejected, see above).
 
-### Full row virtualization — deliberately deferred (with prerequisite)
-The perf reviewer rated this Critical *at ~200 resources*, with jank starting ~40–50.
-Deferred, for reasons in priority order:
-1. **Zero observable benefit at the app's real scale** — a tiny agency's seed is ~10
-   resources; every row fits the viewport, so a virtualizer would render all of them.
-2. **Can't be responsibly validated yet** — there is no large dataset (or test) that
-   exercises the windowing path, so integrating it now ships an unvalidated layer that
-   could introduce scroll/measurement artifacts invisible at 10 rows.
-3. **The scale-independent costs are already gone** — the per-keystroke model rebuild
-   (debounce) and the `parseISO` storm (string compare) are fixed this pass; those bit
-   at *every* scale, virtualization only past ~40 rows.
-4. **It's cleanly additive later.** Prerequisite to do it well: a ~200-row fixture to
-   develop + measure against, then `@tanstack/react-virtual` with `measureElement`
-   (lane heights vary with bar stacking), `aria-rowcount`/`aria-rowindex` to keep the
-   `role="grid"` semantics valid, and a clientHeight-0 fallback for jsdom mirroring the
-   existing `FALLBACK_TIMELINE_WIDTH` pattern.
+### Full row virtualization — implemented (spacer windowing, no new dependency)
+The perf reviewer rated this Critical at ~200 resources (jank from ~40–50). The grid
+now windows rows vertically: the visible model is flattened into one ordered item list
+(group headers + expanded-group rows) and only the on-screen slice (+300px overscan) is
+in the DOM — the off-screen scroll extent is reserved by top/bottom spacer divs. Chosen
+over a windowing library and over absolute-positioning because **spacer windowing keeps
+every row in normal flow**, so the sticky left column, flex layout and all e2e/test
+markup are unchanged; only off-screen rows are dropped.
+- The math is a pure `computeWindow(heights, scrollTop, viewportHeight)` (handles the
+  variable lane heights) — unit-tested at 200 rows, since the windowing path can't run
+  in jsdom. A `viewportHeight <= 0` / fits-in-view branch renders everything (the jsdom +
+  small-data fallback, mirroring `FALLBACK_TIMELINE_WIDTH`), which is why the ~10-row
+  suite + axe stay green.
+- a11y preserved: one `role="rowgroup"` wraps the rows (spacers are `aria-hidden`), the
+  grid carries `aria-rowcount` and each row a 1-based global `aria-rowindex` so AT knows
+  positions even when rows are virtualized out. Validated by the axe e2e (light + dark).
+- Vertical scroll is rAF-coalesced into a `scrollTop` state; horizontal scroll lands in
+  the same handler but a same-value `setScrollTop` is a no-op (no re-render thrash).
 
 ### Project-filter availability (UX 🟠 Major) — implemented (product choice made)
 The reviewer flagged that filtering to a project made it hard to see who's free to
@@ -213,9 +215,13 @@ their *full real load* so you can judge availability and drag work onto them —
 Implemented in `buildSchedulerModel` (per-row `dimmed` flag; dimmed rows show full load,
 matched rows stay focused) + a `Filters.showUnmatched` flag + the toolbar toggle.
 
-### Other deliberately-deferred findings (judged, not missed)
-- **Error toasts auto-dismiss (UX 🟡).** Needs the `notice` model to carry a severity so
-  errors persist while info auto-clears — a small shape change left for a focused pass.
-- **Minor polish (UX 🟡):** jump-to-date commit-on-blur, a drag-commit confirmation
-  toast, keyboard start-resize (only end-resize today), and an explicit confirm on phase
-  removal (already ⌘Z-undoable). Low value relative to risk; batched for later.
+### Previously-deferred findings — now implemented
+- **Error toasts persist (UX 🟡).** `store.noticeTone` ('info' auto-dismisses after 4s;
+  'error' persists until dismissed + gets a danger ring). Rejected-reassign and import
+  failures are 'error'; success/info still auto-clear.
+- **Drag-commit toast + keyboard start-resize + phase-remove confirm (UX 🟡).** A
+  successful drag now confirms with a ⌘Z hint; Alt+arrow resizes the start edge
+  (Shift+arrow the end); phase removal has a two-click inline confirm (modal-free).
+- **Jump-to-date — kept on-change by design.** Commit-on-blur was rejected: a native
+  date input doesn't fire blur when you pick from its calendar popup, so it would break
+  the common pick case. On-change is correct here.
