@@ -1,3 +1,6 @@
+> **STATUS: SHIPPED.** Historical pre-implementation plan; see `DECISIONS.md` and the
+> source for the current behaviour.
+
 # Plan — multi-week scheduler zoom (1 / 2 / 4 / 6 / 8 weeks)
 
 ## Context / goal

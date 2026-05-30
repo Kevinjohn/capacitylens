@@ -1,8 +1,9 @@
 # Floaty
 
-A small, **local-only** resource scheduler for a tiny creative agency — a lightweight clone of
-[Float](https://www.float.com). Runs entirely in the browser (data in `localStorage`); no
-server, no accounts, no per-seat pricing.
+A small, **local-only**, **multi-company** resource scheduler for a tiny creative agency — a
+lightweight clone of [Float](https://www.float.com). Runs entirely in the browser (data in
+`localStorage`); no server, no backend, no per-seat pricing. Pick a company on launch (the
+account picker) and every screen is scoped to it.
 
 ## What it does
 - Manage **resources** (people **and** unnamed placeholders) grouped by **discipline**,

@@ -2,8 +2,11 @@ import { emptyAppData } from '../types/entities'
 import type { AppData } from '../types/entities'
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
-// current-shape AppData. Versioned migrations run in sequence; normalize() then
-// guarantees every array exists.
+// current-shape AppData. There is exactly one structural transform today
+// (v1 → v2, below); the v2 → v3 bump added `accountId`, which needs no migration
+// here — the live key is `floaty/v3` (main.tsx), so older keys are orphaned
+// rather than read, and the import path stamps `accountId` on every incoming
+// row (see useStore.importData). normalize() then guarantees every array exists.
 
 function asArray<T>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : []

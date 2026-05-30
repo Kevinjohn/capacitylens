@@ -51,7 +51,7 @@ describe('migrate', () => {
     expect(out.resources[0]).toMatchObject({ employmentType: 'permanent' })
   })
 
-  it('leaves current (v2) data untouched', () => {
+  it('leaves a v2 payload untouched (no v2→v3 transform needed)', () => {
     const data = {
       ...emptyAppData(),
       resources: [

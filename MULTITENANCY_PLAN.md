@@ -1,3 +1,8 @@
+> **STATUS: SHIPPED.** This is the historical pre-implementation plan. The code that
+> shipped differs from the "verified" snapshots below (e.g. `SCHEMA_VERSION = 3`,
+> entities carry `accountId`, `Draft<T>` also omits `accountId`). For the current
+> architecture see `DECISIONS.md` and the source.
+
 # Multi-tenancy implementation plan
 
 Decisions (from product owner):

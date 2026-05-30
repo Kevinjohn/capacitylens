@@ -3,12 +3,13 @@ import type { AppData, PersistedState } from '../types/entities'
 import type { PersistenceAdapter } from './PersistenceAdapter'
 import { migrate } from './migrate'
 
-const DEFAULT_KEY = 'floaty/v1'
-
 export class LocalStorageAdapter implements PersistenceAdapter {
   private readonly key: string
 
-  constructor(key: string = DEFAULT_KEY) {
+  // The storage key is required (no default): the live key is versioned
+  // (`floaty/v3`, see main.tsx) and a silent default would read/write an
+  // orphaned older key.
+  constructor(key: string) {
     this.key = key
   }
 
