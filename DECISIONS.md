@@ -147,3 +147,70 @@ A medium-effort precision code review of the whole branch surfaced 6 actionable 
 - **ResourceLane re-entrant pointer leak (low).** The lane-draw `onPointerDown` lacked the guard + `pointerId` filtering `useDragResize` already has, so a second concurrent touch double-registered document listeners (overwriting `teardownRef`) and could fire `onDraw` twice. Added the `if (teardownRef.current) return` guard and per-pointer move/up/cancel filtering. (Consequence was mild — `onDraw` only opens a modal — but the divergence was a latent footgun.)
 - **Import recognisability guard (low).** `looksLikeFloaty`'s `KNOWN_KEYS` omitted `accounts`, so a valid export of an account with no scoped entities was rejected on re-import. Added `accounts`.
 - Tests: +2 unit cases on `capacity` (weekend-spanning full booking stays ≤100%; `overAllocatedInWindow` true for a real working-day overbook, false for weekend-only spillover) and +1 on `multitenancy` (import drops reversed-range / dangling allocations + dangling-resource time-off, keeps valid remapped rows). The existing `schedulerModel` "overSoon" test (a genuine weekday overbook) still passes, confirming real overbooking is unaffected. **336 unit + tsc + eslint + build green.**
+
+## 2026-05-30 — five-specialist review remediation (UI / security / perf / DX / UX)
+
+Five grumpy specialist reviews (UI, security, performance, DX, UX) were run over the
+whole branch. Their findings were implemented across 9 commits, each behind the green
+gate (tsc + eslint + unit + e2e). Highlights:
+
+- **Capacity warning at allocation time (UX critical).** The capacity engine already
+  computed over-allocation + time-off conflicts but the modal never asked it. The
+  allocation modal now shows a non-blocking advisory ("over capacity on N days / on
+  time off for N days") computed over the chosen range against the assignee's *other*
+  allocations — the edited one is excluded so it never flags itself. Save still allowed.
+- **Unsaved-changes guard (UX critical).** Backdrop closed on `mousedown` the instant
+  the target was the overlay → a 3px misclick (or a drag that started in an input and
+  released on the backdrop) destroyed an in-progress form. Now closes only on a press
+  that both starts and ends on the backdrop; once a field is edited, accidental
+  dismissal (backdrop/Escape) is refused with a hint, and a `beforeunload` guard covers
+  tab-close/refresh. A clean dialog still closes on Escape (a11y contract intact).
+- **Import hardening (security).** File-size + record-count caps (self-DoS/JSON-bomb),
+  per-record value sanitisation (junk enums → safe defaults, negative/NaN/huge hours →
+  clamped, non-hex colour → fallback), id-less records each get a fresh id (was: all
+  collapsed onto `undefined`), a prototype-pollution regression test, and an honest
+  post-import delta ("imported 31, 9 invalid skipped"). CSP meta (object-src/base-uri).
+- **Strict mode (DX).** `"strict": true` enabled for app + node — *zero* source changes
+  needed (the code was already strict-clean; the rigor is now enforced). The
+  multitenancy seam's scattered `as never` / `as unknown as` / `!` collapsed into one
+  named, typed `scopedTables()` helper. Type-aware lint (`no-floating-promises`).
+  (`noUncheckedIndexedAccess` evaluated and left off — ~50 low-value test-only edits.)
+- **Perf (the costs that bit at any scale).** `isWithin()` now compares zero-padded
+  YYYY-MM-DD strings instead of 3× `parseISO` — eliminates ~99% of the per-rebuild date
+  parsing on the hottest path. Search debounced (no per-keystroke model rebuild).
+  Route-level code splitting. Memoised `overallUtil` / DateHeader groupings; rAF-coalesced
+  the mid-drag scroll re-snapshot.
+- **UI.** Inline-SVG icon set replaces the Unicode glyphs; dead `public/icons.svg`
+  deleted; `--color-base`→`--color-canvas` rename kills the `text-base` footgun; one
+  `--text-2xs` token; shared `controlBase` ends the toolbar input drift.
+- **DX dedup.** `useCrudListState` / `useFieldError` + `lib/validation.ts` collapse the
+  6×list + 7×form boilerplate (thin hooks only — the heavy generic-CRUD factory stays
+  rejected, see above).
+
+### Full row virtualization — deliberately deferred (with prerequisite)
+The perf reviewer rated this Critical *at ~200 resources*, with jank starting ~40–50.
+Deferred, for reasons in priority order:
+1. **Zero observable benefit at the app's real scale** — a tiny agency's seed is ~10
+   resources; every row fits the viewport, so a virtualizer would render all of them.
+2. **Can't be responsibly validated yet** — there is no large dataset (or test) that
+   exercises the windowing path, so integrating it now ships an unvalidated layer that
+   could introduce scroll/measurement artifacts invisible at 10 rows.
+3. **The scale-independent costs are already gone** — the per-keystroke model rebuild
+   (debounce) and the `parseISO` storm (string compare) are fixed this pass; those bit
+   at *every* scale, virtualization only past ~40 rows.
+4. **It's cleanly additive later.** Prerequisite to do it well: a ~200-row fixture to
+   develop + measure against, then `@tanstack/react-virtual` with `measureElement`
+   (lane heights vary with bar stacking), `aria-rowcount`/`aria-rowindex` to keep the
+   `role="grid"` semantics valid, and a clientHeight-0 fallback for jsdom mirroring the
+   existing `FALLBACK_TIMELINE_WIDTH` pattern.
+
+### Other deliberately-deferred findings (judged, not missed)
+- **Filtering to a project blanks the grid (UX 🟠 Major).** Today an active project/client
+  filter hides every non-matching resource, so staffing a fresh project shows an empty
+  grid. The fix is a genuine product choice — *hide* vs. *dim non-matching + a "show
+  unallocated" toggle* — so it's paused for that decision rather than guessed.
+- **Error toasts auto-dismiss (UX 🟡).** Needs the `notice` model to carry a severity so
+  errors persist while info auto-clears — a small shape change left for a focused pass.
+- **Minor polish (UX 🟡):** jump-to-date commit-on-blur, a drag-commit confirmation
+  toast, keyboard start-resize (only end-resize today), and an explicit confirm on phase
+  removal (already ⌘Z-undoable). Low value relative to risk; batched for later.
