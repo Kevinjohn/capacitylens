@@ -160,6 +160,22 @@ describe('Modal', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('treats clicking an aria-pressed toggle (e.g. WeekdayPicker) as a dirty edit', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal title="Toggle Modal" onClose={onClose}>
+        <button type="button" aria-pressed={false}>
+          Mon
+        </button>
+      </Modal>,
+    )
+    // A button-driven toggle fires no input/change event, but the guard must still
+    // catch it — otherwise editing working days then pressing Escape loses the change.
+    fireEvent.click(screen.getByRole('button', { name: 'Mon' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('renders optional footer', () => {
     render(
       <Modal title="Footer Modal" onClose={vi.fn()} footer={<span>Footer content</span>}>

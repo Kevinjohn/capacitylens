@@ -74,11 +74,20 @@ export function Modal({
     const node = panelRef.current
     if (!node) return
     const markDirty = () => setDirty(true)
+    // Native form controls fire input/change. Button-driven toggle controls
+    // (e.g. WeekdayPicker) don't — they mutate state on click — so also treat a
+    // click on any aria-pressed toggle inside the panel as an edit. (Plain action
+    // buttons like Cancel/Save/Add aren't aria-pressed, so they don't false-flag.)
+    const onClick = (e: Event) => {
+      if ((e.target as HTMLElement | null)?.closest('[aria-pressed]')) setDirty(true)
+    }
     node.addEventListener('input', markDirty)
     node.addEventListener('change', markDirty)
+    node.addEventListener('click', onClick)
     return () => {
       node.removeEventListener('input', markDirty)
       node.removeEventListener('change', markDirty)
+      node.removeEventListener('click', onClick)
     }
   }, [])
   // Publish dirtiness so other surfaces (beforeunload) can guard; always clear on unmount.

@@ -38,11 +38,23 @@ export function SchedulerToolbar() {
     setSearchInput(filters.search)
   }
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current) }, [])
+  const cancelSearchTimer = () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = null
+  }
+  useEffect(() => cancelSearchTimer, [])
   const onSearchChange = (v: string) => {
     setSearchInput(v)
-    if (searchTimer.current) clearTimeout(searchTimer.current)
+    cancelSearchTimer()
     searchTimer.current = setTimeout(() => setFilters({ search: v }), 180)
+  }
+  // Clear must also kill any in-flight debounce + reset the local box — otherwise an
+  // orphaned timer re-applies a just-cleared term (and the render reconcile can't catch
+  // it when filters.search was already '').
+  const onClear = () => {
+    cancelSearchTimer()
+    setSearchInput('')
+    clearFilters()
   }
 
   return (
@@ -162,7 +174,7 @@ export function SchedulerToolbar() {
           </label>
         )}
         {hasActiveFilters(filters) && (
-          <Button variant="ghost" onClick={clearFilters}>
+          <Button variant="ghost" onClick={onClear}>
             Clear
           </Button>
         )}

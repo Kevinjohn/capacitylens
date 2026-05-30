@@ -104,4 +104,19 @@ describe('SchedulerToolbar Clear filter button', () => {
     expect(useStore.getState().ui.filters.search).toBe('')
     expect(screen.queryByRole('button', { name: 'Clear' })).not.toBeInTheDocument()
   })
+
+  it('Clear cancels a pending search debounce so a cleared term cannot reappear', async () => {
+    const user = userEvent.setup()
+    // A non-search filter is active so Clear renders immediately, before the debounce.
+    useStore.getState().setFilters({ disciplineId: 'd1' })
+    render(<SchedulerToolbar />)
+
+    await user.type(screen.getByLabelText('Search people'), 'jo') // schedules a 180ms timer
+    await user.click(screen.getByRole('button', { name: 'Clear' })) // must cancel it
+
+    // Wait past the debounce window: the orphaned timer must NOT re-apply "jo".
+    await new Promise((r) => setTimeout(r, 250))
+    expect(useStore.getState().ui.filters.search).toBe('')
+    expect((screen.getByLabelText('Search people') as HTMLInputElement).value).toBe('')
+  })
 })
