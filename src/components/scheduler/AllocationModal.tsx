@@ -1,10 +1,12 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
-import { todayISO } from '../../lib/dateMath'
+import { eachDayISO, todayISO } from '../../lib/dateMath'
+import { allocatedHoursOnDay, availableHoursOnDay, isOnTimeOff } from '../../lib/capacity'
 import { validateAllocationAssignment } from '../../lib/integrity'
 import {
   Button,
+  Callout,
   DateField,
   FieldError,
   Modal,
@@ -79,6 +81,28 @@ export function AllocationModal(props: AllocationModalProps) {
   const taskOptions: Option[] = data.tasks
     .filter((t) => t.projectId === projectId && (phaseId ? t.phaseId === phaseId : true))
     .map((t) => ({ value: t.id, label: t.name }))
+
+  // Non-blocking capacity advisory: does this allocation push the assignee over
+  // their available hours on any working day, or land on their time off? Computed
+  // over the chosen range against their OTHER allocations (the edited one is
+  // excluded so it never counts against itself). Saving is still allowed.
+  const capacityWarning = useMemo(() => {
+    if (!selectedResource || !startDate || !endDate || endDate < startDate || !(hoursPerDay > 0)) return null
+    const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId)
+    let overDays = 0
+    let timeOffDays = 0
+    for (const day of eachDayISO(startDate, endDate)) {
+      if (isOnTimeOff(resourceId, day, data.timeOff)) timeOffDays++
+      const available = availableHoursOnDay(selectedResource, day, data.timeOff)
+      if (available > 0 && allocatedHoursOnDay(resourceId, day, others) + hoursPerDay > available) overDays++
+    }
+    if (!overDays && !timeOffDays) return null
+    const who = selectedResource.name ?? selectedResource.role
+    const parts: string[] = []
+    if (overDays) parts.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
+    if (timeOffDays) parts.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
+    return `${who} is ${parts.join(' and ')} in this range.`
+  }, [selectedResource, resourceId, editId, startDate, endDate, hoursPerDay, data.allocations, data.timeOff])
 
   const onAssigneeChange = (v: string) => {
     setResourceId(v)
@@ -228,6 +252,7 @@ export function AllocationModal(props: AllocationModalProps) {
       <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
       <TextAreaField label="Note" value={note} onChange={setNote} />
 
+      {capacityWarning && <Callout tone="warn">{capacityWarning}</Callout>}
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

@@ -134,6 +134,23 @@ describe('AllocationModal edit', () => {
     expect(screen.getByLabelText('Project')).toHaveValue('p2')
   })
 
+  it('warns (non-blocking) when a new allocation pushes the assignee over capacity', async () => {
+    const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })
+    // Alice is already booked 8h/day across these three weekdays.
+    useStore.getState().addAllocation({ resourceId: a.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+    render(<AllocationModal create={{ resourceId: a.id, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={vi.fn()} />)
+    // Another 8h on the same days = 16h > 8h available: advisory shown, save not blocked.
+    expect(screen.getByRole('status')).toHaveTextContent(/over capacity on 3 days/i)
+  })
+
+  it('does not flag an edited allocation against itself', async () => {
+    const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })
+    const alloc = useStore.getState().addAllocation({ resourceId: a.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
+    // The only 8h booking is the one being edited; it must not count against itself.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
   it('duplicates an allocation', async () => {
     const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })
     const alloc = useStore.getState().addAllocation({ resourceId: a.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })

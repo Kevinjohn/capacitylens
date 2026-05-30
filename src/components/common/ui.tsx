@@ -200,6 +200,17 @@ export function EmptyState({ children }: { children: ReactNode }) {
   )
 }
 
+/** Non-blocking inline note. `warn` = amber advisory (e.g. over-capacity); the
+ *  user can still proceed. Colours come from semantic tokens. */
+export function Callout({ tone = 'warn', children }: { tone?: 'warn'; children: ReactNode }) {
+  const toneClass = tone === 'warn' ? 'border-warn/40 bg-warn/10 text-ink' : ''
+  return (
+    <div role="status" className={`rounded-md border px-3 py-2 text-xs font-medium ${toneClass}`}>
+      {children}
+    </div>
+  )
+}
+
 export function FieldError({ id, children }: { id?: string; children?: ReactNode }) {
   if (!children) return null
   return (
