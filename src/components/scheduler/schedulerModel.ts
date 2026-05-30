@@ -6,7 +6,7 @@ import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { resourcesByDiscipline } from '../../store/selectors'
 import { laneLayout } from './layout'
 import type { Filters } from '../../store/useStore'
-import type { Allocation, AppData, ID, ISODate, Resource } from '../../types/entities'
+import type { Allocation, AppData, ID, ISODate, Resource, TimeOff } from '../../types/entities'
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
@@ -85,6 +85,21 @@ export function buildSchedulerModel(
       return [t.id, { projectId: t.projectId, clientId: project?.clientId }]
     }),
   )
+  // Group allocations / time off by resource ONCE up front, so building each row
+  // is a Map lookup instead of a full-array scan per resource (was O(resources ×
+  // (allocations + timeOff)); now O(allocations + timeOff + resources)).
+  const allocsByResource = new Map<ID, Allocation[]>()
+  for (const a of data.allocations) {
+    const list = allocsByResource.get(a.resourceId)
+    if (list) list.push(a)
+    else allocsByResource.set(a.resourceId, [a])
+  }
+  const timeOffByResource = new Map<ID, TimeOff[]>()
+  for (const t of data.timeOff) {
+    const list = timeOffByResource.get(t.resourceId)
+    if (list) list.push(t)
+    else timeOffByResource.set(t.resourceId, [t])
+  }
 
   const allocVisible = (a: Allocation): boolean => {
     const meta = taskMeta.get(a.taskId)
@@ -105,10 +120,10 @@ export function buildSchedulerModel(
       title: group.discipline?.name ?? 'No discipline',
       color: group.discipline?.color,
       rows: group.resources.filter(resourceVisible).map((resource) => {
-        // Slice this resource's data ONCE; capacity then scans only its own
+        // This resource's data, pre-grouped above; capacity then scans only its own
         // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
-        const allAllocs = data.allocations.filter((a) => a.resourceId === resource.id)
-        const resTimeOff = data.timeOff.filter((t) => t.resourceId === resource.id)
+        const allAllocs = allocsByResource.get(resource.id) ?? []
+        const resTimeOff = timeOffByResource.get(resource.id) ?? []
         const visibleAllocs = allAllocs.filter(allocVisible)
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
@@ -140,13 +155,19 @@ export function buildSchedulerModel(
             note: t.note,
           }))
         // Compute the utilisation window once and derive both the % and the
-        // near-term overbooked flag from it (over-allocated on any day in window).
+        // near-term overbooked flag from it. Both ignore zero-capacity days
+        // (weekends / time off) so an allocation that merely spans them doesn't
+        // inflate the % past 100% or trip the overbooked flag — that's distinct
+        // from the per-day over-marker, which DOES flag any zero-capacity day.
         const winCaps = capacityForWindow(resource, allAllocs, resTimeOff, utilStart, utilEnd)
         let alloc = 0
         let avail = 0
+        let overSoon = false
         for (const c of winCaps) {
+          if (c.available === 0) continue
           alloc += c.allocated
           avail += c.available
+          if (c.allocated > c.available) overSoon = true
         }
         return {
           resource,
@@ -155,7 +176,7 @@ export function buildSchedulerModel(
           dayStates,
           timeOff,
           utilization: avail === 0 ? 0 : alloc / avail,
-          overSoon: winCaps.some((c) => c.over),
+          overSoon,
         }
       }),
     }))

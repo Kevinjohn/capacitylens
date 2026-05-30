@@ -156,4 +156,52 @@ describe('importData (account-scoped)', () => {
     s().undo()
     expect(s().data.clients.filter((c) => c.accountId === 'a1').map((c) => c.id)).toEqual(['c1'])
   })
+
+  it('drops imported allocations/time-off that violate the integrity rules', () => {
+    // The store is the integrity boundary on every write — import is no exception.
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [{ id: 'old-c1', accountId: 'foreign', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#ef4444' }],
+      projects: [{ id: 'old-p1', accountId: 'foreign', createdAt: 't', updatedAt: 't', name: 'Site', clientId: 'old-c1', color: '#10b981' }],
+      resources: [
+        {
+          id: 'old-r1',
+          accountId: 'foreign',
+          createdAt: 't',
+          updatedAt: 't',
+          kind: 'person',
+          role: 'Dev',
+          employmentType: 'permanent',
+          workingHoursPerDay: 8,
+          workingDays: [1, 2, 3, 4, 5],
+          color: '#777777',
+        },
+      ],
+      tasks: [{ id: 'old-t1', accountId: 'foreign', createdAt: 't', updatedAt: 't', name: 'Build', projectId: 'old-p1' }],
+      allocations: [
+        // valid
+        { id: 'ok', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', taskId: 'old-t1', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+        // reversed range — dropped
+        { id: 'rev', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', taskId: 'old-t1', startDate: '2026-06-05', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' },
+        // dangling task — dropped
+        { id: 'dangle', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', taskId: 'missing', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+      ],
+      timeOff: [
+        // valid
+        { id: 'to-ok', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', startDate: '2026-07-01', endDate: '2026-07-03', type: 'holiday' },
+        // dangling resource — dropped
+        { id: 'to-bad', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'missing', startDate: '2026-07-01', endDate: '2026-07-03', type: 'holiday' },
+      ],
+    }
+    s().importData(incoming)
+
+    const a1Allocs = s().data.allocations.filter((a) => a.accountId === 'a1')
+    const a1TimeOff = s().data.timeOff.filter((t) => t.accountId === 'a1')
+    // Only the single valid allocation and time-off survive, remapped + scoped to a1
+    // and still pointing at real imported entities.
+    expect(a1Allocs).toHaveLength(1)
+    expect(a1TimeOff).toHaveLength(1)
+    expect(s().data.tasks.some((t) => t.id === a1Allocs[0].taskId)).toBe(true)
+    expect(s().data.resources.some((r) => r.id === a1Allocs[0].resourceId)).toBe(true)
+  })
 })

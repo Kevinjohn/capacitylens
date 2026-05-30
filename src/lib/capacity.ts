@@ -68,7 +68,10 @@ export function capacityForWindow(
   return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff))
 }
 
-/** Allocated / available over the window. Returns 0 when there is no availability. */
+/** Allocated / available over the window, counted over working days only.
+ *  Returns 0 when there is no availability. Non-working days (weekends / time off)
+ *  are skipped entirely — counting their allocated hours against zero availability
+ *  would push a normal allocation that merely spans a weekend past 100%. */
 export function utilization(
   resource: Resource,
   allocations: Allocation[],
@@ -79,8 +82,25 @@ export function utilization(
   let allocated = 0
   let available = 0
   for (const day of capacityForWindow(resource, allocations, timeOff, start, end)) {
+    if (day.available === 0) continue // not a working day — neither side counts
     allocated += day.allocated
     available += day.available
   }
   return available === 0 ? 0 : allocated / available
+}
+
+/** Over-allocated on a working day inside the window — the near-term "overbooked"
+ *  radar. Unlike the per-day over-marker (which flags ANY allocation on a
+ *  zero-capacity day), this ignores weekend/time-off days so an ordinary
+ *  allocation spanning them doesn't read as overbooked. */
+export function overAllocatedInWindow(
+  resource: Resource,
+  allocations: Allocation[],
+  timeOff: TimeOff[],
+  start: ISODate,
+  end: ISODate,
+): boolean {
+  return capacityForWindow(resource, allocations, timeOff, start, end).some(
+    (day) => day.available > 0 && day.allocated > day.available,
+  )
 }

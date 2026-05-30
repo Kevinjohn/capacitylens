@@ -265,17 +265,41 @@ export const useStore = create<StoreState>()((set, get) => {
         const remap = (ref: unknown): unknown =>
           typeof ref === 'string' && idMap.has(ref) ? idMap.get(ref) : ref
 
-        const next: AppData = { ...d }
+        // Remap every incoming scoped entity into the active account.
+        const brought: Record<string, ScopedEntity[]> = {}
         for (const key of SCOPED_KEYS) {
-          const kept = (d[key] as ScopedEntity[]).filter((e) => e.accountId !== accountId)
-          const brought = (incoming[key] as ScopedEntity[]).map((e) => {
+          brought[key] = (incoming[key] as ScopedEntity[]).map((e) => {
             const copy: Record<string, unknown> = { ...e, id: idMap.get(e.id)!, accountId }
             for (const f of FK_FIELDS) {
               if (copy[f] !== undefined) copy[f] = remap(copy[f])
             }
             return copy as unknown as ScopedEntity
           })
-          next[key] = [...kept, ...brought] as never
+        }
+
+        // The store is the integrity boundary on EVERY write — import is no
+        // exception. A hand-edited / corrupt file must not slip past the rules
+        // addAllocation/addTimeOff enforce, so drop imported allocations and
+        // time-off with an empty/reversed range, a dangling resource/task, or a
+        // placeholder/project-rule violation (which would otherwise render as
+        // NaN/negative bars or orphan rows).
+        const importedResources = new Map((brought.resources as Resource[]).map((r) => [r.id, r]))
+        const importedTasks = new Map((brought.tasks as Task[]).map((t) => [t.id, t]))
+        brought.allocations = (brought.allocations as Allocation[]).filter((a) => {
+          if (!validateDateRange(a.startDate, a.endDate).ok) return false
+          const resource = importedResources.get(a.resourceId)
+          const task = importedTasks.get(a.taskId)
+          if (!resource || !task) return false
+          return validateAllocationAssignment(resource, task.projectId).ok
+        })
+        brought.timeOff = (brought.timeOff as TimeOff[]).filter(
+          (t) => importedResources.has(t.resourceId) && validateDateRange(t.startDate, t.endDate).ok,
+        )
+
+        const next: AppData = { ...d }
+        for (const key of SCOPED_KEYS) {
+          const kept = (d[key] as ScopedEntity[]).filter((e) => e.accountId !== accountId)
+          next[key] = [...kept, ...brought[key]] as never
         }
         return next
       }),

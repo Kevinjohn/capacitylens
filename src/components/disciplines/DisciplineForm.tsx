@@ -9,10 +9,15 @@ import type { Discipline } from '../../types/entities'
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
   const add = useStore((s) => s.addDiscipline)
   const update = useStore((s) => s.updateDiscipline)
-  const count = useScopedData().disciplines.length
+  // Default a new discipline's sortOrder to one past the current maximum, not the
+  // count — using the count collides with an existing order after any deletion or
+  // custom ordering, which then falls back to the name tiebreak and lands the new
+  // row out of place.
+  const disciplines = useScopedData().disciplines
+  const nextSortOrder = disciplines.reduce((max, d) => Math.max(max, d.sortOrder + 1), 0)
   const [name, setName] = useState(discipline?.name ?? '')
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline)
-  const [sortOrder, setSortOrder] = useState(discipline?.sortOrder ?? count)
+  const [sortOrder, setSortOrder] = useState(discipline?.sortOrder ?? nextSortOrder)
   const [error, setError] = useState<string | null>(null)
   const [errorField, setErrorField] = useState<string | null>(null)
   const errorId = useId()

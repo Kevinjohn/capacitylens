@@ -5,6 +5,7 @@ import {
   dayCapacity,
   isOnTimeOff,
   isWorkingDay,
+  overAllocatedInWindow,
   utilization,
 } from './capacity'
 import type { Allocation, Resource, TimeOff } from '../types/entities'
@@ -120,5 +121,29 @@ describe('utilization', () => {
   it('returns 0 when there is no availability in the window', () => {
     // A weekend-only window for a Mon–Fri resource has no availability.
     expect(utilization(r, [makeAlloc()], [], '2026-06-06', '2026-06-07')).toBe(0)
+  })
+
+  it('does not exceed 100% for a full booking that merely spans a weekend', () => {
+    // Mon 06-01 .. Sun 06-14: 10 working days × 8h = 80h available. A continuous
+    // 8h/day allocation across the whole window books weekend days too, but those
+    // hours must not inflate the ratio — a fully-booked person reads as 100%, not 140%.
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-14', hoursPerDay: 8 })]
+    expect(utilization(r, allocs, [], '2026-06-01', '2026-06-14')).toBeCloseTo(1)
+  })
+})
+
+describe('overAllocatedInWindow', () => {
+  const r = makeResource()
+
+  it('is true when a working day is genuinely over-allocated', () => {
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 10 })] // Mon, 10h > 8h
+    expect(overAllocatedInWindow(r, allocs, [], '2026-06-01', '2026-06-14')).toBe(true)
+  })
+
+  it('is false when an allocation only spans non-working (weekend) days', () => {
+    // 8h/day Mon–Sun: every working day is exactly at capacity; the weekend hours
+    // must not count as over-allocation for the near-term radar.
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-14', hoursPerDay: 8 })]
+    expect(overAllocatedInWindow(r, allocs, [], '2026-06-01', '2026-06-14')).toBe(false)
   })
 })

@@ -11,7 +11,7 @@ export function serializeData(data: AppData): string {
   return JSON.stringify(state, null, 2)
 }
 
-const KNOWN_KEYS = ['disciplines', 'resources', 'clients', 'projects', 'phases', 'tasks', 'allocations', 'timeOff']
+const KNOWN_KEYS = ['accounts', 'disciplines', 'resources', 'clients', 'projects', 'phases', 'tasks', 'allocations', 'timeOff']
 
 // Recognisable-Floaty guard for the IMPORT path: any JSON that parses but isn't
 // shaped like Floaty data would otherwise be migrated to an EMPTY dataset and

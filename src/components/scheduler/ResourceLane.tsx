@@ -52,10 +52,22 @@ export const ResourceLane = memo(function ResourceLane({
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
+    // Ignore a re-entrant pointerdown (a second finger / pen) while a draw is
+    // already live — otherwise its document listeners would leak (overwriting
+    // teardownRef) and a single pointerup could fire onDraw twice. Mirrors the
+    // guard in useDragResize.
+    if (teardownRef.current) return
+    const pointerId = e.pointerId // only react to THIS pointer's move/up/cancel
+    // Guarded because synthetic/older events may omit pointerId (treat a missing
+    // id as "the active pointer").
+    const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId
     const startX = e.clientX
     const start = indexAt(e.clientX)
     setDraw({ a: start, b: start })
-    const onMove = (ev: PointerEvent) => setDraw({ a: start, b: indexAt(ev.clientX) })
+    const onMove = (ev: PointerEvent) => {
+      if (fromOtherPointer(ev)) return
+      setDraw({ a: start, b: indexAt(ev.clientX) })
+    }
     const detach = () => {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerup', onUp)
@@ -63,6 +75,7 @@ export const ResourceLane = memo(function ResourceLane({
       teardownRef.current = null
     }
     const onUp = (ev: PointerEvent) => {
+      if (fromOtherPointer(ev)) return
       detach()
       setDraw(null)
       // A bare click (sub-threshold) is a no-op — matches the bar's click/drag split and
@@ -71,7 +84,8 @@ export const ResourceLane = memo(function ResourceLane({
       const end = indexAt(ev.clientX)
       onDraw(resourceId, addDaysISO(origin, Math.min(start, end)), addDaysISO(origin, Math.max(start, end)))
     }
-    const onCancel = () => {
+    const onCancel = (ev: PointerEvent) => {
+      if (fromOtherPointer(ev)) return
       // Browser took over the gesture (e.g. to scroll): drop the ghost, don't create.
       detach()
       setDraw(null)
