@@ -200,10 +200,10 @@ export function EmptyState({ children }: { children: ReactNode }) {
   )
 }
 
-export function FieldError({ children }: { children?: ReactNode }) {
+export function FieldError({ id, children }: { id?: string; children?: ReactNode }) {
   if (!children) return null
   return (
-    <p role="alert" className="text-sm font-medium text-danger">
+    <p id={id} role="alert" className="text-sm font-medium text-danger">
       {children}
     </p>
   )
@@ -241,17 +241,29 @@ export function TextField({
   onChange,
   placeholder,
   autoFocus,
+  invalid,
+  describedById,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   placeholder?: string
   autoFocus?: boolean
+  invalid?: boolean
+  describedById?: string
 }) {
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
-      <input className={inputClass} value={value} placeholder={placeholder} autoFocus={autoFocus} onChange={(e) => onChange(e.target.value)} />
+      <input
+        className={inputClass}
+        value={value}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? describedById : undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </label>
   )
 }
@@ -272,6 +284,8 @@ export function NumberField({
   min,
   max,
   step,
+  invalid,
+  describedById,
 }: {
   label: string
   value: number
@@ -279,20 +293,51 @@ export function NumberField({
   min?: number
   max?: number
   step?: number
+  invalid?: boolean
+  describedById?: string
 }) {
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
-      <input type="number" className={inputClass} value={value} min={min} max={max} step={step} onChange={(e) => onChange(Number(e.target.value))} />
+      <input
+        type="number"
+        className={inputClass}
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? describedById : undefined}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </label>
   )
 }
 
-export function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function DateField({
+  label,
+  value,
+  onChange,
+  invalid,
+  describedById,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  invalid?: boolean
+  describedById?: string
+}) {
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
-      <input type="date" className={inputClass} value={value} onChange={(e) => onChange(e.target.value)} />
+      <input
+        type="date"
+        className={inputClass}
+        value={value}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? describedById : undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </label>
   )
 }
@@ -309,6 +354,8 @@ export function SelectField({
   options,
   placeholder,
   disabled,
+  invalid,
+  describedById,
 }: {
   label: string
   value: string
@@ -316,6 +363,8 @@ export function SelectField({
   options: Option[]
   placeholder?: string
   disabled?: boolean
+  invalid?: boolean
+  describedById?: string
 }) {
   return (
     <label className="block">
@@ -325,6 +374,8 @@ export function SelectField({
         value={value}
         disabled={disabled}
         aria-label={label}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}
       >
         {placeholder !== undefined && <option value="">{placeholder}</option>}
@@ -338,7 +389,19 @@ export function SelectField({
   )
 }
 
-export function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function ColorField({
+  label,
+  value,
+  onChange,
+  invalid,
+  describedById,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  invalid?: boolean
+  describedById?: string
+}) {
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
@@ -355,7 +418,8 @@ export function ColorField({ label, value, onChange }: { label: string; value: s
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label={`${label} hex value`}
-          aria-invalid={!isHexColor(value)}
+          aria-invalid={invalid || !isHexColor(value)}
+          aria-describedby={invalid ? describedById : undefined}
           pattern="#[0-9a-fA-F]{6}"
           title="6-digit hex colour, e.g. #3b82f6"
         />

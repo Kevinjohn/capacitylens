@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import {
   Button,
@@ -13,6 +13,7 @@ import {
 } from '../common/ui'
 import { EMPLOYMENT_TYPE_OPTIONS, RESOURCE_KIND_OPTIONS } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
+import { isHexColor } from '../../lib/color'
 import type { EmploymentType, Resource, ResourceKind, Weekday } from '../../types/entities'
 
 export function ResourceForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
@@ -32,6 +33,12 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
   const [projectId, setProjectId] = useState(resource?.projectId ?? '')
   const [color, setColor] = useState(resource?.color ?? DEFAULT_COLORS.resource)
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<string | null>(null)
+  const errorId = useId()
+  const fail = (field: string | null, message: string) => {
+    setError(message)
+    setErrorField(field)
+  }
 
   const disciplineOptions: Option[] = disciplines.map((d) => ({ value: d.id, label: d.name }))
   const projectOptions: Option[] = projects.map((p) => {
@@ -41,15 +48,23 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
 
   const submit = () => {
     if (!role.trim()) {
-      setError('Role is required.')
+      fail('role', 'Role is required.')
       return
     }
     if (kind === 'person' && !name.trim()) {
-      setError('Name is required for a person.')
+      fail('name', 'Name is required for a person.')
       return
     }
     if (kind === 'placeholder' && !projectId) {
-      setError('A placeholder must be bound to a project.')
+      fail('projectId', 'A placeholder must be bound to a project.')
+      return
+    }
+    if (!(hours > 0)) {
+      fail('hours', 'Working hours per day must be greater than 0.')
+      return
+    }
+    if (!isHexColor(color)) {
+      fail('color', 'Enter a valid 6-digit hex colour, e.g. #3b82f6.')
       return
     }
     const patch = {
@@ -82,8 +97,8 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       }
     >
       <SelectField label="Type" value={kind} onChange={(v) => setKind(v as ResourceKind)} options={RESOURCE_KIND_OPTIONS} />
-      <TextField label={kind === 'placeholder' ? 'Name (optional)' : 'Name'} value={name} onChange={setName} />
-      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" />
+      <TextField label={kind === 'placeholder' ? 'Name (optional)' : 'Name'} value={name} onChange={setName} invalid={errorField === 'name'} describedById={errorId} />
+      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" invalid={errorField === 'role'} describedById={errorId} />
       <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
       {kind === 'person' && (
         <SelectField
@@ -94,12 +109,12 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
         />
       )}
       {kind === 'placeholder' && (
-        <SelectField label="Bound project" value={projectId} onChange={setProjectId} options={projectOptions} placeholder="— Select project —" />
+        <SelectField label="Bound project" value={projectId} onChange={setProjectId} options={projectOptions} placeholder="— Select project —" invalid={errorField === 'projectId'} describedById={errorId} />
       )}
-      <NumberField label="Working hours / day" value={hours} onChange={setHours} min={0} max={24} />
+      <NumberField label="Working hours / day" value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
       <WeekdayPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
-      <ColorField label="Colour" value={color} onChange={setColor} />
-      <FieldError>{error}</FieldError>
+      <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )
 }

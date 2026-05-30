@@ -8,6 +8,7 @@ import {
   deleteTaskCascade,
   isTemporary,
   validateAllocationAssignment,
+  validateDateRange,
   validateProjectClient,
 } from './integrity'
 import { emptyAppData } from '../types/entities'
@@ -68,6 +69,23 @@ describe('validateProjectClient', () => {
     expect(validateProjectClient('c1').ok).toBe(true)
     expect(validateProjectClient('').ok).toBe(false)
     expect(validateProjectClient(undefined).ok).toBe(false)
+  })
+})
+
+describe('validateDateRange', () => {
+  it('accepts a normal range and a single day', () => {
+    expect(validateDateRange('2026-06-01', '2026-06-05').ok).toBe(true)
+    expect(validateDateRange('2026-06-01', '2026-06-01').ok).toBe(true)
+  })
+  it('rejects a missing end or start', () => {
+    expect(validateDateRange('2026-06-01', '').ok).toBe(false)
+    expect(validateDateRange('', '2026-06-01').ok).toBe(false)
+    expect(validateDateRange(undefined, undefined).ok).toBe(false)
+  })
+  it('rejects a reversed range', () => {
+    const v = validateDateRange('2026-06-05', '2026-06-01')
+    expect(v.ok).toBe(false)
+    expect(v.errors[0]).toMatch(/before the start/i)
   })
 })
 

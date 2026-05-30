@@ -3,7 +3,8 @@ import { render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TimeOffList } from './TimeOffList'
 import { useStore } from '../../store/useStore'
-import { emptyAppData, type Weekday } from '../../types/entities'
+import { emptyAppData } from '../../types/entities'
+import { WORKDAYS } from '../../test/fixtures'
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -11,7 +12,7 @@ const resourceDraft = {
   role: 'Designer',
   employmentType: 'permanent' as const,
   workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5] as Weekday[],
+  workingDays: WORKDAYS,
   color: '#111',
 }
 
@@ -83,6 +84,15 @@ describe('TimeOffList', () => {
 
     expect(useStore.getState().data.timeOff).toHaveLength(1)
     expect(useStore.getState().data.timeOff[0].resourceId).toBe(resource.id)
+  })
+
+  it('shows the human label for the time-off type, not the raw lowercase enum', () => {
+    const resource = useStore.getState().addResource(resourceDraft)
+    useStore.getState().addTimeOff({ resourceId: resource.id, startDate: '2026-08-01', endDate: '2026-08-05', type: 'holiday' })
+    render(<TimeOffList />)
+    const row = screen.getByTestId('timeoff-row')
+    expect(row).toHaveTextContent('Holiday') // label from metadata, matching the timeline
+    expect(row).not.toHaveTextContent('holiday') // not the raw enum value
   })
 
   it('confirms before deleting and removes the entry on confirm', async () => {

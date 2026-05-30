@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { validateProjectClient } from '../../lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
+import { isHexColor } from '../../lib/color'
 import { Button, ColorField, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
 import type { Project } from '../../types/entities'
 
@@ -17,6 +18,12 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const [clientId, setClientId] = useState(project?.clientId ?? '')
   const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project)
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<string | null>(null)
+  const errorId = useId()
+  const fail = (field: string | null, message: string) => {
+    setError(message)
+    setErrorField(field)
+  }
   const [newPhase, setNewPhase] = useState('')
 
   const clientOptions: Option[] = clients.map((c) => ({ value: c.id, label: c.name }))
@@ -24,12 +31,16 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
 
   const submit = () => {
     if (!name.trim()) {
-      setError('Name is required.')
+      fail('name', 'Name is required.')
       return
     }
     const check = validateProjectClient(clientId)
     if (!check.ok) {
-      setError(check.errors[0])
+      fail('client', check.errors[0])
+      return
+    }
+    if (!isHexColor(color)) {
+      fail('color', 'Enter a valid 6-digit hex colour, e.g. #3b82f6.')
       return
     }
     if (project) update(project.id, { name: name.trim(), clientId, color })
@@ -50,10 +61,10 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         </>
       }
     >
-      <TextField label="Name" value={name} onChange={setName} autoFocus />
-      <SelectField label="Client" value={clientId} onChange={setClientId} options={clientOptions} placeholder="— Select client —" />
-      <ColorField label="Colour" value={color} onChange={setColor} />
-      <FieldError>{error}</FieldError>
+      <TextField label="Name" value={name} onChange={setName} autoFocus invalid={errorField === 'name'} describedById={errorId} />
+      <SelectField label="Client" value={clientId} onChange={setClientId} options={clientOptions} placeholder="— Select client —" invalid={errorField === 'client'} describedById={errorId} />
+      <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      <FieldError id={errorId}>{error}</FieldError>
 
       {project && (
         <div className="border-t pt-3">

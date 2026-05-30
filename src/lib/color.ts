@@ -1,19 +1,29 @@
-import type { Allocation, AppData } from '../types/entities'
+import type { Allocation, Client, ID, Project, Resource, Task } from '../types/entities'
 
 const FALLBACK = '#9ca3af'
+
+/** Id→entity maps for O(1) colour resolution. The scheduler model already builds
+ *  these to position bars, so colour resolution reuses them instead of re-scanning
+ *  the raw arrays once per bar. */
+export interface BarColorMaps {
+  tasks: Map<ID, Task>
+  projects: Map<ID, Project>
+  clients: Map<ID, Client>
+  resources: Map<ID, Resource>
+}
 
 // Bars are coloured by their project (matching Float), falling back to the
 // client colour, then the resource colour, then a neutral grey — so a bar is
 // always visible even if some relation is missing.
-export function resolveBarColor(allocation: Allocation, data: AppData): string {
-  const task = data.tasks.find((t) => t.id === allocation.taskId)
-  const project = task ? data.projects.find((p) => p.id === task.projectId) : undefined
+export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
+  const task = maps.tasks.get(allocation.taskId)
+  const project = task ? maps.projects.get(task.projectId) : undefined
   if (project?.color) return project.color
 
-  const client = project ? data.clients.find((c) => c.id === project.clientId) : undefined
+  const client = project ? maps.clients.get(project.clientId) : undefined
   if (client?.color) return client.color
 
-  const resource = data.resources.find((r) => r.id === allocation.resourceId)
+  const resource = maps.resources.get(allocation.resourceId)
   return resource?.color ?? FALLBACK
 }
 

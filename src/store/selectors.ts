@@ -31,11 +31,15 @@ export interface DisciplineGroup {
   resources: Resource[]
 }
 
+/** Canonical discipline ordering: by sortOrder, then name as a stable tiebreak.
+ *  Shared by the scheduler grouping AND the Disciplines list so the two surfaces
+ *  never disagree when two disciplines share a sortOrder. */
+export const byDisciplineOrder = (a: Discipline, b: Discipline): number =>
+  a.sortOrder - b.sortOrder || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
+
 /** Resources grouped by discipline (sorted), with an "ungrouped" bucket last. */
 export function resourcesByDiscipline(data: AppData): DisciplineGroup[] {
-  const sorted = [...data.disciplines].sort(
-    (a, b) => a.sortOrder - b.sortOrder || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0),
-  )
+  const sorted = [...data.disciplines].sort(byDisciplineOrder)
   const groups: DisciplineGroup[] = sorted.map((d) => ({
     discipline: d,
     resources: data.resources.filter((r) => r.disciplineId === d.id),

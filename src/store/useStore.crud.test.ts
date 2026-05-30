@@ -144,3 +144,46 @@ describe('allocation integrity at the store boundary', () => {
     expect(s().data.allocations).toHaveLength(0)
   })
 })
+
+describe('date-range + reference guards at the store boundary', () => {
+  const seedAlloc = () => {
+    const c = s().addClient({ name: 'Acme', color: '#111111' })
+    const p = s().addProject({ name: 'P', clientId: c.id, color: '#222222' })
+    const t = s().addTask({ name: 'T', projectId: p.id })
+    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    return { r, t }
+  }
+
+  it('addAllocation rejects an empty or reversed date range', () => {
+    const { r, t } = seedAlloc()
+    expect(() => s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '', endDate: '', hoursPerDay: 8, status: 'confirmed' })).toThrow()
+    expect(() => s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-05', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' })).toThrow()
+    expect(s().data.allocations).toHaveLength(0)
+  })
+
+  it('updateAllocation allows a note/status-only patch (validates the effective range, not the patch)', () => {
+    const { r, t } = seedAlloc()
+    const a = s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+    expect(() => s().updateAllocation(a.id, { status: 'tentative' })).not.toThrow()
+    expect(s().data.allocations[0].status).toBe('tentative')
+    // …but a patch that would reverse the range is rejected.
+    expect(() => s().updateAllocation(a.id, { endDate: '2026-05-01' })).toThrow()
+    expect(s().data.allocations[0].endDate).toBe('2026-06-03')
+  })
+
+  it('addTimeOff rejects a dangling resource and a reversed range', () => {
+    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    expect(() => s().addTimeOff({ resourceId: 'nope', startDate: '2026-06-01', endDate: '2026-06-02', type: 'holiday' })).toThrow()
+    expect(() => s().addTimeOff({ resourceId: r.id, startDate: '2026-06-05', endDate: '2026-06-01', type: 'holiday' })).toThrow()
+    expect(s().data.timeOff).toHaveLength(0)
+  })
+
+  it('importData replaces everything but is undoable via ⌘Z', () => {
+    s().addClient({ name: 'Keep', color: '#111111' })
+    s().importData(emptyAppData())
+    expect(s().data.clients).toHaveLength(0)
+    s().undo()
+    expect(s().data.clients).toHaveLength(1)
+    expect(s().data.clients[0].name).toBe('Keep')
+  })
+})

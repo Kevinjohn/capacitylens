@@ -35,15 +35,25 @@ export function useDragResize(args: UseDragResizeArgs) {
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (e.button !== 0) return
     e.stopPropagation() // don't let the lane start a draw-to-create gesture
+    // Ignore a re-entrant pointerdown (a second finger / pen) while a gesture is
+    // already live — otherwise its document listeners would leak and a single
+    // pointerup could commit twice.
+    if (teardownRef.current) return
 
     const handle = (e.target as HTMLElement).dataset.handle
     const mode: DragMode = handle === 'start' ? 'resize-start' : handle === 'end' ? 'resize-end' : 'move'
     const startX = e.clientX
     const startY = e.clientY
+    const pointerId = e.pointerId // only react to THIS pointer's move/up/cancel
     const threshold = argsRef.current.threshold ?? 4
     let dragging = false
 
+    // Only react to THIS pointer. Guarded because synthetic/older events may omit
+    // pointerId (treat a missing id as "the active pointer").
+    const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId
+
     const onMove = (ev: PointerEvent) => {
+      if (fromOtherPointer(ev)) return
       const dx = ev.clientX - startX
       const dy = ev.clientY - startY
       if (!dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return
@@ -60,6 +70,7 @@ export function useDragResize(args: UseDragResizeArgs) {
       teardownRef.current = null
     }
     const onUp = (ev: PointerEvent) => {
+      if (fromOtherPointer(ev)) return
       detach()
       if (!dragging) {
         argsRef.current.onClick?.()
@@ -70,7 +81,8 @@ export function useDragResize(args: UseDragResizeArgs) {
         clientY: ev.clientY,
       })
     }
-    const onCancel = () => {
+    const onCancel = (ev: PointerEvent) => {
+      if (fromOtherPointer(ev)) return
       detach()
       if (dragging) argsRef.current.onCancel?.()
     }

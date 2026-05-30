@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO, xForDate } from '../../lib/dateMath'
@@ -74,21 +74,33 @@ export function SchedulerGrid() {
     focusXRef.current = focusX
   })
 
-  // Bring the focus date (today by default) into view on first render.
+  // Bring the focus date (today by default) into view on first render — but only
+  // once the container has been MEASURED (timelineWidth > 0), so the scroll uses the
+  // real dayWidth, not the fallback. Runs once (didScroll guard); re-fires harmlessly
+  // until the real width arrives in jsdom/SSR where it never does.
   useEffect(() => {
-    if (didScroll.current || !scrollRef.current) return
-    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - 120)
+    if (didScroll.current || !scrollRef.current || timelineWidth === 0) return
+    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - LAYOUT.recenterLeftPad)
     didScroll.current = true
-  }, [])
+  }, [timelineWidth])
 
   // Re-centre when the user clicks Today / picks a date (which bumps recenterToken).
   const recenterToken = ui.recenterToken
   useEffect(() => {
     if (recenterToken === 0 || !scrollRef.current) return
-    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - 120)
+    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - LAYOUT.recenterLeftPad)
   }, [recenterToken])
 
   const filtersActive = hasActiveFilters(ui.filters)
+
+  // Stable callbacks so the memoised ResourceLane can skip re-rendering on
+  // grid-level UI changes (e.g. opening a modal). setModal is referentially stable.
+  const handleEdit = useCallback((allocationId: ID) => setModal({ kind: 'edit', allocationId }), [])
+  const handleDraw = useCallback(
+    (resourceId: ID, startDate: ISODate, endDate: ISODate) =>
+      setModal({ kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate }),
+    [ui.drawMode],
+  )
 
   // The date currently at the left edge of the viewport — what the "+" quick-create
   // should default to, so it lands where the user is looking (not always today).
@@ -236,10 +248,8 @@ export function SchedulerGrid() {
                 totalWidth={totalWidth}
                 rowHeight={rowHeight}
                 bars={bars}
-                onEdit={(allocationId) => setModal({ kind: 'edit', allocationId })}
-                onDraw={(resourceId, startDate, endDate) =>
-                  setModal({ kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate })
-                }
+                onEdit={handleEdit}
+                onDraw={handleDraw}
               />
             </div>
           ))}

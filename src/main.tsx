@@ -14,6 +14,11 @@ import { seed } from './data/seed'
 void bootstrap(useStore, new LocalStorageAdapter(), {
   seedIfEmpty: seed(),
   onError: () => useStore.getState().setPersistError(true),
+}).catch(() => {
+  // Hydration itself failed — still let the app render (with the banner) rather
+  // than dying on an unhandled rejection.
+  useStore.getState().setHydrated(true)
+  useStore.getState().setPersistError(true)
 })
 
 createRoot(document.getElementById('root')!).render(

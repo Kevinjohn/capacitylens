@@ -50,8 +50,10 @@ Playwright.
 ## Testing & quality
 - **Unit / component** — Vitest + Testing Library across the pure domain layer, the store, and
   components (`npm test`; `npm run coverage` for a report).
-- **End-to-end** — Playwright drives the real app: CRUD + persistence, drag / resize / draw,
-  reassignment, zoom, filters, undo, time-off, and the feature flows (`npm run e2e`).
+- **End-to-end** — Playwright drives the real app across **every** feature: full per-entity
+  CRUD, the allocation editor, drag / resize / draw / reassign, zoom / pan / today / jump,
+  filters, undo/redo, time-off, import/export, keyboard & nav (`npm run e2e`). Each spec maps
+  to a user story (see below).
 - **Accessibility** — `@axe-core/playwright` runs against the scheduler (light **and** dark) and a
   form modal, failing on any serious/critical WCAG 2.1 AA violation (`e2e/a11y.spec.ts`).
 - **CI** — `.github/workflows/ci.yml` runs type-check → lint → unit → build → E2E on every push
@@ -61,6 +63,10 @@ Playwright.
   not sufficient (see `DECISIONS.md`).
 
 ## Project docs
+- **`user-stories/`** — one end-to-end user story per capability (88 across 13 areas):
+  goal → why → how → checkable acceptance criteria, runnable by a human as a test script and
+  each mapped to its automated coverage. Start at [`user-stories/README.md`](user-stories/README.md).
 - **`DECISIONS.md`** — running log of design and judgement calls (incl. the grumpy multi-agent
-  review and the bug / DX / UX / perf / a11y passes that followed).
+  review and the bug / DX / UX / perf / a11y passes that followed, plus the xhigh review-findings
+  remediation pass).
 - **`ZOOM_PLAN.md`** — the original plan for the multi-week timeline zoom *(shipped)*.

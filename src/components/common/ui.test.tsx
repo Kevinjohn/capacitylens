@@ -21,7 +21,8 @@ import {
 } from './ui'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '../../types/entities'
-import type { Resource, Weekday } from '../../types/entities'
+import type { Resource } from '../../types/entities'
+import { WORKDAYS } from '../../test/fixtures'
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
@@ -511,7 +512,7 @@ const baseResource = (): Resource => ({
   role: 'Dev',
   employmentType: 'permanent',
   workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5] as Weekday[],
+  workingDays: WORKDAYS,
   color: '#111',
 })
 

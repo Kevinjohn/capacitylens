@@ -3,7 +3,8 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResourceList } from './ResourceList'
 import { useStore } from '../../store/useStore'
-import { emptyAppData, type Weekday } from '../../types/entities'
+import { emptyAppData } from '../../types/entities'
+import { WORKDAYS } from '../../test/fixtures'
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
@@ -17,7 +18,7 @@ const personDraft = (name: string) => ({
   role: 'Developer',
   employmentType: 'permanent' as const,
   workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5] as Weekday[],
+  workingDays: WORKDAYS,
   color: '#3b82f6',
 })
 
@@ -27,7 +28,7 @@ const freelancerDraft = (name: string) => ({
   role: 'Designer',
   employmentType: 'freelancer' as const,
   workingHoursPerDay: 8,
-  workingDays: [1, 2, 3, 4, 5] as Weekday[],
+  workingDays: WORKDAYS,
   color: '#f59e0b',
 })
 
@@ -71,7 +72,7 @@ describe('ResourceList display', () => {
       role: 'Senior Designer',
       employmentType: 'permanent' as const,
       workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5] as Weekday[],
+      workingDays: WORKDAYS,
       color: '#a855f7',
       projectId: project.id,
     })
@@ -97,7 +98,7 @@ describe('ResourceList display', () => {
       role: 'Senior Designer',
       employmentType: 'permanent' as const,
       workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5] as Weekday[],
+      workingDays: WORKDAYS,
       color: '#a855f7',
       projectId: project.id,
     })
@@ -206,7 +207,7 @@ describe('ResourceList delete flow', () => {
       role: 'Senior Designer',
       employmentType: 'permanent' as const,
       workingHoursPerDay: 8,
-      workingDays: [1, 2, 3, 4, 5] as Weekday[],
+      workingDays: WORKDAYS,
       color: '#a855f7',
       projectId: project.id,
     })

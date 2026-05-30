@@ -53,11 +53,53 @@ describe('ImportExport – Import', () => {
 
     fireEvent.change(input)
 
-    // Allow the async file.text() + replaceAll to settle
+    // Allow the async file.text() + parse to settle, then confirm the replace.
     await new Promise((resolve) => setTimeout(resolve, 0))
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }))
 
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0)
     expect(useStore.getState().data.resources).toHaveLength(seedData.resources.length)
+  })
+
+  it('shows a confirmation summary and does NOT replace data until confirmed', async () => {
+    useStore.getState().replaceAll(seed()) // existing data
+    const before = useStore.getState().data.clients.length
+    render(<ImportExport />)
+
+    // Import a PARTIAL file (only one section) — must not silently wipe the rest.
+    const partial = JSON.stringify({ schemaVersion: 2, data: { resources: [] } })
+    const file = new File([partial], 'partial.json', { type: 'application/json' })
+    const input = screen.getByTestId('import-input')
+    Object.defineProperty(input, 'files', { value: [file], writable: false })
+
+    fireEvent.change(input)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // The dialog is open and data is still intact (nothing applied yet).
+    expect(screen.getByText(/replaces all current data/i)).toBeInTheDocument()
+    expect(useStore.getState().data.clients).toHaveLength(before)
+
+    // Cancelling leaves the data untouched.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(useStore.getState().data.clients).toHaveLength(before)
+  })
+
+  it('import is undoable with ⌘Z (routes through the history stack)', async () => {
+    useStore.getState().replaceAll(seed())
+    const before = useStore.getState().data.resources.length
+    render(<ImportExport />)
+
+    const file = new File([serializeData(emptyAppData())], 'empty.json', { type: 'application/json' })
+    const input = screen.getByTestId('import-input')
+    Object.defineProperty(input, 'files', { value: [file], writable: false })
+
+    fireEvent.change(input)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }))
+    expect(useStore.getState().data.resources).toHaveLength(0) // replaced
+
+    useStore.getState().undo()
+    expect(useStore.getState().data.resources).toHaveLength(before) // restored
   })
 
   it('surfaces a notice (and keeps the data) when the file is not valid Floaty JSON', async () => {

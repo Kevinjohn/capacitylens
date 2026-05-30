@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   allocationsForResource,
+  byDisciplineOrder,
   clientById,
   phasesForProject,
   projectById,
@@ -9,6 +10,7 @@ import {
   taskById,
   timeOffForResource,
 } from './selectors'
+import type { Discipline } from '../types/entities'
 import { emptyAppData } from '../types/entities'
 import type { AppData } from '../types/entities'
 
@@ -44,5 +46,14 @@ describe('lookup + relation selectors', () => {
     expect(phasesForProject(data, 'p1').map((p) => p.id)).toEqual(['ph1'])
     expect(allocationsForResource(data, 'r1').map((a) => a.id)).toEqual(['a1'])
     expect(timeOffForResource(data, 'r1').map((t) => t.id)).toEqual(['to1'])
+  })
+})
+
+describe('byDisciplineOrder (shared by the scheduler grouping AND the Disciplines list)', () => {
+  const disc = (id: string, name: string, sortOrder: number): Discipline => ({ id, name, sortOrder, createdAt: 't', updatedAt: 't' })
+
+  it('orders by sortOrder, then name as a stable tiebreak on equal sortOrder', () => {
+    const list = [disc('a', 'Zeta', 1), disc('b', 'Alpha', 1), disc('c', 'Beta', 0)]
+    expect([...list].sort(byDisciplineOrder).map((d) => d.name)).toEqual(['Beta', 'Alpha', 'Zeta'])
   })
 })

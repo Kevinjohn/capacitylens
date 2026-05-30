@@ -15,9 +15,21 @@ export function attachPersistence(
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null
   let lastData = store.getState().data
+  let pending: AppData | null = null // data awaiting a debounced write
 
   const save = (data: AppData) => {
+    pending = null
     void adapter.saveAll(data).catch((e) => onError?.(e))
+  }
+
+  // Write any debounced-but-not-yet-flushed data immediately — used on page
+  // unload so the last edit isn't lost inside the debounce window.
+  const flush = () => {
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    if (pending) save(pending)
   }
 
   const unsubscribe = store.subscribe((state) => {
@@ -27,12 +39,31 @@ export function attachPersistence(
       save(state.data)
       return
     }
+    pending = state.data
     if (timer) clearTimeout(timer)
     timer = setTimeout(() => save(state.data), debounceMs)
   })
 
+  // The debounce window can outlive the tab. `pagehide` is the reliable
+  // close/navigate signal (fires for the bfcache case where `beforeunload`
+  // doesn't); `visibilitychange → hidden` covers tab switches and mobile.
+  // localStorage writes are synchronous, so flushing here is safe.
+  const onPageHide = () => flush()
+  const onVisibility = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') flush()
+  }
+  const canListen = typeof window !== 'undefined'
+  if (canListen) {
+    window.addEventListener('pagehide', onPageHide)
+    document.addEventListener('visibilitychange', onVisibility)
+  }
+
   return () => {
     unsubscribe()
+    if (canListen) {
+      window.removeEventListener('pagehide', onPageHide)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
     if (timer) clearTimeout(timer) // cancel any pending debounced write
   }
 }
@@ -62,7 +93,16 @@ export async function bootstrap(
 
   store.getState().replaceAll(initial)
   store.getState().setHydrated(true)
-  if (seedNeeded) await adapter.saveAll(initial)
+  // Guard the first-run seed write: a failure here (quota / private mode) must
+  // surface via onError AND must NOT stop persistence from being attached —
+  // otherwise the session would silently never save and never show the banner.
+  if (seedNeeded) {
+    try {
+      await adapter.saveAll(initial)
+    } catch (e) {
+      opts.onError?.(e)
+    }
+  }
 
   return attachPersistence(store, adapter, opts.debounceMs ?? 300, opts.onError)
 }

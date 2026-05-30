@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { Button, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
 import type { Task } from '../../types/entities'
@@ -14,6 +14,12 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
   const [projectId, setProjectId] = useState(task?.projectId ?? '')
   const [phaseId, setPhaseId] = useState(task?.phaseId ?? '')
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<string | null>(null)
+  const errorId = useId()
+  const fail = (field: string | null, message: string) => {
+    setError(message)
+    setErrorField(field)
+  }
 
   const projectOptions: Option[] = projects.map((p) => {
     const client = clients.find((c) => c.id === p.clientId)
@@ -30,11 +36,11 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
 
   const submit = () => {
     if (!name.trim()) {
-      setError('Name is required.')
+      fail('name', 'Name is required.')
       return
     }
     if (!projectId) {
-      setError('A task must belong to a project.')
+      fail('projectId', 'A task must belong to a project.')
       return
     }
     const patch = { name: name.trim(), projectId, phaseId: phaseId || undefined }
@@ -56,10 +62,10 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
         </>
       }
     >
-      <TextField label="Name" value={name} onChange={setName} autoFocus />
-      <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" />
+      <TextField label="Name" value={name} onChange={setName} autoFocus invalid={errorField === 'name'} describedById={errorId} />
+      <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" invalid={errorField === 'projectId'} describedById={errorId} />
       <SelectField label="Phase" value={phaseId} onChange={setPhaseId} options={phaseOptions} placeholder="— No phase —" />
-      <FieldError>{error}</FieldError>
+      <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )
 }

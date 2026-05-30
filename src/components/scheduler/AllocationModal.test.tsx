@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AllocationModal } from './AllocationModal'
 import { useStore } from '../../store/useStore'
@@ -42,6 +42,32 @@ describe('AllocationModal create', () => {
     const allocs = useStore.getState().data.allocations
     expect(allocs).toHaveLength(1)
     expect(allocs[0]).toMatchObject({ resourceId, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03' })
+  })
+
+  it('rejects an empty date or zero hours instead of saving a broken allocation', async () => {
+    useStore.getState().addResource({
+      kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
+    })
+    const resourceId = useStore.getState().data.resources[0].id
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={vi.fn()} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+
+    // Clearing a date must NOT produce a NaN-geometry allocation.
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/start and end dates are required/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+
+    // Zero hours is rejected too (would silently occupy a lane with no load).
+    fireEvent.change(screen.getByLabelText('Start'), { target: { value: '2026-06-01' } })
+    fireEvent.change(screen.getByLabelText('Hours / day'), { target: { value: '0' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(screen.getByRole('alert')).toHaveTextContent(/greater than 0/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
   })
 
   it('locks a placeholder to its bound project', async () => {

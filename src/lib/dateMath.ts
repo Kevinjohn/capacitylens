@@ -45,14 +45,18 @@ export function weekdayOf(date: ISODate): Weekday {
   return parseISO(date).getDay() as Weekday
 }
 
-/** Pixel x-offset of a date's left edge from the timeline origin. */
+/** Pixel x-offset of a date's left edge from the timeline origin.
+ *  Returns 0 for an unparseable date so a bad record can't produce NaN geometry. */
 export function xForDate(date: ISODate, origin: ISODate, dayWidth: number): number {
-  return dayIndex(date, origin) * dayWidth
+  const i = dayIndex(date, origin)
+  return Number.isFinite(i) ? i * dayWidth : 0
 }
 
-/** Pixel width of an inclusive [start, end] range. */
+/** Pixel width of an inclusive [start, end] range. Clamped to >= 0 so a reversed
+ *  or unparseable range renders as a zero-width (harmless) bar, never negative. */
 export function widthForRange(start: ISODate, end: ISODate, dayWidth: number): number {
-  return daysInclusive(start, end) * dayWidth
+  const n = daysInclusive(start, end)
+  return Number.isFinite(n) && n > 0 ? n * dayWidth : 0
 }
 
 /** Is `date` within the inclusive range [start, end]? */

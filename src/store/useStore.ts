@@ -10,6 +10,7 @@ import {
   deleteResourceCascade,
   deleteTaskCascade,
   validateAllocationAssignment,
+  validateDateRange,
 } from '../lib/integrity'
 import { emptyAppData } from '../types/entities'
 import type {
@@ -78,6 +79,8 @@ export interface StoreState {
   notice: string | null // transient user message (e.g. a rejected drag); auto-dismissed by the UI
 
   replaceAll: (data: AppData) => void
+  /** Replace the whole dataset (e.g. JSON import) but keep it undoable via ⌘Z. */
+  importData: (data: AppData) => void
   setHydrated: (v: boolean) => void
   setPersistError: (v: boolean) => void
   setNotice: (message: string | null) => void
@@ -168,6 +171,21 @@ export const useStore = create<StoreState>()((set, get) => {
     if (!v.ok) throw new Error(v.errors[0])
   }
 
+  // No allocation or time-off may persist an empty or reversed date range — that
+  // would render as a NaN / negative-width bar on the timeline.
+  const assertDateRange = (startDate?: ISODate, endDate?: ISODate) => {
+    const v = validateDateRange(startDate, endDate)
+    if (!v.ok) throw new Error(v.errors[0])
+  }
+
+  // Time off references a resource exactly as an allocation does; enforce it here
+  // (the store is the integrity boundary) so a dangling reference can't be created.
+  const assertResourceExists = (d: AppData, resourceId: ID) => {
+    if (!d.resources.some((r) => r.id === resourceId)) {
+      throw new Error('Time off must reference an existing resource.')
+    }
+  }
+
   return {
     data: emptyAppData(),
     ui: defaultUI(),
@@ -178,6 +196,7 @@ export const useStore = create<StoreState>()((set, get) => {
     notice: null,
 
     replaceAll: (data) => set({ data, past: [], future: [] }),
+    importData: (data) => mutate(() => data),
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
     setNotice: (message) => set({ notice: message }),
@@ -245,27 +264,40 @@ export const useStore = create<StoreState>()((set, get) => {
 
     addAllocation: (input) => {
       assertAllocation(get().data, input.resourceId, input.taskId)
+      assertDateRange(input.startDate, input.endDate)
       const e: Allocation = { ...input, id: newId(), ...stamp() }
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
       return e
     },
     updateAllocation: (id, patch) => {
-      if (patch.resourceId !== undefined || patch.taskId !== undefined) {
-        const existing = get().data.allocations.find((a) => a.id === id)
-        if (existing) {
+      const existing = get().data.allocations.find((a) => a.id === id)
+      if (existing) {
+        if (patch.resourceId !== undefined || patch.taskId !== undefined) {
           assertAllocation(get().data, patch.resourceId ?? existing.resourceId, patch.taskId ?? existing.taskId)
         }
+        // Validate the EFFECTIVE range (merged with the existing row), so a
+        // note/status/reassign-only patch isn't rejected for omitting dates.
+        assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
       }
       mutate((d) => ({ ...d, allocations: updateById(d.allocations, id, patch) }))
     },
     deleteAllocation: (id) => mutate((d) => ({ ...d, allocations: d.allocations.filter((a) => a.id !== id) })),
 
     addTimeOff: (input) => {
+      assertResourceExists(get().data, input.resourceId)
+      assertDateRange(input.startDate, input.endDate)
       const e: TimeOff = { ...input, id: newId(), ...stamp() }
       mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }))
       return e
     },
-    updateTimeOff: (id, patch) => mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) })),
+    updateTimeOff: (id, patch) => {
+      const existing = get().data.timeOff.find((t) => t.id === id)
+      if (existing) {
+        if (patch.resourceId !== undefined) assertResourceExists(get().data, patch.resourceId)
+        assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
+      }
+      mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }))
+    },
     deleteTimeOff: (id) => mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) })),
 
     setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom } })),

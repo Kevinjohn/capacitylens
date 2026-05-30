@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ClientForm } from './ClientForm'
 import { useStore } from '../../store/useStore'
@@ -35,6 +35,33 @@ describe('ClientForm – add mode', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/name is required/i)
     expect(onClose).not.toHaveBeenCalled()
     expect(useStore.getState().data.clients).toHaveLength(0)
+  })
+
+  it('rejects an invalid (non-hex) colour and does not save', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ClientForm onClose={onClose} />)
+
+    await user.type(screen.getByLabelText('Name'), 'Acme')
+    fireEvent.change(screen.getByLabelText('Colour hex value'), { target: { value: 'not-a-color' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/valid 6-digit hex/i)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.clients).toHaveLength(0)
+  })
+
+  it('associates the error with the offending field (aria-invalid + aria-describedby)', async () => {
+    const user = userEvent.setup()
+    render(<ClientForm onClose={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    const nameInput = screen.getByLabelText('Name')
+    expect(nameInput).toHaveAttribute('aria-invalid', 'true')
+    const describedBy = nameInput.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(screen.getByRole('alert')).toHaveAttribute('id', describedBy)
   })
 
   it('adds a client and calls onClose when a valid name is provided', async () => {

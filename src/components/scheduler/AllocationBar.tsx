@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
@@ -8,6 +8,7 @@ import { ensureBarColors } from '../../lib/color'
 import { parseDate } from '../../lib/dateMath'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
+import type { ID } from '../../types/entities'
 import type { BarLayout } from './schedulerModel'
 
 interface LaneSnapshot {
@@ -17,7 +18,7 @@ interface LaneSnapshot {
 }
 
 /** Snapshot lane rects once at drag start — avoids a full-document querySelectorAll +
- *  getBoundingClientRect on every pointermove (layout thrash). A drag doesn't scroll the grid. */
+ *  getBoundingClientRect on every pointermove (layout thrash). Re-snapshotted on scroll. */
 function snapshotLanes(): LaneSnapshot[] {
   return Array.from(document.querySelectorAll<HTMLElement>('[data-resource-id]')).map((el) => ({
     id: el.getAttribute('data-resource-id') ?? '',
@@ -35,7 +36,17 @@ function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSn
   return null
 }
 
-export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWidth: number; onEdit: () => void }) {
+export const AllocationBar = memo(function AllocationBar({
+  bar,
+  dayWidth,
+  onEdit,
+}: {
+  bar: BarLayout
+  dayWidth: number
+  // Takes the allocation id so the prop is a STABLE reference (the lane passes the
+  // same callback for every bar) — which is what lets React.memo skip re-renders.
+  onEdit: (id: ID) => void
+}) {
   const updateAllocation = useStore((s) => s.updateAllocation)
   const setNotice = useStore((s) => s.setNotice)
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
@@ -60,11 +71,28 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
     dropElRef.current = el
   }
 
-  // Clear any drop highlight if this bar unmounts mid-drag (e.g. undo).
+  // Keep the cached lane rects fresh if the grid scrolls mid-drag (scroll events
+  // don't bubble, so listen in the capture phase). Otherwise a drop after a scroll
+  // would hit-test against stale rects and reassign to the wrong row.
+  const scrollWatchRef = useRef<(() => void) | null>(null)
+  const startScrollWatch = () => {
+    const onScroll = () => {
+      lanesRef.current = snapshotLanes()
+    }
+    document.addEventListener('scroll', onScroll, true)
+    scrollWatchRef.current = () => document.removeEventListener('scroll', onScroll, true)
+  }
+  const stopScrollWatch = () => {
+    scrollWatchRef.current?.()
+    scrollWatchRef.current = null
+  }
+
+  // Clear any drop highlight / scroll watch if this bar unmounts mid-drag (e.g. undo).
   useEffect(
     () => () => {
       dropElRef.current?.removeAttribute('data-droptarget')
       dropElRef.current = null
+      stopScrollWatch()
     },
     [],
   )
@@ -78,13 +106,18 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
         setDropTarget(target && target.id !== resourceId ? target.el : null)
       }
     },
-    onClick: onEdit,
+    onClick: () => {
+      stopScrollWatch()
+      onEdit(bar.allocation.id)
+    },
     onCancel: () => {
       // Gesture cancelled (e.g. the browser stole the pointer to scroll) — abort cleanly.
+      stopScrollWatch()
       setPreview(null)
       setDropTarget(null)
     },
     onCommit: (mode, deltaDays, pointer) => {
+      stopScrollWatch()
       setPreview(null)
       const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
       const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays) : current
@@ -127,7 +160,8 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
   const tentative = bar.allocation.status === 'tentative'
   const completed = bar.allocation.status === 'completed'
   // Nudge the bar colour so the label clears WCAG AA against its ink (many mid-tones don't).
-  const { bg, ink } = ensureBarColors(bar.color)
+  // Memoised on the colour: the 0–30-iteration contrast loop must not re-run on every render.
+  const { bg, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color])
 
   // Keyboard equivalent of drag: ←/→ move a day, Shift+←/→ resize the end a day.
   const nudge = (mode: DragMode, delta: number) => {
@@ -157,6 +191,7 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
         onPointerDown={(e) => {
           hidePopover()
           lanesRef.current = snapshotLanes()
+          startScrollWatch()
           onPointerDown(e)
         }}
         onMouseEnter={showPopover}
@@ -166,7 +201,7 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault()
-            onEdit()
+            onEdit(bar.allocation.id)
           } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
             e.preventDefault()
             nudge(e.shiftKey ? 'resize-end' : 'move', e.key === 'ArrowRight' ? 1 : -1)
@@ -238,4 +273,4 @@ export function AllocationBar({ bar, dayWidth, onEdit }: { bar: BarLayout; dayWi
         )}
     </>
   )
-}
+})

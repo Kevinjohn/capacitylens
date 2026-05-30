@@ -42,14 +42,21 @@ test.describe('CRUD + persistence', () => {
     await page.getByTestId('export-data').click()
     const file = await (await downloadPromise).path()
 
+    // Let the debounced persist settle first, otherwise the unload-flush (which
+    // writes any pending in-memory change) would re-persist our client *after* the
+    // clear and resurrect it on reload. Once settled there is no pending write.
+    await page.waitForTimeout(400)
     // Wipe storage and reload -> reseeds without our client.
     await page.evaluate(() => localStorage.clear())
     await page.reload()
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByText('RoundTrip Co')).toHaveCount(0)
 
-    // Importing the file restores it.
+    // Importing the file restores it — confirm the replace in the dialog first.
     await page.getByTestId('import-input').setInputFiles(file)
+    await expect(page.getByRole('dialog', { name: 'Import data?' })).toBeVisible()
+    await page.getByRole('button', { name: 'Replace data' }).click()
+    await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByText('RoundTrip Co')).toBeVisible()
   })
 })

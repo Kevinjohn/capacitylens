@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '../../types/entities'
 
@@ -29,7 +30,7 @@ export function TimeOffList() {
                 <span className="font-medium">{resourceName(t.resourceId)}</span>
                 <span className="text-sm text-muted">
                   {' '}
-                  · {t.startDate} → {t.endDate} · {t.type}
+                  · {t.startDate} → {t.endDate} · {TIME_OFF_TYPE_LABELS[t.type]}
                   {t.note ? ` · ${t.note}` : ''}
                 </span>
               </span>

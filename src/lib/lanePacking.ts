@@ -32,13 +32,21 @@ export function packLanes(items: Interval[]): PackResult {
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
   })
 
-  const origin = sorted[0].startDate
+  // Origin = the first non-empty start (a bad/empty record sorts first but must
+  // not become the origin, or it would NaN-poison every other item's day-index).
+  const origin = sorted.find((it) => it.startDate)?.startDate ?? sorted[0].startDate
   const laneEnds: number[] = [] // inclusive endDay of the last item placed in each lane
   const lanes: LaneItem[] = []
 
   for (const it of sorted) {
     const s = dayIndex(it.startDate, origin)
     const e = dayIndex(it.endDate, origin)
+    // A record with an unparseable date can't be positioned; drop it into lane 0
+    // without touching laneEnds so it can't corrupt overlap detection for the row.
+    if (!Number.isFinite(s) || !Number.isFinite(e)) {
+      lanes.push({ id: it.id, lane: 0 })
+      continue
+    }
     let lane = laneEnds.findIndex((end) => end < s) // first lane free strictly before this starts
     if (lane === -1) {
       lane = laneEnds.length

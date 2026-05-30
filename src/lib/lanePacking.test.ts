@@ -48,6 +48,19 @@ describe('packLanes', () => {
     expect(new Set([laneOf(r, 'a'), laneOf(r, 'b'), laneOf(r, 'c')])).toEqual(new Set([0, 1, 2]))
   })
 
+  it('an empty-date record does not poison packing for the valid items', () => {
+    // A bad/empty record sorts first; it must not become the origin and NaN-out
+    // every other item's day-index. Valid items still pack correctly.
+    const r = packLanes([
+      iv('bad', '', ''),
+      iv('a', '2026-05-01', '2026-05-03'),
+      iv('b', '2026-05-05', '2026-05-08'),
+    ])
+    expect(laneOf(r, 'a')).toBe(0)
+    expect(laneOf(r, 'b')).toBe(0) // a and b don't overlap -> share a lane
+    expect(laneOf(r, 'bad')).toBe(0) // unpositionable -> parked in lane 0
+  })
+
   it('packs a staircase back down to 2 lanes', () => {
     // a[1-5], b[2-6] overlap (2 lanes). c[6-9] starts after a ends -> reuses lane 0.
     const r = packLanes([

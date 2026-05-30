@@ -76,6 +76,9 @@ export function buildSchedulerModel(
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
   const clientById = new Map(data.clients.map((c) => [c.id, c]))
   const taskById = new Map(data.tasks.map((t) => [t.id, t]))
+  const resourceById = new Map(data.resources.map((r) => [r.id, r]))
+  // Reused for every bar's colour (project → client → resource → grey fallback).
+  const colorMaps = { tasks: taskById, projects: projectById, clients: clientById, resources: resourceById }
   const taskMeta = new Map(
     data.tasks.map((t) => {
       const project = projectById.get(t.projectId)
@@ -118,7 +121,7 @@ export function buildSchedulerModel(
             x: xForDate(a.startDate, origin, dayWidth),
             width: widthForRange(a.startDate, a.endDate, dayWidth),
             top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
-            color: resolveBarColor(a, data),
+            color: resolveBarColor(a, colorMaps),
             label: taskById.get(a.taskId)?.name ?? 'Task',
             project: project?.name,
             client: client?.name,

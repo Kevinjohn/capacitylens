@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { todayISO } from '../../lib/dateMath'
 import { validateAllocationAssignment } from '../../lib/integrity'
@@ -47,6 +47,12 @@ export function AllocationModal(props: AllocationModalProps) {
   const [note, setNote] = useState(editing?.note ?? '')
   const [newTaskName, setNewTaskName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [errorField, setErrorField] = useState<string | null>(null)
+  const errorId = useId()
+  const fail = (field: string | null, message: string) => {
+    setError(message)
+    setErrorField(field)
+  }
 
   // If the edited allocation is removed out from under us (e.g. undo), close
   // rather than silently turning into a "create" that would resurrect it.
@@ -101,22 +107,30 @@ export function AllocationModal(props: AllocationModalProps) {
 
   const submit = () => {
     if (!resourceId) {
-      setError('Choose a resource.')
+      fail('resource', 'Choose a resource.')
       return
     }
     if (!taskId) {
-      setError('Choose (or add) a task.')
+      fail('task', 'Choose (or add) a task.')
+      return
+    }
+    if (!startDate || !endDate) {
+      fail('dates', 'Start and end dates are required.')
       return
     }
     if (endDate < startDate) {
-      setError('End date cannot be before the start date.')
+      fail('dates', 'End date cannot be before the start date.')
+      return
+    }
+    if (!(hoursPerDay > 0)) {
+      fail('hours', 'Hours per day must be greater than 0.')
       return
     }
     const task = data.tasks.find((t) => t.id === taskId)
     if (selectedResource && task) {
       const check = validateAllocationAssignment(selectedResource, task.projectId)
       if (!check.ok) {
-        setError(check.errors[0])
+        fail('task', check.errors[0])
         return
       }
     }
@@ -126,7 +140,7 @@ export function AllocationModal(props: AllocationModalProps) {
       else addAllocation({ resourceId, ...fields })
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save this allocation.')
+      fail(null, e instanceof Error ? e.message : 'Could not save this allocation.')
     }
   }
 
@@ -144,7 +158,7 @@ export function AllocationModal(props: AllocationModalProps) {
       })
       onClose()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not save this allocation.')
+      fail(null, e instanceof Error ? e.message : 'Could not save this allocation.')
     }
   }
 
@@ -172,7 +186,7 @@ export function AllocationModal(props: AllocationModalProps) {
         </>
       }
     >
-      <SelectField label="Assignee" value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder="— Select resource —" />
+      <SelectField label="Assignee" value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder="— Select resource —" invalid={errorField === 'resource'} describedById={errorId} />
       {isPlaceholder && <p className="text-xs text-muted">Placeholder — locked to its bound project.</p>}
 
       <SelectField
@@ -184,7 +198,7 @@ export function AllocationModal(props: AllocationModalProps) {
         disabled={!!lockedProjectId}
       />
       <SelectField label="Phase" value={phaseId} onChange={onPhaseChange} options={phaseOptions} placeholder="— Any / none —" />
-      <SelectField label="Task" value={taskId} onChange={setTaskId} options={taskOptions} placeholder="— Select task —" />
+      <SelectField label="Task" value={taskId} onChange={setTaskId} options={taskOptions} placeholder="— Select task —" invalid={errorField === 'task'} describedById={errorId} />
       {projectId && (
         <div className="flex gap-2">
           <input
@@ -202,18 +216,18 @@ export function AllocationModal(props: AllocationModalProps) {
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <DateField label="Start" value={startDate} onChange={setStartDate} />
+          <DateField label="Start" value={startDate} onChange={setStartDate} invalid={errorField === 'dates'} describedById={errorId} />
         </div>
         <div className="flex-1">
-          <DateField label="End" value={endDate} onChange={setEndDate} />
+          <DateField label="End" value={endDate} onChange={setEndDate} invalid={errorField === 'dates'} describedById={errorId} />
         </div>
       </div>
 
-      <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={24} />
+      <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
       <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
       <TextAreaField label="Note" value={note} onChange={setNote} />
 
-      <FieldError>{error}</FieldError>
+      <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )
 }

@@ -1,4 +1,4 @@
-import type { AppData, EmploymentType, ID, Resource } from '../types/entities'
+import type { AppData, EmploymentType, ID, ISODate, Resource } from '../types/entities'
 
 // Referential-integrity rules and cascade-delete transforms. All pure: cascade
 // helpers return a NEW AppData rather than mutating. Timestamp bumping on edited
@@ -18,6 +18,23 @@ const toResult = (errors: string[]): ValidationResult => ({ ok: errors.length ==
 /** A project must belong to a client. */
 export function validateProjectClient(clientId: ID | undefined | null): ValidationResult {
   return toResult(clientId ? [] : ['A project must belong to a client.'])
+}
+
+/**
+ * A scheduled range (allocation / time off) must have both ends present and not
+ * be reversed. Dates are date-only ISO strings ("YYYY-MM-DD"), which sort
+ * lexicographically, so a plain string compare is a correct date compare. This
+ * is the single source of truth the store enforces so no caller can persist an
+ * empty or reversed range (which would otherwise produce NaN / negative bar
+ * geometry on the timeline).
+ */
+export function validateDateRange(
+  startDate?: ISODate | null,
+  endDate?: ISODate | null,
+): ValidationResult {
+  if (!startDate || !endDate) return toResult(['Start and end dates are required.'])
+  if (endDate < startDate) return toResult(['End date cannot be before the start date.'])
+  return toResult([])
 }
 
 /** Placeholder rule: a placeholder is bound to one project and only that project. */

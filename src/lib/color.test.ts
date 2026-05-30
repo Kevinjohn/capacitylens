@@ -16,21 +16,29 @@ function dataWith(projectColor: string, clientColor = '#client'): AppData {
 
 const alloc = { id: 'a1', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' as const }
 
+// resolveBarColor takes id→entity maps (built once by the scheduler model); build them here.
+const maps = (d: AppData) => ({
+  tasks: new Map(d.tasks.map((t) => [t.id, t])),
+  projects: new Map(d.projects.map((p) => [p.id, p])),
+  clients: new Map(d.clients.map((c) => [c.id, c])),
+  resources: new Map(d.resources.map((r) => [r.id, r])),
+})
+
 describe('resolveBarColor', () => {
   it('prefers the project colour', () => {
-    expect(resolveBarColor(alloc, dataWith('#project'))).toBe('#project')
+    expect(resolveBarColor(alloc, maps(dataWith('#project')))).toBe('#project')
   })
 
   it('falls back to the client colour when the project has none', () => {
-    expect(resolveBarColor(alloc, dataWith('', '#client'))).toBe('#client')
+    expect(resolveBarColor(alloc, maps(dataWith('', '#client')))).toBe('#client')
   })
 
   it('falls back to the resource colour when project and client have none', () => {
-    expect(resolveBarColor(alloc, dataWith('', ''))).toBe('#resource')
+    expect(resolveBarColor(alloc, maps(dataWith('', '')))).toBe('#resource')
   })
 
   it('uses a neutral grey when nothing resolves', () => {
-    expect(resolveBarColor(alloc, emptyAppData())).toBe('#9ca3af')
+    expect(resolveBarColor(alloc, maps(emptyAppData()))).toBe('#9ca3af')
   })
 })
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { attachPersistence, bootstrap } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
 import { useStore } from '../store/useStore'
@@ -27,6 +27,16 @@ describe('attachPersistence', () => {
     useStore.getState().addClient({ name: 'Acme', color: '#1' })
     expect(await adapter.loadAll()).toEqual(emptyAppData())
   })
+
+  it('flushes a pending debounced write on pagehide (so a tab close does not lose it)', async () => {
+    const adapter = new LocalStorageAdapter('floaty/persist-flush')
+    const detach = attachPersistence(useStore, adapter, 300) // debounced, NOT immediate
+    useStore.getState().addClient({ name: 'Acme', color: '#1' })
+    expect((await adapter.loadAll()).clients).toHaveLength(0) // still inside the debounce window
+    window.dispatchEvent(new Event('pagehide'))
+    expect((await adapter.loadAll()).clients).toHaveLength(1) // flushed synchronously
+    detach()
+  })
 })
 
 describe('bootstrap', () => {
@@ -45,6 +55,27 @@ describe('bootstrap', () => {
     await adapter.saveAll(emptyAppData()) // user deleted everything; empty IS persisted
     const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed() })
     expect(useStore.getState().data.resources).toHaveLength(0) // seed must NOT come back
+    detach()
+  })
+
+  it('a failing first-run seed write still hydrates, reports via onError, and attaches persistence', async () => {
+    const adapter = new LocalStorageAdapter('floaty/persist-seedfail')
+    const realSave = adapter.saveAll.bind(adapter)
+    let calls = 0
+    const errors: unknown[] = []
+    vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
+      calls += 1
+      if (calls === 1) throw new Error('quota exceeded') // the seed write fails
+      return realSave(d)
+    })
+
+    const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed(), onError: (e) => errors.push(e) })
+
+    expect(useStore.getState().hydrated).toBe(true) // app still renders
+    expect(errors).toHaveLength(1) // the failure surfaced (would flip the banner)
+    // persistence is STILL attached: a later edit persists via the (now-working) adapter.
+    useStore.getState().addClient({ name: 'Later', color: '#1' })
+    expect((await adapter.loadAll()).clients.some((c) => c.name === 'Later')).toBe(true)
     detach()
   })
 

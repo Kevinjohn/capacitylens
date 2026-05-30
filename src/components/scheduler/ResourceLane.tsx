@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { addDaysISO, weekdayOf } from '../../lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
 import { AllocationBar } from './AllocationBar'
@@ -9,7 +9,10 @@ import type { ID, ISODate } from '../../types/entities'
 /** Min pointer travel to treat a lane gesture as a draw (vs a bare click). */
 const DRAW_THRESHOLD_PX = 4
 
-export function ResourceLane({
+// Memoised so a sibling lane's draw gesture (per-pointermove setDraw) and grid-level
+// UI re-renders (e.g. opening a modal) don't re-render every lane + its bars. Its
+// props are stable model-derived values; onEdit/onDraw are stabilised in SchedulerGrid.
+export const ResourceLane = memo(function ResourceLane({
   resourceId,
   days,
   dayStates,
@@ -155,13 +158,13 @@ export function ResourceLane({
       )}
 
       {bars.map((bar) => (
-        <AllocationBar key={bar.allocation.id} bar={bar} dayWidth={dayWidth} onEdit={() => onEdit(bar.allocation.id)} />
+        <AllocationBar key={bar.allocation.id} bar={bar} dayWidth={dayWidth} onEdit={onEdit} />
       ))}
 
       {/* today line */}
       {todayX !== null && (
-        <div className="pointer-events-none absolute inset-y-0 z-[2] w-px bg-brand/70" style={{ left: todayX }} />
+        <div data-testid="today-line" className="pointer-events-none absolute inset-y-0 z-[2] w-px bg-brand/70" style={{ left: todayX }} />
       )}
     </div>
   )
-}
+})

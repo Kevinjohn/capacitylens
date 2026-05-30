@@ -128,4 +128,60 @@ test.describe('Scheduler', () => {
     await expect(page.getByLabel('Jump to date')).toHaveValue('2026-08-10')
     await expect(page.getByText('Aug 2026')).toBeVisible()
   })
+
+  test('shows a detail popover on hover (US-SCH-15)', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).hover()
+    const pop = page.getByTestId('allocation-popover')
+    await expect(pop).toBeVisible()
+    await expect(pop).toContainText('Brand Themes') // project name in the popover
+  })
+
+  test('shows overall and per-discipline load summaries (US-SCH-14)', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByTestId('overall-utilization')).toContainText('%')
+    await expect(page.getByTestId('discipline-group').first()).toContainText(/avg load/)
+  })
+
+  test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    // Tyler has two overlapping seed bars (3-4 June) -> 2 lanes; Nike has one -> 1 lane.
+    const tylerBars = page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar')
+    expect(await tylerBars.count()).toBe(2)
+    const tylerRow = await page.getByTestId('scheduler-row').filter({ hasText: 'Tyler Nix' }).boundingBox()
+    const nikeRow = await page.getByTestId('scheduler-row').filter({ hasText: 'Nike Spiros' }).boundingBox()
+    expect(tylerRow!.height).toBeGreaterThan(nikeRow!.height) // stacked -> taller
+  })
+
+  test('marks today with a vertical line when in range (US-SCH-12)', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByTestId('today-line').first()).toBeVisible()
+  })
+
+  test('allocation status and note are visually distinct on the bar (US-SCH-19)', async ({ page }) => {
+    await page.goto('/')
+    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+
+    // Seed: Tyler's Visual Design bar is tentative (the placeholder also has a confirmed one).
+    await expect(
+      page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar').filter({ hasText: 'Visual Design' }),
+    ).toHaveAttribute('data-status', 'tentative')
+
+    // Mark Wireframes completed + add a note -> ✓ prefix and • marker.
+    await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit allocation' })
+    await dialog.getByLabel('Status').selectOption({ label: 'Completed' })
+    await dialog.getByLabel('Note').fill('Handed off to QA')
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    const done = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })
+    await expect(done).toHaveAttribute('data-status', 'completed')
+    await expect(done).toContainText('✓')
+    await expect(done).toContainText('•')
+  })
 })

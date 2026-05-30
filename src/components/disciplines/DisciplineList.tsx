@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { NEUTRAL_COLOR } from '../../lib/palette'
+import { byDisciplineOrder } from '../../store/selectors'
 import { DisciplineForm } from './DisciplineForm'
 import type { Discipline } from '../../types/entities'
 
@@ -12,7 +13,7 @@ export function DisciplineList() {
   const [editing, setEditing] = useState<Discipline | null>(null)
   const [confirming, setConfirming] = useState<Discipline | null>(null)
 
-  const sorted = [...disciplines].sort((a, b) => a.sortOrder - b.sortOrder)
+  const sorted = [...disciplines].sort(byDisciplineOrder)
 
   return (
     <ListPage title="Disciplines" addLabel="Add discipline" onAdd={() => setCreating(true)}>
