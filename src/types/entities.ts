@@ -127,6 +127,15 @@ export const SCOPED_KEYS: ScopedEntityKey[] = [
   'timeOff',
 ]
 
+/** A uniform `ScopedEntity[]` view of AppData's scoped tables. The SCOPED_KEYS
+ *  loops (scope-to-account, cascade-delete, import) process every scoped table as
+ *  the common supertype; this isolates into ONE named seam the single cast
+ *  TypeScript can't infer through a heterogeneous-union index — replacing the
+ *  scattered `as never` / `as unknown as` casts the loops used to need. */
+export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
+  return data as Record<ScopedEntityKey, ScopedEntity[]>
+}
+
 /** Bump when the persisted shape changes; drives data/migrate.ts. */
 export const SCHEMA_VERSION = 3
 

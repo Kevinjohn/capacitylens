@@ -1,14 +1,16 @@
 import { addDaysISO } from '../lib/dateMath'
-import { emptyAppData, SCOPED_KEYS } from '../types/entities'
-import type { AppData, Discipline, ID, Resource, ScopedEntity } from '../types/entities'
+import { emptyAppData, scopedTables, SCOPED_KEYS } from '../types/entities'
+import type { AppData, Discipline, ID, Resource } from '../types/entities'
 import type { SchedulerUI } from './useStore'
 
 /** Narrow the full store data to a single account: every scoped array filtered to
  *  `accountId`, and `accounts` blanked (scoped views never read the tenant list). */
 export function scopeData(data: AppData, accountId: ID): AppData {
   const scoped = emptyAppData()
+  const src = scopedTables(data)
+  const dst = scopedTables(scoped)
   for (const key of SCOPED_KEYS) {
-    scoped[key] = (data[key] as ScopedEntity[]).filter((e) => e.accountId === accountId) as never
+    dst[key] = src[key].filter((e) => e.accountId === accountId)
   }
   return scoped
 }

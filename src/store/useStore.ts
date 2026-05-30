@@ -13,7 +13,7 @@ import {
   validateDateRange,
 } from '../lib/integrity'
 import { sanitizeImportedRecord } from '../lib/sanitizeImport'
-import { emptyAppData, SCOPED_KEYS } from '../types/entities'
+import { emptyAppData, scopedTables, SCOPED_KEYS } from '../types/entities'
 import type {
   Account,
   Allocation,
@@ -240,8 +240,10 @@ export const useStore = create<StoreState>()((set, get) => {
     deleteAccount: (id) => {
       mutate((d) => {
         const next: AppData = { ...d, accounts: d.accounts.filter((a) => a.id !== id) }
+        const src = scopedTables(d)
+        const dst = scopedTables(next)
         for (const key of SCOPED_KEYS) {
-          next[key] = (d[key] as ScopedEntity[]).filter((e) => e.accountId !== id) as never
+          dst[key] = src[key].filter((e) => e.accountId !== id)
         }
         return next
       })
@@ -292,8 +294,8 @@ export const useStore = create<StoreState>()((set, get) => {
         const brought: Record<string, ScopedEntity[]> = {}
         for (const key of SCOPED_KEYS) {
           brought[key] = (incoming[key] as unknown as Array<Record<string, unknown>>).map((e) => {
-            const srcId = typeof e.id === 'string' ? e.id : undefined
-            const copy: Record<string, unknown> = { ...e, id: srcId ? idMap.get(srcId)! : newId(), accountId }
+            const newRecordId = typeof e.id === 'string' ? (idMap.get(e.id) ?? newId()) : newId()
+            const copy: Record<string, unknown> = { ...e, id: newRecordId, accountId }
             for (const f of FK_FIELDS) {
               if (copy[f] !== undefined) copy[f] = remap(copy[f])
             }
@@ -324,9 +326,11 @@ export const useStore = create<StoreState>()((set, get) => {
         skipped = allocBefore - brought.allocations.length + (timeOffBefore - brought.timeOff.length)
 
         const next: AppData = { ...d }
+        const srcKept = scopedTables(d)
+        const dst = scopedTables(next)
         for (const key of SCOPED_KEYS) {
-          const kept = (d[key] as ScopedEntity[]).filter((e) => e.accountId !== accountId)
-          next[key] = [...kept, ...brought[key]] as never
+          const kept = srcKept[key].filter((e) => e.accountId !== accountId)
+          dst[key] = [...kept, ...brought[key]]
           imported += brought[key].length
         }
         return next
