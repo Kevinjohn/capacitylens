@@ -105,30 +105,58 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('calls onClose when backdrop (outer div) receives mousedown', () => {
+  it('closes when a press both starts and ends on the backdrop', () => {
     const onClose = vi.fn()
     const { container } = render(
       <Modal title="Backdrop Modal" onClose={onClose}>
         <p>Inner</p>
       </Modal>,
     )
-    // The backdrop is the fixed inset-0 div — the outermost element rendered
     const backdrop = container.firstChild as HTMLElement
-    // Fire mousedown on the backdrop itself (target === currentTarget scenario)
-    fireEvent.mouseDown(backdrop, { bubbles: true })
+    fireEvent.mouseDown(backdrop)
+    fireEvent.mouseUp(backdrop)
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('does NOT call onClose when mousedown happens on a child element', () => {
+  it('does NOT close on a bare mousedown (needs the matching mouseup)', () => {
     const onClose = vi.fn()
-    render(
+    const { container } = render(
+      <Modal title="Backdrop Modal" onClose={onClose}>
+        <p>Inner</p>
+      </Modal>,
+    )
+    fireEvent.mouseDown(container.firstChild as HTMLElement)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('does NOT close when a drag starts inside and releases on the backdrop', () => {
+    const onClose = vi.fn()
+    const { container } = render(
       <Modal title="No-close Modal" onClose={onClose}>
         <p>Inner</p>
       </Modal>,
     )
-    // Fire mousedown on the inner dialog element (target !== currentTarget)
+    const backdrop = container.firstChild as HTMLElement
     const dialog = screen.getByRole('dialog', { name: 'No-close Modal' })
+    // Press begins on the dialog, drag-releases over the backdrop — must not dismiss.
     fireEvent.mouseDown(dialog)
+    fireEvent.mouseUp(backdrop)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('refuses an accidental backdrop/Escape dismissal once a field is edited', () => {
+    const onClose = vi.fn()
+    const { container } = render(
+      <Modal title="Dirty Modal" onClose={onClose}>
+        <input aria-label="field" />
+      </Modal>,
+    )
+    // Edit a field → dialog is dirty.
+    fireEvent.input(screen.getByLabelText('field'), { target: { value: 'x' } })
+    const backdrop = container.firstChild as HTMLElement
+    fireEvent.mouseDown(backdrop)
+    fireEvent.mouseUp(backdrop)
+    fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
 

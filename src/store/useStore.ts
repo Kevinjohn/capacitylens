@@ -83,6 +83,9 @@ export interface StoreState {
   future: AppData[]
   persistError: boolean
   notice: string | null // transient user message (e.g. a rejected drag); auto-dismissed by the UI
+  /** True while an open form has unsaved edits — drives the unsaved-changes guards
+   *  (modal backdrop/Escape, beforeunload). Set by the Modal, never persisted. */
+  dirtyForm: boolean
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -95,6 +98,7 @@ export interface StoreState {
   setHydrated: (v: boolean) => void
   setPersistError: (v: boolean) => void
   setNotice: (message: string | null) => void
+  setDirtyForm: (v: boolean) => void
   undo: () => void
   redo: () => void
 
@@ -214,6 +218,7 @@ export const useStore = create<StoreState>()((set, get) => {
     future: [],
     persistError: false,
     notice: null,
+    dirtyForm: false,
 
     addAccount: (input) => {
       const e: Account = { ...input, id: newId(), ...stamp() }
@@ -306,6 +311,7 @@ export const useStore = create<StoreState>()((set, get) => {
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
     setNotice: (message) => set({ notice: message }),
+    setDirtyForm: (v) => set({ dirtyForm: v }),
 
     undo: () =>
       set((s) => {

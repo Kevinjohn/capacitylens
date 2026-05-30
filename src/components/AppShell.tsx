@@ -27,6 +27,19 @@ export function AppShell() {
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
 
+  const dirtyForm = useStore((s) => s.dirtyForm)
+
+  // Warn before a tab close / refresh would discard an open form's unsaved edits.
+  useEffect(() => {
+    if (!dirtyForm) return
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [dirtyForm])
+
   // Auto-dismiss transient notices after a few seconds.
   useEffect(() => {
     if (!notice) return

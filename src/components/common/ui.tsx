@@ -1,6 +1,7 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { isTemporary } from '../../lib/integrity'
 import { ensureBarColors, isHexColor } from '../../lib/color'
+import { useStore } from '../../store/useStore'
 import type { Resource, Weekday } from '../../types/entities'
 
 // Shared presentational kit. Colours come from semantic tokens (see index.css),
@@ -58,15 +59,50 @@ export function Modal({
   footer?: ReactNode
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
+  const downOnBackdropRef = useRef(false)
   const titleId = useId()
+  const setNotice = useStore((s) => s.setNotice)
+  const setDirtyForm = useStore((s) => s.setDirtyForm)
 
-  // Read onClose through a ref so the focus effect can run exactly once on open —
-  // otherwise a store mutation while the dialog is open (e.g. "Add task") mints a
-  // fresh onClose, re-fires the effect, yanks focus back to the first control, and
-  // clobbers the "restore focus on close" target. (Empty deps, ref for the latest.)
+  // Unsaved-changes guard: the dialog goes "dirty" on the first edit to any control
+  // inside it (native input/change events bubble to the panel). While dirty, an
+  // ACCIDENTAL dismissal — backdrop click or Escape — is refused with a hint;
+  // the explicit Cancel/Save footer buttons (which call onClose directly) still close.
+  const [dirty, setDirty] = useState(false)
+  useEffect(() => {
+    const node = panelRef.current
+    if (!node) return
+    const markDirty = () => setDirty(true)
+    node.addEventListener('input', markDirty)
+    node.addEventListener('change', markDirty)
+    return () => {
+      node.removeEventListener('input', markDirty)
+      node.removeEventListener('change', markDirty)
+    }
+  }, [])
+  // Publish dirtiness so other surfaces (beforeunload) can guard; always clear on unmount.
+  useEffect(() => {
+    setDirtyForm(dirty)
+  }, [dirty, setDirtyForm])
+  useEffect(() => () => setDirtyForm(false), [setDirtyForm])
+
+  const requestClose = () => {
+    if (dirty) {
+      setNotice('You have unsaved changes — use Cancel or Save to close this dialog.')
+      return
+    }
+    onClose()
+  }
+
+  // Read onClose/requestClose through refs so the focus effect can run exactly once
+  // on open — otherwise a store mutation while the dialog is open (e.g. "Add task")
+  // mints a fresh onClose, re-fires the effect, yanks focus back to the first control,
+  // and clobbers the "restore focus on close" target. (Empty deps, ref for the latest.)
   const onCloseRef = useRef(onClose)
+  const requestCloseRef = useRef(requestClose)
   useEffect(() => {
     onCloseRef.current = onClose
+    requestCloseRef.current = requestClose
   })
 
   // Accessible dialog: trap Tab, focus the first control on open, restore on close.
@@ -85,7 +121,7 @@ export function Modal({
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        onCloseRef.current()
+        requestCloseRef.current()
         return
       }
       if (e.key !== 'Tab') return
@@ -111,8 +147,15 @@ export function Modal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-[floaty-fade_0.15s_ease-out]"
+      // Close only when the press both STARTS and ENDS on the backdrop — a drag that
+      // begins inside an input and releases over the backdrop must not dismiss (and
+      // mouseup, not mousedown, so a stray 3px press can't nuke an in-progress form).
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        downOnBackdropRef.current = e.target === e.currentTarget
+      }}
+      onMouseUp={(e) => {
+        if (downOnBackdropRef.current && e.target === e.currentTarget) requestClose()
+        downOnBackdropRef.current = false
       }}
     >
       <div
