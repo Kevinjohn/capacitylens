@@ -1,6 +1,8 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useFieldError } from '../../hooks/useFieldError'
+import { validateHex } from '../../lib/validation'
 import {
   Button,
   ColorField,
@@ -14,7 +16,6 @@ import {
 } from '../common/ui'
 import { EMPLOYMENT_TYPE_OPTIONS, RESOURCE_KIND_OPTIONS } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import { isHexColor } from '../../lib/color'
 import type { EmploymentType, Resource, ResourceKind, Weekday } from '../../types/entities'
 
 export function ResourceForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
@@ -34,13 +35,7 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
   const [workingDays, setWorkingDays] = useState<Weekday[]>(resource?.workingDays ?? [1, 2, 3, 4, 5])
   const [projectId, setProjectId] = useState(resource?.projectId ?? '')
   const [color, setColor] = useState(resource?.color ?? DEFAULT_COLORS.resource)
-  const [error, setError] = useState<string | null>(null)
-  const [errorField, setErrorField] = useState<string | null>(null)
-  const errorId = useId()
-  const fail = (field: string | null, message: string) => {
-    setError(message)
-    setErrorField(field)
-  }
+  const { error, errorField, errorId, fail } = useFieldError()
 
   const disciplineOptions: Option[] = disciplines.map((d) => ({ value: d.id, label: d.name }))
   const projectOptions: Option[] = projects.map((p) => {
@@ -65,10 +60,7 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       fail('hours', 'Working hours per day must be greater than 0.')
       return
     }
-    if (!isHexColor(color)) {
-      fail('color', 'Enter a valid 6-digit hex colour, e.g. #3b82f6.')
-      return
-    }
+    if (!validateHex(color, fail)) return
     const patch = {
       kind,
       name: name.trim() ? name.trim() : undefined,

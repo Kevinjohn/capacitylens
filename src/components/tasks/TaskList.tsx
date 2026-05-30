@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { TaskForm } from './TaskForm'
 import type { Task } from '../../types/entities'
@@ -12,9 +12,7 @@ export function TaskList() {
   const clients = data.clients
   const phases = data.phases
   const del = useStore((s) => s.deleteTask)
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<Task | null>(null)
-  const [confirming, setConfirming] = useState<Task | null>(null)
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Task>()
 
   const projectLabel = (id: string) => {
     const p = projects.find((x) => x.id === id)

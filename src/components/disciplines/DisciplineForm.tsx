@@ -1,9 +1,10 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useFieldError } from '../../hooks/useFieldError'
+import { validateHex, validateName } from '../../lib/validation'
 import { Button, ColorField, FieldError, Modal, NumberField, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import { isHexColor } from '../../lib/color'
 import type { Discipline } from '../../types/entities'
 
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
@@ -18,25 +19,14 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
   const [name, setName] = useState(discipline?.name ?? '')
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline)
   const [sortOrder, setSortOrder] = useState(discipline?.sortOrder ?? nextSortOrder)
-  const [error, setError] = useState<string | null>(null)
-  const [errorField, setErrorField] = useState<string | null>(null)
-  const errorId = useId()
-  const fail = (field: string | null, message: string) => {
-    setError(message)
-    setErrorField(field)
-  }
+  const { error, errorField, errorId, fail } = useFieldError()
 
   const submit = () => {
-    if (!name.trim()) {
-      fail('name', 'Name is required.')
-      return
-    }
-    if (!isHexColor(color)) {
-      fail('color', 'Enter a valid 6-digit hex colour, e.g. #3b82f6.')
-      return
-    }
-    if (discipline) update(discipline.id, { name: name.trim(), color, sortOrder })
-    else add({ name: name.trim(), color, sortOrder })
+    const trimmed = validateName(name, fail)
+    if (!trimmed) return
+    if (!validateHex(color, fail)) return
+    if (discipline) update(discipline.id, { name: trimmed, color, sortOrder })
+    else add({ name: trimmed, color, sortOrder })
     onClose()
   }
 

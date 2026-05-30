@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
 import type { Client } from '../../types/entities'
@@ -8,9 +8,7 @@ import type { Client } from '../../types/entities'
 export function ClientList() {
   const clients = useScopedData().clients
   const deleteClient = useStore((s) => s.deleteClient)
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<Client | null>(null)
-  const [confirming, setConfirming] = useState<Client | null>(null)
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Client>()
 
   return (
     <ListPage title="Clients" addLabel="Add client" onAdd={() => setCreating(true)}>

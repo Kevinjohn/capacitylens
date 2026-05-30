@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
 import type { Project } from '../../types/entities'
@@ -10,9 +10,7 @@ export function ProjectList() {
   const projects = data.projects
   const clients = data.clients
   const del = useStore((s) => s.deleteProject)
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<Project | null>(null)
-  const [confirming, setConfirming] = useState<Project | null>(null)
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Project>()
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '(no client)'
 

@@ -1,9 +1,10 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useFieldError } from '../../hooks/useFieldError'
+import { validateHex, validateName } from '../../lib/validation'
 import { validateProjectClient } from '../../lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import { isHexColor } from '../../lib/color'
 import { Button, ColorField, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
 import type { Project } from '../../types/entities'
 
@@ -19,34 +20,23 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const [name, setName] = useState(project?.name ?? '')
   const [clientId, setClientId] = useState(project?.clientId ?? '')
   const [color, setColor] = useState(project?.color ?? DEFAULT_COLORS.project)
-  const [error, setError] = useState<string | null>(null)
-  const [errorField, setErrorField] = useState<string | null>(null)
-  const errorId = useId()
-  const fail = (field: string | null, message: string) => {
-    setError(message)
-    setErrorField(field)
-  }
+  const { error, errorField, errorId, fail } = useFieldError()
   const [newPhase, setNewPhase] = useState('')
 
   const clientOptions: Option[] = clients.map((c) => ({ value: c.id, label: c.name }))
   const myPhases = project ? phases.filter((p) => p.projectId === project.id) : []
 
   const submit = () => {
-    if (!name.trim()) {
-      fail('name', 'Name is required.')
-      return
-    }
+    const trimmed = validateName(name, fail)
+    if (!trimmed) return
     const check = validateProjectClient(clientId)
     if (!check.ok) {
       fail('client', check.errors[0])
       return
     }
-    if (!isHexColor(color)) {
-      fail('color', 'Enter a valid 6-digit hex colour, e.g. #3b82f6.')
-      return
-    }
-    if (project) update(project.id, { name: name.trim(), clientId, color })
-    else add({ name: name.trim(), clientId, color })
+    if (!validateHex(color, fail)) return
+    if (project) update(project.id, { name: trimmed, clientId, color })
+    else add({ name: trimmed, clientId, color })
     onClose()
   }
 

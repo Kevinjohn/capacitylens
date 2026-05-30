@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { byDisciplineOrder } from '../../store/selectors'
@@ -10,9 +10,7 @@ import type { Discipline } from '../../types/entities'
 export function DisciplineList() {
   const disciplines = useScopedData().disciplines
   const del = useStore((s) => s.deleteDiscipline)
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<Discipline | null>(null)
-  const [confirming, setConfirming] = useState<Discipline | null>(null)
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Discipline>()
 
   const sorted = [...disciplines].sort(byDisciplineOrder)
 

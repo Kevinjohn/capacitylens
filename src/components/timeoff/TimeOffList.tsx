@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
+import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { TimeOffForm } from './TimeOffForm'
@@ -11,9 +11,7 @@ export function TimeOffList() {
   const timeOff = data.timeOff
   const resources = data.resources
   const del = useStore((s) => s.deleteTimeOff)
-  const [creating, setCreating] = useState(false)
-  const [editing, setEditing] = useState<TimeOff | null>(null)
-  const [confirming, setConfirming] = useState<TimeOff | null>(null)
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>()
 
   const resourceName = (id: string) => {
     const r = resources.find((x) => x.id === id)
