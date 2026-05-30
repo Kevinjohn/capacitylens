@@ -78,9 +78,15 @@ export const ResourceLane = memo(function ResourceLane({
       if (fromOtherPointer(ev)) return
       detach()
       setDraw(null)
-      // A bare click (sub-threshold) is a no-op — matches the bar's click/drag split and
-      // avoids popping a "New …" modal on a stray click. Use the row "+" for single-day.
-      if (Math.abs(ev.clientX - startX) < DRAW_THRESHOLD_PX) return
+      // A clean click (sub-threshold) creates a SINGLE-day allocation on the clicked
+      // day — the most common case, and previously impossible (you had to find the
+      // tiny row "+"). A multi-day drag spans clicked-start → release. Grabbing a bar
+      // never reaches here (the bar stops propagation), so this only fires on empty space.
+      if (Math.abs(ev.clientX - startX) < DRAW_THRESHOLD_PX) {
+        const day = addDaysISO(origin, start)
+        onDraw(resourceId, day, day)
+        return
+      }
       const end = indexAt(ev.clientX)
       onDraw(resourceId, addDaysISO(origin, Math.min(start, end)), addDaysISO(origin, Math.max(start, end)))
     }

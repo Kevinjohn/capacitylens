@@ -366,6 +366,15 @@ export function NumberField({
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(Number(e.target.value))}
+        // Clamp to [min, max] on blur — type=number's own min/max are advisory and
+        // aren't enforced on paste/typing, so a stray entry would otherwise stick.
+        onBlur={(e) => {
+          let n = Number(e.target.value)
+          if (!Number.isFinite(n)) n = min ?? 0
+          if (min !== undefined) n = Math.max(min, n)
+          if (max !== undefined) n = Math.min(max, n)
+          if (n !== value) onChange(n)
+        }}
       />
     </label>
   )

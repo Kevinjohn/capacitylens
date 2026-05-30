@@ -87,6 +87,9 @@ export interface StoreState {
   hydrated: boolean
   /** The tenant currently in view. Null = no account chosen (show the picker). Never persisted. */
   activeAccountId: ID | null
+  /** The account that was active before switching to the picker — lets the picker
+   *  offer a "back" escape after an accidental "Switch company". Never persisted. */
+  previousAccountId: ID | null
   past: AppData[]
   future: AppData[]
   persistError: boolean
@@ -223,6 +226,7 @@ export const useStore = create<StoreState>()((set, get) => {
     ui: defaultUI(),
     hydrated: false,
     activeAccountId: null,
+    previousAccountId: null,
     past: [],
     future: [],
     persistError: false,
@@ -254,6 +258,9 @@ export const useStore = create<StoreState>()((set, get) => {
     setActiveAccount: (id) =>
       set((s) => ({
         activeAccountId: id,
+        // Remember where we came from when dropping to the picker (id === null) so it
+        // can offer a "back" escape; clear it once a tenant is actually chosen.
+        previousAccountId: id === null ? s.activeAccountId : null,
         past: [],
         future: [],
         ui: { ...s.ui, filters: emptyFilters(), collapsedGroups: [], selectedAllocationId: null },

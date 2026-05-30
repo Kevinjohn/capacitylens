@@ -1,8 +1,9 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useFieldError } from '../../hooks/useFieldError'
+import { validateHex, validateName } from '../../lib/validation'
 import { Avatar, Button, ColorField, ConfirmDialog, FieldError, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import { isHexColor } from '../../lib/color'
 import type { Account } from '../../types/entities'
 
 // Full-screen tenant chooser. Shown on every load (activeAccountId is never
@@ -13,35 +14,27 @@ export function AccountPicker() {
   const addAccount = useStore((s) => s.addAccount)
   const deleteAccount = useStore((s) => s.deleteAccount)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
+  const previousAccountId = useStore((s) => s.previousAccountId)
+  // If we got here via "Switch company" and that account still exists, offer a way back.
+  const previous = accounts.find((a) => a.id === previousAccountId) ?? null
 
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(DEFAULT_COLORS.account)
-  const [error, setError] = useState<string | null>(null)
-  const [errorField, setErrorField] = useState<string | null>(null)
+  const { error, errorField, errorId, fail } = useFieldError()
   const [confirming, setConfirming] = useState<Account | null>(null)
-  const errorId = useId()
 
   const resetForm = () => {
     setCreating(false)
     setName('')
     setColor(DEFAULT_COLORS.account)
-    setError(null)
-    setErrorField(null)
   }
 
   const submit = () => {
-    if (!name.trim()) {
-      setError('Name is required.')
-      setErrorField('name')
-      return
-    }
-    if (!isHexColor(color)) {
-      setError('Enter a valid 6-digit hex colour, e.g. #6366f1.')
-      setErrorField('color')
-      return
-    }
-    const account = addAccount({ name: name.trim(), color })
+    const trimmed = validateName(name, fail)
+    if (!trimmed) return
+    if (!validateHex(color, fail)) return
+    const account = addAccount({ name: trimmed, color })
     resetForm()
     setActiveAccount(account.id)
   }
@@ -49,6 +42,15 @@ export function AccountPicker() {
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-md">
+        {previous && (
+          <button
+            type="button"
+            onClick={() => setActiveAccount(previous.id)}
+            className="mb-4 text-sm text-muted underline-offset-2 hover:text-ink hover:underline"
+          >
+            ← Back to {previous.name}
+          </button>
+        )}
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">Floaty</div>
           <h1 className="text-lg font-semibold text-ink">Choose a company</h1>

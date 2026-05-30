@@ -119,18 +119,23 @@ describe('ResourceLane draw interaction', () => {
     expect(endDate).toBe('2026-06-03')
   })
 
-  it('treats a bare click (no movement) as a no-op rather than drawing', () => {
+  it('treats a bare click (no movement) as a single-day allocation on the clicked day', () => {
     const { onDraw } = renderLane()
     const lane = screen.getByTestId('resource-lane')
     lane.getBoundingClientRect = () =>
       ({ left: 0, top: 0, right: 1000, bottom: 64, width: 1000, height: 64, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect
 
+    // clientX=30, dayWidth=48 → day 0 ('2026-06-01'); start === end (one day).
     fireEvent.pointerDown(lane, { clientX: 30, button: 0 })
     act(() => {
       document.dispatchEvent(new MouseEvent('pointerup', { clientX: 30, bubbles: true }))
     })
 
-    expect(onDraw).not.toHaveBeenCalled()
+    expect(onDraw).toHaveBeenCalledTimes(1)
+    const [resourceId, startDate, endDate] = onDraw.mock.calls[0]
+    expect(resourceId).toBe('r1')
+    expect(startDate).toBe('2026-06-01')
+    expect(endDate).toBe('2026-06-01')
   })
 
   it('does not call onDraw when pointerDown uses a non-primary button', () => {

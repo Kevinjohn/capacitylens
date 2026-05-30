@@ -187,7 +187,7 @@ export const AllocationBar = memo(function AllocationBar({
         data-status={bar.allocation.status}
         role="button"
         tabIndex={0}
-        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize.`}
+        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize; drag to another row to reassign.`}
         onPointerDown={(e) => {
           hidePopover()
           lanesRef.current = snapshotLanes()
@@ -268,6 +268,9 @@ export const AllocationBar = memo(function AllocationBar({
               {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)} · {bar.allocation.hoursPerDay}h/day · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
             </div>
             {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted">{bar.allocation.note}</div>}
+            <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">
+              Drag to move · edges to resize · drop on another row to reassign
+            </div>
           </div>,
           document.body,
         )}

@@ -150,8 +150,8 @@ export function SchedulerGrid() {
             <>No resources match the current filters.</>
           ) : (
             <>
-              No resources yet. Add people on the <span className="font-medium text-ink">Resources</span> page, then draw on a
-              row to schedule work.
+              No resources yet. Add people on the <span className="font-medium text-ink">Resources</span> page, then click or
+              drag on a row to schedule work.
             </>
           )}
         </div>

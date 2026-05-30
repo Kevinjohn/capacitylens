@@ -9,6 +9,7 @@ import {
   Callout,
   DateField,
   FieldError,
+  inputClass,
   Modal,
   NumberField,
   SelectField,
@@ -124,7 +125,15 @@ export function AllocationModal(props: AllocationModalProps) {
     setTaskId('')
   }
   const onAddTask = () => {
-    if (!newTaskName.trim() || !projectId) return
+    // Was a silent no-op on a blank name / missing project — give feedback instead.
+    if (!projectId) {
+      fail('task', 'Pick a project before adding a task.')
+      return
+    }
+    if (!newTaskName.trim()) {
+      fail('newtask', 'Enter a name for the new task.')
+      return
+    }
     const task = addTask({ name: newTaskName.trim(), projectId, phaseId: phaseId || undefined })
     setTaskId(task.id)
     setNewTaskName('')
@@ -227,10 +236,11 @@ export function AllocationModal(props: AllocationModalProps) {
       {projectId && (
         <div className="flex gap-2">
           <input
-            className="w-full rounded-md border bg-surface px-2 py-1 text-sm text-ink placeholder:text-faint"
+            className={inputClass}
             value={newTaskName}
             placeholder="…or add a new task"
             aria-label="New task name"
+            aria-invalid={errorField === 'newtask' || undefined}
             onChange={(e) => setNewTaskName(e.target.value)}
           />
           <Button variant="ghost" onClick={onAddTask}>
