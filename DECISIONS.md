@@ -216,12 +216,51 @@ Implemented in `buildSchedulerModel` (per-row `dimmed` flag; dimmed rows show fu
 matched rows stay focused) + a `Filters.showUnmatched` flag + the toolbar toggle.
 
 ### Previously-deferred findings — now implemented
-- **Error toasts persist (UX 🟡).** `store.noticeTone` ('info' auto-dismisses after 4s;
-  'error' persists until dismissed + gets a danger ring). Rejected-reassign and import
-  failures are 'error'; success/info still auto-clear.
+- **Error toasts persist (UX 🟡).** `store.notice` carries a severity ('info'
+  auto-dismisses after 4s; 'error' persists until dismissed + gets a danger ring).
+  Rejected-reassign and import failures are 'error'; success/info still auto-clear.
 - **Drag-commit toast + keyboard start-resize + phase-remove confirm (UX 🟡).** A
   successful drag now confirms with a ⌘Z hint; Alt+arrow resizes the start edge
   (Shift+arrow the end); phase removal has a two-click inline confirm (modal-free).
 - **Jump-to-date — kept on-change by design.** Commit-on-blur was rejected: a native
   date input doesn't fire blur when you pick from its calendar popup, so it would break
   the common pick case. On-change is correct here.
+
+## 2026-05-31 — precision code-review remediation (review of the review pass)
+
+A medium-effort precision review (7 finder angles → 1-vote verify) over the five-
+specialist remediation diff surfaced 2 confirmed correctness bugs + 5 cleanup/perf/
+altitude findings. All fixed behind the green gate (364 unit + 86 e2e + tsc + eslint).
+
+- **Search debounce timer not cancelled on Clear (correctness).** Clearing filters while
+  a 180ms search-debounce was pending left an orphaned timer that re-applied the just-
+  cleared term — and the render-time reconcile couldn't catch it because `filters.search`
+  was already `''`. `Clear` now cancels the timer and resets the local input. (The
+  account-switch variant was already safe — it unmounts the toolbar, firing cleanup.)
+- **Dirty-guard missed button-driven controls (correctness, data loss).** The Modal
+  marked itself dirty only on native `input`/`change` events, so editing only a resource's
+  working days via `WeekdayPicker` (button `onClick`, no native event) then pressing
+  Escape/backdrop silently discarded the change. The guard now also treats a click on any
+  `aria-pressed` toggle inside the panel as an edit — generalises to the whole class of
+  toggle controls, not just WeekdayPicker.
+- **Windowing prefix-sum rebuilt every scroll frame (perf).** `virtualWindow` split into
+  `buildLayout` (the O(rows) prefix-sum, depends only on heights) + `windowFromLayout`
+  (the cheap per-frame edge-scan). `SchedulerGrid` memoises heights on `[items]` and the
+  layout on `[heights]`, so scrolling no longer pays an O(rows) sweep per frame.
+- **Capacity advisory duplicated / O(days×allocations) per keystroke (reuse + perf).**
+  Extracted to `lib/capacity.ts` `capacityAdvisory()` with per-day hour bucketing
+  (O(window + load)). Now consumed by BOTH the allocation modal and the drag-commit path
+  (the latter reads via `useStore.getState()` so it stays off the bar's render/memo path)
+  — the over-capacity/time-off rule lives in one place and both write surfaces warn.
+- **allocVisible re-inlined the tentative rule (simplification).** Now composes
+  `matchesProjectClient(a) && notTentativeHidden(a)`.
+- **notice + noticeTone could desync (altitude).** Collapsed the two parallel store fields
+  into one `notice: {message, tone} | null` object, so severity can't drift from the
+  message. (Analysis note: this makes the store value atomic; the residual "caller forgets
+  the error tone" risk is unchanged — that's a per-call decision, not a store-shape one.)
+
+Findings deliberately NOT acted on (verified false / by-design): the `isWithin` string-
+compare "regression" was REFUTED — it's behaviour-preserving for all app-generated
+(zero-padded) dates, and the only divergence path is an invisible, hand-corrupted import;
+the `dirtyForm` global-bool mount/unmount race and "dirty stays true after a reverted
+edit" are real but low-confidence / conservative-by-design and were left as-is.
