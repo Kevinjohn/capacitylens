@@ -1,4 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
+import { openApp } from './helpers'
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox()
@@ -8,7 +9,7 @@ async function box(locator: Locator) {
 
 test.describe('Feature flows', () => {
   test('filtering by project narrows the schedule to that project', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     const bars = page.getByTestId('allocation-bar')
     expect(await bars.count()).toBeGreaterThan(1)
 
@@ -19,7 +20,7 @@ test.describe('Feature flows', () => {
   })
 
   test('undo restores a deleted allocation', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     const bars = page.getByTestId('allocation-bar')
     const n = await bars.count()
 
@@ -33,7 +34,7 @@ test.describe('Feature flows', () => {
   })
 
   test('booking time off greys the schedule', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
     const blocksBefore = await page.getByTestId('timeoff-block').count()
 
@@ -51,7 +52,7 @@ test.describe('Feature flows', () => {
   })
 
   test('clicking a discipline header collapses its rows', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
     await page.getByRole('button', { name: 'Design', exact: true }).click()
     await expect(page.getByText('Tyler Nix')).toHaveCount(0) // rows removed
@@ -60,7 +61,7 @@ test.describe('Feature flows', () => {
   })
 
   test('dragging an allocation onto another row reassigns it', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0
@@ -88,7 +89,7 @@ test.describe('Feature flows', () => {
   })
 
   test('drawing in Time off mode opens a prefilled time-off form', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0
@@ -113,7 +114,7 @@ test.describe('Feature flows', () => {
   })
 
   test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0

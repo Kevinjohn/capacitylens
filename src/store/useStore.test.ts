@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hasActiveFilters, useStore } from './useStore'
-import { emptyAppData } from '../types/entities'
+import { resetStoreWithAccount } from '../test/fixtures'
 
 const s = () => useStore.getState()
-beforeEach(() => s().replaceAll(emptyAppData()))
+beforeEach(() => resetStoreWithAccount())
 
 const personDraft = {
   kind: 'person' as const,
@@ -123,7 +123,7 @@ describe('store scheduler UI', () => {
   })
 
   it('undo and redo move through mutation history', () => {
-    s().replaceAll(emptyAppData())
+    resetStoreWithAccount()
     const c = s().addClient({ name: 'Acme', color: '#1' })
     expect(s().data.clients).toHaveLength(1)
     s().undo()

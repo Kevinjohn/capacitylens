@@ -28,6 +28,7 @@ const TIME_OFF_BLOCKS: TimeOffBlock[] = [
 const makeBar = (): BarLayout => ({
   allocation: {
     id: 'alloc1',
+    accountId: 'acct-test',
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     resourceId: 'r1',

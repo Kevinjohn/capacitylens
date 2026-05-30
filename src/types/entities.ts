@@ -19,13 +19,24 @@ export interface Entity {
   updatedAt: ISOTimestamp
 }
 
-export interface Discipline extends Entity {
+/** A tenant. Top-level: not scoped to any other account. */
+export interface Account extends Entity {
+  name: string
+  color: string
+}
+
+/** Every domain entity belongs to exactly one account. Accounts themselves don't. */
+export interface ScopedEntity extends Entity {
+  accountId: ID
+}
+
+export interface Discipline extends ScopedEntity {
   name: string
   color?: string
   sortOrder: number // controls grouping order in the scheduler
 }
 
-export interface Resource extends Entity {
+export interface Resource extends ScopedEntity {
   kind: ResourceKind
   /** Optional: placeholders may be nameless (shown by `role`). */
   name?: string
@@ -41,29 +52,29 @@ export interface Resource extends Entity {
   color: string
 }
 
-export interface Client extends Entity {
+export interface Client extends ScopedEntity {
   name: string
   color: string
 }
 
-export interface Project extends Entity {
+export interface Project extends ScopedEntity {
   name: string
   clientId: ID // REQUIRED — a project must belong to a client
   color: string
 }
 
-export interface Phase extends Entity {
+export interface Phase extends ScopedEntity {
   name: string
   projectId: ID
 }
 
-export interface Task extends Entity {
+export interface Task extends ScopedEntity {
   name: string
   projectId: ID
   phaseId?: ID
 }
 
-export interface Allocation extends Entity {
+export interface Allocation extends ScopedEntity {
   resourceId: ID
   taskId: ID
   startDate: ISODate // inclusive
@@ -74,7 +85,7 @@ export interface Allocation extends Entity {
   // future-additive (NOT built in v1): startTime?/endTime? for "9am–1pm" allocations
 }
 
-export interface TimeOff extends Entity {
+export interface TimeOff extends ScopedEntity {
   resourceId: ID
   startDate: ISODate // inclusive
   endDate: ISODate // inclusive
@@ -83,6 +94,7 @@ export interface TimeOff extends Entity {
 }
 
 export interface AppData {
+  accounts: Account[]
   disciplines: Discipline[]
   resources: Resource[]
   clients: Client[]
@@ -93,8 +105,30 @@ export interface AppData {
   timeOff: TimeOff[]
 }
 
+/** The AppData arrays holding account-scoped entities (everything except `accounts`). */
+export type ScopedEntityKey =
+  | 'disciplines'
+  | 'resources'
+  | 'clients'
+  | 'projects'
+  | 'phases'
+  | 'tasks'
+  | 'allocations'
+  | 'timeOff'
+
+export const SCOPED_KEYS: ScopedEntityKey[] = [
+  'disciplines',
+  'resources',
+  'clients',
+  'projects',
+  'phases',
+  'tasks',
+  'allocations',
+  'timeOff',
+]
+
 /** Bump when the persisted shape changes; drives data/migrate.ts. */
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export interface PersistedState {
   schemaVersion: number
@@ -104,6 +138,7 @@ export interface PersistedState {
 /** A fresh, empty dataset — the starting point before seeding. */
 export function emptyAppData(): AppData {
   return {
+    accounts: [],
     disciplines: [],
     resources: [],
     clients: [],

@@ -8,18 +8,18 @@ function data(): AppData {
   return {
     ...emptyAppData(),
     disciplines: [
-      { id: 'd2', createdAt: 't', updatedAt: 't', name: 'Dev', sortOrder: 1 },
-      { id: 'd1', createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 },
+      { id: 'd2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Dev', sortOrder: 1 },
+      { id: 'd1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 },
     ],
     resources: [
-      { id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', name: 'A', role: 'x', disciplineId: 'd1', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#1' },
-      { id: 'r2', createdAt: 't', updatedAt: 't', kind: 'person', name: 'B', role: 'x', disciplineId: 'd2', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#2' },
-      { id: 'r3', createdAt: 't', updatedAt: 't', kind: 'person', name: 'C', role: 'x', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#3' },
+      { id: 'r1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'A', role: 'x', disciplineId: 'd1', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#1' },
+      { id: 'r2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'B', role: 'x', disciplineId: 'd2', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#2' },
+      { id: 'r3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'C', role: 'x', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#3' },
     ],
-    projects: [{ id: 'p1', createdAt: 't', updatedAt: 't', name: 'P', clientId: 'c1', color: '#1' }],
+    projects: [{ id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P', clientId: 'c1', color: '#1' }],
     tasks: [
-      { id: 't1', createdAt: 't', updatedAt: 't', name: 'T1', projectId: 'p1' },
-      { id: 't2', createdAt: 't', updatedAt: 't', name: 'T2', projectId: 'p2' },
+      { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T1', projectId: 'p1' },
+      { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T2', projectId: 'p2' },
     ],
   }
 }

@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '../../types/entities'
 
 export function TimeOffList() {
-  const timeOff = useStore((s) => s.data.timeOff)
-  const resources = useStore((s) => s.data.resources)
+  const data = useScopedData()
+  const timeOff = data.timeOff
+  const resources = data.resources
   const del = useStore((s) => s.deleteTimeOff)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<TimeOff | null>(null)

@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
 import type { Project } from '../../types/entities'
 
 export function ProjectList() {
-  const projects = useStore((s) => s.data.projects)
-  const clients = useStore((s) => s.data.clients)
+  const data = useScopedData()
+  const projects = data.projects
+  const clients = data.clients
   const del = useStore((s) => s.deleteProject)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Project | null>(null)

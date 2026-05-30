@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { validateProjectClient } from '../../lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { isHexColor } from '../../lib/color'
@@ -9,8 +10,9 @@ import type { Project } from '../../types/entities'
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
   const add = useStore((s) => s.addProject)
   const update = useStore((s) => s.updateProject)
-  const clients = useStore((s) => s.data.clients)
-  const phases = useStore((s) => s.data.phases)
+  const data = useScopedData()
+  const clients = data.clients
+  const phases = data.phases
   const addPhase = useStore((s) => s.addPhase)
   const deletePhase = useStore((s) => s.deletePhase)
 

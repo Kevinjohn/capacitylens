@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 test.describe('CRUD + persistence', () => {
   test('a project cannot be saved without a client', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('link', { name: 'Projects' }).click()
     await page.getByRole('button', { name: 'Add project' }).click()
 
@@ -13,7 +14,7 @@ test.describe('CRUD + persistence', () => {
   })
 
   test('adding a client persists across a reload', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
 
@@ -24,13 +25,13 @@ test.describe('CRUD + persistence', () => {
 
     // allow the debounced persist to flush, then reload
     await page.waitForTimeout(500)
-    await page.reload()
+    await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByText('Persisted Client')).toBeVisible()
   })
 
   test('exports the dataset and re-imports it (round-trip)', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
     await page.getByLabel('Name').fill('RoundTrip Co')
@@ -48,7 +49,7 @@ test.describe('CRUD + persistence', () => {
     await page.waitForTimeout(400)
     // Wipe storage and reload -> reseeds without our client.
     await page.evaluate(() => localStorage.clear())
-    await page.reload()
+    await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByText('RoundTrip Co')).toHaveCount(0)
 

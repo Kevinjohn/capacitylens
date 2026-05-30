@@ -5,9 +5,10 @@ import { useStore } from '../store/useStore'
 import { emptyAppData } from '../types/entities'
 import { seed } from '../data/seed'
 import { serializeData } from '../data/transfer'
+import { makeResourceDraft, resetStoreWithAccount } from '../test/fixtures'
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData())
+  resetStoreWithAccount()
   useStore.getState().clearFilters()
 })
 
@@ -76,7 +77,7 @@ describe('ImportExport – Import', () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
 
     // The dialog is open and data is still intact (nothing applied yet).
-    expect(screen.getByText(/replaces all current data/i)).toBeInTheDocument()
+    expect(screen.getByText(/replaces this company.s data/i)).toBeInTheDocument()
     expect(useStore.getState().data.clients).toHaveLength(before)
 
     // Cancelling leaves the data untouched.
@@ -85,7 +86,11 @@ describe('ImportExport – Import', () => {
   })
 
   it('import is undoable with ⌘Z (routes through the history stack)', async () => {
-    useStore.getState().replaceAll(seed())
+    // Single-account data owned by the active account: importing empty wipes the
+    // active account's slice entirely, so raw data.resources goes to 0 (and ⌘Z
+    // restores it). seed() spans two accounts, so importData would only clear one.
+    useStore.getState().addResource(makeResourceDraft({ name: 'Alice' }))
+    useStore.getState().addResource(makeResourceDraft({ name: 'Bob' }))
     const before = useStore.getState().data.resources.length
     render(<ImportExport />)
 

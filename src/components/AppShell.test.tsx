@@ -3,10 +3,13 @@ import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AppShell } from './AppShell'
 import { useStore } from '../store/useStore'
-import { emptyAppData } from '../types/entities'
+import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData())
+  // Seed an active account so the shell (not the account picker) renders — these
+  // tests exercise the nav/hydration gate, which sits *after* the account gate.
+  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }))
+  useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
   useStore.getState().clearFilters()
   // Reset hydrated state to false before each test
   useStore.getState().setHydrated(false)

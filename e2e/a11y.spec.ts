@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { openApp } from './helpers'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
@@ -10,7 +11,7 @@ test.use({ reducedMotion: 'reduce' })
 // Axe is the a11y oracle: getByRole proves an attribute exists, not that the
 // structure/contrast is valid. This guards the whole a11y pass against regressions.
 test('scheduler has no serious or critical accessibility violations', async ({ page }) => {
-  await page.goto('/')
+  await openApp(page)
   await expect(page.getByTestId('scheduler-grid')).toBeVisible()
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
   const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
@@ -19,7 +20,7 @@ test('scheduler has no serious or critical accessibility violations', async ({ p
 
 test('scheduler in dark mode has no serious or critical violations', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' })
-  await page.goto('/')
+  await openApp(page)
   await expect(page.getByTestId('scheduler-grid')).toBeVisible()
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
   const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
@@ -27,7 +28,7 @@ test('scheduler in dark mode has no serious or critical violations', async ({ pa
 })
 
 test('a resource form modal has no serious or critical violations', async ({ page }) => {
-  await page.goto('/resources')
+  await openApp(page, 'Studio North', '/resources')
   await page.getByRole('button', { name: 'Add resource' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.waitForTimeout(350) // let the entrance animation settle (mid-fade colours read as false low-contrast)

@@ -3,7 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
 import type { BarLayout } from './schedulerModel'
 import { useStore } from '../../store/useStore'
-import { emptyAppData, type Allocation } from '../../types/entities'
+import { type Allocation } from '../../types/entities'
+import { resetStoreWithAccount } from '../../test/fixtures'
 
 function seedAllocation(): Allocation {
   const s = useStore.getState()
@@ -16,7 +17,7 @@ function seedAllocation(): Allocation {
 
 const barFor = (allocation: Allocation): BarLayout => ({ allocation, x: 0, width: 144, top: 0, color: '#3b82f6', label: 'Wires' })
 
-beforeEach(() => useStore.getState().replaceAll(emptyAppData()))
+beforeEach(() => resetStoreWithAccount())
 
 describe('AllocationBar interactions', () => {
   it('shows a detail popover on hover and hides it on leave', () => {

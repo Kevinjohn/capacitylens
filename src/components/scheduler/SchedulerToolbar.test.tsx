@@ -3,10 +3,10 @@ import { render, screen, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SchedulerToolbar } from './SchedulerToolbar'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { resetStoreWithAccount } from '../../test/fixtures'
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData())
+  resetStoreWithAccount()
   useStore.getState().clearFilters()
   useStore.getState().setZoom(4)
 })

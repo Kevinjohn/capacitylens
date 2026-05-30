@@ -3,9 +3,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectForm } from './ProjectForm'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { resetStoreWithAccount } from '../../test/fixtures'
 
-beforeEach(() => useStore.getState().replaceAll(emptyAppData()))
+beforeEach(() => resetStoreWithAccount())
 
 describe('ProjectForm', () => {
   it('refuses to save a project without a client', async () => {

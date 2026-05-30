@@ -1,4 +1,5 @@
 import { hasActiveFilters, useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
 import { Button } from '../common/ui'
 
@@ -16,9 +17,10 @@ export function SchedulerToolbar() {
   const filters = useStore((s) => s.ui.filters)
   const setFilters = useStore((s) => s.setFilters)
   const clearFilters = useStore((s) => s.clearFilters)
-  const disciplines = useStore((s) => s.data.disciplines)
-  const clients = useStore((s) => s.data.clients)
-  const projects = useStore((s) => s.data.projects)
+  const data = useScopedData()
+  const disciplines = data.disciplines
+  const clients = data.clients
+  const projects = data.projects
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
   const canUndo = useStore((s) => s.past.length > 0)

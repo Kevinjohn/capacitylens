@@ -12,8 +12,9 @@ import {
   validateAllocationAssignment,
   validateDateRange,
 } from '../lib/integrity'
-import { emptyAppData } from '../types/entities'
+import { emptyAppData, SCOPED_KEYS } from '../types/entities'
 import type {
+  Account,
   Allocation,
   AppData,
   Client,
@@ -24,11 +25,14 @@ import type {
   Phase,
   Project,
   Resource,
+  ScopedEntity,
   Task,
   TimeOff,
 } from '../types/entities'
 
-export type Draft<T extends Entity> = Omit<T, 'id' | 'createdAt' | 'updatedAt'>
+// A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
+// store stamps the active account, so callers never supply it.
+export type Draft<T extends Entity> = Omit<T, 'id' | 'accountId' | 'createdAt' | 'updatedAt'>
 export type Patch<T extends Entity> = Partial<Draft<T>>
 
 // Re-exported for convenience.
@@ -73,10 +77,17 @@ export interface StoreState {
   data: AppData
   ui: SchedulerUI
   hydrated: boolean
+  /** The tenant currently in view. Null = no account chosen (show the picker). Never persisted. */
+  activeAccountId: ID | null
   past: AppData[]
   future: AppData[]
   persistError: boolean
   notice: string | null // transient user message (e.g. a rejected drag); auto-dismissed by the UI
+
+  addAccount: (input: Draft<Account>) => Account
+  updateAccount: (id: ID, patch: Patch<Account>) => void
+  deleteAccount: (id: ID) => void
+  setActiveAccount: (id: ID | null) => void
 
   replaceAll: (data: AppData) => void
   /** Replace the whole dataset (e.g. JSON import) but keep it undoable via ⌘Z. */
@@ -160,6 +171,14 @@ export const useStore = create<StoreState>()((set, get) => {
   const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
     list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touch() } : x))
 
+  // Every scoped add* stamps the active account. With no account chosen there's
+  // nowhere to file the entity, so we fail loudly rather than create an orphan.
+  const requireAccount = (): ID => {
+    const id = get().activeAccountId
+    if (!id) throw new Error('No active account — cannot mutate scoped data.')
+    return id
+  }
+
   // The store is the integrity boundary for allocations: an allocation must
   // reference a real resource + task, and a placeholder may only take tasks from
   // its bound project. Enforced on both add and update.
@@ -190,13 +209,76 @@ export const useStore = create<StoreState>()((set, get) => {
     data: emptyAppData(),
     ui: defaultUI(),
     hydrated: false,
+    activeAccountId: null,
     past: [],
     future: [],
     persistError: false,
     notice: null,
 
+    addAccount: (input) => {
+      const e: Account = { ...input, id: newId(), ...stamp() }
+      mutate((d) => ({ ...d, accounts: [...d.accounts, e] }))
+      return e
+    },
+    updateAccount: (id, patch) => mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, patch) })),
+    // Cascade-drop every scoped entity belonging to this account; if it was the
+    // active one, fall back to the picker.
+    deleteAccount: (id) => {
+      mutate((d) => {
+        const next: AppData = { ...d, accounts: d.accounts.filter((a) => a.id !== id) }
+        for (const key of SCOPED_KEYS) {
+          next[key] = (d[key] as ScopedEntity[]).filter((e) => e.accountId !== id) as never
+        }
+        return next
+      })
+      if (get().activeAccountId === id) get().setActiveAccount(null)
+    },
+    // Switching tenant resets per-account view state and history — undo must never
+    // cross an account boundary, and the previous account's filters/selection don't apply.
+    setActiveAccount: (id) =>
+      set((s) => ({
+        activeAccountId: id,
+        past: [],
+        future: [],
+        ui: { ...s.ui, filters: emptyFilters(), collapsedGroups: [], selectedAllocationId: null },
+      })),
+
     replaceAll: (data) => set({ data, past: [], future: [] }),
-    importData: (data) => mutate(() => data),
+    // Replace only the active account's slice; other accounts and the account
+    // list itself are untouched. Undoable via ⌘Z.
+    //
+    // Imported entities keep their relationships but are given FRESH ids. An
+    // exported file carries the source account's ids; re-importing it into a
+    // different account would otherwise collide — the store matches entities by
+    // id GLOBALLY (updateById / cascade scan all accounts), so a shared id would
+    // let an edit in one account silently rewrite another's row.
+    importData: (incoming) =>
+      mutate((d) => {
+        const accountId = requireAccount()
+        const idMap = new Map<ID, ID>()
+        for (const key of SCOPED_KEYS) {
+          for (const e of incoming[key] as ScopedEntity[]) idMap.set(e.id, newId())
+        }
+        // Foreign-key fields across the scoped entities; remap only those that
+        // point at another imported entity (a dangling ref is left as-is).
+        const FK_FIELDS = ['disciplineId', 'projectId', 'clientId', 'phaseId', 'resourceId', 'taskId'] as const
+        const remap = (ref: unknown): unknown =>
+          typeof ref === 'string' && idMap.has(ref) ? idMap.get(ref) : ref
+
+        const next: AppData = { ...d }
+        for (const key of SCOPED_KEYS) {
+          const kept = (d[key] as ScopedEntity[]).filter((e) => e.accountId !== accountId)
+          const brought = (incoming[key] as ScopedEntity[]).map((e) => {
+            const copy: Record<string, unknown> = { ...e, id: idMap.get(e.id)!, accountId }
+            for (const f of FK_FIELDS) {
+              if (copy[f] !== undefined) copy[f] = remap(copy[f])
+            }
+            return copy as unknown as ScopedEntity
+          })
+          next[key] = [...kept, ...brought] as never
+        }
+        return next
+      }),
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
     setNotice: (message) => set({ notice: message }),
@@ -215,7 +297,7 @@ export const useStore = create<StoreState>()((set, get) => {
       }),
 
     addDiscipline: (input) => {
-      const e: Discipline = { ...input, id: newId(), ...stamp() }
+      const e: Discipline = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, disciplines: [...d.disciplines, e] }))
       return e
     },
@@ -223,7 +305,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deleteDiscipline: (id) => mutate((d) => deleteDisciplineCascade(d, id)),
 
     addResource: (input) => {
-      const e: Resource = { ...input, id: newId(), ...stamp() }
+      const e: Resource = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, resources: [...d.resources, e] }))
       return e
     },
@@ -231,7 +313,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deleteResource: (id) => mutate((d) => deleteResourceCascade(d, id)),
 
     addClient: (input) => {
-      const e: Client = { ...input, id: newId(), ...stamp() }
+      const e: Client = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, clients: [...d.clients, e] }))
       return e
     },
@@ -239,7 +321,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deleteClient: (id) => mutate((d) => deleteClientCascade(d, id)),
 
     addProject: (input) => {
-      const e: Project = { ...input, id: newId(), ...stamp() }
+      const e: Project = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, projects: [...d.projects, e] }))
       return e
     },
@@ -247,7 +329,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deleteProject: (id) => mutate((d) => deleteProjectCascade(d, id)),
 
     addPhase: (input) => {
-      const e: Phase = { ...input, id: newId(), ...stamp() }
+      const e: Phase = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, phases: [...d.phases, e] }))
       return e
     },
@@ -255,7 +337,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deletePhase: (id) => mutate((d) => deletePhaseCascade(d, id)),
 
     addTask: (input) => {
-      const e: Task = { ...input, id: newId(), ...stamp() }
+      const e: Task = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, tasks: [...d.tasks, e] }))
       return e
     },
@@ -265,7 +347,7 @@ export const useStore = create<StoreState>()((set, get) => {
     addAllocation: (input) => {
       assertAllocation(get().data, input.resourceId, input.taskId)
       assertDateRange(input.startDate, input.endDate)
-      const e: Allocation = { ...input, id: newId(), ...stamp() }
+      const e: Allocation = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
       return e
     },
@@ -286,7 +368,7 @@ export const useStore = create<StoreState>()((set, get) => {
     addTimeOff: (input) => {
       assertResourceExists(get().data, input.resourceId)
       assertDateRange(input.startDate, input.endDate)
-      const e: TimeOff = { ...input, id: newId(), ...stamp() }
+      const e: TimeOff = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }))
       return e
     },

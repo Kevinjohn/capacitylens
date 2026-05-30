@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, ColorField, FieldError, Modal, NumberField, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { isHexColor } from '../../lib/color'
@@ -8,7 +9,7 @@ import type { Discipline } from '../../types/entities'
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
   const add = useStore((s) => s.addDiscipline)
   const update = useStore((s) => s.updateDiscipline)
-  const count = useStore((s) => s.data.disciplines.length)
+  const count = useScopedData().disciplines.length
   const [name, setName] = useState(discipline?.name ?? '')
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline)
   const [sortOrder, setSortOrder] = useState(discipline?.sortOrder ?? count)

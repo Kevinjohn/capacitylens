@@ -3,8 +3,7 @@ import { render, screen, within, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TimeOffList } from './TimeOffList'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
-import { WORKDAYS } from '../../test/fixtures'
+import { WORKDAYS, resetStoreWithAccount } from '../../test/fixtures'
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -17,7 +16,7 @@ const resourceDraft = {
 }
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData())
+  resetStoreWithAccount()
   useStore.getState().clearFilters()
 })
 

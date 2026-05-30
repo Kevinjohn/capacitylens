@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { todayISO } from '../../lib/dateMath'
 import { Button, DateField, FieldError, Modal, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS } from '../../lib/metadata'
@@ -17,7 +18,7 @@ export function TimeOffForm({
 }) {
   const add = useStore((s) => s.addTimeOff)
   const update = useStore((s) => s.updateTimeOff)
-  const resources = useStore((s) => s.data.resources)
+  const resources = useScopedData().resources
 
   const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? '')
   const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO())

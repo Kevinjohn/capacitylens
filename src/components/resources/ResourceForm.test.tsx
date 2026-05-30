@@ -3,9 +3,9 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResourceForm } from './ResourceForm'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { resetStoreWithAccount } from '../../test/fixtures'
 
-beforeEach(() => useStore.getState().replaceAll(emptyAppData()))
+beforeEach(() => resetStoreWithAccount())
 
 describe('ResourceForm placeholder binding', () => {
   it('requires a placeholder to be bound to a project', async () => {

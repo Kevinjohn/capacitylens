@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
+import { useScopedData } from '../store/useScopedData'
 import { parseData, serializeData } from '../data/transfer'
 import { ConfirmDialog } from './common/ui'
 import type { AppData } from '../types/entities'
@@ -22,7 +23,9 @@ function summarize(data: AppData): string {
 }
 
 export function ImportExport() {
-  const data = useStore((s) => s.data)
+  // Export only the active account's data (the `accounts` list itself is omitted,
+  // since import re-stamps everything into whichever account is active).
+  const data = useScopedData()
   const importData = useStore((s) => s.importData)
   const setNotice = useStore((s) => s.setNotice)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -88,7 +91,7 @@ export function ImportExport() {
           message={
             <>
               Import <span className="font-medium text-ink">{pendingImport.name}</span> — this{' '}
-              <span className="font-medium text-ink">replaces all current data</span> with{' '}
+              <span className="font-medium text-ink">replaces this company’s data</span> with{' '}
               {summarize(pendingImport.data)}. You can undo this with ⌘Z.
             </>
           }

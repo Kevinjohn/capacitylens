@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 const EMPTY_FLOATY = JSON.stringify({
   schemaVersion: 2,
@@ -12,17 +13,17 @@ const importFile = (page: import('@playwright/test').Page, name: string, body: s
 // on a genuine wipe are covered in e2e/crud.spec.ts.)
 test.describe('Data import/export', () => {
   test('seeds a demo dataset on first load', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })
 
   test('import shows a confirmation that replaces all data; Cancel keeps the data', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await importFile(page, 'incoming.json', EMPTY_FLOATY)
 
     const dialog = page.getByRole('dialog', { name: 'Import data?' })
     await expect(dialog).toBeVisible()
-    await expect(dialog).toContainText(/replaces all current data/i)
+    await expect(dialog).toContainText(/replaces this company’s data/i)
     await dialog.getByRole('button', { name: 'Cancel' }).click()
 
     // Data is untouched — the seeded resource is still there.
@@ -30,7 +31,7 @@ test.describe('Data import/export', () => {
   })
 
   test('confirming an import replaces the dataset and ⌘Z restores it', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
     await importFile(page, 'empty.json', EMPTY_FLOATY)
     await page.getByRole('dialog', { name: 'Import data?' }).getByRole('button', { name: 'Replace data' }).click()
@@ -44,7 +45,7 @@ test.describe('Data import/export', () => {
   })
 
   test('rejects a non-Floaty file with a notice and preserves existing data', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await importFile(page, 'random.json', JSON.stringify({ hello: 'world' }))
 
     await expect(page.getByRole('alert')).toContainText(/not valid Floaty JSON/i)

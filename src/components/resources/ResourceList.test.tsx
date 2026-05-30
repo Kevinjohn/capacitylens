@@ -3,11 +3,10 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResourceList } from './ResourceList'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
-import { WORKDAYS } from '../../test/fixtures'
+import { WORKDAYS, resetStoreWithAccount } from '../../test/fixtures'
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData())
+  resetStoreWithAccount()
   useStore.getState().clearFilters()
 })
 

@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 // Covers US-DIS-01..04.
 test.describe('Disciplines', () => {
   test('adds a discipline and shows it in the list and as a schedule group', async ({ page }) => {
-    await page.goto('/disciplines')
+    await openApp(page, 'Studio North', '/disciplines')
     await page.getByRole('button', { name: 'Add discipline' }).click()
     await page.getByLabel('Name').fill('Strategy')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -11,7 +12,7 @@ test.describe('Disciplines', () => {
   })
 
   test('edits a discipline and reflects the change in the list', async ({ page }) => {
-    await page.goto('/disciplines')
+    await openApp(page, 'Studio North', '/disciplines')
     await page.getByTestId('discipline-row').filter({ hasText: 'Design' }).getByRole('button', { name: 'Edit' }).click()
     await page.getByLabel('Name').fill('Product Design')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -19,7 +20,7 @@ test.describe('Disciplines', () => {
   })
 
   test('deletes a discipline and ungroups its resources without deleting them', async ({ page }) => {
-    await page.goto('/disciplines')
+    await openApp(page, 'Studio North', '/disciplines')
     await page.getByTestId('discipline-row').filter({ hasText: 'Design' }).getByRole('button', { name: 'Delete' }).click()
     await page.getByRole('dialog', { name: 'Delete discipline?' }).getByRole('button', { name: 'Delete' }).click()
     await expect(page.getByTestId('discipline-row').filter({ hasText: 'Design' })).toHaveCount(0)
@@ -34,7 +35,7 @@ test.describe('Disciplines', () => {
   })
 
   test('orders disciplines by sort order, breaking ties by name', async ({ page }) => {
-    await page.goto('/disciplines')
+    await openApp(page, 'Studio North', '/disciplines')
     // Seed order: Design (0), Development (1), Copywriting (2). Give Copywriting order 0
     // so it ties with Design; the name tiebreak then puts "Copywriting" before "Design".
     await page.getByTestId('discipline-row').filter({ hasText: 'Copywriting' }).getByRole('button', { name: 'Edit' }).click()

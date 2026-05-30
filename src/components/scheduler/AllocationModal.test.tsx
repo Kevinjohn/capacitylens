@@ -3,25 +3,29 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AllocationModal } from './AllocationModal'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
 import type { AppData } from '../../types/entities'
+import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
+
+const ACC = DEFAULT_ACCOUNT_ID
 
 function base(): AppData {
-  return {
-    ...emptyAppData(),
-    clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#111' }],
+  return makeAppData({
+    clients: [{ id: 'c1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Acme', color: '#111' }],
     projects: [
-      { id: 'p1', createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' },
-      { id: 'p2', createdAt: 't', updatedAt: 't', name: 'Other', clientId: 'c1', color: '#06b6d4' },
+      { id: 'p1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' },
+      { id: 'p2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other', clientId: 'c1', color: '#06b6d4' },
     ],
     tasks: [
-      { id: 't1', createdAt: 't', updatedAt: 't', name: 'Wireframes', projectId: 'p1' },
-      { id: 't2', createdAt: 't', updatedAt: 't', name: 'Other task', projectId: 'p2' },
+      { id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', projectId: 'p1' },
+      { id: 't2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other task', projectId: 'p2' },
     ],
-  }
+  })
 }
 
-beforeEach(() => useStore.getState().replaceAll(base()))
+beforeEach(() => {
+  useStore.getState().replaceAll(base())
+  useStore.getState().setActiveAccount(ACC)
+})
 
 describe('AllocationModal create', () => {
   it('creates an allocation for a person after picking project + task', async () => {

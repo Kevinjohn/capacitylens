@@ -1,6 +1,17 @@
 import { addDaysISO } from '../lib/dateMath'
-import type { AppData, Discipline, ID, Resource } from '../types/entities'
+import { emptyAppData, SCOPED_KEYS } from '../types/entities'
+import type { AppData, Discipline, ID, Resource, ScopedEntity } from '../types/entities'
 import type { SchedulerUI } from './useStore'
+
+/** Narrow the full store data to a single account: every scoped array filtered to
+ *  `accountId`, and `accounts` blanked (scoped views never read the tenant list). */
+export function scopeData(data: AppData, accountId: ID): AppData {
+  const scoped = emptyAppData()
+  for (const key of SCOPED_KEYS) {
+    scoped[key] = (data[key] as ScopedEntity[]).filter((e) => e.accountId === accountId) as never
+  }
+  return scoped
+}
 
 // Pure derived-state helpers. Components call these inside useMemo (keyed on the
 // relevant slice) so Zustand selectors never return fresh objects directly —

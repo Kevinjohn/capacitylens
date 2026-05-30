@@ -3,10 +3,10 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { DisciplineList } from './DisciplineList'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { resetStoreWithAccount } from '../../test/fixtures'
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData())
+  resetStoreWithAccount()
   useStore.getState().clearFilters()
 })
 

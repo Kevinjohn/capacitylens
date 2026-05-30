@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { byDisciplineOrder } from '../../store/selectors'
@@ -7,7 +8,7 @@ import { DisciplineForm } from './DisciplineForm'
 import type { Discipline } from '../../types/entities'
 
 export function DisciplineList() {
-  const disciplines = useStore((s) => s.data.disciplines)
+  const disciplines = useScopedData().disciplines
   const del = useStore((s) => s.deleteDiscipline)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Discipline | null>(null)

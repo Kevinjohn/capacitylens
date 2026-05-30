@@ -1,4 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
+import { openApp } from './helpers'
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox()
@@ -9,14 +10,14 @@ async function box(locator: Locator) {
 // Covers US-TBR-01..07.
 test.describe('Toolbar', () => {
   test('zooms the timeline and tracks the active level', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '8w', exact: true }).click()
     await expect(page.getByRole('button', { name: '8w', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'false')
   })
 
   test('pans the window a week with Prev and Next', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
@@ -34,7 +35,7 @@ test.describe('Toolbar', () => {
   })
 
   test('re-centres on Today after scrolling away', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     const grid = page.getByTestId('scheduler-grid')
     await grid.evaluate((el) => { (el as HTMLElement).scrollLeft = 5000 })
     await page.getByRole('button', { name: 'Today', exact: true }).click()
@@ -42,13 +43,13 @@ test.describe('Toolbar', () => {
   })
 
   test('jumps to a chosen date', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByLabel('Jump to date').fill('2026-09-10')
     await expect(page.getByText('Sep 2026')).toBeVisible()
   })
 
   test('switches draw mode between Work and Time off', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     const work = page.getByRole('button', { name: 'Work', exact: true })
     const timeoff = page.getByRole('button', { name: 'Time off', exact: true })
     await expect(work).toHaveAttribute('aria-pressed', 'true')
@@ -58,7 +59,7 @@ test.describe('Toolbar', () => {
   })
 
   test('undoes and redoes an edit with the toolbar buttons and disables at the ends', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled() // nothing yet
@@ -75,7 +76,7 @@ test.describe('Toolbar', () => {
   })
 
   test('undoes/redoes with the keyboard and ignores the shortcut while typing', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     const before = await page.getByTestId('allocation-bar').count()

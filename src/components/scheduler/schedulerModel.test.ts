@@ -13,26 +13,26 @@ function dataset(): AppData {
   return {
     ...emptyAppData(),
     disciplines: [
-      { id: 'd-design', createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 },
-      { id: 'd-dev', createdAt: 't', updatedAt: 't', name: 'Development', sortOrder: 1 },
+      { id: 'd-design', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 },
+      { id: 'd-dev', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Development', sortOrder: 1 },
     ],
-    clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#1' }],
+    clients: [{ id: 'c1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#1' }],
     projects: [
-      { id: 'p1', createdAt: 't', updatedAt: 't', name: 'P1', clientId: 'c1', color: '#2' },
-      { id: 'p2', createdAt: 't', updatedAt: 't', name: 'P2', clientId: 'c1', color: '#3' },
+      { id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P1', clientId: 'c1', color: '#2' },
+      { id: 'p2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P2', clientId: 'c1', color: '#3' },
     ],
     tasks: [
-      { id: 't1', createdAt: 't', updatedAt: 't', name: 'T1', projectId: 'p1' },
-      { id: 't2', createdAt: 't', updatedAt: 't', name: 'T2', projectId: 'p2' },
+      { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T1', projectId: 'p1' },
+      { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T2', projectId: 'p2' },
     ],
     resources: [
-      { id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Designer Dana', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' },
-      { id: 'r2', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Dev Sam', role: 'Developer', disciplineId: 'd-dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#5' },
+      { id: 'r1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Designer Dana', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' },
+      { id: 'r2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Dev Sam', role: 'Developer', disciplineId: 'd-dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#5' },
     ],
     allocations: [
-      { id: 'a1', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
-      { id: 'a2', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't2', startDate: '2026-06-03', endDate: '2026-06-04', hoursPerDay: 4, status: 'tentative' },
-      { id: 'a3', createdAt: 't', updatedAt: 't', resourceId: 'r2', taskId: 't2', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't2', startDate: '2026-06-03', endDate: '2026-06-04', hoursPerDay: 4, status: 'tentative' },
+      { id: 'a3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r2', taskId: 't2', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
     ],
     timeOff: [],
   }
@@ -74,7 +74,7 @@ describe('buildSchedulerModel', () => {
   it('flags overSoon when a resource is over-allocated on a day in the utilisation window', () => {
     const d = dataset()
     // Stack a second 8h allocation on r1's 6/1–6/2 (8 + 8 > 8 available -> over).
-    d.allocations.push({ id: 'a4', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    d.allocations.push({ id: 'a4', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     const rows = buildSchedulerModel(d, start, 48, days, start, end, emptyFilters()).flatMap((g) => g.rows)
     expect(rows.find((r) => r.resource.id === 'r1')!.overSoon).toBe(true)
     expect(rows.find((r) => r.resource.id === 'r2')!.overSoon).toBe(false) // 8h == 8h available, not over

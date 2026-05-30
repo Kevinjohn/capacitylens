@@ -3,9 +3,9 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TaskList } from './TaskList'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { resetStoreWithAccount } from '../../test/fixtures'
 
-beforeEach(() => useStore.getState().replaceAll(emptyAppData()))
+beforeEach(() => resetStoreWithAccount())
 
 describe('TaskList', () => {
   it('shows an error when saving without a project selected', async () => {

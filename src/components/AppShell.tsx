@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ImportExport } from './ImportExport'
+import { AccountPicker } from './accounts/AccountPicker'
 import { Toast } from './common/ui'
 
 const LINKS: [string, string][] = [
@@ -21,6 +22,10 @@ export function AppShell() {
   const setNotice = useStore((s) => s.setNotice)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
+  const accounts = useStore((s) => s.data.accounts)
+  const activeAccountId = useStore((s) => s.activeAccountId)
+  const setActiveAccount = useStore((s) => s.setActiveAccount)
+  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
 
   // Auto-dismiss transient notices after a few seconds.
   useEffect(() => {
@@ -43,10 +48,29 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
 
+  // Tenant gate: once hydrated, no chosen account means show the picker (it's
+  // never persisted, so this is every load). Kept after the hydration check so
+  // the "Loading…" state still renders the shell.
+  if (hydrated && !activeAccount) return <AccountPicker />
+
   return (
     <div className="flex h-full">
       <nav className="w-48 shrink-0 border-r border-line bg-surface p-3">
         <div className="mb-4 px-2 text-xl font-bold text-brand">Floaty</div>
+        {activeAccount && (
+          <div className="mb-3 border-b border-line px-2 pb-3">
+            <div className="truncate text-sm font-semibold text-ink" title={activeAccount.name}>
+              {activeAccount.name}
+            </div>
+            <button
+              type="button"
+              onClick={() => setActiveAccount(null)}
+              className="mt-0.5 text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+            >
+              Switch company
+            </button>
+          </div>
+        )}
         <ul className="space-y-1">
           {LINKS.map(([to, label]) => (
             <li key={to}>

@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { todayISO } from '../../lib/dateMath'
 import { validateAllocationAssignment } from '../../lib/integrity'
 import {
@@ -21,7 +22,7 @@ type AllocationModalProps =
 
 export function AllocationModal(props: AllocationModalProps) {
   const { onClose } = props
-  const data = useStore((s) => s.data)
+  const data = useScopedData()
   const addAllocation = useStore((s) => s.addAllocation)
   const updateAllocation = useStore((s) => s.updateAllocation)
   const deleteAllocation = useStore((s) => s.deleteAllocation)

@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 // Covers US-CLI-01..03.
 test.describe('Clients', () => {
   test('adds a client and makes it available as a schedule filter', async ({ page }) => {
-    await page.goto('/clients')
+    await openApp(page, 'Studio North', '/clients')
     await page.getByRole('button', { name: 'Add client' }).click()
     await page.getByLabel('Name').fill('Initech')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -15,7 +16,7 @@ test.describe('Clients', () => {
   })
 
   test('edits a client and the rename reflects in project labels', async ({ page }) => {
-    await page.goto('/clients')
+    await openApp(page, 'Studio North', '/clients')
     await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Edit' }).click()
     await page.getByLabel('Name').fill('Acme Worldwide')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -28,7 +29,7 @@ test.describe('Clients', () => {
   })
 
   test('deletes a client and cascades to its projects, restorable with undo', async ({ page }) => {
-    await page.goto('/clients')
+    await openApp(page, 'Studio North', '/clients')
     await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Delete' }).click()
     await page.getByRole('dialog', { name: 'Delete client?' }).getByRole('button', { name: 'Delete' }).click()
     await expect(page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' })).toHaveCount(0)

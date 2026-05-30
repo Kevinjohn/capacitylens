@@ -1,4 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
+import { openApp } from './helpers'
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox()
@@ -8,7 +9,7 @@ async function box(locator: Locator) {
 
 test.describe('Scheduler', () => {
   test('shows seeded resources, grouping and capacity cues', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
     await expect(page.getByTestId('discipline-group').filter({ hasText: 'Design' })).toBeVisible()
     // Seed over-allocates Tyler on 3-4 June; weekends/time off are unavailable.
@@ -18,7 +19,7 @@ test.describe('Scheduler', () => {
   })
 
   test('draws a new allocation on an empty part of a lane', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
 
     const before = await page.getByTestId('allocation-bar').count()
@@ -45,7 +46,7 @@ test.describe('Scheduler', () => {
   })
 
   test('drags a bar to move it later', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
@@ -63,7 +64,7 @@ test.describe('Scheduler', () => {
   })
 
   test('resizes a bar via its end handle', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
 
     // "Wireframes" (4 days) keeps its right edge on-screen, unlike the 9-day "Brand System".
@@ -82,7 +83,7 @@ test.describe('Scheduler', () => {
   })
 
   test('zooming to more weeks shrinks the day columns (same bar gets narrower)', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
 
@@ -103,7 +104,7 @@ test.describe('Scheduler', () => {
   })
 
   test('clicking Today re-centres the timeline after scrolling away', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     const grid = page.getByTestId('scheduler-grid')
     await expect(grid).toBeVisible()
 
@@ -121,7 +122,7 @@ test.describe('Scheduler', () => {
   })
 
   test('jumping to a date moves the timeline to that month', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
 
     await page.getByLabel('Jump to date').fill('2026-08-10')
@@ -130,7 +131,7 @@ test.describe('Scheduler', () => {
   })
 
   test('shows a detail popover on hover (US-SCH-15)', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).hover()
@@ -140,13 +141,13 @@ test.describe('Scheduler', () => {
   })
 
   test('shows overall and per-discipline load summaries (US-SCH-14)', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByTestId('overall-utilization')).toContainText('%')
     await expect(page.getByTestId('discipline-group').first()).toContainText(/avg load/)
   })
 
   test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     // Tyler has two overlapping seed bars (3-4 June) -> 2 lanes; Nike has one -> 1 lane.
@@ -158,12 +159,12 @@ test.describe('Scheduler', () => {
   })
 
   test('marks today with a vertical line when in range (US-SCH-12)', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByTestId('today-line').first()).toBeVisible()
   })
 
   test('allocation status and note are visually distinct on the bar (US-SCH-19)', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
 

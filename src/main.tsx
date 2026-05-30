@@ -11,7 +11,7 @@ import { seed } from './data/seed'
 
 // Load (and seed on first run) before/while the app renders. The AppShell gates
 // content on `hydrated`, so there's no flash of empty data.
-void bootstrap(useStore, new LocalStorageAdapter(), {
+void bootstrap(useStore, new LocalStorageAdapter('floaty/v3'), {
   seedIfEmpty: seed(),
   onError: () => useStore.getState().setPersistError(true),
 }).catch(() => {

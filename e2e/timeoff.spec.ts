@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 // Covers US-TOF-01..04.
 test.describe('Time off', () => {
   test('books time off and shows it as a labelled block on the schedule', async ({ page }) => {
-    await page.goto('/timeoff')
+    await openApp(page, 'Studio North', '/timeoff')
     await page.getByRole('button', { name: 'Add time off' }).click()
     const dialog = page.getByRole('dialog', { name: 'Add time off' })
     await dialog.getByLabel('Resource').selectOption({ label: 'Nike Spiros' })
@@ -21,14 +22,14 @@ test.describe('Time off', () => {
   })
 
   test('shows a human-readable type label in the list (not the raw enum)', async ({ page }) => {
-    await page.goto('/timeoff')
+    await openApp(page, 'Studio North', '/timeoff')
     const row = page.getByTestId('timeoff-row').filter({ hasText: 'Tyler Nix' })
     await expect(row).toContainText('Holiday')
     await expect(row).not.toContainText('holiday')
   })
 
   test('edits a time-off entry and reflects the new type', async ({ page }) => {
-    await page.goto('/timeoff')
+    await openApp(page, 'Studio North', '/timeoff')
     await page.getByTestId('timeoff-row').filter({ hasText: 'Tyler Nix' }).getByRole('button', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit time off' })
     await dialog.getByLabel('Type').selectOption({ label: 'Sick' })
@@ -37,7 +38,7 @@ test.describe('Time off', () => {
   })
 
   test('deletes a time-off entry after confirmation and restores it with undo', async ({ page }) => {
-    await page.goto('/timeoff')
+    await openApp(page, 'Studio North', '/timeoff')
     await page.getByTestId('timeoff-row').filter({ hasText: 'Tyler Nix' }).getByRole('button', { name: 'Delete' }).click()
     await page.getByRole('dialog', { name: 'Delete time off?' }).getByRole('button', { name: 'Delete' }).click()
     await expect(page.getByTestId('timeoff-row')).toHaveCount(0)

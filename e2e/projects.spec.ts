@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 // Covers US-PRJ-01..04.
 test.describe('Projects', () => {
   test('rejects a project without a client and adds one with a client', async ({ page }) => {
-    await page.goto('/projects')
+    await openApp(page, 'Studio North', '/projects')
     await page.getByRole('button', { name: 'Add project' }).click()
     await page.getByLabel('Name').fill('Apollo')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -15,7 +16,7 @@ test.describe('Projects', () => {
   })
 
   test('edits a project name', async ({ page }) => {
-    await page.goto('/projects')
+    await openApp(page, 'Studio North', '/projects')
     await page.getByTestId('project-row').filter({ hasText: 'Brand Themes' }).getByRole('button', { name: 'Edit' }).click()
     await page.getByLabel('Name').fill('Brand Refresh')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -23,7 +24,7 @@ test.describe('Projects', () => {
   })
 
   test('adds and removes phases inside the project dialog', async ({ page }) => {
-    await page.goto('/projects')
+    await openApp(page, 'Studio North', '/projects')
     await page.getByTestId('project-row').filter({ hasText: 'Project Lightning' }).getByRole('button', { name: 'Edit' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit project' })
 
@@ -37,7 +38,7 @@ test.describe('Projects', () => {
   })
 
   test('deletes a project and cascades its tasks, restorable with undo', async ({ page }) => {
-    await page.goto('/projects')
+    await openApp(page, 'Studio North', '/projects')
     await page.getByTestId('project-row').filter({ hasText: 'Project Lightning' }).getByRole('button', { name: 'Delete' }).click()
     await page.getByRole('dialog', { name: 'Delete project?' }).getByRole('button', { name: 'Delete' }).click()
     await expect(page.getByTestId('project-row').filter({ hasText: 'Project Lightning' })).toHaveCount(0)

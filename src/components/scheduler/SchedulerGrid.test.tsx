@@ -3,26 +3,30 @@ import { act, render, screen } from '@testing-library/react'
 import { SchedulerGrid } from './SchedulerGrid'
 import { useStore } from '../../store/useStore'
 import type { AppData } from '../../types/entities'
+import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
+
+const ACC = DEFAULT_ACCOUNT_ID
 
 function dataset(): AppData {
-  return {
-    disciplines: [{ id: 'd1', createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 }],
+  return makeAppData({
+    disciplines: [{ id: 'd1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 }],
     resources: [
-      { id: 'r1', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Tyler', role: 'Designer', disciplineId: 'd1', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111' },
+      { id: 'r1', accountId: ACC, createdAt: 't', updatedAt: 't', kind: 'person', name: 'Tyler', role: 'Designer', disciplineId: 'd1', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111' },
     ],
-    clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#222' }],
-    projects: [{ id: 'p1', createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' }],
+    clients: [{ id: 'c1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Acme', color: '#222' }],
+    projects: [{ id: 'p1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' }],
     phases: [],
-    tasks: [{ id: 't1', createdAt: 't', updatedAt: 't', name: 'Wireframes', projectId: 'p1' }],
+    tasks: [{ id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', projectId: 'p1' }],
     allocations: [
-      { id: 'a1', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a1', accountId: ACC, createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
     ],
     timeOff: [],
-  }
+  })
 }
 
 beforeEach(() => {
   useStore.getState().replaceAll(dataset())
+  useStore.getState().setActiveAccount(ACC)
   useStore.getState().setOriginDate('2026-06-01')
   useStore.getState().setZoom(1) // widest columns
   useStore.getState().clearFilters()

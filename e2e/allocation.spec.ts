@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026 and are visible at 4w with scroll reset.
 test.describe('Allocation editor', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
   })

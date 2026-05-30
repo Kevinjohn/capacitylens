@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
 import { emptyAppData } from '../types/entities'
+import { resetStoreWithAccount } from '../test/fixtures'
 
 const s = () => useStore.getState()
 
 beforeEach(() => {
-  s().replaceAll(emptyAppData())
+  resetStoreWithAccount()
   s().clearFilters()
 })
 

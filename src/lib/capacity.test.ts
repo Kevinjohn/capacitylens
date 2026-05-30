@@ -11,6 +11,7 @@ import type { Allocation, Resource, TimeOff } from '../types/entities'
 
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
   id: 'r1',
+  accountId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',
@@ -24,6 +25,7 @@ const makeResource = (over: Partial<Resource> = {}): Resource => ({
 
 const makeAlloc = (over: Partial<Allocation> = {}): Allocation => ({
   id: 'a1',
+  accountId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   resourceId: 'r1',
@@ -37,6 +39,7 @@ const makeAlloc = (over: Partial<Allocation> = {}): Allocation => ({
 
 const makeTimeOff = (over: Partial<TimeOff> = {}): TimeOff => ({
   id: 'to1',
+  accountId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   resourceId: 'r1',

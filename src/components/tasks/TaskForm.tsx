@@ -1,14 +1,16 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
 import type { Task } from '../../types/entities'
 
 export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }) {
   const add = useStore((s) => s.addTask)
   const update = useStore((s) => s.updateTask)
-  const projects = useStore((s) => s.data.projects)
-  const clients = useStore((s) => s.data.clients)
-  const phases = useStore((s) => s.data.phases)
+  const data = useScopedData()
+  const projects = data.projects
+  const clients = data.clients
+  const phases = data.phases
 
   const [name, setName] = useState(task?.name ?? '')
   const [projectId, setProjectId] = useState(task?.projectId ?? '')

@@ -505,6 +505,7 @@ describe('WeekdayPicker', () => {
 
 const baseResource = (): Resource => ({
   id: 'r1',
+  accountId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   kind: 'person',

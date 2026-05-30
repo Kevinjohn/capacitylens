@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import {
   Button,
   ColorField,
@@ -19,9 +20,10 @@ import type { EmploymentType, Resource, ResourceKind, Weekday } from '../../type
 export function ResourceForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
   const add = useStore((s) => s.addResource)
   const update = useStore((s) => s.updateResource)
-  const disciplines = useStore((s) => s.data.disciplines)
-  const projects = useStore((s) => s.data.projects)
-  const clients = useStore((s) => s.data.clients)
+  const data = useScopedData()
+  const disciplines = data.disciplines
+  const projects = data.projects
+  const clients = data.clients
 
   const [kind, setKind] = useState<ResourceKind>(resource?.kind ?? 'person')
   const [name, setName] = useState(resource?.name ?? '')

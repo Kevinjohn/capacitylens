@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO, xForDate } from '../../lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
@@ -18,7 +19,7 @@ type ModalState =
   | { kind: 'timeoff'; resourceId: ID; startDate: ISODate; endDate: ISODate }
 
 export function SchedulerGrid() {
-  const data = useStore((s) => s.data)
+  const data = useScopedData()
   const ui = useStore((s) => s.ui)
   const toggleGroup = useStore((s) => s.toggleGroup)
   const [modal, setModal] = useState<ModalState | null>(null)

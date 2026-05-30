@@ -9,4 +9,5 @@ export const DEFAULT_COLORS = {
   discipline: '#6366f1',
   resource: '#6366f1',
   placeholder: '#a855f7',
+  account: '#6366f1',
 } as const

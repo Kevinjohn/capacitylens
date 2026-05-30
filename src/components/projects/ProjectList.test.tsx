@@ -3,10 +3,10 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectList } from './ProjectList'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../../test/fixtures'
 
 beforeEach(() => {
-  useStore.getState().replaceAll(emptyAppData())
+  resetStoreWithAccount()
   useStore.getState().clearFilters()
 })
 
@@ -109,19 +109,22 @@ describe('ProjectList', () => {
 
   it('shows (no client) when project has an unresolved client id', () => {
     // Seed via replaceAll to inject a project with an orphaned clientId
-    useStore.getState().replaceAll({
-      ...emptyAppData(),
-      projects: [
-        {
-          id: 'proj-orphan',
-          createdAt: 't',
-          updatedAt: 't',
-          name: 'Orphan Project',
-          clientId: 'nonexistent-client',
-          color: '#abc',
-        },
-      ],
-    })
+    useStore.getState().replaceAll(
+      makeAppData({
+        projects: [
+          {
+            id: 'proj-orphan',
+            accountId: DEFAULT_ACCOUNT_ID,
+            createdAt: 't',
+            updatedAt: 't',
+            name: 'Orphan Project',
+            clientId: 'nonexistent-client',
+            color: '#abc',
+          },
+        ],
+      }),
+    )
+    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
 
     render(<ProjectList />)
 

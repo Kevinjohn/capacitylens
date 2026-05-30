@@ -16,6 +16,7 @@ import type { AppData, Resource } from '../types/entities'
 
 const placeholder = (over: Partial<Resource> = {}): Resource => ({
   id: 'ph1',
+  accountId: 'acct-test',
   createdAt: 't',
   updatedAt: 't',
   kind: 'placeholder',
@@ -39,20 +40,20 @@ const person = (over: Partial<Resource> = {}): Resource => ({
 function sampleData(): AppData {
   return {
     ...emptyAppData(),
-    disciplines: [{ id: 'd1', createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 }],
-    clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#111' }],
-    projects: [{ id: 'p1', createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#222' }],
-    phases: [{ id: 'phase1', createdAt: 't', updatedAt: 't', name: 'Discovery', projectId: 'p1' }],
+    disciplines: [{ id: 'd1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Design', sortOrder: 0 }],
+    clients: [{ id: 'c1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#111' }],
+    projects: [{ id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#222' }],
+    phases: [{ id: 'phase1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Discovery', projectId: 'p1' }],
     tasks: [
-      { id: 't1', createdAt: 't', updatedAt: 't', name: 'Wires', projectId: 'p1', phaseId: 'phase1' },
-      { id: 't2', createdAt: 't', updatedAt: 't', name: 'Visual', projectId: 'p1' },
+      { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Wires', projectId: 'p1', phaseId: 'phase1' },
+      { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Visual', projectId: 'p1' },
     ],
     resources: [person({ id: 'r1', disciplineId: 'd1' }), placeholder({ id: 'ph1', projectId: 'p1', disciplineId: 'd1' })],
     allocations: [
-      { id: 'a1', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
-      { id: 'a2', createdAt: 't', updatedAt: 't', resourceId: 'ph1', taskId: 't2', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'ph1', taskId: 't2', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
     ],
-    timeOff: [{ id: 'to1', createdAt: 't', updatedAt: 't', resourceId: 'r1', startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' }],
+    timeOff: [{ id: 'to1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' }],
   }
 }
 

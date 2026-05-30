@@ -1,10 +1,11 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 // Covers US-NAV-01, 02, 06. (Loading gate, persist-error banner, toast and error
 // boundary are covered by unit tests / manual scripts — impractical to trigger reliably in E2E.)
 test.describe('Navigation & shell', () => {
   test('sidebar links route to each of the seven sections', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
 
     const sections: [string, () => Promise<void>][] = [
@@ -24,7 +25,7 @@ test.describe('Navigation & shell', () => {
   })
 
   test('the active section is marked aria-current', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('link', { name: 'Resources' }).click()
     await expect(page.getByRole('link', { name: 'Resources' })).toHaveAttribute('aria-current', 'page')
     await expect(page.getByRole('link', { name: 'Clients' })).not.toHaveAttribute('aria-current', 'page')
@@ -32,7 +33,7 @@ test.describe('Navigation & shell', () => {
 
   test('renders in dark mode', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
-    await page.goto('/')
+    await openApp(page)
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })

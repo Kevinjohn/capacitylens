@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
 import type { Client } from '../../types/entities'
 
 export function ClientList() {
-  const clients = useStore((s) => s.data.clients)
+  const clients = useScopedData().clients
   const deleteClient = useStore((s) => s.deleteClient)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Client | null>(null)

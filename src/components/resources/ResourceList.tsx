@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage, TemporaryTag } from '../common/ui'
 import { ResourceForm } from './ResourceForm'
 import type { Resource } from '../../types/entities'
 
 export function ResourceList() {
-  const resources = useStore((s) => s.data.resources)
-  const disciplines = useStore((s) => s.data.disciplines)
+  const data = useScopedData()
+  const resources = data.resources
+  const disciplines = data.disciplines
   const del = useStore((s) => s.deleteResource)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Resource | null>(null)

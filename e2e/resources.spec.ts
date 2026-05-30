@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test'
+import { openApp } from './helpers'
 
 // Covers US-RES-01..10 (Resources area). Each test starts from the seeded app
 // (Playwright gives every test a fresh context → fresh localStorage → reseed).
 
 test.describe('Resources', () => {
   test('adds a person and shows them in the list and schedule', async ({ page }) => {
-    await page.goto('/resources')
+    await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add resource' }).click()
 
     await page.getByLabel('Name').fill('Dana Lee')
@@ -20,7 +21,7 @@ test.describe('Resources', () => {
   })
 
   test('adds a placeholder bound to a project and shows a slot tag', async ({ page }) => {
-    await page.goto('/resources')
+    await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add resource' }).click()
 
     await page.getByLabel('Type').selectOption({ label: 'Placeholder' })
@@ -33,7 +34,7 @@ test.describe('Resources', () => {
   })
 
   test('rejects a placeholder with no bound project', async ({ page }) => {
-    await page.goto('/resources')
+    await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add resource' }).click()
     await page.getByLabel('Type').selectOption({ label: 'Placeholder' })
     await page.getByLabel('Role').fill('Unbound slot')
@@ -42,7 +43,7 @@ test.describe('Resources', () => {
   })
 
   test('edits a resource and the change persists', async ({ page }) => {
-    await page.goto('/resources')
+    await openApp(page, 'Studio North', '/resources')
     await page.getByTestId('resource-row').filter({ hasText: 'Nike Spiros' }).getByRole('button', { name: 'Edit' }).click()
     const role = page.getByLabel('Role')
     await role.fill('Lead Developer')
@@ -51,7 +52,7 @@ test.describe('Resources', () => {
   })
 
   test('deleting a resource cascades to its allocations and time off, and undo restores them', async ({ page }) => {
-    await page.goto('/')
+    await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByLabel('Jump to date').fill('2026-06-01')
     const tylerBars = page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar')
@@ -68,7 +69,7 @@ test.describe('Resources', () => {
   })
 
   test('rejects zero working hours and an invalid colour', async ({ page }) => {
-    await page.goto('/resources')
+    await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add resource' }).click()
     await page.getByLabel('Name').fill('Edge Case')
     await page.getByLabel('Role').fill('Tester')
@@ -84,7 +85,7 @@ test.describe('Resources', () => {
   })
 
   test('freelancers show a Temp tag; permanent staff do not', async ({ page }) => {
-    await page.goto('/resources')
+    await openApp(page, 'Studio North', '/resources')
     // Alex Rivera is a seeded freelancer.
     await expect(page.getByTestId('resource-row').filter({ hasText: 'Alex Rivera' }).getByText('Temp')).toBeVisible()
     await expect(page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' }).getByText('Temp')).toHaveCount(0)

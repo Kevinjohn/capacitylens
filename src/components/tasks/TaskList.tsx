@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useScopedData } from '../../store/useScopedData'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { TaskForm } from './TaskForm'
 import type { Task } from '../../types/entities'
 
 export function TaskList() {
-  const tasks = useStore((s) => s.data.tasks)
-  const projects = useStore((s) => s.data.projects)
-  const clients = useStore((s) => s.data.clients)
-  const phases = useStore((s) => s.data.phases)
+  const data = useScopedData()
+  const tasks = data.tasks
+  const projects = data.projects
+  const clients = data.clients
+  const phases = data.phases
   const del = useStore((s) => s.deleteTask)
   const [creating, setCreating] = useState(false)
   const [editing, setEditing] = useState<Task | null>(null)

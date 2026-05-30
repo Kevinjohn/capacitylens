@@ -12,6 +12,7 @@ function asArray<T>(v: unknown): T[] {
 function normalize(data: Partial<AppData> | undefined): AppData {
   if (!data || typeof data !== 'object') return emptyAppData()
   return {
+    accounts: asArray(data.accounts),
     disciplines: asArray(data.disciplines),
     resources: asArray(data.resources),
     clients: asArray(data.clients),
