@@ -46,7 +46,7 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
         {monthSpans(days).map((m) => (
           <div
             key={m.key}
-            className="flex items-center overflow-hidden border-r border-line px-2 text-[11px] font-semibold text-muted"
+            className="flex items-center overflow-hidden border-r border-line px-2 text-2xs font-semibold text-muted"
             style={{ width: m.days * dayWidth }}
           >
             <span className="truncate">{m.label}</span>
@@ -67,12 +67,12 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
               <div
                 key={d}
                 className={`flex flex-col items-center justify-center text-xs ${weekStart ? 'border-l border-line' : ''} ${
-                  isToday ? 'bg-brand-soft font-semibold text-ink' : weekend ? 'bg-base text-muted' : 'text-muted'
+                  isToday ? 'bg-brand-soft font-semibold text-ink' : weekend ? 'bg-canvas text-muted' : 'text-muted'
                 }`}
                 style={{ width: dayWidth }}
               >
                 <span className="font-medium">{format(date, 'd')}</span>
-                {showWeekday && <span className="text-[10px] uppercase">{format(date, 'EEE')}</span>}
+                {showWeekday && <span className="text-2xs uppercase">{format(date, 'EEE')}</span>}
               </div>
             )
           })}
@@ -82,7 +82,7 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
           {weekBlocks(days).map((b) => (
             <div
               key={b.key}
-              className="flex items-center overflow-hidden border-l border-line px-1 text-[11px] text-muted"
+              className="flex items-center overflow-hidden border-l border-line px-1 text-2xs text-muted"
               style={{ width: b.days * dayWidth }}
             >
               <span className="truncate font-medium">{b.label}</span>

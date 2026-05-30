@@ -1,9 +1,8 @@
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
-import { Button } from '../common/ui'
-
-const selectClass = 'rounded-md border bg-surface px-2 py-1 text-sm text-ink'
+import { Button, controlBase } from '../common/ui'
+import { Icon } from '../common/Icon'
 
 export function SchedulerToolbar() {
   const zoom = useStore((s) => s.ui.zoom)
@@ -32,20 +31,20 @@ export function SchedulerToolbar() {
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">Schedule</h1>
           <Button variant="ghost" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)" ariaLabel="Undo">
-            ↶
+            <Icon name="undo" />
           </Button>
           <Button variant="ghost" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)" ariaLabel="Redo">
-            ↷
+            <Icon name="redo" />
           </Button>
         </div>
         <Button variant="ghost" onClick={() => panDays(-7)} title="Back one week">
-          ‹ Prev
+          <Icon name="chevron-left" /> Prev
         </Button>
         <Button variant="ghost" onClick={goToToday}>
           Today
         </Button>
         <Button variant="ghost" onClick={() => panDays(7)} title="Forward one week">
-          Next ›
+          Next <Icon name="chevron-right" />
         </Button>
         <input
           type="date"
@@ -53,7 +52,7 @@ export function SchedulerToolbar() {
           onChange={(e) => e.target.value && goToDate(e.target.value)}
           aria-label="Jump to date"
           title="Jump to date"
-          className="rounded-md border bg-surface px-2 py-1 text-sm text-ink"
+          className={controlBase}
         />
         <div className="ml-2 flex overflow-hidden rounded-md border border-line" role="group" aria-label="Weeks visible">
           {ZOOM_LEVELS.map((w) => (
@@ -63,7 +62,7 @@ export function SchedulerToolbar() {
               aria-pressed={zoom === w}
               onClick={() => setZoom(w)}
               title={`${w} week${w > 1 ? 's' : ''} visible`}
-              className={`px-2.5 py-1 text-sm transition ${zoom === w ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-base'}`}
+              className={`px-2.5 py-1 text-sm transition ${zoom === w ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-canvas'}`}
             >
               {w}w
             </button>
@@ -77,7 +76,7 @@ export function SchedulerToolbar() {
               aria-pressed={drawMode === m}
               onClick={() => setDrawMode(m)}
               title={m === 'work' ? 'Draw allocations' : 'Draw time off'}
-              className={`px-2.5 py-1 text-sm transition ${drawMode === m ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-base'}`}
+              className={`px-2.5 py-1 text-sm transition ${drawMode === m ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-canvas'}`}
             >
               {m === 'work' ? 'Work' : 'Time off'}
             </button>
@@ -91,11 +90,11 @@ export function SchedulerToolbar() {
           onChange={(e) => setFilters({ search: e.target.value })}
           placeholder="Search people…"
           aria-label="Search people"
-          className="w-44 rounded-md border bg-surface px-2 py-1 text-ink placeholder:text-faint @max-[680px]:w-full"
+          className={`${controlBase} w-44 @max-[680px]:w-full`}
         />
         <select
           aria-label="Filter by discipline"
-          className={selectClass}
+          className={controlBase}
           value={filters.disciplineId ?? ''}
           onChange={(e) => setFilters({ disciplineId: e.target.value || null })}
         >
@@ -108,7 +107,7 @@ export function SchedulerToolbar() {
         </select>
         <select
           aria-label="Filter by client"
-          className={selectClass}
+          className={controlBase}
           value={filters.clientId ?? ''}
           onChange={(e) => setFilters({ clientId: e.target.value || null })}
         >
@@ -121,7 +120,7 @@ export function SchedulerToolbar() {
         </select>
         <select
           aria-label="Filter by project"
-          className={selectClass}
+          className={controlBase}
           value={filters.projectId ?? ''}
           onChange={(e) => setFilters({ projectId: e.target.value || null })}
         >

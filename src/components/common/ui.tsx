@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { isTemporary } from '../../lib/integrity'
 import { ensureBarColors, isHexColor } from '../../lib/color'
 import { useStore } from '../../store/useStore'
+import { Icon } from './Icon'
 import type { Resource, Weekday } from '../../types/entities'
 
 // Shared presentational kit. Colours come from semantic tokens (see index.css),
@@ -12,7 +13,7 @@ type ButtonVariant = 'primary' | 'ghost' | 'danger'
 const buttonClasses: Record<ButtonVariant, string> = {
   // brand-strong resting keeps white text >= ~4.5:1 in both light and dark.
   primary: 'bg-brand-strong text-white hover:bg-brand shadow-sm',
-  ghost: 'border bg-surface text-ink hover:bg-base',
+  ghost: 'border bg-surface text-ink hover:bg-canvas',
   danger: 'bg-danger text-white hover:opacity-90 shadow-sm',
 }
 
@@ -167,9 +168,7 @@ export function Modal({
         className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[floaty-pop_0.16s_ease-out]"
       >
         <header className="border-b px-4 py-3">
-          {/* NB: `text-base` is a COLOUR utility here (--color-base is a registered token),
-              not a font size — use an explicit size so the title inherits the dark ink. */}
-          <h2 id={titleId} className="text-[1rem] font-semibold">
+          <h2 id={titleId} className="text-base font-semibold">
             {title}
           </h2>
         </header>
@@ -276,9 +275,9 @@ export function Toast({ message, onDismiss }: { message: string; onDismiss: () =
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="-mr-1 shrink-0 rounded px-1 leading-none opacity-70 hover:opacity-100"
+          className="-mr-1 flex shrink-0 items-center justify-center rounded-md p-1 opacity-70 transition hover:opacity-100"
         >
-          ✕
+          <Icon name="close" size={14} />
         </button>
       </div>
     </div>
@@ -286,8 +285,12 @@ export function Toast({ message, onDismiss }: { message: string; onDismiss: () =
 }
 
 const labelClass = 'mb-1 block text-xs font-medium text-muted'
-const inputClass =
-  'w-full rounded-md border bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-faint shadow-sm transition-colors'
+/** Shared control styling (sans width). Exported so non-label controls (toolbar
+ *  search/date/selects, inline add-task/phase inputs) match field height + rounding
+ *  instead of drifting to their own px-2 py-1. */
+export const controlBase =
+  'rounded-md border bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-faint shadow-sm transition-colors'
+export const inputClass = `w-full ${controlBase}`
 
 export function TextField({
   label,
@@ -510,7 +513,7 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
               aria-pressed={on}
               onClick={() => toggle(day)}
               className={`rounded-md border px-2 py-1 text-xs font-medium transition ${
-                on ? 'border-brand bg-brand-strong text-white' : 'bg-surface text-muted hover:bg-base'
+                on ? 'border-brand bg-brand-strong text-white' : 'bg-surface text-muted hover:bg-canvas'
               }`}
             >
               {dl}
@@ -525,7 +528,7 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
 export function TemporaryTag({ resource }: { resource: Resource }) {
   if (!isTemporary(resource)) return null
   return (
-    <span className="rounded border border-warn/40 bg-warn/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
+    <span className="rounded border border-warn/40 bg-warn/10 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-ink">
       Temp
     </span>
   )
@@ -550,7 +553,7 @@ export function Avatar({ name, color, size = 28 }: { name: string; color: string
     <span
       aria-hidden
       style={{ width: size, height: size, backgroundColor: bg, color: ink }}
-      className="inline-flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ring-2 ring-surface"
+      className="inline-flex shrink-0 items-center justify-center rounded-full text-2xs font-semibold ring-2 ring-surface"
     >
       {initials}
     </span>

@@ -47,7 +47,7 @@ export function AccountPicker() {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-base p-6">
+    <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-md">
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">Floaty</div>
@@ -61,7 +61,7 @@ export function AccountPicker() {
               <button
                 type="button"
                 onClick={() => setActiveAccount(a.id)}
-                className="flex flex-1 items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-ink shadow-sm transition hover:bg-base"
+                className="flex flex-1 items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-ink shadow-sm transition hover:bg-canvas"
               >
                 <Avatar name={a.name} color={a.color} />
                 <span className="font-medium">{a.name}</span>

@@ -24,12 +24,12 @@ test.describe('Toolbar', () => {
     const b0 = await box(bar)
 
     // Panning forward moves the origin later, so a fixed-date bar shifts left.
-    await page.getByRole('button', { name: 'Next ›' }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
     const b1 = await box(bar)
     expect(b1.x).toBeLessThan(b0.x)
 
     // Prev brings it back to the right.
-    await page.getByRole('button', { name: '‹ Prev' }).click()
+    await page.getByRole('button', { name: 'Prev' }).click()
     const b2 = await box(bar)
     expect(b2.x).toBeGreaterThan(b1.x)
   })

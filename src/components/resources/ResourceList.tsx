@@ -26,7 +26,7 @@ export function ResourceList() {
                 <ColorSwatch color={r.color} />
                 <span className="font-medium">{r.name ?? r.role}</span>
                 {r.kind === 'placeholder' && (
-                  <span className="rounded bg-base px-1.5 py-0.5 text-xs text-muted">placeholder</span>
+                  <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">placeholder</span>
                 )}
                 <TemporaryTag resource={r} />
                 <span className="text-sm text-muted">

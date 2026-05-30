@@ -5,6 +5,7 @@ import { visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO, xForDate } from '../../lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, TemporaryTag } from '../common/ui'
+import { Icon } from '../common/Icon'
 import { LAYOUT } from './layout'
 import { DateHeader } from './DateHeader'
 import { ResourceLane } from './ResourceLane'
@@ -131,7 +132,7 @@ export function SchedulerGrid() {
           style={{ width: LAYOUT.leftColWidth }}
         >
           <span
-            className="text-[10px] font-medium uppercase tracking-wide text-faint"
+            className="text-2xs font-medium uppercase tracking-wide text-faint"
             title={`Average load over the next ${UTILIZATION_WINDOW_DAYS} days`}
           >
             Load · next 2w
@@ -169,11 +170,13 @@ export function SchedulerGrid() {
                 type="button"
                 onClick={() => toggleGroup(group.key)}
                 aria-expanded={!ui.collapsedGroups.includes(group.key)}
-                className="flex h-full w-full items-center gap-2 bg-surface px-3 text-xs font-semibold uppercase tracking-wide hover:bg-base"
+                className="flex h-full w-full items-center gap-2 bg-surface px-3 text-xs font-semibold uppercase tracking-wide hover:bg-canvas"
               >
-                <span className="text-faint" aria-hidden>
-                  {ui.collapsedGroups.includes(group.key) ? '▸' : '▾'}
-                </span>
+                <Icon
+                  name={ui.collapsedGroups.includes(group.key) ? 'chevron-right' : 'chevron-down'}
+                  size={14}
+                  className="text-faint"
+                />
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
                   style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
@@ -213,7 +216,7 @@ export function SchedulerGrid() {
                 <div className="ms-1.5 min-w-0 flex-1">
                   <span className="flex items-center gap-1 truncate text-sm font-medium">
                     {resource.name ?? resource.role}
-                    {resource.kind === 'placeholder' && <span className="rounded bg-base px-1 text-[10px] text-muted">slot</span>}
+                    {resource.kind === 'placeholder' && <span className="rounded bg-canvas px-1 text-2xs text-muted">slot</span>}
                     <TemporaryTag resource={resource} />
                   </span>
                   <span className="block truncate text-xs text-muted">{resource.role}</span>
@@ -229,9 +232,9 @@ export function SchedulerGrid() {
                     }}
                     aria-label={`Add allocation for ${resource.name ?? resource.role}`}
                     title="Add allocation"
-                    className="flex h-6 w-9 items-center justify-center text-base text-muted hover:bg-base hover:text-ink"
+                    className="flex h-6 w-11 items-center justify-center text-muted transition hover:bg-canvas hover:text-ink"
                   >
-                    +
+                    <Icon name="plus" size={15} />
                   </button>
                   <span
                     data-testid="utilization"
@@ -240,7 +243,7 @@ export function SchedulerGrid() {
                         ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
                         : `Load over the next ${UTILIZATION_WINDOW_DAYS} days`
                     }
-                    className={`flex h-5 w-9 items-center justify-center border-t border-line text-[11px] ${
+                    className={`flex h-5 w-11 items-center justify-center border-t border-line text-2xs ${
                       overSoon ? 'font-semibold text-danger' : 'text-faint'
                     }`}
                   >

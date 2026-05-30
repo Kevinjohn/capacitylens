@@ -4,7 +4,10 @@
    Semantic Tailwind colours map to CSS custom properties so the whole UI flips
    to dark automatically via prefers-color-scheme — no per-component dark: classes. */
 @theme {
-  --color-base: var(--c-base);
+  /* Page background. NB: named `canvas`, not `base`, on purpose — `--color-base`
+     would shadow Tailwind's `text-base` font-size utility (turning it into a
+     colour), the footgun this rename removes. */
+  --color-canvas: var(--c-base);
   --color-surface: var(--c-surface);
   --color-elevated: var(--c-elevated);
   --color-line: var(--c-line);
@@ -17,6 +20,11 @@
   --color-danger: var(--c-danger);
   --color-warn: var(--c-warn);
   --color-ok: var(--c-ok);
+
+  /* One deliberate micro-text size (11px) for the dense labels — replaces the
+     scattered text-[10px]/text-[11px] near-duplicates. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
 
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
@@ -79,7 +87,7 @@ body,
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: var(--color-base);
+  background: var(--color-canvas);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;

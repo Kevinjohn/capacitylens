@@ -91,8 +91,8 @@ export function AppShell() {
                 to={to}
                 end={to === '/'}
                 className={({ isActive }) =>
-                  `block rounded px-2 py-1.5 text-sm ${
-                    isActive ? 'bg-brand-soft font-semibold text-ink' : 'text-ink hover:bg-base'
+                  `block rounded-md px-2 py-1.5 text-sm ${
+                    isActive ? 'bg-brand-soft font-semibold text-ink' : 'text-ink hover:bg-canvas'
                   }`
                 }
               >
@@ -109,7 +109,14 @@ export function AppShell() {
             Changes aren’t being saved — your browser storage is full or unavailable.
           </div>
         )}
-        {hydrated ? <Outlet /> : <div className="p-6 text-muted">Loading…</div>}
+        {hydrated ? (
+          <Outlet />
+        ) : (
+          <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden />
+            Loading…
+          </div>
+        )}
       </main>
       {notice && <Toast message={notice} onDismiss={() => setNotice(null)} />}
     </div>

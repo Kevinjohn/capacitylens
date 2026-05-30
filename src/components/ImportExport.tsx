@@ -71,7 +71,7 @@ export function ImportExport() {
     setPendingImport(null)
   }
 
-  const linkClass = 'block w-full rounded px-2 py-1.5 text-left text-sm text-ink hover:bg-base'
+  const linkClass = 'block w-full rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-canvas'
 
   return (
     <div className="mt-6 border-t border-line pt-3">

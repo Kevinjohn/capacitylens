@@ -120,7 +120,7 @@ export const ResourceLane = memo(function ResourceLane({
             <div
               key={`u-${d}`}
               data-testid="unavailable-day"
-              className="absolute top-0 h-full bg-base"
+              className="absolute top-0 h-full bg-canvas"
               style={{ left: i * dayWidth, width: dayWidth }}
             />
           ) : null,
@@ -146,7 +146,7 @@ export const ResourceLane = memo(function ResourceLane({
           key={b.id}
           data-testid="timeoff-block"
           title={b.note ?? b.label}
-          className="pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-[10px] font-semibold uppercase tracking-wide text-muted"
+          className="pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted"
           style={{
             left: b.x,
             width: b.width,
