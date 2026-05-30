@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseData, serializeData } from './transfer'
+import { parseData, serializeData, MAX_IMPORT_RECORDS } from './transfer'
 import { seed } from './seed'
 
 describe('data transfer', () => {
@@ -15,6 +15,11 @@ describe('data transfer', () => {
     expect(() => parseData('{"foo":"bar"}')).toThrow()
     expect(() => parseData('"hello"')).toThrow()
     expect(() => parseData('{"resources":"oops"}')).toThrow()
+  })
+
+  it('refuses a file with an absurd record count (JSON-bomb guard)', () => {
+    const resources = Array.from({ length: MAX_IMPORT_RECORDS + 1 }, (_, i) => ({ id: `r${i}` }))
+    expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { resources } }))).toThrow(/too many records/i)
   })
 
   it('import tolerates a bare AppData and fills any missing arrays', () => {

@@ -12,6 +12,7 @@ import {
   validateAllocationAssignment,
   validateDateRange,
 } from '../lib/integrity'
+import { sanitizeImportedRecord } from '../lib/sanitizeImport'
 import { emptyAppData, SCOPED_KEYS } from '../types/entities'
 import type {
   Account,
@@ -34,6 +35,13 @@ import type {
 // store stamps the active account, so callers never supply it.
 export type Draft<T extends Entity> = Omit<T, 'id' | 'accountId' | 'createdAt' | 'updatedAt'>
 export type Patch<T extends Entity> = Partial<Draft<T>>
+
+/** Outcome of an import: how many records landed vs. were dropped as invalid
+ *  (broken date range / dangling ref). Lets the UI report the delta honestly. */
+export interface ImportSummary {
+  imported: number
+  skipped: number
+}
 
 // Re-exported for convenience.
 export type { WeeksZoom }
@@ -93,8 +101,9 @@ export interface StoreState {
   setActiveAccount: (id: ID | null) => void
 
   replaceAll: (data: AppData) => void
-  /** Replace the whole dataset (e.g. JSON import) but keep it undoable via ⌘Z. */
-  importData: (data: AppData) => void
+  /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
+   *  summary of how many records were brought in vs. dropped as invalid. */
+  importData: (data: AppData) => ImportSummary
   setHydrated: (v: boolean) => void
   setPersistError: (v: boolean) => void
   setNotice: (message: string | null) => void
@@ -257,12 +266,19 @@ export const useStore = create<StoreState>()((set, get) => {
     // different account would otherwise collide — the store matches entities by
     // id GLOBALLY (updateById / cascade scan all accounts), so a shared id would
     // let an edit in one account silently rewrite another's row.
-    importData: (incoming) =>
+    importData: (incoming) => {
+      let imported = 0
+      let skipped = 0
       mutate((d) => {
         const accountId = requireAccount()
         const idMap = new Map<ID, ID>()
+        // Give every record that HAS a string id a fresh one. Records with a
+        // missing/non-string id are NOT keyed here (keying on `undefined` would
+        // collapse them all onto one shared id) — they each get a fresh id below.
         for (const key of SCOPED_KEYS) {
-          for (const e of incoming[key] as ScopedEntity[]) idMap.set(e.id, newId())
+          for (const e of incoming[key] as Array<{ id?: unknown }>) {
+            if (typeof e?.id === 'string') idMap.set(e.id, newId())
+          }
         }
         // Foreign-key fields across the scoped entities; remap only those that
         // point at another imported entity (a dangling ref is left as-is).
@@ -270,15 +286,18 @@ export const useStore = create<StoreState>()((set, get) => {
         const remap = (ref: unknown): unknown =>
           typeof ref === 'string' && idMap.has(ref) ? idMap.get(ref) : ref
 
-        // Remap every incoming scoped entity into the active account.
+        // Remap every incoming scoped entity into the active account, then repair
+        // its value-level fields (enums / numerics / colour) — the import path
+        // bypasses the form validators, so this is the integrity boundary for them.
         const brought: Record<string, ScopedEntity[]> = {}
         for (const key of SCOPED_KEYS) {
-          brought[key] = (incoming[key] as ScopedEntity[]).map((e) => {
-            const copy: Record<string, unknown> = { ...e, id: idMap.get(e.id)!, accountId }
+          brought[key] = (incoming[key] as unknown as Array<Record<string, unknown>>).map((e) => {
+            const srcId = typeof e.id === 'string' ? e.id : undefined
+            const copy: Record<string, unknown> = { ...e, id: srcId ? idMap.get(srcId)! : newId(), accountId }
             for (const f of FK_FIELDS) {
               if (copy[f] !== undefined) copy[f] = remap(copy[f])
             }
-            return copy as unknown as ScopedEntity
+            return sanitizeImportedRecord(key, copy) as unknown as ScopedEntity
           })
         }
 
@@ -287,9 +306,10 @@ export const useStore = create<StoreState>()((set, get) => {
         // addAllocation/addTimeOff enforce, so drop imported allocations and
         // time-off with an empty/reversed range, a dangling resource/task, or a
         // placeholder/project-rule violation (which would otherwise render as
-        // NaN/negative bars or orphan rows).
+        // NaN/negative bars or orphan rows). The dropped count is reported back.
         const importedResources = new Map((brought.resources as Resource[]).map((r) => [r.id, r]))
         const importedTasks = new Map((brought.tasks as Task[]).map((t) => [t.id, t]))
+        const allocBefore = brought.allocations.length
         brought.allocations = (brought.allocations as Allocation[]).filter((a) => {
           if (!validateDateRange(a.startDate, a.endDate).ok) return false
           const resource = importedResources.get(a.resourceId)
@@ -297,17 +317,22 @@ export const useStore = create<StoreState>()((set, get) => {
           if (!resource || !task) return false
           return validateAllocationAssignment(resource, task.projectId).ok
         })
+        const timeOffBefore = brought.timeOff.length
         brought.timeOff = (brought.timeOff as TimeOff[]).filter(
           (t) => importedResources.has(t.resourceId) && validateDateRange(t.startDate, t.endDate).ok,
         )
+        skipped = allocBefore - brought.allocations.length + (timeOffBefore - brought.timeOff.length)
 
         const next: AppData = { ...d }
         for (const key of SCOPED_KEYS) {
           const kept = (d[key] as ScopedEntity[]).filter((e) => e.accountId !== accountId)
           next[key] = [...kept, ...brought[key]] as never
+          imported += brought[key].length
         }
         return next
-      }),
+      })
+      return { imported, skipped }
+    },
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
     setNotice: (message) => set({ notice: message }),

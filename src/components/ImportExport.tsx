@@ -5,6 +5,9 @@ import { parseData, serializeData } from '../data/transfer'
 import { ConfirmDialog } from './common/ui'
 import type { AppData } from '../types/entities'
 
+// Refuse files past this size before reading them into memory (self-DoS guard).
+const MAX_IMPORT_BYTES = 10_000_000
+
 // Order + labels for the "what's in this file" import summary.
 const SUMMARY: [keyof AppData, string][] = [
   ['resources', 'resources'],
@@ -45,6 +48,11 @@ export function ImportExport() {
   }
 
   const onImport = async (file: File) => {
+    // Reject an oversized file before reading it into memory (self-DoS guard).
+    if (file.size > MAX_IMPORT_BYTES) {
+      setNotice(`That file is too large to import (max ${MAX_IMPORT_BYTES / 1_000_000}MB).`)
+      return
+    }
     try {
       const parsed = parseData(await file.text())
       setPendingImport({ data: parsed, name: file.name })
@@ -55,8 +63,11 @@ export function ImportExport() {
 
   const confirmImport = () => {
     if (!pendingImport) return
-    importData(pendingImport.data)
-    setNotice(`Imported ${pendingImport.name}. Press ⌘Z to undo.`)
+    const { imported, skipped } = importData(pendingImport.data)
+    // Report the delta honestly: the store drops allocations/time-off with broken
+    // ranges or dangling refs, so "imported 40" can become 31 in the store.
+    const skippedNote = skipped > 0 ? ` (${skipped} invalid ${skipped === 1 ? 'record' : 'records'} skipped)` : ''
+    setNotice(`Imported ${imported} ${imported === 1 ? 'record' : 'records'}${skippedNote}. Press ⌘Z to undo.`)
     setPendingImport(null)
   }
 

@@ -26,10 +26,21 @@ function looksLikeFloaty(value: unknown): boolean {
   return KNOWN_KEYS.some((k) => Array.isArray(candidate[k]))
 }
 
+// Guard against a JSON bomb / runaway file: a real agency dataset is thousands of
+// rows, not millions. Refuse anything wildly out of range rather than locking the
+// main thread trying to remap and render it. (Pairs with the file-size cap at the
+// upload site in ImportExport.)
+export const MAX_IMPORT_RECORDS = 200_000
+
 export function parseData(json: string): AppData {
   const raw: unknown = JSON.parse(json)
   if (!looksLikeFloaty(raw)) {
     throw new Error('This file is not Floaty data.')
   }
-  return migrate(raw)
+  const data = migrate(raw)
+  const total = Object.values(data).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0)
+  if (total > MAX_IMPORT_RECORDS) {
+    throw new Error(`This file has too many records (${total.toLocaleString()}).`)
+  }
+  return data
 }
