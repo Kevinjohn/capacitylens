@@ -5,8 +5,11 @@ import type { LaneLayout } from '../../lib/lanePacking'
 export const LAYOUT = {
   barHeight: 26,
   laneGap: 4,
-  rowPadding: 6,
-  leftColWidth: 200,
+  // A little extra vertical room per row so the left-column content (avatar, name,
+  // and the stacked +/% control) breathes — also gives the 2-cell control space to sit.
+  rowPadding: 10,
+  // Wider resource column so names/roles aren't cramped and the +/% box has room.
+  leftColWidth: 256,
   headerHeight: 44,
   groupHeaderHeight: 30,
   // Left-edge breathing room when recentring the focus date (Today / jump-to-date),

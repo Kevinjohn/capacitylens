@@ -189,7 +189,10 @@ export function SchedulerGrid() {
 
           {!ui.collapsedGroups.includes(group.key) &&
             group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon }) => (
-            <div key={resource.id} role="row" data-testid="scheduler-row" className="flex border-b border-line" style={{ height: rowHeight }}>
+            /* bg-surface on the whole row (not just the sticky header) so the row divider
+               sits on ONE background — without it the border crosses the surface left column
+               and the darker timeline, reading as a two-tone line. */
+            <div key={resource.id} role="row" data-testid="scheduler-row" className="flex border-b border-line bg-surface" style={{ height: rowHeight }}>
               <div
                 role="rowheader"
                 className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-3"
@@ -201,40 +204,48 @@ export function SchedulerGrid() {
                   {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
                   {bars.length} allocation{bars.length === 1 ? '' : 's'}.
                 </span>
-                <Avatar name={resource.name ?? resource.role} color={resource.color} />
-                <div className="min-w-0 flex-1">
+                {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
+                    discipline reads as one colour; fall back to the resource's own colour for
+                    the ungrouped "No discipline" bucket. */}
+                <Avatar name={resource.name ?? resource.role} color={group.color ?? resource.color} />
+                {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
+                <div className="ms-1.5 min-w-0 flex-1">
                   <span className="flex items-center gap-1 truncate text-sm font-medium">
                     {resource.name ?? resource.role}
                     {resource.kind === 'placeholder' && <span className="rounded bg-base px-1 text-[10px] text-muted">slot</span>}
                     <TemporaryTag resource={resource} />
                   </span>
-                  <span className="flex items-center gap-2 truncate text-xs text-muted">
-                    <span className="truncate">{resource.role}</span>
-                    <span
-                      data-testid="utilization"
-                      title={
-                        overSoon
-                          ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
-                          : `Load over the next ${UTILIZATION_WINDOW_DAYS} days`
-                      }
-                      className={overSoon ? 'font-semibold text-danger' : 'text-faint'}
-                    >
-                      {Math.round(util * 100)}%
-                    </span>
+                  <span className="block truncate text-xs text-muted">{resource.role}</span>
+                </div>
+                {/* Right column as a structured 2-cell grid: the add button on top, the
+                    allocation % beneath it, split by a divider inside one rounded box. */}
+                <div className="flex shrink-0 flex-col overflow-hidden rounded-md border border-line text-center leading-none">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = visibleStartDate()
+                      setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
+                    }}
+                    aria-label={`Add allocation for ${resource.name ?? resource.role}`}
+                    title="Add allocation"
+                    className="flex h-6 w-9 items-center justify-center text-base text-muted hover:bg-base hover:text-ink"
+                  >
+                    +
+                  </button>
+                  <span
+                    data-testid="utilization"
+                    title={
+                      overSoon
+                        ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
+                        : `Load over the next ${UTILIZATION_WINDOW_DAYS} days`
+                    }
+                    className={`flex h-5 w-9 items-center justify-center border-t border-line text-[11px] ${
+                      overSoon ? 'font-semibold text-danger' : 'text-faint'
+                    }`}
+                  >
+                    {Math.round(util * 100)}%
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const d = visibleStartDate()
-                    setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
-                  }}
-                  aria-label={`Add allocation for ${resource.name ?? resource.role}`}
-                  title="Add allocation"
-                  className="shrink-0 rounded p-1 text-lg leading-none text-muted hover:bg-base hover:text-ink"
-                >
-                  +
-                </button>
               </div>
 
               <ResourceLane
