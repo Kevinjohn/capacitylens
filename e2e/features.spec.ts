@@ -14,9 +14,12 @@ test.describe('Feature flows', () => {
     expect(await bars.count()).toBeGreaterThan(1)
 
     await page.getByLabel('Filter by project').selectOption('p-brand')
-
-    await expect(bars).toHaveCount(1)
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
+
+    // Default keeps non-matching resources visible (dimmed) for staffing; toggling
+    // "Show unallocated" off collapses to just the project's work.
+    await page.getByLabel('Show unallocated').uncheck()
+    await expect(bars).toHaveCount(1)
   })
 
   test('undo restores a deleted allocation', async ({ page }) => {

@@ -51,6 +51,7 @@ export interface RowModel {
   timeOff: TimeOffBlock[]
   utilization: number
   overSoon: boolean // over-allocated on at least one day inside the utilisation window
+  dimmed: boolean // no work on the active project/client filter — shown for staffing context
 }
 
 export interface GroupModel {
@@ -101,13 +102,20 @@ export function buildSchedulerModel(
     else timeOffByResource.set(t.resourceId, [t])
   }
 
-  const allocVisible = (a: Allocation): boolean => {
+  const projectClientActive = !!(filters.projectId || filters.clientId)
+  // Does this allocation match the active project/client filter (ignoring tentative)?
+  const matchesProjectClient = (a: Allocation): boolean => {
     const meta = taskMeta.get(a.taskId)
     if (filters.projectId && meta?.projectId !== filters.projectId) return false
     if (filters.clientId && meta?.clientId !== filters.clientId) return false
+    return true
+  }
+  const allocVisible = (a: Allocation): boolean => {
+    if (!matchesProjectClient(a)) return false
     if (filters.hideTentative && a.status === 'tentative') return false
     return true
   }
+  const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === 'tentative')
   const resourceVisible = (r: Resource): boolean => {
     if (filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
     if (search && !`${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false
@@ -124,7 +132,12 @@ export function buildSchedulerModel(
         // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
         const allAllocs = allocsByResource.get(resource.id) ?? []
         const resTimeOff = timeOffByResource.get(resource.id) ?? []
-        const visibleAllocs = allAllocs.filter(allocVisible)
+        // A row is "dimmed" when a project/client filter is active and this resource
+        // has NO work on it — we still show their full real load (so you can see who's
+        // free to staff), just visually de-emphasised. Matched rows focus on the
+        // matching bars as before.
+        const dimmed = projectClientActive && !allAllocs.some(matchesProjectClient)
+        const visibleAllocs = dimmed ? allAllocs.filter(notTentativeHidden) : allAllocs.filter(allocVisible)
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
         const bars: BarLayout[] = visibleAllocs.map((a) => {
@@ -177,8 +190,11 @@ export function buildSchedulerModel(
           timeOff,
           utilization: avail === 0 ? 0 : alloc / avail,
           overSoon,
+          dimmed,
         }
-      }),
+      })
+      // The "show unallocated" toggle (default on) hides the dimmed non-matching rows.
+      .filter((row) => filters.showUnmatched || !row.dimmed),
     }))
     .filter((g) => g.rows.length > 0)
 }

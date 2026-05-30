@@ -84,6 +84,21 @@ describe('buildSchedulerModel', () => {
     expect(barIds(build({ ...emptyFilters(), projectId: 'p2' }))).toEqual(['a2', 'a3'])
   })
 
+  it('dims (not hides) a resource with no work on the active project, showing its real load', () => {
+    // r1 works on p1; r2 has only p2 work → r2 is dimmed but still shown (its a3 bar)
+    // so you can see it's available to staff onto p1.
+    const rows = build({ ...emptyFilters(), projectId: 'p1' }).flatMap((g) => g.rows)
+    expect(rows.find((r) => r.resource.id === 'r1')!.dimmed).toBe(false)
+    const r2 = rows.find((r) => r.resource.id === 'r2')!
+    expect(r2.dimmed).toBe(true)
+    expect(r2.bars.map((b) => b.allocation.id)).toEqual(['a3'])
+  })
+
+  it('hides the dimmed (unallocated) rows when showUnmatched is off', () => {
+    const rows = build({ ...emptyFilters(), projectId: 'p1', showUnmatched: false }).flatMap((g) => g.rows)
+    expect(rows.map((r) => r.resource.id)).toEqual(['r1'])
+  })
+
   it('discipline filter drops other groups', () => {
     const model = build({ ...emptyFilters(), disciplineId: 'd-dev' })
     expect(model.map((g) => g.title)).toEqual(['Development'])

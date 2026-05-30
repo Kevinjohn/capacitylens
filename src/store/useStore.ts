@@ -52,6 +52,9 @@ export interface Filters {
   projectId: ID | null
   search: string
   hideTentative: boolean
+  /** When a project/client filter is active, also show resources with NO work on it
+   *  (dimmed) so you can see who's free to staff. Off = only matching resources. */
+  showUnmatched: boolean
 }
 
 export const emptyFilters = (): Filters => ({
@@ -60,6 +63,7 @@ export const emptyFilters = (): Filters => ({
   projectId: null,
   search: '',
   hideTentative: false,
+  showUnmatched: true,
 })
 
 export function hasActiveFilters(f: Filters): boolean {

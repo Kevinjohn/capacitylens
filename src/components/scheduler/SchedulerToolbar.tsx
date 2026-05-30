@@ -155,6 +155,12 @@ export function SchedulerToolbar() {
           <input type="checkbox" checked={filters.hideTentative} onChange={(e) => setFilters({ hideTentative: e.target.checked })} />
           Hide tentative
         </label>
+        {(filters.projectId || filters.clientId) && (
+          <label className="flex items-center gap-1.5 text-muted" title="Show resources with no work on this project (dimmed) so you can staff them">
+            <input type="checkbox" checked={filters.showUnmatched} onChange={(e) => setFilters({ showUnmatched: e.target.checked })} />
+            Show unallocated
+          </label>
+        )}
         {hasActiveFilters(filters) && (
           <Button variant="ghost" onClick={clearFilters}>
             Clear

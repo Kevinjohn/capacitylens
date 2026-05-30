@@ -204,11 +204,16 @@ Deferred, for reasons in priority order:
    `role="grid"` semantics valid, and a clientHeight-0 fallback for jsdom mirroring the
    existing `FALLBACK_TIMELINE_WIDTH` pattern.
 
+### Project-filter availability (UX 🟠 Major) — implemented (product choice made)
+The reviewer flagged that filtering to a project made it hard to see who's free to
+staff. Chosen behaviour (over hide-everything or highlight-only): when a project/client
+filter is active, resources with **no work on it** stay visible but **dimmed**, showing
+their *full real load* so you can judge availability and drag work onto them — with a
+**"Show unallocated"** toggle (default on) to collapse to just the matching work.
+Implemented in `buildSchedulerModel` (per-row `dimmed` flag; dimmed rows show full load,
+matched rows stay focused) + a `Filters.showUnmatched` flag + the toolbar toggle.
+
 ### Other deliberately-deferred findings (judged, not missed)
-- **Filtering to a project blanks the grid (UX 🟠 Major).** Today an active project/client
-  filter hides every non-matching resource, so staffing a fresh project shows an empty
-  grid. The fix is a genuine product choice — *hide* vs. *dim non-matching + a "show
-  unallocated" toggle* — so it's paused for that decision rather than guessed.
 - **Error toasts auto-dismiss (UX 🟡).** Needs the `notice` model to carry a severity so
   errors persist while info auto-clears — a small shape change left for a focused pass.
 - **Minor polish (UX 🟡):** jump-to-date commit-on-blur, a drag-commit confirmation

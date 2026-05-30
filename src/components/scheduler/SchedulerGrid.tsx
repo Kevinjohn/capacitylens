@@ -194,11 +194,19 @@ export function SchedulerGrid() {
           </div>
 
           {!ui.collapsedGroups.includes(group.key) &&
-            group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon }) => (
+            group.rows.map(({ resource, rowHeight, bars, dayStates, timeOff, utilization: util, overSoon, dimmed }) => (
             /* bg-surface on the whole row (not just the sticky header) so the row divider
                sits on ONE background — without it the border crosses the surface left column
                and the darker timeline, reading as a two-tone line. */
-            <div key={resource.id} role="row" data-testid="scheduler-row" className="flex border-b border-line bg-surface" style={{ height: rowHeight }}>
+            <div
+              key={resource.id}
+              role="row"
+              data-testid="scheduler-row"
+              data-dimmed={dimmed || undefined}
+              title={dimmed ? 'No work on this project — available to staff (drag work onto this row)' : undefined}
+              className={`flex border-b border-line bg-surface ${dimmed ? 'opacity-45' : ''}`}
+              style={{ height: rowHeight }}
+            >
               <div
                 role="rowheader"
                 className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface px-3"
