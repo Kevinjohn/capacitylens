@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
@@ -24,6 +25,25 @@ export function SchedulerToolbar() {
   const redo = useStore((s) => s.redo)
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
+
+  // Debounce the search into the store: each keystroke otherwise rebuilds the whole
+  // scheduler model (new filters object → model useMemo) and re-renders every lane.
+  // Keep the input snappy locally; push to filters after a short pause.
+  const [searchInput, setSearchInput] = useState(filters.search)
+  // Adopt external changes to filters.search (Clear button, account switch) by
+  // reconciling during render — the React-recommended alternative to a sync effect.
+  const [seenSearch, setSeenSearch] = useState(filters.search)
+  if (filters.search !== seenSearch) {
+    setSeenSearch(filters.search)
+    setSearchInput(filters.search)
+  }
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (searchTimer.current) clearTimeout(searchTimer.current) }, [])
+  const onSearchChange = (v: string) => {
+    setSearchInput(v)
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => setFilters({ search: v }), 180)
+  }
 
   return (
     <div className="@container border-b border-line bg-surface">
@@ -86,8 +106,8 @@ export function SchedulerToolbar() {
 
       <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-sm">
         <input
-          value={filters.search}
-          onChange={(e) => setFilters({ search: e.target.value })}
+          value={searchInput}
+          onChange={(e) => onSearchChange(e.target.value)}
           placeholder="Search people…"
           aria-label="Search people"
           className={`${controlBase} w-44 @max-[680px]:w-full`}

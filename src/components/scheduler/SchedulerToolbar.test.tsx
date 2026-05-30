@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SchedulerToolbar } from './SchedulerToolbar'
 import { useStore } from '../../store/useStore'
@@ -31,7 +31,8 @@ describe('SchedulerToolbar search filter', () => {
 
     await user.type(screen.getByLabelText('Search people'), 'Alice')
 
-    expect(useStore.getState().ui.filters.search).toBe('Alice')
+    // The search is debounced into the store, so the update lands shortly after typing.
+    await waitFor(() => expect(useStore.getState().ui.filters.search).toBe('Alice'))
   })
 })
 
@@ -87,7 +88,8 @@ describe('SchedulerToolbar Clear filter button', () => {
 
     await user.type(screen.getByLabelText('Search people'), 'Bob')
 
-    expect(screen.getByRole('button', { name: 'Clear' })).toBeInTheDocument()
+    // Clear appears once the debounced search reaches the store.
+    expect(await screen.findByRole('button', { name: 'Clear' })).toBeInTheDocument()
   })
 
   it('clicking Clear resets all filters and hides the Clear button', async () => {
@@ -95,7 +97,7 @@ describe('SchedulerToolbar Clear filter button', () => {
     render(<SchedulerToolbar />)
 
     await user.type(screen.getByLabelText('Search people'), 'Bob')
-    expect(screen.getByRole('button', { name: 'Clear' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Clear' })).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Clear' }))
 

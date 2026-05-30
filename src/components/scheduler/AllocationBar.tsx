@@ -76,11 +76,21 @@ export const AllocationBar = memo(function AllocationBar({
   // would hit-test against stale rects and reassign to the wrong row.
   const scrollWatchRef = useRef<(() => void) | null>(null)
   const startScrollWatch = () => {
+    // rAF-coalesce: scroll can fire many times per frame, and each re-snapshot is a
+    // querySelectorAll + getBoundingClientRect over every lane — collapse to one per frame.
+    let raf = 0
     const onScroll = () => {
-      lanesRef.current = snapshotLanes()
+      if (raf) return
+      raf = requestAnimationFrame(() => {
+        raf = 0
+        lanesRef.current = snapshotLanes()
+      })
     }
     document.addEventListener('scroll', onScroll, true)
-    scrollWatchRef.current = () => document.removeEventListener('scroll', onScroll, true)
+    scrollWatchRef.current = () => {
+      document.removeEventListener('scroll', onScroll, true)
+      if (raf) cancelAnimationFrame(raf)
+    }
   }
   const stopScrollWatch = () => {
     scrollWatchRef.current?.()

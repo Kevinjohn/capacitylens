@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { format } from 'date-fns'
 import { parseDate, todayISO, weekdayOf } from '../../lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
@@ -38,12 +38,16 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
   const showWeekday = dayWidth >= WEEKDAY_LABEL_MIN_WIDTH
   const today = todayISO()
   const totalWidth = days.length * dayWidth
+  // Month/week groupings depend only on `days` — recompute on the day set changing,
+  // not on a pure dayWidth (zoom) change that only re-widths the same blocks.
+  const months = useMemo(() => monthSpans(days), [days])
+  const weeks = useMemo(() => weekBlocks(days), [days])
 
   return (
     <div role="columnheader" aria-label="Dates" className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
       {/* Month tier */}
       <div className="flex border-b border-line" style={{ height: 16 }}>
-        {monthSpans(days).map((m) => (
+        {months.map((m) => (
           <div
             key={m.key}
             className="flex items-center overflow-hidden border-r border-line px-2 text-2xs font-semibold text-muted"
@@ -79,7 +83,7 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
         </div>
       ) : (
         <div className="flex flex-1">
-          {weekBlocks(days).map((b) => (
+          {weeks.map((b) => (
             <div
               key={b.key}
               className="flex items-center overflow-hidden border-l border-line px-1 text-2xs text-muted"

@@ -112,10 +112,12 @@ export function SchedulerGrid() {
     return addDaysISO(ui.originDate, offsetDays)
   }
 
-  const allRows = model.flatMap((g) => g.rows)
-  const overallUtil = allRows.length
-    ? Math.round((allRows.reduce((sum, r) => sum + r.utilization, 0) / allRows.length) * 100)
-    : 0
+  // Derived from the model only — memoise so opening a modal / measuring the
+  // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
+  const overallUtil = useMemo(() => {
+    const rows = model.flatMap((g) => g.rows)
+    return rows.length ? Math.round((rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100) : 0
+  }, [model])
 
   return (
     <div

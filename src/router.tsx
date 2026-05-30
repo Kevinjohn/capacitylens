@@ -1,12 +1,18 @@
+/* eslint-disable react-refresh/only-export-components -- route config, not a component module */
+import { lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { SchedulerView } from './components/scheduler/SchedulerView'
-import { ResourceList } from './components/resources/ResourceList'
-import { DisciplineList } from './components/disciplines/DisciplineList'
-import { ClientList } from './components/clients/ClientList'
-import { ProjectList } from './components/projects/ProjectList'
-import { TaskList } from './components/tasks/TaskList'
-import { TimeOffList } from './components/timeoff/TimeOffList'
+
+// The scheduler is the index route (first paint) so it stays eager. The CRUD list
+// pages are split out — not needed until navigated to, which trims the initial
+// bundle. AppShell wraps <Outlet> in a Suspense boundary for these lazy chunks.
+const ResourceList = lazy(() => import('./components/resources/ResourceList').then((m) => ({ default: m.ResourceList })))
+const DisciplineList = lazy(() => import('./components/disciplines/DisciplineList').then((m) => ({ default: m.DisciplineList })))
+const ClientList = lazy(() => import('./components/clients/ClientList').then((m) => ({ default: m.ClientList })))
+const ProjectList = lazy(() => import('./components/projects/ProjectList').then((m) => ({ default: m.ProjectList })))
+const TaskList = lazy(() => import('./components/tasks/TaskList').then((m) => ({ default: m.TaskList })))
+const TimeOffList = lazy(() => import('./components/timeoff/TimeOffList').then((m) => ({ default: m.TimeOffList })))
 
 export const router = createBrowserRouter([
   {

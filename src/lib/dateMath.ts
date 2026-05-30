@@ -59,10 +59,12 @@ export function widthForRange(start: ISODate, end: ISODate, dayWidth: number): n
   return Number.isFinite(n) && n > 0 ? n * dayWidth : 0
 }
 
-/** Is `date` within the inclusive range [start, end]? */
+/** Is `date` within the inclusive range [start, end]? Zero-padded YYYY-MM-DD strings
+ *  sort chronologically, so a plain string compare is exact AND avoids three parseISO
+ *  calls — and this is the scheduler's hottest path (called per resource × per day ×
+ *  per allocation when building day capacity). */
 export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
-  const d = parseISO(date)
-  return d >= parseISO(start) && d <= parseISO(end)
+  return date >= start && date <= end
 }
 
 /** Today as a date-only ISO string (impure — reads the system clock). */

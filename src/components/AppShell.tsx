@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ImportExport } from './ImportExport'
@@ -66,6 +66,13 @@ export function AppShell() {
   // the "Loading…" state still renders the shell.
   if (hydrated && !activeAccount) return <AccountPicker />
 
+  const loader = (
+    <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden />
+      Loading…
+    </div>
+  )
+
   return (
     <div className="flex h-full">
       <nav className="w-48 shrink-0 border-r border-line bg-surface p-3">
@@ -110,12 +117,11 @@ export function AppShell() {
           </div>
         )}
         {hydrated ? (
-          <Outlet />
+          <Suspense fallback={loader}>
+            <Outlet />
+          </Suspense>
         ) : (
-          <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden />
-            Loading…
-          </div>
+          loader
         )}
       </main>
       {notice && <Toast message={notice} onDismiss={() => setNotice(null)} />}
