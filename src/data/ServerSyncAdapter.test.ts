@@ -87,8 +87,9 @@ describe('ServerSyncAdapter.saveAll', () => {
 
   it('does NOT advance the snapshot on failure, so the next save replays the delta', async () => {
     let failNext = false
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      if (init?.method && failNext) return new Response('boom', { status: 500 })
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      const isWrite = init?.method === 'PUT' || init?.method === 'DELETE'
+      if (isWrite && failNext && url.includes('/api/')) return new Response('boom', { status: 500 })
       return new Response('{}', { status: 200 })
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
@@ -109,7 +110,7 @@ describe('ServerSyncAdapter.saveAll', () => {
   it('coalesces overlapping saves to the latest state', async () => {
     let resolveFirst: (() => void) | null = null
     const fetchImpl = vi.fn(
-      (_url: string) =>
+      () =>
         new Promise<Response>((resolve) => {
           // Hold the very first request open so a second saveAll lands mid-flush.
           if (!resolveFirst) resolveFirst = () => resolve(new Response('{}', { status: 200 }))

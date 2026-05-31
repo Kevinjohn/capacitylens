@@ -13,6 +13,7 @@ export function attachPersistence(
   adapter: PersistenceAdapter,
   debounceMs = 300,
   onError?: (e: unknown) => void,
+  onSuccess?: () => void,
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null
   let lastData = store.getState().data
@@ -20,7 +21,15 @@ export function attachPersistence(
 
   const save = (data: AppData) => {
     pending = null
-    void adapter.saveAll(data).catch((e) => onError?.(e))
+    // Two-arg then so a throw inside onSuccess isn't misreported as a save error.
+    // onSuccess lets the caller CLEAR a prior error state once a write lands again
+    // — essential for the server adapter, where a transient network blip sets the
+    // banner but the next successful sync should take it back down (and harmless
+    // for localStorage, where quota can free up between writes).
+    void adapter.saveAll(data).then(
+      () => onSuccess?.(),
+      (e: unknown) => onError?.(e),
+    )
   }
 
   // Write any debounced-but-not-yet-flushed data immediately — used on page
@@ -73,8 +82,12 @@ export interface BootstrapOptions {
   debounceMs?: number
   /** Used only on a genuine first run (nothing ever persisted). */
   seedIfEmpty?: AppData
-  /** Called when a persistence write fails (e.g. storage quota exceeded). */
+  /** Called when a persistence write fails (e.g. storage quota exceeded, or the
+   *  server is unreachable). */
   onError?: (e: unknown) => void
+  /** Called after a persistence write succeeds — lets the caller clear a prior
+   *  error state once saving recovers (e.g. the server comes back). */
+  onSuccess?: () => void
 }
 
 function isEmpty(data: AppData): boolean {
@@ -117,5 +130,5 @@ export async function bootstrap(
     }
   }
 
-  return attachPersistence(store, adapter, opts.debounceMs ?? 300, opts.onError)
+  return attachPersistence(store, adapter, opts.debounceMs ?? 300, opts.onError, opts.onSuccess)
 }

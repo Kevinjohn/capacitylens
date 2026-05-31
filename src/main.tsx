@@ -21,6 +21,12 @@ watchSystemTheme(() => useStore.getState().theme)
 void bootstrap(useStore, persistenceAdapter, {
   seedIfEmpty: seed(),
   onError: () => useStore.getState().setPersistError(true),
+  // Recovery: once a write lands again (e.g. the server comes back), take the
+  // "changes aren't saving" banner back down. Guarded so a normal save doesn't
+  // churn the store on every keystroke.
+  onSuccess: () => {
+    if (useStore.getState().persistError) useStore.getState().setPersistError(false)
+  },
 }).catch(() => {
   // Hydration itself failed — still let the app render (with the banner) rather
   // than dying on an unhandled rejection.

@@ -40,6 +40,32 @@ describe('attachPersistence', () => {
     expect((await adapter.loadAll()).clients).toHaveLength(1) // flushed synchronously
     detach()
   })
+
+  it('reports a failed write via onError, then a recovered write via onSuccess', async () => {
+    // A transient write failure (e.g. server unreachable) should fire onError; the
+    // next successful write must fire onSuccess so the caller can clear the banner.
+    const adapter = new LocalStorageAdapter('floaty/persist-recover')
+    const realSave = adapter.saveAll.bind(adapter)
+    let calls = 0
+    vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
+      calls += 1
+      if (calls === 1) throw new Error('write unavailable')
+      return realSave(d)
+    })
+    const onError = vi.fn()
+    const onSuccess = vi.fn()
+    const detach = attachPersistence(useStore, adapter, 0, onError, onSuccess)
+
+    useStore.getState().addClient({ name: 'A', color: '#111111' })
+    await new Promise((r) => setTimeout(r, 5))
+    expect(onError).toHaveBeenCalledTimes(1)
+    expect(onSuccess).not.toHaveBeenCalled()
+
+    useStore.getState().addClient({ name: 'B', color: '#222222' })
+    await new Promise((r) => setTimeout(r, 5))
+    expect(onSuccess).toHaveBeenCalled()
+    detach()
+  })
 })
 
 describe('bootstrap', () => {
