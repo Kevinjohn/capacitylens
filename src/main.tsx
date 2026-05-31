@@ -7,7 +7,7 @@ import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { useStore } from './store/useStore'
 import { persistenceAdapter } from './data/storageAdapter'
 import { bootstrap } from './data/persist'
-import { seed } from './data/seed'
+import { seed } from '@floaty/shared/data/seed'
 import { applyThemeToDom, watchSystemTheme } from './lib/theme'
 
 // Paint the saved colour scheme (the inline <head> script already did this to beat

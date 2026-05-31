@@ -3,7 +3,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { TaskForm } from './TaskForm'
-import type { Task } from '../../types/entities'
+import type { Task } from '@floaty/shared/types/entities'
 
 export function TaskList() {
   const data = useScopedData()

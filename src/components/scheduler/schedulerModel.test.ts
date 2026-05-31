@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { buildSchedulerModel, type GroupModel } from './schedulerModel'
-import { eachDayISO } from '../../lib/dateMath'
+import { eachDayISO } from '@floaty/shared/lib/dateMath'
 import { emptyFilters } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
-import type { AppData } from '../../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@floaty/shared/types/entities'
 
 const start = '2026-06-01'
 const end = '2026-06-07'

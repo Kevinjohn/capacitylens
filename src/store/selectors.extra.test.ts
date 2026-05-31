@@ -10,9 +10,9 @@ import {
   taskById,
   timeOffForResource,
 } from './selectors'
-import type { Discipline } from '../types/entities'
-import { emptyAppData } from '../types/entities'
-import type { AppData } from '../types/entities'
+import type { Discipline } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@floaty/shared/types/entities'
 
 const data: AppData = {
   ...emptyAppData(),

@@ -5,7 +5,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { validateHex, validateName } from '../../lib/validation'
 import { Button, ColorField, FieldError, Modal, NumberField, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { Discipline } from '../../types/entities'
+import type { Discipline } from '@floaty/shared/types/entities'
 
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
   const add = useStore((s) => s.addDiscipline)

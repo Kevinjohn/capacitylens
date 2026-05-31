@@ -1,4 +1,4 @@
-import { isHexColor } from './color'
+import { isHexColor } from '@floaty/shared/lib/color'
 
 // Shared form-validation copy + helpers. Centralised so the same message isn't
 // re-typed in every form (it was duplicated ~15 times across the CRUD forms).

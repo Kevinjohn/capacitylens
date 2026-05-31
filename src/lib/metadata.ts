@@ -1,4 +1,4 @@
-import type { AllocationStatus, EmploymentType, ResourceKind, TimeOffType } from '../types/entities'
+import type { AllocationStatus, EmploymentType, ResourceKind, TimeOffType } from '@floaty/shared/types/entities'
 
 // Single source of truth for enum presentation. The `Record<Enum, string>` maps
 // are exhaustive by type — add a union member without a label and tsc fails — and

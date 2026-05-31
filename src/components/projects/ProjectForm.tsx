@@ -3,10 +3,10 @@ import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { validateHex, validateName } from '../../lib/validation'
-import { validateProjectClient } from '../../lib/integrity'
+import { validateProjectClient } from '@floaty/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { Button, ColorField, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
-import type { Project } from '../../types/entities'
+import type { Project } from '@floaty/shared/types/entities'
 
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
   const add = useStore((s) => s.addProject)

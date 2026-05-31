@@ -5,7 +5,7 @@ import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../com
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { byDisciplineOrder } from '../../store/selectors'
 import { DisciplineForm } from './DisciplineForm'
-import type { Discipline } from '../../types/entities'
+import type { Discipline } from '@floaty/shared/types/entities'
 
 export function DisciplineList() {
   const disciplines = useScopedData().disciplines

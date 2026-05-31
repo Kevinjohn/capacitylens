@@ -5,7 +5,7 @@ import { validateHex, validateName } from '../../lib/validation'
 import { Avatar, Button, ColorField, FieldError, TextField } from '../common/ui'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { Account } from '../../types/entities'
+import type { Account } from '@floaty/shared/types/entities'
 
 // Full-screen tenant chooser. Shown on every load (activeAccountId is never
 // persisted) and whenever the user picks "Switch company". Lets you open an

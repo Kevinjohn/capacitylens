@@ -1,6 +1,6 @@
-import { addDaysISO } from '../lib/dateMath'
-import { emptyAppData, scopedTables, SCOPED_KEYS } from '../types/entities'
-import type { AppData, Discipline, ID, Resource } from '../types/entities'
+import { addDaysISO } from '@floaty/shared/lib/dateMath'
+import { emptyAppData, scopedTables, SCOPED_KEYS } from '@floaty/shared/types/entities'
+import type { AppData, Discipline, ID, Resource } from '@floaty/shared/types/entities'
 import type { SchedulerUI } from './useStore'
 
 /** Narrow the full store data to a single account: every scoped array filtered to

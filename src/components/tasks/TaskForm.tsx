@@ -4,7 +4,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { validateName } from '../../lib/validation'
 import { Button, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
-import type { Task } from '../../types/entities'
+import type { Task } from '@floaty/shared/types/entities'
 
 export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }) {
   const add = useStore((s) => s.addTask)

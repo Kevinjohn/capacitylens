@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { visibleRange } from '../../store/selectors'
-import { addDaysISO, eachDayISO, todayISO, xForDate } from '../../lib/dateMath'
+import { addDaysISO, eachDayISO, todayISO, xForDate } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, TemporaryTag } from '../common/ui'
 import { Icon } from '../common/Icon'
@@ -14,7 +14,7 @@ import { TimeOffForm } from '../timeoff/TimeOffForm'
 import { buildSchedulerModel } from './schedulerModel'
 import { buildLayout, windowFromLayout } from './virtualWindow'
 import type { GroupModel, RowModel } from './schedulerModel'
-import type { ID, ISODate } from '../../types/entities'
+import type { ID, ISODate } from '@floaty/shared/types/entities'
 
 type ModalState =
   | { kind: 'edit'; allocationId: ID }

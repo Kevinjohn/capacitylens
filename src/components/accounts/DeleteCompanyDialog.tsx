@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { scopeData } from '../../store/selectors'
-import { serializeData } from '../../data/transfer'
-import { todayISO } from '../../lib/dateMath'
+import { serializeData } from '@floaty/shared/data/transfer'
+import { todayISO } from '@floaty/shared/lib/dateMath'
 import { Button, Modal, TextField } from '../common/ui'
-import type { Account } from '../../types/entities'
+import type { Account } from '@floaty/shared/types/entities'
 
 // Friction for the one irreversible action in the app. Deleting a company cascade-
 // drops all of its data with no undo, so we (a) offer a one-click export of that

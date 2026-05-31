@@ -1,9 +1,9 @@
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
-import { todayISO } from '../../lib/dateMath'
+import { todayISO } from '@floaty/shared/lib/dateMath'
 import { capacityAdvisory } from '../../lib/capacity'
-import { validateAllocationAssignment } from '../../lib/integrity'
+import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
 import {
   Button,
   Callout,
@@ -17,7 +17,7 @@ import {
   type Option,
 } from '../common/ui'
 import { ALLOCATION_STATUS_OPTIONS } from '../../lib/metadata'
-import type { AllocationStatus, ISODate } from '../../types/entities'
+import type { AllocationStatus, ISODate } from '@floaty/shared/types/entities'
 
 type AllocationModalProps =
   | { allocationId: string; onClose: () => void }

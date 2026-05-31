@@ -3,7 +3,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage, TemporaryTag } from '../common/ui'
 import { ResourceForm } from './ResourceForm'
-import type { Resource } from '../../types/entities'
+import type { Resource } from '@floaty/shared/types/entities'
 
 export function ResourceList() {
   const data = useScopedData()

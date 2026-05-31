@@ -1,6 +1,6 @@
 import { buildApp } from './app'
 import { openDb, loadState, isEmpty, insertAll } from './db'
-import { seed } from '../../src/data/seed'
+import { seed } from '@floaty/shared/data/seed'
 
 // Entry point. Run with: NODE_OPTIONS=--experimental-sqlite tsx src/index.ts
 //   FLOATY_DB           path to the SQLite file (default ./floaty.db; ':memory:' ok)

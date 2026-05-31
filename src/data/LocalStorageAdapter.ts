@@ -1,7 +1,7 @@
-import { emptyAppData, SCHEMA_VERSION } from '../types/entities'
-import type { AppData, PersistedState } from '../types/entities'
+import { emptyAppData, SCHEMA_VERSION } from '@floaty/shared/types/entities'
+import type { AppData, PersistedState } from '@floaty/shared/types/entities'
 import type { PersistenceAdapter } from './PersistenceAdapter'
-import { migrate } from './migrate'
+import { migrate } from '@floaty/shared/data/migrate'
 
 export class LocalStorageAdapter implements PersistenceAdapter {
   private readonly key: string

@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ImportExport } from './ImportExport'
 import { useStore } from '../store/useStore'
-import { emptyAppData } from '../types/entities'
-import { seed } from '../data/seed'
-import { serializeData } from '../data/transfer'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import { seed } from '@floaty/shared/data/seed'
+import { serializeData } from '@floaty/shared/data/transfer'
 import { makeResourceDraft, resetStoreWithAccount } from '../test/fixtures'
 
 beforeEach(() => {

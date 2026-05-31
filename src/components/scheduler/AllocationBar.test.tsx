@@ -3,8 +3,8 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
 import type { BarLayout } from './schedulerModel'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
-import type { Allocation } from '../../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import type { Allocation } from '@floaty/shared/types/entities'
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())

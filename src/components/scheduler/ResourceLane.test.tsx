@@ -4,7 +4,7 @@ import { fireEvent } from '@testing-library/react'
 import { ResourceLane } from './ResourceLane'
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())

@@ -16,7 +16,7 @@ import {
 } from '../common/ui'
 import { EMPLOYMENT_TYPE_OPTIONS, RESOURCE_KIND_OPTIONS } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { EmploymentType, Resource, ResourceKind, Weekday } from '../../types/entities'
+import type { EmploymentType, Resource, ResourceKind, Weekday } from '@floaty/shared/types/entities'
 
 export function ResourceForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
   const add = useStore((s) => s.addResource)

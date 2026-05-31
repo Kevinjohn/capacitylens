@@ -3,8 +3,8 @@ import {
   assertDateRange,
   assertResourceExists,
   assertScopedRefs,
-} from '../../src/domain/mutations'
-import type { AppData, ScopedEntityKey } from '../../src/types/entities'
+} from '@floaty/shared/domain/mutations'
+import type { AppData, ScopedEntityKey } from '@floaty/shared/types/entities'
 
 // Server-side write validation is LITERALLY the client's validation: the same pure
 // functions from src/domain/mutations.ts, run against the current DB state. This is

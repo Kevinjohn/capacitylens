@@ -1,10 +1,10 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import { addDaysISO, weekdayOf } from '../../lib/dateMath'
+import { addDaysISO, weekdayOf } from '@floaty/shared/lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
 import { AllocationBar } from './AllocationBar'
 import { LAYOUT } from './layout'
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
-import type { ID, ISODate } from '../../types/entities'
+import type { ID, ISODate } from '@floaty/shared/types/entities'
 
 /** Min pointer travel to treat a lane gesture as a draw (vs a bare click). */
 const DRAW_THRESHOLD_PX = 4

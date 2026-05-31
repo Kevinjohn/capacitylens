@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { attachPersistence, bootstrap } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
 import { useStore } from '../store/useStore'
-import { emptyAppData } from '../types/entities'
-import { seed } from './seed'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import { seed } from '@floaty/shared/data/seed'
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '../test/fixtures'
 
 beforeEach(() => {

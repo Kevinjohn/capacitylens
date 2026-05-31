@@ -1,10 +1,10 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
-import { todayISO } from '../../lib/dateMath'
+import { todayISO } from '@floaty/shared/lib/dateMath'
 import { Button, DateField, FieldError, Modal, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS } from '../../lib/metadata'
-import type { ISODate, TimeOff, TimeOffType } from '../../types/entities'
+import type { ISODate, TimeOff, TimeOffType } from '@floaty/shared/types/entities'
 
 export function TimeOffForm({
   timeOff,

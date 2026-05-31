@@ -3,7 +3,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
-import type { Project } from '../../types/entities'
+import type { Project } from '@floaty/shared/types/entities'
 
 export function ProjectList() {
   const data = useScopedData()

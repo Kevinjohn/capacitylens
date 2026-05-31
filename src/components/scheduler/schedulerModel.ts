@@ -1,12 +1,12 @@
-import { widthForRange, xForDate } from '../../lib/dateMath'
+import { widthForRange, xForDate } from '@floaty/shared/lib/dateMath'
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
 import { capacityForWindow, dayCapacity } from '../../lib/capacity'
-import { resolveBarColor } from '../../lib/color'
+import { resolveBarColor } from '@floaty/shared/lib/color'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { resourcesByDiscipline } from '../../store/selectors'
 import { laneLayout } from './layout'
 import type { Filters } from '../../store/useStore'
-import type { Allocation, AppData, ID, ISODate, Resource, TimeOff } from '../../types/entities'
+import type { Allocation, AppData, ID, ISODate, Resource, TimeOff } from '@floaty/shared/types/entities'
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,

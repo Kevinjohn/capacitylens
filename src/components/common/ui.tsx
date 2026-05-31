@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { isTemporary } from '../../lib/integrity'
-import { ensureBarColors, isHexColor } from '../../lib/color'
+import { isTemporary } from '@floaty/shared/lib/integrity'
+import { ensureBarColors, isHexColor } from '@floaty/shared/lib/color'
 import { useStore } from '../../store/useStore'
 import { Icon } from './Icon'
-import type { Resource, Weekday } from '../../types/entities'
+import type { Resource, Weekday } from '@floaty/shared/types/entities'
 
 // Shared presentational kit. Colours come from semantic tokens (see index.css),
 // so everything adapts to dark mode automatically.

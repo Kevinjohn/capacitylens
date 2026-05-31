@@ -3,7 +3,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
-import type { Client } from '../../types/entities'
+import type { Client } from '@floaty/shared/types/entities'
 
 export function ClientList() {
   const clients = useScopedData().clients

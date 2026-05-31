@@ -1,9 +1,9 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useScopedData } from '../store/useScopedData'
-import { parseData, serializeData } from '../data/transfer'
+import { parseData, serializeData } from '@floaty/shared/data/transfer'
 import { ConfirmDialog } from './common/ui'
-import type { AppData } from '../types/entities'
+import type { AppData } from '@floaty/shared/types/entities'
 
 // Refuse files past this size before reading them into memory (self-DoS guard).
 const MAX_IMPORT_BYTES = 10_000_000

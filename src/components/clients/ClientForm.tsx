@@ -4,7 +4,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { validateHex, validateName } from '../../lib/validation'
 import { Button, ColorField, FieldError, Modal, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { Client } from '../../types/entities'
+import type { Client } from '@floaty/shared/types/entities'
 
 export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {
   const addClient = useStore((s) => s.addClient)

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { ServerSyncAdapter, diffOps } from './ServerSyncAdapter'
-import { emptyAppData } from '../types/entities'
-import type { AppData, Client, Project } from '../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import type { AppData, Client, Project } from '@floaty/shared/types/entities'
 
 // Unit tests for the diff engine and the sync flush, with a fake fetch. Proves:
 // the diff classifies create/update/delete correctly, orders parent-before-child for

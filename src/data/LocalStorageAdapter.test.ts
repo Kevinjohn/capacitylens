@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
-import { seed } from './seed'
-import { emptyAppData } from '../types/entities'
+import { seed } from '@floaty/shared/data/seed'
+import { emptyAppData } from '@floaty/shared/types/entities'
 
 const KEY = 'floaty/test'
 

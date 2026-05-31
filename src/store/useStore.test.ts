@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hasActiveFilters, useStore } from './useStore'
 import { resetStoreWithAccount } from '../test/fixtures'
-import { weekdayOf } from '../lib/dateMath'
+import { weekdayOf } from '@floaty/shared/lib/dateMath'
 
 const s = () => useStore.getState()
 beforeEach(() => resetStoreWithAccount())

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { newId } from '../lib/id'
-import { addDaysISO, startOfWeekISO, todayISO } from '../lib/dateMath'
+import { newId } from '@floaty/shared/lib/id'
+import { addDaysISO, startOfWeekISO, todayISO } from '@floaty/shared/lib/dateMath'
 import { DEFAULT_ORIGIN_OFFSET_DAYS, DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, type WeeksZoom } from '../lib/schedulerConfig'
 import {
   deleteClientCascade,
@@ -9,7 +9,7 @@ import {
   deleteProjectCascade,
   deleteResourceCascade,
   deleteTaskCascade,
-} from '../lib/integrity'
+} from '@floaty/shared/lib/integrity'
 import {
   assertAllocationRefs,
   assertDateRange,
@@ -18,9 +18,9 @@ import {
   deleteAccountCascade,
   findOwned as findOwnedIn,
   remapAndValidateImport,
-} from '../domain/mutations'
+} from '@floaty/shared/domain/mutations'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
-import { emptyAppData } from '../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
 import type {
   Account,
   Allocation,
@@ -36,7 +36,7 @@ import type {
   ScopedEntityKey,
   Task,
   TimeOff,
-} from '../types/entities'
+} from '@floaty/shared/types/entities'
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.

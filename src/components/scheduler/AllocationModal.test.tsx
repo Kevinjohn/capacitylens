@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AllocationModal } from './AllocationModal'
 import { useStore } from '../../store/useStore'
-import type { AppData } from '../../types/entities'
+import type { AppData } from '@floaty/shared/types/entities'
 import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
 
 const ACC = DEFAULT_ACCOUNT_ID

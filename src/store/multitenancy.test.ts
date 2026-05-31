@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
 import { scopeData } from './selectors'
-import { emptyAppData } from '../types/entities'
-import type { AppData } from '../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@floaty/shared/types/entities'
 import { makeAccount } from '../test/fixtures'
 
 const s = () => useStore.getState()

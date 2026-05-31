@@ -4,7 +4,7 @@ import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { TimeOffForm } from './TimeOffForm'
-import type { TimeOff } from '../../types/entities'
+import type { TimeOff } from '@floaty/shared/types/entities'
 
 export function TimeOffList() {
   const data = useScopedData()

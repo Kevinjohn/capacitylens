@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react'
 import { format } from 'date-fns'
-import { parseDate, todayISO, weekdayOf } from '../../lib/dateMath'
+import { parseDate, todayISO, weekdayOf } from '@floaty/shared/lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
 
 interface Span {

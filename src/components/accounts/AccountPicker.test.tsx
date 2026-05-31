@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { AppShell } from '../AppShell'
 import { AccountPicker } from './AccountPicker'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '../../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
 
 beforeEach(() => {

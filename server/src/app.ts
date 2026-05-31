@@ -1,8 +1,8 @@
 import Fastify from 'fastify'
 import type { FastifyInstance } from 'fastify'
-import { parseData, MAX_IMPORT_RECORDS } from '../../src/data/transfer'
-import { remapAndValidateImport } from '../../src/domain/mutations'
-import { seed } from '../../src/data/seed'
+import { parseData, MAX_IMPORT_RECORDS } from '@floaty/shared/data/transfer'
+import { remapAndValidateImport } from '@floaty/shared/domain/mutations'
+import { seed } from '@floaty/shared/data/seed'
 import { TABLES } from './tables'
 import { validateWrite } from './validate'
 import {

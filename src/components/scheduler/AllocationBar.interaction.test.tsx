@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
 import type { BarLayout } from './schedulerModel'
 import { useStore } from '../../store/useStore'
-import { type Allocation } from '../../types/entities'
+import { type Allocation } from '@floaty/shared/types/entities'
 import { resetStoreWithAccount } from '../../test/fixtures'
 
 function seedAllocation(): Allocation {

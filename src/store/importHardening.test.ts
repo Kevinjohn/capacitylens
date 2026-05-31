@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
-import { emptyAppData } from '../types/entities'
-import type { AppData } from '../types/entities'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@floaty/shared/types/entities'
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
 
 const s = () => useStore.getState()

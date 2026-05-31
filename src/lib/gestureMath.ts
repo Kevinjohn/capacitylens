@@ -1,5 +1,5 @@
-import { addDaysISO } from './dateMath'
-import type { ISODate } from '../types/entities'
+import { addDaysISO } from '@floaty/shared/lib/dateMath'
+import type { ISODate } from '@floaty/shared/types/entities'
 
 // Pure drag/resize math, extracted from the pointer hook so it can be unit
 // tested without a DOM. A gesture is: pixels dragged -> whole-day delta (snap)

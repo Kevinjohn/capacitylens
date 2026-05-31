@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { SchedulerGrid } from './SchedulerGrid'
 import { useStore } from '../../store/useStore'
-import type { AppData } from '../../types/entities'
+import type { AppData } from '@floaty/shared/types/entities'
 import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
 
 const ACC = DEFAULT_ACCOUNT_ID

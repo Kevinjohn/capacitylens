@@ -1,7 +1,7 @@
 import type { PersistenceAdapter } from './PersistenceAdapter'
-import { emptyAppData } from '../types/entities'
-import type { AppData, Entity } from '../types/entities'
-import { migrate } from './migrate'
+import { emptyAppData } from '@floaty/shared/types/entities'
+import type { AppData, Entity } from '@floaty/shared/types/entities'
+import { migrate } from '@floaty/shared/data/migrate'
 
 // A PersistenceAdapter that keeps the SAME whole-tree contract the store already
 // speaks (loadAll / saveAll) but talks to the entity-level REST API:
