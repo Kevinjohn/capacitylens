@@ -68,16 +68,6 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
   ).run(...toRow(spec, obj))
 }
 
-/** Returns false when no row matched (caller maps to 404). */
-export function updateRow(db: Db, table: string, id: string, obj: Row): boolean {
-  const spec = TABLES[table]
-  const cols = spec.columns.filter((c) => c.name !== 'id')
-  const set = cols.map((c) => `${c.name} = ?`).join(', ')
-  const values = cols.map((c) => toCell(c, obj[c.name]))
-  const res = db.prepare(`UPDATE ${table} SET ${set} WHERE id = ?`).run(...values, id)
-  return res.changes > 0
-}
-
 /** Idempotent: deleting an absent id is a no-op (the store's cascade and the DB's
  *  ON DELETE can both target the same row; whichever loses the race must not error). */
 export function deleteRow(db: Db, table: string, id: string): void {

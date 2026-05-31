@@ -4,36 +4,29 @@ on:
   push:
     branches: [main]
   pull_request:
+    branches: [main]
 
-# GitHub Actions sets CI=true, which activates playwright.config's forbidOnly /
-# retries / no-reuse-server branches (previously dead config).
 jobs:
-  test:
+  build-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 22+: the server uses the built-in node:sqlite (--experimental-sqlite),
+          # which does not exist on Node 20. The e2e job boots that server.
+          node-version: 22
           cache: npm
-
       - run: npm ci
-
-      - name: Type-check
-        run: npx tsc -b
-
-      - name: Lint
-        run: npx eslint .
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
-
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: E2E tests
-        run: npm run e2e
+      - run: npm run lint
+      - run: npm run build
+      # The root `npm run test` only covers the web package (src/**). Run the shared
+      # and server package suites + type-checks explicitly so the API and domain-core
+      # are actually verified in CI, not just the UI.
+      - run: npm run type-check --workspace=shared
+      - run: npm run type-check --workspace=server
+      - run: npm run test --workspace=shared
+      - run: npm run test --workspace=server
+      - run: npm run test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e

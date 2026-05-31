@@ -18,6 +18,9 @@ export function attachPersistence(
   let timer: ReturnType<typeof setTimeout> | null = null
   let lastData = store.getState().data
   let pending: AppData | null = null // data awaiting a debounced write
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
+  let retryAttempts = 0
+  const MAX_RETRY_ATTEMPTS = 5
 
   const save = (data: AppData) => {
     pending = null
@@ -27,9 +30,36 @@ export function attachPersistence(
     // banner but the next successful sync should take it back down (and harmless
     // for localStorage, where quota can free up between writes).
     void adapter.saveAll(data).then(
-      () => onSuccess?.(),
-      (e: unknown) => onError?.(e),
+      () => {
+        retryAttempts = 0
+        if (retryTimer) {
+          clearTimeout(retryTimer)
+          retryTimer = null
+        }
+        onSuccess?.()
+      },
+      (e: unknown) => {
+        onError?.(e)
+        scheduleRetry()
+      },
     )
+  }
+
+  // A failed write (e.g. the server is briefly unreachable) is retried in the
+  // background with exponential backoff, re-sending the LATEST store state, so a
+  // transient failure self-heals WITHOUT waiting for the user's next edit. Without
+  // this, a reload after the server recovered but before the next edit would lose the
+  // unsynced changes (server-backed mode has no localStorage fallback). Capped so a
+  // permanently-rejected write doesn't retry forever; a fresh user edit (see the
+  // subscribe handler) resets the budget.
+  const scheduleRetry = () => {
+    if (retryTimer || retryAttempts >= MAX_RETRY_ATTEMPTS) return
+    const delay = Math.min(1000 * 2 ** retryAttempts, 30000)
+    retryAttempts += 1
+    retryTimer = setTimeout(() => {
+      retryTimer = null
+      save(store.getState().data)
+    }, delay)
   }
 
   // Write any debounced-but-not-yet-flushed data immediately — used on page
@@ -45,6 +75,7 @@ export function attachPersistence(
   const unsubscribe = store.subscribe((state) => {
     if (state.data === lastData) return // only persist when data actually changes
     lastData = state.data
+    retryAttempts = 0 // a fresh user change earns a fresh retry budget
     if (debounceMs <= 0) {
       save(state.data)
       return
@@ -75,6 +106,7 @@ export function attachPersistence(
       document.removeEventListener('visibilitychange', onVisibility)
     }
     if (timer) clearTimeout(timer) // cancel any pending debounced write
+    if (retryTimer) clearTimeout(retryTimer) // cancel any pending background retry
   }
 }
 

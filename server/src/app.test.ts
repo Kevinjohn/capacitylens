@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
-import { buildApp } from './app'
+import { buildApp, statusFor } from './app'
+import { ValidationError } from './validate'
 import { openDb } from './db'
 
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
@@ -106,6 +107,23 @@ describe('CRUD round-trip', () => {
     await scaffold(app)
     expect((await patch(app, 'clients', 'nope', client('nope', 'a1'))).statusCode).toBe(404)
     expect((await post(app, 'widgets', { id: 'x' })).statusCode).toBe(404)
+  })
+
+  it('PATCH is a partial merge: omitted fields keep their stored value', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    // A real partial patch — only `role`. kind/employmentType/workingDays/etc. must
+    // survive (a blind column-wise UPDATE would null the NOT NULL columns → 500/400).
+    const res = await patch(app, 'resources', 'r1', { role: 'Lead Designer' })
+    expect(res.statusCode).toBe(200)
+    const s = await state(app)
+    const r = s.resources[0]
+    expect(r.role).toBe('Lead Designer')
+    expect(r.kind).toBe('person')
+    expect(r.employmentType).toBe('permanent')
+    expect(r.workingHoursPerDay).toBe(8)
+    expect(r.workingDays).toEqual([1, 2, 3, 4, 5])
+    expect(r.color).toBe('#3b82f6')
   })
 
   it('DELETE is idempotent (missing id still 204)', async () => {
@@ -282,5 +300,93 @@ describe('guards', () => {
     await call(app, { method: 'POST', url: '/api/test/reset', payload: { seed: true } })
     const s = await state(app)
     expect(s.accounts.length).toBeGreaterThan(0) // seeded demo data present
+  })
+})
+
+describe('value-level sanitization on direct writes (server is the integrity boundary)', () => {
+  it('repairs junk enums / colour / hours / workingDays on POST instead of persisting them', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    // A hand-crafted request that bypasses the UI forms with every value-field wrong.
+    const res = await post(app, 'resources', {
+      id: 'r1',
+      accountId: 'a1',
+      kind: 'wizard', // invalid → 'person'
+      role: 'Designer',
+      employmentType: 'overlord', // invalid → 'permanent'
+      workingHoursPerDay: -5, // invalid → 8
+      workingDays: 'nope', // invalid → [1..5]
+      color: 'not-a-colour', // invalid → fallback hex
+      ...meta(),
+    })
+    expect(res.statusCode).toBe(201)
+    const r = (await state(app)).resources[0] as Record<string, unknown>
+    expect(r.kind).toBe('person')
+    expect(r.employmentType).toBe('permanent')
+    expect(r.workingHoursPerDay).toBe(8)
+    expect(r.workingDays).toEqual([1, 2, 3, 4, 5])
+    expect(r.color).toBe('#6366f1')
+  })
+
+  it('repairs a bad allocation status / hours on PUT', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    const res = await put(app, 'allocations', 'al1', allocation('al1', 'a1', 'r1', 't1', { status: 'maybe', hoursPerDay: -3 }))
+    expect(res.statusCode).toBe(200)
+    const a = (await state(app)).allocations[0] as Record<string, unknown>
+    expect(a.status).toBe('confirmed')
+    expect(a.hoursPerDay).toBe(8)
+  })
+})
+
+describe('error status mapping (statusFor)', () => {
+  it('maps validation + constraint errors to 400 and unexpected errors to 500', () => {
+    expect(statusFor(new ValidationError('bad ref'))).toBe(400)
+    expect(statusFor(new Error('FOREIGN KEY constraint failed'))).toBe(400)
+    expect(statusFor(new Error('NOT NULL constraint failed: resources.role'))).toBe(400)
+    expect(statusFor(new Error('something unexpected blew up'))).toBe(500)
+    expect(statusFor('a string')).toBe(500)
+  })
+})
+
+describe('CORS allow-list', () => {
+  it("echoes '*' by default", async () => {
+    const { app } = freshApp()
+    const res = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
+    expect(res.headers['access-control-allow-origin']).toBe('*')
+  })
+
+  it('reflects an allowed origin and omits the header for a disallowed one', async () => {
+    const app = buildApp(openDb(':memory:'), { corsOrigin: 'http://good.test,http://also.test' })
+    const ok = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://good.test' } })
+    expect(ok.headers['access-control-allow-origin']).toBe('http://good.test')
+    const bad = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
+    expect(bad.headers['access-control-allow-origin']).toBeUndefined()
+  })
+})
+
+describe('optimistic concurrency (opt-in)', () => {
+  it('rejects a stale PUT with 409 when enabled; allows same/newer', async () => {
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
+    await post(app, 'accounts', account('a1'))
+    // Store a client at T2.
+    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    // A PUT carrying an OLDER updatedAt (T1) is a stale overwrite → 409.
+    const stale = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' })
+    expect(stale.statusCode).toBe(409)
+    expect((await state(app)).clients[0].name).toBe('Acme') // not overwritten
+    // A PUT at a newer time succeeds.
+    const fresh = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Fresh', updatedAt: '2026-02-03T00:00:00.000Z' })
+    expect(fresh.statusCode).toBe(200)
+    expect((await state(app)).clients[0].name).toBe('Fresh')
+  })
+
+  it('is OFF by default: last-writer-wins, no 409', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const stale = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' })
+    expect(stale.statusCode).toBe(200)
+    expect((await state(app)).clients[0].name).toBe('Stale')
   })
 })

@@ -66,6 +66,39 @@ describe('attachPersistence', () => {
     expect(onSuccess).toHaveBeenCalled()
     detach()
   })
+
+  it('retries a failed write in the background without waiting for another edit', async () => {
+    // Server-backed mode has no localStorage fallback: if a write fails and the user
+    // reloads before their next edit, unsynced changes would be lost. A bounded
+    // background retry (re-sending the latest store state) self-heals once the
+    // adapter recovers — proven here with a one-shot failure + a short backoff.
+    vi.useFakeTimers()
+    try {
+      const adapter = new LocalStorageAdapter('floaty/persist-retry')
+      const realSave = adapter.saveAll.bind(adapter)
+      let calls = 0
+      vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
+        calls += 1
+        if (calls === 1) throw new Error('temporarily unavailable')
+        return realSave(d)
+      })
+      const onSuccess = vi.fn()
+      const detach = attachPersistence(useStore, adapter, 0, undefined, onSuccess)
+
+      useStore.getState().addClient({ name: 'Retry Me', color: '#333333' })
+      await vi.advanceTimersByTimeAsync(0) // first attempt → fails, schedules retry
+      expect(calls).toBe(1)
+      expect(onSuccess).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(1000) // backoff #1 (2^0 * 1000ms) → succeeds
+      expect(calls).toBe(2)
+      expect(onSuccess).toHaveBeenCalled()
+      expect((await adapter.loadAll()).clients.some((c) => c.name === 'Retry Me')).toBe(true)
+      detach()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 describe('bootstrap', () => {
