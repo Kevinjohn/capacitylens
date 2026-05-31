@@ -144,7 +144,6 @@ export function remapAndValidateImport(
   incoming: AppData,
 ): { data: AppData; imported: number; skipped: number } {
   let imported = 0
-  let skipped = 0
 
   const idMap = new Map<ID, ID>()
   // Give every record that HAS a string id a fresh one. Records with a
@@ -192,7 +191,7 @@ export function remapAndValidateImport(
   brought.timeOff = (brought.timeOff as TimeOff[]).filter(
     (t) => importedResources.has(t.resourceId) && validateDateRange(t.startDate, t.endDate).ok,
   )
-  skipped = allocBefore - brought.allocations.length + (timeOffBefore - brought.timeOff.length)
+  const skipped = allocBefore - brought.allocations.length + (timeOffBefore - brought.timeOff.length)
 
   const next: AppData = { ...data }
   const srcKept = scopedTables(data)
