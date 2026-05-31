@@ -13,6 +13,7 @@ import {
   validateDateRange,
 } from '../lib/integrity'
 import { sanitizeImportedRecord } from '../lib/sanitizeImport'
+import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
 import { emptyAppData, scopedTables, SCOPED_KEYS } from '../types/entities'
 import type {
   Account,
@@ -110,6 +111,9 @@ export interface StoreState {
   /** True while an open form has unsaved edits — drives the unsaved-changes guards
    *  (modal backdrop/Escape, beforeunload). Set by the Modal, never persisted. */
   dirtyForm: boolean
+  /** Colour-scheme preference. Device-global, not part of account data: kept in the
+   *  store only for reactivity, persisted to its own localStorage key by setTheme. */
+  theme: ThemePref
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -124,6 +128,8 @@ export interface StoreState {
   setPersistError: (v: boolean) => void
   setNotice: (message: string | null, tone?: 'info' | 'error') => void
   setDirtyForm: (v: boolean) => void
+  /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
+  setTheme: (pref: ThemePref) => void
   undo: () => void
   redo: () => void
 
@@ -245,6 +251,7 @@ export const useStore = create<StoreState>()((set, get) => {
     persistError: false,
     notice: null,
     dirtyForm: false,
+    theme: readStoredTheme(),
 
     addAccount: (input) => {
       const e: Account = { ...input, id: newId(), ...stamp() }
@@ -361,6 +368,11 @@ export const useStore = create<StoreState>()((set, get) => {
     setPersistError: (v) => set({ persistError: v }),
     setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
     setDirtyForm: (v) => set({ dirtyForm: v }),
+    setTheme: (pref) => {
+      writeStoredTheme(pref)
+      applyThemeToDom(pref)
+      set({ theme: pref })
+    },
 
     undo: () =>
       set((s) => {

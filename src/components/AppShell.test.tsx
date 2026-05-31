@@ -34,6 +34,7 @@ describe('AppShell navigation links', () => {
     expect(screen.getByRole('link', { name: 'Projects' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Tasks' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Time off' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
 
   it('renders the Floaty brand name in the nav', () => {
@@ -58,6 +59,7 @@ describe('AppShell navigation links', () => {
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects')
     expect(screen.getByRole('link', { name: 'Tasks' })).toHaveAttribute('href', '/tasks')
     expect(screen.getByRole('link', { name: 'Time off' })).toHaveAttribute('href', '/timeoff')
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
   })
 })
 

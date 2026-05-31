@@ -13,6 +13,7 @@ const LINKS: [string, string][] = [
   ['/projects', 'Projects'],
   ['/tasks', 'Tasks'],
   ['/timeoff', 'Time off'],
+  ['/settings', 'Settings'],
 ]
 
 export function AppShell() {

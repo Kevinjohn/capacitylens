@@ -8,6 +8,13 @@ import { useStore } from './store/useStore'
 import { LocalStorageAdapter } from './data/LocalStorageAdapter'
 import { bootstrap } from './data/persist'
 import { seed } from './data/seed'
+import { applyThemeToDom, watchSystemTheme } from './lib/theme'
+
+// Paint the saved colour scheme (the inline <head> script already did this to beat
+// the first paint; this re-affirms it from the store) and keep "system" mode live
+// by repainting whenever the OS scheme flips.
+applyThemeToDom(useStore.getState().theme)
+watchSystemTheme(() => useStore.getState().theme)
 
 // Load (and seed on first run) before/while the app renders. The AppShell gates
 // content on `hydrated`, so there's no flash of empty data.

@@ -19,8 +19,11 @@ test('scheduler has no serious or critical accessibility violations', async ({ p
 })
 
 test('scheduler in dark mode has no serious or critical violations', async ({ page }) => {
-  await page.emulateMedia({ colorScheme: 'dark' })
+  // Dark is now an explicit preference (default is light), so seed the stored theme
+  // rather than emulating the OS scheme — otherwise axe would sample the light palette.
+  await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
   await openApp(page)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.getByTestId('scheduler-grid')).toBeVisible()
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
   const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')

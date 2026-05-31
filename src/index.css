@@ -2,7 +2,11 @@
 
 /* ── Design tokens ──────────────────────────────────────────────────────────
    Semantic Tailwind colours map to CSS custom properties so the whole UI flips
-   to dark automatically via prefers-color-scheme — no per-component dark: classes. */
+   to dark by swapping one attribute — no per-component dark: classes. The light
+   palette lives on :root; the dark palette overrides it under [data-theme="dark"].
+   JS (src/lib/theme.ts) sets <html data-theme> from the user's preference,
+   resolving "system" against prefers-color-scheme — so the CSS only ever sees a
+   concrete light/dark, never the media query directly. */
 @theme {
   /* Page background. NB: named `canvas`, not `base`, on purpose — `--color-base`
      would shadow Tailwind's `text-base` font-size utility (turning it into a
@@ -49,26 +53,24 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --c-base: #0e1016;
-    --c-surface: #161922;
-    --c-elevated: #1d212c;
-    --c-line: #2a2f3c;
-    --c-ink: #e7eaf0;
-    --c-muted: #a3acbd;
-    --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
-    --c-brand: #818cf8;
-    --c-brand-strong: #4f46e5; /* deep enough that white button text clears AA (4.5:1) on dark too */
-    --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
-    --c-danger: #fb7185;
-    --c-warn: #fbbf24;
-    --c-ok: #34d399;
-    color-scheme: dark;
+:root[data-theme="dark"] {
+  --c-base: #0e1016;
+  --c-surface: #161922;
+  --c-elevated: #1d212c;
+  --c-line: #2a2f3c;
+  --c-ink: #e7eaf0;
+  --c-muted: #a3acbd;
+  --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
+  --c-brand: #818cf8;
+  --c-brand-strong: #4f46e5; /* deep enough that white button text clears AA (4.5:1) on dark too */
+  --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
+  --c-danger: #fb7185;
+  --c-warn: #fbbf24;
+  --c-ok: #34d399;
+  color-scheme: dark;
 
-    /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */
-    --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6);
-  }
+  /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */
+  --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6);
 }
 
 /* Default border colour for the bare `border` utility. */
