@@ -9,12 +9,18 @@ import {
   deleteProjectCascade,
   deleteResourceCascade,
   deleteTaskCascade,
-  validateAllocationAssignment,
-  validateDateRange,
 } from '../lib/integrity'
-import { sanitizeImportedRecord } from '../lib/sanitizeImport'
+import {
+  assertAllocationRefs,
+  assertDateRange,
+  assertResourceExists,
+  assertScopedRefs,
+  deleteAccountCascade,
+  findOwned as findOwnedIn,
+  remapAndValidateImport,
+} from '../domain/mutations'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
-import { emptyAppData, scopedTables, SCOPED_KEYS } from '../types/entities'
+import { emptyAppData } from '../types/entities'
 import type {
   Account,
   Allocation,
@@ -27,7 +33,6 @@ import type {
   Phase,
   Project,
   Resource,
-  ScopedEntity,
   ScopedEntityKey,
   Task,
   TimeOff,
@@ -227,88 +232,14 @@ export const useStore = create<StoreState>()((set, get) => {
     return id
   }
 
-  // Strict tenancy at the WRITE boundary. An update/delete must own its target,
-  // so we distinguish two cases deliberately:
-  //   - ABSENT row  → return null; the caller no-ops. This preserves the prior
-  //     silent-no-op contract for a stale id (e.g. a drag committed after an undo
-  //     removed the allocation, or a double Delete keypress) — those fire from
-  //     window listeners outside React's error boundary, so throwing would crash
-  //     the interaction rather than harmlessly doing nothing.
-  //   - CROSS-ACCOUNT row → throw; this is a real integrity violation (the row
-  //     exists but belongs to another tenant), which no legitimate flow produces.
-  // Returns the owned row so callers can read its current values (e.g. the
-  // effective date range / accountId).
-  const findOwned = <K extends ScopedEntityKey>(d: AppData, key: K, id: ID): AppData[K][number] | null => {
-    const accountId = requireAccount()
-    const row = (d[key] as ScopedEntity[]).find((e) => e.id === id)
-    if (!row) return null
-    if (row.accountId !== accountId) {
-      throw new Error('That record does not belong to the active company.')
-    }
-    return row as AppData[K][number]
-  }
-
-  // Every foreign key on a new/updated scoped record must point at a row in the
-  // SAME account. The UI only ever offers in-account ids, but the store is the
-  // integrity boundary — a direct call (or a future surface) must not be able to
-  // wire e.g. a project to another tenant's client. Only the FK fields actually
-  // PRESENT on `rec` are checked, so it works for both a full add and a partial
-  // update patch.
-  const assertScopedRefs = (d: AppData, accountId: ID, key: ScopedEntityKey, rec: Record<string, unknown>) => {
-    const present = (field: string) => rec[field] !== undefined && rec[field] !== null
-    const inAccount = (table: ScopedEntity[], id: unknown): boolean =>
-      typeof id === 'string' && table.some((e) => e.id === id && e.accountId === accountId)
-    const need = (field: string, table: ScopedEntity[], msg: string) => {
-      if (present(field) && !inAccount(table, rec[field])) throw new Error(msg)
-    }
-    switch (key) {
-      case 'projects':
-        need('clientId', d.clients, 'Project must reference a client in this company.')
-        break
-      case 'phases':
-        need('projectId', d.projects, 'Phase must reference a project in this company.')
-        break
-      case 'tasks':
-        need('projectId', d.projects, 'Task must reference a project in this company.')
-        need('phaseId', d.phases, 'Task phase must belong to this company.')
-        break
-      case 'resources':
-        need('disciplineId', d.disciplines, 'Resource discipline must belong to this company.')
-        need('projectId', d.projects, 'Placeholder project must belong to this company.')
-        break
-      // allocations / timeOff: their refs are checked by assertAllocation /
-      // assertResourceExists (scoped to the active account), below.
-    }
-  }
-
-  // The store is the integrity boundary for allocations: an allocation must
-  // reference a real resource + task IN THE ACTIVE ACCOUNT, and a placeholder may
-  // only take tasks from its bound project. Enforced on both add and update.
-  const assertAllocation = (d: AppData, accountId: ID, resourceId: ID, taskId: ID) => {
-    const resource = d.resources.find((r) => r.id === resourceId && r.accountId === accountId)
-    const task = d.tasks.find((t) => t.id === taskId && t.accountId === accountId)
-    if (!resource || !task) {
-      throw new Error('Allocation must reference an existing resource and task in this company.')
-    }
-    const v = validateAllocationAssignment(resource, task.projectId)
-    if (!v.ok) throw new Error(v.errors[0])
-  }
-
-  // No allocation or time-off may persist an empty or reversed date range — that
-  // would render as a NaN / negative-width bar on the timeline.
-  const assertDateRange = (startDate?: ISODate, endDate?: ISODate) => {
-    const v = validateDateRange(startDate, endDate)
-    if (!v.ok) throw new Error(v.errors[0])
-  }
-
-  // Time off references a resource exactly as an allocation does; enforce it here
-  // (the store is the integrity boundary), scoped to the active account so a
-  // dangling or cross-account reference can't be created.
-  const assertResourceExists = (d: AppData, accountId: ID, resourceId: ID) => {
-    if (!d.resources.some((r) => r.id === resourceId && r.accountId === accountId)) {
-      throw new Error('Time off must reference an existing resource in this company.')
-    }
-  }
+  // Tenancy + integrity rules now live in src/domain/mutations.ts (pure, shared
+  // with a future server). findOwned is wrapped here to inject the active account
+  // so the call sites stay terse; assertAllocation keeps its legacy name locally.
+  // assertScopedRefs / assertDateRange / assertResourceExists are used directly
+  // from the import above.
+  const findOwned = <K extends ScopedEntityKey>(d: AppData, key: K, id: ID): AppData[K][number] | null =>
+    findOwnedIn(d, requireAccount(), key, id)
+  const assertAllocation = assertAllocationRefs
 
   return {
     data: emptyAppData(),
@@ -333,15 +264,7 @@ export const useStore = create<StoreState>()((set, get) => {
     // Cascade-drop every scoped entity belonging to this account; if it was the
     // active one, fall back to the picker.
     deleteAccount: (id) => {
-      mutate((d) => {
-        const next: AppData = { ...d, accounts: d.accounts.filter((a) => a.id !== id) }
-        const src = scopedTables(d)
-        const dst = scopedTables(next)
-        for (const key of SCOPED_KEYS) {
-          dst[key] = src[key].filter((e) => e.accountId !== id)
-        }
-        return next
-      })
+      mutate((d) => deleteAccountCascade(d, id))
       if (get().activeAccountId === id) get().setActiveAccount(null)
     },
     // Switching tenant resets per-account view state and history — undo must never
@@ -379,73 +302,14 @@ export const useStore = create<StoreState>()((set, get) => {
     // id GLOBALLY (updateById / cascade scan all accounts), so a shared id would
     // let an edit in one account silently rewrite another's row.
     importData: (incoming) => {
-      let imported = 0
-      let skipped = 0
+      const accountId = requireAccount()
+      let summary: ImportSummary = { imported: 0, skipped: 0 }
       mutate((d) => {
-        const accountId = requireAccount()
-        const idMap = new Map<ID, ID>()
-        // Give every record that HAS a string id a fresh one. Records with a
-        // missing/non-string id are NOT keyed here (keying on `undefined` would
-        // collapse them all onto one shared id) — they each get a fresh id below.
-        for (const key of SCOPED_KEYS) {
-          for (const e of incoming[key] as Array<{ id?: unknown }>) {
-            if (typeof e?.id === 'string') idMap.set(e.id, newId())
-          }
-        }
-        // Foreign-key fields across the scoped entities; remap only those that
-        // point at another imported entity (a dangling ref is left as-is).
-        const FK_FIELDS = ['disciplineId', 'projectId', 'clientId', 'phaseId', 'resourceId', 'taskId'] as const
-        const remap = (ref: unknown): unknown =>
-          typeof ref === 'string' && idMap.has(ref) ? idMap.get(ref) : ref
-
-        // Remap every incoming scoped entity into the active account, then repair
-        // its value-level fields (enums / numerics / colour) — the import path
-        // bypasses the form validators, so this is the integrity boundary for them.
-        const brought: Record<string, ScopedEntity[]> = {}
-        for (const key of SCOPED_KEYS) {
-          brought[key] = (incoming[key] as unknown as Array<Record<string, unknown>>).map((e) => {
-            const newRecordId = typeof e.id === 'string' ? (idMap.get(e.id) ?? newId()) : newId()
-            const copy: Record<string, unknown> = { ...e, id: newRecordId, accountId }
-            for (const f of FK_FIELDS) {
-              if (copy[f] !== undefined) copy[f] = remap(copy[f])
-            }
-            return sanitizeImportedRecord(key, copy) as unknown as ScopedEntity
-          })
-        }
-
-        // The store is the integrity boundary on EVERY write — import is no
-        // exception. A hand-edited / corrupt file must not slip past the rules
-        // addAllocation/addTimeOff enforce, so drop imported allocations and
-        // time-off with an empty/reversed range, a dangling resource/task, or a
-        // placeholder/project-rule violation (which would otherwise render as
-        // NaN/negative bars or orphan rows). The dropped count is reported back.
-        const importedResources = new Map((brought.resources as Resource[]).map((r) => [r.id, r]))
-        const importedTasks = new Map((brought.tasks as Task[]).map((t) => [t.id, t]))
-        const allocBefore = brought.allocations.length
-        brought.allocations = (brought.allocations as Allocation[]).filter((a) => {
-          if (!validateDateRange(a.startDate, a.endDate).ok) return false
-          const resource = importedResources.get(a.resourceId)
-          const task = importedTasks.get(a.taskId)
-          if (!resource || !task) return false
-          return validateAllocationAssignment(resource, task.projectId).ok
-        })
-        const timeOffBefore = brought.timeOff.length
-        brought.timeOff = (brought.timeOff as TimeOff[]).filter(
-          (t) => importedResources.has(t.resourceId) && validateDateRange(t.startDate, t.endDate).ok,
-        )
-        skipped = allocBefore - brought.allocations.length + (timeOffBefore - brought.timeOff.length)
-
-        const next: AppData = { ...d }
-        const srcKept = scopedTables(d)
-        const dst = scopedTables(next)
-        for (const key of SCOPED_KEYS) {
-          const kept = srcKept[key].filter((e) => e.accountId !== accountId)
-          dst[key] = [...kept, ...brought[key]]
-          imported += brought[key].length
-        }
-        return next
+        const result = remapAndValidateImport(d, accountId, incoming)
+        summary = { imported: result.imported, skipped: result.skipped }
+        return result.data
       })
-      return { imported, skipped }
+      return summary
     },
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
