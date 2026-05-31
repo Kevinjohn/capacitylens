@@ -28,6 +28,7 @@ import type {
   Project,
   Resource,
   ScopedEntity,
+  ScopedEntityKey,
   Task,
   TimeOff,
 } from '../types/entities'
@@ -104,6 +105,11 @@ export interface StoreState {
   past: AppData[]
   future: AppData[]
   persistError: boolean
+  /** True when stored data existed but could not be read (corrupt JSON / failed
+   *  migrate). Distinct from persistError (a WRITE failure): on a load error the
+   *  app renders empty and autosave is intentionally NOT attached, so a recovery
+   *  UI can offer reset/import/export without overwriting the unreadable bytes. */
+  loadError: boolean
   /** Transient user message (e.g. a rejected drag) + its severity, as ONE value so the
    *  two can't desync. 'info' auto-dismisses; 'error' persists until dismissed (an error
    *  that vanishes before it's read is useless). Null = no notice. */
@@ -126,6 +132,7 @@ export interface StoreState {
   importData: (data: AppData) => ImportSummary
   setHydrated: (v: boolean) => void
   setPersistError: (v: boolean) => void
+  setLoadError: (v: boolean) => void
   setNotice: (message: string | null, tone?: 'info' | 'error') => void
   setDirtyForm: (v: boolean) => void
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
@@ -220,13 +227,69 @@ export const useStore = create<StoreState>()((set, get) => {
     return id
   }
 
+  // Strict tenancy at the WRITE boundary. An update/delete must own its target,
+  // so we distinguish two cases deliberately:
+  //   - ABSENT row  → return null; the caller no-ops. This preserves the prior
+  //     silent-no-op contract for a stale id (e.g. a drag committed after an undo
+  //     removed the allocation, or a double Delete keypress) — those fire from
+  //     window listeners outside React's error boundary, so throwing would crash
+  //     the interaction rather than harmlessly doing nothing.
+  //   - CROSS-ACCOUNT row → throw; this is a real integrity violation (the row
+  //     exists but belongs to another tenant), which no legitimate flow produces.
+  // Returns the owned row so callers can read its current values (e.g. the
+  // effective date range / accountId).
+  const findOwned = <K extends ScopedEntityKey>(d: AppData, key: K, id: ID): AppData[K][number] | null => {
+    const accountId = requireAccount()
+    const row = (d[key] as ScopedEntity[]).find((e) => e.id === id)
+    if (!row) return null
+    if (row.accountId !== accountId) {
+      throw new Error('That record does not belong to the active company.')
+    }
+    return row as AppData[K][number]
+  }
+
+  // Every foreign key on a new/updated scoped record must point at a row in the
+  // SAME account. The UI only ever offers in-account ids, but the store is the
+  // integrity boundary — a direct call (or a future surface) must not be able to
+  // wire e.g. a project to another tenant's client. Only the FK fields actually
+  // PRESENT on `rec` are checked, so it works for both a full add and a partial
+  // update patch.
+  const assertScopedRefs = (d: AppData, accountId: ID, key: ScopedEntityKey, rec: Record<string, unknown>) => {
+    const present = (field: string) => rec[field] !== undefined && rec[field] !== null
+    const inAccount = (table: ScopedEntity[], id: unknown): boolean =>
+      typeof id === 'string' && table.some((e) => e.id === id && e.accountId === accountId)
+    const need = (field: string, table: ScopedEntity[], msg: string) => {
+      if (present(field) && !inAccount(table, rec[field])) throw new Error(msg)
+    }
+    switch (key) {
+      case 'projects':
+        need('clientId', d.clients, 'Project must reference a client in this company.')
+        break
+      case 'phases':
+        need('projectId', d.projects, 'Phase must reference a project in this company.')
+        break
+      case 'tasks':
+        need('projectId', d.projects, 'Task must reference a project in this company.')
+        need('phaseId', d.phases, 'Task phase must belong to this company.')
+        break
+      case 'resources':
+        need('disciplineId', d.disciplines, 'Resource discipline must belong to this company.')
+        need('projectId', d.projects, 'Placeholder project must belong to this company.')
+        break
+      // allocations / timeOff: their refs are checked by assertAllocation /
+      // assertResourceExists (scoped to the active account), below.
+    }
+  }
+
   // The store is the integrity boundary for allocations: an allocation must
-  // reference a real resource + task, and a placeholder may only take tasks from
-  // its bound project. Enforced on both add and update.
-  const assertAllocation = (d: AppData, resourceId: ID, taskId: ID) => {
-    const resource = d.resources.find((r) => r.id === resourceId)
-    const task = d.tasks.find((t) => t.id === taskId)
-    if (!resource || !task) throw new Error('Allocation must reference an existing resource and task.')
+  // reference a real resource + task IN THE ACTIVE ACCOUNT, and a placeholder may
+  // only take tasks from its bound project. Enforced on both add and update.
+  const assertAllocation = (d: AppData, accountId: ID, resourceId: ID, taskId: ID) => {
+    const resource = d.resources.find((r) => r.id === resourceId && r.accountId === accountId)
+    const task = d.tasks.find((t) => t.id === taskId && t.accountId === accountId)
+    if (!resource || !task) {
+      throw new Error('Allocation must reference an existing resource and task in this company.')
+    }
     const v = validateAllocationAssignment(resource, task.projectId)
     if (!v.ok) throw new Error(v.errors[0])
   }
@@ -239,10 +302,11 @@ export const useStore = create<StoreState>()((set, get) => {
   }
 
   // Time off references a resource exactly as an allocation does; enforce it here
-  // (the store is the integrity boundary) so a dangling reference can't be created.
-  const assertResourceExists = (d: AppData, resourceId: ID) => {
-    if (!d.resources.some((r) => r.id === resourceId)) {
-      throw new Error('Time off must reference an existing resource.')
+  // (the store is the integrity boundary), scoped to the active account so a
+  // dangling or cross-account reference can't be created.
+  const assertResourceExists = (d: AppData, accountId: ID, resourceId: ID) => {
+    if (!d.resources.some((r) => r.id === resourceId && r.accountId === accountId)) {
+      throw new Error('Time off must reference an existing resource in this company.')
     }
   }
 
@@ -255,6 +319,7 @@ export const useStore = create<StoreState>()((set, get) => {
     past: [],
     future: [],
     persistError: false,
+    loadError: false,
     notice: null,
     dirtyForm: false,
     theme: readStoredTheme(),
@@ -384,6 +449,7 @@ export const useStore = create<StoreState>()((set, get) => {
     },
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
+    setLoadError: (v) => set({ loadError: v }),
     setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
     setDirtyForm: (v) => set({ dirtyForm: v }),
     setTheme: (pref) => {
@@ -410,86 +476,149 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, disciplines: [...d.disciplines, e] }))
       return e
     },
-    updateDiscipline: (id, patch) => mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, patch) })),
-    deleteDiscipline: (id) => mutate((d) => deleteDisciplineCascade(d, id)),
+    updateDiscipline: (id, patch) => {
+      if (!findOwned(get().data, 'disciplines', id)) return
+      mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, patch) }))
+    },
+    deleteDiscipline: (id) => {
+      if (!findOwned(get().data, 'disciplines', id)) return
+      mutate((d) => deleteDisciplineCascade(d, id))
+    },
 
     addResource: (input) => {
-      const e: Resource = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const accountId = requireAccount()
+      assertScopedRefs(get().data, accountId, 'resources', input)
+      const e: Resource = { ...input, id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, resources: [...d.resources, e] }))
       return e
     },
-    updateResource: (id, patch) => mutate((d) => ({ ...d, resources: updateById(d.resources, id, patch) })),
-    deleteResource: (id) => mutate((d) => deleteResourceCascade(d, id)),
+    updateResource: (id, patch) => {
+      const existing = findOwned(get().data, 'resources', id)
+      if (!existing) return
+      assertScopedRefs(get().data, existing.accountId, 'resources', patch)
+      mutate((d) => ({ ...d, resources: updateById(d.resources, id, patch) }))
+    },
+    deleteResource: (id) => {
+      if (!findOwned(get().data, 'resources', id)) return
+      mutate((d) => deleteResourceCascade(d, id))
+    },
 
     addClient: (input) => {
       const e: Client = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, clients: [...d.clients, e] }))
       return e
     },
-    updateClient: (id, patch) => mutate((d) => ({ ...d, clients: updateById(d.clients, id, patch) })),
-    deleteClient: (id) => mutate((d) => deleteClientCascade(d, id)),
+    updateClient: (id, patch) => {
+      if (!findOwned(get().data, 'clients', id)) return
+      mutate((d) => ({ ...d, clients: updateById(d.clients, id, patch) }))
+    },
+    deleteClient: (id) => {
+      if (!findOwned(get().data, 'clients', id)) return
+      mutate((d) => deleteClientCascade(d, id))
+    },
 
     addProject: (input) => {
-      const e: Project = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const accountId = requireAccount()
+      assertScopedRefs(get().data, accountId, 'projects', input)
+      const e: Project = { ...input, id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, projects: [...d.projects, e] }))
       return e
     },
-    updateProject: (id, patch) => mutate((d) => ({ ...d, projects: updateById(d.projects, id, patch) })),
-    deleteProject: (id) => mutate((d) => deleteProjectCascade(d, id)),
+    updateProject: (id, patch) => {
+      const existing = findOwned(get().data, 'projects', id)
+      if (!existing) return
+      assertScopedRefs(get().data, existing.accountId, 'projects', patch)
+      mutate((d) => ({ ...d, projects: updateById(d.projects, id, patch) }))
+    },
+    deleteProject: (id) => {
+      if (!findOwned(get().data, 'projects', id)) return
+      mutate((d) => deleteProjectCascade(d, id))
+    },
 
     addPhase: (input) => {
-      const e: Phase = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const accountId = requireAccount()
+      assertScopedRefs(get().data, accountId, 'phases', input)
+      const e: Phase = { ...input, id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, phases: [...d.phases, e] }))
       return e
     },
-    updatePhase: (id, patch) => mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) })),
-    deletePhase: (id) => mutate((d) => deletePhaseCascade(d, id)),
+    updatePhase: (id, patch) => {
+      const existing = findOwned(get().data, 'phases', id)
+      if (!existing) return
+      assertScopedRefs(get().data, existing.accountId, 'phases', patch)
+      mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) }))
+    },
+    deletePhase: (id) => {
+      if (!findOwned(get().data, 'phases', id)) return
+      mutate((d) => deletePhaseCascade(d, id))
+    },
 
     addTask: (input) => {
-      const e: Task = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const accountId = requireAccount()
+      assertScopedRefs(get().data, accountId, 'tasks', input)
+      const e: Task = { ...input, id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, tasks: [...d.tasks, e] }))
       return e
     },
-    updateTask: (id, patch) => mutate((d) => ({ ...d, tasks: updateById(d.tasks, id, patch) })),
-    deleteTask: (id) => mutate((d) => deleteTaskCascade(d, id)),
+    updateTask: (id, patch) => {
+      const existing = findOwned(get().data, 'tasks', id)
+      if (!existing) return
+      assertScopedRefs(get().data, existing.accountId, 'tasks', patch)
+      mutate((d) => ({ ...d, tasks: updateById(d.tasks, id, patch) }))
+    },
+    deleteTask: (id) => {
+      if (!findOwned(get().data, 'tasks', id)) return
+      mutate((d) => deleteTaskCascade(d, id))
+    },
 
     addAllocation: (input) => {
-      assertAllocation(get().data, input.resourceId, input.taskId)
+      const accountId = requireAccount()
+      assertAllocation(get().data, accountId, input.resourceId, input.taskId)
       assertDateRange(input.startDate, input.endDate)
-      const e: Allocation = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const e: Allocation = { ...input, id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
       return e
     },
     updateAllocation: (id, patch) => {
-      const existing = get().data.allocations.find((a) => a.id === id)
-      if (existing) {
-        if (patch.resourceId !== undefined || patch.taskId !== undefined) {
-          assertAllocation(get().data, patch.resourceId ?? existing.resourceId, patch.taskId ?? existing.taskId)
-        }
-        // Validate the EFFECTIVE range (merged with the existing row), so a
-        // note/status/reassign-only patch isn't rejected for omitting dates.
-        assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
+      const existing = findOwned(get().data, 'allocations', id)
+      if (!existing) return // stale id (e.g. drag committed after an undo) → no-op
+      if (patch.resourceId !== undefined || patch.taskId !== undefined) {
+        assertAllocation(
+          get().data,
+          existing.accountId,
+          patch.resourceId ?? existing.resourceId,
+          patch.taskId ?? existing.taskId,
+        )
       }
+      // Validate the EFFECTIVE range (merged with the existing row), so a
+      // note/status/reassign-only patch isn't rejected for omitting dates.
+      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
       mutate((d) => ({ ...d, allocations: updateById(d.allocations, id, patch) }))
     },
-    deleteAllocation: (id) => mutate((d) => ({ ...d, allocations: d.allocations.filter((a) => a.id !== id) })),
+    deleteAllocation: (id) => {
+      if (!findOwned(get().data, 'allocations', id)) return
+      mutate((d) => ({ ...d, allocations: d.allocations.filter((a) => a.id !== id) }))
+    },
 
     addTimeOff: (input) => {
-      assertResourceExists(get().data, input.resourceId)
+      const accountId = requireAccount()
+      assertResourceExists(get().data, accountId, input.resourceId)
       assertDateRange(input.startDate, input.endDate)
-      const e: TimeOff = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const e: TimeOff = { ...input, id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }))
       return e
     },
     updateTimeOff: (id, patch) => {
-      const existing = get().data.timeOff.find((t) => t.id === id)
-      if (existing) {
-        if (patch.resourceId !== undefined) assertResourceExists(get().data, patch.resourceId)
-        assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
-      }
+      const existing = findOwned(get().data, 'timeOff', id)
+      if (!existing) return
+      if (patch.resourceId !== undefined) assertResourceExists(get().data, existing.accountId, patch.resourceId)
+      assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
       mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }))
     },
-    deleteTimeOff: (id) => mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) })),
+    deleteTimeOff: (id) => {
+      if (!findOwned(get().data, 'timeOff', id)) return
+      mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }))
+    },
 
     setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom } })),
     setOriginDate: (date) => set((s) => ({ ui: { ...s.ui, originDate: date } })),

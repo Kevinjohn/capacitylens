@@ -5,7 +5,7 @@ import './index.css'
 import { router } from './router'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { useStore } from './store/useStore'
-import { LocalStorageAdapter } from './data/LocalStorageAdapter'
+import { storageAdapter } from './data/storageAdapter'
 import { bootstrap } from './data/persist'
 import { seed } from './data/seed'
 import { applyThemeToDom, watchSystemTheme } from './lib/theme'
@@ -18,7 +18,7 @@ watchSystemTheme(() => useStore.getState().theme)
 
 // Load (and seed on first run) before/while the app renders. The AppShell gates
 // content on `hydrated`, so there's no flash of empty data.
-void bootstrap(useStore, new LocalStorageAdapter('floaty/v3'), {
+void bootstrap(useStore, storageAdapter, {
   seedIfEmpty: seed(),
   onError: () => useStore.getState().setPersistError(true),
 }).catch(() => {

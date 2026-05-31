@@ -1,8 +1,22 @@
+import { parseDate, toISODate } from './dateMath'
 import type { AppData, EmploymentType, ID, ISODate, Resource } from '../types/entities'
 
 // Referential-integrity rules and cascade-delete transforms. All pure: cascade
 // helpers return a NEW AppData rather than mutating. Timestamp bumping on edited
 // rows is the store's job (it owns the clock).
+
+/**
+ * Is `s` a well-formed, real calendar date in date-only ISO form ("YYYY-MM-DD")?
+ * The shape regex alone would accept `2026-13-40` or `2026-02-30` (lexicographic
+ * order is fine, but the date is nonsense and breaks later formatting/geometry),
+ * so we also round-trip through parse → format: a real date survives unchanged, an
+ * out-of-range one rolls over (parse("2026-02-30") → "2026-03-02") and mismatches.
+ */
+export function isValidISODate(s: unknown): s is ISODate {
+  if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false
+  const parsed = parseDate(s)
+  return !Number.isNaN(parsed.getTime()) && toISODate(parsed) === s
+}
 
 export function isTemporary(resource: { employmentType: EmploymentType }): boolean {
   return resource.employmentType !== 'permanent'
@@ -21,18 +35,23 @@ export function validateProjectClient(clientId: ID | undefined | null): Validati
 }
 
 /**
- * A scheduled range (allocation / time off) must have both ends present and not
- * be reversed. Dates are date-only ISO strings ("YYYY-MM-DD"), which sort
- * lexicographically, so a plain string compare is a correct date compare. This
- * is the single source of truth the store enforces so no caller can persist an
- * empty or reversed range (which would otherwise produce NaN / negative bar
- * geometry on the timeline).
+ * A scheduled range (allocation / time off) must have both ends present, be
+ * well-formed real dates, and not be reversed. Dates are date-only ISO strings
+ * ("YYYY-MM-DD"), which sort lexicographically, so a plain string compare is a
+ * correct date compare. This is the single source of truth the store enforces so
+ * no caller can persist an empty, malformed, or reversed range (which would
+ * otherwise produce NaN / negative bar geometry on the timeline). The malformed
+ * check matters most on the import / direct-store paths, which bypass the native
+ * date inputs that keep the UI well-formed.
  */
 export function validateDateRange(
   startDate?: ISODate | null,
   endDate?: ISODate | null,
 ): ValidationResult {
   if (!startDate || !endDate) return toResult(['Start and end dates are required.'])
+  if (!isValidISODate(startDate) || !isValidISODate(endDate)) {
+    return toResult(['Dates must be valid calendar dates (YYYY-MM-DD).'])
+  }
   if (endDate < startDate) return toResult(['End date cannot be before the start date.'])
   return toResult([])
 }

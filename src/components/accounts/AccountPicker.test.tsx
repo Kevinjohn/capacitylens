@@ -86,7 +86,7 @@ describe('AccountPicker create + open + delete', () => {
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID)
   })
 
-  it('deletes a company after confirmation', async () => {
+  it('deletes a company only after typing its name to confirm', async () => {
     const user = userEvent.setup()
     useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ name: 'Studio North' })] }))
     render(<AccountPicker />)
@@ -94,7 +94,14 @@ describe('AccountPicker create + open + delete', () => {
     await user.click(screen.getByRole('button', { name: 'Delete Studio North' }))
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent(/Delete company\?/i)
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    // Friction on the one irreversible action: Delete is armed only once the exact
+    // name is typed.
+    const deleteBtn = within(dialog).getByRole('button', { name: 'Delete' })
+    expect(deleteBtn).toBeDisabled()
+    await user.type(within(dialog).getByLabelText(/Type/i), 'Studio North')
+    expect(deleteBtn).toBeEnabled()
+    await user.click(deleteBtn)
 
     expect(useStore.getState().data.accounts).toHaveLength(0)
   })

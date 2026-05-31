@@ -19,9 +19,25 @@ describe('LocalStorageAdapter', () => {
     expect(await adapter.loadAll()).toEqual(data)
   })
 
-  it('recovers from corrupt storage instead of throwing', async () => {
+  it('throws (does not return empty) when stored data is corrupt', async () => {
+    // Corrupt bytes must be distinguishable from a genuine first run, so bootstrap
+    // can refuse to overwrite recoverable-but-unreadable data with a blank save.
     const adapter = new LocalStorageAdapter(KEY)
     localStorage.setItem(KEY, '{ not valid json')
-    expect(await adapter.loadAll()).toEqual(emptyAppData())
+    await expect(adapter.loadAll()).rejects.toThrow()
+  })
+
+  it('readRaw returns the original bytes (for a recovery export), null when empty', () => {
+    const adapter = new LocalStorageAdapter(KEY)
+    expect(adapter.readRaw()).toBeNull()
+    localStorage.setItem(KEY, '{ broken')
+    expect(adapter.readRaw()).toBe('{ broken')
+  })
+
+  it('clear removes the stored data', () => {
+    const adapter = new LocalStorageAdapter(KEY)
+    localStorage.setItem(KEY, 'x')
+    adapter.clear()
+    expect(localStorage.getItem(KEY)).toBeNull()
   })
 })

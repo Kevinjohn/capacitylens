@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { validateHex, validateName } from '../../lib/validation'
-import { Avatar, Button, ColorField, ConfirmDialog, FieldError, TextField } from '../common/ui'
+import { Avatar, Button, ColorField, FieldError, TextField } from '../common/ui'
+import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { Account } from '../../types/entities'
 
@@ -106,14 +107,8 @@ export function AccountPicker() {
         )}
 
         {confirming && (
-          <ConfirmDialog
-            title="Delete company?"
-            message={
-              <>
-                Delete <span className="font-medium text-ink">{confirming.name}</span> and all of its data
-                (resources, projects, allocations…)? This cannot be undone.
-              </>
-            }
+          <DeleteCompanyDialog
+            account={confirming}
             onConfirm={() => {
               deleteAccount(confirming.id)
               setConfirming(null)

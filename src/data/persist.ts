@@ -1,4 +1,5 @@
 import type { StoreApi } from 'zustand'
+import { emptyAppData } from '../types/entities'
 import type { AppData } from '../types/entities'
 import type { StoreState } from '../store/useStore'
 import type { PersistenceAdapter } from './PersistenceAdapter'
@@ -85,7 +86,19 @@ export async function bootstrap(
   adapter: PersistenceAdapter,
   opts: BootstrapOptions = {},
 ): Promise<() => void> {
-  const loaded = await adapter.loadAll()
+  let loaded: AppData
+  try {
+    loaded = await adapter.loadAll()
+  } catch {
+    // The stored bytes exist but couldn't be read (corrupt JSON / failed
+    // migrate). Render an empty dataset and flag it, but DELIBERATELY attach NO
+    // persistence and run NO seed-save — the next mutation must not overwrite the
+    // recoverable-but-unreadable data. A recovery UI offers reset/import/export.
+    store.getState().replaceAll(emptyAppData())
+    store.getState().setLoadError(true)
+    store.getState().setHydrated(true)
+    return () => {}
+  }
   // Seed only when nothing was ever stored — never resurrect data the user cleared.
   const existed = adapter.hasExisting ? await adapter.hasExisting() : !isEmpty(loaded)
   const seedNeeded = !existed && !!opts.seedIfEmpty

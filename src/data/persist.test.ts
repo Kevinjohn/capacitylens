@@ -91,4 +91,26 @@ describe('bootstrap', () => {
     expect(useStore.getState().data.resources).toHaveLength(0)
     detach()
   })
+
+  it('flags loadError and refuses to seed/save over corrupt stored data', async () => {
+    const KEY = 'floaty/persist-corrupt'
+    localStorage.setItem(KEY, '{ not valid json') // unreadable-but-present bytes
+    const adapter = new LocalStorageAdapter(KEY)
+    useStore.getState().setLoadError(false)
+
+    const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed() })
+
+    expect(useStore.getState().loadError).toBe(true)
+    expect(useStore.getState().hydrated).toBe(true)
+    expect(useStore.getState().data.resources).toHaveLength(0) // rendered empty, not seeded
+    expect(localStorage.getItem(KEY)).toBe('{ not valid json') // corrupt bytes untouched
+
+    // No autosave attached: a later mutation must not write over the corrupt data.
+    useStore.getState().addAccount({ name: 'New', color: '#111111' })
+    await new Promise((r) => setTimeout(r, 5))
+    expect(localStorage.getItem(KEY)).toBe('{ not valid json')
+
+    useStore.getState().setLoadError(false)
+    detach()
+  })
 })

@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ImportExport } from './ImportExport'
 import { AccountPicker } from './accounts/AccountPicker'
+import { StorageRecovery } from './StorageRecovery'
 import { Toast } from './common/ui'
 
 const LINKS: [string, string][] = [
@@ -19,6 +20,7 @@ const LINKS: [string, string][] = [
 export function AppShell() {
   const hydrated = useStore((s) => s.hydrated)
   const persistError = useStore((s) => s.persistError)
+  const loadError = useStore((s) => s.loadError)
   const notice = useStore((s) => s.notice)
   const setNotice = useStore((s) => s.setNotice)
   const undo = useStore((s) => s.undo)
@@ -62,6 +64,11 @@ export function AppShell() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
+
+  // Corrupt-data gate: if stored data couldn't be read, block the app with a
+  // recovery screen rather than letting the user edit an empty dataset that would
+  // overwrite the unreadable-but-recoverable bytes.
+  if (loadError) return <StorageRecovery />
 
   // Tenant gate: once hydrated, no chosen account means show the picker (it's
   // never persisted, so this is every load). Kept after the hydration check so

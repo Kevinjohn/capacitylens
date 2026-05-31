@@ -14,13 +14,15 @@ export class LocalStorageAdapter implements PersistenceAdapter {
   }
 
   async loadAll(): Promise<AppData> {
+    const raw = localStorage.getItem(this.key)
+    if (!raw) return emptyAppData()
+    // A parse/migrate failure here means the stored bytes are CORRUPT, not absent.
+    // Rethrow rather than returning empty: bootstrap must tell these apart so it
+    // can refuse to overwrite recoverable-but-unreadable data with a blank save.
     try {
-      const raw = localStorage.getItem(this.key)
-      if (!raw) return emptyAppData()
       return migrate(JSON.parse(raw))
     } catch {
-      // Corrupt or unreadable storage shouldn't brick the app.
-      return emptyAppData()
+      throw new Error('Stored Floaty data could not be parsed.')
     }
   }
 
@@ -29,6 +31,25 @@ export class LocalStorageAdapter implements PersistenceAdapter {
       return localStorage.getItem(this.key) !== null
     } catch {
       return false
+    }
+  }
+
+  /** The raw stored string, for a recovery UI to offer "export raw" before reset.
+   *  Returns null when nothing is stored or storage is unreadable. */
+  readRaw(): string | null {
+    try {
+      return localStorage.getItem(this.key)
+    } catch {
+      return null
+    }
+  }
+
+  /** Remove the stored dataset entirely (corrupt-data recovery → reset). */
+  clear(): void {
+    try {
+      localStorage.removeItem(this.key)
+    } catch {
+      // Nothing to clear / storage unavailable — the reload will reseed anyway.
     }
   }
 
