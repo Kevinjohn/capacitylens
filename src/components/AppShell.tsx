@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { ImportExport } from './ImportExport'
 import { AccountPicker } from './accounts/AccountPicker'
 import { StorageRecovery } from './StorageRecovery'
+import { ConnectionError } from './ConnectionError'
 import { Toast } from './common/ui'
 
 const LINKS: [string, string][] = [
@@ -21,6 +22,7 @@ export function AppShell() {
   const hydrated = useStore((s) => s.hydrated)
   const persistError = useStore((s) => s.persistError)
   const loadError = useStore((s) => s.loadError)
+  const connectionError = useStore((s) => s.connectionError)
   const notice = useStore((s) => s.notice)
   const setNotice = useStore((s) => s.setNotice)
   const undo = useStore((s) => s.undo)
@@ -64,6 +66,10 @@ export function AppShell() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
+
+  // Remote-load gate: the server couldn't be reached, so block with a retry screen
+  // rather than the localStorage reset UI (which can't recover a server-backed app).
+  if (connectionError) return <ConnectionError />
 
   // Corrupt-data gate: if stored data couldn't be read, block the app with a
   // recovery screen rather than letting the user edit an empty dataset that would

@@ -218,9 +218,13 @@ export const AllocationBar = memo(function AllocationBar({
         aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
         onPointerDown={(e) => {
           hidePopover()
+          // Only snapshot lanes + watch scroll once the gesture is actually armed.
+          // An ignored pointerdown (non-left button / re-entrant) has no
+          // onCommit/onCancel/onClick to stop the scroll watcher, so starting it
+          // here would leak the document scroll listener until unmount.
+          if (!onPointerDown(e)) return
           lanesRef.current = snapshotLanes()
           startScrollWatch()
-          onPointerDown(e)
         }}
         onMouseEnter={showPopover}
         onMouseLeave={hidePopover}

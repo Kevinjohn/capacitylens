@@ -1,6 +1,6 @@
 import { emptyAppData, SCHEMA_VERSION } from '@floaty/shared/types/entities'
 import type { AppData, PersistedState } from '@floaty/shared/types/entities'
-import type { PersistenceAdapter } from './PersistenceAdapter'
+import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { migrate } from '@floaty/shared/data/migrate'
 
 export class LocalStorageAdapter implements PersistenceAdapter {
@@ -22,7 +22,7 @@ export class LocalStorageAdapter implements PersistenceAdapter {
     try {
       return migrate(JSON.parse(raw))
     } catch {
-      throw new Error('Stored Floaty data could not be parsed.')
+      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.')
     }
   }
 

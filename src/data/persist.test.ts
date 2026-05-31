@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { attachPersistence, bootstrap } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
+import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { useStore } from '../store/useStore'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import { seed } from '@floaty/shared/data/seed'
@@ -170,6 +171,34 @@ describe('bootstrap', () => {
     expect(localStorage.getItem(KEY)).toBe('{ not valid json')
 
     useStore.getState().setLoadError(false)
+    detach()
+  })
+
+  it('flags connectionError (not loadError) and attaches no persistence when a remote load is unavailable', async () => {
+    useStore.getState().setLoadError(false)
+    useStore.getState().setConnectionError(false)
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    // A server-backed adapter whose load fails (server down / network error).
+    const adapter: PersistenceAdapter = {
+      loadAll: () => Promise.reject(new LoadError('unavailable', 'server down')),
+      saveAll,
+    }
+
+    const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed() })
+
+    // Routed to the retry screen, NOT the corrupt-data reset UI.
+    expect(useStore.getState().connectionError).toBe(true)
+    expect(useStore.getState().loadError).toBe(false)
+    expect(useStore.getState().hydrated).toBe(true)
+    expect(useStore.getState().data.resources).toHaveLength(0) // rendered empty, not seeded
+
+    // No autosave attached: an edit must not be pushed as a destructive diff to a
+    // server that merely returned once.
+    useStore.getState().addAccount({ name: 'New', color: '#111111' })
+    await new Promise((r) => setTimeout(r, 5))
+    expect(saveAll).not.toHaveBeenCalled()
+
+    useStore.getState().setConnectionError(false)
     detach()
   })
 })

@@ -115,6 +115,11 @@ export interface StoreState {
    *  app renders empty and autosave is intentionally NOT attached, so a recovery
    *  UI can offer reset/import/export without overwriting the unreadable bytes. */
   loadError: boolean
+  /** True when a REMOTE load failed (server down / network error) — distinct from
+   *  loadError (corrupt LOCAL bytes). The app renders empty with no autosave attached,
+   *  and a connection-error screen offers a retry. Clearing local storage (the
+   *  StorageRecovery path) can't recover a server-backed app, so the two are kept apart. */
+  connectionError: boolean
   /** Transient user message (e.g. a rejected drag) + its severity, as ONE value so the
    *  two can't desync. 'info' auto-dismisses; 'error' persists until dismissed (an error
    *  that vanishes before it's read is useless). Null = no notice. */
@@ -138,6 +143,7 @@ export interface StoreState {
   setHydrated: (v: boolean) => void
   setPersistError: (v: boolean) => void
   setLoadError: (v: boolean) => void
+  setConnectionError: (v: boolean) => void
   setNotice: (message: string | null, tone?: 'info' | 'error') => void
   setDirtyForm: (v: boolean) => void
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
@@ -251,6 +257,7 @@ export const useStore = create<StoreState>()((set, get) => {
     future: [],
     persistError: false,
     loadError: false,
+    connectionError: false,
     notice: null,
     dirtyForm: false,
     theme: readStoredTheme(),
@@ -314,6 +321,7 @@ export const useStore = create<StoreState>()((set, get) => {
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
     setLoadError: (v) => set({ loadError: v }),
+    setConnectionError: (v) => set({ connectionError: v }),
     setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
     setDirtyForm: (v) => set({ dirtyForm: v }),
     setTheme: (pref) => {

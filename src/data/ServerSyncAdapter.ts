@@ -1,4 +1,4 @@
-import type { PersistenceAdapter } from './PersistenceAdapter'
+import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type { AppData, Entity } from '@floaty/shared/types/entities'
 import { migrate } from '@floaty/shared/data/migrate'
@@ -84,12 +84,21 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   async loadAll(): Promise<AppData> {
-    const res = await this.fetchImpl(`${this.baseUrl}/api/state`)
-    if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
-    const json: unknown = await res.json()
-    const data = migrate(json) // tolerate an older-schema server payload
-    this.lastSynced = data
-    return data
+    try {
+      const res = await this.fetchImpl(`${this.baseUrl}/api/state`)
+      if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
+      const json: unknown = await res.json()
+      const data = migrate(json) // tolerate an older-schema server payload
+      this.lastSynced = data
+      return data
+    } catch (e) {
+      // A rejected fetch (server down / network error), a non-OK status, or an
+      // unreadable server payload are ALL remote conditions: the user recovers by
+      // RETRYING, never by clearing local storage (the corrupt-data reset path,
+      // which can't recover a server-backed app). Flag as 'unavailable' so bootstrap
+      // routes to the connection-error screen, not StorageRecovery.
+      throw new LoadError('unavailable', e instanceof Error ? e.message : 'Failed to load state from server.')
+    }
   }
 
   async hasExisting(): Promise<boolean> {

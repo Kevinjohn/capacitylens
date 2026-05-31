@@ -2,7 +2,7 @@ import type { StoreApi } from 'zustand'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type { AppData } from '@floaty/shared/types/entities'
 import type { StoreState } from '../store/useStore'
-import type { PersistenceAdapter } from './PersistenceAdapter'
+import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 
 // Persistence is wired OUTSIDE the store so the store stays a pure state
 // container (and is trivially testable). attachPersistence debounce-saves on
@@ -134,14 +134,21 @@ export async function bootstrap(
   let loaded: AppData
   try {
     loaded = await adapter.loadAll()
-  } catch {
-    // The stored bytes exist but couldn't be read (corrupt JSON / failed
-    // migrate). Render an empty dataset and flag it, but DELIBERATELY attach NO
-    // persistence and run NO seed-save — the next mutation must not overwrite the
-    // recoverable-but-unreadable data. A recovery UI offers reset/import/export.
+  } catch (e) {
+    // Stored data couldn't be loaded. Render an empty dataset, but DELIBERATELY
+    // attach NO persistence and run NO seed-save — the next mutation must not
+    // overwrite recoverable data. Route to the recovery UI that fits the failure:
+    //   - 'unavailable' (a remote/server load failed): a retry screen. Clearing
+    //     local storage would do nothing for a server-backed app that's merely down.
+    //   - 'corrupt' (local bytes present but unreadable) or any other throw: the
+    //     StorageRecovery reset/import/export screen.
     store.getState().replaceAll(emptyAppData())
-    store.getState().setLoadError(true)
     store.getState().setHydrated(true)
+    if (e instanceof LoadError && e.kind === 'unavailable') {
+      store.getState().setConnectionError(true)
+    } else {
+      store.getState().setLoadError(true)
+    }
     return () => {}
   }
   // Seed only when nothing was ever stored — never resurrect data the user cleared.

@@ -103,9 +103,14 @@ test.describe('Feature flows', () => {
     const lane = page.locator('[data-resource-id="r-nike"]')
     const b = await box(lane)
     const y = b.y + b.height / 2
-    await page.mouse.move(b.x + 8, y)
+    // Draw on EMPTY lane space, just right of Nike's seeded allocation. A gesture
+    // started on the bar drags/resizes it (the bar stops propagation) instead of
+    // drawing — anchor to the bar's measured box so this is robust to zoom/origin.
+    const seededBar = await box(lane.getByTestId('allocation-bar'))
+    const x0 = seededBar.x + seededBar.width + 20
+    await page.mouse.move(x0, y)
     await page.mouse.down()
-    await page.mouse.move(b.x + 80, y, { steps: 6 })
+    await page.mouse.move(x0 + 72, y, { steps: 6 })
     await page.mouse.up()
 
     // Opens the time-off form (not the allocation modal), prefilled with the row's resource.

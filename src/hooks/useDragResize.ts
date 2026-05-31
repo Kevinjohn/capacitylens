@@ -32,13 +32,17 @@ export function useDragResize(args: UseDragResizeArgs) {
   const teardownRef = useRef<(() => void) | null>(null)
   useEffect(() => () => teardownRef.current?.(), [])
 
-  const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>) => {
-    if (e.button !== 0) return
+  // Returns true when the gesture was ARMED (listeners attached), false when the
+  // pointerdown was ignored (non-left button or re-entrant). The caller uses this to
+  // avoid starting side effects (e.g. a scroll watcher) for a gesture that never runs
+  // — those have no onCommit/onCancel/onClick to tear them back down.
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLElement>): boolean => {
+    if (e.button !== 0) return false
     e.stopPropagation() // don't let the lane start a draw-to-create gesture
     // Ignore a re-entrant pointerdown (a second finger / pen) while a gesture is
     // already live — otherwise its document listeners would leak and a single
     // pointerup could commit twice.
-    if (teardownRef.current) return
+    if (teardownRef.current) return false
 
     const handle = (e.target as HTMLElement).dataset.handle
     const mode: DragMode = handle === 'start' ? 'resize-start' : handle === 'end' ? 'resize-end' : 'move'
@@ -91,6 +95,7 @@ export function useDragResize(args: UseDragResizeArgs) {
     document.addEventListener('pointerup', onUp)
     document.addEventListener('pointercancel', onCancel)
     teardownRef.current = detach
+    return true
   }, [])
 
   return { onPointerDown }
