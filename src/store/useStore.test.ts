@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hasActiveFilters, useStore } from './useStore'
 import { resetStoreWithAccount } from '../test/fixtures'
+import { weekdayOf } from '../lib/dateMath'
 
 const s = () => useStore.getState()
 beforeEach(() => resetStoreWithAccount())
@@ -91,6 +92,10 @@ describe('store scheduler UI', () => {
     s().goToToday()
     expect(s().ui.recenterToken).toBe(before + 1)
     expect(s().ui.originDate).not.toBe('2020-01-01')
+    // Snaps to the current week's Monday, with focus == origin so the first scroll
+    // lands flush at Monday (the full week shows from the left edge).
+    expect(weekdayOf(s().ui.originDate)).toBe(1)
+    expect(s().ui.focusDate).toBe(s().ui.originDate)
   })
 
   it('setNotice sets and clears the transient message', () => {

@@ -6,6 +6,7 @@ import {
   eachDayISO,
   isWithin,
   parseDate,
+  startOfWeekISO,
   toISODate,
   weekdayOf,
   widthForRange,
@@ -58,6 +59,14 @@ describe('dateMath', () => {
     expect(weekdayOf('2026-05-31')).toBe(0) // Sunday
     expect(weekdayOf('2026-06-01')).toBe(1) // Monday
     expect(weekdayOf('2026-05-29')).toBe(5) // Friday
+  })
+
+  it('startOfWeekISO snaps back to the week’s Monday', () => {
+    // Week of 2026-06-01 (Mon) … 2026-06-07 (Sun).
+    expect(startOfWeekISO('2026-06-01')).toBe('2026-06-01') // Monday → itself
+    expect(startOfWeekISO('2026-06-03')).toBe('2026-06-01') // Wednesday → Monday
+    expect(startOfWeekISO('2026-06-07')).toBe('2026-06-01') // Sunday → previous Monday
+    expect(startOfWeekISO('2026-05-31')).toBe('2026-05-25') // Sunday → its Monday (crosses month)
   })
 
   it('xForDate and widthForRange map dates/ranges to pixels', () => {

@@ -5,7 +5,7 @@
 export type WeeksZoom = 1 | 2 | 4 | 6 | 8
 
 export const ZOOM_LEVELS: WeeksZoom[] = [1, 2, 4, 6, 8]
-export const DEFAULT_ZOOM: WeeksZoom = 4
+export const DEFAULT_ZOOM: WeeksZoom = 2
 
 export const MIN_DAY_WIDTH = 8
 // Generous cap so a 1-week view genuinely fills a normal screen (only bites on ultra-wide).
@@ -23,7 +23,9 @@ export const WEEKDAY_LABEL_MIN_WIDTH = 36
 
 /** How many days the timeline spans. */
 export const DEFAULT_RANGE_DAYS = 120
-/** Timeline origin = today + this offset, so a little past context shows on the left. */
+/** Lead-in offset (days) applied when jumping to a specific date, so a little past
+ *  context shows to the left of it rather than it being flush against the edge.
+ *  (The default view and "Today" instead snap the origin to the current week's Monday.) */
 export const DEFAULT_ORIGIN_OFFSET_DAYS = -7
 
 /**

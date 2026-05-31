@@ -45,6 +45,13 @@ export function weekdayOf(date: ISODate): Weekday {
   return parseISO(date).getDay() as Weekday
 }
 
+/** The Monday of the week containing `date` (weeks start Monday, ISO-style). */
+export function startOfWeekISO(date: ISODate): ISODate {
+  const wd = weekdayOf(date) // 0=Sun … 6=Sat
+  const daysSinceMonday = (wd + 6) % 7 // Mon→0, Tue→1, … Sun→6
+  return addDaysISO(date, -daysSinceMonday)
+}
+
 /** Pixel x-offset of a date's left edge from the timeline origin.
  *  Returns 0 for an unparseable date so a bad record can't produce NaN geometry. */
 export function xForDate(date: ISODate, origin: ISODate, dayWidth: number): number {

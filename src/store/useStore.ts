@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { newId } from '../lib/id'
-import { addDaysISO, todayISO } from '../lib/dateMath'
+import { addDaysISO, startOfWeekISO, todayISO } from '../lib/dateMath'
 import { DEFAULT_ORIGIN_OFFSET_DAYS, DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, type WeeksZoom } from '../lib/schedulerConfig'
 import {
   deleteClientCascade,
@@ -183,17 +183,23 @@ const stamp = () => {
 }
 const touch = () => new Date().toISOString()
 
-const defaultUI = (): SchedulerUI => ({
-  zoom: DEFAULT_ZOOM,
-  originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS),
-  rangeDays: DEFAULT_RANGE_DAYS,
-  focusDate: todayISO(),
-  drawMode: 'work',
-  selectedAllocationId: null,
-  filters: emptyFilters(),
-  collapsedGroups: [],
-  recenterToken: 0,
-})
+const defaultUI = (): SchedulerUI => {
+  // Open on the current week: origin = this Monday and focusDate = this Monday too,
+  // so the first scroll lands flush at Monday (focus == origin → recenterLeftPad
+  // clamps to 0) and the whole current week is visible from the left edge.
+  const weekStart = startOfWeekISO(todayISO())
+  return {
+    zoom: DEFAULT_ZOOM,
+    originDate: weekStart,
+    rangeDays: DEFAULT_RANGE_DAYS,
+    focusDate: weekStart,
+    drawMode: 'work',
+    selectedAllocationId: null,
+    filters: emptyFilters(),
+    collapsedGroups: [],
+    recenterToken: 0,
+  }
+}
 
 const HISTORY_LIMIT = 50
 
@@ -477,14 +483,19 @@ export const useStore = create<StoreState>()((set, get) => {
     setOriginDate: (date) => set((s) => ({ ui: { ...s.ui, originDate: date } })),
     panDays: (delta) => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(s.ui.originDate, delta) } })),
     goToToday: () =>
-      set((s) => ({
-        ui: {
-          ...s.ui,
-          originDate: addDaysISO(todayISO(), DEFAULT_ORIGIN_OFFSET_DAYS),
-          focusDate: todayISO(),
-          recenterToken: s.ui.recenterToken + 1,
-        },
-      })),
+      set((s) => {
+        // Match the default view: snap to the Monday of the current week so the full
+        // week shows from the left edge (focus == origin → flush, no lead-in pad).
+        const weekStart = startOfWeekISO(todayISO())
+        return {
+          ui: {
+            ...s.ui,
+            originDate: weekStart,
+            focusDate: weekStart,
+            recenterToken: s.ui.recenterToken + 1,
+          },
+        }
+      }),
     goToDate: (date) =>
       set((s) => ({
         ui: {
