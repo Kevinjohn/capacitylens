@@ -45,12 +45,12 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
 
   return (
     <div role="columnheader" aria-label="Dates" className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
-      {/* Month tier */}
-      <div className="flex border-b border-line" style={{ height: 16 }}>
+      {/* Month tier — padding-driven height (not a fixed px) so it scales with font size. */}
+      <div className="flex shrink-0 border-b border-line">
         {months.map((m) => (
           <div
             key={m.key}
-            className="flex items-center overflow-hidden border-r border-line px-2 text-2xs font-semibold text-muted"
+            className="flex items-center overflow-hidden border-r border-line px-2 py-0.5 text-2xs font-semibold text-muted"
             style={{ width: m.days * dayWidth }}
           >
             <span className="truncate">{m.label}</span>
@@ -58,9 +58,11 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
         ))}
       </div>
 
-      {/* Week / day tier */}
+      {/* Week / day tier. flex-auto (basis auto, not flex-1's basis 0) so the cells'
+          real height counts toward the header — otherwise the date + weekday lines
+          overflow the row and get clipped — while still filling any slack height. */}
       {showDays ? (
-        <div className="flex flex-1">
+        <div className="flex flex-auto">
           {days.map((d) => {
             const wd = weekdayOf(d)
             const weekStart = wd === 1
@@ -70,7 +72,7 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
             return (
               <div
                 key={d}
-                className={`flex flex-col items-center justify-center text-xs ${weekStart ? 'border-l border-line' : ''} ${
+                className={`flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? 'border-l border-line' : ''} ${
                   isToday ? 'bg-brand-soft font-semibold text-ink' : weekend ? 'bg-canvas text-muted' : 'text-muted'
                 }`}
                 style={{ width: dayWidth }}
@@ -82,11 +84,11 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
           })}
         </div>
       ) : (
-        <div className="flex flex-1">
+        <div className="flex flex-auto">
           {weeks.map((b) => (
             <div
               key={b.key}
-              className="flex items-center overflow-hidden border-l border-line px-1 text-2xs text-muted"
+              className="flex items-center overflow-hidden border-l border-line px-1 py-1 text-2xs text-muted"
               style={{ width: b.days * dayWidth }}
             >
               <span className="truncate font-medium">{b.label}</span>

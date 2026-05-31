@@ -298,7 +298,7 @@ export function SchedulerGrid() {
       aria-rowcount={items.length + 1}
       onScroll={onScroll}
     >
-      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex shrink-0 border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
+      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex shrink-0 border-b border-line bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
         <div
           role="columnheader"
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"

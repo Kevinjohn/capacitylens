@@ -264,3 +264,48 @@ compare "regression" was REFUTED — it's behaviour-preserving for all app-gener
 (zero-padded) dates, and the only divergence path is an invisible, hand-corrupted import;
 the `dirtyForm` global-bool mount/unmount race and "dirty stays true after a reverted
 edit" are real but low-confidence / conservative-by-design and were left as-is.
+
+## 2026-05-31 — Settings panel (company rename + theme)
+
+Added a **Settings** nav entry that opens its own route (`/settings`,
+`components/settings/SettingsView.tsx`) like the other list pages. Two sections:
+rename the active company (`updateAccount(activeAccountId, {name})`, name-required
+validation reused from `lib/validation`) and choose the colour scheme.
+
+Judgment calls:
+- **Theme is device-global, not per-account.** It lives in its own localStorage key
+  (`floaty/theme`), NOT in `AppData`/the persistence adapter — a colour-scheme
+  preference is a property of the browser, not of a tenant's data, and shouldn't
+  travel through export/import. The reactive *preference* is held in the Zustand
+  store (`theme`/`setTheme`) for consistency with the rest of the app (no second
+  state system); `setTheme` writes the localStorage key + repaints the DOM.
+  `lib/theme.ts` holds the pure read/write/resolve/apply helpers.
+- **Default is `light` — a deliberate behaviour change.** Previously the UI flipped
+  to dark purely via `@media (prefers-color-scheme: dark)`, so OS-dark users got dark
+  automatically. Now the default preference is `light` (per the request); OS-dark
+  users see light until they pick **Match system**. The media query is gone from CSS:
+  the dark palette moved to `:root[data-theme="dark"]`, and JS resolves `light|dark|
+  system` to a concrete scheme written to `<html data-theme>` (so the explicit and
+  OS-following choices share one mechanism). `system` mode stays live via a
+  `matchMedia` change listener wired in `main.tsx`.
+- **FOUC guard.** A tiny inline `<head>` script in `index.html` sets `data-theme`
+  before first paint (the module `main.tsx` is deferred and would otherwise flash the
+  light default for dark users); it mirrors `readStoredTheme`/`resolveTheme` and fails
+  safe to light.
+
+## 2026-05-31 — Scheduler header clipped the weekday labels (bug + a11y)
+
+The sticky header row had a hard `height: 44px`, and `DateHeader`'s day tier used
+`flex-1` (flex-basis `0`), so the two-line date+weekday cells didn't count toward the
+row's intrinsic height — the weekday labels (THU/FRI/…) overflowed the 44px row and
+bled, clipped, beneath the 44px-tall sticky left column. It also broke under a larger
+base font size (px height doesn't follow font scaling).
+
+Fix: the header row now uses `minHeight` (a floor, not a cap) so it grows to its
+content, and the day/week tier uses `flex-auto` (basis `auto`) so the cells' real
+height is counted while still filling any slack. The month tier and cells switched
+from a fixed `height: 16` to padding-driven heights (`py-*`) so the whole header
+scales with font size. `LAYOUT.headerHeight` is unchanged in value (44) but is now
+documented + used as a minimum. Group-header/row heights elsewhere are still fixed px
+— same latent font-scaling fragility, left as-is since only the date header was
+reported (noted here as a known follow-up).

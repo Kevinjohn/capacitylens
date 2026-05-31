@@ -10,6 +10,9 @@ export const LAYOUT = {
   rowPadding: 10,
   // Wider resource column so names/roles aren't cramped and the +/% box has room.
   leftColWidth: 256,
+  // Floor for the sticky header row, applied as min-height (not a hard height) so
+  // the two-tier date header can grow to fit its content — and keep fitting when the
+  // user bumps their font size — instead of clipping the weekday labels.
   headerHeight: 44,
   groupHeaderHeight: 30,
   // Left-edge breathing room when recentring the focus date (Today / jump-to-date),
