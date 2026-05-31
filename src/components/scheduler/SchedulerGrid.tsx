@@ -291,14 +291,14 @@ export function SchedulerGrid() {
   return (
     <div
       ref={scrollRef}
-      className="relative h-full overflow-auto"
+      className="relative flex h-full flex-col overflow-auto"
       data-testid="scheduler-grid"
       role="grid"
       aria-label="Resource schedule"
       aria-rowcount={items.length + 1}
       onScroll={onScroll}
     >
-      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
+      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex shrink-0 border-b border-line bg-surface" style={{ height: LAYOUT.headerHeight }}>
         <div
           role="columnheader"
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
@@ -318,20 +318,31 @@ export function SchedulerGrid() {
       </div>
 
       {model.length === 0 && (
-        <div className="p-8 text-sm text-muted" data-testid="scheduler-empty">
-          {filtersActive ? (
-            <>No resources match the current filters.</>
-          ) : (
-            <>
-              No resources yet. Add people on the <span className="font-medium text-ink">Resources</span> page, then click or
-              drag on a row to schedule work.
-            </>
-          )}
+        <div role="row" className="flex min-h-0 flex-1">
+          <div
+            role="rowheader"
+            data-testid="scheduler-empty"
+            className="sticky left-0 z-10 flex shrink-0 flex-col gap-2 border-r border-line bg-surface px-3 py-5 text-sm text-muted"
+            style={{ width: LAYOUT.leftColWidth }}
+          >
+            {filtersActive ? (
+              <span>No resources match the current filters.</span>
+            ) : (
+              <>
+                <span className="font-medium text-ink">No resources yet</span>
+                <span>
+                  Add people on the <span className="font-medium text-ink">Resources</span> page.
+                </span>
+                <span>Then click or drag on a row to schedule work.</span>
+              </>
+            )}
+          </div>
+          <div className="flex-1 bg-canvas/30" aria-hidden />
         </div>
       )}
 
       {items.length > 0 && (
-        <div role="rowgroup">
+        <div role="rowgroup" className="shrink-0">
           {/* Spacer reserving the scroll height of the rows above the rendered slice. */}
           {topPad > 0 && <div aria-hidden style={{ height: topPad }} />}
           {visible.map((item, i) => {
