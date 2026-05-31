@@ -1,0 +1,24 @@
+{
+  "name": "floaty-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SQLite-backed entity-level REST API for Floaty. Imports the shared domain-core from ../src so server validation IS client validation.",
+  "scripts": {
+    "start": "NODE_OPTIONS=--experimental-sqlite tsx src/index.ts",
+    "dev": "NODE_OPTIONS=--experimental-sqlite tsx watch src/index.ts",
+    "start:e2e": "FLOATY_ALLOW_RESET=1 FLOATY_DB=.e2e.db NODE_OPTIONS=--experimental-sqlite tsx src/index.ts",
+    "test": "NODE_OPTIONS=--experimental-sqlite vitest run",
+    "test:watch": "NODE_OPTIONS=--experimental-sqlite vitest",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify": "^5.6.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "~6.0.2",
+    "vitest": "^4.1.7"
+  }
+}
