@@ -4,10 +4,11 @@ SQLite-backed, entity-level REST API for Floaty — the optional database backen
 behind the `PersistenceAdapter` seam. The default app still runs on `localStorage`;
 this server is opt-in via the `VITE_FLOATY_API` env var on the web app.
 
-It deliberately imports the **same** pure domain-core the client uses
-(`../src/domain/mutations`, `../src/data/migrate`, `../src/data/seed`, `../src/types`),
-so server-side validation, integrity, cascade and import rules are literally the
-client's code — not a re-implementation that can drift.
+It deliberately imports the **same** pure domain-core the client uses — the
+`@floaty/shared` workspace package (`@floaty/shared/domain/mutations`,
+`@floaty/shared/data/{migrate,seed,transfer}`, `@floaty/shared/types/entities`,
+`@floaty/shared/lib/*`) — so server-side validation, integrity, cascade and import
+rules are literally the client's code, not a re-implementation that can drift.
 
 ## Requirements
 
@@ -16,10 +17,12 @@ client's code — not a re-implementation that can drift.
 
 ## Run
 
+Install from the **repo root** — this is an npm workspace, so the root install is
+what links `@floaty/shared` into both the web app and this server:
+
 ```bash
-cd server
-npm install
-npm run dev          # http://localhost:8787, seeds an empty DB on first boot
+npm install            # at the repo root, not inside server/
+npm run dev --workspace=server   # http://localhost:8787, seeds an empty DB on first boot
 ```
 
 Point the web app at it (from the repo root):
@@ -31,7 +34,7 @@ VITE_FLOATY_API=http://localhost:8787 npm run dev
 ## Scripts
 
 - `npm run dev` — watch-mode server (`floaty.db`).
-- `npm start` — one-shot server.
+- `npm start` — run the server once (no watch).
 - `npm run start:e2e` — reset-enabled server on a throwaway DB (used by the
   `db-backed` Playwright project).
 - `npm test` — type-check-free vitest run (API integration + shared-core tests).
