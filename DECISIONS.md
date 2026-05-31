@@ -309,3 +309,33 @@ scales with font size. `LAYOUT.headerHeight` is unchanged in value (44) but is n
 documented + used as a minimum. Group-header/row heights elsewhere are still fixed px
 — same latent font-scaling fragility, left as-is since only the date header was
 reported (noted here as a known follow-up).
+
+## 2026-05-31 — code-review remediation (Settings + week-view findings)
+
+Fixed the actionable findings from the precision review of the Settings panel,
+header-clip, and week-view commits:
+
+- **Company switch ignored the new "current week" default (bug).** `defaultUI()`
+  snaps origin/focus to this week's Monday, but `setActiveAccount` only reset
+  filters/collapsed/selection — so switching company inherited the previous tenant's
+  panned origin. It now also resets `originDate`/`focusDate` to `startOfWeekISO(today)`.
+- **Settings name field went stale on undo/import (bug).** The company-name input was
+  seeded once via `useState`; a ⌘Z that reverted the rename left the field showing the
+  old edit with Save re-enabled. Added the render-time reconcile pattern (as in
+  `SchedulerToolbar`) keyed on the account name, so the field follows external changes
+  without clobbering in-progress typing.
+- **`startOfWeekISO` hand-rolled week math (reuse).** Replaced `(weekdayOf+6)%7` with
+  date-fns `startOfWeek(…, { weekStartsOn: 1 })`, matching how the rest of `dateMath.ts`
+  wraps date-fns; the Monday convention is now a single explicit option.
+- **Dead unchanged-name guard (cleanup).** Removed the unreachable
+  `if (trimmed === activeAccount.name) return` in `saveName` — the Save button is already
+  `disabled={nameUnchanged}` on the same comparison.
+
+**Deliberately NOT changed — body-row font-scaling (finding #5, deferred):** group-header
+and resource rows keep fixed-px heights because those heights feed the row virtualizer's
+prefix-sum (`buildLayout`/`windowFromLayout`); switching them to `minHeight` like the date
+header would desync the spacer math. Verified during review to be **clip-only/cosmetic**
+under an enlarged *base font size* (browser zoom already scales px correctly), and the bug
+that was reported (the date header) is fixed. A real fix means measurement-based row
+virtualization — a separate, riskier change out of scope for this remediation. Left as the
+existing documented follow-up.

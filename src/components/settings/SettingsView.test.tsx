@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from './SettingsView'
 import { useStore } from '../../store/useStore'
@@ -28,6 +28,22 @@ describe('SettingsView — company name', () => {
     const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
     expect(account?.name).toBe('Renamed Co')
     expect(useStore.getState().notice?.message).toMatch(/updated/i)
+  })
+
+  it('re-syncs the field when the account name changes underneath (e.g. undo)', async () => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+
+    const input = screen.getByLabelText('Company name')
+    await user.clear(input)
+    await user.type(input, 'Acme')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(input).toHaveValue('Acme')
+
+    // Undo reverts the store name; the field must follow it, not stay stale on 'Acme'.
+    act(() => useStore.getState().undo())
+    expect(input).toHaveValue('Test Co')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
   })
 
   it('rejects an empty name with a field error', async () => {

@@ -86,6 +86,15 @@ describe('store scheduler UI', () => {
     expect(s().ui.originDate).toBe('2026-06-08')
   })
 
+  it('setActiveAccount reopens on the current week (resets a panned origin/focus)', () => {
+    s().setOriginDate('2020-01-01')
+    // Re-selecting the (already active) account still runs the switch reset.
+    s().setActiveAccount(s().activeAccountId)
+    expect(s().ui.originDate).not.toBe('2020-01-01')
+    expect(weekdayOf(s().ui.originDate)).toBe(1) // this week's Monday
+    expect(s().ui.focusDate).toBe(s().ui.originDate)
+  })
+
   it('goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)', () => {
     const before = s().ui.recenterToken
     s().setOriginDate('2020-01-01')

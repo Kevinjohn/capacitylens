@@ -1,4 +1,4 @@
-import { addDays, differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { addDays, differenceInCalendarDays, format, parseISO, startOfWeek } from 'date-fns'
 import type { ISODate, Weekday } from '../types/entities'
 
 // All scheduler geometry is done in INTEGER day-indices derived from date-only
@@ -47,9 +47,8 @@ export function weekdayOf(date: ISODate): Weekday {
 
 /** The Monday of the week containing `date` (weeks start Monday, ISO-style). */
 export function startOfWeekISO(date: ISODate): ISODate {
-  const wd = weekdayOf(date) // 0=Sun … 6=Sat
-  const daysSinceMonday = (wd + 6) % 7 // Mon→0, Tue→1, … Sun→6
-  return addDaysISO(date, -daysSinceMonday)
+  // weekStartsOn: 1 makes Monday the week start (date-fns defaults to Sunday).
+  return toISODate(startOfWeek(parseISO(date), { weekStartsOn: 1 }))
 }
 
 /** Pixel x-offset of a date's left edge from the timeline origin.

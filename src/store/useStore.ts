@@ -282,15 +282,27 @@ export const useStore = create<StoreState>()((set, get) => {
     // Switching tenant resets per-account view state and history — undo must never
     // cross an account boundary, and the previous account's filters/selection don't apply.
     setActiveAccount: (id) =>
-      set((s) => ({
-        activeAccountId: id,
-        // Remember where we came from when dropping to the picker (id === null) so it
-        // can offer a "back" escape; clear it once a tenant is actually chosen.
-        previousAccountId: id === null ? s.activeAccountId : null,
-        past: [],
-        future: [],
-        ui: { ...s.ui, filters: emptyFilters(), collapsedGroups: [], selectedAllocationId: null },
-      })),
+      set((s) => {
+        // Open the switched-into company on the current week (mirrors defaultUI) rather
+        // than inheriting the previous tenant's panned origin/focus.
+        const weekStart = startOfWeekISO(todayISO())
+        return {
+          activeAccountId: id,
+          // Remember where we came from when dropping to the picker (id === null) so it
+          // can offer a "back" escape; clear it once a tenant is actually chosen.
+          previousAccountId: id === null ? s.activeAccountId : null,
+          past: [],
+          future: [],
+          ui: {
+            ...s.ui,
+            filters: emptyFilters(),
+            collapsedGroups: [],
+            selectedAllocationId: null,
+            originDate: weekStart,
+            focusDate: weekStart,
+          },
+        }
+      }),
 
     replaceAll: (data) => set({ data, past: [], future: [] }),
     // Replace only the active account's slice; other accounts and the account

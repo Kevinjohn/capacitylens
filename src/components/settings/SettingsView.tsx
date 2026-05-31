@@ -22,8 +22,18 @@ export function SettingsView() {
   const theme = useStore((s) => s.theme)
   const setTheme = useStore((s) => s.setTheme)
 
-  const [name, setName] = useState(activeAccount?.name ?? '')
+  const accountName = activeAccount?.name ?? ''
+  const [name, setName] = useState(accountName)
   const { error, errorField, errorId, fail } = useFieldError()
+
+  // Re-sync the field when the account name changes underneath us (undo/redo, import,
+  // or account switch) — the render-time reconcile pattern used in SchedulerToolbar.
+  // While the user is merely typing, accountName is unchanged, so edits aren't clobbered.
+  const [seenName, setSeenName] = useState(accountName)
+  if (accountName !== seenName) {
+    setSeenName(accountName)
+    setName(accountName)
+  }
 
   // The shell only routes here with an active account chosen; this is defensive.
   if (!activeAccount) return null
@@ -31,7 +41,7 @@ export function SettingsView() {
   const saveName = () => {
     const trimmed = validateName(name, fail)
     if (!trimmed) return
-    if (trimmed === activeAccount.name) return
+    // The Save button is disabled while unchanged, so no redundant equality guard here.
     updateAccount(activeAccount.id, { name: trimmed })
     setNotice('Company name updated.')
   }
