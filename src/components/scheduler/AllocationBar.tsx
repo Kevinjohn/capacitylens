@@ -225,6 +225,13 @@ export const AllocationBar = memo(function AllocationBar({
     }
   }
 
+  // Inset the bar by a few px on each side so it sits inside the day cell rather than
+  // flush against the gridlines. Visual only — drag/resize deltas come from the pointer,
+  // not from these styled coords, so the inset never feeds back into the geometry. Guard
+  // against a sub-inset width on very narrow zoom levels so the bar never inverts.
+  const insetLeft = left + LAYOUT.barInset
+  const insetWidth = Math.max(1, width - LAYOUT.barInset * 2)
+
   const dragging = preview !== null
   const tentative = bar.allocation.status === 'tentative'
   const completed = bar.allocation.status === 'completed'
@@ -291,8 +298,8 @@ export const AllocationBar = memo(function AllocationBar({
         }}
         className={`group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}
         style={{
-          left,
-          width,
+          left: insetLeft,
+          width: insetWidth,
           top: bar.top,
           height: LAYOUT.barHeight,
           backgroundColor: bg,

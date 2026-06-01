@@ -4,6 +4,7 @@ import { SchedulerGrid } from './SchedulerGrid'
 import { useStore } from '../../store/useStore'
 import type { AppData } from '@floaty/shared/types/entities'
 import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
+import { LAYOUT } from './layout'
 
 const ACC = DEFAULT_ACCOUNT_ID
 
@@ -37,9 +38,9 @@ describe('SchedulerGrid', () => {
   it('positions a bar by start date with inclusive width', () => {
     render(<SchedulerGrid />)
     const bar = screen.getByTestId('allocation-bar')
-    // origin === start -> left 0; width is a positive multiple of the (responsive) dayWidth.
-    // Exact px geometry is covered by schedulerModel.test with an explicit dayWidth.
-    expect(bar.style.left).toBe('0px')
+    // origin === start -> left is just the visual inset; width is a positive multiple of
+    // the (responsive) dayWidth. Exact px geometry is covered by schedulerModel.test.
+    expect(bar.style.left).toBe(`${LAYOUT.barInset}px`)
     expect(Number.parseInt(bar.style.width, 10)).toBeGreaterThan(0)
     expect(bar).toHaveAttribute('data-status', 'confirmed')
   })
