@@ -53,6 +53,9 @@ export const AllocationBar = memo(function AllocationBar({
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const resourceId = bar.allocation.resourceId
+  // The assignee's working days drive weekend-aware moves (extend across non-working
+  // days to preserve working-day length), unless this allocation opts out.
+  const workingDays = useStore((s) => s.data.resources.find((r) => r.id === resourceId)?.workingDays)
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   const [pop, setPop] = useState<{ left: number; top: number } | null>(null)
   const showPopover = () => {
@@ -131,7 +134,10 @@ export const AllocationBar = memo(function AllocationBar({
       stopScrollWatch()
       setPreview(null)
       const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
-      const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays) : current
+      const dates =
+        deltaDays !== 0
+          ? applyGesture(mode, current, deltaDays, { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends })
+          : current
 
       // Dropping on another resource's row reassigns the allocation.
       const target = mode === 'move' ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null
@@ -193,7 +199,12 @@ export const AllocationBar = memo(function AllocationBar({
 
   // Keyboard equivalent of drag: ←/→ move a day, Shift+←/→ resize the end a day.
   const nudge = (mode: DragMode, delta: number) => {
-    const next = applyGesture(mode, { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }, delta)
+    const next = applyGesture(
+      mode,
+      { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
+      delta,
+      { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends },
+    )
     if (next.endDate < next.startDate) return
     try {
       updateAllocation(bar.allocation.id, next)

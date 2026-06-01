@@ -49,6 +49,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? initialResource?.workingHoursPerDay ?? 8)
   const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? 'confirmed')
   const [note, setNote] = useState(editing?.note ?? '')
+  const [ignoreWeekends, setIgnoreWeekends] = useState(editing?.ignoreWeekends ?? false)
   const [newTaskName, setNewTaskName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [errorField, setErrorField] = useState<string | null>(null)
@@ -162,7 +163,7 @@ export function AllocationModal(props: AllocationModalProps) {
         return
       }
     }
-    const fields = { taskId, startDate, endDate, hoursPerDay, status, note: note.trim() ? note.trim() : undefined }
+    const fields = { taskId, startDate, endDate, hoursPerDay, status, note: note.trim() ? note.trim() : undefined, ignoreWeekends }
     try {
       if (editing) updateAllocation(editing.id, { resourceId, ...fields })
       else addAllocation({ resourceId, ...fields })
@@ -183,6 +184,7 @@ export function AllocationModal(props: AllocationModalProps) {
         hoursPerDay: editing.hoursPerDay,
         status: editing.status,
         note: editing.note,
+        ignoreWeekends: editing.ignoreWeekends,
       })
       onClose()
     } catch (e) {
@@ -255,6 +257,19 @@ export function AllocationModal(props: AllocationModalProps) {
       <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
       <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
       <TextAreaField label="Note" value={note} onChange={setNote} />
+
+      <label className="flex items-center gap-2 text-sm text-muted">
+        <input
+          type="checkbox"
+          className="rounded border-line"
+          checked={ignoreWeekends}
+          onChange={(e) => setIgnoreWeekends(e.target.checked)}
+        />
+        <span>
+          Ignore weekends
+          <span className="ml-1 text-faint">— count weekend / non-working days as working days for this task</span>
+        </span>
+      </label>
 
       {capacityWarning && <Callout tone="warn">{capacityWarning}</Callout>}
       <FieldError id={errorId}>{error}</FieldError>

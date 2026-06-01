@@ -77,3 +77,49 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
 export function todayISO(): ISODate {
   return toISODate(new Date())
 }
+
+/** Is `date`'s weekday one of `workingDays`? */
+export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean {
+  return workingDays.includes(weekdayOf(date))
+}
+
+/** Count the working days within the inclusive range [start, end], given which
+ *  weekdays are working. Returns 0 for a reversed/empty range. */
+export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
+  const span = daysInclusive(start, end)
+  if (span <= 0) return 0
+  let count = 0
+  for (let i = 0; i < span; i++) {
+    if (isWorkingWeekday(addDaysISO(start, i), workingDays)) count++
+  }
+  return count
+}
+
+/** The end date such that [start, end] contains exactly `count` working days —
+ *  i.e. `end` lands on the `count`-th working day at/after `start`.
+ *
+ *  Guards against the degenerate cases that would otherwise loop forever or make
+ *  no sense: if `count <= 0`, `workingDays` is empty, or every weekday is a
+ *  working day, it falls back to a raw inclusive calendar span. A hard iteration
+ *  cap is also kept as a backstop so a bad `workingDays` can never hang. */
+export function endDateForWorkingDays(
+  start: ISODate,
+  count: number,
+  workingDays: Weekday[],
+): ISODate {
+  if (count <= 0 || workingDays.length === 0 || workingDays.length >= 7) {
+    return addDaysISO(start, Math.max(0, count - 1))
+  }
+  const maxScan = count * 7 + 7 // backstop: far more than enough to find `count`
+  let found = 0
+  for (let i = 0; i < maxScan; i++) {
+    const day = addDaysISO(start, i)
+    if (isWorkingWeekday(day, workingDays)) {
+      found++
+      if (found === count) return day
+    }
+  }
+  // Unreachable in practice (count working days always exist within maxScan);
+  // return the last scanned day rather than throw.
+  return addDaysISO(start, maxScan - 1)
+}

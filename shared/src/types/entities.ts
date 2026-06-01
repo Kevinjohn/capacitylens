@@ -82,6 +82,10 @@ export interface Allocation extends ScopedEntity {
   hoursPerDay: number
   status: AllocationStatus
   note?: string
+  /** When true, this allocation treats weekends / non-working days as normal
+   *  working days (drag/move does not auto-extend across them). Absent =
+   *  weekend-aware (the default). */
+  ignoreWeekends?: boolean
   // future-additive (NOT built in v1): startTime?/endTime? for "9am–1pm" allocations
 }
 
