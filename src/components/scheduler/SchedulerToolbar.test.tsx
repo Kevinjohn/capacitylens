@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, act, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SchedulerToolbar } from './SchedulerToolbar'
 import { useStore } from '../../store/useStore'
@@ -36,44 +36,8 @@ describe('SchedulerToolbar search filter', () => {
   })
 })
 
-describe('SchedulerToolbar undo/redo buttons', () => {
-  it('Undo and Redo are disabled when history is empty', () => {
-    render(<SchedulerToolbar />)
-
-    expect(screen.getByTitle('Undo (⌘Z)')).toBeDisabled()
-    expect(screen.getByTitle('Redo (⌘⇧Z)')).toBeDisabled()
-  })
-
-  it('Undo becomes enabled after a store data mutation', async () => {
-    render(<SchedulerToolbar />)
-
-    expect(screen.getByTitle('Undo (⌘Z)')).toBeDisabled()
-
-    act(() => {
-      useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    })
-
-    expect(screen.getByTitle('Undo (⌘Z)')).toBeEnabled()
-  })
-
-  it('Redo becomes enabled after an undo', async () => {
-    render(<SchedulerToolbar />)
-
-    act(() => {
-      useStore.getState().addClient({ name: 'Acme', color: '#111' })
-    })
-
-    expect(screen.getByTitle('Undo (⌘Z)')).toBeEnabled()
-    expect(screen.getByTitle('Redo (⌘⇧Z)')).toBeDisabled()
-
-    act(() => {
-      useStore.getState().undo()
-    })
-
-    expect(screen.getByTitle('Undo (⌘Z)')).toBeDisabled()
-    expect(screen.getByTitle('Redo (⌘⇧Z)')).toBeEnabled()
-  })
-})
+// Undo/redo toolbar buttons were removed (deferred — see DECISIONS.md); the keyboard
+// path (⌘Z / ⌘⇧Z via AppShell) and the store history remain and are covered elsewhere.
 
 describe('SchedulerToolbar Clear filter button', () => {
   it('Clear button is absent when no filters are set', () => {

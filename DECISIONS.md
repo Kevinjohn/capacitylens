@@ -389,3 +389,23 @@ A batch of scheduler refinements (two commits). Behind the green gate (unit + e2
   read a touch heavy in light mode. Added `--color-line-soft` (`#eef0f5` light; equal to
   `--color-line` in dark, since only light read heavy) and switched those horizontal borders
   to `border-line-soft`. Vertical dividers and dark mode unchanged.
+
+### Native <select> chevron + popup (UI polish)
+- Native `<select>` drew its own chevron with too-tight right padding (macOS). Fixed by
+  suppressing it (`appearance-none`) and painting our own chevron via background-image at a
+  consistent ~0.7rem inset, reserving room with `pr-9` — see `selectChevronClass` /
+  `selectChevronStyle` in `ui.tsx`, applied to `SelectField` + the three scheduler-toolbar
+  selects. Kept off `controlBase` so text/date inputs that share it don't get a phantom arrow.
+- **Open-popup alignment is a known limitation, deferred.** When opened, the native option
+  list renders off to the left / wider than the trigger and doesn't cover the box. That popup
+  is drawn by the OS, not the DOM — no CSS (`position`, `inset`, transform) can reach it. The
+  only fix is a custom listbox/combobox (button + popover + ARIA + keyboard nav) replacing
+  every `<select>` — a real component with an accessibility surface. Chose to keep native for
+  now; **revisit if/when we want pixel control over the dropdown.**
+
+### Scheduler undo/redo toolbar buttons hidden (deferred)
+- Removed the undo/redo icon buttons from `SchedulerToolbar` (they confusingly read as inert
+  because they're disabled until history exists). The functionality is unchanged — undo/redo
+  remain on ⌘Z / ⌘⇧Z via the global handler in `AppShell.tsx`, and the store history
+  (`past`/`future`) is untouched. **Come back to this** to decide on a clearer affordance
+  (e.g. always-visible with a tooltip, or a count badge) before re-adding.

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
-import { Button, controlBase } from '../common/ui'
+import { Button, controlBase, selectChevronClass, selectChevronStyle } from '../common/ui'
 import { Icon } from '../common/Icon'
 
 export function SchedulerToolbar() {
@@ -21,10 +21,6 @@ export function SchedulerToolbar() {
   const disciplines = data.disciplines
   const clients = data.clients
   const projects = data.projects
-  const undo = useStore((s) => s.undo)
-  const redo = useStore((s) => s.redo)
-  const canUndo = useStore((s) => s.past.length > 0)
-  const canRedo = useStore((s) => s.future.length > 0)
 
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
@@ -62,12 +58,7 @@ export function SchedulerToolbar() {
       <div className="flex items-center gap-2 px-4 py-2">
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">Schedule</h1>
-          <Button variant="ghost" onClick={undo} disabled={!canUndo} title="Undo (⌘Z)" ariaLabel="Undo">
-            <Icon name="undo" />
-          </Button>
-          <Button variant="ghost" onClick={redo} disabled={!canRedo} title="Redo (⌘⇧Z)" ariaLabel="Redo">
-            <Icon name="redo" />
-          </Button>
+          {/* Undo/redo buttons hidden for now (still on ⌘Z / ⌘⇧Z via AppShell). See DECISIONS.md. */}
         </div>
         <Button variant="ghost" onClick={() => panDays(-7)} title="Back one week">
           <Icon name="chevron-left" /> Prev
@@ -126,7 +117,8 @@ export function SchedulerToolbar() {
         />
         <select
           aria-label="Filter by discipline"
-          className={controlBase}
+          className={`${controlBase} ${selectChevronClass}`}
+          style={selectChevronStyle}
           value={filters.disciplineId ?? ''}
           onChange={(e) => setFilters({ disciplineId: e.target.value || null })}
         >
@@ -139,7 +131,8 @@ export function SchedulerToolbar() {
         </select>
         <select
           aria-label="Filter by client"
-          className={controlBase}
+          className={`${controlBase} ${selectChevronClass}`}
+          style={selectChevronStyle}
           value={filters.clientId ?? ''}
           onChange={(e) => setFilters({ clientId: e.target.value || null })}
         >
@@ -152,7 +145,8 @@ export function SchedulerToolbar() {
         </select>
         <select
           aria-label="Filter by project"
-          className={controlBase}
+          className={`${controlBase} ${selectChevronClass}`}
+          style={selectChevronStyle}
           value={filters.projectId ?? ''}
           onChange={(e) => setFilters({ projectId: e.target.value || null })}
         >

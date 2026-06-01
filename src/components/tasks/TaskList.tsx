@@ -21,33 +21,53 @@ export function TaskList() {
     return c ? `${c.name} / ${p.name}` : p.name
   }
 
+  // General tasks (no project) stand apart from client work, so they get their own
+  // table up top — mirrors the people/placeholders split on the Resources page.
+  const generalTasks = tasks.filter((t) => !t.projectId)
+  const clientTasks = tasks.filter((t) => t.projectId)
+
+  const renderRow = (t: Task, showLabel: boolean) => (
+    <li key={t.id} data-testid="task-row" className="flex items-center justify-between px-3 py-2">
+      <span>
+        <span className="font-medium">{t.name}</span>
+        {showLabel && (
+          <span className="text-sm text-muted">
+            {' '}
+            · {projectLabel(t.projectId)}
+          </span>
+        )}
+      </span>
+      <span className="flex gap-2">
+        <Button variant="ghost" onClick={() => setEditing(t)}>
+          Edit
+        </Button>
+        <Button variant="danger" onClick={() => setConfirming(t)}>
+          Delete
+        </Button>
+      </span>
+    </li>
+  )
+
+  const box = (rows: Task[], showLabel: boolean, empty: string) =>
+    rows.length === 0 ? (
+      <EmptyState>{empty}</EmptyState>
+    ) : (
+      <ul className="divide-y divide-line rounded border border-line bg-surface">
+        {rows.map((t) => renderRow(t, showLabel))}
+      </ul>
+    )
+
   return (
     <ListPage title="Tasks" addLabel="Add task" onAdd={() => setCreating(true)}>
-      {tasks.length === 0 ? (
-        <EmptyState>No tasks yet.</EmptyState>
-      ) : (
-        <ul className="divide-y divide-line rounded border border-line bg-surface">
-          {tasks.map((t) => (
-            <li key={t.id} data-testid="task-row" className="flex items-center justify-between px-3 py-2">
-              <span>
-                <span className="font-medium">{t.name}</span>
-                <span className="text-sm text-muted">
-                  {' '}
-                  · {projectLabel(t.projectId)}
-                </span>
-              </span>
-              <span className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEditing(t)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => setConfirming(t)}>
-                  Delete
-                </Button>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">General tasks</h2>
+      </div>
+      {box(generalTasks, false, 'No general tasks yet.')}
+
+      <div className="mb-4 mt-8 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Client tasks</h2>
+      </div>
+      {box(clientTasks, true, 'No client tasks yet.')}
 
       {creating && <TaskForm onClose={() => setCreating(false)} />}
       {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}

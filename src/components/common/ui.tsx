@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { isTemporary } from '@floaty/shared/lib/integrity'
 import { ensureBarColors, isHexColor } from '@floaty/shared/lib/color'
 import { useStore } from '../../store/useStore'
@@ -304,6 +304,19 @@ export const controlBase =
   'rounded-md border bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-faint shadow-sm transition-colors'
 export const inputClass = `w-full ${controlBase}`
 
+// Native <select> draws its own chevron with browser-dependent (and on macOS, too
+// tight) right padding. We suppress it (appearance-none), reserve room with pr-9, and
+// paint our own chevron via background-image so it sits a consistent ~0.7rem from the
+// edge. Kept off controlBase so text/date inputs that share it don't get a phantom arrow.
+export const selectChevronClass = 'appearance-none pr-9'
+export const selectChevronStyle: CSSProperties = {
+  backgroundImage:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
+  backgroundRepeat: 'no-repeat',
+  backgroundPosition: 'right 0.7rem center',
+  backgroundSize: '1rem',
+}
+
 // Two deliberately distinct red treatments so "required" never reads as "errored":
 //   required (at rest) → a thin red left-edge accent — a quiet marker.
 //   invalid (failed Save) → a full danger border + ring — the field you missed pops.
@@ -498,7 +511,8 @@ export function SelectField({
     <label className="block">
       <FieldLabel label={label} required={required} />
       <select
-        className={`${controlClass(invalid, required)} disabled:opacity-60`}
+        className={`${controlClass(invalid, required)} ${selectChevronClass} disabled:opacity-60`}
+        style={selectChevronStyle}
         value={value}
         disabled={disabled}
         aria-label={label}
@@ -584,7 +598,7 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
               aria-label={dl}
               aria-pressed={on}
               onClick={() => toggle(day)}
-              className={`rounded-md border px-2 py-1 text-xs font-medium transition ${
+              className={`w-12 rounded-md border px-2 py-1 text-center text-xs font-medium transition ${
                 on ? 'border-brand bg-brand-strong text-white' : 'bg-surface text-muted hover:bg-canvas'
               }`}
             >

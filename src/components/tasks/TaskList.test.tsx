@@ -8,7 +8,7 @@ import { resetStoreWithAccount } from '../../test/fixtures'
 beforeEach(() => resetStoreWithAccount())
 
 describe('TaskList', () => {
-  it('saves a general (no-project) task when no project is selected, labelled "General"', async () => {
+  it('saves a general (no-project) task under the General tasks section', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
@@ -26,9 +26,12 @@ describe('TaskList', () => {
     expect(useStore.getState().data.tasks).toHaveLength(1)
     expect(useStore.getState().data.tasks[0].projectId).toBeUndefined()
 
+    // General tasks now live under their own section heading rather than carrying an
+    // inline "General" label, so the row shows just the name (no project label).
+    expect(screen.getByRole('heading', { name: 'General tasks' })).toBeInTheDocument()
     const row = screen.getByTestId('task-row')
     expect(row).toHaveTextContent('My Task')
-    expect(row).toHaveTextContent('General')
+    expect(row).not.toHaveTextContent('General')
   })
 
   it('adds a task when a project and name are provided, showing the project label in the list', async () => {
