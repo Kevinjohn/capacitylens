@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ClientForm } from './ClientForm'
 import { useStore } from '../../store/useStore'
@@ -37,18 +37,21 @@ describe('ClientForm – add mode', () => {
     expect(useStore.getState().data.clients).toHaveLength(0)
   })
 
-  it('rejects an invalid (non-hex) colour and does not save', async () => {
+  it('saves a colour chosen from the swatch picker', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
     render(<ClientForm onClose={onClose} />)
 
     await user.type(screen.getByLabelText('Name'), 'Acme')
-    fireEvent.change(screen.getByLabelText('Colour hex value'), { target: { value: 'not-a-color' } })
+    // Open the colour popup (trigger is labelled "<label> (<value>)") and pick a swatch.
+    await user.click(screen.getByRole('button', { name: /^Colour \(/ }))
+    await user.click(screen.getByRole('button', { name: '#e02727' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/valid 6-digit hex/i)
-    expect(onClose).not.toHaveBeenCalled()
-    expect(useStore.getState().data.clients).toHaveLength(0)
+    expect(onClose).toHaveBeenCalledOnce()
+    const clients = useStore.getState().data.clients
+    expect(clients).toHaveLength(1)
+    expect(clients[0].color).toBe('#e02727')
   })
 
   it('associates the error with the offending field (aria-invalid + aria-describedby)', async () => {

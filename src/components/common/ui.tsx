@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { isTemporary } from '@floaty/shared/lib/integrity'
-import { ensureBarColors, isHexColor } from '@floaty/shared/lib/color'
+import { ensureBarColors } from '@floaty/shared/lib/color'
+import { SWATCHES, SWATCH_COLUMNS } from '../../lib/palette'
 import { useStore } from '../../store/useStore'
 import { Icon } from './Icon'
 import type { Resource, Weekday } from '@floaty/shared/types/entities'
@@ -532,6 +533,9 @@ export function SelectField({
   )
 }
 
+// A swatch picker, not a hex/RGB tool: a trigger showing the current colour opens a
+// 13×4 grid of preset swatches (see SWATCHES). Picking one is the only way to set the
+// value, so the stored colour is always a valid hex — no text/hex entry.
 export function ColorField({
   label,
   value,
@@ -545,29 +549,81 @@ export function ColorField({
   invalid?: boolean
   describedById?: string
 }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  // Close on a click anywhere outside the control. The trigger lives inside `ref`, so
+  // its own click toggles via onClick rather than tripping this listener.
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
   return (
-    <label className="block">
+    <div className="block">
       <span className={labelClass}>{label}</span>
-      <span className="flex items-center gap-2">
-        <input
-          type="color"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} picker`}
-          className="h-8 w-10 cursor-pointer rounded border bg-surface"
-        />
-        <input
-          className={inputClass}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-label={`${label} hex value`}
-          aria-invalid={invalid || !isHexColor(value)}
+      <div ref={ref} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          // Escape closes the popup without bubbling up to the Modal's Escape-to-close.
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && open) {
+              e.stopPropagation()
+              setOpen(false)
+            }
+          }}
+          aria-haspopup="true"
+          aria-expanded={open}
+          aria-label={`${label} (${value})`}
+          aria-invalid={invalid || undefined}
           aria-describedby={invalid ? describedById : undefined}
-          pattern="#[0-9a-fA-F]{6}"
-          title="6-digit hex colour, e.g. #3b82f6"
-        />
-      </span>
-    </label>
+          className={`${controlClass(invalid)} ${selectChevronClass} flex items-center gap-2 text-left`}
+          style={selectChevronStyle}
+        >
+          <span
+            className="h-4 w-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
+            style={{ backgroundColor: value }}
+          />
+        </button>
+        {open && (
+          <div
+            role="group"
+            aria-label={`${label} swatches`}
+            // Opens upward (bottom-full): the colour field is the last field in every
+            // form, and the Modal's overflow-y-auto would clip a downward popup.
+            className="absolute bottom-full left-0 z-10 mb-1 grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line"
+            style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
+          >
+            {SWATCHES.map((hex) => {
+              const selected = hex.toLowerCase() === value.toLowerCase()
+              return (
+                <button
+                  key={hex}
+                  type="button"
+                  aria-label={hex}
+                  // aria-pressed both conveys selection and lets the Modal's dirty-guard
+                  // register the pick as an edit (a plain button click fires no change).
+                  aria-pressed={selected}
+                  onClick={() => {
+                    onChange(hex)
+                    setOpen(false)
+                  }}
+                  className={`h-6 w-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110 ${
+                    selected ? 'outline outline-2 outline-offset-1 outline-brand-strong' : ''
+                  }`}
+                  style={{ backgroundColor: hex }}
+                />
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 

@@ -12,7 +12,7 @@ Clients rebrand, merge or get renamed. A single edit must ripple to every projec
 **Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). *Acme Inc.* owns *Project Lightning*.
 1. On the **Acme Inc.** row, click **Edit**. The dialog opens pre-filled.
 2. Change **Name** = `Acme Corp`.
-3. Change the **Colour** (e.g. `#0ea5e9` in **Colour hex value**).
+3. Change the **Colour** by opening it and picking a different swatch.
 4. Click **Save**. The dialog closes.
 5. Click **Projects** in the sidebar and find **Project Lightning**.
 6. Click **Schedule** in the sidebar (`/`) and open **Filter by client**.

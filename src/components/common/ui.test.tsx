@@ -472,32 +472,59 @@ describe('SelectField', () => {
 // ─── ColorField ────────────────────────────────────────────────────────────
 
 describe('ColorField', () => {
-  it('renders a color picker input and a text input with the value', () => {
-    render(<ColorField label="Brand colour" value="#ff0000" onChange={vi.fn()} />)
-    // The color picker has aria-label "<label> picker"
-    const colorPicker = screen.getByLabelText('Brand colour picker')
-    expect(colorPicker).toHaveValue('#ff0000')
-    // Both inputs (color picker + text) render the same value
-    expect(screen.getAllByDisplayValue('#ff0000')).toHaveLength(2)
+  // Two real members of SWATCHES: a blue (also the default client colour) and a red.
+  const BLUE = '#2d75da'
+  const RED = '#e02727'
+
+  it('renders a trigger labelled with the current value and no swatches until opened', () => {
+    render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />)
+    expect(screen.getByRole('button', { name: `Brand colour (${BLUE})` })).toBeInTheDocument()
+    // Popup is closed → preset swatches are not in the DOM.
+    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
   })
 
-  it('calls onChange when the text input changes', () => {
-    const onChange = vi.fn()
-    render(<ColorField label="Colour" value="#ff0000" onChange={onChange} />)
-    // There are two inputs sharing the same value; target the text one by its current value
-    const inputs = screen.getAllByDisplayValue('#ff0000')
-    // The text input is the second one (after the color picker)
-    const textInput = inputs.find((el) => el.getAttribute('type') !== 'color')!
-    fireEvent.change(textInput, { target: { value: '#00ff00' } })
-    expect(onChange).toHaveBeenCalledWith('#00ff00')
+  it('opens the full grid of preset swatches when the trigger is clicked', async () => {
+    const user = userEvent.setup()
+    render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />)
+    const trigger = screen.getByRole('button', { name: `Colour (${BLUE})` })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    await user.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    // 52 swatch buttons (13×4) + the trigger itself.
+    expect(screen.getAllByRole('button')).toHaveLength(53)
   })
 
-  it('calls onChange when the color picker input changes', () => {
+  it('calls onChange with the chosen hex and closes the popup', async () => {
+    const user = userEvent.setup()
     const onChange = vi.fn()
-    render(<ColorField label="Colour" value="#ff0000" onChange={onChange} />)
-    const colorPicker = screen.getByLabelText('Colour picker')
-    fireEvent.change(colorPicker, { target: { value: '#0000ff' } })
-    expect(onChange).toHaveBeenCalledWith('#0000ff')
+    render(<ColorField label="Colour" value={BLUE} onChange={onChange} />)
+    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
+    await user.click(screen.getByRole('button', { name: RED }))
+    expect(onChange).toHaveBeenCalledWith(RED)
+    // Picking closes the popup.
+    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
+  })
+
+  it('marks the swatch matching the current value as pressed', async () => {
+    const user = userEvent.setup()
+    render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
+    expect(screen.getByRole('button', { name: BLUE })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: RED })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('closes the popup on an outside click', async () => {
+    const user = userEvent.setup()
+    render(
+      <div>
+        <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
+        <button type="button">Outside</button>
+      </div>,
+    )
+    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
+    expect(screen.getByRole('button', { name: RED })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Outside' }))
+    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
   })
 })
 

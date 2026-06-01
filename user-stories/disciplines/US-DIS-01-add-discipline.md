@@ -13,7 +13,7 @@ Disciplines are how the studio organises its people on the timeline (Design, Dev
 1. Click **Add discipline**. The "Add discipline" dialog opens.
 2. Fill **Name** = `Strategy`.
 3. Set **Sort order** = `3` (so it sorts after the seeded three).
-4. Pick a **Colour** (or type a valid hex like `#22c55e` in **Colour hex value**).
+4. Open **Colour** and pick a swatch from the preset grid.
 5. Click **Save**. The dialog closes.
 6. Click **Schedule** in the sidebar (`/`); if seed bars are needed for orientation use **Jump to date** → `2026-06-01`.
 
@@ -22,4 +22,4 @@ Disciplines are how the studio organises its people on the timeline (Design, Dev
 - ✅ The Strategy row shows its colour swatch and its sort-order value.
 - ✅ On the **Schedule**, a **Strategy** group header appears (a `discipline-group`), positioned by its sort order.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline required-field error associated with the Name field (`aria-invalid`).
-- ✅ Saving with an invalid colour (e.g. `nope` in the **Colour hex value** box, not a 6-digit `#rrggbb`) is rejected and the dialog stays open.
+- ✅ The **Colour** picker offers only preset swatches, so a saved colour is always a valid 6-digit `#rrggbb`.

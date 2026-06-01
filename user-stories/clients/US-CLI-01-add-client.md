@@ -12,7 +12,7 @@ Clients are the top of the work hierarchy: every project belongs to one. Onboard
 **Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). The list shows *Acme Inc.* and *Globex*.
 1. Click **Add client**. The "Add client" dialog opens.
 2. Fill **Name** = `Initech`.
-3. Pick a **Colour** (or type a valid hex like `#f59e0b` in **Colour hex value**).
+3. Open **Colour** and pick a swatch from the preset grid.
 4. Click **Save**. The dialog closes.
 5. Click **Projects** in the sidebar, click **Add project**, and open the **Client** picker.
 6. Click **Schedule** in the sidebar (`/`) and open **Filter by client**.
@@ -22,4 +22,4 @@ Clients are the top of the work hierarchy: every project belongs to one. Onboard
 - ✅ When creating a project, **Initech** is selectable in the **Client** picker.
 - ✅ On the **Schedule**, **Initech** is an option in **Filter by client**.
 - ✅ Saving with an empty **Name** keeps the dialog open and shows an inline required-field error (`aria-invalid` on Name).
-- ✅ Saving with an invalid colour (not a 6-digit `#rrggbb`) is rejected and the dialog stays open.
+- ✅ The **Colour** picker offers only preset swatches, so a saved colour is always a valid 6-digit `#rrggbb`.

@@ -409,3 +409,40 @@ A batch of scheduler refinements (two commits). Behind the green gate (unit + e2
   remain on ⌘Z / ⌘⇧Z via the global handler in `AppShell.tsx`, and the store history
   (`past`/`future`) is untouched. **Come back to this** to decide on a clearer affordance
   (e.g. always-visible with a tooltip, or a count badge) before re-adding.
+
+## 2026-06-01 — Colour picker → preset swatch popup
+
+### `ColorField` is now a swatch picker, not a hex/RGB tool
+- The old `ColorField` paired a native `<input type="color">` with a hex text field —
+  it assumed users think in hex/RGB. Replaced its internals (same props, so all four
+  call sites — `ClientForm`, `ProjectForm`, `DisciplineForm`, `AccountPicker` — update
+  for free) with a trigger button that opens a grid of preset swatches. Picking a swatch
+  is the only way to set the value, so the stored colour is **always** a valid 6-digit hex.
+- **Why no custom-hex escape hatch:** the user explicitly wanted something simpler than
+  hex codes; presets-only removes the whole "is this a valid hex" failure mode.
+- `validateHex` + the form submit guards are left intact (defensive; presets always pass),
+  so no validation/storage changes. The one E2E-style "rejects invalid hex" unit assertion
+  became unreachable and was replaced with a swatch-pick-and-save test.
+- **Popup opens upward (`bottom-full`):** the colour field is the last field in every
+  form, and the `Modal`'s `overflow-y-auto` would clip a downward popup. Verified visually
+  in all three modal contexts plus the non-modal company gate (`AccountPicker`).
+- Swatch buttons carry `aria-pressed` — doubles as the selected-state indicator *and* lets
+  the `Modal` dirty-guard (which watches `[aria-pressed]` clicks) treat a pick as an edit.
+
+### Palette — 13 hues × 4 shades, generated from HSL (`lib/palette.ts`)
+- After two rounds of user feedback, settled on a **13-column × 4-row** grid (52 swatches):
+  columns sweep the spectrum (red → red-orange → … → pink) with a dedicated **brown** at
+  the end; rows step lightest→darkest. Earlier tries (6 hues × 4 shades, then 24 distinct
+  hues at one tone) read as "not enough variety" / "shades too close".
+- Generated from HSL rather than hand-picked Tailwind shades so hues land where specified
+  and rows are even. Final lightness range is **85% → 35%** (per-row step ~16.7) for a
+  strong, obvious gradient; brown rides ~13pts darker so it reads brown, not orange.
+- `DEFAULT_COLORS` remapped to **row-2 (medium-vivid)** members of the matrix so default
+  entities stay saturated *and* a freshly-opened form highlights its default swatch.
+- `SWATCH_COLUMNS` is exported and drives the grid's `gridTemplateColumns` so the layout
+  stays in sync with the palette width.
+
+### Note: `US-RES-09-resource-colour.md` is stale (pre-existing, not touched here)
+- It describes a resource colour picker, but `ResourceForm` has no colour control —
+  resources derive colour (`DEFAULT_COLORS.resource`). Left as-is; flag for a future
+  doc cleanup unrelated to this change.
