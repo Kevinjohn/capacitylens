@@ -21,11 +21,11 @@ export type LoadErrorKind = 'corrupt' | 'unavailable'
  *  tells bootstrap which recovery path applies; a plain Error (or any other throw)
  *  defaults to the conservative local 'corrupt' path. */
 export class LoadError extends Error {
-  constructor(
-    readonly kind: LoadErrorKind,
-    message: string,
-  ) {
+  readonly kind: LoadErrorKind
+
+  constructor(kind: LoadErrorKind, message: string) {
     super(message)
+    this.kind = kind
     this.name = 'LoadError'
   }
 }

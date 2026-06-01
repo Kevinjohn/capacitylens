@@ -4,7 +4,7 @@ import { AllocationBar } from './AllocationBar'
 import type { BarLayout } from './schedulerModel'
 import { useStore } from '../../store/useStore'
 import { type Allocation } from '@floaty/shared/types/entities'
-import { resetStoreWithAccount } from '../../test/fixtures'
+import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
 
 function seedAllocation(): Allocation {
   const s = useStore.getState()
@@ -152,6 +152,57 @@ describe('AllocationBar interactions', () => {
 
     expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.resourceId).toBe(r2.id)
     expect(screen.getByTestId('lane-dst').hasAttribute('data-droptarget')).toBe(false) // cleared on commit
+  })
+
+  describe('days mode preserves volume on resize', () => {
+    const enableDays = () => useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { schedulingMode: 'days' })
+
+    it('rescales hours/day when the end is resized by keyboard (Shift+arrow)', () => {
+      enableDays()
+      const a = seedAllocation() // 2026-06-01 → 2026-06-03, 8h/day, Mon–Fri = 3 working days
+      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
+      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+      // Span grows 3 → 4 working days; the 24h of work (8×3) now spreads over 4 → 6h/day.
+      expect(after.endDate).toBe('2026-06-04')
+      expect(after.hoursPerDay).toBe(6)
+    })
+
+    it('leaves hours/day untouched on a move (span unchanged)', () => {
+      enableDays()
+      const a = seedAllocation()
+      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
+      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+      expect(after.hoursPerDay).toBe(8)
+    })
+
+    it('rescales hours/day when the end grip is dragged', () => {
+      enableDays()
+      const a = seedAllocation()
+      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+
+      fireEvent.pointerDown(screen.getByTestId('resize-end'), { clientX: 144, button: 0 })
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 192, bubbles: true })) // +48px ≈ +1 day
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 192, bubbles: true }))
+
+      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+      expect(after.endDate).toBe('2026-06-04')
+      expect(after.hoursPerDay).toBe(6)
+    })
+
+    it('hourly mode keeps hours/day fixed on resize (regression guard)', () => {
+      // No enableDays() — the default account is hourly.
+      const a = seedAllocation()
+      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
+      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+      expect(after.endDate).toBe('2026-06-04')
+      expect(after.hoursPerDay).toBe(8)
+    })
   })
 
   it('aborts a drag on pointercancel without committing or leaking listeners', () => {

@@ -8,6 +8,9 @@ export type ISOTimestamp = string // full ISO datetime, e.g. new Date().toISOStr
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export type AllocationStatus = 'confirmed' | 'tentative' | 'completed'
+/** How allocations are entered: by daily load against a fixed end date ('hourly',
+ *  the default) or by volume of work spread over a span ('days'). */
+export type SchedulingMode = 'hourly' | 'days'
 export type ResourceKind = 'person' | 'placeholder'
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
@@ -23,6 +26,8 @@ export interface Entity {
 export interface Account extends Entity {
   name: string
   color: string
+  /** How this company enters allocations. Absent = 'hourly' (the original behaviour). */
+  schedulingMode?: SchedulingMode
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */

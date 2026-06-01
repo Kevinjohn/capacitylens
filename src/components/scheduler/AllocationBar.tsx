@@ -3,10 +3,12 @@ import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useDragResize } from '../../hooks/useDragResize'
-import { applyGesture, type DragMode } from '../../lib/gestureMath'
+import { applyGesture, type DateRange, type DragMode } from '../../lib/gestureMath'
 import { ensureBarColors } from '@floaty/shared/lib/color'
 import { capacityAdvisory } from '../../lib/capacity'
 import { parseDate } from '@floaty/shared/lib/dateMath'
+import { spanDays } from '@floaty/shared/lib/schedulingDays'
+import type { Weekday } from '@floaty/shared/types/entities'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
 import type { ID } from '@floaty/shared/types/entities'
@@ -26,6 +28,26 @@ function snapshotLanes(): LaneSnapshot[] {
     el,
     rect: el.getBoundingClientRect(),
   }))
+}
+
+/** Hours/day for display: days-mode rescaling can yield a repeating decimal
+ *  (e.g. 24h over 7 working days = 3.4285…), so round to 2 dp for labels/popovers.
+ *  The stored value stays exact; only what's shown is trimmed. */
+const hoursLabel = (n: number) => Math.round(n * 100) / 100
+
+/** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes,
+ *  so hours/day scales inversely with the span: new × newSpan = old × oldSpan.
+ *  workingHoursPerDay cancels out, so it isn't needed here. Returns the original
+ *  hours when the span can't shrink to zero (guards divide-by-zero). */
+function volumePreservingHours(
+  prev: DateRange,
+  next: DateRange,
+  opts: { workingDays?: Weekday[]; ignoreWeekends?: boolean },
+  hoursPerDay: number,
+): number {
+  const oldSpan = spanDays(prev.startDate, prev.endDate, opts)
+  const newSpan = spanDays(next.startDate, next.endDate, opts)
+  return newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
 }
 
 /** Hit-test the drop point against the cached lane rects. */
@@ -56,6 +78,9 @@ export const AllocationBar = memo(function AllocationBar({
   // The assignee's working days drive weekend-aware moves (extend across non-working
   // days to preserve working-day length), unless this allocation opts out.
   const workingDays = useStore((s) => s.data.resources.find((r) => r.id === resourceId)?.workingDays)
+  // In days mode a resize preserves volume (days of work) by rescaling hours/day;
+  // in hourly mode hours stay fixed and only the dates move.
+  const isDays = useStore((s) => (s.data.accounts.find((a) => a.id === s.activeAccountId)?.schedulingMode ?? 'hourly') === 'days')
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   const [pop, setPop] = useState<{ left: number; top: number } | null>(null)
   const showPopover = () => {
@@ -133,11 +158,16 @@ export const AllocationBar = memo(function AllocationBar({
     onCommit: (mode, deltaDays, pointer) => {
       stopScrollWatch()
       setPreview(null)
+      const opts = { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends }
       const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
-      const dates =
-        deltaDays !== 0
-          ? applyGesture(mode, current, deltaDays, { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends })
-          : current
+      const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays, opts) : current
+
+      // Days mode: a resize changes the span, so rescale hours/day to hold the
+      // volume of work constant. A move keeps the span, so hours are untouched.
+      const hours =
+        isDays && mode !== 'move' && deltaDays !== 0
+          ? volumePreservingHours(current, dates, opts, bar.allocation.hoursPerDay)
+          : bar.allocation.hoursPerDay
 
       // Dropping on another resource's row reassigns the allocation.
       const target = mode === 'move' ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null
@@ -145,8 +175,13 @@ export const AllocationBar = memo(function AllocationBar({
       setDropTarget(null)
 
       if (deltaDays === 0 && !reassignTo) return
+      const hoursPatch = hours !== bar.allocation.hoursPerDay ? { hoursPerDay: hours } : null
       try {
-        updateAllocation(bar.allocation.id, reassignTo ? { ...dates, resourceId: reassignTo } : dates)
+        updateAllocation(bar.allocation.id, {
+          ...dates,
+          ...hoursPatch,
+          ...(reassignTo ? { resourceId: reassignTo } : {}),
+        })
         // Confirm the commit + advertise undo, and run the SAME capacity advisory the
         // modal shows so the two write paths stay consistent. Read the store imperatively
         // (getState, not a subscription) so this stays off the bar's render/memo path.
@@ -157,7 +192,7 @@ export const AllocationBar = memo(function AllocationBar({
         if (resource) {
           const others = data.allocations.filter((a) => a.resourceId === rid && a.id !== bar.allocation.id)
           const overTimeOff = data.timeOff.filter((t) => t.resourceId === rid)
-          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, bar.allocation.hoursPerDay)
+          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, hours)
           const bits: string[] = []
           if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
           if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
@@ -167,7 +202,7 @@ export const AllocationBar = memo(function AllocationBar({
       } catch (e) {
         // Reassignment rejected (e.g. a placeholder bound to another project): tell
         // the user why instead of silently snapping back, and still apply any date move.
-        if (deltaDays !== 0) updateAllocation(bar.allocation.id, dates)
+        if (deltaDays !== 0) updateAllocation(bar.allocation.id, { ...dates, ...hoursPatch })
         setNotice(e instanceof Error ? e.message : 'That allocation could not be moved there.', 'error')
       }
     },
@@ -199,15 +234,17 @@ export const AllocationBar = memo(function AllocationBar({
 
   // Keyboard equivalent of drag: ←/→ move a day, Shift+←/→ resize the end a day.
   const nudge = (mode: DragMode, delta: number) => {
-    const next = applyGesture(
-      mode,
-      { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate },
-      delta,
-      { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends },
-    )
+    const opts = { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends }
+    const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
+    const next = applyGesture(mode, current, delta, opts)
     if (next.endDate < next.startDate) return
+    // Match the pointer path: a days-mode resize rescales hours to preserve volume.
+    const hoursPatch =
+      isDays && mode !== 'move'
+        ? { hoursPerDay: volumePreservingHours(current, next, opts, bar.allocation.hoursPerDay) }
+        : null
     try {
-      updateAllocation(bar.allocation.id, next)
+      updateAllocation(bar.allocation.id, { ...next, ...hoursPatch })
     } catch {
       /* e.g. integrity rejected — ignore, the bar stays put */
     }
@@ -226,7 +263,7 @@ export const AllocationBar = memo(function AllocationBar({
         data-status={bar.allocation.status}
         role="button"
         tabIndex={0}
-        aria-label={`${bar.label}, ${bar.allocation.hoursPerDay}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
+        aria-label={`${bar.label}, ${hoursLabel(bar.allocation.hoursPerDay)}h per day, ${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
         onPointerDown={(e) => {
           hidePopover()
           // Only snapshot lanes + watch scroll once the gesture is actually armed.
@@ -281,7 +318,7 @@ export const AllocationBar = memo(function AllocationBar({
         )}
         <span className="truncate px-2.5">
           {completed ? '✓ ' : ''}
-          {bar.label} · {bar.allocation.hoursPerDay}h
+          {bar.label} · {hoursLabel(bar.allocation.hoursPerDay)}h
           {bar.allocation.note ? ' •' : ''}
         </span>
         <span data-handle="end" data-testid="resize-end" className={`right-0 ${gripClass}`}>
@@ -310,7 +347,7 @@ export const AllocationBar = memo(function AllocationBar({
               </div>
             )}
             <div className="text-muted">
-              {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)} · {bar.allocation.hoursPerDay}h/day · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
+              {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)} · {hoursLabel(bar.allocation.hoursPerDay)}h/day · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
             </div>
             {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted">{bar.allocation.note}</div>}
             <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">

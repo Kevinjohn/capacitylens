@@ -83,6 +83,18 @@ export function isWorkingWeekday(date: ISODate, workingDays: Weekday[]): boolean
   return workingDays.includes(weekdayOf(date))
 }
 
+/** Should weekend/non-working days be treated specially? True only when the
+ *  resource has a PARTIAL working week (1–6 working days) AND the allocation
+ *  hasn't opted out via `ignoreWeekends`. This is the single condition shared by
+ *  drag math (gestureMath) and the days/hours conversions (schedulingDays) so the
+ *  two can never disagree on what "a working day" means. */
+export function isWeekendAware(
+  workingDays: Weekday[] | undefined,
+  ignoreWeekends: boolean | undefined,
+): boolean {
+  return !ignoreWeekends && !!workingDays && workingDays.length > 0 && workingDays.length < 7
+}
+
 /** Count the working days within the inclusive range [start, end], given which
  *  weekdays are working. Returns 0 for a reversed/empty range. */
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {

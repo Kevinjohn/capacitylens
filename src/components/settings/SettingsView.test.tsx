@@ -60,6 +60,25 @@ describe('SettingsView — company name', () => {
   })
 })
 
+describe('SettingsView — scheduling mode', () => {
+  it('defaults to Hours and switches the company to Days through the store', async () => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+
+    const hours = screen.getByRole('radio', { name: 'Hours' })
+    const days = screen.getByRole('radio', { name: 'Days' })
+    // Absent schedulingMode reads as the original 'hourly' behaviour.
+    expect(hours).toHaveAttribute('aria-checked', 'true')
+    expect(days).toHaveAttribute('aria-checked', 'false')
+
+    await user.click(days)
+
+    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
+    expect(account?.schedulingMode).toBe('days')
+    expect(days).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
 describe('SettingsView — theme', () => {
   it('reflects the current preference and switches it on click', async () => {
     const user = userEvent.setup()

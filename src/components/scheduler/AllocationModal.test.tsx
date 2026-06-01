@@ -106,6 +106,94 @@ const person = (name: string) => ({
   color: '#111',
 })
 
+describe('AllocationModal days mode', () => {
+  const enableDays = () => useStore.getState().updateAccount(ACC, { schedulingMode: 'days' })
+
+  it('derives end date + hours/day from start, days of work and days over', async () => {
+    enableDays()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={onClose} />)
+
+    // Days mode swaps the End / Hours-per-day fields for Days of work / Days over.
+    expect(screen.queryByLabelText('End')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Hours / day')).not.toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '5' } })
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '10' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onClose).toHaveBeenCalled()
+    // 10 working days from Mon 2026-06-01 (Mon–Fri) lands on Fri 2026-06-12;
+    // 5 days of work spread over 10 at an 8h day = 4h/day.
+    expect(useStore.getState().data.allocations[0]).toMatchObject({
+      startDate: '2026-06-01',
+      endDate: '2026-06-12',
+      hoursPerDay: 4,
+    })
+  })
+
+  it('rejects zero days of work', async () => {
+    enableDays()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={vi.fn()} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '0' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/days of work must be greater than 0/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
+
+  it('honours the drawn span when creating (days over = the dragged-out length)', async () => {
+    enableDays()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const user = userEvent.setup()
+    // The grid hands the modal a 5-working-day span (Mon 06-01 … Fri 06-05).
+    render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-05' }} onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('Days over')).toHaveValue(5)
+    expect(screen.getByLabelText('Days of work')).toHaveValue(5) // full-time across the span
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(useStore.getState().data.allocations[0]).toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8 })
+  })
+
+  it('does not drift hours when an unevenly-dividing allocation is re-saved unchanged', async () => {
+    enableDays()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    // 5h/day over 3 working days = 1.875 days of work — a value 2-dp rounding would distort.
+    const alloc = useStore.getState().addAllocation({ resourceId: r.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 5, status: 'confirmed' })
+    const user = userEvent.setup()
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
+
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    const after = useStore.getState().data.allocations.find((a) => a.id === alloc.id)!
+    expect(after.endDate).toBe('2026-06-03')
+    expect(after.hoursPerDay).toBeCloseTo(5, 6)
+  })
+
+  it('seeds the days inputs by inverting an existing allocation', () => {
+    enableDays()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    // 4h/day over 2026-06-01..06-12 (10 working days) = 5 days of work.
+    const alloc = useStore.getState().addAllocation({ resourceId: r.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-12', hoursPerDay: 4, status: 'confirmed' })
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('Days of work')).toHaveValue(5)
+    expect(screen.getByLabelText('Days over')).toHaveValue(10)
+  })
+})
+
 describe('AllocationModal edit', () => {
   it('reassigns an allocation to another resource', async () => {
     const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })

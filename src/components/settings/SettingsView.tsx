@@ -4,11 +4,17 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { validateName } from '../../lib/validation'
 import { Button, FieldError, ListPage, TextField } from '../common/ui'
 import type { ThemePref } from '../../lib/theme'
+import type { SchedulingMode } from '@floaty/shared/types/entities'
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
   { value: 'system', label: 'Match system' },
+]
+
+const SCHEDULING_OPTIONS: { value: SchedulingMode; label: string }[] = [
+  { value: 'hourly', label: 'Hours' },
+  { value: 'days', label: 'Days' },
 ]
 
 // App-level preferences, opened from the nav like the CRUD list pages. Two
@@ -21,6 +27,8 @@ export function SettingsView() {
   const setNotice = useStore((s) => s.setNotice)
   const theme = useStore((s) => s.theme)
   const setTheme = useStore((s) => s.setTheme)
+
+  const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
 
   const accountName = activeAccount?.name ?? ''
   const [name, setName] = useState(accountName)
@@ -67,6 +75,34 @@ export function SettingsView() {
                 Save
               </Button>
             </div>
+          </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">Scheduling</h2>
+          <p className="mb-3 text-xs text-muted">
+            How allocations are entered. <strong>Hours</strong> asks for hours/day across a start and end
+            date. <strong>Days</strong> asks for a start, days of work, and days over — the end date follows
+            from how thinly the work is spread.
+          </p>
+          <div role="radiogroup" aria-label="Scheduling input" className="inline-flex rounded-md border border-line p-0.5">
+            {SCHEDULING_OPTIONS.map((opt) => {
+              const selected = schedulingMode === opt.value
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => updateAccount(activeAccount.id, { schedulingMode: opt.value })}
+                  className={`rounded px-3 py-1.5 text-sm font-medium transition ${
+                    selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
           </div>
         </section>
 

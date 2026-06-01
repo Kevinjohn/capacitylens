@@ -1,4 +1,4 @@
-import { addDaysISO, countWorkingDays, daysInclusive, endDateForWorkingDays } from '@floaty/shared/lib/dateMath'
+import { addDaysISO, countWorkingDays, daysInclusive, endDateForWorkingDays, isWeekendAware } from '@floaty/shared/lib/dateMath'
 import type { ISODate, Weekday } from '@floaty/shared/types/entities'
 
 // Pure drag/resize math, extracted from the pointer hook so it can be unit
@@ -39,11 +39,7 @@ export function applyGesture(
       const workingDays = opts?.workingDays
       // Weekend-aware only when we have a partial working week and the
       // allocation hasn't opted out. Otherwise: plain calendar shift.
-      const weekendAware =
-        !opts?.ignoreWeekends &&
-        !!workingDays &&
-        workingDays.length > 0 &&
-        workingDays.length < 7
+      const weekendAware = isWeekendAware(workingDays, opts?.ignoreWeekends)
       if (!weekendAware) {
         return { startDate: newStart, endDate: addDaysISO(range.endDate, deltaDays) }
       }
