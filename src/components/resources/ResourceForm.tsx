@@ -2,10 +2,8 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
-import { validateHex } from '../../lib/validation'
 import {
   Button,
-  ColorField,
   FieldError,
   Modal,
   NumberField,
@@ -35,7 +33,6 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
   const [hours, setHours] = useState(resource?.workingHoursPerDay ?? 8)
   const [workingDays, setWorkingDays] = useState<Weekday[]>(resource?.workingDays ?? [1, 2, 3, 4, 5])
   const [projectId, setProjectId] = useState(resource?.projectId ?? '')
-  const [color, setColor] = useState(resource?.color ?? DEFAULT_COLORS.resource)
   const { error, errorField, errorId, fail } = useFieldError()
 
   const disciplineOptions: Option[] = disciplines.map((d) => ({ value: d.id, label: d.name }))
@@ -45,10 +42,6 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
   })
 
   const submit = () => {
-    if (!role.trim()) {
-      fail('role', 'Role is required.')
-      return
-    }
     if (kind === 'person' && !name.trim()) {
       fail('name', 'Name is required for a person.')
       return
@@ -61,7 +54,6 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       fail('hours', 'Working hours per day must be greater than 0.')
       return
     }
-    if (!validateHex(color, fail)) return
     const patch = {
       kind,
       name: name.trim() ? name.trim() : undefined,
@@ -71,7 +63,9 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       workingHoursPerDay: hours,
       workingDays,
       projectId: kind === 'placeholder' ? projectId : undefined,
-      color,
+      // Resources no longer carry their own colour — the scheduler/list derive it
+      // from the discipline. Keep a stable fallback so the entity stays valid.
+      color: resource?.color ?? DEFAULT_COLORS.resource,
     }
     if (resource) update(resource.id, patch)
     else add(patch)
@@ -94,7 +88,7 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       <RequiredLegend />
       <SelectField label="Type" value={kind} onChange={(v) => setKind(v as ResourceKind)} options={RESOURCE_KIND_OPTIONS} />
       <TextField label={kind === 'placeholder' ? 'Name (optional)' : 'Name'} value={name} onChange={setName} required={kind === 'person'} invalid={errorField === 'name'} describedById={errorId} />
-      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" required invalid={errorField === 'role'} describedById={errorId} />
+      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" />
       <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
       {kind === 'person' && (
         <SelectField
@@ -109,7 +103,6 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       )}
       <NumberField label="Working hours / day" value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
       <WeekdayPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
-      <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

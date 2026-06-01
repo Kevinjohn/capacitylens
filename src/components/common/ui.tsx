@@ -365,6 +365,9 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        // Name the control off the bare label so the required asterisk (decorative,
+        // aria-hidden) never leaks into the accessible name. Mirrors SelectField.
+        aria-label={label}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
@@ -414,6 +417,7 @@ export function NumberField({
         min={min}
         max={max}
         step={step}
+        aria-label={label}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
@@ -454,6 +458,7 @@ export function DateField({
         type="date"
         className={controlClass(invalid, required)}
         value={value}
+        aria-label={label}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}

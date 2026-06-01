@@ -54,7 +54,6 @@ export function AllocationModal(props: AllocationModalProps) {
 
   const [resourceId, setResourceId] = useState(initialResourceId)
   const [projectId, setProjectId] = useState(initialLocked ?? initialTask?.projectId ?? '')
-  const [phaseId, setPhaseId] = useState(initialTask?.phaseId ?? '')
   const [taskId, setTaskId] = useState(editing?.taskId ?? '')
   const [startDate, setStartDate] = useState<ISODate>(editing?.startDate ?? create?.startDate ?? todayISO())
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO())
@@ -112,9 +111,8 @@ export function AllocationModal(props: AllocationModalProps) {
       const client = data.clients.find((c) => c.id === p.clientId)
       return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name }
     })
-  const phaseOptions: Option[] = data.phases.filter((ph) => ph.projectId === projectId).map((ph) => ({ value: ph.id, label: ph.name }))
   const taskOptions: Option[] = data.tasks
-    .filter((t) => t.projectId === projectId && (phaseId ? t.phaseId === phaseId : true))
+    .filter((t) => t.projectId === projectId)
     .map((t) => ({ value: t.id, label: t.name }))
 
   // Non-blocking capacity advisory: does this allocation push the assignee over
@@ -139,17 +137,11 @@ export function AllocationModal(props: AllocationModalProps) {
     if (r?.kind === 'placeholder' && r.projectId) {
       // A placeholder forces its bound project; reset downstream selections.
       setProjectId(r.projectId)
-      setPhaseId('')
       setTaskId('')
     }
   }
   const onProjectChange = (v: string) => {
     setProjectId(v)
-    setPhaseId('')
-    setTaskId('')
-  }
-  const onPhaseChange = (v: string) => {
-    setPhaseId(v)
     setTaskId('')
   }
   const onAddTask = () => {
@@ -162,7 +154,7 @@ export function AllocationModal(props: AllocationModalProps) {
       fail('newtask', 'Enter a name for the new task.')
       return
     }
-    const task = addTask({ name: newTaskName.trim(), projectId, phaseId: phaseId || undefined })
+    const task = addTask({ name: newTaskName.trim(), projectId })
     setTaskId(task.id)
     setNewTaskName('')
   }
@@ -274,7 +266,6 @@ export function AllocationModal(props: AllocationModalProps) {
         placeholder={lockedProjectId ? undefined : '— Select project —'}
         disabled={!!lockedProjectId}
       />
-      <SelectField label="Phase" value={phaseId} onChange={onPhaseChange} options={phaseOptions} placeholder="— Any / none —" />
       <SelectField label="Task" value={taskId} onChange={setTaskId} options={taskOptions} placeholder="— Select task —" required invalid={errorField === 'task'} describedById={errorId} />
       {projectId && (
         <div className="flex gap-2">

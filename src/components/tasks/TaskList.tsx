@@ -10,7 +10,6 @@ export function TaskList() {
   const tasks = data.tasks
   const projects = data.projects
   const clients = data.clients
-  const phases = data.phases
   const del = useStore((s) => s.deleteTask)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Task>()
 
@@ -20,7 +19,6 @@ export function TaskList() {
     const c = clients.find((x) => x.id === p.clientId)
     return c ? `${c.name} / ${p.name}` : p.name
   }
-  const phaseName = (id?: string) => phases.find((ph) => ph.id === id)?.name
 
   return (
     <ListPage title="Tasks" addLabel="Add task" onAdd={() => setCreating(true)}>
@@ -35,7 +33,6 @@ export function TaskList() {
                 <span className="text-sm text-muted">
                   {' '}
                   · {projectLabel(t.projectId)}
-                  {phaseName(t.phaseId) ? ` · ${phaseName(t.phaseId)}` : ''}
                 </span>
               </span>
               <span className="flex gap-2">

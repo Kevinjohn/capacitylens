@@ -15,21 +15,6 @@ test.describe('Tasks', () => {
     await expect(page.getByTestId('task-row').filter({ hasText: 'Spec review' })).toBeVisible()
   })
 
-  test('offers only the chosen project phases and resets the phase when the project changes', async ({ page }) => {
-    await openApp(page, 'Studio North', '/tasks')
-    await page.getByRole('button', { name: 'Add task' }).click()
-    await page.getByLabel('Name').fill('Phased task')
-
-    await page.getByLabel('Project').selectOption('p-acme') // Project Lightning has Discovery/Build
-    await expect(page.getByLabel('Phase').getByRole('option', { name: 'Discovery' })).toBeAttached()
-    await expect(page.getByLabel('Phase').getByRole('option', { name: 'Build' })).toBeAttached()
-    await page.getByLabel('Phase').selectOption({ label: 'Discovery' })
-
-    // Switching project resets the phase (Brand Themes has no phases).
-    await page.getByLabel('Project').selectOption('p-brand')
-    await expect(page.getByLabel('Phase')).toHaveValue('')
-  })
-
   test('edits a task name', async ({ page }) => {
     await openApp(page, 'Studio North', '/tasks')
     await page.getByTestId('task-row').filter({ hasText: 'CMS Review' }).getByRole('button', { name: 'Edit' }).click()

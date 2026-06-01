@@ -12,10 +12,12 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
   const data = useScopedData()
   const projects = data.projects
   const clients = data.clients
-  const phases = data.phases
 
   const [name, setName] = useState(task?.name ?? '')
   const [projectId, setProjectId] = useState(task?.projectId ?? '')
+  // Phase UI is hidden for now, but we keep an existing task's phase so editing a
+  // task doesn't silently ungroup it; changing the project still clears it (the
+  // phase belongs to the old project).
   const [phaseId, setPhaseId] = useState(task?.phaseId ?? '')
   const { error, errorField, errorId, fail } = useFieldError()
 
@@ -23,13 +25,10 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
     const client = clients.find((c) => c.id === p.clientId)
     return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name }
   })
-  const phaseOptions: Option[] = phases
-    .filter((ph) => ph.projectId === projectId)
-    .map((ph) => ({ value: ph.id, label: ph.name }))
 
   const onProjectChange = (v: string) => {
     setProjectId(v)
-    setPhaseId('') // phase belongs to a project; reset when the project changes
+    setPhaseId('')
   }
 
   const submit = () => {
@@ -61,7 +60,6 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
       <RequiredLegend />
       <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
       <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'projectId'} describedById={errorId} />
-      <SelectField label="Phase" value={phaseId} onChange={setPhaseId} options={phaseOptions} placeholder="— No phase —" />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

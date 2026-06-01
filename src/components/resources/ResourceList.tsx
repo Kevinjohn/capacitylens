@@ -13,6 +13,9 @@ export function ResourceList() {
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>()
 
   const disciplineName = (id?: string) => disciplines.find((d) => d.id === id)?.name ?? '—'
+  // A resource's colour follows its discipline (resources no longer pick their own);
+  // fall back to the stored colour for the disciplineless ones.
+  const swatchColor = (r: Resource) => disciplines.find((d) => d.id === r.disciplineId)?.color ?? r.color
 
   return (
     <ListPage title="Resources" addLabel="Add resource" onAdd={() => setCreating(true)}>
@@ -23,7 +26,7 @@ export function ResourceList() {
           {resources.map((r) => (
             <li key={r.id} data-testid="resource-row" className="flex items-center justify-between px-3 py-2">
               <span className="flex flex-wrap items-center gap-2">
-                <ColorSwatch color={r.color} />
+                <ColorSwatch color={swatchColor(r)} />
                 <span className="font-medium">{r.name ?? r.role}</span>
                 {r.kind === 'placeholder' && (
                   <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">placeholder</span>

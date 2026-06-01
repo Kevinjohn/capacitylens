@@ -68,7 +68,7 @@ test.describe('Resources', () => {
     await expect(page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' })).toBeVisible()
   })
 
-  test('rejects zero working hours and an invalid colour', async ({ page }) => {
+  test('rejects zero working hours', async ({ page }) => {
     await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add resource' }).click()
     await page.getByLabel('Name').fill('Edge Case')
@@ -77,11 +77,6 @@ test.describe('Resources', () => {
     await page.getByLabel('Working hours / day').fill('0')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('alert')).toContainText(/greater than 0/i)
-
-    await page.getByLabel('Working hours / day').fill('8')
-    await page.getByLabel('Colour hex value').fill('not-a-color')
-    await page.getByRole('button', { name: 'Save' }).click()
-    await expect(page.getByRole('alert')).toContainText(/valid 6-digit hex/i)
   })
 
   test('freelancers show a Temp tag; permanent staff do not', async ({ page }) => {
