@@ -62,6 +62,22 @@ describe('AllocationBar rendering', () => {
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveTextContent('Sprint Planning')
   })
+
+  it('hides hours in blocks mode, showing the task name only', () => {
+    const data = emptyAppData()
+    data.accounts = [{ id: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Co', color: '#111', schedulingMode: 'blocks' }]
+    useStore.getState().replaceAll(data)
+    useStore.getState().setActiveAccount('acct-test')
+
+    const bar = makeBar(makeAllocation())
+    render(<AllocationBar bar={bar} dayWidth={48} onEdit={vi.fn()} />)
+
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('My Task')
+    expect(el).not.toHaveTextContent('8h')
+    // The accessible name must not announce a meaningless load either.
+    expect(el.getAttribute('aria-label')).not.toMatch(/per day/)
+  })
 })
 
 describe('AllocationBar click interaction', () => {

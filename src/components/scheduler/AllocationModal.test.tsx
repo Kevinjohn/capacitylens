@@ -196,6 +196,52 @@ describe('AllocationModal days mode', () => {
   })
 })
 
+describe('AllocationModal blocks mode', () => {
+  const enableBlocks = () => useStore.getState().updateAccount(ACC, { schedulingMode: 'blocks' })
+
+  it('asks only for start + days over, and persists a zero-load span', async () => {
+    enableBlocks()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={onClose} />)
+
+    // Blocks drops every load field — no End, no Hours/day, no Days of work.
+    expect(screen.queryByLabelText('End')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Hours / day')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Days of work')).not.toBeInTheDocument()
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '10' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onClose).toHaveBeenCalled()
+    // 10 working days from Mon 2026-06-01 lands on Fri 2026-06-12; load is 0.
+    expect(useStore.getState().data.allocations[0]).toMatchObject({
+      startDate: '2026-06-01',
+      endDate: '2026-06-12',
+      hoursPerDay: 0,
+    })
+  })
+
+  it('seeds days over from the drawn span and saves with start alone', async () => {
+    enableBlocks()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const user = userEvent.setup()
+    // Grid hands a 5-working-day span (Mon 06-01 … Fri 06-05).
+    render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-05' }} onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('Days over')).toHaveValue(5)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(useStore.getState().data.allocations[0]).toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 0 })
+  })
+})
+
 describe('AllocationModal edit', () => {
   it('reassigns an allocation to another resource', async () => {
     const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })

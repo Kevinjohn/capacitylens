@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { spanDays, endDateForSpan, hoursPerDayFor, daysOfWorkFor } from './schedulingDays'
+import { spanDays, endDateForSpan, hoursPerDayFor, daysOfWorkFor, blockHoursPerDay, BLOCK_LOAD_FRACTION } from './schedulingDays'
 import type { Weekday } from '../types/entities'
 
 const MON_FRI: Weekday[] = [1, 2, 3, 4, 5]
@@ -60,5 +60,13 @@ describe('hoursPerDayFor / daysOfWorkFor', () => {
   it('is safe on degenerate inputs', () => {
     expect(hoursPerDayFor(5, 0, 8)).toBe(0)
     expect(daysOfWorkFor(8, 5, 0)).toBe(0)
+  })
+})
+
+describe('blockHoursPerDay', () => {
+  it('is the configured fraction of the working day (0 = no load, for now)', () => {
+    expect(BLOCK_LOAD_FRACTION).toBe(0)
+    expect(blockHoursPerDay(8)).toBe(0)
+    expect(blockHoursPerDay(7.5)).toBe(0)
   })
 })

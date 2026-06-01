@@ -3,7 +3,8 @@ import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { parseDate, todayISO } from '@floaty/shared/lib/dateMath'
-import { daysOfWorkFor, endDateForSpan, hoursPerDayFor, spanDays } from '@floaty/shared/lib/schedulingDays'
+import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, spanDays } from '@floaty/shared/lib/schedulingDays'
+import { schedulingModeFor } from '../../store/selectors'
 import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
 import {
   Button,
@@ -39,7 +40,9 @@ export function AllocationModal(props: AllocationModalProps) {
   const updateAllocation = useStore((s) => s.updateAllocation)
   const deleteAllocation = useStore((s) => s.deleteAllocation)
   const addTask = useStore((s) => s.addTask)
-  const isDays = useStore((s) => (s.data.accounts.find((a) => a.id === s.activeAccountId)?.schedulingMode ?? 'hourly') === 'days')
+  const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId))
+  const isDays = mode === 'days'
+  const isBlocks = mode === 'blocks'
 
   const editId = 'allocationId' in props ? props.allocationId : undefined
   const create = 'create' in props ? props.create : undefined
@@ -99,8 +102,15 @@ export function AllocationModal(props: AllocationModalProps) {
   // the assignee's working week; in hourly mode the typed fields are used as-is.
   const workingHoursPerDay = selectedResource?.workingHoursPerDay ?? initialWhpd
   const daysOpts = { workingDays: selectedResource?.workingDays, ignoreWeekends }
-  const effEndDate = isDays && startDate ? endDateForSpan(startDate, daysOver, daysOpts) : endDate
-  const effHoursPerDay = isDays ? hoursPerDayFor(daysOfWork, daysOver, workingHoursPerDay) : hoursPerDay
+  // Days and blocks both derive the end date from a (start, days-over) span; only
+  // hourly types an explicit end. Blocks carry no load, so hours/day is the block's
+  // fraction of a working day (0 for now); days rescale hours to fit the work volume.
+  const effEndDate = (isDays || isBlocks) && startDate ? endDateForSpan(startDate, daysOver, daysOpts) : endDate
+  const effHoursPerDay = isBlocks
+    ? blockHoursPerDay(workingHoursPerDay)
+    : isDays
+      ? hoursPerDayFor(daysOfWork, daysOver, workingHoursPerDay)
+      : hoursPerDay
 
   const resourceOptions: Option[] = data.resources.map((r) => ({
     value: r.id,
@@ -155,7 +165,14 @@ export function AllocationModal(props: AllocationModalProps) {
       fail('task', 'Choose (or add) a task.')
       return
     }
-    if (isDays) {
+    if (isBlocks) {
+      // A block is just a span: start + days over (>= 1, so always valid). The end
+      // date is derived and load is ignored, so there's nothing else to validate.
+      if (!startDate) {
+        fail('dates', 'Start date is required.')
+        return
+      }
+    } else if (isDays) {
       // End date is derived, so it can never be reversed; only the start is typed.
       if (!startDate) {
         fail('dates', 'Start date is required.')
@@ -280,7 +297,23 @@ export function AllocationModal(props: AllocationModalProps) {
         </Button>
       </div>
 
-      {isDays ? (
+      {isBlocks ? (
+        <>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+            </div>
+            <div className="flex-1">
+              <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} step={1} />
+            </div>
+          </div>
+          {startDate && (
+            <p className="text-xs text-muted">
+              Ends {format(parseDate(effEndDate), 'EEE d MMM yyyy')}
+            </p>
+          )}
+        </>
+      ) : isDays ? (
         <>
           <div className="flex gap-2">
             <div className="flex-1">

@@ -46,3 +46,15 @@ export function daysOfWorkFor(hoursPerDay: number, daysOver: number, workingHour
   if (workingHoursPerDay <= 0) return 0
   return (hoursPerDay * daysOver) / workingHoursPerDay
 }
+
+/** Fraction of a working day a "blocks"-mode allocation consumes. Blocks are pure
+ *  bookings — the span is all that matters, so load is 0 for now. Kept as a single
+ *  named knob because user feedback may later make this configurable (e.g. 1 = 100%). */
+export const BLOCK_LOAD_FRACTION = 0
+
+/** Hours/day persisted for a blocks-mode allocation: the block's load fraction of
+ *  the assignee's working day. At fraction 0 this is 0h, so a block never counts
+ *  toward utilisation or over-capacity. */
+export function blockHoursPerDay(workingHoursPerDay: number): number {
+  return workingHoursPerDay * BLOCK_LOAD_FRACTION
+}

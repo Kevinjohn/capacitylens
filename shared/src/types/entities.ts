@@ -9,8 +9,9 @@ export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export type AllocationStatus = 'confirmed' | 'tentative' | 'completed'
 /** How allocations are entered: by daily load against a fixed end date ('hourly',
- *  the default) or by volume of work spread over a span ('days'). */
-export type SchedulingMode = 'hourly' | 'days'
+ *  the default), by volume of work spread over a span ('days'), or as a pure
+ *  booking block where only the span matters and load is ignored ('blocks'). */
+export type SchedulingMode = 'hourly' | 'days' | 'blocks'
 export type ResourceKind = 'person' | 'placeholder'
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'

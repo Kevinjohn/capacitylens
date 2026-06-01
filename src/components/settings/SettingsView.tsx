@@ -15,6 +15,7 @@ const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
 const SCHEDULING_OPTIONS: { value: SchedulingMode; label: string }[] = [
   { value: 'hourly', label: 'Hours' },
   { value: 'days', label: 'Days' },
+  { value: 'blocks', label: 'Blocks' },
 ]
 
 const UTILIZATION_OPTIONS: { key: 'showTotal' | 'showDiscipline' | 'showPersonal'; label: string }[] = [
@@ -88,11 +89,20 @@ export function SettingsView() {
 
         <section className="rounded border border-line bg-surface p-4">
           <h2 className="mb-1 text-sm font-semibold text-ink">Scheduling</h2>
-          <p className="mb-3 text-xs text-muted">
-            How allocations are entered. <strong>Hours</strong> asks for hours/day across a start and end
-            date. <strong>Days</strong> asks for a start, days of work, and days over — the end date follows
-            from how thinly the work is spread.
-          </p>
+          <p className="mb-2 text-xs text-muted">How allocations are entered.</p>
+          <ul className="mb-3 list-disc space-y-1 pl-4 text-xs text-muted">
+            <li>
+              <strong>Hours</strong> asks for hours/day across a start and end date.
+            </li>
+            <li>
+              <strong>Days</strong> asks for a start, days of work, and days over — the end date follows from
+              how thinly the work is spread.
+            </li>
+            <li>
+              <strong>Blocks</strong> asks only for a start and days over — a pure booking with no load, so
+              utilisation is ignored.
+            </li>
+          </ul>
           <div role="radiogroup" aria-label="Scheduling input" className="inline-flex rounded-md border border-line p-0.5">
             {SCHEDULING_OPTIONS.map((opt) => {
               const selected = schedulingMode === opt.value

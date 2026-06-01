@@ -1,7 +1,12 @@
 import { addDaysISO } from '@floaty/shared/lib/dateMath'
 import { emptyAppData, scopedTables, SCOPED_KEYS } from '@floaty/shared/types/entities'
-import type { AppData, Discipline, ID, Resource } from '@floaty/shared/types/entities'
+import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@floaty/shared/types/entities'
 import type { SchedulerUI } from './useStore'
+
+/** The active company's scheduling input mode. Absent on the account reads as the
+ *  original 'hourly' behaviour. Single source so the modal and the bar can't drift. */
+export const schedulingModeFor = (data: AppData, activeAccountId: ID | null): SchedulingMode =>
+  data.accounts.find((a) => a.id === activeAccountId)?.schedulingMode ?? 'hourly'
 
 /** Narrow the full store data to a single account: every scoped array filtered to
  *  `accountId`, and `accounts` blanked (scoped views never read the tenant list). */

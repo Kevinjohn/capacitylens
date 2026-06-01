@@ -77,6 +77,20 @@ describe('SettingsView — scheduling mode', () => {
     expect(account?.schedulingMode).toBe('days')
     expect(days).toHaveAttribute('aria-checked', 'true')
   })
+
+  it('offers a Blocks option and switches the company to it', async () => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+
+    const blocks = screen.getByRole('radio', { name: 'Blocks' })
+    expect(blocks).toHaveAttribute('aria-checked', 'false')
+
+    await user.click(blocks)
+
+    const account = useStore.getState().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)
+    expect(account?.schedulingMode).toBe('blocks')
+    expect(blocks).toHaveAttribute('aria-checked', 'true')
+  })
 })
 
 describe('SettingsView — theme', () => {
