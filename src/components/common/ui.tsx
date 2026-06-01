@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { isTemporary } from '@floaty/shared/lib/integrity'
 import { ensureBarColors } from '@floaty/shared/lib/color'
+import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@floaty/shared/lib/strings'
 import { SWATCHES, SWATCH_COLUMNS } from '../../lib/palette'
 import { useStore } from '../../store/useStore'
 import { Icon } from './Icon'
@@ -345,6 +346,7 @@ export function TextField({
   invalid,
   required,
   describedById,
+  maxLength = MAX_NAME_LENGTH,
 }: {
   label: string
   value: string
@@ -354,6 +356,7 @@ export function TextField({
   invalid?: boolean
   required?: boolean
   describedById?: string
+  maxLength?: number
 }) {
   return (
     <label className="block">
@@ -363,6 +366,8 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        // Native cap is a backstop; the form validator also rejects emoji/junk + length.
+        maxLength={maxLength}
         // Name the control off the bare label so the required asterisk (decorative,
         // aria-hidden) never leaks into the accessible name. Mirrors SelectField.
         aria-label={label}
@@ -375,11 +380,34 @@ export function TextField({
   )
 }
 
-export function TextAreaField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+export function TextAreaField({
+  label,
+  value,
+  onChange,
+  invalid,
+  describedById,
+  maxLength = MAX_NOTE_LENGTH,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  invalid?: boolean
+  describedById?: string
+  maxLength?: number
+}) {
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
-      <textarea className={inputClass} rows={2} value={value} onChange={(e) => onChange(e.target.value)} />
+      <textarea
+        className={controlClass(invalid)}
+        rows={2}
+        value={value}
+        maxLength={maxLength}
+        aria-label={label}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? describedById : undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
     </label>
   )
 }

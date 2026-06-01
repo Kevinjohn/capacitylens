@@ -15,6 +15,20 @@ test.describe('Clients', () => {
     await expect(page.getByLabel('Filter by client').getByRole('option', { name: 'Initech' })).toBeAttached()
   })
 
+  test('rejects emoji / junk characters in a name and blocks the save', async ({ page }) => {
+    await openApp(page, 'Studio North', '/clients')
+    await page.getByRole('button', { name: 'Add client' }).click()
+    // An emoji is rejected…
+    await page.getByLabel('Name').fill('Acme \u{1F389} Co')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByRole('alert')).toContainText(/emoji or special characters/i)
+    await expect(page.getByRole('dialog')).toBeVisible() // dialog stays open; nothing added
+    // …a real accented name saves fine.
+    await page.getByLabel('Name').fill('Café Crème')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByTestId('client-row').filter({ hasText: 'Café Crème' })).toBeVisible()
+  })
+
   test('edits a client and the rename reflects in project labels', async ({ page }) => {
     await openApp(page, 'Studio North', '/clients')
     await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Edit' }).click()

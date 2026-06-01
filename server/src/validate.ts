@@ -6,6 +6,7 @@ import {
 } from '@floaty/shared/domain/mutations'
 import { sanitizeImportedRecord } from '@floaty/shared/lib/sanitizeImport'
 import { isHexColor } from '@floaty/shared/lib/color'
+import { cleanText } from '@floaty/shared/lib/strings'
 import type { AppData, ScopedEntityKey } from '@floaty/shared/types/entities'
 
 // The server is the integrity boundary for direct API writes. Two layers, both
@@ -41,6 +42,7 @@ export function sanitizeWrite(table: string, row: Record<string, unknown>): Reco
   const copy = { ...row }
   if (table === 'accounts') {
     copy.color = typeof copy.color === 'string' && isHexColor(copy.color) ? copy.color : FALLBACK_COLOR
+    if (typeof copy.name === 'string') copy.name = cleanText(copy.name)
     return copy
   }
   if (isScopedKey(table)) return sanitizeImportedRecord(table, copy)

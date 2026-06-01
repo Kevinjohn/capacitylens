@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
+import { validateText } from '../../lib/validation'
 import {
   Button,
   FieldError,
@@ -46,10 +47,15 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
   })
 
   const submit = () => {
-    if (!isPlaceholder && !name.trim()) {
-      fail('name', 'Name is required for a person.')
-      return
-    }
+    // A person needs a name; a placeholder's is optional. Either way, reject emoji/junk.
+    const cleanName = validateText(name, fail, {
+      field: 'name',
+      required: !isPlaceholder,
+      requiredMessage: 'Name is required for a person.',
+    })
+    if (cleanName === null) return
+    const cleanRole = validateText(role, fail, { field: 'role', required: false })
+    if (cleanRole === null) return
     if (isPlaceholder && !projectId) {
       fail('projectId', 'A placeholder must be bound to a project.')
       return
@@ -60,8 +66,8 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
     }
     const patch = {
       kind,
-      name: name.trim() ? name.trim() : undefined,
-      role: role.trim(),
+      name: cleanName ? cleanName : undefined,
+      role: cleanRole,
       disciplineId: disciplineId || undefined,
       employmentType: isPlaceholder ? ('permanent' as const) : employmentType,
       workingHoursPerDay: hours,
@@ -91,7 +97,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
     >
       <RequiredLegend />
       <TextField label={isPlaceholder ? 'Name (optional)' : 'Name'} value={name} onChange={setName} required={!isPlaceholder} invalid={errorField === 'name'} describedById={errorId} />
-      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" />
+      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" invalid={errorField === 'role'} describedById={errorId} />
       <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
       {!isPlaceholder && (
         <SelectField

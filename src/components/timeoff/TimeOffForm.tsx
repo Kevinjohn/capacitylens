@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { todayISO } from '@floaty/shared/lib/dateMath'
+import { validateText } from '../../lib/validation'
 import { Button, DateField, FieldError, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS } from '../../lib/metadata'
 import type { ISODate, TimeOff, TimeOffType } from '@floaty/shared/types/entities'
@@ -48,7 +49,9 @@ export function TimeOffForm({
       fail('dates', 'End date cannot be before the start date.')
       return
     }
-    const patch = { resourceId, startDate, endDate, type, note: note.trim() ? note.trim() : undefined }
+    const cleanNote = validateText(note, fail, { field: 'note', required: false, multiline: true })
+    if (cleanNote === null) return
+    const patch = { resourceId, startDate, endDate, type, note: cleanNote ? cleanNote : undefined }
     try {
       if (timeOff) update(timeOff.id, patch)
       else add(patch)
@@ -76,7 +79,7 @@ export function TimeOffForm({
       <DateField label="Start" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
       <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
       <SelectField label="Type" value={type} onChange={(v) => setType(v as TimeOffType)} options={TIME_OFF_TYPE_OPTIONS} />
-      <TextAreaField label="Note" value={note} onChange={setNote} />
+      <TextAreaField label="Note" value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

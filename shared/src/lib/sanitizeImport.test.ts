@@ -34,8 +34,23 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('timeOff', { type: 'vacation' }).type).toBe('other')
   })
 
-  it('leaves names and refs alone', () => {
+  it('leaves clean names and refs alone', () => {
     const out = sanitizeImportedRecord('tasks', { name: 'Build', projectId: 'p1' })
     expect(out).toEqual({ name: 'Build', projectId: 'p1' })
+  })
+
+  it('strips emoji / control junk from text fields but keeps refs', () => {
+    const out = sanitizeImportedRecord('tasks', { name: `Build ${String.fromCodePoint(0x1f389)} it`, projectId: 'p1' })
+    expect(out).toEqual({ name: 'Build it', projectId: 'p1' })
+
+    const res = sanitizeImportedRecord('resources', {
+      name: `Jos${String.fromCodePoint(0x1f4a9)}e`,
+      role: `Design${String.fromCodePoint(0x200d)}er`,
+    })
+    expect(res.name).toBe('Jose')
+    expect(res.role).toBe('Designer')
+
+    const alloc = sanitizeImportedRecord('allocations', { note: `done ${String.fromCodePoint(0x2705)}` })
+    expect(alloc.note).toBe('done')
   })
 })

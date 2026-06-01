@@ -508,3 +508,45 @@ A batch of scheduler refinements (two commits). Behind the green gate (unit + e2
   undo/redo toolbar buttons are hidden (feature lives on ⌘Z); general tasks live in
   their own section with no per-row "General" label. The specs that asserted the old
   shapes were updated (not left failing, which would mask real regressions).
+
+## 2026-06-01 — Demo-readiness: text-input validation + decision sign-offs
+
+Reviewed the open judgment calls in this log with the user ahead of a controlled demo
+(Floaty goes up tonight behind **subdomain HTTP auth** for ~5 friends to trial). Three
+were resolved; one small feature was built.
+
+### Text-field input validation (built)
+- The user wanted junk — emoji, control / zero-width characters — kept out of text
+  fields, but real names (`José`, `Müller`, `O'Brien & Co`, CJK) must still work. So the
+  rule is a **denylist, not an ASCII allowlist**: reject `Extended_Pictographic` + `So`
+  (emoji incl. **flags** / regional indicators, plus dingbats and ™ © ® °) and
+  `Cc`/`Cf`/`Cs`/`Co`/`Cn` (control, format/zero-width, surrogate, private-use,
+  unassigned); allow all letters/marks/digits/punctuation/whitespace and currency/math
+  symbols (€, £, +, =). Newlines/tabs are allowed in multiline notes only. (The user
+  leaned strict — "no emoji or any unicode etc." — so `So` is in, accepting that ™/©/®
+  are also blocked, which is fine for name/note fields.)
+- One definition in **`shared/src/lib/strings.ts`** (`hasDisallowedChars` + `cleanText`
+  + `MAX_NAME_LENGTH` 100 / `MAX_NOTE_LENGTH` 1000), imported by client **and** server so
+  they can't drift. The **forms reject** (inline error "Remove emoji or special
+  characters." via a new `validateText` in `src/lib/validation.ts`, which `validateName`
+  now delegates to — so every required-name field inherits the rule for free); the
+  **import + server write paths strip** (`cleanText` in `sanitizeImportedRecord` and the
+  server's `sanitizeWrite`), matching the existing repair-don't-reject import philosophy.
+  `TextField`/`TextAreaField` also carry a native `maxLength` backstop.
+
+### CSP — assessed, deferred (no change)
+`index.html` already ships the free wins (`object-src 'none'; base-uri 'none'`). A full
+`script-src`/`style-src` policy is **not** a quick win here: the head has an inline FOUC
+theme script (would need hashing) + Vite injects inline styles, and a full policy belongs
+in a **response header at the host/CDN** — which is exactly where the demo's HTTP auth
+lives. Right place, wrong time. (App-level auth deliberately **not** added: the subdomain
+gate covers the 5-person trial; last-writer-wins, no per-user isolation, as before.)
+
+### Undo/redo — keyboard-only is settled (was "come back to this")
+Confirmed: the scheduler toolbar stays free of undo/redo buttons; the feature lives on
+⌘Z / ⌘⇧Z (global handler in `AppShell`). No longer an open question.
+
+### Resource colour — derive from discipline; spec corrected
+Confirmed the shipped behaviour (a resource has no colour control; its colour follows its
+discipline). Rewrote the stale **`US-RES-09-resource-colour.md`**, which still described a
+per-resource hex picker, to describe discipline-derived colour.

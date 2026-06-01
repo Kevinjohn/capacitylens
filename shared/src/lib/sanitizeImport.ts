@@ -1,4 +1,5 @@
 import { isHexColor } from './color'
+import { cleanText } from './strings'
 import type { ScopedEntityKey, Weekday } from '../types/entities'
 
 // Import is the one write path that bypasses the form validators (a hand-edited or
@@ -39,6 +40,12 @@ const safeWorkingDays = (v: unknown): Weekday[] => {
   return days.length ? days : [1, 2, 3, 4, 5]
 }
 
+// Strip emoji / control / zero-width junk from a free-text field in place (the forms
+// reject it; import can't, so it repairs). No-op on a missing/non-string field.
+const cleanField = (rec: Record<string, unknown>, field: string, multiline = false): void => {
+  if (typeof rec[field] === 'string') rec[field] = cleanText(rec[field] as string, { multiline })
+}
+
 /** Repair the value-level fields of one imported scoped record in place. The record
  *  has already had its id remapped + accountId stamped; we only touch constrained
  *  fields, leaving names/notes/refs alone. */
@@ -53,24 +60,31 @@ export function sanitizeImportedRecord(
       rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay, 8)
       rec.workingDays = safeWorkingDays(rec.workingDays)
       rec.color = safeColor(rec.color)
+      cleanField(rec, 'name')
+      cleanField(rec, 'role')
       break
     case 'allocations':
       rec.status = oneOf(rec.status, VALID_STATUS, 'confirmed')
       rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8)
+      cleanField(rec, 'note', true)
       break
     case 'timeOff':
       rec.type = oneOf(rec.type, VALID_TIMEOFF, 'other')
+      cleanField(rec, 'note', true)
       break
     case 'disciplines':
       rec.sortOrder = safeInt(rec.sortOrder, 0)
       if (rec.color !== undefined) rec.color = safeColor(rec.color)
+      cleanField(rec, 'name')
       break
     case 'clients':
     case 'projects':
       rec.color = safeColor(rec.color)
+      cleanField(rec, 'name')
       break
     case 'phases':
     case 'tasks':
+      cleanField(rec, 'name')
       break
   }
   return rec

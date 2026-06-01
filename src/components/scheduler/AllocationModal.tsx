@@ -6,6 +6,8 @@ import { parseDate, todayISO } from '@floaty/shared/lib/dateMath'
 import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, spanDays } from '@floaty/shared/lib/schedulingDays'
 import { schedulingModeFor } from '../../store/selectors'
 import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
+import { validateText } from '../../lib/validation'
+import { MAX_NAME_LENGTH } from '@floaty/shared/lib/strings'
 import {
   Button,
   DateField,
@@ -147,11 +149,12 @@ export function AllocationModal(props: AllocationModalProps) {
   const onAddTask = () => {
     // No project selected → create a general (no-project) task; otherwise bind it
     // to the chosen project. Was a silent no-op on a blank name — give feedback.
-    if (!newTaskName.trim()) {
-      fail('newtask', 'Enter a name for the new task.')
-      return
-    }
-    const task = addTask({ name: newTaskName.trim(), projectId: projectId || undefined })
+    const cleanTaskName = validateText(newTaskName, fail, {
+      field: 'newtask',
+      requiredMessage: 'Enter a name for the new task.',
+    })
+    if (cleanTaskName === null) return
+    const task = addTask({ name: cleanTaskName, projectId: projectId || undefined })
     setTaskId(task.id)
     setNewTaskName('')
   }
@@ -196,6 +199,8 @@ export function AllocationModal(props: AllocationModalProps) {
         return
       }
     }
+    const cleanNote = validateText(note, fail, { field: 'note', required: false, multiline: true })
+    if (cleanNote === null) return
     const task = data.tasks.find((t) => t.id === taskId)
     if (selectedResource && task) {
       const check = validateAllocationAssignment(selectedResource, task.projectId)
@@ -205,7 +210,7 @@ export function AllocationModal(props: AllocationModalProps) {
       }
     }
     // Both modes persist the same shape; days mode just feeds the DERIVED end/hours.
-    const fields = { taskId, startDate, endDate: effEndDate, hoursPerDay: effHoursPerDay, status, note: note.trim() ? note.trim() : undefined, ignoreWeekends }
+    const fields = { taskId, startDate, endDate: effEndDate, hoursPerDay: effHoursPerDay, status, note: cleanNote ? cleanNote : undefined, ignoreWeekends }
     try {
       if (editing) updateAllocation(editing.id, { resourceId, ...fields })
       else addAllocation({ resourceId, ...fields })
@@ -287,6 +292,7 @@ export function AllocationModal(props: AllocationModalProps) {
         <input
           className={inputClass}
           value={newTaskName}
+          maxLength={MAX_NAME_LENGTH}
           placeholder={projectId ? '…or add a new task' : '…or add a new general task'}
           aria-label="New task name"
           aria-invalid={errorField === 'newtask' || undefined}
@@ -347,7 +353,7 @@ export function AllocationModal(props: AllocationModalProps) {
         </>
       )}
       <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
-      <TextAreaField label="Note" value={note} onChange={setNote} />
+      <TextAreaField label="Note" value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
 
       <label className="flex items-center gap-2 text-sm text-muted">
         <input
