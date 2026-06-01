@@ -13,11 +13,14 @@ import {
   WeekdayPicker,
   type Option,
 } from '../common/ui'
-import { EMPLOYMENT_TYPE_OPTIONS, RESOURCE_KIND_OPTIONS } from '../../lib/metadata'
+import { EMPLOYMENT_TYPE_OPTIONS } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { EmploymentType, Resource, ResourceKind, Weekday } from '@floaty/shared/types/entities'
 
-export function ResourceForm({ resource, onClose }: { resource?: Resource; onClose: () => void }) {
+// People and placeholders now have their own add buttons, so the form opens locked
+// to a single kind (taken from the resource being edited, or the `kind` the caller
+// chose for a new one) — no in-modal type switcher.
+export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?: Resource; kind?: ResourceKind; onClose: () => void }) {
   const add = useStore((s) => s.addResource)
   const update = useStore((s) => s.updateResource)
   const data = useScopedData()
@@ -25,7 +28,8 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
   const projects = data.projects
   const clients = data.clients
 
-  const [kind, setKind] = useState<ResourceKind>(resource?.kind ?? 'person')
+  const kind = resource?.kind ?? kindProp ?? 'person'
+  const isPlaceholder = kind === 'placeholder'
   const [name, setName] = useState(resource?.name ?? '')
   const [role, setRole] = useState(resource?.role ?? '')
   const [disciplineId, setDisciplineId] = useState(resource?.disciplineId ?? '')
@@ -42,11 +46,11 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
   })
 
   const submit = () => {
-    if (kind === 'person' && !name.trim()) {
+    if (!isPlaceholder && !name.trim()) {
       fail('name', 'Name is required for a person.')
       return
     }
-    if (kind === 'placeholder' && !projectId) {
+    if (isPlaceholder && !projectId) {
       fail('projectId', 'A placeholder must be bound to a project.')
       return
     }
@@ -59,10 +63,10 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       name: name.trim() ? name.trim() : undefined,
       role: role.trim(),
       disciplineId: disciplineId || undefined,
-      employmentType: kind === 'placeholder' ? ('permanent' as const) : employmentType,
+      employmentType: isPlaceholder ? ('permanent' as const) : employmentType,
       workingHoursPerDay: hours,
       workingDays,
-      projectId: kind === 'placeholder' ? projectId : undefined,
+      projectId: isPlaceholder ? projectId : undefined,
       // Resources no longer carry their own colour — the scheduler/list derive it
       // from the discipline. Keep a stable fallback so the entity stays valid.
       color: resource?.color ?? DEFAULT_COLORS.resource,
@@ -74,7 +78,7 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
 
   return (
     <Modal
-      title={resource ? 'Edit resource' : 'Add resource'}
+      title={`${resource ? 'Edit' : 'Add'} ${isPlaceholder ? 'placeholder' : 'resource'}`}
       onClose={onClose}
       footer={
         <>
@@ -86,11 +90,10 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
       }
     >
       <RequiredLegend />
-      <SelectField label="Type" value={kind} onChange={(v) => setKind(v as ResourceKind)} options={RESOURCE_KIND_OPTIONS} />
-      <TextField label={kind === 'placeholder' ? 'Name (optional)' : 'Name'} value={name} onChange={setName} required={kind === 'person'} invalid={errorField === 'name'} describedById={errorId} />
+      <TextField label={isPlaceholder ? 'Name (optional)' : 'Name'} value={name} onChange={setName} required={!isPlaceholder} invalid={errorField === 'name'} describedById={errorId} />
       <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" />
       <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
-      {kind === 'person' && (
+      {!isPlaceholder && (
         <SelectField
           label="Employment"
           value={employmentType}
@@ -98,7 +101,7 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
           options={EMPLOYMENT_TYPE_OPTIONS}
         />
       )}
-      {kind === 'placeholder' && (
+      {isPlaceholder && (
         <SelectField label="Bound project" value={projectId} onChange={setProjectId} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'projectId'} describedById={errorId} />
       )}
       <NumberField label="Working hours / day" value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />

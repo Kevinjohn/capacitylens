@@ -22,9 +22,8 @@ test.describe('Resources', () => {
 
   test('adds a placeholder bound to a project and shows a slot tag', async ({ page }) => {
     await openApp(page, 'Studio North', '/resources')
-    await page.getByRole('button', { name: 'Add resource' }).click()
+    await page.getByRole('button', { name: 'Add placeholder' }).click()
 
-    await page.getByLabel('Type').selectOption({ label: 'Placeholder' })
     await page.getByLabel('Role').fill('Junior Dev')
     await page.getByLabel('Bound project').selectOption('p-acme') // Acme Inc. / Project Lightning
     await page.getByRole('button', { name: 'Save' }).click()
@@ -35,8 +34,7 @@ test.describe('Resources', () => {
 
   test('rejects a placeholder with no bound project', async ({ page }) => {
     await openApp(page, 'Studio North', '/resources')
-    await page.getByRole('button', { name: 'Add resource' }).click()
-    await page.getByLabel('Type').selectOption({ label: 'Placeholder' })
+    await page.getByRole('button', { name: 'Add placeholder' }).click()
     await page.getByLabel('Role').fill('Unbound slot')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('alert')).toContainText(/must be bound to a project/i)

@@ -11,9 +11,8 @@ describe('ResourceForm placeholder binding', () => {
   it('requires a placeholder to be bound to a project', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
-    render(<ResourceForm onClose={onClose} />)
+    render(<ResourceForm kind="placeholder" onClose={onClose} />)
 
-    await user.selectOptions(screen.getByLabelText('Type'), 'placeholder')
     await user.type(screen.getByLabelText('Role'), 'Senior Designer')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -27,9 +26,8 @@ describe('ResourceForm placeholder binding', () => {
     const onClose = vi.fn()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    render(<ResourceForm onClose={onClose} />)
+    render(<ResourceForm kind="placeholder" onClose={onClose} />)
 
-    await user.selectOptions(screen.getByLabelText('Type'), 'placeholder')
     await user.type(screen.getByLabelText('Role'), 'Senior Designer')
     await user.selectOptions(screen.getByLabelText('Bound project'), project.id)
     await user.click(screen.getByRole('button', { name: 'Save' }))
