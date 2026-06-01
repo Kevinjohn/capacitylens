@@ -304,6 +304,40 @@ export const controlBase =
   'rounded-md border bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-faint shadow-sm transition-colors'
 export const inputClass = `w-full ${controlBase}`
 
+// Two deliberately distinct red treatments so "required" never reads as "errored":
+//   required (at rest) → a thin red left-edge accent — a quiet marker.
+//   invalid (failed Save) → a full danger border + ring — the field you missed pops.
+// invalid wins when both apply, so a required field that fails shows the error state.
+function controlClass(invalid?: boolean, required?: boolean) {
+  if (invalid) return `${inputClass} border-danger ring-1 ring-danger`
+  if (required) return `${inputClass} border-l-2 border-l-danger/60`
+  return inputClass
+}
+
+/** Field label with an optional red asterisk for required fields. The asterisk is
+ *  decorative (the input carries aria-required); we still give it a title for hover. */
+function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  return (
+    <span className={labelClass}>
+      {label}
+      {required && (
+        <span className="text-danger" title="Required" aria-hidden>
+          {' *'}
+        </span>
+      )}
+    </span>
+  )
+}
+
+/** Drop near the top of a form to explain the asterisk + red accent convention. */
+export function RequiredLegend() {
+  return (
+    <p className="text-xs text-muted">
+      <span className="font-medium text-danger">*</span> Required field
+    </p>
+  )
+}
+
 export function TextField({
   label,
   value,
@@ -311,6 +345,7 @@ export function TextField({
   placeholder,
   autoFocus,
   invalid,
+  required,
   describedById,
 }: {
   label: string
@@ -319,16 +354,18 @@ export function TextField({
   placeholder?: string
   autoFocus?: boolean
   invalid?: boolean
+  required?: boolean
   describedById?: string
 }) {
   return (
     <label className="block">
-      <span className={labelClass}>{label}</span>
+      <FieldLabel label={label} required={required} />
       <input
-        className={inputClass}
+        className={controlClass(invalid, required)}
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}
@@ -354,6 +391,7 @@ export function NumberField({
   max,
   step,
   invalid,
+  required,
   describedById,
 }: {
   label: string
@@ -363,18 +401,20 @@ export function NumberField({
   max?: number
   step?: number
   invalid?: boolean
+  required?: boolean
   describedById?: string
 }) {
   return (
     <label className="block">
-      <span className={labelClass}>{label}</span>
+      <FieldLabel label={label} required={required} />
       <input
         type="number"
-        className={inputClass}
+        className={controlClass(invalid, required)}
         value={value}
         min={min}
         max={max}
         step={step}
+        aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(Number(e.target.value))}
@@ -397,21 +437,24 @@ export function DateField({
   value,
   onChange,
   invalid,
+  required,
   describedById,
 }: {
   label: string
   value: string
   onChange: (v: string) => void
   invalid?: boolean
+  required?: boolean
   describedById?: string
 }) {
   return (
     <label className="block">
-      <span className={labelClass}>{label}</span>
+      <FieldLabel label={label} required={required} />
       <input
         type="date"
-        className={inputClass}
+        className={controlClass(invalid, required)}
         value={value}
+        aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}
@@ -433,6 +476,7 @@ export function SelectField({
   placeholder,
   disabled,
   invalid,
+  required,
   describedById,
 }: {
   label: string
@@ -442,16 +486,18 @@ export function SelectField({
   placeholder?: string
   disabled?: boolean
   invalid?: boolean
+  required?: boolean
   describedById?: string
 }) {
   return (
     <label className="block">
-      <span className={labelClass}>{label}</span>
+      <FieldLabel label={label} required={required} />
       <select
-        className={`${inputClass} disabled:opacity-60`}
+        className={`${controlClass(invalid, required)} disabled:opacity-60`}
         value={value}
         disabled={disabled}
         aria-label={label}
+        aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}

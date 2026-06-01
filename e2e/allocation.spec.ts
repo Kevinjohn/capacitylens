@@ -83,7 +83,9 @@ test.describe('Allocation editor', () => {
     await expect(page.getByRole('alert')).toContainText(/start and end dates are required/i)
 
     await dialog.getByLabel('Start').fill('2026-06-01')
-    await dialog.getByLabel('End').fill('2026-06-02')
+    // Anchored so it hits the "End" date field and not the "Ignore weekends" checkbox;
+    // a required field's label carries a trailing " *", so an exact match won't do.
+    await dialog.getByLabel(/^End/).fill('2026-06-02')
     await dialog.getByLabel('Hours / day').fill('0')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('alert')).toContainText(/greater than 0/i)

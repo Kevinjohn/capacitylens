@@ -2,7 +2,7 @@ import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { todayISO } from '@floaty/shared/lib/dateMath'
-import { Button, DateField, FieldError, Modal, SelectField, TextAreaField, type Option } from '../common/ui'
+import { Button, DateField, FieldError, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS } from '../../lib/metadata'
 import type { ISODate, TimeOff, TimeOffType } from '@floaty/shared/types/entities'
 
@@ -71,9 +71,10 @@ export function TimeOffForm({
         </>
       }
     >
-      <SelectField label="Resource" value={resourceId} onChange={setResourceId} options={resourceOptions} placeholder="— Select resource —" invalid={errorField === 'resource'} describedById={errorId} />
-      <DateField label="Start" value={startDate} onChange={setStartDate} invalid={errorField === 'dates'} describedById={errorId} />
-      <DateField label="End" value={endDate} onChange={setEndDate} invalid={errorField === 'dates'} describedById={errorId} />
+      <RequiredLegend />
+      <SelectField label="Resource" value={resourceId} onChange={setResourceId} options={resourceOptions} placeholder="— Select resource —" required invalid={errorField === 'resource'} describedById={errorId} />
+      <DateField label="Start" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+      <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
       <SelectField label="Type" value={type} onChange={(v) => setType(v as TimeOffType)} options={TIME_OFF_TYPE_OPTIONS} />
       <TextAreaField label="Note" value={note} onChange={setNote} />
       <FieldError id={errorId}>{error}</FieldError>

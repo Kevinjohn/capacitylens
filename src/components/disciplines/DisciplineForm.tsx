@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { validateHex, validateName } from '../../lib/validation'
-import { Button, ColorField, FieldError, Modal, NumberField, TextField } from '../common/ui'
+import { Button, ColorField, FieldError, Modal, NumberField, RequiredLegend, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { Discipline } from '@floaty/shared/types/entities'
 
@@ -43,7 +43,8 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
         </>
       }
     >
-      <TextField label="Name" value={name} onChange={setName} autoFocus invalid={errorField === 'name'} describedById={errorId} />
+      <RequiredLegend />
+      <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
       <NumberField label="Sort order" value={sortOrder} onChange={setSortOrder} min={0} />
       <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>

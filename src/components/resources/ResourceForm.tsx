@@ -9,6 +9,7 @@ import {
   FieldError,
   Modal,
   NumberField,
+  RequiredLegend,
   SelectField,
   TextField,
   WeekdayPicker,
@@ -90,9 +91,10 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
         </>
       }
     >
+      <RequiredLegend />
       <SelectField label="Type" value={kind} onChange={(v) => setKind(v as ResourceKind)} options={RESOURCE_KIND_OPTIONS} />
-      <TextField label={kind === 'placeholder' ? 'Name (optional)' : 'Name'} value={name} onChange={setName} invalid={errorField === 'name'} describedById={errorId} />
-      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" invalid={errorField === 'role'} describedById={errorId} />
+      <TextField label={kind === 'placeholder' ? 'Name (optional)' : 'Name'} value={name} onChange={setName} required={kind === 'person'} invalid={errorField === 'name'} describedById={errorId} />
+      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" required invalid={errorField === 'role'} describedById={errorId} />
       <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
       {kind === 'person' && (
         <SelectField
@@ -103,7 +105,7 @@ export function ResourceForm({ resource, onClose }: { resource?: Resource; onClo
         />
       )}
       {kind === 'placeholder' && (
-        <SelectField label="Bound project" value={projectId} onChange={setProjectId} options={projectOptions} placeholder="— Select project —" invalid={errorField === 'projectId'} describedById={errorId} />
+        <SelectField label="Bound project" value={projectId} onChange={setProjectId} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'projectId'} describedById={errorId} />
       )}
       <NumberField label="Working hours / day" value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
       <WeekdayPicker label="Working days" value={workingDays} onChange={setWorkingDays} />

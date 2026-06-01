@@ -5,7 +5,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { validateHex, validateName } from '../../lib/validation'
 import { validateProjectClient } from '@floaty/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import { Button, ColorField, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
+import { Button, ColorField, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
 import type { Project } from '@floaty/shared/types/entities'
 
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
@@ -56,8 +56,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         </>
       }
     >
-      <TextField label="Name" value={name} onChange={setName} autoFocus invalid={errorField === 'name'} describedById={errorId} />
-      <SelectField label="Client" value={clientId} onChange={setClientId} options={clientOptions} placeholder="— Select client —" invalid={errorField === 'client'} describedById={errorId} />
+      <RequiredLegend />
+      <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
+      <SelectField label="Client" value={clientId} onChange={setClientId} options={clientOptions} placeholder="— Select client —" required invalid={errorField === 'client'} describedById={errorId} />
       <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
 

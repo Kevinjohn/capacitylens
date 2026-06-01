@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { validateName } from '../../lib/validation'
-import { Button, FieldError, Modal, SelectField, TextField, type Option } from '../common/ui'
+import { Button, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
 import type { Task } from '@floaty/shared/types/entities'
 
 export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }) {
@@ -58,8 +58,9 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
         </>
       }
     >
-      <TextField label="Name" value={name} onChange={setName} autoFocus invalid={errorField === 'name'} describedById={errorId} />
-      <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" invalid={errorField === 'projectId'} describedById={errorId} />
+      <RequiredLegend />
+      <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
+      <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'projectId'} describedById={errorId} />
       <SelectField label="Phase" value={phaseId} onChange={setPhaseId} options={phaseOptions} placeholder="— No phase —" />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>

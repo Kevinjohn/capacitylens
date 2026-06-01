@@ -14,6 +14,7 @@ import {
   inputClass,
   Modal,
   NumberField,
+  RequiredLegend,
   SelectField,
   TextAreaField,
   type Option,
@@ -261,7 +262,8 @@ export function AllocationModal(props: AllocationModalProps) {
         </>
       }
     >
-      <SelectField label="Assignee" value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder="— Select resource —" invalid={errorField === 'resource'} describedById={errorId} />
+      <RequiredLegend />
+      <SelectField label="Assignee" value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder="— Select resource —" required invalid={errorField === 'resource'} describedById={errorId} />
       {isPlaceholder && <p className="text-xs text-muted">Placeholder — locked to its bound project.</p>}
 
       <SelectField
@@ -273,7 +275,7 @@ export function AllocationModal(props: AllocationModalProps) {
         disabled={!!lockedProjectId}
       />
       <SelectField label="Phase" value={phaseId} onChange={onPhaseChange} options={phaseOptions} placeholder="— Any / none —" />
-      <SelectField label="Task" value={taskId} onChange={setTaskId} options={taskOptions} placeholder="— Select task —" invalid={errorField === 'task'} describedById={errorId} />
+      <SelectField label="Task" value={taskId} onChange={setTaskId} options={taskOptions} placeholder="— Select task —" required invalid={errorField === 'task'} describedById={errorId} />
       {projectId && (
         <div className="flex gap-2">
           <input
@@ -292,10 +294,10 @@ export function AllocationModal(props: AllocationModalProps) {
 
       {isDays ? (
         <>
-          <DateField label="Start" value={startDate} onChange={setStartDate} invalid={errorField === 'dates'} describedById={errorId} />
+          <DateField label="Start" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
           <div className="flex gap-2">
             <div className="flex-1">
-              <NumberField label="Days of work" value={daysOfWork} onChange={setDaysOfWork} min={0} step={0.5} invalid={errorField === 'daysOfWork'} describedById={errorId} />
+              <NumberField label="Days of work" value={daysOfWork} onChange={setDaysOfWork} min={0} step={0.5} required invalid={errorField === 'daysOfWork'} describedById={errorId} />
             </div>
             <div className="flex-1">
               <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} step={1} />
@@ -311,14 +313,14 @@ export function AllocationModal(props: AllocationModalProps) {
         <>
           <div className="flex gap-2">
             <div className="flex-1">
-              <DateField label="Start" value={startDate} onChange={setStartDate} invalid={errorField === 'dates'} describedById={errorId} />
+              <DateField label="Start" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <DateField label="End" value={endDate} onChange={setEndDate} invalid={errorField === 'dates'} describedById={errorId} />
+              <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
           </div>
 
-          <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
+          <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={24} required invalid={errorField === 'hours'} describedById={errorId} />
         </>
       )}
       <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
