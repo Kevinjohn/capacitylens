@@ -13,7 +13,8 @@ export function TaskList() {
   const del = useStore((s) => s.deleteTask)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Task>()
 
-  const projectLabel = (id: string) => {
+  const projectLabel = (id: string | undefined) => {
+    if (!id) return 'General'
     const p = projects.find((x) => x.id === id)
     if (!p) return '(no project)'
     const c = clients.find((x) => x.id === p.clientId)

@@ -34,11 +34,8 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
   const submit = () => {
     const trimmed = validateName(name, fail)
     if (!trimmed) return
-    if (!projectId) {
-      fail('projectId', 'A task must belong to a project.')
-      return
-    }
-    const patch = { name: trimmed, projectId, phaseId: phaseId || undefined }
+    // A task may be general (no project) or project-bound — project is optional.
+    const patch = { name: trimmed, projectId: projectId || undefined, phaseId: phaseId || undefined }
     if (task) update(task.id, patch)
     else add(patch)
     onClose()
@@ -59,7 +56,7 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
     >
       <RequiredLegend />
       <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
-      <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'projectId'} describedById={errorId} />
+      <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— No project (general task) —" />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

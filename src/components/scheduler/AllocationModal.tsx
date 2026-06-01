@@ -53,7 +53,10 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialLocked = initialResource?.kind === 'placeholder' ? initialResource.projectId : undefined
 
   const [resourceId, setResourceId] = useState(initialResourceId)
-  const [projectId, setProjectId] = useState(initialLocked ?? initialTask?.projectId ?? '')
+  // When editing, the existing task's project wins (undefined → '' = general), so a
+  // placeholder→general allocation reopens with the Task select correctly populated.
+  // `initialLocked` is only the CREATE-time default for a placeholder's bound project.
+  const [projectId, setProjectId] = useState(editing ? (initialTask?.projectId ?? '') : (initialLocked ?? ''))
   const [taskId, setTaskId] = useState(editing?.taskId ?? '')
   const [startDate, setStartDate] = useState<ISODate>(editing?.startDate ?? create?.startDate ?? todayISO())
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO())
@@ -105,14 +108,19 @@ export function AllocationModal(props: AllocationModalProps) {
     value: r.id,
     label: `${r.name ?? r.role}${r.kind === 'placeholder' ? ' (slot)' : ''}`,
   }))
-  const projectOptions: Option[] = data.projects
-    .filter((p) => (lockedProjectId ? p.id === lockedProjectId : true))
-    .map((p) => {
-      const client = data.clients.find((c) => c.id === p.clientId)
-      return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name }
-    })
+  // "No project" lets you pick general (no-project) tasks. A placeholder is offered
+  // only its bound project plus the general option (it can take general tasks too).
+  const projectOptions: Option[] = [
+    { value: '', label: 'No project (general)' },
+    ...data.projects
+      .filter((p) => (lockedProjectId ? p.id === lockedProjectId : true))
+      .map((p) => {
+        const client = data.clients.find((c) => c.id === p.clientId)
+        return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name }
+      }),
+  ]
   const taskOptions: Option[] = data.tasks
-    .filter((t) => t.projectId === projectId)
+    .filter((t) => (projectId ? t.projectId === projectId : !t.projectId))
     .map((t) => ({ value: t.id, label: t.name }))
 
   // Non-blocking capacity advisory: does this allocation push the assignee over
@@ -145,16 +153,13 @@ export function AllocationModal(props: AllocationModalProps) {
     setTaskId('')
   }
   const onAddTask = () => {
-    // Was a silent no-op on a blank name / missing project — give feedback instead.
-    if (!projectId) {
-      fail('task', 'Pick a project before adding a task.')
-      return
-    }
+    // No project selected → create a general (no-project) task; otherwise bind it
+    // to the chosen project. Was a silent no-op on a blank name — give feedback.
     if (!newTaskName.trim()) {
       fail('newtask', 'Enter a name for the new task.')
       return
     }
-    const task = addTask({ name: newTaskName.trim(), projectId })
+    const task = addTask({ name: newTaskName.trim(), projectId: projectId || undefined })
     setTaskId(task.id)
     setNewTaskName('')
   }
@@ -263,25 +268,21 @@ export function AllocationModal(props: AllocationModalProps) {
         value={projectId}
         onChange={onProjectChange}
         options={projectOptions}
-        placeholder={lockedProjectId ? undefined : '— Select project —'}
-        disabled={!!lockedProjectId}
       />
       <SelectField label="Task" value={taskId} onChange={setTaskId} options={taskOptions} placeholder="— Select task —" required invalid={errorField === 'task'} describedById={errorId} />
-      {projectId && (
-        <div className="flex gap-2">
-          <input
-            className={inputClass}
-            value={newTaskName}
-            placeholder="…or add a new task"
-            aria-label="New task name"
-            aria-invalid={errorField === 'newtask' || undefined}
-            onChange={(e) => setNewTaskName(e.target.value)}
-          />
-          <Button variant="ghost" onClick={onAddTask}>
-            Add task
-          </Button>
-        </div>
-      )}
+      <div className="flex gap-2">
+        <input
+          className={inputClass}
+          value={newTaskName}
+          placeholder={projectId ? '…or add a new task' : '…or add a new general task'}
+          aria-label="New task name"
+          aria-invalid={errorField === 'newtask' || undefined}
+          onChange={(e) => setNewTaskName(e.target.value)}
+        />
+        <Button variant="ghost" onClick={onAddTask}>
+          Add task
+        </Button>
+      </div>
 
       {isDays ? (
         <>

@@ -68,6 +68,21 @@ describe('store CRUD covers every entity', () => {
     expect(s().data.tasks).toHaveLength(0)
   })
 
+  it('tasks: a general (no-project) task can be added without a projectId', () => {
+    const t = s().addTask({ name: 'Admin' })
+    expect(t.projectId).toBeUndefined()
+    expect(s().data.tasks[0].projectId).toBeUndefined()
+    expect(s().data.tasks[0].name).toBe('Admin')
+  })
+
+  it('tasks: a project-bound task can be converted to general by clearing projectId', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = s().addTask({ name: 'T', projectId: p.id })
+    s().updateTask(t.id, { projectId: undefined })
+    expect(s().data.tasks[0].projectId).toBeUndefined()
+  })
+
   it('resources: add / update / delete', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     s().updateResource(r.id, { role: 'Lead' })

@@ -74,7 +74,7 @@ describe('AllocationModal create', () => {
     expect(useStore.getState().data.allocations).toHaveLength(0)
   })
 
-  it('locks a placeholder to its bound project', async () => {
+  it('restricts a placeholder to its bound project (plus general), defaulting to it', async () => {
     const ph = useStore.getState().addResource({
       kind: 'placeholder', role: 'Senior Designer', employmentType: 'permanent',
       workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a855f7', projectId: 'p1',
@@ -84,8 +84,10 @@ describe('AllocationModal create', () => {
     render(<AllocationModal create={{ resourceId: ph.id, startDate: '2026-06-01', endDate: '2026-06-02' }} onClose={onClose} />)
 
     const projectSelect = screen.getByLabelText('Project')
-    expect(projectSelect).toBeDisabled()
     expect(projectSelect).toHaveValue('p1')
+    // Bound project + general are offered; another project (p2 / "Other") is not.
+    expect(screen.getByRole('option', { name: 'No project (general)' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Acme / Other' })).not.toBeInTheDocument()
 
     // Only the bound project's task is offered.
     await user.selectOptions(screen.getByLabelText('Task'), 't1')
@@ -208,7 +210,7 @@ describe('AllocationModal edit', () => {
     expect(useStore.getState().data.allocations.find((x) => x.id === alloc.id)!.resourceId).toBe(b.id)
   })
 
-  it('locks the project when reassigned to a placeholder', async () => {
+  it('snaps the project to the placeholder bound project when reassigned, restricting options', async () => {
     const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })
     const ph = useStore.getState().addResource({
       kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a', projectId: 'p2',
@@ -218,8 +220,23 @@ describe('AllocationModal edit', () => {
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
     await user.selectOptions(screen.getByLabelText('Assignee'), ph.id)
-    expect(screen.getByLabelText('Project')).toBeDisabled()
     expect(screen.getByLabelText('Project')).toHaveValue('p2')
+    // The non-bound project (p1 / "Lightning") is no longer offered to the placeholder.
+    expect(screen.queryByRole('option', { name: 'Acme / Lightning' })).not.toBeInTheDocument()
+  })
+
+  it('reopens a placeholder→general-task allocation with the general task still selected', async () => {
+    // A placeholder bound to p1, assigned a GENERAL (no-project) task. On edit the
+    // form must seed Project='' (general) so the general task stays in the Task list.
+    const ph = useStore.getState().addResource({
+      kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a', projectId: 'p1',
+    })
+    const gen = useStore.getState().addTask({ name: 'Admin' })
+    const alloc = useStore.getState().addAllocation({ resourceId: ph.id, taskId: gen.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
+
+    expect(screen.getByLabelText('Project')).toHaveValue('') // general, not the bound 'p1'
+    expect(screen.getByLabelText('Task')).toHaveValue(gen.id)
   })
 
   it('warns (non-blocking) when a new allocation pushes the assignee over capacity', async () => {

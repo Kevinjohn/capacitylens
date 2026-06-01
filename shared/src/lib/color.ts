@@ -17,7 +17,7 @@ export interface BarColorMaps {
 // always visible even if some relation is missing.
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
   const task = maps.tasks.get(allocation.taskId)
-  const project = task ? maps.projects.get(task.projectId) : undefined
+  const project = task?.projectId ? maps.projects.get(task.projectId) : undefined
   if (project?.color) return project.color
 
   const client = project ? maps.clients.get(project.clientId) : undefined

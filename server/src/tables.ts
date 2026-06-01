@@ -78,7 +78,7 @@ export const TABLES: Record<string, TableSpec> = {
       { name: 'id' },
       { name: 'accountId' },
       { name: 'name' },
-      { name: 'projectId' },
+      { name: 'projectId', optional: true },
       { name: 'phaseId', optional: true },
       ...META,
     ],
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
-  projectId TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
   phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );

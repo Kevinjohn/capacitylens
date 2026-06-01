@@ -3,13 +3,18 @@ import { openApp } from './helpers'
 
 // Covers US-TSK-01..04.
 test.describe('Tasks', () => {
-  test('rejects a task without a project and adds one with a project', async ({ page }) => {
+  test('adds a general (no-project) task and a project-bound task', async ({ page }) => {
     await openApp(page, 'Studio North', '/tasks')
+
+    // A task with no project saves as a general task, labelled "General".
+    await page.getByRole('button', { name: 'Add task' }).click()
+    await page.getByLabel('Name').fill('Internal sync')
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(page.getByTestId('task-row').filter({ hasText: 'Internal sync' })).toContainText('General')
+
+    // A task can still be bound to a project.
     await page.getByRole('button', { name: 'Add task' }).click()
     await page.getByLabel('Name').fill('Spec review')
-    await page.getByRole('button', { name: 'Save' }).click()
-    await expect(page.getByRole('alert')).toContainText(/must belong to a project/i)
-
     await page.getByLabel('Project').selectOption('p-acme')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('task-row').filter({ hasText: 'Spec review' })).toBeVisible()

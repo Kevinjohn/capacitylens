@@ -8,7 +8,7 @@ import { resetStoreWithAccount } from '../../test/fixtures'
 beforeEach(() => resetStoreWithAccount())
 
 describe('TaskList', () => {
-  it('shows an error when saving without a project selected', async () => {
+  it('saves a general (no-project) task when no project is selected, labelled "General"', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
@@ -18,12 +18,17 @@ describe('TaskList', () => {
     const dialog = screen.getByRole('dialog', { name: 'Add task' })
     expect(dialog).toBeInTheDocument()
 
-    // Type a name but leave project unselected, then Save
+    // Type a name, leave project unselected (general task), then Save
     await user.type(within(dialog).getByLabelText('Name'), 'My Task')
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/must belong to a project/i)
-    expect(useStore.getState().data.tasks).toHaveLength(0)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(useStore.getState().data.tasks).toHaveLength(1)
+    expect(useStore.getState().data.tasks[0].projectId).toBeUndefined()
+
+    const row = screen.getByTestId('task-row')
+    expect(row).toHaveTextContent('My Task')
+    expect(row).toHaveTextContent('General')
   })
 
   it('adds a task when a project and name are provided, showing the project label in the list', async () => {

@@ -51,6 +51,8 @@ export function seed(): AppData {
       { id: 't-visual', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Visual Design', projectId: 'p-acme', phaseId: 'ph-build' },
       { id: 't-cms', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'CMS Review', projectId: 'p-acme' },
       { id: 't-brand', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Brand System', projectId: 'p-brand' },
+      // General (no-project) task — allocatable to anyone, demonstrates decoupling.
+      { id: 't-admin', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Admin / Internal' },
       { id: 't-loft-screens', accountId: LOFT, createdAt: TS, updatedAt: TS, name: 'App Screens', projectId: 'p-loft-app' },
     ],
     allocations: [

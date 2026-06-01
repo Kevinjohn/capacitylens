@@ -63,13 +63,14 @@ test.describe('Allocation editor', () => {
     await expect(page.locator('[data-resource-id="r-nike"]').getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
   })
 
-  test('locks the project when a placeholder assignee is chosen', async ({ page }) => {
+  test('snaps the project to a placeholder bound project when chosen', async ({ page }) => {
     await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
     await dialog.getByLabel('Assignee').selectOption('r-ph-designer') // Senior Designer (slot), bound to p-acme
     const project = dialog.getByLabel('Project', { exact: true })
-    await expect(project).toBeDisabled()
     await expect(project).toHaveValue('p-acme')
+    // Restricted to the bound project plus the general option (not other projects).
+    await expect(project.getByRole('option', { name: 'No project (general)' })).toBeAttached()
   })
 
   test('rejects empty dates and zero hours with a field-associated error', async ({ page }) => {

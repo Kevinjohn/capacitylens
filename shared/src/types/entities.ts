@@ -75,7 +75,9 @@ export interface Phase extends ScopedEntity {
 
 export interface Task extends ScopedEntity {
   name: string
-  projectId: ID
+  /** Optional: a task may belong to a project, or be a general (no-project)
+   *  reusable task (e.g. "Admin", "Internal review") allocated freely. */
+  projectId?: ID
   phaseId?: ID
 }
 

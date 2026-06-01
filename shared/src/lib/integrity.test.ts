@@ -107,6 +107,13 @@ describe('placeholder binding', () => {
     expect(validateAllocationAssignment(placeholder({ projectId: 'p1' }), 'p1').ok).toBe(true)
     expect(validateAllocationAssignment(person(), 'p1').ok).toBe(true)
   })
+
+  it('a general (no-project) task can be assigned to anyone — people and placeholders', () => {
+    expect(validateAllocationAssignment(person(), undefined).ok).toBe(true)
+    // The project restriction does not bite when the task has no project.
+    expect(validateAllocationAssignment(placeholder({ projectId: 'p1' }), undefined).ok).toBe(true)
+    expect(validateAllocationAssignment(placeholder({ projectId: undefined }), undefined).ok).toBe(true)
+  })
 })
 
 describe('cascade deletes', () => {
@@ -138,6 +145,15 @@ describe('cascade deletes', () => {
     expect(next.allocations).toHaveLength(0) // both allocations referenced p1 tasks
     expect(next.resources.find((r) => r.id === 'ph1')!.projectId).toBeUndefined()
     expect(next.resources).toHaveLength(2) // resources are NOT deleted
+  })
+
+  it('deleteProjectCascade leaves general (no-project) tasks and their allocations intact', () => {
+    const data = sampleData()
+    data.tasks.push({ id: 't3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin' })
+    data.allocations.push({ id: 'a3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't3', startDate: '2026-06-05', endDate: '2026-06-06', hoursPerDay: 8, status: 'confirmed' })
+    const next = deleteProjectCascade(data, 'p1')
+    expect(next.tasks.map((t) => t.id)).toEqual(['t3'])
+    expect(next.allocations.map((a) => a.id)).toEqual(['a3'])
   })
 
   it('deleteClientCascade cascades through its projects', () => {

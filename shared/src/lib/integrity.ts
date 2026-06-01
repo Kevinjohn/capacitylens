@@ -56,13 +56,18 @@ export function validateDateRange(
   return toResult([])
 }
 
-/** Placeholder rule: a placeholder is bound to one project and only that project. */
+/**
+ * Placeholder rule: a placeholder is bound to one project and may only take tasks
+ * from that project — EXCEPT general (no-project) tasks, which anyone (people and
+ * placeholders alike) can be assigned. So the rule only bites when the task itself
+ * belongs to a project.
+ */
 export function validateAllocationAssignment(
   resource: Resource,
-  taskProjectId: ID,
+  taskProjectId: ID | undefined,
 ): ValidationResult {
   const errors: string[] = []
-  if (resource.kind === 'placeholder') {
+  if (resource.kind === 'placeholder' && taskProjectId !== undefined) {
     if (!resource.projectId) {
       errors.push('This placeholder is not bound to a project yet.')
     } else if (resource.projectId !== taskProjectId) {

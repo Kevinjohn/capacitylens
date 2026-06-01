@@ -82,7 +82,8 @@ export function buildSchedulerModel(
   const colorMaps = { tasks: taskById, projects: projectById, clients: clientById, resources: resourceById }
   const taskMeta = new Map(
     data.tasks.map((t) => {
-      const project = projectById.get(t.projectId)
+      // General (no-project) tasks resolve to no project/client.
+      const project = t.projectId ? projectById.get(t.projectId) : undefined
       return [t.id, { projectId: t.projectId, clientId: project?.clientId }]
     }),
   )
@@ -138,7 +139,7 @@ export function buildSchedulerModel(
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
         const bars: BarLayout[] = visibleAllocs.map((a) => {
           const meta = taskMeta.get(a.taskId)
-          const project = meta ? projectById.get(meta.projectId) : undefined
+          const project = meta?.projectId ? projectById.get(meta.projectId) : undefined
           const client = meta?.clientId ? clientById.get(meta.clientId) : undefined
           return {
             allocation: a,
