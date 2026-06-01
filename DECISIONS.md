@@ -339,3 +339,53 @@ under an enlarged *base font size* (browser zoom already scales px correctly), a
 that was reported (the date header) is fixed. A real fix means measurement-based row
 virtualization — a separate, riskier change out of scope for this remediation. Left as the
 existing documented follow-up.
+
+## 2026-06-01 — Scheduler: utilisation display toggles + placeholder treatment + layout fixes
+
+A batch of scheduler refinements (two commits). Behind the green gate (unit + e2e + tsc).
+
+### Utilisation display
+- **"Load" → "Utilisation" everywhere on the schedule** (header summary, per-discipline
+  group summary, per-resource cell, tooltips) — one consistent term for the figure.
+- **Three device-global display toggles** (Settings → new **Utilisation** group): *Show
+  Total / Discipline / Personal Utilisation*. Modelled on the theme preference — own
+  localStorage key (`floaty/utilizationPrefs`), NOT in `AppData`/persistence, so they don't
+  travel through export/import. Reactive value + `setUtilizationPref` live in the store;
+  `lib/displayPrefs.ts` holds the pure read/write helpers (tolerant of partial/legacy JSON,
+  defaults all-true). They are **wired**, not inert: each gates its figure on the scheduler
+  (total → header, discipline → group header, personal → per-row cell). Default-on keeps
+  current behaviour until a user flips one.
+
+### Grid full-width fix (bug)
+- The grid only painted ~2 weeks of rows past the header. Root cause (confirmed by measuring
+  the live DOM): the header row and `rowgroup` are flex items of the `flex-col` scroll
+  container, so default `align-items: stretch` clamped their width to the container's cross
+  size (the viewport) while the wide lane (`width: totalWidth`) overflowed. Fix: `min-w-max`
+  on both so they size to content and the whole timeline scrolls. Surfaced when
+  `DEFAULT_RANGE_DAYS` grew to 120.
+
+### Placeholder ("slot") treatment in the schedule view
+- **Ordered people first, placeholders second** within each discipline — a stable sort in
+  `buildSchedulerModel` (`'person'` before `'placeholder'`), preserving relative order
+  within each partition. Scoped to the model, not `resourcesByDiscipline` (whose general
+  ordering contract the selector test pins).
+- **Avatar shows a variable `@`** instead of initials for placeholders
+  (`PLACEHOLDER_AVATAR_SYMBOL` in `ui.tsx` — one-line change when the treatment is revisited).
+- **Diagonal light-grey hatch** marks placeholder rows (`.hatch-lines` utility in
+  `index.css`, theme-aware lines-only so it layers over any background-color). Applied to the
+  left column and as a behind-everything layer in `ResourceLane` (new `placeholder` prop).
+- **Dropped the "slot" pill; quote the name instead** (e.g. `"Senior Designer"`), schedule
+  view only — the quotes carry the meaning with less chrome.
+
+### Left-column +/% control
+- The add-allocation box now always `self-stretch`es to the full row height with each cell
+  `flex-1`: the `+` fills the box alone (personal off), or `+`/% split it 50/50 (personal on),
+  and both grow when a row gets taller for stacked allocations. Only the start border is
+  drawn — the row's `border-b` and the panel's `border-r` close the box, removing the doubled
+  hairline that read as a border-inside-a-border. Sits flush to the panel's right edge.
+
+### Lighter horizontal lines (light mode)
+- The scheduler's horizontal dividers (resource rows, group headers, sticky header bottom)
+  read a touch heavy in light mode. Added `--color-line-soft` (`#eef0f5` light; equal to
+  `--color-line` in dark, since only light read heavy) and switched those horizontal borders
+  to `border-line-soft`. Vertical dividers and dark mode unchanged.

@@ -52,6 +52,19 @@ describe('buildSchedulerModel', () => {
     expect(a1.width).toBe(96) // 2 inclusive days * 48
   })
 
+  it('orders people before placeholders within a discipline (regardless of data order)', () => {
+    const d = dataset()
+    // A placeholder listed BEFORE a person in the same discipline — the model must
+    // still surface the person first.
+    d.resources = [
+      { id: 'ph', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'placeholder', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#9' },
+      ...d.resources, // r1 (person, Design), r2 (person, Dev)
+    ]
+    const model = buildSchedulerModel(d, start, 48, days, start, end, emptyFilters())
+    const design = model.find((g) => g.title === 'Design')!
+    expect(design.rows.map((r) => r.resource.id)).toEqual(['r1', 'ph'])
+  })
+
   it('hideTentative removes tentative bars, but capacity/utilisation still count them', () => {
     const model = build({ ...emptyFilters(), hideTentative: true })
     expect(barIds(model)).toEqual(['a1', 'a3'])

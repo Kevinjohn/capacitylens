@@ -20,7 +20,7 @@ test.describe('Resources', () => {
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Dana Lee' })).toBeVisible()
   })
 
-  test('adds a placeholder bound to a project and shows a slot tag', async ({ page }) => {
+  test('adds a placeholder bound to a project and shows its name in quotes on the schedule', async ({ page }) => {
     await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add placeholder' }).click()
 
@@ -29,7 +29,8 @@ test.describe('Resources', () => {
     await page.getByRole('button', { name: 'Save' }).click()
 
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Junior Dev' }).getByText('slot')).toBeVisible()
+    // Placeholders are marked by quoting the name in the schedule view (no "slot" pill).
+    await expect(page.getByTestId('scheduler-row').filter({ hasText: '“Junior Dev”' })).toBeVisible()
   })
 
   test('rejects a placeholder with no bound project', async ({ page }) => {

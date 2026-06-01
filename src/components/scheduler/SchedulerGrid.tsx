@@ -172,7 +172,7 @@ export function SchedulerGrid() {
       role="row"
       aria-rowindex={rowIndex}
       data-testid="discipline-group"
-      className="flex border-y border-line bg-surface"
+      className="flex border-y border-line-soft bg-surface"
       style={{ height: LAYOUT.groupHeaderHeight }}
     >
       <div role="rowheader" className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
@@ -217,12 +217,14 @@ export function SchedulerGrid() {
         data-testid="scheduler-row"
         data-dimmed={dimmed || undefined}
         title={dimmed ? 'No work on this project — available to staff (drag work onto this row)' : undefined}
-        className={`flex border-b border-line bg-surface ${dimmed ? 'opacity-45' : ''}`}
+        className={`flex border-b border-line-soft bg-surface ${dimmed ? 'opacity-45' : ''}`}
         style={{ height: rowHeight }}
       >
         <div
           role="rowheader"
-          className="sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface ps-3"
+          className={`sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface ps-3 ${
+            resource.kind === 'placeholder' ? 'hatch-lines' : ''
+          }`}
           style={{ width: LAYOUT.leftColWidth }}
         >
           {/* Text equivalent of the colour-only capacity cues (over-marker, time-off tint). */}
@@ -242,24 +244,22 @@ export function SchedulerGrid() {
           {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
           <div className="ms-1.5 min-w-0 flex-1">
             <span className="flex items-center gap-1 truncate text-sm font-medium">
-              {resource.name ?? resource.role}
-              {resource.kind === 'placeholder' && <span className="rounded bg-canvas px-1 text-2xs text-muted">slot</span>}
+              {/* Placeholders ("slots") read as quoted names in the schedule view — the
+                  quotes do the work the old "slot" pill did, without the extra chrome. */}
+              {resource.kind === 'placeholder'
+                ? `“${resource.name ?? resource.role}”`
+                : (resource.name ?? resource.role)}
               <TemporaryTag resource={resource} />
             </span>
             <span className="block truncate text-xs text-muted">{resource.role}</span>
           </div>
-          {/* Right column as a structured 2-cell grid: the add button on top, the
-              allocation % beneath it, split by a divider inside one rounded box. */}
-          {/* Flush to the panel's right edge: no rounding, and we drop the box's own
-              right border so the panel divider (border-r) closes it off cleanly. */}
-          {/* With the % cell hidden, the add button is the box's only content, so the
-              box stretches to the full row height (self-stretch) and the button fills it
-              (flex-1) — staying flush even when the row grows for stacked allocations. */}
-          <div
-            className={`flex shrink-0 flex-col overflow-hidden border border-e-0 border-line text-center leading-none ${
-              utilizationPrefs.showPersonal ? '' : 'self-stretch'
-            }`}
-          >
+          {/* Right column: the add button and (optionally) the allocation %, stacked.
+              The box always fills the full row height (self-stretch), and each cell takes
+              an equal share (flex-1) — so the + alone fills the box, or the +/% split it
+              50/50, and both grow with the row when allocations stack. Only the start
+              border is drawn: the row's border-b and the panel's border-r close the box
+              off, so there's no doubled hairline against those dividers. */}
+          <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
             <button
               type="button"
               onClick={() => {
@@ -268,9 +268,7 @@ export function SchedulerGrid() {
               }}
               aria-label={`Add allocation for ${resource.name ?? resource.role}`}
               title="Add allocation"
-              className={`flex w-11 items-center justify-center text-muted transition hover:bg-canvas hover:text-ink ${
-                utilizationPrefs.showPersonal ? 'h-6' : 'flex-1'
-              }`}
+              className="flex w-11 flex-1 items-center justify-center text-muted transition hover:bg-canvas hover:text-ink"
             >
               <Icon name="plus" size={15} />
             </button>
@@ -282,7 +280,7 @@ export function SchedulerGrid() {
                   ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
                   : `Utilisation over the next ${UTILIZATION_WINDOW_DAYS} days`
               }
-              className={`flex h-5 w-11 items-center justify-center border-t border-line text-2xs ${
+              className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
                 overSoon ? 'font-semibold text-danger' : 'text-faint'
               }`}
             >
@@ -303,6 +301,7 @@ export function SchedulerGrid() {
           totalWidth={totalWidth}
           rowHeight={rowHeight}
           bars={bars}
+          placeholder={resource.kind === 'placeholder'}
           onEdit={handleEdit}
           onDraw={handleDraw}
         />
@@ -325,7 +324,7 @@ export function SchedulerGrid() {
           size (the viewport), leaving the wide DateHeader to overflow and only the
           first ~2 weeks painted. Sizing to content makes header + rows span the full
           timeline and scroll together. Same reason on the rowgroup below. */}
-      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
+      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
         <div
           role="columnheader"
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"

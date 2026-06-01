@@ -124,7 +124,12 @@ export function buildSchedulerModel(
       key: group.discipline?.id ?? 'none',
       title: group.discipline?.name ?? 'No discipline',
       color: group.discipline?.color,
-      rows: group.resources.filter(resourceVisible).map((resource) => {
+      // People first, placeholders ("slots") second, within each discipline. Stable
+      // sort, so the existing relative order is preserved within each partition.
+      rows: group.resources
+        .filter(resourceVisible)
+        .sort((a, b) => Number(a.kind === 'placeholder') - Number(b.kind === 'placeholder'))
+        .map((resource) => {
         // This resource's data, pre-grouped above; capacity then scans only its own
         // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
         const allAllocs = allocsByResource.get(resource.id) ?? []

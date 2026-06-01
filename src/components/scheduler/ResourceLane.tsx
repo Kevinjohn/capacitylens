@@ -23,6 +23,7 @@ export const ResourceLane = memo(function ResourceLane({
   totalWidth,
   rowHeight,
   bars,
+  placeholder = false,
   onEdit,
   onDraw,
 }: {
@@ -36,6 +37,7 @@ export const ResourceLane = memo(function ResourceLane({
   totalWidth: number
   rowHeight: number
   bars: BarLayout[]
+  placeholder?: boolean
   onEdit: (allocationId: ID) => void
   onDraw: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void
 }) {
@@ -112,6 +114,11 @@ export const ResourceLane = memo(function ResourceLane({
       style={{ width: totalWidth, height: rowHeight }}
       onPointerDown={onPointerDown}
     >
+      {/* Placeholder ("slot") rows: a diagonal hatch behind everything else, marking
+          the lane as a not-yet-staffed slot. First child so separators/markers/bars
+          paint on top. */}
+      {placeholder && <div aria-hidden className="hatch-lines pointer-events-none absolute inset-0" />}
+
       {/* week separators (always) */}
       {days.map((d, i) =>
         i !== 0 && weekdayOf(d) === 1 ? (
