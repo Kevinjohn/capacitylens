@@ -526,6 +526,43 @@ describe('ColorField', () => {
     await user.click(screen.getByRole('button', { name: 'Outside' }))
     expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
   })
+
+  it('closes the popup on Escape while a swatch is focused, without bubbling Escape up', async () => {
+    const user = userEvent.setup()
+    const onEscape = vi.fn()
+    render(
+      <div onKeyDown={(e) => e.key === 'Escape' && onEscape()}>
+        <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
+      </div>,
+    )
+    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
+    // Move focus into the grid, then Escape: the popup must close and the keydown must
+    // not reach the surrounding handler (the Modal's Escape-to-close in real use).
+    const swatch = screen.getByRole('button', { name: RED })
+    swatch.focus()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
+    expect(onEscape).not.toHaveBeenCalled()
+  })
+
+  it('dismisses only the popup, not the surrounding Modal, on a backdrop click', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(
+      <Modal title="Edit" onClose={onClose}>
+        <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
+      </Modal>,
+    )
+    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
+    expect(screen.getByRole('button', { name: RED })).toBeInTheDocument()
+    // The backdrop is the overlay wrapping the dialog; the Modal closes only when a press
+    // both starts and ends on it. The open popup must swallow that press.
+    const backdrop = screen.getByRole('dialog').parentElement!
+    fireEvent.mouseDown(backdrop)
+    fireEvent.mouseUp(backdrop)
+    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument() // popup closed
+    expect(onClose).not.toHaveBeenCalled() // modal stayed open
+  })
 })
 
 // ─── WeekdayPicker ─────────────────────────────────────────────────────────

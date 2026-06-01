@@ -554,29 +554,41 @@ export function ColorField({
 
   // Close on a click anywhere outside the control. The trigger lives inside `ref`, so
   // its own click toggles via onClick rather than tripping this listener.
+  //
+  // Capture phase + stopPropagation: an outside press is consumed before it reaches the
+  // Modal, so clicking the backdrop (or anything outside) dismisses only the popup. Without
+  // this, the Modal's backdrop handler would arm its own close on the same mousedown and the
+  // following mouseup would also dismiss/guard the dialog (and discard a not-yet-dirty form).
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false)
+      if (!ref.current?.contains(e.target as Node)) {
+        e.stopPropagation()
+        setOpen(false)
+      }
     }
-    document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    document.addEventListener('mousedown', onDown, true)
+    return () => document.removeEventListener('mousedown', onDown, true)
   }, [open])
 
   return (
     <div className="block">
       <span className={labelClass}>{label}</span>
-      <div ref={ref} className="relative">
+      <div
+        ref={ref}
+        className="relative"
+        // Escape anywhere within the control (trigger or a focused swatch) closes the popup
+        // and is consumed so it doesn't bubble up to the Modal's Escape-to-close.
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && open) {
+            e.stopPropagation()
+            setOpen(false)
+          }
+        }}
+      >
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          // Escape closes the popup without bubbling up to the Modal's Escape-to-close.
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && open) {
-              e.stopPropagation()
-              setOpen(false)
-            }
-          }}
           aria-haspopup="true"
           aria-expanded={open}
           aria-label={`${label} (${value})`}
