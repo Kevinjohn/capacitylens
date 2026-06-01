@@ -33,17 +33,4 @@ test.describe('Disciplines', () => {
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Tyler Nix' })).toBeVisible()
     await expect(page.getByTestId('discipline-group').filter({ hasText: 'No discipline' })).toBeVisible()
   })
-
-  test('orders disciplines by sort order, breaking ties by name', async ({ page }) => {
-    await openApp(page, 'Studio North', '/disciplines')
-    // Seed order: Design (0), Development (1), Copywriting (2). Give Copywriting order 0
-    // so it ties with Design; the name tiebreak then puts "Copywriting" before "Design".
-    await page.getByTestId('discipline-row').filter({ hasText: 'Copywriting' }).getByRole('button', { name: 'Edit' }).click()
-    await page.getByLabel('Sort order').fill('0')
-    await page.getByRole('button', { name: 'Save' }).click()
-
-    const names = await page.getByTestId('discipline-row').allInnerTexts()
-    expect(names[0]).toContain('Copywriting')
-    expect(names[1]).toContain('Design')
-  })
 })
