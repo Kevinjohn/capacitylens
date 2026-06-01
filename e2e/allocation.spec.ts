@@ -14,7 +14,10 @@ test.describe('Allocation editor', () => {
     const before = await page.getByTestId('allocation-bar').count()
     await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
-    await expect(dialog.getByLabel('Assignee')).toHaveValue('r-nike')
+    // In row-create mode the assignee is fixed to the clicked row, so there's no
+    // Assignee select — the dialog title names them instead.
+    await expect(dialog.getByRole('heading')).toContainText('Nike Spiros')
+    await expect(dialog.getByLabel('Assignee')).toHaveCount(0)
     await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
     await dialog.getByLabel('Task', { exact: true }).selectOption('t-wires')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -64,13 +67,18 @@ test.describe('Allocation editor', () => {
   })
 
   test('snaps the project to a placeholder bound project when chosen', async ({ page }) => {
-    await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
+    // Open create mode from the placeholder's OWN row (in create mode the assignee is
+    // fixed to the clicked row). "Senior Designer" (slot) is bound to p-acme.
+    await page.getByRole('button', { name: 'Add allocation for Senior Designer' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
-    await dialog.getByLabel('Assignee').selectOption('r-ph-designer') // Senior Designer (slot), bound to p-acme
     const project = dialog.getByLabel('Project', { exact: true })
-    await expect(project).toHaveValue('p-acme')
-    // Restricted to the bound project plus the general option (not other projects).
+    await expect(project).toHaveValue('p-acme') // bound project preselected
+    // "Locked" = restricted to the bound project + the general option, but the select
+    // stays ENABLED so a placeholder can still take general tasks. A non-bound project
+    // ("Brand Themes") is not offered.
+    await expect(project).toBeEnabled()
     await expect(project.getByRole('option', { name: 'No project (general)' })).toBeAttached()
+    await expect(project.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
   })
 
   test('rejects empty dates and zero hours with a field-associated error', async ({ page }) => {

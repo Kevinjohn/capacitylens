@@ -1,9 +1,12 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { isTemporary } from '@floaty/shared/lib/integrity'
 import { ensureBarColors } from '@floaty/shared/lib/color'
 import { SWATCHES, SWATCH_COLUMNS } from '../../lib/palette'
 import { useStore } from '../../store/useStore'
 import { Icon } from './Icon'
+// Control styling lives in ./controls (a non-component module) so its style OBJECT can
+// be exported without tripping react-refresh/only-export-components on this file.
+import { inputClass, selectChevronClass, selectChevronStyle } from './controls'
 import type { Resource, Weekday } from '@floaty/shared/types/entities'
 
 // Shared presentational kit. Colours come from semantic tokens (see index.css),
@@ -298,25 +301,6 @@ export function Toast({ message, tone = 'info', onDismiss }: { message: string; 
 }
 
 const labelClass = 'mb-1 block text-xs font-medium text-muted'
-/** Shared control styling (sans width). Exported so non-label controls (toolbar
- *  search/date/selects, inline add-task/phase inputs) match field height + rounding
- *  instead of drifting to their own px-2 py-1. */
-export const controlBase =
-  'rounded-md border bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-faint shadow-sm transition-colors'
-export const inputClass = `w-full ${controlBase}`
-
-// Native <select> draws its own chevron with browser-dependent (and on macOS, too
-// tight) right padding. We suppress it (appearance-none), reserve room with pr-9, and
-// paint our own chevron via background-image so it sits a consistent ~0.7rem from the
-// edge. Kept off controlBase so text/date inputs that share it don't get a phantom arrow.
-export const selectChevronClass = 'appearance-none pr-9'
-export const selectChevronStyle: CSSProperties = {
-  backgroundImage:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")",
-  backgroundRepeat: 'no-repeat',
-  backgroundPosition: 'right 0.7rem center',
-  backgroundSize: '1rem',
-}
 
 // Two deliberately distinct red treatments so "required" never reads as "errored":
 //   required (at rest) → a thin red left-edge accent — a quiet marker.

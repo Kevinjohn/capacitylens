@@ -11,12 +11,97 @@ import type { TableSpec } from './tables'
 export type Db = DatabaseSync
 type Row = Record<string, unknown>
 
+// Bump whenever the on-disk SQL shape changes in a way migrateSchema must repair.
+// Stored in the file's PRAGMA user_version so an up-to-date DB skips migration work.
+const SCHEMA_USER_VERSION = 1
+
 export function openDb(path: string): Db {
   const db = new DatabaseSync(path)
   db.exec('PRAGMA journal_mode = WAL;')
-  db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
+  // A fresh file gets the current shape here; an existing file keeps its tables (IF
+  // NOT EXISTS) and is brought up to shape by migrateSchema. Both run with foreign
+  // keys still OFF (node:sqlite's default) so a table rebuild can drop/rename safely;
+  // we enable enforcement only afterwards.
   db.exec(SCHEMA_SQL)
+  migrateSchema(db)
+  db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
   return db
+}
+
+interface ColumnInfo {
+  name: string
+  notnull: number
+}
+
+const columns = (db: Db, table: string): ColumnInfo[] =>
+  db.prepare(`PRAGMA table_info(${table})`).all() as unknown as ColumnInfo[]
+
+const hasColumn = (db: Db, table: string, column: string): boolean =>
+  columns(db, table).some((c) => c.name === column)
+
+const isNotNull = (db: Db, table: string, column: string): boolean =>
+  columns(db, table).some((c) => c.name === column && c.notnull === 1)
+
+/**
+ * Bring an existing DB's tables up to the current shape in place. node:sqlite never
+ * re-runs CREATE TABLE on an existing table, so a file written by an older schema
+ * would otherwise keep the old columns/constraints and break (e.g. seeding a general
+ * task hit `NOT NULL constraint failed: tasks.projectId`).
+ *
+ * Every step is INTROSPECTION-GATED, not version-gated: it inspects the live shape
+ * (PRAGMA table_info) and acts only when the old shape is still present. That makes
+ * the whole pass idempotent and a harmless no-op on an already-current DB — fresh or
+ * `:memory:` DBs created from SCHEMA_SQL fall straight through. The user_version is
+ * only a fast-path to skip the introspection once a DB is known to be current.
+ *
+ * Runs with foreign keys OFF (openDb enables them afterwards) so the tasks rebuild's
+ * drop/rename is safe.
+ */
+function migrateSchema(db: Db): void {
+  const { user_version } = db.prepare('PRAGMA user_version').get() as { user_version: number }
+  if (user_version >= SCHEMA_USER_VERSION) return
+
+  tx(db, () => {
+    // Additive columns (schedulingMode on accounts, ignoreWeekends on allocations):
+    // ADD COLUMN only when missing, so a current-shape DB is untouched.
+    if (!hasColumn(db, 'accounts', 'schedulingMode')) {
+      db.exec('ALTER TABLE accounts ADD COLUMN schedulingMode TEXT')
+    }
+    if (!hasColumn(db, 'allocations', 'ignoreWeekends')) {
+      db.exec('ALTER TABLE allocations ADD COLUMN ignoreWeekends TEXT')
+    }
+    // tasks.projectId went from required to optional (general, no-project tasks).
+    // SQLite can't relax a column's NOT NULL in place, so rebuild the table when the
+    // old constraint is still there. Skipped entirely on a current-shape DB.
+    if (isNotNull(db, 'tasks', 'projectId')) rebuildTasksTable(db)
+  })
+  db.exec(`PRAGMA user_version = ${SCHEMA_USER_VERSION}`)
+}
+
+/** 12-step table rebuild (per the SQLite docs) to make tasks.projectId nullable
+ *  while preserving rows + the foreign keys other tables hold against tasks(id).
+ *  The target DDL mirrors the `tasks` block in SCHEMA_SQL. */
+function rebuildTasksTable(db: Db): void {
+  db.exec(`
+    CREATE TABLE tasks_new (
+      id TEXT PRIMARY KEY,
+      accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
+      phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,
+      createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+    );
+    INSERT INTO tasks_new (id, accountId, name, projectId, phaseId, createdAt, updatedAt)
+      SELECT id, accountId, name, projectId, phaseId, createdAt, updatedAt FROM tasks;
+    DROP TABLE tasks;
+    ALTER TABLE tasks_new RENAME TO tasks;
+  `)
+  // FK checks are deferred (enforcement is OFF here); surface any reference the
+  // rebuild left dangling instead of committing a corrupt schema.
+  const violations = db.prepare('PRAGMA foreign_key_check').all()
+  if (violations.length > 0) {
+    throw new Error(`tasks table rebuild left ${violations.length} foreign-key violation(s)`)
+  }
 }
 
 /** Object → SQL row: JSON-encode json columns, undefined → null. */

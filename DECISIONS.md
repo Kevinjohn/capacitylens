@@ -446,3 +446,65 @@ A batch of scheduler refinements (two commits). Behind the green gate (unit + e2
 - It describes a resource colour picker, but `ResourceForm` has no colour control —
   resources derive colour (`DEFAULT_COLORS.resource`). Left as-is; flag for a future
   doc cleanup unrelated to this change.
+
+## 2026-06-01 — Review fixes: server schema migration + scheduling-mode persistence + import hardening
+
+### Server DB is now migrated on open (`server/src/db.ts`)
+- `openDb()` only ran `CREATE TABLE IF NOT EXISTS`, so a file written by an older
+  schema kept its old columns/constraints and broke after a model change (the concrete
+  repro: seeding a general task hit `NOT NULL constraint failed: tasks.projectId`
+  against a stale `.e2e.db`). Added `migrateSchema()`: reordered `openDb` to run
+  `SCHEMA_SQL` → `migrateSchema` (foreign keys still OFF — node:sqlite's default) →
+  enable FKs, so a table rebuild's DROP/RENAME is safe.
+- **Introspection-gated, not version-gated.** Each step inspects the live shape
+  (`PRAGMA table_info`) and acts only when the old shape is present, so the whole pass
+  is idempotent and a no-op on a current/fresh/`:memory:` DB (both fresh and old files
+  start at `user_version` 0 — the version is only a fast-path, not the safety mechanism).
+- tasks.projectId went required→optional; SQLite can't relax NOT NULL in place, so the
+  table is **rebuilt** (12-step) with a `foreign_key_check` before commit. New columns
+  are added with guarded `ALTER TABLE ADD COLUMN`.
+- Covered by a dedicated test (`db.migrate.test.ts`) that hand-builds an old-shape file
+  — a normal/e2e run creates a current-shape DB, so the migration is a no-op there and
+  would otherwise be silently unverified.
+
+### `schedulingMode` / `ignoreWeekends` now persist server-side (`server/src/tables.ts`)
+- Both existed in the shared types but were missing from the table mapping + DDL, so a
+  Days/Blocks choice or an "ignore weekends" flag silently vanished on a server reload.
+- `ignoreWeekends` is stored as a **json column** — node:sqlite can't bind a raw JS
+  boolean, so it round-trips as `"true"`/`"false"` (absent → NULL → omitted on read,
+  matching the client object). `schedulingMode` is a plain optional TEXT column.
+
+### Blocks-mode `hoursPerDay: 0` is no longer inflated (`shared/src/lib/sanitizeImport.ts`)
+- A blocks allocation persists `hoursPerDay: 0` (span counts, load ignored). The import/
+  server sanitiser treated 0 as junk and rewrote it to 8, turning an imported/served
+  block into a full-load allocation. Split out `clampAllocHours` (allows `>= 0`) for
+  allocations; resources' `workingHoursPerDay` keeps the strict `> 0` `clampHours`.
+
+### Import drops/repairs dangling refs before they reach SQLite (`shared/src/domain/mutations.ts`)
+- `remapAndValidateImport` previously only dropped invalid allocations/time-off, so a
+  hand-edited file could persist a project with a missing client, a phase with a missing
+  project, or a resource/task bound to a missing parent — which the server DB's foreign
+  keys then reject, failing the whole import. It now repairs referentially in
+  dependency order: a dangling **required** FK drops the record (mirrors ON DELETE
+  CASCADE), a dangling **optional** FK is unbound (mirrors SET NULL; a task unbinds to a
+  general task and drops its now-orphan phase). `/api/import` also wraps the write in
+  try/catch (→ 400 via the error classifier) as defence-in-depth.
+
+### Placeholder Project select stays ENABLED, restricted by options (not disabled)
+- A placeholder is bound to one project but can also take **general** (no-project) tasks,
+  so the allocation modal's Project select offers exactly "bound project + general" and
+  remains enabled — "locked" means *restricted*, not *immutable*. This is intentional;
+  the specs (`allocation.spec.ts`, `features.spec.ts`) now assert enabled + restricted.
+  (The inline hint still reads "locked to its bound project" — accurate enough, left as-is.)
+
+### Control styles moved to `src/components/common/controls.ts`
+- `selectChevronStyle` (a style **object**) exported from the component module `ui.tsx`
+  tripped `react-refresh/only-export-components` (lint failure). Moved the four shared
+  control-style constants to a non-component module; `ui.tsx` and the toolbar import
+  from there.
+
+### Stale E2E specs updated to match intentional UI changes
+- Create-mode allocation modal hides the Assignee select (assignee named in the title);
+  undo/redo toolbar buttons are hidden (feature lives on ⌘Z); general tasks live in
+  their own section with no per-row "General" label. The specs that asserted the old
+  shapes were updated (not left failing, which would mask real regressions).

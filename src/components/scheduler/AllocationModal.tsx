@@ -10,7 +10,6 @@ import {
   Button,
   DateField,
   FieldError,
-  inputClass,
   Modal,
   NumberField,
   RequiredLegend,
@@ -18,6 +17,7 @@ import {
   TextAreaField,
   type Option,
 } from '../common/ui'
+import { inputClass } from '../common/controls'
 import { ALLOCATION_STATUS_OPTIONS } from '../../lib/metadata'
 import type { AllocationStatus, ISODate } from '@floaty/shared/types/entities'
 

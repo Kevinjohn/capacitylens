@@ -23,7 +23,7 @@ const META: ColumnSpec[] = [{ name: 'createdAt' }, { name: 'updatedAt' }]
 export const TABLES: Record<string, TableSpec> = {
   accounts: {
     key: 'accounts',
-    columns: [{ name: 'id' }, { name: 'name' }, { name: 'color' }, ...META],
+    columns: [{ name: 'id' }, { name: 'name' }, { name: 'color' }, { name: 'schedulingMode', optional: true }, ...META],
   },
   clients: {
     key: 'clients',
@@ -95,6 +95,9 @@ export const TABLES: Record<string, TableSpec> = {
       { name: 'hoursPerDay' },
       { name: 'status' },
       { name: 'note', optional: true },
+      // JSON so node:sqlite (which can't bind a raw boolean) round-trips it as
+      // "true"/"false"; absent → NULL → omitted on read, matching the client object.
+      { name: 'ignoreWeekends', json: true, optional: true },
       ...META,
     ],
   },
@@ -151,6 +154,7 @@ export const SCOPED_ORDER: ScopedEntityKey[] = [
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
+  schedulingMode TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS clients (
@@ -205,7 +209,7 @@ CREATE TABLE IF NOT EXISTS allocations (
   resourceId TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
   taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   startDate TEXT NOT NULL, endDate TEXT NOT NULL, hoursPerDay REAL NOT NULL,
-  status TEXT NOT NULL, note TEXT,
+  status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS timeOff (

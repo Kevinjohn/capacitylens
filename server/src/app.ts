@@ -168,9 +168,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     } catch (err) {
       return reply.code(400).send({ error: err instanceof Error ? err.message : 'Invalid import data' })
     }
-    const result = remapAndValidateImport(loadState(db), body.accountId, incoming)
-    replaceAccountSlice(db, body.accountId, result.data)
-    return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS }
+    // remapAndValidateImport drops/repairs dangling refs so the slice is FK-clean
+    // before it hits SQLite; the try/catch is defence-in-depth so any residual DB
+    // constraint failure becomes a 400 (via fail's classification) rather than an
+    // uncaught 500.
+    try {
+      const result = remapAndValidateImport(loadState(db), body.accountId, incoming)
+      replaceAccountSlice(db, body.accountId, result.data)
+      return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS }
+    } catch (err) {
+      return fail(reply, err)
+    }
   })
 
   // Test-only: wipe (and optionally re-seed) so E2E/integration runs start clean.

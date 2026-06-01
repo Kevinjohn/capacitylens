@@ -6,18 +6,24 @@ test.describe('Tasks', () => {
   test('adds a general (no-project) task and a project-bound task', async ({ page }) => {
     await openApp(page, 'Studio North', '/tasks')
 
-    // A task with no project saves as a general task, labelled "General".
+    // A task with no project saves as a general task — it lands in the "General tasks"
+    // section (which carries no per-row project label), not the client section.
     await page.getByRole('button', { name: 'Add task' }).click()
     await page.getByLabel('Name').fill('Internal sync')
     await page.getByRole('button', { name: 'Save' }).click()
-    await expect(page.getByTestId('task-row').filter({ hasText: 'Internal sync' })).toContainText('General')
+    await expect(
+      page.getByTestId('general-tasks').getByTestId('task-row').filter({ hasText: 'Internal sync' }),
+    ).toBeVisible()
 
-    // A task can still be bound to a project.
+    // A task can still be bound to a project — it lands in the client section, labelled
+    // with its client / project.
     await page.getByRole('button', { name: 'Add task' }).click()
     await page.getByLabel('Name').fill('Spec review')
     await page.getByLabel('Project').selectOption('p-acme')
     await page.getByRole('button', { name: 'Save' }).click()
-    await expect(page.getByTestId('task-row').filter({ hasText: 'Spec review' })).toBeVisible()
+    await expect(
+      page.getByTestId('client-tasks').getByTestId('task-row').filter({ hasText: 'Spec review' }),
+    ).toContainText('Acme')
   })
 
   test('edits a task name', async ({ page }) => {

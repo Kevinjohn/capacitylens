@@ -257,6 +257,38 @@ describe('import', () => {
     expect(s.allocations).toHaveLength(1)
   })
 
+  it('drops records with dangling required FKs and unbinds dangling optional ones', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    // A hand-edited file: a project/phase whose required parent is absent (must be
+    // dropped before SQLite's FKs reject the whole import), and a task/resource whose
+    // OPTIONAL parent is absent (must survive, unbound to general / no discipline).
+    const file = {
+      schemaVersion: 3,
+      data: {
+        accounts: [],
+        clients: [],
+        disciplines: [],
+        projects: [project('dp', 'x', 'ghost-client')], // dropped: missing client
+        phases: [{ id: 'dph', accountId: 'x', name: 'P', projectId: 'ghost-project', ...meta() }], // dropped
+        resources: [{ ...person('dr', 'x'), disciplineId: 'ghost-disc' }], // kept, discipline unbound
+        tasks: [task('dt', 'x', 'ghost-project')], // kept, unbound to a general task
+        allocations: [],
+        timeOff: [],
+      },
+    }
+    const res = await call(app, { method: 'POST', url: '/api/import', payload: { accountId: 'a1', data: file } })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ imported: 2, skipped: 2 })
+    const s = await state(app)
+    expect(s.projects).toHaveLength(0)
+    expect(s.phases).toHaveLength(0)
+    expect(s.tasks).toHaveLength(1)
+    expect(s.tasks[0].projectId).toBeUndefined() // unbound → general task
+    expect(s.resources).toHaveLength(1)
+    expect(s.resources[0].disciplineId).toBeUndefined() // unbound discipline
+  })
+
   it('runs the v1→v2 migration on imported data (isFreelancer → employmentType)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
@@ -336,6 +368,23 @@ describe('value-level sanitization on direct writes (server is the integrity bou
     const a = (await state(app)).allocations[0] as Record<string, unknown>
     expect(a.status).toBe('confirmed')
     expect(a.hoursPerDay).toBe(8)
+  })
+})
+
+describe('scheduling-mode fields round-trip through the DB', () => {
+  it('persists account schedulingMode and a block allocation (hoursPerDay 0 + ignoreWeekends)', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    // Switch the company into blocks mode.
+    expect((await patch(app, 'accounts', 'a1', { schedulingMode: 'blocks' })).statusCode).toBe(200)
+    // A block booking persists hoursPerDay 0 (load ignored) + ignoreWeekends true. The
+    // 0 must NOT be sanitized up to a full day, and the boolean must round-trip.
+    const res = await post(app, 'allocations', allocation('al1', 'a1', 'r1', 't1', { hoursPerDay: 0, ignoreWeekends: true }))
+    expect(res.statusCode).toBe(201)
+    const s = await state(app)
+    expect(s.accounts[0].schedulingMode).toBe('blocks')
+    expect(s.allocations[0].hoursPerDay).toBe(0)
+    expect(s.allocations[0].ignoreWeekends).toBe(true)
   })
 })
 

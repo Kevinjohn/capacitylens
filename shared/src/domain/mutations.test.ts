@@ -250,4 +250,61 @@ describe('remapAndValidateImport', () => {
     expect(data.allocations).toHaveLength(1) // only the valid one survives
     expect(skipped).toBe(3) // 2 bad allocations + 1 dangling time-off
   })
+
+  it('drops records with a dangling REQUIRED ref and unbinds a dangling OPTIONAL ref', () => {
+    // A hand-edited file: a project/phase whose required parent is absent, and a
+    // task/resource pointing at an absent optional parent. The required-FK records
+    // must be dropped (else they would hit the server DB's FK and fail the import);
+    // the optional-FK records survive, unbound.
+    const handEdited: AppData = {
+      ...emptyAppData(),
+      projects: [project('p-orphan', 'src', 'ghost-client')], // dropped: client absent
+      phases: [phase('ph-orphan', 'src', 'ghost-project')], // dropped: project absent
+      resources: [{ ...person('r1', 'src'), disciplineId: 'ghost-disc' }], // kept, unbound
+      tasks: [task('t1', 'src', 'ghost-project', 'ghost-phase')], // kept, unbound to general
+    }
+    const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited)
+    expect(data.projects).toHaveLength(0)
+    expect(data.phases).toHaveLength(0)
+    expect(data.resources).toHaveLength(1)
+    expect(data.resources[0].disciplineId).toBeUndefined()
+    expect(data.tasks).toHaveLength(1)
+    expect(data.tasks[0].projectId).toBeUndefined() // unbound → general task
+    expect(data.tasks[0].phaseId).toBeUndefined() // a general task carries no phase
+    expect(imported).toBe(2) // resource + task
+    expect(skipped).toBe(2) // project + phase
+  })
+
+  it('keeps an allocation to an unbound placeholder when its task is general', () => {
+    // The placeholder's bound project is absent, so it unbinds. An allocation of it to
+    // a (general) task whose own project is also absent survives — a general task is
+    // allocatable to anyone, placeholders included.
+    const handEdited: AppData = {
+      ...emptyAppData(),
+      resources: [placeholder('ph', 'src', 'ghost-project')], // unbinds (project absent)
+      tasks: [task('t-general', 'src', 'ghost-project')], // unbinds to a general task
+      allocations: [allocation('al', 'src', 'ph', 't-general')],
+    }
+    const { data } = remapAndValidateImport(base(), A1, handEdited)
+    expect(data.resources[0].projectId).toBeUndefined()
+    expect(data.tasks[0].projectId).toBeUndefined()
+    expect(data.allocations).toHaveLength(1) // unbound placeholder + general task is allowed
+  })
+
+  it('drops an allocation to an unbound placeholder when its task is project-bound', () => {
+    // Same unbinding, but the task keeps a SURVIVING project, so the placeholder rule
+    // bites: an unbound placeholder may not take a project task → the allocation drops.
+    const handEdited: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')], // survives → t-proj stays project-bound
+      tasks: [task('t-proj', 'src', 'p')],
+      resources: [placeholder('ph', 'src', 'ghost-project')], // unbinds (project absent)
+      allocations: [allocation('al', 'src', 'ph', 't-proj')],
+    }
+    const { data } = remapAndValidateImport(base(), A1, handEdited)
+    expect(data.resources[0].projectId).toBeUndefined()
+    expect(data.tasks[0].projectId).toBe(data.projects[0].id) // task stays bound
+    expect(data.allocations).toHaveLength(0) // placeholder rule drops the allocation
+  })
 })

@@ -19,6 +19,14 @@ const oneOf = <T extends string>(v: unknown, allowed: readonly T[], fallback: T)
 const clampHours = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(v, 24) : fallback
 
+// Allocation hours/day, unlike a resource's working day, may legitimately be 0: a
+// "blocks"-mode booking persists hoursPerDay: 0 (see schedulingDays.blockHoursPerDay),
+// so the span counts but the load doesn't. Accept >= 0 here so an imported or
+// server-written block isn't silently inflated to a full-load allocation; only junk
+// (NaN / negative / non-number) falls back.
+const clampAllocHours = (v: unknown, fallback: number): number =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(v, 24) : fallback
+
 const safeColor = (v: unknown, fallback = FALLBACK_COLOR): string =>
   typeof v === 'string' && isHexColor(v) ? v : fallback
 
@@ -48,7 +56,7 @@ export function sanitizeImportedRecord(
       break
     case 'allocations':
       rec.status = oneOf(rec.status, VALID_STATUS, 'confirmed')
-      rec.hoursPerDay = clampHours(rec.hoursPerDay, 8)
+      rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8)
       break
     case 'timeOff':
       rec.type = oneOf(rec.type, VALID_TIMEOFF, 'other')

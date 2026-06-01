@@ -48,11 +48,11 @@ export function TaskList() {
     </li>
   )
 
-  const box = (rows: Task[], showLabel: boolean, empty: string) =>
+  const box = (rows: Task[], showLabel: boolean, empty: string, testid: string) =>
     rows.length === 0 ? (
       <EmptyState>{empty}</EmptyState>
     ) : (
-      <ul className="divide-y divide-line rounded border border-line bg-surface">
+      <ul data-testid={testid} className="divide-y divide-line rounded border border-line bg-surface">
         {rows.map((t) => renderRow(t, showLabel))}
       </ul>
     )
@@ -62,12 +62,12 @@ export function TaskList() {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">General tasks</h2>
       </div>
-      {box(generalTasks, false, 'No general tasks yet.')}
+      {box(generalTasks, false, 'No general tasks yet.', 'general-tasks')}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Client tasks</h2>
       </div>
-      {box(clientTasks, true, 'No client tasks yet.')}
+      {box(clientTasks, true, 'No client tasks yet.', 'client-tasks')}
 
       {creating && <TaskForm onClose={() => setCreating(false)} />}
       {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}

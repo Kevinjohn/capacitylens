@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
-import { Button, controlBase, selectChevronClass, selectChevronStyle } from '../common/ui'
+import { Button } from '../common/ui'
+import { controlBase, selectChevronClass, selectChevronStyle } from '../common/controls'
 import { Icon } from '../common/Icon'
 
 export function SchedulerToolbar() {

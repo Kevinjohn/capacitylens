@@ -32,7 +32,10 @@ test.describe('Feature flows', () => {
     await page.getByRole('button', { name: 'Delete' }).click()
     await expect(bars).toHaveCount(n - 1)
 
-    await page.getByTitle('Undo (⌘Z)').click()
+    // The Undo toolbar button is hidden for now; undo lives on ⌘Z (AppShell). Click an
+    // empty corner of the grid first so the shortcut isn't swallowed by a focused input.
+    await page.getByTestId('scheduler-grid').click({ position: { x: 5, y: 5 } })
+    await page.keyboard.press('Meta+z')
     await expect(bars).toHaveCount(n)
   })
 
@@ -140,7 +143,11 @@ test.describe('Feature flows', () => {
 
     await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible()
     const project = page.getByLabel('Project', { exact: true })
-    await expect(project).toBeDisabled()
+    // "Locked" = the bound project is preselected and the choices are restricted to it
+    // (+ the general option), but the select stays ENABLED so the placeholder can still
+    // take general tasks. A non-bound project ("Brand Themes") is not offered.
     await expect(project).toHaveValue('p-acme')
+    await expect(project).toBeEnabled()
+    await expect(project.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
   })
 })

@@ -58,23 +58,9 @@ test.describe('Toolbar', () => {
     await expect(work).toHaveAttribute('aria-pressed', 'false')
   })
 
-  test('undoes and redoes an edit with the toolbar buttons and disables at the ends', async ({ page }) => {
-    await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
-    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
-    await expect(page.getByRole('button', { name: 'Undo' })).toBeDisabled() // nothing yet
-
-    const before = await page.getByTestId('allocation-bar').count()
-    await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
-    await page.getByRole('dialog', { name: 'Edit allocation' }).getByRole('button', { name: 'Delete' }).click()
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
-
-    await page.getByRole('button', { name: 'Undo' }).click()
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before)
-    await page.getByRole('button', { name: 'Redo' }).click()
-    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
-  })
-
+  // The Undo/Redo toolbar buttons are intentionally hidden for now (undo/redo lives on
+  // ⌘Z / ⌘⇧Z via AppShell — see SchedulerToolbar + DECISIONS.md), so there are no
+  // buttons to drive here; the keyboard path below is the coverage for that feature.
   test('undoes/redoes with the keyboard and ignores the shortcut while typing', async ({ page }) => {
     await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
