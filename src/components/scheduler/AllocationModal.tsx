@@ -1,14 +1,12 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { parseDate, todayISO } from '@floaty/shared/lib/dateMath'
 import { daysOfWorkFor, endDateForSpan, hoursPerDayFor, spanDays } from '@floaty/shared/lib/schedulingDays'
-import { capacityAdvisory } from '../../lib/capacity'
 import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
 import {
   Button,
-  Callout,
   DateField,
   FieldError,
   inputClass,
@@ -123,22 +121,6 @@ export function AllocationModal(props: AllocationModalProps) {
     .filter((t) => (projectId ? t.projectId === projectId : !t.projectId))
     .map((t) => ({ value: t.id, label: t.name }))
 
-  // Non-blocking capacity advisory: does this allocation push the assignee over
-  // their available hours on any working day, or land on their time off? Computed
-  // over the chosen range against their OTHER allocations (the edited one is
-  // excluded so it never counts against itself). Saving is still allowed.
-  const capacityWarning = useMemo(() => {
-    if (!selectedResource || !startDate || !effEndDate || effEndDate < startDate || !(effHoursPerDay > 0)) return null
-    const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId)
-    const { overDays, timeOffDays } = capacityAdvisory(selectedResource, others, data.timeOff, startDate, effEndDate, effHoursPerDay)
-    if (!overDays && !timeOffDays) return null
-    const who = selectedResource.name ?? selectedResource.role
-    const parts: string[] = []
-    if (overDays) parts.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
-    if (timeOffDays) parts.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
-    return `${who} is ${parts.join(' and ')} in this range.`
-  }, [selectedResource, resourceId, editId, startDate, effEndDate, effHoursPerDay, data.allocations, data.timeOff])
-
   const onAssigneeChange = (v: string) => {
     setResourceId(v)
     const r = data.resources.find((x) => x.id === v)
@@ -235,9 +217,21 @@ export function AllocationModal(props: AllocationModalProps) {
     }
   }
 
+  // In create mode the assignee is already chosen (the user clicked the + next to
+  // their row), so we drop the Assignee select and name them in the title instead.
+  const createName = create ? (initialResource?.name ?? initialResource?.role ?? 'resource') : undefined
+
   return (
     <Modal
-      title={editing ? 'Edit allocation' : 'New allocation'}
+      title={
+        editing ? (
+          'Edit allocation'
+        ) : createName ? (
+          <>New allocation for <strong>{createName}</strong></>
+        ) : (
+          'New allocation'
+        )
+      }
       onClose={onClose}
       footer={
         <>
@@ -260,7 +254,9 @@ export function AllocationModal(props: AllocationModalProps) {
       }
     >
       <RequiredLegend />
-      <SelectField label="Assignee" value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder="— Select resource —" required invalid={errorField === 'resource'} describedById={errorId} />
+      {!create && (
+        <SelectField label="Assignee" value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder="— Select resource —" required invalid={errorField === 'resource'} describedById={errorId} />
+      )}
       {isPlaceholder && <p className="text-xs text-muted">Placeholder — locked to its bound project.</p>}
 
       <SelectField
@@ -286,8 +282,10 @@ export function AllocationModal(props: AllocationModalProps) {
 
       {isDays ? (
         <>
-          <DateField label="Start" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
           <div className="flex gap-2">
+            <div className="flex-1">
+              <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+            </div>
             <div className="flex-1">
               <NumberField label="Days of work" value={daysOfWork} onChange={setDaysOfWork} min={0} step={0.5} required invalid={errorField === 'daysOfWork'} describedById={errorId} />
             </div>
@@ -305,7 +303,7 @@ export function AllocationModal(props: AllocationModalProps) {
         <>
           <div className="flex gap-2">
             <div className="flex-1">
-              <DateField label="Start" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+              <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
             <div className="flex-1">
               <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
@@ -325,13 +323,9 @@ export function AllocationModal(props: AllocationModalProps) {
           checked={ignoreWeekends}
           onChange={(e) => setIgnoreWeekends(e.target.checked)}
         />
-        <span>
-          Ignore weekends
-          <span className="ml-1 text-faint">— count weekend / non-working days as working days for this task</span>
-        </span>
+        <span>Ignore weekends</span>
       </label>
 
-      {capacityWarning && <Callout tone="warn">{capacityWarning}</Callout>}
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

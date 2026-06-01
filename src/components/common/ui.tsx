@@ -54,7 +54,7 @@ export function Modal({
   children,
   footer,
 }: {
-  title: string
+  title: ReactNode
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
