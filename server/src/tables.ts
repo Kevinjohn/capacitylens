@@ -152,6 +152,7 @@ export const SCOPED_ORDER: ScopedEntityKey[] = [
 //   discipline → resources.disciplineId : SET NULL    (deleteDisciplineCascade: ungroup)
 //   account  → everything scoped     : CASCADE        (deleteAccountCascade)
 export const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
   schedulingMode TEXT,

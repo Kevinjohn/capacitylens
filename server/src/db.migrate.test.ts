@@ -3,7 +3,8 @@ import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { unlinkSync } from 'node:fs'
-import { openDb, insertRow, getRow, loadState } from './db'
+import { openDb, insertRow, getRow, loadState, seedIfUninitialized, isInitialized, isEmpty, deleteRow } from './db'
+import { seed } from '@floaty/shared/data/seed'
 
 // openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
 // kept its old columns/constraints forever and broke after a model change. These
@@ -104,6 +105,66 @@ describe('schema migration of an existing on-disk DB', () => {
       })
       expect(getRow(db, 'allocations', 'al1')?.ignoreWeekends).toBe(true)
 
+      db.close()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('seeds a never-initialised DB once, and NOT after the user empties it (no demo re-seed)', () => {
+    const db = openDb(':memory:')
+    // Fresh DB: uninitialised → seeds.
+    expect(isInitialized(db)).toBe(false)
+    expect(seedIfUninitialized(db, seed())).toBe(true)
+    expect(isInitialized(db)).toBe(true)
+    expect(loadState(db).accounts.length).toBeGreaterThan(0)
+    // Second boot of the same DB: already initialised → no re-seed.
+    expect(seedIfUninitialized(db, seed())).toBe(false)
+
+    // The user deletes ALL their data (cascade empties every scoped table; _meta survives).
+    for (const a of loadState(db).accounts) deleteRow(db, 'accounts', a.id)
+    expect(isEmpty(loadState(db))).toBe(true)
+    expect(isInitialized(db)).toBe(true) // ...but still initialised
+    // The regression guard: a boot against the empty-but-initialised DB must NOT re-seed
+    // (gating on isEmpty() — the old bug — would have resurrected the demo dataset here).
+    expect(seedIfUninitialized(db, seed())).toBe(false)
+    expect(isEmpty(loadState(db))).toBe(true)
+    db.close()
+  })
+
+  it('generically ADDs a missing OPTIONAL column with no hard-coded migration step', () => {
+    // An old `disciplines` table missing the optional `color` column. There is NO
+    // hard-coded rule for disciplines.color, so this proves the migration is GENERIC —
+    // a future additive optional field is picked up from the spec automatically (the old
+    // version-gated pass would have frozen and left the column missing).
+    const path = join(tmpdir(), `floaty-migrate-gen-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          unlinkSync(path + suffix)
+        } catch {
+          /* not present — fine */
+        }
+      }
+    }
+    cleanup()
+    try {
+      const old = new DatabaseSync(path)
+      old.exec(`
+        CREATE TABLE accounts (id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL);
+        CREATE TABLE disciplines (
+          id TEXT PRIMARY KEY, accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+          name TEXT NOT NULL, sortOrder INTEGER NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+        );
+      `)
+      old.exec(`INSERT INTO accounts VALUES ('a1','Studio','#111','${TS}','${TS}');`)
+      old.close()
+
+      const db = openDb(path) // generic pass adds disciplines.color
+      expect(() =>
+        insertRow(db, 'disciplines', { id: 'd1', accountId: 'a1', name: 'Design', color: '#abcdef', sortOrder: 0, createdAt: TS, updatedAt: TS }),
+      ).not.toThrow()
+      expect(getRow(db, 'disciplines', 'd1')?.color).toBe('#abcdef')
       db.close()
     } finally {
       cleanup()

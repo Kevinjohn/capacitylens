@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore'
 import { scopeData } from '../../store/selectors'
 import { serializeData } from '@floaty/shared/data/transfer'
 import { todayISO } from '@floaty/shared/lib/dateMath'
+import { downloadTextFile } from '../../lib/download'
 import { Button, Modal, TextField } from '../common/ui'
 import type { Account } from '@floaty/shared/types/entities'
 
@@ -25,20 +26,17 @@ export function DeleteCompanyDialog({
   // Export just this company's slice (same shape as the in-app export, which import
   // re-stamps into whichever account is active).
   const exportFirst = () => {
-    const blob = new Blob([serializeData(scopeData(data, account.id))], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
     const slug = account.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'company'
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `floaty-${slug}-${todayISO()}.json`
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadTextFile(`floaty-${slug}-${todayISO()}.json`, serializeData(scopeData(data, account.id)))
   }
 
   return (
     <Modal
       title="Delete company?"
       onClose={onCancel}
+      // Confirmation-only: the type-to-confirm field is a gate, not savable data, so don't
+      // let the unsaved-changes guard refuse Escape/backdrop once the user starts typing.
+      guardDirty={false}
       footer={
         <>
           <Button variant="ghost" onClick={onCancel}>

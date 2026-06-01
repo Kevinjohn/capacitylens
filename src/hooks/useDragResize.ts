@@ -88,7 +88,11 @@ export function useDragResize(args: UseDragResizeArgs) {
     const onCancel = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return
       detach()
-      if (dragging) argsRef.current.onCancel?.()
+      // Notify even on a SUB-THRESHOLD cancel: the gesture was armed at pointerdown, so
+      // the consumer may have started a side effect (e.g. a document scroll watcher) whose
+      // only teardown signal on this path is onCancel. Skipping it here orphans that
+      // listener for every twitch-then-browser-scroll, accumulating across gestures.
+      argsRef.current.onCancel?.()
     }
 
     document.addEventListener('pointermove', onMove)

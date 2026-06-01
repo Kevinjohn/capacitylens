@@ -12,6 +12,9 @@ export type AllocationStatus = 'confirmed' | 'tentative' | 'completed'
  *  the default), by volume of work spread over a span ('days'), or as a pure
  *  booking block where only the span matters and load is ignored ('blocks'). */
 export type SchedulingMode = 'hourly' | 'days' | 'blocks'
+/** Runtime list of the valid scheduling modes — the single source the server's
+ *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
+export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks']
 export type ResourceKind = 'person' | 'placeholder'
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
@@ -146,6 +149,28 @@ export const SCOPED_KEYS: ScopedEntityKey[] = [
  *  scattered `as never` / `as unknown as` casts the loops used to need. */
 export function scopedTables(data: AppData): Record<ScopedEntityKey, ScopedEntity[]> {
   return data as Record<ScopedEntityKey, ScopedEntity[]>
+}
+
+/** Upper bound for hours/day on a resource or allocation — a day can't hold more than
+ *  24h. The single source of truth for the clamp applied on import, at the store write
+ *  boundary, and after a drag-resize rescale. */
+export const MAX_HOURS_PER_DAY = 24
+
+/** Clamp an ALLOCATION's hours/day into [0, MAX_HOURS_PER_DAY]; a non-finite value → 0. The
+ *  ONE rule shared by the store write boundary (every allocation write) and the import
+ *  sanitiser, so the two can never drift. 0 is legal (a 'blocks' booking carries 0 load);
+ *  a day can't exceed 24h. */
+export function clampHoursPerDay(h: number): number {
+  return Number.isFinite(h) ? Math.max(0, Math.min(h, MAX_HOURS_PER_DAY)) : 0
+}
+
+/** Clamp a RESOURCE's working hours/day to (0, MAX_HOURS_PER_DAY]. Unlike an allocation, a
+ *  resource must work a POSITIVE number of hours (0 capacity = no working day at all — same
+ *  reason the store rejects an empty working-week), so junk / <= 0 falls back to a normal 8h
+ *  day; a finite positive value just clamps to the 24h ceiling. Shared by the import sanitiser
+ *  and the store resource write path so the two stay in lockstep. */
+export function clampWorkingHoursPerDay(h: number): number {
+  return Number.isFinite(h) && h > 0 ? Math.min(h, MAX_HOURS_PER_DAY) : 8
 }
 
 /** Bump when the persisted shape changes; drives data/migrate.ts. */

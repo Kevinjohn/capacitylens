@@ -120,8 +120,15 @@ export function capacityAdvisory(
   let overDays = 0
   let timeOffDays = 0
   for (const day of days) {
-    if (isOnTimeOff(resource.id, day, timeOff)) timeOffDays++
-    const available = availableHoursOnDay(resource, day, timeOff)
+    // Derive the weekday + time-off ONCE per day and reuse for both tallies — availableHoursOnDay
+    // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
+    const working = isWorkingDay(resource, day)
+    const onTimeOff = working && isOnTimeOff(resource.id, day, timeOff)
+    // Only count time off on days the resource would actually have worked — a holiday on a
+    // non-working weekend costs no capacity (matches overDays below, which skips zero-capacity days).
+    if (onTimeOff) timeOffDays++
+    // Mirrors availableHoursOnDay: weekend / time off → 0, else the working-hours/day.
+    const available = working && !onTimeOff ? resource.workingHoursPerDay : 0
     if (available > 0 && (allocatedByDay.get(day) ?? 0) + hoursPerDay > available) overDays++
   }
   return { overDays, timeOffDays }

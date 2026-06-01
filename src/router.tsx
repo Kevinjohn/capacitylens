@@ -3,6 +3,7 @@ import { lazy } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { SchedulerView } from './components/scheduler/SchedulerView'
+import { RouteError } from './components/common/ErrorBoundary'
 
 // The scheduler is the index route (first paint) so it stays eager. The CRUD list
 // pages are split out — not needed until navigated to, which trims the initial
@@ -19,6 +20,9 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <AppShell />,
+    // A render error in AppShell or ANY child route bubbles to this boundary and shows
+    // the branded recovery screen — otherwise the data router renders its bland default.
+    errorElement: <RouteError />,
     children: [
       { index: true, element: <SchedulerView /> },
       { path: 'resources', element: <ResourceList /> },

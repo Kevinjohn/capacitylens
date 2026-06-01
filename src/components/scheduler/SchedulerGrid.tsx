@@ -152,6 +152,13 @@ export function SchedulerGrid() {
     [items],
   )
   const layout = useMemo(() => buildLayout(heights), [heights])
+  // Pin the dragged row while a gesture is live: a mid-drag vertical scroll must NOT
+  // re-window, or it could unmount the dragged AllocationBar and tear down its document
+  // pointer listeners (orphaning the drag, so the drop never commits). We FREEZE the scroll
+  // input instead — onScroll skips setScrollTop while dragging — so the window stays put
+  // until the drag ends, then a one-shot effect catches it up. `draggingAllocationId` is
+  // transient store state.
+  const dragging = useStore((s) => s.draggingAllocationId !== null)
   const { first, last, topPad, bottomPad } = windowFromLayout(layout, heights, scrollTop, timelineHeight)
   const visible = items.slice(first, last + 1)
 
@@ -161,10 +168,17 @@ export function SchedulerGrid() {
     if (scrollRaf.current) return
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
+      // Don't re-window mid-drag — it could unmount the dragged row and orphan the gesture.
+      // Read draggingAllocationId LIVE (getState) to avoid a stale closure.
+      if (useStore.getState().draggingAllocationId !== null) return
       if (scrollRef.current) setScrollTop(scrollRef.current.scrollTop)
     })
   }
   useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
+  // When a drag ENDS, catch the window up to any scrolling done while it was frozen.
+  useEffect(() => {
+    if (!dragging && scrollRef.current) setScrollTop(scrollRef.current.scrollTop)
+  }, [dragging])
 
   const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => (
     <div

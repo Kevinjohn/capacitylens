@@ -58,11 +58,16 @@ export function Modal({
   onClose,
   children,
   footer,
+  guardDirty = true,
 }: {
   title: ReactNode
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** When false, the unsaved-changes guard is disabled so Escape/backdrop always close.
+   *  Use for confirmation-only dialogs (e.g. delete-company), whose inputs are a gate,
+   *  not savable form data — guarding them only makes aborting harder. */
+  guardDirty?: boolean
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const downOnBackdropRef = useRef(false)
@@ -76,6 +81,7 @@ export function Modal({
   // the explicit Cancel/Save footer buttons (which call onClose directly) still close.
   const [dirty, setDirty] = useState(false)
   useEffect(() => {
+    if (!guardDirty) return // confirmation-only dialog: nothing to guard, stays non-dirty
     const node = panelRef.current
     if (!node) return
     const markDirty = () => setDirty(true)
@@ -94,7 +100,7 @@ export function Modal({
       node.removeEventListener('change', markDirty)
       node.removeEventListener('click', onClick)
     }
-  }, [])
+  }, [guardDirty])
   // Publish dirtiness so other surfaces (beforeunload) can guard; always clear on unmount.
   useEffect(() => {
     setDirtyForm(dirty)
@@ -102,7 +108,7 @@ export function Modal({
   useEffect(() => () => setDirtyForm(false), [setDirtyForm])
 
   const requestClose = () => {
-    if (dirty) {
+    if (guardDirty && dirty) {
       setNotice('You have unsaved changes — use Cancel or Save to close this dialog.')
       return
     }
@@ -132,7 +138,9 @@ export function Modal({
             ),
           ).filter((el) => !el.hasAttribute('disabled'))
         : []
-    ;(focusables()[0] ?? node)?.focus()
+    // Honour an explicit data-autofocus target (e.g. a confirm field) over the first
+    // focusable in the DOM, which is often a leading button.
+    ;(node?.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0] ?? node)?.focus()
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -366,6 +374,9 @@ export function TextField({
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        // Mark the intended autofocus target so Modal's focus trap honours it instead of
+        // grabbing the first focusable (often a leading button).
+        data-autofocus={autoFocus ? '' : undefined}
         // Native cap is a backstop; the form validator also rejects emoji/junk + length.
         maxLength={maxLength}
         // Name the control off the bare label so the required asterisk (decorative,
@@ -567,17 +578,19 @@ export function ColorField({
   // Close on a click anywhere outside the control. The trigger lives inside `ref`, so
   // its own click toggles via onClick rather than tripping this listener.
   //
-  // Capture phase + stopPropagation: an outside press is consumed before it reaches the
-  // Modal, so clicking the backdrop (or anything outside) dismisses only the popup. Without
-  // this, the Modal's backdrop handler would arm its own close on the same mousedown and the
-  // following mouseup would also dismiss/guard the dialog (and discard a not-yet-dirty form).
+  // Capture phase: an outside press is seen before it reaches its target. We swallow it
+  // ONLY when it landed outside the dialog panel (i.e. on the modal backdrop) — so
+  // dismissing the popup doesn't also arm the Modal's backdrop close. A press on ANOTHER
+  // control inside the SAME dialog is left to propagate, so the first click both closes
+  // the popup AND lands on that control (no swallowed "first click did nothing").
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) {
-        e.stopPropagation()
-        setOpen(false)
-      }
+      const target = e.target as Node
+      if (ref.current?.contains(target)) return // inside the control — its own handler toggles
+      setOpen(false)
+      const panel = ref.current?.closest('[role="dialog"]')
+      if (panel && !panel.contains(target)) e.stopPropagation()
     }
     document.addEventListener('mousedown', onDown, true)
     return () => document.removeEventListener('mousedown', onDown, true)

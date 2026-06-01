@@ -27,6 +27,25 @@ describe('LocalStorageAdapter', () => {
     await expect(adapter.loadAll()).rejects.toThrow()
   })
 
+  it('throws on a parseable-but-damaged blob (a table that is not an array)', async () => {
+    // Valid JSON, but `clients` is a string — migrate() would coerce it to [] and silently
+    // drop the data; instead we must surface it as corrupt so the recovery UI fires.
+    const adapter = new LocalStorageAdapter(KEY)
+    localStorage.setItem(KEY, JSON.stringify({ schemaVersion: 3, data: { ...emptyAppData(), clients: 'oops' } }))
+    await expect(adapter.loadAll()).rejects.toThrow(/damaged/i)
+  })
+
+  it('accepts a partial blob with MISSING tables (migrate fills them; only wrong-typed is corrupt)', async () => {
+    const adapter = new LocalStorageAdapter(KEY)
+    localStorage.setItem(
+      KEY,
+      JSON.stringify({ schemaVersion: 3, data: { clients: [{ id: 'c', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'C', color: '#111111' }] } }),
+    )
+    const loaded = await adapter.loadAll()
+    expect(loaded.clients).toHaveLength(1)
+    expect(loaded.resources).toEqual([]) // missing table filled, not flagged corrupt
+  })
+
   it('readRaw returns the original bytes (for a recovery export), null when empty', () => {
     const adapter = new LocalStorageAdapter(KEY)
     expect(adapter.readRaw()).toBeNull()

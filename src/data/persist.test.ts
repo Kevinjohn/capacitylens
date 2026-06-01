@@ -100,6 +100,54 @@ describe('attachPersistence', () => {
       vi.useRealTimers()
     }
   })
+
+  it('re-attempts a write stranded after the retry budget is spent when the browser comes back online', async () => {
+    // The bounded retry budget stops a PERMANENTLY-failing write from retrying forever, but a
+    // mere network outage shouldn't strand the delta until the next edit: an `online` event
+    // re-attempts it with a fresh budget (so a reload after recovery doesn't lose it).
+    vi.useFakeTimers()
+    try {
+      const adapter = new LocalStorageAdapter('floaty/persist-online')
+      const realSave = adapter.saveAll.bind(adapter)
+      let online = false
+      vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
+        if (!online) throw new Error('offline')
+        return realSave(d)
+      })
+      const onSuccess = vi.fn()
+      const detach = attachPersistence(useStore, adapter, 0, undefined, onSuccess)
+
+      useStore.getState().addClient({ name: 'Stranded', color: '#444444' })
+      await vi.advanceTimersByTimeAsync(0) // initial attempt fails
+      await vi.advanceTimersByTimeAsync(60_000) // 1+2+4+8+16s backoffs all fail → budget exhausted
+      expect(onSuccess).not.toHaveBeenCalled()
+
+      // A bare `online` while still failing would also be gated by failedSinceSuccess; here
+      // the connection truly returns, so the re-attempt lands.
+      online = true
+      window.dispatchEvent(new Event('online'))
+      await vi.advanceTimersByTimeAsync(0)
+      expect(onSuccess).toHaveBeenCalled()
+      expect((await adapter.loadAll()).clients.some((c) => c.name === 'Stranded')).toBe(true)
+      detach()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does NOT re-write on an online event when nothing is stranded (no needless full rewrite)', async () => {
+    const adapter = new LocalStorageAdapter('floaty/persist-online-noop')
+    const saveAll = vi.spyOn(adapter, 'saveAll')
+    const detach = attachPersistence(useStore, adapter, 0)
+    useStore.getState().addClient({ name: 'Synced', color: '#555555' })
+    await new Promise((r) => setTimeout(r, 5))
+    const callsAfterSync = saveAll.mock.calls.length
+    // No prior failure → an online event is a no-op (gated on failedSinceSuccess).
+    window.dispatchEvent(new Event('online'))
+    await new Promise((r) => setTimeout(r, 5))
+    expect(saveAll.mock.calls.length).toBe(callsAfterSync)
+    detach()
+  })
 })
 
 describe('bootstrap', () => {
@@ -149,6 +197,34 @@ describe('bootstrap', () => {
     expect(useStore.getState().data.clients).toHaveLength(1)
     expect(useStore.getState().data.clients[0].name).toBe('Saved')
     expect(useStore.getState().data.resources).toHaveLength(0)
+    detach()
+  })
+
+  it('keeps loaded data and attaches persistence when hasExisting() throws after a successful load', async () => {
+    // Server mode: /api/state succeeds but /api/meta has a transient blip. The loaded data
+    // must NOT be discarded and saving must NOT be bricked by the hasExisting() throw.
+    const loaded = {
+      ...emptyAppData(),
+      clients: [{ id: 'c1', accountId: DEFAULT_ACCOUNT_ID, createdAt: 't', updatedAt: 't', name: 'Loaded', color: '#1' }],
+    }
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = {
+      loadAll: () => Promise.resolve(loaded),
+      saveAll,
+      hasExisting: () => Promise.reject(new Error('meta blip')),
+    }
+
+    const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed() })
+
+    expect(useStore.getState().hydrated).toBe(true)
+    expect(useStore.getState().data.clients).toHaveLength(1) // loaded data kept, not discarded
+    expect(useStore.getState().data.clients[0].name).toBe('Loaded')
+    expect(useStore.getState().data.resources).toHaveLength(0) // NOT re-seeded (data exists)
+
+    // Persistence IS attached: a later edit still saves.
+    useStore.getState().addClient({ name: 'Later', color: '#222222' })
+    await new Promise((r) => setTimeout(r, 5))
+    expect(saveAll).toHaveBeenCalled()
     detach()
   })
 

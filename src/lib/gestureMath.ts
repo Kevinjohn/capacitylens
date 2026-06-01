@@ -1,4 +1,4 @@
-import { addDaysISO, countWorkingDays, daysInclusive, endDateForWorkingDays, isWeekendAware } from '@floaty/shared/lib/dateMath'
+import { addDaysISO, countWorkingDays, daysInclusive, endDateForWorkingDays, isWeekendAware, weekdayOf } from '@floaty/shared/lib/dateMath'
 import type { ISODate, Weekday } from '@floaty/shared/types/entities'
 
 // Pure drag/resize math, extracted from the pointer hook so it can be unit
@@ -27,6 +27,17 @@ export function snapDeltaToDays(deltaPx: number, dayWidth: number): number {
   return Math.round(deltaPx / dayWidth)
 }
 
+/** Step `date` to the nearest working day in `direction` (+1 forward, -1 backward),
+ *  returning it unchanged when it's already a working day. Keeps a weekend-aware resize
+ *  edge off non-working days. Bounded to a week so an empty working set can't loop. */
+function snapToWorkingDay(date: ISODate, workingDays: Weekday[], direction: 1 | -1): ISODate {
+  let d = date
+  for (let i = 0; i < 7 && !workingDays.includes(weekdayOf(d)); i++) {
+    d = addDaysISO(d, direction)
+  }
+  return d
+}
+
 export function applyGesture(
   mode: DragMode,
   range: DateRange,
@@ -53,12 +64,32 @@ export function applyGesture(
     }
     case 'resize-start': {
       let startDate = addDaysISO(range.startDate, deltaDays)
-      if (startDate > range.endDate) startDate = range.endDate // keep >= 1 inclusive day
+      // Weekend-aware: keep the dragged edge off non-working days (snap in the drag's
+      // direction), mirroring the move branch — otherwise a resize lands a weekend at the
+      // bar's edge and, in days mode, desyncs the calendar span from the working-day count.
+      const weekendAware = deltaDays !== 0 && isWeekendAware(opts?.workingDays, opts?.ignoreWeekends)
+      if (weekendAware) {
+        startDate = snapToWorkingDay(startDate, opts!.workingDays!, deltaDays > 0 ? 1 : -1)
+      }
+      if (startDate > range.endDate) {
+        // Over-dragged past the end: pin to the end, but when weekend-aware snap that pin
+        // BACK onto a working day — else the start lands on a non-working `endDate` and the
+        // days-mode span collapses to zero working days (silently keeping old hours).
+        startDate = weekendAware ? snapToWorkingDay(range.endDate, opts!.workingDays!, -1) : range.endDate
+      }
       return { startDate, endDate: range.endDate }
     }
     case 'resize-end': {
       let endDate = addDaysISO(range.endDate, deltaDays)
-      if (endDate < range.startDate) endDate = range.startDate
+      const weekendAware = deltaDays !== 0 && isWeekendAware(opts?.workingDays, opts?.ignoreWeekends)
+      if (weekendAware) {
+        endDate = snapToWorkingDay(endDate, opts!.workingDays!, deltaDays > 0 ? 1 : -1)
+      }
+      if (endDate < range.startDate) {
+        // Symmetric to resize-start: pin to the start, snapped FORWARD to a working day when
+        // weekend-aware so the edge never sits on a weekend / zeroes the working-day span.
+        endDate = weekendAware ? snapToWorkingDay(range.startDate, opts!.workingDays!, 1) : range.startDate
+      }
       return { startDate: range.startDate, endDate }
     }
   }

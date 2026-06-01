@@ -8,10 +8,11 @@ interface HarnessProps {
   onPreview?: (mode: DragMode, deltaDays: number, deltaY: number, pointer: { clientX: number; clientY: number }) => void
   onCommit: (mode: DragMode, deltaDays: number, pointer: { clientX: number; clientY: number }) => void
   onClick?: () => void
+  onCancel?: () => void
 }
 
-function Harness({ dayWidth = 48, onPreview = vi.fn(), onCommit, onClick }: HarnessProps) {
-  const { onPointerDown } = useDragResize({ dayWidth, onPreview, onCommit, onClick })
+function Harness({ dayWidth = 48, onPreview = vi.fn(), onCommit, onClick, onCancel }: HarnessProps) {
+  const { onPointerDown } = useDragResize({ dayWidth, onPreview, onCommit, onClick, onCancel })
   return (
     <div data-testid="drag-target" onPointerDown={onPointerDown}>
       <span data-handle="start" data-testid="handle-start">start</span>
@@ -81,6 +82,36 @@ describe('useDragResize', () => {
 
     expect(onCommit).toHaveBeenCalledWith('resize-end', 1, expect.objectContaining({ clientX: 48 }))
     expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('(d) a SUB-THRESHOLD pointercancel still calls onCancel so consumers can tear down side effects', () => {
+    const onCommit = vi.fn()
+    const onClick = vi.fn()
+    const onCancel = vi.fn()
+    render(<Harness onCommit={onCommit} onClick={onClick} onCancel={onCancel} />)
+
+    const body = screen.getByTestId('body')
+    fireEvent.pointerDown(body, { clientX: 100, button: 0 })
+    // Cancel BEFORE crossing the 4px threshold (e.g. the browser took the pointer to scroll).
+    document.dispatchEvent(new PointerEvent('pointercancel', { clientX: 101, bubbles: true }))
+
+    expect(onCancel).toHaveBeenCalledTimes(1) // armed gesture aborted → consumer is notified
+    expect(onClick).not.toHaveBeenCalled()
+    expect(onCommit).not.toHaveBeenCalled()
+  })
+
+  it('(e) an above-threshold pointercancel also calls onCancel', () => {
+    const onCommit = vi.fn()
+    const onCancel = vi.fn()
+    render(<Harness onCommit={onCommit} onCancel={onCancel} />)
+
+    const body = screen.getByTestId('body')
+    fireEvent.pointerDown(body, { clientX: 0, button: 0 })
+    document.dispatchEvent(new PointerEvent('pointermove', { clientX: 48, bubbles: true }))
+    document.dispatchEvent(new PointerEvent('pointercancel', { clientX: 48, bubbles: true }))
+
+    expect(onCancel).toHaveBeenCalledTimes(1)
+    expect(onCommit).not.toHaveBeenCalled()
   })
 
   it('ignores non-primary mouse buttons', () => {

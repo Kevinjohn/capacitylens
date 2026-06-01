@@ -83,6 +83,24 @@ describe('store CRUD covers every entity', () => {
     expect(s().data.tasks[0].projectId).toBeUndefined()
   })
 
+  it('updateTask validates the MERGED row, not the raw patch (partial phase/project patches)', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
+    const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
+    const ph1 = s().addPhase({ name: 'Disco', projectId: p1.id }) // a phase OF p1
+    const t = s().addTask({ name: 'T', projectId: p1.id, phaseId: ph1.id })
+
+    // A phaseId-ONLY patch (re-setting the same phase) must NOT be wrongly rejected: the
+    // merged row still carries projectId from the existing task, so coherence holds.
+    expect(() => s().updateTask(t.id, { phaseId: ph1.id })).not.toThrow()
+
+    // A projectId-ONLY patch that would leave a STALE cross-project phaseId IS rejected
+    // (merged row: projectId=p2 but phaseId=ph1-of-p1) instead of silently persisting an
+    // incoherent task the server would later 400 on sync.
+    expect(() => s().updateTask(t.id, { projectId: p2.id })).toThrow(/phase/i)
+    expect(s().data.tasks[0].projectId).toBe(p1.id) // unchanged — the bad patch didn't land
+  })
+
   it('resources: add / update / delete', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     s().updateResource(r.id, { role: 'Lead' })
@@ -177,6 +195,14 @@ describe('date-range + reference guards at the store boundary', () => {
     expect(s().data.allocations).toHaveLength(0)
   })
 
+  it('clamps allocation hoursPerDay to a real working day (<= 24) on add and update', () => {
+    const { r, t } = seedAlloc()
+    const a = s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 200, status: 'confirmed' })
+    expect(a.hoursPerDay).toBe(24) // inflated value clamped on add
+    s().updateAllocation(a.id, { hoursPerDay: 99 })
+    expect(s().data.allocations[0].hoursPerDay).toBe(24) // and on update (e.g. a drag-resize rescale)
+  })
+
   it('updateAllocation allows a note/status-only patch (validates the effective range, not the patch)', () => {
     const { r, t } = seedAlloc()
     const a = s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
@@ -194,12 +220,43 @@ describe('date-range + reference guards at the store boundary', () => {
     expect(s().data.timeOff).toHaveLength(0)
   })
 
-  it('importData replaces everything but is undoable via ⌘Z', () => {
+  it('addResource / updateResource reject an empty working-days set', () => {
+    expect(() => s().addResource({ ...personDraft, workingDays: [] })).toThrow(/at least one working day/i)
+    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    expect(() => s().updateResource(r.id, { workingDays: [] })).toThrow(/at least one working day/i)
+    // A patch that doesn't touch workingDays is unaffected.
+    expect(() => s().updateResource(r.id, { name: 'Renamed' })).not.toThrow()
+  })
+
+  it('clamps resource workingHoursPerDay to (0, 24] on add and update (0/junk → 8, >24 → 24)', () => {
+    // The store is the last line for the resource path too (the form caps it, but a non-form
+    // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is NOT legal for a
+    // resource — no working day — so it falls back to 8 (distinct from an allocation, where 0 is fine).
+    const over = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], workingHoursPerDay: 1000 })
+    expect(over.workingHoursPerDay).toBe(24)
+    const zero = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], workingHoursPerDay: 0 })
+    expect(zero.workingHoursPerDay).toBe(8)
+    s().updateResource(over.id, { workingHoursPerDay: NaN })
+    expect(s().data.resources.find((r) => r.id === over.id)!.workingHoursPerDay).toBe(8) // junk → 8
+  })
+
+  it('importData replaces the active account slice and is undoable via ⌘Z', () => {
     s().addClient({ name: 'Keep', color: '#111111' })
-    s().importData(emptyAppData())
-    expect(s().data.clients).toHaveLength(0)
+    // A non-empty import replaces the slice (a zero-record import is refused — see below).
+    const incoming = {
+      ...emptyAppData(),
+      clients: [{ id: 'imp', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Imported', color: '#222222' }],
+    }
+    s().importData(incoming)
+    expect(s().data.clients.map((c) => c.name)).toEqual(['Imported']) // 'Keep' replaced
     s().undo()
-    expect(s().data.clients).toHaveLength(1)
-    expect(s().data.clients[0].name).toBe('Keep')
+    expect(s().data.clients.map((c) => c.name)).toEqual(['Keep']) // undo restores the pre-import slice
+  })
+
+  it('importData refuses a zero-record import (no silent wipe)', () => {
+    s().addClient({ name: 'Keep', color: '#111111' })
+    const summary = s().importData(emptyAppData())
+    expect(summary.imported).toBe(0)
+    expect(s().data.clients.map((c) => c.name)).toEqual(['Keep']) // untouched
   })
 })

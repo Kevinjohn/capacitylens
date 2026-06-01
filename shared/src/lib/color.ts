@@ -38,7 +38,7 @@ function channelLin(c: number): number {
 
 function relativeLuminance(hex: string): number | null {
   const c = hex.replace('#', '')
-  if (c.length < 6) return null
+  if (c.length !== 6) return null // reject short AND overlong hex (the latter mis-slices)
   const r = parseInt(c.slice(0, 2), 16)
   const g = parseInt(c.slice(2, 4), 16)
   const b = parseInt(c.slice(4, 6), 16)
@@ -70,7 +70,7 @@ const AA_NORMAL = 4.5
 
 function toRgb(hex: string): [number, number, number] | null {
   const c = hex.replace('#', '')
-  if (c.length < 6) return null
+  if (c.length !== 6) return null // reject short AND overlong hex (the latter mis-slices)
   const r = parseInt(c.slice(0, 2), 16)
   const g = parseInt(c.slice(2, 4), 16)
   const b = parseInt(c.slice(4, 6), 16)

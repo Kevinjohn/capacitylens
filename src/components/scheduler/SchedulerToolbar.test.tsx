@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SchedulerToolbar } from './SchedulerToolbar'
 import { useStore } from '../../store/useStore'
@@ -82,5 +82,21 @@ describe('SchedulerToolbar Clear filter button', () => {
     await new Promise((r) => setTimeout(r, 250))
     expect(useStore.getState().ui.filters.search).toBe('')
     expect((screen.getByLabelText('Search people') as HTMLInputElement).value).toBe('')
+  })
+
+  it('an EXTERNAL filters.search reset (e.g. account switch) cancels a pending search debounce', async () => {
+    useStore.getState().setFilters({ search: 'alice' }) // a committed search
+    render(<SchedulerToolbar />)
+
+    const box = screen.getByLabelText('Search people') as HTMLInputElement
+    // Type a new term — schedules a 180ms timer to setFilters({ search: 'bob' }); filters.search
+    // is still 'alice' (the debounce hasn't fired).
+    fireEvent.change(box, { target: { value: 'bob' } })
+    // Simulate the external reset an account switch performs (filters → emptyFilters).
+    useStore.getState().setFilters({ search: '' })
+
+    // Past the debounce window: the stale 'bob' must NOT have clobbered the cleared value.
+    await new Promise((r) => setTimeout(r, 250))
+    expect(useStore.getState().ui.filters.search).toBe('')
   })
 })

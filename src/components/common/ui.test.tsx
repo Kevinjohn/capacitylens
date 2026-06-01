@@ -563,6 +563,25 @@ describe('ColorField', () => {
     expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument() // popup closed
     expect(onClose).not.toHaveBeenCalled() // modal stayed open
   })
+
+  it('does NOT swallow a press on another control inside the same dialog (first click lands)', () => {
+    const onSiblingDown = vi.fn()
+    render(
+      <Modal title="Edit" onClose={() => {}}>
+        <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
+        <button type="button" data-testid="sibling" onMouseDown={onSiblingDown}>
+          Other field
+        </button>
+      </Modal>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
+    expect(screen.getByRole('button', { name: RED })).toBeInTheDocument() // popup open
+    // A press on another in-dialog control must REACH it — the capture-phase listener
+    // only swallows presses that land on the backdrop (outside the dialog panel).
+    fireEvent.mouseDown(screen.getByTestId('sibling'))
+    expect(onSiblingDown).toHaveBeenCalledTimes(1) // not swallowed
+    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument() // popup closed
+  })
 })
 
 // ─── WeekdayPicker ─────────────────────────────────────────────────────────

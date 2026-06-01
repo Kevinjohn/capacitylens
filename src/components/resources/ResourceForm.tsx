@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
-import { validateText } from '../../lib/validation'
+import { validateText, validateWorkingDays } from '../../lib/validation'
 import {
   Button,
   FieldError,
@@ -64,6 +64,9 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
       fail('hours', 'Working hours per day must be greater than 0.')
       return
     }
+    // A resource with zero working days has zero capacity every day (reads as
+    // permanently over-allocated), so at least one weekday must be selected.
+    if (!validateWorkingDays(workingDays, fail)) return
     const patch = {
       kind,
       name: cleanName ? cleanName : undefined,

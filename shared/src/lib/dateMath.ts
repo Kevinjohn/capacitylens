@@ -68,7 +68,10 @@ export function widthForRange(start: ISODate, end: ISODate, dayWidth: number): n
 /** Is `date` within the inclusive range [start, end]? Zero-padded YYYY-MM-DD strings
  *  sort chronologically, so a plain string compare is exact AND avoids three parseISO
  *  calls — and this is the scheduler's hottest path (called per resource × per day ×
- *  per allocation when building day capacity). */
+ *  per allocation when building day capacity). The zero-padding assumption is not just
+ *  convention: `validateDateRange` (integrity.ts) rejects any non-`YYYY-MM-DD` date at
+ *  EVERY write boundary (store add/update, import remap, server validate), so an
+ *  unpadded date like "2026-6-1" can never reach this comparison. */
 export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
   return date >= start && date <= end
 }

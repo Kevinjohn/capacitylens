@@ -23,15 +23,17 @@ export function SchedulerToolbar() {
   const clients = data.clients
   const projects = data.projects
 
+  const activeAccountId = useStore((s) => s.activeAccountId)
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
   // Keep the input snappy locally; push to filters after a short pause.
   const [searchInput, setSearchInput] = useState(filters.search)
-  // Adopt external changes to filters.search (Clear button, account switch) by
-  // reconciling during render — the React-recommended alternative to a sync effect.
-  const [seenSearch, setSeenSearch] = useState(filters.search)
-  if (filters.search !== seenSearch) {
-    setSeenSearch(filters.search)
+  // Adopt external resets (Clear button, account switch) by reconciling during render — the
+  // React-recommended alternative to a sync effect. Track the TENANT too, so a half-typed
+  // term resets when the company changes (filters.search can be '' on both sides of a switch).
+  const [seen, setSeen] = useState({ search: filters.search, account: activeAccountId })
+  if (filters.search !== seen.search || activeAccountId !== seen.account) {
+    setSeen({ search: filters.search, account: activeAccountId })
     setSearchInput(filters.search)
   }
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -39,7 +41,13 @@ export function SchedulerToolbar() {
     if (searchTimer.current) clearTimeout(searchTimer.current)
     searchTimer.current = null
   }
-  useEffect(() => cancelSearchTimer, [])
+  // Cancel any in-flight debounce when filters.search changes EXTERNALLY (Clear, account
+  // switch) OR the tenant changes — not just on unmount. The cleanup runs before the next
+  // render's effect, so an external reset cancels a pending setFilters({search:'old'}) that
+  // would otherwise fire ~180ms later and clobber the cleared value — on the OLD or the NEW
+  // account. (When our own debounce is what changed filters.search, the timer has already
+  // fired, so cancelling it is a harmless no-op.)
+  useEffect(() => cancelSearchTimer, [filters.search, activeAccountId])
   const onSearchChange = (v: string) => {
     setSearchInput(v)
     cancelSearchTimer()

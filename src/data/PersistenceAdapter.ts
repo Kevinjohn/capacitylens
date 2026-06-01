@@ -5,7 +5,10 @@ import type { AppData } from '@floaty/shared/types/entities'
 // drop in without touching any call site.
 export interface PersistenceAdapter {
   loadAll(): Promise<AppData>
-  saveAll(data: AppData): Promise<void>
+  /** Persist the whole dataset. `opts.unload` signals a page-teardown flush: an async
+   *  adapter must then DISPATCH every write up-front (a sequential await-loop would only
+   *  get the first request out before the event loop dies). Synchronous adapters ignore it. */
+  saveAll(data: AppData, opts?: { unload?: boolean }): Promise<void>
   /** True when a dataset was ever persisted — lets bootstrap distinguish a
    *  genuine first run from a user who deliberately cleared everything. */
   hasExisting?(): Promise<boolean>

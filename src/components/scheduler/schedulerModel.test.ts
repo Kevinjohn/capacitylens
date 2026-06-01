@@ -112,6 +112,25 @@ describe('buildSchedulerModel', () => {
     expect(rows.map((r) => r.resource.id)).toEqual(['r1'])
   })
 
+  it('does not leave a full-opacity zero-bar ghost row when the only match is a hidden tentative allocation', () => {
+    // r1's only p2 work (a2) is tentative; with hideTentative it's hidden, so r1 has no
+    // VISIBLE match. It must be treated as unmatched (dimmed) — and filtered out when
+    // showUnmatched is off — not rendered as a full-opacity row with zero bars.
+    const filters = { ...emptyFilters(), projectId: 'p2', hideTentative: true, showUnmatched: false }
+    const rows = build(filters).flatMap((g) => g.rows)
+    expect(rows.map((r) => r.resource.id)).toEqual(['r2']) // r1 filtered out, not a ghost
+    expect(rows.every((r) => r.dimmed || r.bars.length > 0)).toBe(true) // no non-dimmed zero-bar row
+  })
+
+  it('dims (showing real load) a tentative-only-match row when showUnmatched is on', () => {
+    const filters = { ...emptyFilters(), projectId: 'p2', hideTentative: true, showUnmatched: true }
+    const r1 = build(filters)
+      .flatMap((g) => g.rows)
+      .find((r) => r.resource.id === 'r1')!
+    expect(r1.dimmed).toBe(true) // its only p2 work is hidden → dimmed, not full-opacity
+    expect(r1.bars.map((b) => b.allocation.id)).toEqual(['a1']) // shows its real non-tentative load
+  })
+
   it('discipline filter drops other groups', () => {
     const model = build({ ...emptyFilters(), disciplineId: 'd-dev' })
     expect(model.map((g) => g.title)).toEqual(['Development'])

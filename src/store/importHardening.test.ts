@@ -67,4 +67,14 @@ describe('importData hardening', () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined()
     expect(Object.prototype).not.toHaveProperty('polluted')
   })
+
+  it('refuses a zero-record import rather than wiping the active account', () => {
+    s().addClient({ name: 'Keep me', color: '#123456' })
+    const before = s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID).length
+    expect(before).toBeGreaterThan(0)
+    // An empty (or all-dropped) dataset would otherwise replace the slice with nothing.
+    const summary = s().importData(emptyAppData())
+    expect(summary.imported).toBe(0)
+    expect(s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID)).toHaveLength(before)
+  })
 })

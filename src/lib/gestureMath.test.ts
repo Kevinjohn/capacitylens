@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { applyGesture, snapDeltaToDays, type DateRange } from './gestureMath'
+import type { Weekday } from '@floaty/shared/types/entities'
 
 const range: DateRange = { startDate: '2026-05-10', endDate: '2026-05-12' }
 
@@ -43,5 +44,49 @@ describe('applyGesture: resize-end', () => {
 
   it('never lets the end precede the start (min 1 day)', () => {
     expect(applyGesture('resize-end', range, -5)).toEqual({ startDate: '2026-05-10', endDate: '2026-05-10' })
+  })
+})
+
+describe('applyGesture: weekend-aware resize', () => {
+  const wd = { workingDays: [1, 2, 3, 4, 5] as Weekday[] } // Mon–Fri
+  // Reference weekdays in May 2026: 11=Mon, 15=Fri, 16=Sat, 17=Sun, 18=Mon, 22=Fri.
+
+  it('resize-end dragging into a weekend snaps forward to the next working day', () => {
+    const r: DateRange = { startDate: '2026-05-11', endDate: '2026-05-15' } // Mon–Fri
+    // +1 calendar day lands on Sat 05-16; snap forward to Mon 05-18 (no weekend at the edge).
+    expect(applyGesture('resize-end', r, 1, wd).endDate).toBe('2026-05-18')
+  })
+
+  it('resize-end dragging left onto a weekend snaps backward to a working day', () => {
+    const r: DateRange = { startDate: '2026-05-11', endDate: '2026-05-18' } // Mon–Mon
+    // -1 from Mon 05-18 = Sun 05-17; snap backward to Fri 05-15.
+    expect(applyGesture('resize-end', r, -1, wd).endDate).toBe('2026-05-15')
+  })
+
+  it('resize-start dragging onto a weekend snaps to a working day', () => {
+    const r: DateRange = { startDate: '2026-05-18', endDate: '2026-05-22' } // Mon–Fri
+    // -1 from Mon 05-18 = Sun 05-17; snap backward to Fri 05-15.
+    expect(applyGesture('resize-start', r, -1, wd).startDate).toBe('2026-05-15')
+  })
+
+  it('does NOT snap when the allocation opts out of weekend-awareness', () => {
+    const r: DateRange = { startDate: '2026-05-11', endDate: '2026-05-15' }
+    expect(applyGesture('resize-end', r, 1, { ...wd, ignoreWeekends: true }).endDate).toBe('2026-05-16')
+  })
+
+  it('resize-start over-dragged past a WEEKEND end pins to a working day (no zero-span)', () => {
+    // 2026-06-01 Mon … 2026-06-06 Sat — the end is a Saturday.
+    const r: DateRange = { startDate: '2026-06-01', endDate: '2026-06-06' }
+    const out = applyGesture('resize-start', r, 99, wd)
+    expect(out.startDate).toBe('2026-06-05') // Friday, NOT the Saturday end (was: 06-06, 0 working days)
+    expect(out.endDate).toBe('2026-06-06')
+  })
+
+  it('resize-end over-dragged past a WEEKEND start pins to a working day', () => {
+    // 2026-06-07 Sun … 2026-06-12 Fri — the start is a Sunday.
+    const r: DateRange = { startDate: '2026-06-07', endDate: '2026-06-12' }
+    const out = applyGesture('resize-end', r, -99, wd)
+    expect(out.endDate).toBe('2026-06-08') // Monday, NOT the Sunday start
+    expect(out.startDate).toBe('2026-06-07')
   })
 })

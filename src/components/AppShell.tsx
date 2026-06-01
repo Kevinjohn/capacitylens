@@ -59,6 +59,11 @@ export function AppShell() {
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      // An open form with unsaved edits owns ⌘Z — never undo the data model out from under
+      // it. The focus check above misses non-text controls (e.g. a <select> inside a modal),
+      // so consult dirtyForm too (mirrors the beforeunload guard). Read live from the store
+      // so the listener needn't resubscribe on every keystroke-driven dirty toggle.
+      if (useStore.getState().dirtyForm) return
       e.preventDefault()
       if (e.shiftKey) redo()
       else undo()

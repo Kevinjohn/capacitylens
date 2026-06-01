@@ -1,15 +1,15 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { format } from 'date-fns'
+import { differenceInCalendarDays, format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DateRange, type DragMode } from '../../lib/gestureMath'
 import { ensureBarColors } from '@floaty/shared/lib/color'
 import { capacityAdvisory } from '../../lib/capacity'
-import { parseDate } from '@floaty/shared/lib/dateMath'
+import { daysInclusive, parseDate } from '@floaty/shared/lib/dateMath'
 import { spanDays } from '@floaty/shared/lib/schedulingDays'
 import { schedulingModeFor } from '../../store/selectors'
-import type { Weekday } from '@floaty/shared/types/entities'
+import { MAX_HOURS_PER_DAY, type Weekday } from '@floaty/shared/types/entities'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
 import type { ID } from '@floaty/shared/types/entities'
@@ -48,7 +48,10 @@ function volumePreservingHours(
 ): number {
   const oldSpan = spanDays(prev.startDate, prev.endDate, opts)
   const newSpan = spanDays(next.startDate, next.endDate, opts)
-  return newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
+  const raw = newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
+  // Clamp to a real working day — collapsing the span (e.g. a resize dragged past the
+  // opposite edge → 1-day span) would otherwise inflate hours/day without bound.
+  return Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY))
 }
 
 /** Hit-test the drop point against the cached lane rects. */
@@ -73,6 +76,7 @@ export const AllocationBar = memo(function AllocationBar({
 }) {
   const updateAllocation = useStore((s) => s.updateAllocation)
   const setNotice = useStore((s) => s.setNotice)
+  const setDraggingAllocation = useStore((s) => s.setDraggingAllocation)
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const resourceId = bar.allocation.resourceId
@@ -109,6 +113,7 @@ export const AllocationBar = memo(function AllocationBar({
   // would hit-test against stale rects and reassign to the wrong row.
   const scrollWatchRef = useRef<(() => void) | null>(null)
   const startScrollWatch = () => {
+    scrollWatchRef.current?.() // never stack watchers — tear down any prior one first
     // rAF-coalesce: scroll can fire many times per frame, and each re-snapshot is a
     // querySelectorAll + getBoundingClientRect over every lane — collapse to one per frame.
     let raf = 0
@@ -136,13 +141,20 @@ export const AllocationBar = memo(function AllocationBar({
       dropElRef.current?.removeAttribute('data-droptarget')
       dropElRef.current = null
       stopScrollWatch()
+      // If this bar still owned the drag-pin at unmount (deleted by another path, account
+      // switch, hot reload), release it so the grid's virtual window can't stay frozen forever.
+      const store = useStore.getState()
+      if (store.draggingAllocationId === bar.allocation.id) store.setDraggingAllocation(null)
     },
-    [],
+    [bar.allocation.id],
   )
 
   const { onPointerDown } = useDragResize({
     dayWidth,
     onPreview: (mode, deltaDays, deltaY, pointer) => {
+      // Pin this row on the FIRST move so a mid-gesture vertical scroll can't virtualise it
+      // out of the DOM and tear down the document pointer listeners (losing the drag).
+      if (!preview) setDraggingAllocation(bar.allocation.id)
       setPreview({ mode, deltaDays, deltaY })
       if (mode === 'move') {
         const target = laneAt(lanesRef.current, pointer.clientX, pointer.clientY)
@@ -151,34 +163,43 @@ export const AllocationBar = memo(function AllocationBar({
     },
     onClick: () => {
       stopScrollWatch()
+      setDraggingAllocation(null)
       onEdit(bar.allocation.id)
     },
     onCancel: () => {
       // Gesture cancelled (e.g. the browser stole the pointer to scroll) — abort cleanly.
       stopScrollWatch()
+      setDraggingAllocation(null)
       setPreview(null)
       setDropTarget(null)
     },
     onCommit: (mode, deltaDays, pointer) => {
       stopScrollWatch()
       setPreview(null)
-      const opts = { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends }
+      setDraggingAllocation(null)
       const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
-      const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays, opts) : current
 
-      // Days mode: a resize changes the span, so rescale hours/day to hold the
-      // volume of work constant. A move keeps the span, so hours are untouched.
-      const hours =
-        isDays && mode !== 'move' && deltaDays !== 0
-          ? volumePreservingHours(current, dates, opts, bar.allocation.hoursPerDay)
-          : bar.allocation.hoursPerDay
-
-      // Dropping on another resource's row reassigns the allocation.
+      // Resolve the drop target FIRST: dropping on another resource's row reassigns.
       const target = mode === 'move' ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null
       const reassignTo = target && target.id !== resourceId ? target.id : null
       setDropTarget(null)
-
       if (deltaDays === 0 && !reassignTo) return
+
+      // Snap dates against the resource the allocation will BELONG to (the TARGET on a
+      // reassign, else the source) — otherwise a weekend-aware move snapped to one working
+      // week is written against a resource with a different one and lands on its non-working
+      // days. Reused below for the source-only fallback when a reassign is rejected.
+      const computeFor = (rid: ID) => {
+        const wd = rid === resourceId ? workingDays : useStore.getState().data.resources.find((r) => r.id === rid)?.workingDays
+        const o = { workingDays: wd, ignoreWeekends: bar.allocation.ignoreWeekends }
+        const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays, o) : current
+        // Days mode: a resize rescales hours/day to hold the work volume constant; a move keeps it.
+        const hours = isDays && mode !== 'move' && deltaDays !== 0 ? volumePreservingHours(current, dates, o, bar.allocation.hoursPerDay) : bar.allocation.hoursPerDay
+        return { dates, hours }
+      }
+
+      const effResourceId = reassignTo ?? resourceId
+      const { dates, hours } = computeFor(effResourceId)
       const hoursPatch = hours !== bar.allocation.hoursPerDay ? { hoursPerDay: hours } : null
       try {
         updateAllocation(bar.allocation.id, {
@@ -186,16 +207,15 @@ export const AllocationBar = memo(function AllocationBar({
           ...hoursPatch,
           ...(reassignTo ? { resourceId: reassignTo } : {}),
         })
-        // Confirm the commit + advertise undo, and run the SAME capacity advisory the
-        // modal shows so the two write paths stay consistent. Read the store imperatively
+        // Confirm the commit + advertise undo, and run the SAME capacity advisory the modal
+        // shows — against the resource it now belongs to. Read the store imperatively
         // (getState, not a subscription) so this stays off the bar's render/memo path.
-        const rid = reassignTo ?? resourceId
         const { data } = useStore.getState()
-        const resource = data.resources.find((r) => r.id === rid)
+        const resource = data.resources.find((r) => r.id === effResourceId)
         let advisory = ''
         if (resource) {
-          const others = data.allocations.filter((a) => a.resourceId === rid && a.id !== bar.allocation.id)
-          const overTimeOff = data.timeOff.filter((t) => t.resourceId === rid)
+          const others = data.allocations.filter((a) => a.resourceId === effResourceId && a.id !== bar.allocation.id)
+          const overTimeOff = data.timeOff.filter((t) => t.resourceId === effResourceId)
           const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, hours)
           const bits: string[] = []
           if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
@@ -204,9 +224,14 @@ export const AllocationBar = memo(function AllocationBar({
         }
         setNotice(`${reassignTo ? 'Allocation reassigned' : 'Allocation moved'}${advisory}. Press ⌘Z to undo.`)
       } catch (e) {
-        // Reassignment rejected (e.g. a placeholder bound to another project): tell
-        // the user why instead of silently snapping back, and still apply any date move.
-        if (deltaDays !== 0) updateAllocation(bar.allocation.id, { ...dates, ...hoursPatch })
+        // Reassignment rejected (e.g. a placeholder bound to another project): keep the
+        // allocation on its source resource and apply just the date move, recomputed against
+        // the SOURCE working week (the target's no longer applies).
+        if (deltaDays !== 0) {
+          const src = computeFor(resourceId)
+          const srcPatch = src.hours !== bar.allocation.hoursPerDay ? { hoursPerDay: src.hours } : null
+          updateAllocation(bar.allocation.id, { ...src.dates, ...srcPatch })
+        }
         setNotice(e instanceof Error ? e.message : 'That allocation could not be moved there.', 'error')
       }
     },
@@ -216,25 +241,28 @@ export const AllocationBar = memo(function AllocationBar({
   let width = bar.width
   let translateY = 0
   if (preview) {
-    const d = preview.deltaDays * dayWidth
-    if (preview.mode === 'move') {
-      left = bar.x + d
-      translateY = preview.deltaY
-    } else if (preview.mode === 'resize-start') {
-      const dd = Math.min(d, bar.width - dayWidth)
-      left = bar.x + dd
-      width = bar.width - dd
-    } else {
-      width = Math.max(dayWidth, bar.width + d)
+    if (preview.mode === 'move') translateY = preview.deltaY
+    if (preview.deltaDays !== 0) {
+      // Preview the SAME working-day-snapped result the COMMIT will apply, so the bar doesn't
+      // jump on release (the old raw calendar-shift preview diverged from the weekend-aware
+      // commit). Convert the snapped dates back to pixels via the calendar-day grid — each
+      // calendar day = dayWidth — exactly as the model placed bar.x / bar.width.
+      const opts = { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends }
+      const cur = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
+      const snapped = applyGesture(preview.mode, cur, preview.deltaDays, opts)
+      left = bar.x + differenceInCalendarDays(parseDate(snapped.startDate), parseDate(cur.startDate)) * dayWidth
+      width = daysInclusive(snapped.startDate, snapped.endDate) * dayWidth
     }
   }
 
-  // Inset the bar by a few px on each side so it sits inside the day cell rather than
-  // flush against the gridlines. Visual only — drag/resize deltas come from the pointer,
-  // not from these styled coords, so the inset never feeds back into the geometry. Guard
-  // against a sub-inset width on very narrow zoom levels so the bar never inverts.
-  const insetLeft = left + LAYOUT.barInset
-  const insetWidth = Math.max(1, width - LAYOUT.barInset * 2)
+  // Inset the bar by a few px on each side so it sits inside the day cell rather than flush
+  // against the gridlines. Visual only — drag/resize deltas come from the pointer, not these
+  // styled coords. Cap the inset to a third of the width so a single-day bar at tight zoom
+  // stays visible and CENTRED, instead of a fixed inset collapsing it to a 1px sliver shoved
+  // to one side (when dayWidth approaches 2·barInset).
+  const inset = Math.min(LAYOUT.barInset, width / 3)
+  const insetLeft = left + inset
+  const insetWidth = Math.max(1, width - inset * 2)
 
   const dragging = preview !== null
   const tentative = bar.allocation.status === 'tentative'

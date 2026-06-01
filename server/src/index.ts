@@ -1,5 +1,5 @@
 import { buildApp } from './app'
-import { openDb, loadState, isEmpty, insertAll } from './db'
+import { openDb, seedIfUninitialized } from './db'
 import { seed } from '@floaty/shared/data/seed'
 
 // Entry point. Run with: NODE_OPTIONS=--experimental-sqlite tsx src/index.ts
@@ -26,9 +26,12 @@ const optimisticConcurrency = process.env.FLOATY_OPTIMISTIC_CONCURRENCY === '1'
 
 const db = openDb(dbPath)
 
-// Seed once on a genuinely empty DB — the server owns first-run seeding so the
-// client's hasExisting()/seedIfEmpty path stays a no-op against a server backend.
-if (isEmpty(loadState(db))) insertAll(db, seed())
+// Seed once on a NEVER-INITIALISED DB — the server owns first-run seeding so the client's
+// hasExisting()/seedIfEmpty path stays a no-op against a server backend. seedIfUninitialized
+// gates on the persistent `initialized` marker, NOT mere emptiness: a user who deletes all
+// their data leaves an empty-but-initialised DB and must NOT get the demo dataset re-seeded
+// on the next restart (matches /api/meta's isInitialized() check).
+seedIfUninitialized(db, seed())
 
 const app = buildApp(db, { allowReset, corsOrigin, optimisticConcurrency })
 

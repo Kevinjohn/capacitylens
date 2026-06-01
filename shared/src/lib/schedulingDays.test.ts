@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { spanDays, endDateForSpan, hoursPerDayFor, daysOfWorkFor, blockHoursPerDay, BLOCK_LOAD_FRACTION } from './schedulingDays'
+import { spanDays, endDateForSpan, hoursPerDayFor, daysOfWorkFor, blockHoursPerDay, BLOCK_LOAD_FRACTION, MAX_SPAN_DAYS } from './schedulingDays'
 import type { Weekday } from '../types/entities'
 
 const MON_FRI: Weekday[] = [1, 2, 3, 4, 5]
@@ -41,6 +41,17 @@ describe('endDateForSpan is the inverse of spanDays', () => {
 
   it('clamps a sub-1 span to a single day', () => {
     expect(endDateForSpan('2026-06-01', 0, { workingDays: MON_FRI })).toBe('2026-06-01')
+  })
+
+  it('caps an absurd / NaN span so the derived end date stays a valid 4-digit-year date', () => {
+    const opts = { workingDays: MON_FRI, ignoreWeekends: true }
+    const capped = endDateForSpan('2026-06-01', MAX_SPAN_DAYS, opts)
+    // A huge span clamps to the cap (instead of deriving a 5-digit-year date that throws
+    // RangeError when the modal hint formats it).
+    expect(endDateForSpan('2026-06-01', 9_999_999, opts)).toBe(capped)
+    expect(/^\d{4}-\d{2}-\d{2}$/.test(capped)).toBe(true)
+    // NaN → a single day, never an Invalid Date.
+    expect(endDateForSpan('2026-06-01', NaN, opts)).toBe('2026-06-01')
   })
 })
 

@@ -7,6 +7,7 @@ import type {
   AppData,
   ID,
   ISODate,
+  ISOTimestamp,
   Resource,
   ScopedEntity,
   ScopedEntityKey,
@@ -70,10 +71,23 @@ export function assertScopedRefs(
     case 'phases':
       need('projectId', data.projects, 'Phase must reference a project in this company.')
       break
-    case 'tasks':
+    case 'tasks': {
       need('projectId', data.projects, 'Task must reference a project in this company.')
       need('phaseId', data.phases, 'Task phase must belong to this company.')
+      // A phase belongs to exactly one project, so a task's phase must be a phase OF
+      // the task's own project — otherwise the task is silently double-bound to two
+      // projects, and deleting the phase's project orphans the task's phaseId.
+      if (present('phaseId')) {
+        if (!present('projectId')) {
+          throw new Error('A task with a phase must also belong to that phase’s project.')
+        }
+        const phase = data.phases.find((p) => p.id === rec.phaseId && p.accountId === accountId)
+        if (phase && phase.projectId !== rec.projectId) {
+          throw new Error('Task phase must belong to the task’s project.')
+        }
+      }
       break
+    }
     case 'resources':
       need('disciplineId', data.disciplines, 'Resource discipline must belong to this company.')
       need('projectId', data.projects, 'Placeholder project must belong to this company.')
@@ -146,32 +160,59 @@ export function remapAndValidateImport(
   data: AppData,
   accountId: ID,
   incoming: AppData,
+  now: ISOTimestamp,
 ): { data: AppData; imported: number; skipped: number } {
-  const idMap = new Map<ID, ID>()
-  // Give every record that HAS a string id a fresh one. Records with a
-  // missing/non-string id are NOT keyed here (keying on `undefined` would
-  // collapse them all onto one shared id) — they each get a fresh id below.
+  // FK remap tables, ONE PER ENTITY TYPE. A source id is only meaningful within its own
+  // table, so a single GLOBAL map keyed on the bare id string would let a CROSS-TABLE id
+  // collision (two records in different tables that corruptly share an id) misroute every
+  // FK pointing at one of them — silently dropping the referencing record and its subtree.
+  // Per-table maps resolve each FK against the table it actually references. FIRST
+  // occurrence within a table wins; a record with a missing/non-string id is NOT keyed
+  // (keying on `undefined` would collapse them all) — it gets a fresh id below.
+  const idMaps = Object.fromEntries(SCOPED_KEYS.map((k) => [k, new Map<ID, ID>()])) as Record<
+    ScopedEntityKey,
+    Map<ID, ID>
+  >
   for (const key of SCOPED_KEYS) {
     for (const e of incoming[key] as Array<{ id?: unknown }>) {
-      if (typeof e?.id === 'string') idMap.set(e.id, newId())
+      if (typeof e?.id === 'string' && !idMaps[key].has(e.id)) idMaps[key].set(e.id, newId())
     }
   }
-  // Foreign-key fields across the scoped entities; remap only those that point at
-  // another imported entity (a dangling ref is left as-is, to be repaired below).
-  const FK_FIELDS = ['disciplineId', 'projectId', 'clientId', 'phaseId', 'resourceId', 'taskId'] as const
-  const remap = (ref: unknown): unknown =>
-    typeof ref === 'string' && idMap.has(ref) ? idMap.get(ref) : ref
+  // Each foreign-key field points at exactly one table, so a ref is remapped via THAT
+  // table's id map (a dangling ref — absent from the map — is left as-is, repaired below).
+  const FK_TARGET: Record<string, ScopedEntityKey> = {
+    disciplineId: 'disciplines',
+    projectId: 'projects',
+    clientId: 'clients',
+    phaseId: 'phases',
+    resourceId: 'resources',
+    taskId: 'tasks',
+  }
+  const FK_FIELDS = Object.keys(FK_TARGET)
+  const remap = (field: string, ref: unknown): unknown => {
+    const m = idMaps[FK_TARGET[field]]
+    return typeof ref === 'string' && m.has(ref) ? m.get(ref) : ref
+  }
 
   // Remap every incoming scoped entity into the active account, then repair its
   // value-level fields (enums / numerics / colour). Keep them as loose records so
-  // the referential pass below can null a dangling optional FK in place.
+  // the referential pass below can null a dangling optional FK in place. Each record
+  // gets its OWN fresh id: the first record bearing a given source id reuses the
+  // FK-map's id (so references land on it), but a later DUPLICATE gets a brand-new id
+  // so two rows can never collide on one primary key. Timestamps are stamped fresh
+  // (`now`) — these records are newly created in this account, and a file missing
+  // createdAt/updatedAt must not reach a server whose columns are NOT NULL.
+  const usedIds = new Set<ID>()
   const brought: Record<string, Array<Record<string, unknown>>> = {}
   for (const key of SCOPED_KEYS) {
+    const ownIds = idMaps[key]
     brought[key] = (incoming[key] as unknown as Array<Record<string, unknown>>).map((e) => {
-      const newRecordId = typeof e.id === 'string' ? (idMap.get(e.id) ?? newId()) : newId()
-      const copy: Record<string, unknown> = { ...e, id: newRecordId, accountId }
+      const mapped = typeof e.id === 'string' ? (ownIds.get(e.id) as ID) : newId()
+      const newRecordId = usedIds.has(mapped) ? newId() : mapped
+      usedIds.add(newRecordId)
+      const copy: Record<string, unknown> = { ...e, id: newRecordId, accountId, createdAt: now, updatedAt: now }
       for (const f of FK_FIELDS) {
-        if (copy[f] !== undefined) copy[f] = remap(copy[f])
+        if (copy[f] !== undefined) copy[f] = remap(f, copy[f])
       }
       return sanitizeImportedRecord(key, copy)
     })
@@ -204,10 +245,18 @@ export function remapAndValidateImport(
 
   // tasks: projectId / phaseId are OPTIONAL. A dangling project unbinds the task to a
   // general (no-project) task; a general task carries no phase, so drop its phase too.
+  // A phase that survived but belongs to a DIFFERENT project is also unbound — a task's
+  // phase must be a phase of the task's own project.
+  const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]))
   for (const t of brought.tasks) {
     if (t.projectId !== undefined && !has(projectIds, t.projectId)) t.projectId = undefined
     if (t.projectId === undefined) t.phaseId = undefined
-    else if (t.phaseId !== undefined && !has(phaseIds, t.phaseId)) t.phaseId = undefined
+    else if (
+      t.phaseId !== undefined &&
+      (!has(phaseIds, t.phaseId) || phaseProject.get(t.phaseId as string) !== t.projectId)
+    ) {
+      t.phaseId = undefined
+    }
   }
 
   // allocations / time-off: resource + task are REQUIRED. Also enforce the date range

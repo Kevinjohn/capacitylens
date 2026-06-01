@@ -88,6 +88,14 @@ describe('validateDateRange', () => {
     expect(v.ok).toBe(false)
     expect(v.errors[0]).toMatch(/before the start/i)
   })
+  it('rejects non-zero-padded and out-of-range dates (the invariant isWithin relies on)', () => {
+    // A non-padded "2026-6-1" would break isWithin's lexicographic compare, so it must
+    // never pass this write-boundary guard.
+    expect(validateDateRange('2026-6-1', '2026-06-05').ok).toBe(false) // unpadded month/day
+    expect(validateDateRange('2026-06-01', '2026-6-5').ok).toBe(false)
+    expect(validateDateRange('2026-13-01', '2026-12-01').ok).toBe(false) // impossible month
+    expect(validateDateRange('2026-02-30', '2026-03-05').ok).toBe(false) // 30 Feb rolls over
+  })
 })
 
 describe('placeholder binding', () => {
@@ -154,6 +162,27 @@ describe('cascade deletes', () => {
     const next = deleteProjectCascade(data, 'p1')
     expect(next.tasks.map((t) => t.id)).toEqual(['t3'])
     expect(next.allocations.map((a) => a.id)).toEqual(['a3'])
+  })
+
+  it('deleteProjectCascade unbinds a surviving task’s phaseId that pointed at a deleted phase', () => {
+    // t-keep belongs to p2 but (incoherently) references phase ph-p1, which belongs to p1.
+    // Deleting p1 removes ph-p1; t-keep must SURVIVE with its phaseId unbound — never a
+    // dangling reference (mirrors the server FK's ON DELETE SET NULL).
+    const data: AppData = {
+      ...emptyAppData(),
+      clients: [{ id: 'c1', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'C', color: '#1' }],
+      projects: [
+        { id: 'p1', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'P1', clientId: 'c1', color: '#1' },
+        { id: 'p2', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'P2', clientId: 'c1', color: '#2' },
+      ],
+      phases: [{ id: 'ph-p1', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Ph', projectId: 'p1' }],
+      tasks: [{ id: 't-keep', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Keep', projectId: 'p2', phaseId: 'ph-p1' }],
+    }
+    const next = deleteProjectCascade(data, 'p1')
+    const keep = next.tasks.find((t) => t.id === 't-keep')
+    expect(keep).toBeDefined() // survives — it belongs to p2
+    expect(keep!.phaseId).toBeUndefined() // dangling phase reference unbound
+    expect(next.phases).toHaveLength(0) // p1's phase removed
   })
 
   it('deleteClientCascade cascades through its projects', () => {

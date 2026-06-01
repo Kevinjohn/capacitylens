@@ -126,6 +126,49 @@ describe('CRUD round-trip', () => {
     expect(r.color).toBe('#3b82f6')
   })
 
+  it('refuses to re-home an existing row to another account (accountId is immutable)', async () => {
+    const { app } = freshApp()
+    await scaffold(app) // c1 in a1
+    await post(app, 'accounts', account('a2'))
+    // PATCH and PUT that try to move c1 into a2 are both rejected with 409…
+    expect((await patch(app, 'clients', 'c1', { accountId: 'a2' })).statusCode).toBe(409)
+    expect((await put(app, 'clients', 'c1', { ...client('c1', 'a2') })).statusCode).toBe(409)
+    // …and c1 stays in a1.
+    expect((await state(app)).clients[0].accountId).toBe('a1')
+  })
+
+  it('scopes a delete to its owning account: a cross-account delete is refused (404), the row stays', async () => {
+    const { app } = freshApp()
+    await scaffold(app) // c1 belongs to a1
+    await post(app, 'accounts', account('a2'))
+    // Asserting the WRONG account (a2) refuses with 404 and leaves c1 in place…
+    expect((await call(app, { method: 'DELETE', url: '/api/clients/c1?accountId=a2' })).statusCode).toBe(404)
+    expect((await state(app)).clients).toHaveLength(1)
+    // …the correct owner deletes it.
+    expect((await call(app, { method: 'DELETE', url: '/api/clients/c1?accountId=a1' })).statusCode).toBe(204)
+    expect((await state(app)).clients).toHaveLength(0)
+  })
+
+  it('preserves the immutable createdAt on update (a PUT cannot rewrite it)', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    const original = (await state(app)).clients[0].createdAt
+    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Renamed', createdAt: '2099-01-01T00:00:00.000Z' })
+    const after = (await state(app)).clients[0]
+    expect(after.name).toBe('Renamed') // everything else updates
+    expect(after.createdAt).toBe(original) // …but createdAt is preserved
+  })
+
+  it('reports hasData:true after the user deletes all their data (no demo re-seed)', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    expect((await call(app, { method: 'GET', url: '/api/meta' })).json()).toEqual({ hasData: true })
+    await del(app, 'accounts', 'a1') // user empties everything
+    expect((await state(app)).accounts).toHaveLength(0)
+    // Still "initialised" — a reload must NOT mistake an emptied dataset for a fresh one.
+    expect((await call(app, { method: 'GET', url: '/api/meta' })).json()).toEqual({ hasData: true })
+  })
+
   it('DELETE is idempotent (missing id still 204)', async () => {
     const { app } = freshApp()
     expect((await del(app, 'clients', 'ghost')).statusCode).toBe(204)
@@ -367,7 +410,20 @@ describe('value-level sanitization on direct writes (server is the integrity bou
     expect(res.statusCode).toBe(200)
     const a = (await state(app)).allocations[0] as Record<string, unknown>
     expect(a.status).toBe('confirmed')
-    expect(a.hoursPerDay).toBe(8)
+    // A finite out-of-range value clamps to the [0,24] FLOOR (0), matching the shared
+    // store clamp — import + store now use one clampHoursPerDay, so they can't diverge.
+    // (Only a missing / NaN value falls back to a full 8h day.)
+    expect(a.hoursPerDay).toBe(0)
+  })
+
+  it('drops a junk account schedulingMode on a direct write but keeps a valid one', async () => {
+    const { app } = freshApp()
+    // A hand-crafted account write with a junk schedulingMode the scheduler can't handle.
+    expect((await post(app, 'accounts', { ...account('a1'), schedulingMode: 'wizard' })).statusCode).toBe(201)
+    expect((await state(app)).accounts[0].schedulingMode).toBeUndefined() // junk dropped → 'hourly'
+    // A valid mode persists unchanged.
+    await patch(app, 'accounts', 'a1', { schedulingMode: 'blocks' })
+    expect((await state(app)).accounts[0].schedulingMode).toBe('blocks')
   })
 })
 

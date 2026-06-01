@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
 import type { BarLayout } from './schedulerModel'
 import { useStore } from '../../store/useStore'
@@ -203,6 +203,95 @@ describe('AllocationBar interactions', () => {
       expect(after.endDate).toBe('2026-06-04')
       expect(after.hoursPerDay).toBe(8)
     })
+  })
+
+  it('pins the dragged row (draggingAllocationId) on the first move and clears it on commit', () => {
+    const a = seedAllocation()
+    render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    const bar = screen.getByTestId('allocation-bar')
+    expect(useStore.getState().draggingAllocationId).toBeNull()
+
+    fireEvent.pointerDown(bar, { clientX: 50, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true })) // first move → pin
+    expect(useStore.getState().draggingAllocationId).toBe(a.id)
+
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true })) // commit → release
+    expect(useStore.getState().draggingAllocationId).toBeNull()
+  })
+
+  it('clears the drag-pin on pointercancel, and on unmount if the bar still owns it', () => {
+    const a = seedAllocation()
+    const { unmount } = render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 120, bubbles: true }))
+    expect(useStore.getState().draggingAllocationId).toBe(a.id)
+    document.dispatchEvent(new Event('pointercancel'))
+    expect(useStore.getState().draggingAllocationId).toBeNull()
+
+    // And the unmount-cleanup releases a pin this bar still owns (deleted/account-switch mid-drag).
+    fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 120, bubbles: true }))
+    expect(useStore.getState().draggingAllocationId).toBe(a.id)
+    unmount()
+    expect(useStore.getState().draggingAllocationId).toBeNull()
+  })
+
+  it('a cross-row reassign computes dates against the TARGET resource’s working week, not the source’s', () => {
+    const st = useStore.getState()
+    const c = st.addClient({ name: 'Acme', color: '#1' })
+    const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = st.addTask({ name: 'Wires', projectId: p.id })
+    // Source works EVERY day (not weekend-aware); target works Mon–Fri (weekend-aware).
+    const src = st.addResource({ kind: 'person', name: 'Sev', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [0, 1, 2, 3, 4, 5, 6], color: '#3' })
+    const dst = st.addResource({ kind: 'person', name: 'Wk', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' })
+    // A single-day allocation on Friday 2026-06-05, on the source resource.
+    const a = st.addAllocation({ resourceId: src.id, taskId: t.id, startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
+
+    const rect = (top: number, bottom: number): DOMRect =>
+      ({ left: 0, right: 500, top, bottom, width: 500, height: bottom - top, x: 0, y: top, toJSON: () => ({}) }) as DOMRect
+    render(
+      <>
+        <div data-resource-id={src.id} data-testid="lane-src" />
+        <div data-resource-id={dst.id} data-testid="lane-dst" />
+        <AllocationBar bar={{ allocation: a, x: 0, width: 48, top: 0, color: '#3b82f6', label: 'Wires' }} dayWidth={48} onEdit={vi.fn()} />
+      </>,
+    )
+    screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
+    screen.getByTestId('lane-dst').getBoundingClientRect = () => rect(100, 150)
+
+    const bar = screen.getByTestId('allocation-bar')
+    fireEvent.pointerDown(bar, { clientX: 24, clientY: 25, button: 0 })
+    document.dispatchEvent(new MouseEvent('pointermove', { clientX: 72, clientY: 125, bubbles: true })) // +1 day, drop on dst
+    document.dispatchEvent(new MouseEvent('pointerup', { clientX: 72, clientY: 125, bubbles: true }))
+
+    const moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+    expect(moved.resourceId).toBe(dst.id)
+    // Start shifts +1 → Sat 06-06. Under the TARGET's Mon–Fri week the 1 working day extends
+    // the end to Mon 06-08 (was 06-06 if computed against the source's 7-day week).
+    expect([moved.startDate, moved.endDate]).toEqual(['2026-06-06', '2026-06-08'])
+  })
+
+  it('previews the SAME weekend-snapped geometry the commit applies (no jump on release)', () => {
+    const st = useStore.getState()
+    const c = st.addClient({ name: 'Acme', color: '#1' })
+    const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = st.addTask({ name: 'Wires', projectId: p.id })
+    const r = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+    // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.
+    const a = st.addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
+    const dayWidth = 48
+    render(<AllocationBar bar={{ allocation: a, x: 0, width: 5 * dayWidth, top: 0, color: '#3b82f6', label: 'Wires' }} dayWidth={dayWidth} onEdit={vi.fn()} />)
+    const bar = screen.getByTestId('allocation-bar')
+
+    fireEvent.pointerDown(bar, { clientX: 10, clientY: 10, button: 0 })
+    // Move +1 day — crosses the weekend, so the commit extends the end (Fri → following Mon).
+    act(() => {
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 10 + dayWidth, clientY: 10, bubbles: true }))
+    })
+    // The PREVIEW width reflects the extended 7-day span (06-02..06-08), not the raw 5-day
+    // bar — matching what the commit produces, so the bar doesn't jump on release.
+    const previewedWidth = parseFloat((bar as HTMLElement).style.width)
+    expect(previewedWidth).toBeGreaterThan(6 * dayWidth - 12) // ~7 days (minus inset), not 5
   })
 
   it('aborts a drag on pointercancel without committing or leaking listeners', () => {

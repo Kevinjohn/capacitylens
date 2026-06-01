@@ -117,6 +117,31 @@ describe('assertScopedRefs', () => {
     )
   })
 
+  it('throws when a task phase belongs to a DIFFERENT project than the task', () => {
+    const data = {
+      ...base(),
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
+      phases: [phase('ph1', A1, 'p1')], // a phase of p1
+    }
+    // Task is bound to p2 but references p1's phase — double-bound to two projects.
+    expect(() => assertScopedRefs(data, A1, 'tasks', { projectId: 'p2', phaseId: 'ph1' })).toThrow(
+      'Task phase must belong to the task’s project.',
+    )
+  })
+
+  it('throws when a task carries a phase but no project', () => {
+    const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')], phases: [phase('ph1', A1, 'p1')] }
+    expect(() => assertScopedRefs(data, A1, 'tasks', { phaseId: 'ph1' })).toThrow(
+      'A task with a phase must also belong to that phase’s project.',
+    )
+  })
+
+  it('passes when a task phase belongs to the task’s own project', () => {
+    const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')], phases: [phase('ph1', A1, 'p1')] }
+    expect(() => assertScopedRefs(data, A1, 'tasks', { projectId: 'p1', phaseId: 'ph1' })).not.toThrow()
+  })
+
   it('throws when a placeholder is bound to a project in another account', () => {
     const data = { ...base(), clients: [client('c1', A2)], projects: [project('p1', A2, 'c1')] }
     expect(() => assertScopedRefs(data, A1, 'resources', { projectId: 'p1' })).toThrow(
@@ -214,7 +239,7 @@ describe('remapAndValidateImport', () => {
   })
 
   it('imports into the active account with FRESH ids and remapped foreign keys', () => {
-    const { data, imported, skipped } = remapAndValidateImport(base(), A1, incoming())
+    const { data, imported, skipped } = remapAndValidateImport(base(), A1, incoming(), TS)
     expect(imported).toBe(3)
     expect(skipped).toBe(0)
     const p = data.projects[0]
@@ -227,7 +252,7 @@ describe('remapAndValidateImport', () => {
 
   it('replaces only the active account slice; other accounts are untouched', () => {
     const start: AppData = { ...base(), clients: [client('keep', A2)] }
-    const { data } = remapAndValidateImport(start, A1, incoming())
+    const { data } = remapAndValidateImport(start, A1, incoming(), TS)
     expect(data.clients.some((c) => c.id === 'keep' && c.accountId === A2)).toBe(true)
     expect(data.clients.filter((c) => c.accountId === A1)).toHaveLength(1)
   })
@@ -246,7 +271,7 @@ describe('remapAndValidateImport', () => {
       ],
       timeOff: [timeOff('to-dangling', 'src-acct', 'no-such-resource')],
     }
-    const { data, skipped } = remapAndValidateImport(base(), A1, bad)
+    const { data, skipped } = remapAndValidateImport(base(), A1, bad, TS)
     expect(data.allocations).toHaveLength(1) // only the valid one survives
     expect(skipped).toBe(3) // 2 bad allocations + 1 dangling time-off
   })
@@ -263,7 +288,7 @@ describe('remapAndValidateImport', () => {
       resources: [{ ...person('r1', 'src'), disciplineId: 'ghost-disc' }], // kept, unbound
       tasks: [task('t1', 'src', 'ghost-project', 'ghost-phase')], // kept, unbound to general
     }
-    const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited)
+    const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS)
     expect(data.projects).toHaveLength(0)
     expect(data.phases).toHaveLength(0)
     expect(data.resources).toHaveLength(1)
@@ -285,7 +310,7 @@ describe('remapAndValidateImport', () => {
       tasks: [task('t-general', 'src', 'ghost-project')], // unbinds to a general task
       allocations: [allocation('al', 'src', 'ph', 't-general')],
     }
-    const { data } = remapAndValidateImport(base(), A1, handEdited)
+    const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
     expect(data.resources[0].projectId).toBeUndefined()
     expect(data.tasks[0].projectId).toBeUndefined()
     expect(data.allocations).toHaveLength(1) // unbound placeholder + general task is allowed
@@ -302,9 +327,94 @@ describe('remapAndValidateImport', () => {
       resources: [placeholder('ph', 'src', 'ghost-project')], // unbinds (project absent)
       allocations: [allocation('al', 'src', 'ph', 't-proj')],
     }
-    const { data } = remapAndValidateImport(base(), A1, handEdited)
+    const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
     expect(data.resources[0].projectId).toBeUndefined()
     expect(data.tasks[0].projectId).toBe(data.projects[0].id) // task stays bound
     expect(data.allocations).toHaveLength(0) // placeholder rule drops the allocation
+  })
+
+  it('gives duplicate source ids DISTINCT fresh ids (no primary-key collision)', () => {
+    const dup: AppData = {
+      ...emptyAppData(),
+      clients: [
+        { ...client('dup', 'src'), name: 'First' },
+        { ...client('dup', 'src'), name: 'Second' },
+      ],
+    }
+    const { data, imported } = remapAndValidateImport(base(), A1, dup, TS)
+    expect(imported).toBe(2)
+    const brought = data.clients.filter((c) => c.accountId === A1)
+    expect(brought).toHaveLength(2)
+    expect(new Set(brought.map((c) => c.id)).size).toBe(2) // two distinct ids, not one shared id
+    expect(brought.map((c) => c.name).sort()).toEqual(['First', 'Second'])
+  })
+
+  it('resolves a foreign key against its OWN table when a source id collides across tables', () => {
+    // Corrupt file: a discipline and a client share source id 'X', and a project points at
+    // clientId 'X'. A single GLOBAL id map would resolve 'X' to whichever table is processed
+    // first (disciplines) and misroute the project's clientId to a non-client id, dropping
+    // the project (required FK) and its subtree. Per-table maps resolve clientId via the
+    // CLIENTS map, so the project survives and re-links to the imported client.
+    const collide: AppData = {
+      ...emptyAppData(),
+      disciplines: [{ ...meta('X', 'src'), name: 'Design', sortOrder: 0 }],
+      clients: [{ ...client('X', 'src'), name: 'Acme' }],
+      projects: [project('src-p', 'src', 'X')],
+    }
+    const { data } = remapAndValidateImport(base(), A1, collide, TS)
+    const proj = data.projects.find((p) => p.accountId === A1)
+    const cli = data.clients.find((c) => c.accountId === A1)
+    expect(proj).toBeDefined() // NOT dropped (old global map dropped it)
+    expect(cli).toBeDefined()
+    expect(proj?.clientId).toBe(cli?.id) // clientId re-linked to the imported CLIENT, not the discipline
+  })
+
+  it('stamps fresh createdAt/updatedAt on imported records (the store/server owns the clock)', () => {
+    const NOW = '2030-06-15T12:00:00.000Z'
+    const withOldTs: AppData = {
+      ...emptyAppData(),
+      clients: [{ ...client('src-c', 'src'), createdAt: '2000-01-01T00:00:00.000Z', updatedAt: '2000-01-01T00:00:00.000Z' }],
+    }
+    const { data } = remapAndValidateImport(base(), A1, withOldTs, NOW)
+    const c = data.clients.find((x) => x.accountId === A1)
+    expect(c?.createdAt).toBe(NOW)
+    expect(c?.updatedAt).toBe(NOW)
+  })
+
+  it('unbinds a task’s phase that belongs to a different project', () => {
+    const handEdited: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      projects: [project('p1', 'src', 'c'), project('p2', 'src', 'c')],
+      phases: [phase('ph1', 'src', 'p1')], // a phase OF p1
+      tasks: [task('t', 'src', 'p2', 'ph1')], // bound to p2 but referencing p1's phase
+    }
+    const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
+    const t = data.tasks.find((x) => x.accountId === A1)
+    expect(t?.projectId).toBeDefined() // task keeps its surviving project
+    expect(t?.phaseId).toBeUndefined() // the incoherent phase is unbound
+  })
+
+  it('imports zero records for an empty dataset (caller refuses the wipe)', () => {
+    const { imported, skipped } = remapAndValidateImport(base(), A1, emptyAppData(), TS)
+    expect(imported).toBe(0)
+    expect(skipped).toBe(0)
+  })
+
+  it('repairs an imported allocation’s unpadded dates instead of dropping it', () => {
+    const handEdited: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      tasks: [task('t', 'src', 'p')],
+      resources: [person('r', 'src')],
+      // single-digit month/day — would fail the YYYY-MM-DD range check if not normalized.
+      allocations: [allocation('al', 'src', 'r', 't', { startDate: '2026-6-1', endDate: '2026-6-5' })],
+    }
+    const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
+    const a = data.allocations.find((x) => x.accountId === A1)
+    expect(a).toBeDefined() // kept (repaired), not dropped
+    expect(a?.startDate).toBe('2026-06-01')
+    expect(a?.endDate).toBe('2026-06-05')
   })
 })

@@ -30,4 +30,23 @@ describe('DeleteCompanyDialog', () => {
     fireEvent.click(deleteBtn)
     expect(onConfirm).toHaveBeenCalledOnce()
   })
+
+  it('lets Escape abort even after typing in the confirm field (no unsaved-changes refusal)', () => {
+    const account = makeAccount({ name: 'Acme Co' })
+    const onCancel = vi.fn()
+    render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={onCancel} />)
+
+    const input = screen.getByLabelText(/Type/i)
+    fireEvent.change(input, { target: { value: 'Acme' } }) // partial — would trip the dirty guard
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(useStore.getState().notice).toBeNull() // not refused with a nonsensical "use Save" hint
+  })
+
+  it('autofocuses the type-to-confirm field, not a leading button', () => {
+    const account = makeAccount({ name: 'Acme Co' })
+    render(<DeleteCompanyDialog account={account} onConfirm={() => {}} onCancel={() => {}} />)
+    expect(document.activeElement).toBe(screen.getByLabelText(/Type/i))
+  })
 })

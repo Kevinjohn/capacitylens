@@ -73,6 +73,9 @@ describe('ensureBarColors', () => {
     const { bg, ink } = ensureBarColors('nope')
     expect(contrastRatio(bg, ink)).toBeGreaterThan(1)
   })
+  it('falls back to neutral grey for an OVERLONG hex (was mis-sliced before)', () => {
+    expect(ensureBarColors('#aabbccdd').bg).toBe('#9ca3af') // 8 digits → invalid → grey, not a wrong colour
+  })
 })
 
 describe('isHexColor', () => {
@@ -94,5 +97,8 @@ describe('contrastRatio', () => {
   })
   it('returns 1 for malformed input', () => {
     expect(contrastRatio('nope', '#ffffff')).toBe(1)
+  })
+  it('returns 1 for an overlong hex', () => {
+    expect(contrastRatio('#aabbccdd', '#ffffff')).toBe(1)
   })
 })

@@ -135,10 +135,12 @@ export function buildSchedulerModel(
         const allAllocs = allocsByResource.get(resource.id) ?? []
         const resTimeOff = timeOffByResource.get(resource.id) ?? []
         // A row is "dimmed" when a project/client filter is active and this resource
-        // has NO work on it — we still show their full real load (so you can see who's
-        // free to staff), just visually de-emphasised. Matched rows focus on the
-        // matching bars as before.
-        const dimmed = projectClientActive && !allAllocs.some(matchesProjectClient)
+        // has NO VISIBLE work on it — we still show their full real load (so you can see
+        // who's free to staff), just visually de-emphasised. Uses `allocVisible` (the
+        // same predicate the bars use), so a resource whose only matching allocation is a
+        // HIDDEN tentative one is correctly treated as unmatched — not rendered as a
+        // full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
+        const dimmed = projectClientActive && !allAllocs.some(allocVisible)
         const visibleAllocs = dimmed ? allAllocs.filter(notTentativeHidden) : allAllocs.filter(allocVisible)
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))

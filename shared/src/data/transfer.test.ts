@@ -22,6 +22,11 @@ describe('data transfer', () => {
     expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { resources } }))).toThrow(/too many records/i)
   })
 
+  it('refuses a Floaty-shaped file that contains zero records (would silently wipe the account)', () => {
+    expect(() => parseData('{"accounts":[],"clients":[],"projects":[]}')).toThrow(/no Floaty records/i)
+    expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { clients: [] } }))).toThrow(/no Floaty records/i)
+  })
+
   it('import tolerates a bare AppData and fills any missing arrays', () => {
     const json = JSON.stringify({
       clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'A', color: '#1' }],

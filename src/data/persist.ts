@@ -20,6 +20,7 @@ export function attachPersistence(
   let pending: AppData | null = null // data awaiting a debounced write
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let retryAttempts = 0
+  let failedSinceSuccess = false // a write failed and hasn't recovered — gates the online/visible re-attempt
   const MAX_RETRY_ATTEMPTS = 5
 
   const save = (data: AppData) => {
@@ -32,6 +33,7 @@ export function attachPersistence(
     void adapter.saveAll(data).then(
       () => {
         retryAttempts = 0
+        failedSinceSuccess = false
         if (retryTimer) {
           clearTimeout(retryTimer)
           retryTimer = null
@@ -39,10 +41,27 @@ export function attachPersistence(
         onSuccess?.()
       },
       (e: unknown) => {
+        failedSinceSuccess = true
         onError?.(e)
         scheduleRetry()
       },
     )
+  }
+
+  // Re-attempt a STRANDED write (one that failed and exhausted its retry budget) when the
+  // connection plausibly recovers — the browser fires `online`, or the user returns to the
+  // tab. Resets the budget and re-sends the latest store state; the adapter's diff is empty
+  // when it's actually already synced, so this is a no-op (and avoids a needless full re-write
+  // — important for the localStorage adapter, which rewrites the whole blob every save).
+  // Gated on a real prior failure so an idle online/focus event never triggers one.
+  const retryStrandedWrite = () => {
+    if (!failedSinceSuccess) return
+    if (retryTimer) {
+      clearTimeout(retryTimer)
+      retryTimer = null
+    }
+    retryAttempts = 0
+    save(store.getState().data)
   }
 
   // A failed write (e.g. the server is briefly unreachable) is retried in the
@@ -62,14 +81,21 @@ export function attachPersistence(
     }, delay)
   }
 
-  // Write any debounced-but-not-yet-flushed data immediately — used on page
-  // unload so the last edit isn't lost inside the debounce window.
-  const flush = () => {
+  // Flush a PENDING debounced write on page teardown via the adapter's `unload` path: it
+  // DISPATCHES every op up-front (keepalive), where a normal sequential server drain would
+  // only get the first request on the wire before the event loop dies. CONDITIONAL on
+  // `pending`: once the debounce has settled there's nothing to flush, so we never re-write
+  // already-persisted data (an unconditional write would, e.g., resurrect it after an
+  // external storage clear, and is wasteful besides).
+  const flushOnUnload = () => {
     if (timer) {
       clearTimeout(timer)
       timer = null
     }
-    if (pending) save(pending)
+    if (!pending) return
+    const data = pending
+    pending = null
+    void adapter.saveAll(data, { unload: true }).catch(() => {})
   }
 
   const unsubscribe = store.subscribe((state) => {
@@ -85,17 +111,23 @@ export function attachPersistence(
     timer = setTimeout(() => save(state.data), debounceMs)
   })
 
-  // The debounce window can outlive the tab. `pagehide` is the reliable
-  // close/navigate signal (fires for the bfcache case where `beforeunload`
-  // doesn't); `visibilitychange → hidden` covers tab switches and mobile.
-  // localStorage writes are synchronous, so flushing here is safe.
-  const onPageHide = () => flush()
+  // The debounce window can outlive the tab. `pagehide` is the reliable close/navigate signal
+  // (fires for the bfcache case where `beforeunload` doesn't); `visibilitychange → hidden`
+  // covers tab switches and mobile. Both route through flushOnUnload (dispatch-all). On a real
+  // close, visibilitychange → hidden fires FIRST — while the page is still alive to dispatch —
+  // so it does the flush and the subsequent pagehide is a no-op (`pending` already consumed).
+  // Coming BACK to the tab (or the browser firing `online`) re-attempts a stranded write.
+  const onPageHide = () => flushOnUnload()
   const onVisibility = () => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') flush()
+    if (typeof document === 'undefined') return
+    if (document.visibilityState === 'hidden') flushOnUnload()
+    else retryStrandedWrite()
   }
+  const onOnline = () => retryStrandedWrite()
   const canListen = typeof window !== 'undefined'
   if (canListen) {
     window.addEventListener('pagehide', onPageHide)
+    window.addEventListener('online', onOnline)
     document.addEventListener('visibilitychange', onVisibility)
   }
 
@@ -103,6 +135,7 @@ export function attachPersistence(
     unsubscribe()
     if (canListen) {
       window.removeEventListener('pagehide', onPageHide)
+      window.removeEventListener('online', onOnline)
       document.removeEventListener('visibilitychange', onVisibility)
     }
     if (timer) clearTimeout(timer) // cancel any pending debounced write
@@ -152,7 +185,16 @@ export async function bootstrap(
     return () => {}
   }
   // Seed only when nothing was ever stored — never resurrect data the user cleared.
-  const existed = adapter.hasExisting ? await adapter.hasExisting() : !isEmpty(loaded)
+  // hasExisting (e.g. the server's /api/meta) decides ONLY whether to seed. If it throws
+  // AFTER a successful load, don't discard the loaded data or skip attaching persistence
+  // (which would brick saving and show a misleading banner) — fall back to inferring
+  // existence from the loaded data itself, so we still skip seeding when there's data.
+  let existed: boolean
+  try {
+    existed = adapter.hasExisting ? await adapter.hasExisting() : !isEmpty(loaded)
+  } catch {
+    existed = !isEmpty(loaded)
+  }
   const seedNeeded = !existed && !!opts.seedIfEmpty
   const initial = seedNeeded ? (opts.seedIfEmpty as AppData) : loaded
 

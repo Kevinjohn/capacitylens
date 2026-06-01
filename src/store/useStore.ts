@@ -25,7 +25,7 @@ import {
   type UtilizationPrefs,
 } from '../lib/displayPrefs'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
-import { emptyAppData } from '@floaty/shared/types/entities'
+import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@floaty/shared/types/entities'
 import type {
   Account,
   Allocation,
@@ -41,6 +41,7 @@ import type {
   ScopedEntityKey,
   Task,
   TimeOff,
+  Weekday,
 } from '@floaty/shared/types/entities'
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
@@ -132,6 +133,11 @@ export interface StoreState {
   /** True while an open form has unsaved edits — drives the unsaved-changes guards
    *  (modal backdrop/Escape, beforeunload). Set by the Modal, never persisted. */
   dirtyForm: boolean
+  /** The allocation currently being dragged/resized, or null. Transient UI (like
+   *  dirtyForm) — never persisted, never on the undo stack. Lets the scheduler PIN the
+   *  dragged row so a mid-gesture vertical scroll can't virtualise it out and orphan the
+   *  drag (the document pointer listeners would be torn down on unmount). */
+  draggingAllocationId: ID | null
   /** Colour-scheme preference. Device-global, not part of account data: kept in the
    *  store only for reactivity, persisted to its own localStorage key by setTheme. */
   theme: ThemePref
@@ -154,6 +160,8 @@ export interface StoreState {
   setConnectionError: (v: boolean) => void
   setNotice: (message: string | null, tone?: 'info' | 'error') => void
   setDirtyForm: (v: boolean) => void
+  /** Mark/clear the allocation being dragged (drives the grid's drag-pin). */
+  setDraggingAllocation: (id: ID | null) => void
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
   setTheme: (pref: ThemePref) => void
   /** Toggle a single utilisation display preference: persist and update state. */
@@ -257,6 +265,17 @@ export const useStore = create<StoreState>()((set, get) => {
     findOwnedIn(d, requireAccount(), key, id)
   const assertAllocation = assertAllocationRefs
 
+  // Value-level integrity backstop: a resource with zero working days has no capacity
+  // any day. The form guards this, but the store is the last line so no path can persist
+  // it. (The import path instead REPAIRS an empty set to Mon–Fri — see sanitizeImport.)
+  const assertWorkingDays = (days: Weekday[]): void => {
+    if (!days || days.length === 0) throw new Error('A resource must have at least one working day.')
+  }
+
+  // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
+  // come from the shared core (entities.ts) so the store write boundary and the import
+  // sanitiser apply the IDENTICAL clamp — no per-path drift.
+
   return {
     data: emptyAppData(),
     ui: defaultUI(),
@@ -270,6 +289,7 @@ export const useStore = create<StoreState>()((set, get) => {
     connectionError: false,
     notice: null,
     dirtyForm: false,
+    draggingAllocationId: null,
     theme: readStoredTheme(),
     utilizationPrefs: readStoredUtilizationPrefs(),
 
@@ -321,13 +341,14 @@ export const useStore = create<StoreState>()((set, get) => {
     // let an edit in one account silently rewrite another's row.
     importData: (incoming) => {
       const accountId = requireAccount()
-      let summary: ImportSummary = { imported: 0, skipped: 0 }
-      mutate((d) => {
-        const result = remapAndValidateImport(d, accountId, incoming)
-        summary = { imported: result.imported, skipped: result.skipped }
-        return result.data
-      })
-      return summary
+      const result = remapAndValidateImport(get().data, accountId, incoming, touch())
+      // Refuse a zero-record import rather than wiping the account's existing slice.
+      // Replacing a company's data with nothing is never the intent (delete is the
+      // explicit path for that), and a truncated/empty file otherwise slips past the
+      // shape-only file guard and silently clears the account.
+      if (result.imported === 0) return { imported: 0, skipped: result.skipped }
+      mutate(() => result.data)
+      return { imported: result.imported, skipped: result.skipped }
     },
     setHydrated: (v) => set({ hydrated: v }),
     setPersistError: (v) => set({ persistError: v }),
@@ -335,6 +356,8 @@ export const useStore = create<StoreState>()((set, get) => {
     setConnectionError: (v) => set({ connectionError: v }),
     setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
     setDirtyForm: (v) => set({ dirtyForm: v }),
+    // Plain set (NOT mutate): transient UI, must never land on the undo/redo stack.
+    setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
     setTheme: (pref) => {
       writeStoredTheme(pref)
       applyThemeToDom(pref)
@@ -377,7 +400,11 @@ export const useStore = create<StoreState>()((set, get) => {
     addResource: (input) => {
       const accountId = requireAccount()
       assertScopedRefs(get().data, accountId, 'resources', input)
-      const e: Resource = { ...input, id: newId(), accountId, ...stamp() }
+      assertWorkingDays(input.workingDays)
+      // Clamp working hours/day (the store is the last line; the form caps it, but a non-form
+      // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a
+      // resource works a positive day) — distinct from an allocation, where 0 is legal.
+      const e: Resource = { ...input, workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, resources: [...d.resources, e] }))
       return e
     },
@@ -385,7 +412,12 @@ export const useStore = create<StoreState>()((set, get) => {
       const existing = findOwned(get().data, 'resources', id)
       if (!existing) return
       assertScopedRefs(get().data, existing.accountId, 'resources', patch)
-      mutate((d) => ({ ...d, resources: updateById(d.resources, id, patch) }))
+      if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays)
+      const safePatch =
+        patch.workingHoursPerDay !== undefined
+          ? { ...patch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
+          : patch
+      mutate((d) => ({ ...d, resources: updateById(d.resources, id, safePatch) }))
     },
     deleteResource: (id) => {
       if (!findOwned(get().data, 'resources', id)) return
@@ -452,7 +484,11 @@ export const useStore = create<StoreState>()((set, get) => {
     updateTask: (id, patch) => {
       const existing = findOwned(get().data, 'tasks', id)
       if (!existing) return
-      assertScopedRefs(get().data, existing.accountId, 'tasks', patch)
+      // Validate the MERGED row (like updateAllocation), not the raw patch: a partial patch
+      // touching only projectId OR only phaseId must still be checked for task↔phase coherence
+      // against the row's OTHER field — else a phaseId-only patch is wrongly rejected, or a
+      // projectId-only patch silently leaves a stale cross-project phaseId the server rejects.
+      assertScopedRefs(get().data, existing.accountId, 'tasks', { ...existing, ...patch })
       mutate((d) => ({ ...d, tasks: updateById(d.tasks, id, patch) }))
     },
     deleteTask: (id) => {
@@ -464,7 +500,7 @@ export const useStore = create<StoreState>()((set, get) => {
       const accountId = requireAccount()
       assertAllocation(get().data, accountId, input.resourceId, input.taskId)
       assertDateRange(input.startDate, input.endDate)
-      const e: Allocation = { ...input, id: newId(), accountId, ...stamp() }
+      const e: Allocation = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay), id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
       return e
     },
@@ -482,7 +518,9 @@ export const useStore = create<StoreState>()((set, get) => {
       // Validate the EFFECTIVE range (merged with the existing row), so a
       // note/status/reassign-only patch isn't rejected for omitting dates.
       assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
-      mutate((d) => ({ ...d, allocations: updateById(d.allocations, id, patch) }))
+      // Clamp hours/day on the way in (a drag-resize rescale can exceed a real day).
+      const safePatch = patch.hoursPerDay !== undefined ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch
+      mutate((d) => ({ ...d, allocations: updateById(d.allocations, id, safePatch) }))
     },
     deleteAllocation: (id) => {
       if (!findOwned(get().data, 'allocations', id)) return

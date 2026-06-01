@@ -20,9 +20,10 @@ describe('shared domain-core runs under Node', () => {
       ...emptyAppData(),
       clients: [{ id: 'c', accountId: 'x', name: 'Acme', color: '#3b82f6', createdAt: 't', updatedAt: 't' }],
     }
-    const out = remapAndValidateImport(base, 'a1', incoming)
+    const out = remapAndValidateImport(base, 'a1', incoming, '2026-01-01T00:00:00.000Z')
     expect(out.imported).toBe(1)
     expect(out.data.clients[0].id).not.toBe('c')
     expect(out.data.clients[0].accountId).toBe('a1')
+    expect(out.data.clients[0].createdAt).toBe('2026-01-01T00:00:00.000Z') // store/server owns the clock
   })
 })

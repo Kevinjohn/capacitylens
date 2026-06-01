@@ -9,6 +9,9 @@ const CHECK = String.fromCodePoint(0x2705) // white check mark emoji
 const NUL = String.fromCodePoint(0x0000) // control char
 const ZWJ = String.fromCodePoint(0x200d) // zero-width joiner (format)
 const RLO = String.fromCodePoint(0x202e) // right-to-left override (format)
+const VS16 = String.fromCodePoint(0xfe0f) // emoji variation selector-16 (Mn)
+const KEYCAP = String.fromCodePoint(0x20e3) // combining enclosing keycap (Me)
+const ACUTE = String.fromCodePoint(0x0301) // combining acute accent (Mn — legitimate)
 
 describe('hasDisallowedChars', () => {
   it('accepts ordinary names incl. accents, CJK and punctuation', () => {
@@ -33,6 +36,16 @@ describe('hasDisallowedChars', () => {
     expect(hasDisallowedChars(`a${NUL}b`)).toBe(true)
     expect(hasDisallowedChars(`a${ZWJ}b`)).toBe(true)
     expect(hasDisallowedChars(`a${RLO}b`)).toBe(true)
+  })
+
+  it('rejects keycap emoji and the emoji variation selector (U+FE0F / U+20E3)', () => {
+    expect(hasDisallowedChars(`1${VS16}${KEYCAP}`)).toBe(true) // "1️⃣" keycap emoji
+    expect(hasDisallowedChars(VS16)).toBe(true) // lone variation selector
+    expect(hasDisallowedChars(KEYCAP)).toBe(true) // lone enclosing-keycap mark
+  })
+
+  it('still accepts a legitimate decomposed accent (does NOT ban Nonspacing_Mark wholesale)', () => {
+    expect(hasDisallowedChars(`e${ACUTE}`)).toBe(false) // "é" written as e + U+0301
   })
 
   it('rejects a newline in single-line mode but allows it in multiline', () => {
@@ -60,5 +73,10 @@ describe('cleanText', () => {
   it('caps length to the max', () => {
     const long = 'a'.repeat(MAX_NAME_LENGTH + 50)
     expect(cleanText(long).length).toBe(MAX_NAME_LENGTH)
+  })
+
+  it('strips keycap-emoji parts but keeps the base char, and preserves decomposed accents', () => {
+    expect(cleanText(`1${VS16}${KEYCAP}`)).toBe('1') // emoji presentation stripped, digit kept
+    expect(cleanText(`e${ACUTE}`)).toBe(`e${ACUTE}`) // legitimate accent untouched
   })
 })

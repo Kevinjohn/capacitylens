@@ -109,11 +109,19 @@ export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
   const removedTaskIds = new Set(
     data.tasks.filter((t) => t.projectId === projectId).map((t) => t.id),
   )
+  // Phases removed with the project. Any SURVIVING task that pointed at one of them
+  // (e.g. legacy/incoherent data) must have its phaseId unbound, never left dangling —
+  // mirroring the server FK's ON DELETE SET NULL on tasks.phaseId.
+  const removedPhaseIds = new Set(
+    data.phases.filter((p) => p.projectId === projectId).map((p) => p.id),
+  )
   return {
     ...data,
     projects: data.projects.filter((p) => p.id !== projectId),
     phases: data.phases.filter((p) => p.projectId !== projectId),
-    tasks: data.tasks.filter((t) => t.projectId !== projectId),
+    tasks: data.tasks
+      .filter((t) => t.projectId !== projectId)
+      .map((t) => (t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined } : t)),
     allocations: data.allocations.filter((a) => !removedTaskIds.has(a.taskId)),
     // A placeholder bound to this project is unbound (not deleted).
     resources: data.resources.map((r) =>

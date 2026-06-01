@@ -3,6 +3,26 @@ import type { AppData, PersistedState } from '@floaty/shared/types/entities'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { migrate } from '@floaty/shared/data/migrate'
 
+// The canonical table keys (accounts + every scoped table), derived from emptyAppData so
+// this never drifts from the schema. A stored blob whose table is present but NOT an array
+// is structurally damaged — migrate() would silently coerce it to [] and drop the data.
+const TABLE_KEYS = Object.keys(emptyAppData())
+
+function hasNonArrayTable(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false
+  const obj = raw as Record<string, unknown>
+  // The blob is `{ schemaVersion, data }` or a bare AppData. If `data` is present it must
+  // be the table container; a non-object `data` is itself corruption.
+  let data: Record<string, unknown>
+  if ('data' in obj) {
+    if (!obj.data || typeof obj.data !== 'object' || Array.isArray(obj.data)) return true
+    data = obj.data as Record<string, unknown>
+  } else {
+    data = obj
+  }
+  return TABLE_KEYS.some((k) => k in data && !Array.isArray(data[k]))
+}
+
 export class LocalStorageAdapter implements PersistenceAdapter {
   private readonly key: string
 
@@ -19,8 +39,21 @@ export class LocalStorageAdapter implements PersistenceAdapter {
     // A parse/migrate failure here means the stored bytes are CORRUPT, not absent.
     // Rethrow rather than returning empty: bootstrap must tell these apart so it
     // can refuse to overwrite recoverable-but-unreadable data with a blank save.
+    let parsed: unknown
     try {
-      return migrate(JSON.parse(raw))
+      parsed = JSON.parse(raw)
+    } catch {
+      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.')
+    }
+    // Parseable but STRUCTURALLY damaged (e.g. a partial write left a table as a string):
+    // migrate() would coerce it to [] and silently drop the data, then the next autosave
+    // would overwrite the recoverable bytes. Treat it as corrupt so the recovery UI
+    // (export-raw / reset) fires instead.
+    if (hasNonArrayTable(parsed)) {
+      throw new LoadError('corrupt', 'Stored Floaty data is damaged.')
+    }
+    try {
+      return migrate(parsed)
     } catch {
       throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.')
     }

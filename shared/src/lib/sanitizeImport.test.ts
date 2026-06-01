@@ -24,6 +24,19 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('allocations', { hoursPerDay: NaN }).hoursPerDay).toBe(8)
   })
 
+  it('clamps a NEGATIVE allocation hours/day to 0 (matching the store clamp), not the fallback', () => {
+    // import + store share one clampHoursPerDay, so a finite out-of-range value clamps to
+    // the [0,24] floor rather than diverging to the import fallback.
+    expect(sanitizeImportedRecord('allocations', { hoursPerDay: -3 }).hoursPerDay).toBe(0)
+  })
+
+  it('de-duplicates a resource’s working days so length reflects real coverage', () => {
+    // [1×7] must NOT reach length 7 (which the scheduling math reads as a full 7-day
+    // week and flips weekend-awareness off) — a Monday-only resource stays Monday-only.
+    expect(sanitizeImportedRecord('resources', { workingDays: [1, 1, 1, 1, 1, 1, 1] }).workingDays).toEqual([1])
+    expect(sanitizeImportedRecord('resources', { workingDays: [5, 1, 3, 1, 5] }).workingDays).toEqual([1, 3, 5])
+  })
+
   it('keeps valid values untouched', () => {
     const out = sanitizeImportedRecord('allocations', { status: 'tentative', hoursPerDay: 6 })
     expect(out).toMatchObject({ status: 'tentative', hoursPerDay: 6 })
@@ -32,6 +45,28 @@ describe('sanitizeImportedRecord', () => {
   it('falls back an invalid allocation status / time-off type to a safe default', () => {
     expect(sanitizeImportedRecord('allocations', { status: 'maybe' }).status).toBe('confirmed')
     expect(sanitizeImportedRecord('timeOff', { type: 'vacation' }).type).toBe('other')
+  })
+
+  it('trims a padded hex colour rather than storing it verbatim', () => {
+    // isHexColor trims before validating, so a padded value passes — but it must be
+    // STORED trimmed, else downstream colour math NaN-fails on the whitespace.
+    expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color).toBe('#aAbBcC')
+  })
+
+  it('falls back a malformed / overlong colour to the safe default', () => {
+    expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe('#6366f1') // 8 digits
+    expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe('#6366f1') // 3 digits
+  })
+
+  it('normalizes sloppily-padded dates to canonical YYYY-MM-DD so the record is kept', () => {
+    const a = sanitizeImportedRecord('allocations', { startDate: '2026-6-1', endDate: '2026-12-5' })
+    expect(a.startDate).toBe('2026-06-01')
+    expect(a.endDate).toBe('2026-12-05')
+    const t = sanitizeImportedRecord('timeOff', { startDate: '2026-1-9', endDate: '2026-1-9' })
+    expect(t.startDate).toBe('2026-01-09')
+    // Already-canonical stays put; a non-date string is left for validateDateRange to reject.
+    expect(sanitizeImportedRecord('allocations', { startDate: '2026-06-01' }).startDate).toBe('2026-06-01')
+    expect(sanitizeImportedRecord('allocations', { startDate: 'nope' }).startDate).toBe('nope')
   })
 
   it('leaves clean names and refs alone', () => {

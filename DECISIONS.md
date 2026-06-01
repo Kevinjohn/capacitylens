@@ -550,3 +550,116 @@ Confirmed: the scheduler toolbar stays free of undo/redo buttons; the feature li
 Confirmed the shipped behaviour (a resource has no colour control; its colour follows its
 discipline). Rewrote the stale **`US-RES-09-resource-colour.md`**, which still described a
 per-resource hex picker, to describe discipline-derived colour.
+
+## 2026-06-02 — Full-tree code-review remediation (Round 2: 14 findings + 8 addendum items)
+
+A second max-effort, whole-codebase review of the post-Round-1 tree (the full breakdown,
+mode tags, and verified-clean list live in **`CODE_REVIEW.md` → "🔁 Round 2"**). Every finding
+and every lower-severity/cleanup item is fixed with a regression test. Final suite **root 430 ·
+shared 111 · server 40 · e2e 89 = 670** green; type-check + lint clean; root coverage up on
+every metric. `[default]` items hit the local-first app; `[server]` items only the off-by-default
+API. Nothing here regressed the Round-1 fixes.
+
+### Scheduler gesture/geometry cluster (`AllocationBar.tsx`, `gestureMath.ts`, `SchedulerGrid.tsx`)
+- **Drag preview now matches the commit (`#4`).** The live preview was a raw calendar pixel
+  shift while the commit ran weekend-aware `applyGesture`, so a Mon–Fri bar moved/resized across
+  a weekend **jumped** on pointer-release. The preview now runs the SAME `applyGesture` and
+  reconstructs pixels from the snapped dates via `differenceInCalendarDays` (left) +
+  `daysInclusive` (width) — exactly how the model places `bar.x`/`bar.width`, so no jump.
+- **Cross-row reassign follows the TARGET's working week (`#5`).** Dates were computed with the
+  source resource's `workingDays` then written to the target. `onCommit` now resolves the drop
+  target first and a `computeFor(resourceId)` helper snaps dates against the resource the
+  allocation will belong to (target on reassign, source otherwise; source-only fallback when a
+  reassign is rejected).
+- **The dragged row is PINNED for the gesture (`#6`).** A mid-drag vertical scroll could
+  virtualise the dragged `AllocationBar` out of the DOM, tearing down its document pointer
+  listeners and silently losing the drag. A transient store field `draggingAllocationId`
+  (plain `set`, never `mutate` — never on the undo stack) freezes the scroll input
+  (`onScroll` skips `setScrollTop` while dragging; a one-shot effect catches the window up on
+  release). Released on commit/cancel/click **and** on unmount if the bar still owns it
+  (so the window can't stay frozen if the bar is deleted/account-switched mid-drag).
+- **Weekend over-drag no longer zeroes the span (`A`).** A resize dragged past the opposite edge
+  clamped onto a possibly-non-working `endDate`/`startDate`, leaving the edge on a weekend and a
+  0-working-day span (silently keeping old hours). The clamp now snaps to a working day.
+- **Tight-zoom bars stay visible (`B`).** A fixed `barInset` collapsed a single-day bar to a 1px
+  sliver when `dayWidth ≈ 2·barInset`; the inset is capped to `width/3` so the bar stays centred.
+
+### AllocationModal `RangeError` crash (`#1`, `AllocationModal.tsx`, `schedulingDays.ts`)
+A huge "Days over" derived an end date past the 4-digit-year range; the hint's `format()` then
+threw `RangeError` mid-render, replacing the scheduler with the router error screen. Capped the
+span in `endDateForSpan` (new `MAX_SPAN_DAYS`, ~100 years — protects every consumer at the one
+domain function), guarded the hint (`endDateHint` skips an invalid date), and added `max` to the
+field.
+
+### Persistence & sync (`ServerSyncAdapter.ts`, `persist.ts`)
+- **Unload-only dispatch-all flush (`#14`).** `drain()` awaits ops sequentially; on a `pagehide`
+  the event loop dies after the first await, so only the first request got on the wire (a cascade
+  delete closing the tab lost the rest). Added `saveAll(data, { unload })` → `flushUnload`, which
+  fires every op up-front with keepalive. **`drain` stays sequential/ordered for the normal path
+  on purpose** — a first attempt at a blanket-concurrent `drain` was reverted after tracing that
+  it would cascade-400 the normal server-mode import (the FK tree fanned across the browser's
+  connection pool, arriving out of order). The unload flush is **conditional on `pending`** —
+  an e2e round-trip caught an unconditional pagehide write resurrecting data after an external
+  `localStorage.clear()`. `visibilitychange→hidden` fires before `pagehide` (page still alive to
+  dispatch), so the first does the work and the second is a no-op.
+  - **Honest residual:** this covers the *debounced-but-unflushed* window; a `[server]`-mode close
+    *during* an already-in-flight `drain()` can still drop later ops. Pre-existing, strictly
+    improved; closing it fully would need the local adapter to no-op an unchanged-blob write —
+    not worth it for an off-by-default mode. Documented in `CODE_REVIEW.md`.
+- **Stranded-write re-attempt (`D`).** The bounded retry budget stops a permanently-failing write
+  from retrying forever, but a network outage shouldn't strand the delta until the next edit. An
+  `online` event (and returning to the tab) now re-attempts with a fresh budget — gated on a real
+  prior failure so an idle event never triggers a needless full re-write.
+
+### Server (`server/src/*`)
+- **First-run seeding gates on the persistent marker, not emptiness (`#13`).** `index.ts` seeded
+  whenever the DB was empty, so a user who deleted all their data got the demo dataset back on the
+  next restart — the exact bug the `_meta` `initialized` marker exists to prevent (and which
+  `/api/meta` already used). Extracted `seedIfUninitialized(db, data)` (gates on `isInitialized`)
+  and unit-tested the predicate directly.
+- **Junk `schedulingMode` dropped on direct account writes (`C`).** `sanitizeWrite` repaired
+  accounts' colour + name but not the `schedulingMode` enum, so a hand-crafted `/api/accounts`
+  write could persist a mode the scheduler can't handle. Added a `SCHEDULING_MODES`
+  (shared, runtime) allow-list check.
+- **One `ownsRow` tenant predicate (`F`).** The cross-account ownership check was hand-rolled in
+  three handlers (PUT/PATCH immutability → 409, DELETE scoping → 404). Extracted one `ownsRow`
+  predicate so a future write path can't silently skip it. (Still defense-in-depth, not real
+  isolation — the account is client-asserted until session auth lands; see Round-1 `#5`.)
+- **`markInitialized` once per bulk insert (`E`).** `insertAll`/`replaceAccountSlice` ran the
+  `_meta` upsert per row; an `insertRowRaw` primitive does the insert and the bulk paths mark once.
+
+### Store / import / domain
+- **Import "⌘Z to undo" only when something landed (`#2`).** A file whose records all drop
+  (`imported === 0`) makes the store no-op (no undo entry), but the toast still said "Press ⌘Z to
+  undo" — luring the user into reverting a *prior, unrelated* edit. Now shows an error notice
+  instead when nothing imported.
+- **`updateTask` validates the merged row (`#11`).** It validated the raw patch, so a `phaseId`-only
+  patch was wrongly rejected and a `projectId`-only patch left a stale cross-project `phaseId` the
+  server later 400s on. Now merges over the existing row before asserting (matches `updateAllocation`).
+- **Resource hours clamped at the store boundary (`#12`).** `addResource`/`updateResource` never
+  clamped `workingHoursPerDay`. A new shared `clampWorkingHoursPerDay` (strict `(0,24]` — a resource
+  must work a positive day, unlike an allocation where 0 is legal) is now applied. This also
+  **unifies the clamp split** noted on 2026-06-01: `clampHoursPerDay` (allocations) and
+  `clampWorkingHoursPerDay` (resources) live in `entities.ts` and are shared by the store **and**
+  the import sanitiser, so the two write paths can't drift (`G`).
+- **De-dupe imported working days (`#8`).** `safeWorkingDays` filtered by range but not for
+  duplicates, so `[1,1,1,1,1,1,1]` reached length 7 and the scheduling math read a Monday-only
+  resource as a 7-day worker. Now collapses to distinct sorted weekdays.
+- **Per-table id map on import (`#10`).** A single global `idMap` keyed only on the source id
+  misrouted a foreign key when two records in different tables (corruptly) shared an id, silently
+  dropping the referencing subtree. Now one id map per entity table.
+- **Keycap-emoji gap closed (`#9`).** The text denylist (see 2026-06-01) omitted Mark categories,
+  so the emoji variation selector U+FE0F and combining keycap U+20E3 slipped through both form
+  rejection and import stripping. Added `\p{Me}` + the variation-selector ranges — deliberately
+  NOT a blanket `\p{Mn}` ban, which would strip legitimate decomposed accents (e.g. `e`+U+0301).
+- **Capacity hot-path hoist (`H`).** `capacityAdvisory` called `isWorkingDay` (and `isOnTimeOff`)
+  twice per day; derived once and reused.
+
+### Triaged OUT of scope (not fixed — recorded for honesty, not deferred excuses)
+Two finder candidates were judged not worth changing and are NOT part of "all of these":
+- `server/src/db.ts` `migrateSchema` has no path for a future **required** column (only optional
+  columns auto-add). Latent — the code comment already states a required addition needs an explicit
+  rebuild step (as `tasks.projectId` got). No current trigger.
+- `server/src/app.ts` `statusFor` maps any constraint-failure message to HTTP 400, so an internal
+  (server-fault) constraint error would surface as 400 not 500. A documented heuristic; robustly
+  distinguishing caller-fault from server-fault needs more than the message string.

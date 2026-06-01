@@ -42,5 +42,11 @@ export function parseData(json: string): AppData {
   if (total > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${total.toLocaleString()}).`)
   }
+  // A Floaty-shaped file that migrates to ZERO records would, if imported, replace the
+  // active company's slice with nothing — a silent wipe. Refuse it: importing an empty
+  // file is never the intent (delete is the explicit path for clearing data).
+  if (total === 0) {
+    throw new Error('This file contains no Floaty records.')
+  }
   return data
 }

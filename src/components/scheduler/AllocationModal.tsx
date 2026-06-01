@@ -3,7 +3,7 @@ import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { parseDate, todayISO } from '@floaty/shared/lib/dateMath'
-import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, spanDays } from '@floaty/shared/lib/schedulingDays'
+import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, MAX_SPAN_DAYS, spanDays } from '@floaty/shared/lib/schedulingDays'
 import { schedulingModeFor } from '../../store/selectors'
 import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
 import { validateText } from '../../lib/validation'
@@ -113,6 +113,14 @@ export function AllocationModal(props: AllocationModalProps) {
     : isDays
       ? hoursPerDayFor(daysOfWork, daysOver, workingHoursPerDay)
       : hoursPerDay
+  // Guard the formatted end-date hint: effEndDate is derived from a user-typed span, and a
+  // value past the date range parses to an Invalid Date, which format() would throw on
+  // mid-render (crashing the modal). endDateForSpan already caps the span, so this is
+  // belt-and-suspenders — render the hint only when the date is real.
+  const endDateHint = (() => {
+    const d = parseDate(effEndDate)
+    return Number.isNaN(d.getTime()) ? null : format(d, 'EEE d MMM yyyy')
+  })()
 
   const resourceOptions: Option[] = data.resources.map((r) => ({
     value: r.id,
@@ -310,13 +318,11 @@ export function AllocationModal(props: AllocationModalProps) {
               <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} step={1} />
+              <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
             </div>
           </div>
-          {startDate && (
-            <p className="text-xs text-muted">
-              Ends {format(parseDate(effEndDate), 'EEE d MMM yyyy')}
-            </p>
+          {startDate && endDateHint && (
+            <p className="text-xs text-muted">Ends {endDateHint}</p>
           )}
         </>
       ) : isDays ? (
@@ -329,13 +335,11 @@ export function AllocationModal(props: AllocationModalProps) {
               <NumberField label="Days of work" value={daysOfWork} onChange={setDaysOfWork} min={0} step={0.5} required invalid={errorField === 'daysOfWork'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} step={1} />
+              <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
             </div>
           </div>
-          {startDate && (
-            <p className="text-xs text-muted">
-              Ends {format(parseDate(effEndDate), 'EEE d MMM yyyy')} · {round2(effHoursPerDay)}h/day
-            </p>
+          {startDate && endDateHint && (
+            <p className="text-xs text-muted">Ends {endDateHint} · {round2(effHoursPerDay)}h/day</p>
           )}
         </>
       ) : (

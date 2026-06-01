@@ -167,6 +167,13 @@ describe('capacityAdvisory', () => {
     expect(overDays).toBe(4) // 06-03 is unavailable → not "over", the other 4 weekdays are
   })
 
+  it('does not count time off on non-working days (a weekend holiday costs no capacity)', () => {
+    // Resource works Mon–Fri; a holiday block falls only on the weekend 06-06..06-07.
+    const timeOff = [makeTimeOff({ startDate: '2026-06-06', endDate: '2026-06-07' })]
+    const { timeOffDays } = capacityAdvisory(r, [], timeOff, '2026-06-01', '2026-06-07', 8)
+    expect(timeOffDays).toBe(0) // the resource never works those days, so it's not "on time off"
+  })
+
   it('is clean when the proposal fits within availability', () => {
     expect(capacityAdvisory(r, [], [], '2026-06-01', '2026-06-05', 8)).toEqual({ overDays: 0, timeOffDays: 0 })
   })

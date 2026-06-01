@@ -11,10 +11,6 @@ import type { TableSpec } from './tables'
 export type Db = DatabaseSync
 type Row = Record<string, unknown>
 
-// Bump whenever the on-disk SQL shape changes in a way migrateSchema must repair.
-// Stored in the file's PRAGMA user_version so an up-to-date DB skips migration work.
-const SCHEMA_USER_VERSION = 1
-
 export function openDb(path: string): Db {
   const db = new DatabaseSync(path)
   db.exec('PRAGMA journal_mode = WAL;')
@@ -24,6 +20,10 @@ export function openDb(path: string): Db {
   // we enable enforcement only afterwards.
   db.exec(SCHEMA_SQL)
   migrateSchema(db)
+  // Backfill the init marker for a pre-existing DB that already holds data (created
+  // before the marker existed), so /api/meta doesn't mistake it for a fresh DB and seed
+  // a second copy on top of it.
+  if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db)
   db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
   return db
 }
@@ -48,34 +48,36 @@ const isNotNull = (db: Db, table: string, column: string): boolean =>
  * would otherwise keep the old columns/constraints and break (e.g. seeding a general
  * task hit `NOT NULL constraint failed: tasks.projectId`).
  *
- * Every step is INTROSPECTION-GATED, not version-gated: it inspects the live shape
- * (PRAGMA table_info) and acts only when the old shape is still present. That makes
- * the whole pass idempotent and a harmless no-op on an already-current DB — fresh or
- * `:memory:` DBs created from SCHEMA_SQL fall straight through. The user_version is
- * only a fast-path to skip the introspection once a DB is known to be current.
- *
- * Runs with foreign keys OFF (openDb enables them afterwards) so the tasks rebuild's
- * drop/rename is safe.
+ * INTROSPECTION-GATED and idempotent: it inspects the live shape (PRAGMA table_info) and
+ * acts only when something is missing, so a fresh / current / :memory: DB falls straight
+ * through with no transaction. It is also GENERIC — every additive OPTIONAL column in the
+ * current spec is added automatically, so a new optional field never silently drifts
+ * between the client schema and the server DB (the old version-gated pass froze after the
+ * first migration and would skip later additions). SQLite can't ALTER-ADD a NOT NULL
+ * column to existing rows, so a REQUIRED addition still needs an explicit step (like the
+ * tasks rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
+ * tasks rebuild's drop/rename is safe.
  */
 function migrateSchema(db: Db): void {
-  const { user_version } = db.prepare('PRAGMA user_version').get() as { user_version: number }
-  if (user_version >= SCHEMA_USER_VERSION) return
+  // Every additive optional column the current spec has that an older table lacks.
+  const additions: Array<[string, string]> = []
+  for (const [table, spec] of Object.entries(TABLES)) {
+    for (const col of spec.columns) {
+      if (col.optional && !hasColumn(db, table, col.name)) additions.push([table, col.name])
+    }
+  }
+  // tasks.projectId went from required to optional (general, no-project tasks).
+  const needsTasksRebuild = isNotNull(db, 'tasks', 'projectId')
+  if (additions.length === 0 && !needsTasksRebuild) return // already current — nothing to do
 
   tx(db, () => {
-    // Additive columns (schedulingMode on accounts, ignoreWeekends on allocations):
-    // ADD COLUMN only when missing, so a current-shape DB is untouched.
-    if (!hasColumn(db, 'accounts', 'schedulingMode')) {
-      db.exec('ALTER TABLE accounts ADD COLUMN schedulingMode TEXT')
-    }
-    if (!hasColumn(db, 'allocations', 'ignoreWeekends')) {
-      db.exec('ALTER TABLE allocations ADD COLUMN ignoreWeekends TEXT')
-    }
-    // tasks.projectId went from required to optional (general, no-project tasks).
-    // SQLite can't relax a column's NOT NULL in place, so rebuild the table when the
-    // old constraint is still there. Skipped entirely on a current-shape DB.
-    if (isNotNull(db, 'tasks', 'projectId')) rebuildTasksTable(db)
+    // Optional columns are nullable TEXT (json columns are TEXT too), so a plain ADD
+    // COLUMN is safe: existing rows get NULL, which fromRow omits on read.
+    for (const [table, name] of additions) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} TEXT`)
+    // SQLite can't relax a NOT NULL in place, so rebuild tasks when the old constraint
+    // is still there. Skipped entirely on a current-shape DB.
+    if (needsTasksRebuild) rebuildTasksTable(db)
   })
-  db.exec(`PRAGMA user_version = ${SCHEMA_USER_VERSION}`)
 }
 
 /** 12-step table rebuild (per the SQLite docs) to make tasks.projectId nullable
@@ -131,12 +133,20 @@ function fromRow(spec: TableSpec, row: Row): Row {
 
 const placeholders = (n: number) => Array.from({ length: n }, () => '?').join(', ')
 
-export function insertRow(db: Db, table: string, obj: Row): void {
+// Insert one row WITHOUT touching the init marker — the primitive the bulk paths
+// (insertAll / replaceAccountSlice) loop over so they can mark ONCE at the end instead of
+// re-running an `INSERT OR IGNORE INTO _meta` per row.
+function insertRowRaw(db: Db, table: string, obj: Row): void {
   const spec = TABLES[table]
   const cols = spec.columns.map((c) => c.name)
   db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders(cols.length)})`).run(
     ...toRow(spec, obj),
   )
+}
+
+export function insertRow(db: Db, table: string, obj: Row): void {
+  insertRowRaw(db, table, obj)
+  markInitialized(db)
 }
 
 /** Idempotent insert-or-replace by id — the write the sync adapter uses for every
@@ -145,12 +155,16 @@ export function insertRow(db: Db, table: string, obj: Row): void {
 export function upsertRow(db: Db, table: string, obj: Row): void {
   const spec = TABLES[table]
   const cols = spec.columns.map((c) => c.name)
-  const setCols = cols.filter((c) => c !== 'id')
+  // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
+  // (entities.ts calls it "impossible to backfill"), so a re-PUT must never rewrite the
+  // original creation time, and a body that omits it must not null it out on update.
+  const setCols = cols.filter((c) => c !== 'id' && c !== 'createdAt')
   const set = setCols.map((c) => `${c} = excluded.${c}`).join(', ')
   db.prepare(
     `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders(cols.length)}) ` +
       `ON CONFLICT(id) DO UPDATE SET ${set}`,
   ).run(...toRow(spec, obj))
+  markInitialized(db)
 }
 
 /** Idempotent: deleting an absent id is a no-op (the store's cascade and the DB's
@@ -179,6 +193,32 @@ export function isEmpty(data: AppData): boolean {
   return Object.values(data).every((v) => Array.isArray(v) && v.length === 0)
 }
 
+/** Persistent "this dataset has been initialised" marker, set on the first write. Unlike
+ *  a row count it SURVIVES the user emptying their data, so /api/meta can tell a
+ *  genuinely-fresh DB (seed it) from one the user deliberately cleared (don't re-seed) —
+ *  mirroring the web app's "storage key present" semantics, where the two diverged. */
+export function markInitialized(db: Db): void {
+  db.prepare(`INSERT OR IGNORE INTO _meta (key, value) VALUES ('initialized', '1')`).run()
+}
+
+export function isInitialized(db: Db): boolean {
+  const row = db.prepare(`SELECT value FROM _meta WHERE key = 'initialized'`).get() as
+    | { value?: string }
+    | undefined
+  return row?.value === '1'
+}
+
+/** First-run seeding gate used by the server entrypoint: seed ONLY a never-initialised DB.
+ *  Gated on the persistent `initialized` marker — which survives the user emptying their
+ *  data — NOT on mere emptiness, so a user who deletes everything is NOT handed the demo
+ *  dataset back on the next restart (the same predicate /api/meta reports). Seeding sets
+ *  the marker, so it fires exactly once. Returns whether it seeded. */
+export function seedIfUninitialized(db: Db, data: AppData): boolean {
+  if (isInitialized(db)) return false
+  insertAll(db, data)
+  return true
+}
+
 function tx(db: Db, fn: () => void): void {
   db.exec('BEGIN')
   try {
@@ -194,14 +234,18 @@ function tx(db: Db, fn: () => void): void {
 export function insertAll(db: Db, data: AppData): void {
   const d = data as unknown as Record<string, Row[]>
   tx(db, () => {
-    for (const table of CREATE_ORDER) for (const row of d[table] ?? []) insertRow(db, table, row)
+    for (const table of CREATE_ORDER) for (const row of d[table] ?? []) insertRowRaw(db, table, row)
+    markInitialized(db) // once for the whole batch, not per row
   })
 }
 
-/** Wipe every table (children-first so FK checks stay satisfied within the tx). */
+/** Wipe every table (children-first so FK checks stay satisfied within the tx). Also
+ *  clears the init marker — a full wipe is a factory reset, so the next load seeds
+ *  again (unlike a user deleting their entities, which keeps the marker). */
 export function wipe(db: Db): void {
   tx(db, () => {
     for (let i = CREATE_ORDER.length - 1; i >= 0; i--) db.exec(`DELETE FROM ${CREATE_ORDER[i]}`)
+    db.exec(`DELETE FROM _meta`)
   })
 }
 
@@ -214,7 +258,8 @@ export function replaceAccountSlice(db: Db, accountId: string, next: AppData): v
       db.prepare(`DELETE FROM ${SCOPED_ORDER[i]} WHERE accountId = ?`).run(accountId)
     }
     for (const table of SCOPED_ORDER) {
-      for (const row of d[table] ?? []) if (row.accountId === accountId) insertRow(db, table, row)
+      for (const row of d[table] ?? []) if (row.accountId === accountId) insertRowRaw(db, table, row)
     }
+    markInitialized(db) // once for the whole slice, not per row
   })
 }

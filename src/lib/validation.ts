@@ -9,6 +9,7 @@ export const VALIDATION = {
   hexInvalid: 'Enter a valid 6-digit hex colour, e.g. #3b82f6.',
   textInvalid: 'Remove emoji or special characters.',
   textTooLong: 'This is too long.',
+  workingDaysRequired: 'Select at least one working day.',
 } as const
 
 type Fail = (field: string, message: string) => void
@@ -67,6 +68,17 @@ export function validateName(value: string, fail: Fail, field = 'name'): string 
 export function validateHex(value: string, fail: Fail, field = 'color'): boolean {
   if (!isHexColor(value)) {
     fail(field, VALIDATION.hexInvalid)
+    return false
+  }
+  return true
+}
+
+/** Require at least one working day. A resource with zero working days has zero capacity
+ *  every day (reads as permanently over-allocated), so the form must reject it — the
+ *  import path repairs an empty set, but the form is the only path that could persist one. */
+export function validateWorkingDays(days: number[], fail: Fail, field = 'workingDays'): boolean {
+  if (!Array.isArray(days) || days.length === 0) {
+    fail(field, VALIDATION.workingDaysRequired)
     return false
   }
   return true

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { storageAdapter } from '../data/storageAdapter'
+import { downloadTextFile } from '../lib/download'
 import { Button, ConfirmDialog } from './common/ui'
 
 // Shown when bootstrap found stored data it could NOT read (corrupt JSON / failed
@@ -10,14 +11,7 @@ export function StorageRecovery() {
   const [confirming, setConfirming] = useState(false)
 
   const downloadRaw = () => {
-    const raw = storageAdapter.readRaw() ?? ''
-    const blob = new Blob([raw], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'floaty-corrupt-backup.json'
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadTextFile('floaty-corrupt-backup.json', storageAdapter.readRaw() ?? '')
   }
 
   // Clear the unreadable data and reload — bootstrap then reseeds from scratch.

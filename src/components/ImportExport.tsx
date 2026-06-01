@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useScopedData } from '../store/useScopedData'
 import { parseData, serializeData } from '@floaty/shared/data/transfer'
+import { downloadTextFile } from '../lib/download'
 import { ConfirmDialog } from './common/ui'
 import type { AppData } from '@floaty/shared/types/entities'
 
@@ -38,13 +39,7 @@ export function ImportExport() {
   const [pendingImport, setPendingImport] = useState<{ data: AppData; name: string } | null>(null)
 
   const onExport = () => {
-    const blob = new Blob([serializeData(data)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'floaty-data.json'
-    a.click()
-    URL.revokeObjectURL(url)
+    downloadTextFile('floaty-data.json', serializeData(data))
   }
 
   const onImport = async (file: File) => {
@@ -64,11 +59,19 @@ export function ImportExport() {
   const confirmImport = () => {
     if (!pendingImport) return
     const { imported, skipped } = importData(pendingImport.data)
+    setPendingImport(null)
+    // When EVERY record was dropped (imported === 0) the store no-ops — it pushes NO undo
+    // entry — so we must NOT tell the user to press ⌘Z (that would revert their PREVIOUS,
+    // unrelated edit). Report the failure instead.
+    if (imported === 0) {
+      const why = skipped > 0 ? ` — ${skipped} invalid ${skipped === 1 ? 'record' : 'records'} skipped` : ''
+      setNotice(`No records imported${why}.`, 'error')
+      return
+    }
     // Report the delta honestly: the store drops allocations/time-off with broken
     // ranges or dangling refs, so "imported 40" can become 31 in the store.
     const skippedNote = skipped > 0 ? ` (${skipped} invalid ${skipped === 1 ? 'record' : 'records'} skipped)` : ''
     setNotice(`Imported ${imported} ${imported === 1 ? 'record' : 'records'}${skippedNote}. Press ⌘Z to undo.`)
-    setPendingImport(null)
   }
 
   const linkClass = 'block w-full rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-canvas'

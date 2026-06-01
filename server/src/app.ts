@@ -11,7 +11,7 @@ import {
   getRow,
   insertAll,
   insertRow,
-  isEmpty,
+  isInitialized,
   loadState,
   replaceAccountSlice,
   upsertRow,
@@ -37,6 +37,15 @@ export interface AppOptions {
 
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
   Object.prototype.hasOwnProperty.call(TABLES, entity)
+
+// Tenant-ownership predicate shared by every mutating route. A row is "owned" by
+// `accountId` when there's no existing row yet (a fresh upsert), or its stored accountId
+// matches. PUT/PATCH use it to keep accountId IMMUTABLE (409 on a change that would re-home
+// a row across the tenant boundary); DELETE uses it to scope a delete to its owner (404 on
+// a cross-account target — the server analog of the client's findOwned guard). One
+// predicate, so a future write path can't silently skip the check.
+const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
+  !existing || existing.accountId === accountId
 
 // Resolve the Access-Control-Allow-Origin value for a request. '*' echoes the
 // wildcard; an allow-list reflects the request's Origin only when it's on the list
@@ -88,7 +97,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // are entity-level; reads stay whole-tree so hydration is one round-trip.
   app.get('/api/state', () => loadState(db))
 
-  app.get('/api/meta', () => ({ hasData: !isEmpty(loadState(db)) }))
+  // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
+  // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
+  // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
+  app.get('/api/meta', () => ({ hasData: isInitialized(db) }))
 
   app.post('/api/:entity', (req, reply) => {
     const { entity } = req.params as { entity: string }
@@ -111,12 +123,22 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
     const body = req.body as Record<string, unknown>
     if (body?.id !== id) return reply.code(400).send({ error: 'Body id must match the URL id.' })
+    const existing = getRow(db, entity, id)
+    // accountId is immutable: a write must not move an EXISTING row to another account
+    // (see ownsRow). The web store enforces this via findOwned; without the same guard a
+    // crafted request could re-home a row and orphan its children across the tenant boundary.
+    if (!ownsRow(existing, body.accountId)) {
+      return reply.code(409).send({ error: 'That record belongs to a different company.' })
+    }
     // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row.
-    if (opts.optimisticConcurrency) {
-      const existing = getRow(db, entity, id)
-      if (existing && typeof existing.updatedAt === 'string' && typeof body.updatedAt === 'string' && existing.updatedAt > body.updatedAt) {
-        return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
-      }
+    if (
+      opts.optimisticConcurrency &&
+      existing &&
+      typeof existing.updatedAt === 'string' &&
+      typeof body.updatedAt === 'string' &&
+      existing.updatedAt > body.updatedAt
+    ) {
+      return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
     }
     try {
       const row = sanitizeWrite(entity, body)
@@ -138,6 +160,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (!existing) return reply.code(404).send({ error: 'Not found' })
     try {
       const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id })
+      // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
+      if (!ownsRow(existing, merged.accountId)) {
+        return reply.code(409).send({ error: 'That record belongs to a different company.' })
+      }
       validateWrite(loadState(db), entity, merged)
       upsertRow(db, entity, merged)
       return reply.code(200).send(merged)
@@ -149,6 +175,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.delete('/api/:entity/:id', (req, reply) => {
     const { entity, id } = req.params as { entity: string; id: string }
     if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+    // Scope the delete when the caller asserts an owning account (sync sends ?accountId=…
+    // for every scoped row): refuse (404) to delete a row that belongs to a DIFFERENT
+    // account — the server analog of the client's findOwned ownership guard. Accounts are
+    // top-level and carry no accountId, so they delete by id.
+    const { accountId } = req.query as { accountId?: string }
+    if (accountId !== undefined && !ownsRow(getRow(db, entity, id), accountId)) {
+      return reply.code(404).send({ error: 'Not found' })
+    }
     deleteRow(db, entity, id) // idempotent
     return reply.code(204).send()
   })
@@ -173,8 +207,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // constraint failure becomes a 400 (via fail's classification) rather than an
     // uncaught 500.
     try {
-      const result = remapAndValidateImport(loadState(db), body.accountId, incoming)
-      replaceAccountSlice(db, body.accountId, result.data)
+      const result = remapAndValidateImport(loadState(db), body.accountId, incoming, new Date().toISOString())
+      // Refuse a zero-record import rather than wiping the account's slice (mirrors the
+      // client store guard — replacing a company's data with nothing is never intended).
+      if (result.imported > 0) replaceAccountSlice(db, body.accountId, result.data)
       return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS }
     } catch (err) {
       return fail(reply, err)

@@ -38,6 +38,10 @@ interface Op {
   table: TableKey
   id: string
   row?: Entity
+  /** For a scoped-entity DELETE: the owning account (read from the pre-delete snapshot),
+   *  sent so the server can refuse a cross-account delete. Accounts are top-level and
+   *  carry none. */
+  accountId?: string
 }
 
 /** Compute the ordered REST operations that turn `prev` into `next`. Upserts run
@@ -59,12 +63,37 @@ export function diffOps(prev: AppData, next: AppData): Op[] {
       }
     }
     for (const row of prevRows) {
-      if (!nextById.has(row.id)) deletes.push({ method: 'DELETE', table, id: row.id })
+      if (!nextById.has(row.id)) {
+        // Carry the owning account (from the pre-delete snapshot) so the server can scope
+        // the delete; accounts are top-level so they carry none.
+        const accountId = table === 'accounts' ? undefined : (row as { accountId?: string }).accountId
+        deletes.push({ method: 'DELETE', table, id: row.id, accountId })
+      }
     }
   }
   // deletes child-first (reverse table order), then upserts parent-first.
   deletes.reverse()
   return [...deletes, ...upserts]
+}
+
+/** Apply a set of (already-confirmed) ops to a base snapshot, returning a NEW AppData.
+ *  Lets the sync advance lastSynced by EXACTLY the writes that landed, so a partial flush
+ *  leaves only the failed rows in the next diff (the rest are marked synced and never
+ *  replay). Exported for unit tests. */
+export function applyOps(base: AppData, ops: Op[]): AppData {
+  const next = {} as Record<TableKey, Entity[]>
+  for (const table of UPSERT_ORDER) next[table] = [...(base[table] as Entity[])]
+  for (const op of ops) {
+    const list = next[op.table]
+    if (op.method === 'DELETE') {
+      next[op.table] = list.filter((r) => r.id !== op.id)
+    } else if (op.row) {
+      const idx = list.findIndex((r) => r.id === op.id)
+      if (idx >= 0) list[idx] = op.row
+      else list.push(op.row)
+    }
+  }
+  return next as unknown as AppData
 }
 
 export class ServerSyncAdapter implements PersistenceAdapter {
@@ -108,7 +137,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     return json.hasData === true
   }
 
-  async saveAll(next: AppData): Promise<void> {
+  async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
+    // Page-teardown flush: dispatch EVERY op up-front (keepalive) instead of the normal
+    // sequential drain. On pagehide the event loop dies after the first `await`, so a
+    // sequential loop would only ever get the FIRST request on the wire and lose the rest of
+    // a multi-entity change (e.g. a cascade delete's child-then-parent DELETEs).
+    if (opts?.unload) return this.flushUnload(next)
     this.queued = next
     if (this.inFlight) return this.inFlight
     this.inFlight = this.drain()
@@ -119,29 +153,68 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
+  // Best-effort final flush on page teardown. Fires all fetches synchronously (apply()
+  // initiates the request before its first await), so they're on the wire before the document
+  // unloads; keepalive lets them outlive it. Deliberately does NOT advance lastSynced (the
+  // page is going away — a surviving reload re-diffs against the server) and swallows per-op
+  // errors. Ordering isn't guaranteed here, but deletes are idempotent + the DB cascades, and
+  // the only FK-order casualty is the rare new-parent-and-child created within the 300ms
+  // before close — still far better than the sequential loop losing everything after op 1.
+  private async flushUnload(next: AppData): Promise<void> {
+    const ops = diffOps(this.lastSynced, next)
+    await Promise.all(ops.map((op) => this.apply(op).catch(() => {})))
+  }
+
   // Drain the queue: diff against lastSynced, apply, advance — repeat until no newer
-  // state arrived mid-flush. Throws on the first failed request WITHOUT advancing
-  // lastSynced, so persist.ts surfaces it (persistError) and the next save replays
-  // the full delta since the last good sync.
+  // state arrived mid-flush. Attempts EVERY op (rather than stopping at the first
+  // failure), so a single permanently-rejected row can't block all the others from
+  // syncing. On any failure it throws WITHOUT advancing lastSynced, so persist.ts
+  // surfaces it (persistError) and the next save replays the full delta since the last
+  // good sync — PUT/DELETE are idempotent, so already-applied rows simply re-apply.
   private async drain(): Promise<void> {
     while (this.queued) {
       const target = this.queued
       this.queued = null
       const ops = diffOps(this.lastSynced, target)
-      for (const op of ops) await this.apply(op)
-      this.lastSynced = target
+      const applied: Op[] = []
+      const failures: string[] = []
+      for (const op of ops) {
+        try {
+          await this.apply(op)
+          applied.push(op)
+        } catch (e) {
+          failures.push(e instanceof Error ? e.message : String(e))
+        }
+      }
+      // Advance the snapshot to reflect ONLY the ops that landed: on full success that's
+      // exactly `target`; on partial failure it's the server's real state, so the next
+      // diff re-emits just the still-failing rows (the rest are now synced and never
+      // replay) — a poison row is isolated, not left blocking every later change.
+      this.lastSynced = failures.length === 0 ? target : applyOps(this.lastSynced, applied)
+      if (failures.length > 0) {
+        throw new Error(`${failures.length} change(s) rejected: ${failures[0]}`)
+      }
     }
   }
 
   private async apply(op: Op): Promise<void> {
-    const url = `${this.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}`
+    const path = `${this.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}`
+    // keepalive: each entity write is tiny (one row, far below the 64KB keepalive cap),
+    // so the request can outlive the page — the last debounced edit flushed on pagehide
+    // isn't cancelled by the unload (a plain fetch would be, losing it in server mode).
     const res =
       op.method === 'DELETE'
-        ? await this.fetchImpl(url, { method: 'DELETE' })
-        : await this.fetchImpl(url, {
+        ? // Scope the delete to its owning account so the server can refuse a cross-account
+          // delete (the server analog of the store's findOwned guard).
+          await this.fetchImpl(op.accountId ? `${path}?accountId=${encodeURIComponent(op.accountId)}` : path, {
+            method: 'DELETE',
+            keepalive: true,
+          })
+        : await this.fetchImpl(path, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(op.row),
+            keepalive: true,
           })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')

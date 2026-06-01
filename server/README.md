@@ -22,7 +22,7 @@ what links `@floaty/shared` into both the web app and this server:
 
 ```bash
 npm install            # at the repo root, not inside server/
-npm run dev --workspace=server   # http://localhost:8787, seeds an empty DB on first boot
+npm run dev --workspace=server   # http://localhost:8787, seeds a never-initialised DB on first boot
 ```
 
 Point the web app at it (from the repo root):
@@ -50,7 +50,7 @@ VITE_FLOATY_API=http://localhost:8787 npm run dev
 | PUT | `/api/:entity/:id` | Idempotent upsert — the verb the sync adapter uses for create + update. |
 | POST | `/api/:entity` | Create. |
 | PATCH | `/api/:entity/:id` | Partial update. |
-| DELETE | `/api/:entity/:id` | Idempotent delete (DB cascades mirror the store). |
+| DELETE | `/api/:entity/:id` | Idempotent delete (DB cascades mirror the store); optional `?accountId=…` scopes it to the owner (404 cross-account). |
 | POST | `/api/import` | `{ accountId, data }` — reuses `remapAndValidateImport`. |
 | POST | `/api/test/reset` | Wipe (+ optional reseed). Gated by `FLOATY_ALLOW_RESET=1`. |
 
@@ -61,11 +61,17 @@ VITE_FLOATY_API=http://localhost:8787 npm run dev
 
 The server is the integrity boundary for direct API writes, not just the UI. Every
 POST/PUT/PATCH runs two shared-core layers (see `src/validate.ts`): `sanitizeWrite`
-repairs value-level fields (enums, colour, hours, `workingDays`) exactly as the
-import path does, then `validateWrite` enforces referential integrity + date ranges.
-So a hand-crafted request can't persist a junk enum, non-hex colour, NaN/negative
-hours, or a dangling foreign key. PATCH is a true partial merge (body merged over the
-stored row before validation), not a column-wise overwrite.
+repairs value-level fields (enums — incl. an account's `schedulingMode` — colour, hours,
+`workingDays`) exactly as the import path does, then `validateWrite` enforces referential
+integrity + date ranges. So a hand-crafted request can't persist a junk enum, non-hex
+colour, NaN/negative hours, or a dangling foreign key. PATCH is a true partial merge (body
+merged over the stored row before validation), not a column-wise overwrite.
+
+**Tenant guard (`ownsRow`).** `accountId` is immutable: a PUT/PATCH that tries to re-home an
+existing row to another account is refused with 409. A DELETE is scoped to its owner when the
+caller supplies `?accountId=…` (the sync adapter sends it for every scoped delete) — a
+cross-account target returns 404. This is **defense-in-depth**, not real isolation: the account
+is client-asserted, not derived from a session, until app-level auth lands (see Status below).
 
 ## Env
 

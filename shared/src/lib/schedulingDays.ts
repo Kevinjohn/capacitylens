@@ -16,6 +16,13 @@ export interface DaysModeOpts {
   ignoreWeekends?: boolean
 }
 
+/** Upper bound for a (days-over) span. ~100 years — far beyond any real allocation, but
+ *  low enough that the derived end date can never overflow the 4-digit-year range that
+ *  `parseDate`/date-fns can round-trip (a 5-digit year throws `RangeError` in `format`).
+ *  Capping the SPAN at its one domain function protects every consumer (the modal hint,
+ *  submit, drag) at once. */
+export const MAX_SPAN_DAYS = 36500
+
 /** The "days over" span of [start, end]: working days when weekend-aware, else
  *  inclusive calendar days. Always >= 1 for a non-reversed range. */
 export function spanDays(start: ISODate, end: ISODate, opts: DaysModeOpts): number {
@@ -28,7 +35,9 @@ export function spanDays(start: ISODate, end: ISODate, opts: DaysModeOpts): numb
 /** Inverse of `spanDays`: the end date such that [start, end] spans exactly
  *  `daysOver` days under the same working-day rule. */
 export function endDateForSpan(start: ISODate, daysOver: number, opts: DaysModeOpts): ISODate {
-  const n = Math.max(1, Math.round(daysOver))
+  // Clamp to [1, MAX_SPAN_DAYS]: a NaN/huge daysOver would otherwise derive a date past the
+  // 4-digit-year range and make the consumer's format() throw a RangeError mid-render.
+  const n = Math.min(Math.max(1, Math.round(daysOver) || 1), MAX_SPAN_DAYS)
   if (isWeekendAware(opts.workingDays, opts.ignoreWeekends)) {
     return endDateForWorkingDays(start, n, opts.workingDays!)
   }

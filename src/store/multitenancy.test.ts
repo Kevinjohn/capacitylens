@@ -151,9 +151,19 @@ describe('importData (account-scoped)', () => {
   })
 
   it('is undoable via ⌘Z', () => {
-    s().importData(emptyAppData())
-    expect(s().data.clients.filter((c) => c.accountId === 'a1')).toHaveLength(0)
+    // A real (non-empty) import is undoable; a zero-record import is refused (see below).
+    s().importData({
+      ...emptyAppData(),
+      clients: [{ id: 'imp', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Imported', color: '#9' }],
+    })
+    expect(s().data.clients.filter((c) => c.accountId === 'a1').map((c) => c.name)).toEqual(['Imported'])
     s().undo()
+    expect(s().data.clients.filter((c) => c.accountId === 'a1').map((c) => c.id)).toEqual(['c1'])
+  })
+
+  it('refuses a zero-record import rather than wiping the active account', () => {
+    const summary = s().importData(emptyAppData())
+    expect(summary.imported).toBe(0)
     expect(s().data.clients.filter((c) => c.accountId === 'a1').map((c) => c.id)).toEqual(['c1'])
   })
 

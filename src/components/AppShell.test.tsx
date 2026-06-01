@@ -128,6 +128,37 @@ describe('AppShell Export/Import section', () => {
   })
 })
 
+describe('AppShell undo/redo keyboard', () => {
+  it('⌘Z undoes a data change, but is IGNORED while a form is dirty', () => {
+    useStore.getState().setHydrated(true)
+    renderAppShell()
+    // A change so there's something to undo.
+    act(() => {
+      useStore.getState().addClient({ name: 'Undoable', color: '#111111' })
+    })
+    expect(useStore.getState().data.clients).toHaveLength(1)
+
+    // A dirty form owns ⌘Z — undoing would revert the data behind the unsaved form (the
+    // focus check alone misses non-text controls like a <select>), so it must be ignored.
+    act(() => {
+      useStore.getState().setDirtyForm(true)
+    })
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }))
+    })
+    expect(useStore.getState().data.clients).toHaveLength(1) // NOT undone
+
+    // Form no longer dirty → ⌘Z undoes as normal.
+    act(() => {
+      useStore.getState().setDirtyForm(false)
+    })
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true }))
+    })
+    expect(useStore.getState().data.clients).toHaveLength(0) // undone
+  })
+})
+
 describe('AppShell transient notice', () => {
   it('renders a toast for a store notice and clears it on dismiss', () => {
     renderAppShell()
