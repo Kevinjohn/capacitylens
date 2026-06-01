@@ -140,10 +140,10 @@ test.describe('Scheduler', () => {
     await expect(pop).toContainText('Brand Themes') // project name in the popover
   })
 
-  test('shows overall and per-discipline load summaries (US-SCH-14)', async ({ page }) => {
+  test('shows overall and per-discipline utilisation summaries (US-SCH-14)', async ({ page }) => {
     await openApp(page)
     await expect(page.getByTestId('overall-utilization')).toContainText('%')
-    await expect(page.getByTestId('discipline-group').first()).toContainText(/avg load/)
+    await expect(page.getByTestId('discipline-group').first()).toContainText(/avg utilisation/)
   })
 
   test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {

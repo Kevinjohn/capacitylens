@@ -1,0 +1,54 @@
+// Utilisation display preferences. Device-global (one set of choices per browser),
+// stored separately from account data — same rationale as the theme preference
+// (see theme.ts / DECISIONS.md): these are view toggles, not tenant records.
+//
+// The store holds the reactive value; these are the pure read/write helpers it
+// leans on. All three default to true (show everything) on first run.
+
+export interface UtilizationPrefs {
+  /** Show the account-wide utilisation summary. */
+  showTotal: boolean
+  /** Show per-discipline utilisation. */
+  showDiscipline: boolean
+  /** Show per-person (per-resource) utilisation. */
+  showPersonal: boolean
+}
+
+export const DEFAULT_UTILIZATION_PREFS: UtilizationPrefs = {
+  showTotal: true,
+  showDiscipline: true,
+  showPersonal: true,
+}
+
+const STORAGE_KEY = 'floaty/utilizationPrefs'
+
+/** Read the saved preferences, falling back to the defaults for anything missing
+ *  or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
+export function readStoredUtilizationPrefs(): UtilizationPrefs {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<UtilizationPrefs>
+      return {
+        showTotal: typeof parsed.showTotal === 'boolean' ? parsed.showTotal : DEFAULT_UTILIZATION_PREFS.showTotal,
+        showDiscipline:
+          typeof parsed.showDiscipline === 'boolean' ? parsed.showDiscipline : DEFAULT_UTILIZATION_PREFS.showDiscipline,
+        showPersonal:
+          typeof parsed.showPersonal === 'boolean' ? parsed.showPersonal : DEFAULT_UTILIZATION_PREFS.showPersonal,
+      }
+    }
+  } catch {
+    // storage blocked or malformed JSON — fall through to the defaults
+  }
+  return { ...DEFAULT_UTILIZATION_PREFS }
+}
+
+/** Persist the preferences. Best-effort: if storage is unavailable the in-memory
+ *  store still honours the choice for this session. */
+export function writeStoredUtilizationPrefs(prefs: UtilizationPrefs): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+  } catch {
+    // ignore — see readStoredUtilizationPrefs
+  }
+}

@@ -17,6 +17,12 @@ const SCHEDULING_OPTIONS: { value: SchedulingMode; label: string }[] = [
   { value: 'days', label: 'Days' },
 ]
 
+const UTILIZATION_OPTIONS: { key: 'showTotal' | 'showDiscipline' | 'showPersonal'; label: string }[] = [
+  { key: 'showTotal', label: 'Show Total Utilisation' },
+  { key: 'showDiscipline', label: 'Show Discipline Utilisation' },
+  { key: 'showPersonal', label: 'Show Personal Utilisation' },
+]
+
 // App-level preferences, opened from the nav like the CRUD list pages. Two
 // sections for now: rename the active company, and pick the colour scheme.
 export function SettingsView() {
@@ -27,6 +33,8 @@ export function SettingsView() {
   const setNotice = useStore((s) => s.setNotice)
   const theme = useStore((s) => s.theme)
   const setTheme = useStore((s) => s.setTheme)
+  const utilizationPrefs = useStore((s) => s.utilizationPrefs)
+  const setUtilizationPref = useStore((s) => s.setUtilizationPref)
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
 
@@ -101,6 +109,37 @@ export function SettingsView() {
                 >
                   {opt.label}
                 </button>
+              )
+            })}
+          </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">Utilisation</h2>
+          <p className="mb-3 text-xs text-muted">
+            Which utilisation figures appear on the scheduler.
+          </p>
+          <div className="divide-y divide-line">
+            {UTILIZATION_OPTIONS.map((opt) => {
+              const on = utilizationPrefs[opt.key]
+              return (
+                <div key={opt.key} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                  <span className="text-sm text-ink">{opt.label}</span>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={on}
+                    aria-label={opt.label}
+                    onClick={() => setUtilizationPref(opt.key, !on)}
+                    className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-brand' : 'bg-line'}`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-all ${
+                        on ? 'left-[18px]' : 'left-0.5'
+                      }`}
+                    />
+                  </button>
+                </div>
               )
             })}
           </div>

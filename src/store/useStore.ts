@@ -19,6 +19,11 @@ import {
   findOwned as findOwnedIn,
   remapAndValidateImport,
 } from '@floaty/shared/domain/mutations'
+import {
+  readStoredUtilizationPrefs,
+  writeStoredUtilizationPrefs,
+  type UtilizationPrefs,
+} from '../lib/displayPrefs'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type {
@@ -130,6 +135,9 @@ export interface StoreState {
   /** Colour-scheme preference. Device-global, not part of account data: kept in the
    *  store only for reactivity, persisted to its own localStorage key by setTheme. */
   theme: ThemePref
+  /** Utilisation display toggles. Device-global like `theme`, persisted to their
+   *  own localStorage key — not part of account data. */
+  utilizationPrefs: UtilizationPrefs
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -148,6 +156,8 @@ export interface StoreState {
   setDirtyForm: (v: boolean) => void
   /** Set the colour-scheme preference: persist it, repaint the DOM, update state. */
   setTheme: (pref: ThemePref) => void
+  /** Toggle a single utilisation display preference: persist and update state. */
+  setUtilizationPref: (key: keyof UtilizationPrefs, value: boolean) => void
   undo: () => void
   redo: () => void
 
@@ -261,6 +271,7 @@ export const useStore = create<StoreState>()((set, get) => {
     notice: null,
     dirtyForm: false,
     theme: readStoredTheme(),
+    utilizationPrefs: readStoredUtilizationPrefs(),
 
     addAccount: (input) => {
       const e: Account = { ...input, id: newId(), ...stamp() }
@@ -329,6 +340,12 @@ export const useStore = create<StoreState>()((set, get) => {
       applyThemeToDom(pref)
       set({ theme: pref })
     },
+    setUtilizationPref: (key, value) =>
+      set((s) => {
+        const next = { ...s.utilizationPrefs, [key]: value }
+        writeStoredUtilizationPrefs(next)
+        return { utilizationPrefs: next }
+      }),
 
     undo: () =>
       set((s) => {
