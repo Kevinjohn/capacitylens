@@ -656,10 +656,61 @@ field.
   twice per day; derived once and reused.
 
 ### Triaged OUT of scope (not fixed — recorded for honesty, not deferred excuses)
-Two finder candidates were judged not worth changing and are NOT part of "all of these":
+Two finder candidates were judged not worth changing as part of "all of these". **Both were
+revisited 2026-06-02 (see next section): item 1 was hardened with a loud guard; item 2 was
+confirmed left.**
 - `server/src/db.ts` `migrateSchema` has no path for a future **required** column (only optional
   columns auto-add). Latent — the code comment already states a required addition needs an explicit
-  rebuild step (as `tasks.projectId` got). No current trigger.
+  rebuild step (as `tasks.projectId` got). No current trigger. → **Now guarded (2026-06-02).**
 - `server/src/app.ts` `statusFor` maps any constraint-failure message to HTTP 400, so an internal
   (server-fault) constraint error would surface as 400 not 500. A documented heuristic; robustly
-  distinguishing caller-fault from server-fault needs more than the message string.
+  distinguishing caller-fault from server-fault needs more than the message string. → **Confirmed
+  left (2026-06-02).**
+
+## 2026-06-02 — Revisited the two triaged-out items (pre-share tightening)
+
+Re-examined both deferred items with explicit permission to make breaking changes (still pre-share,
+local-only). One was hardened; one was confirmed left — and the asymmetry is the point.
+
+### 1. `migrateSchema` required-column drift → now FAILS LOUDLY (`server/src/db.ts`)
+The gap is real and has an **incident history**: `migrateSchema` exists *because* a stale on-disk DB
+once drifted (the `tasks.projectId` NOT NULL regression against a stale `.e2e.db`). The *proper* fix —
+a generic required-column migration — can't be done automatically: SQLite can't ALTER-ADD a NOT NULL
+column to existing rows, and there is no universal backfill value, so it inherently needs a per-column
+human decision (an ordered-migration framework — over-engineering for a local prototype). So rather than
+leave a silent footgun, we made the failure **loud and early**. New `assertSchemaCurrent` runs in `openDb`
+right after `migrateSchema` and throws a clear error naming any column the spec (`TABLES`) declares that
+the live DB lacks. Previously a missing required column was *silent* — it doesn't even throw on read
+(`fromRow` yields `undefined`) and only surfaced later as a cryptic `no column named X` on the first write
+that named it. Now a developer who adds a required column without a rebuild step is told exactly which
+column, at startup. **Not a breaking change**: a no-op on every fresh / current / already-migrated DB
+(every declared column is present), so it never fires in a normal run.
+
+`assertSchemaCurrent` also closes a **sibling** drift class (added the same day at the user's request,
+having okayed pre-share breaking changes): a column's `optional?` flag (object-level, in `TABLES`) and its
+`NULL`/`NOT NULL` in `SCHEMA_SQL` (DB-level) are two hand-maintained sources of truth that nothing else
+checked agree. They agree today (verified), but a future drift is a real bug — an optional-but-NOT-NULL
+column rejects a legitimately-omitted field (confusing 400), and a required-but-nullable column reads a
+NULL back as `undefined` for a field the model treats as always-present. The guard now also throws on any
+such mismatch, exempting only the `id` TEXT PRIMARY KEY (PRAGMA reports `notnull=0` for a TEXT PK — a
+long-standing SQLite quirk — so it would otherwise look like a false mismatch). This is the targeted
+*agreement check*, NOT the deeper refactor of unifying `SCHEMA_SQL` generation into `TABLES` (generating the
+DDL from one spec) — that was deliberately declined as over-scoped; the check captures the drift-safety
+without it. Two new `db.migrate.test.ts` cases prove both branches fire (old `accounts` missing the required
+`color` → `/accounts\.color/`; old `accounts.schedulingMode` declared `NOT NULL` against an optional spec →
+`/nullability/`); full server suite stays green (42/42).
+
+### 2. `statusFor` constraint→400 heuristic → deliberately LEFT (`server/src/app.ts`)
+Confirmed correctly triaged out, for a sharper reason than "not worth it": **the only correct fix is a
+larger feature, and the half-measure makes it worse.** `validateWrite` does NOT check foreign-key existence
+(that's the DB's job), so a legitimate *caller* error — a PUT referencing a non-existent `parentId` —
+reaches the DB as an FK violation. The current "constraint → 400" is therefore *protecting* that case;
+flipping constraint errors to 500 would mislabel real caller errors as server faults (worse — you'd chase
+phantom server bugs for user typos). Doing it *properly* means lifting referential-integrity checks up into
+the validation layer, then treating any constraint error that still escapes as 500 — a feature, not a
+cleanup, and exactly the "needs more than the message string" the original note called. Also verified the
+distinction has **zero functional effect today**: the whole client path (`ServerSyncAdapter.apply` / `drain`
+and `persist.ts`'s 5-attempt retry budget) branches only on `!res.ok` and retries every failure identically
+— 400 vs 500 survives solely in a display/log string. Rejected the tempting middle step of swapping the
+message regex for a structured SQLite error code: `constraint failed` is SQLite's long-stable phrasing, so
+it would harden near-zero fragility for no functional gain against an API nothing branches on.

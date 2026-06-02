@@ -170,4 +170,67 @@ describe('schema migration of an existing on-disk DB', () => {
       cleanup()
     }
   })
+
+  it('throws a clear, column-naming error when an existing DB lacks a now-REQUIRED column', () => {
+    // The flip side of the generic optional-add: an old `accounts` table that predates a
+    // required column (here `color`). CREATE TABLE IF NOT EXISTS won't backfill it and
+    // migrateSchema only auto-adds OPTIONAL columns — a NOT NULL addition can't be ALTER-ADDed
+    // to existing rows, so it needs an explicit rebuild step that doesn't exist yet. Rather than
+    // let that drift surface later as a cryptic "no column named color" on the first write (or
+    // silently read back undefined), openDb's assertSchemaCurrent must fail fast and name it.
+    const path = join(tmpdir(), `floaty-migrate-req-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          unlinkSync(path + suffix)
+        } catch {
+          /* not present — fine */
+        }
+      }
+    }
+    cleanup()
+    try {
+      const old = new DatabaseSync(path)
+      // accounts without the required `color` column (predates it).
+      old.exec(`CREATE TABLE accounts (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+      );`)
+      old.close()
+      expect(() => openDb(path)).toThrow(/accounts\.color/)
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('throws a nullability-mismatch error when a column is present but NULL/NOT NULL disagrees with the spec', () => {
+    // accounts.schedulingMode is OPTIONAL in the spec (nullable), but here the on-disk column
+    // exists as NOT NULL. It's present, so migrateSchema won't touch it and the missing-column
+    // check passes — only the nullability check catches that the two sources of truth (TABLES'
+    // optional? flag vs SCHEMA_SQL's NOT NULL) have drifted. Without it, a write that legitimately
+    // omits schedulingMode would hit a confusing NOT NULL error instead.
+    const path = join(tmpdir(), `floaty-migrate-null-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          unlinkSync(path + suffix)
+        } catch {
+          /* not present — fine */
+        }
+      }
+    }
+    cleanup()
+    try {
+      const old = new DatabaseSync(path)
+      old.exec(`CREATE TABLE accounts (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
+        schedulingMode TEXT NOT NULL,
+        createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+      );`)
+      old.close()
+      expect(() => openDb(path)).toThrow(/schedulingMode/)
+      expect(() => openDb(path)).toThrow(/nullability/i)
+    } finally {
+      cleanup()
+    }
+  })
 })

@@ -20,6 +20,10 @@ export function openDb(path: string): Db {
   // we enable enforcement only afterwards.
   db.exec(SCHEMA_SQL)
   migrateSchema(db)
+  // Fail loudly if the live DB has drifted from the current spec in a way migrateSchema can't
+  // repair — a missing REQUIRED column, or a column whose NULL/NOT NULL disagrees with its
+  // optional? flag. Both are silent until a confusing runtime symptom otherwise; see below.
+  assertSchemaCurrent(db)
   // Backfill the init marker for a pre-existing DB that already holds data (created
   // before the marker existed), so /api/meta doesn't mistake it for a fresh DB and seed
   // a second copy on top of it.
@@ -103,6 +107,67 @@ function rebuildTasksTable(db: Db): void {
   const violations = db.prepare('PRAGMA foreign_key_check').all()
   if (violations.length > 0) {
     throw new Error(`tasks table rebuild left ${violations.length} foreign-key violation(s)`)
+  }
+}
+
+/**
+ * Fail loudly if the live DB has drifted from the current spec in a way migrateSchema can't (or
+ * won't) silently repair. Two checks, BOTH a no-op on any fresh / current / already-migrated DB
+ * (so neither fires in a normal run) — they exist only to turn a developer mistake into one clear,
+ * early, column-naming startup error instead of a confusing runtime symptom much later:
+ *
+ *  (1) MISSING COLUMN. migrateSchema auto-adds missing OPTIONAL columns, but SQLite can't
+ *      ALTER-ADD a NOT NULL column to a table that already has rows, so a future REQUIRED column
+ *      added to an existing on-disk DB can't be migrated automatically — it needs an explicit
+ *      rebuild step (the way tasks.projectId got one). Otherwise the drift is SILENT: a missing
+ *      required column doesn't even throw on read (fromRow yields undefined) and only surfaces as
+ *      a cryptic "no column named X" on the first write that names it.
+ *
+ *  (2) NULLABILITY MISMATCH. A column's optional? flag (object-level, in TABLES) and its
+ *      NULL/NOT NULL in SCHEMA_SQL (DB-level) are two hand-maintained sources of truth; nothing
+ *      else checks they still agree. A drift is a real bug: a column marked optional but left
+ *      NOT NULL rejects a legitimately-omitted field (confusing 400), and a required column left
+ *      nullable lets a NULL read back as undefined for a field the model treats as always-present.
+ *      The `id` PRIMARY KEY is exempt — PRAGMA table_info reports notnull=0 for a TEXT PK
+ *      (a long-standing SQLite quirk), so it would otherwise look like a false mismatch.
+ */
+function assertSchemaCurrent(db: Db): void {
+  const missing: string[] = []
+  const mismatched: string[] = []
+  for (const [table, spec] of Object.entries(TABLES)) {
+    const live = new Map(columns(db, table).map((c) => [c.name, c.notnull === 1]))
+    for (const col of spec.columns) {
+      if (!live.has(col.name)) {
+        missing.push(`${table}.${col.name}`)
+        continue
+      }
+      if (col.name === 'id') continue // TEXT PRIMARY KEY: PRAGMA reports notnull=0 regardless
+      const liveNotNull = live.get(col.name) === true
+      const specNotNull = !col.optional
+      if (liveNotNull !== specNotNull) {
+        mismatched.push(
+          `${table}.${col.name} (spec ${specNotNull ? 'required' : 'optional'}, ` +
+            `DB ${liveNotNull ? 'NOT NULL' : 'nullable'})`,
+        )
+      }
+    }
+  }
+  const problems: string[] = []
+  if (missing.length > 0) {
+    problems.push(
+      `missing column(s): ${missing.join(', ')} — migrateSchema auto-adds optional columns, but a ` +
+        `new REQUIRED (NOT NULL) column needs an explicit migration step (a table rebuild, like ` +
+        `rebuildTasksTable) before this DB can open`,
+    )
+  }
+  if (mismatched.length > 0) {
+    problems.push(
+      `nullability mismatch: ${mismatched.join('; ')} — the spec's optional? flag and SCHEMA_SQL's ` +
+        `NOT NULL have drifted; reconcile them (a NOT NULL change to an existing table needs a rebuild)`,
+    )
+  }
+  if (problems.length > 0) {
+    throw new Error(`DB schema is behind the current model — ${problems.join('. ')}.`)
   }
 }
 
