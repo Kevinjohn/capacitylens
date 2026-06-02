@@ -1,6 +1,6 @@
 # US-NAV-02 — Current section is indicated in the nav
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "the active section is highlighted and only one at a time"
+**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "the active section is marked aria-current"
 
 ## Goal
 See at a glance which section is open, so it's obvious where you are in the app.

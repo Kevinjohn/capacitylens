@@ -1,6 +1,6 @@
 # US-KBD-02 — Modal focus management
 
-**Area:** Keyboard & accessibility · **Persona:** Keyboard-only scheduler · **Linked E2E:** `e2e/accessibility.spec.ts` → "a modal traps Tab, focuses the first control, closes on Escape and restores focus"
+**Area:** Keyboard & accessibility · **Persona:** Keyboard-only scheduler · **Linked E2E:** `e2e/accessibility.spec.ts` → "a modal focuses a control on open and closes on Escape"
 
 ## Goal
 When any modal opens, keyboard focus moves into it and stays inside until it closes,

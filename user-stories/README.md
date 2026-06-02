@@ -3,8 +3,9 @@
 End-to-end user stories for **every** capability of Floaty, written as **runnable test
 scripts for a human**. Each story is goal-first (what the user wants), then *why*, then
 *how* (numbered, end-to-end steps from a defined starting state), then explicit, checkable
-**acceptance criteria** (✅). Every story also names the automated **E2E test(s)** that
-exercise the same flow, so the manual scripts and the Playwright suite stay in lock-step.
+**acceptance criteria** (✅). Every story also names its automated coverage — the Playwright
+**E2E test(s)** that exercise the same flow where one exists, or the **unit test / manual
+check** otherwise — so the manual scripts and the suite stay in lock-step.
 
 - **[REFERENCE.md](REFERENCE.md)** — the single source of truth: routes, control labels,
   `data-testid`s, the first-run seed data, and domain rules. Read this first.
@@ -17,23 +18,25 @@ through the areas below ticking each ✅. To reset to the seeded demo state, run
 **How to run the automated coverage:** `npm run e2e` (Playwright drives the real app),
 `npm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-88 stories across 13 areas. "Coverage" names the spec file whose tests assert the story's
-acceptance criteria; a few intrinsically-visual or environment-only stories (loading gate,
-storage-failure banner, toast auto-dismiss, error boundary, the today line's exact position,
-the drag-onto-placeholder rejection) are covered by **unit tests and/or the manual script**
-and are flagged as such.
+88 stories across 13 areas. The **Automated coverage** column names the spec file(s) whose
+tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
+stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
+line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
+are covered by **unit tests and/or the manual script** instead, and are flagged as such. Two
+stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04) are marked
+**not runnable** until that UI returns.
 
 ---
 
 ## Navigation & shell — `navigation/`
 | Story | Title | Automated coverage |
 |---|---|---|
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md) | Navigate between all seven sections | `e2e/navigation.spec.ts` |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md) | Navigate between all eight sections | `e2e/navigation.spec.ts` |
 | [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md) | Active section is indicated (`aria-current`) | `e2e/navigation.spec.ts` |
 | [US-NAV-03](navigation/US-NAV-03-loading-gate.md) | Content gated on hydration ("Loading…") | manual (AppShell gates on `hydrated`) |
 | [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md) | Persistence-failure banner | manual + unit (`persist.test.ts` seed-fail) |
 | [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md) | Transient toast (auto-dismiss) | `e2e/data.spec.ts` (toast appears); auto-dismiss manual |
-| [US-NAV-06](navigation/US-NAV-06-dark-mode.md) | Automatic dark mode | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark) |
+| [US-NAV-06](navigation/US-NAV-06-dark-mode.md) | Light / dark theme preference | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark) |
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md) | Recoverable error screen | unit (`ErrorBoundary.test.tsx`) + manual |
 
 ## Resources — `resources/`
@@ -47,7 +50,7 @@ and are flagged as such.
 | [US-RES-06](resources/US-RES-06-working-hours.md) | Set working hours (> 0) | `e2e/resources.spec.ts` |
 | [US-RES-07](resources/US-RES-07-employment-temp-tag.md) | Employment type / Temp tag | `e2e/resources.spec.ts` |
 | [US-RES-08](resources/US-RES-08-discipline-grouping.md) | Group under a discipline | `e2e/resources.spec.ts` + `e2e/disciplines.spec.ts` |
-| [US-RES-09](resources/US-RES-09-resource-colour.md) | Choose a colour (validated) | `e2e/resources.spec.ts` |
+| [US-RES-09](resources/US-RES-09-resource-colour.md) | Colour derives from discipline | `e2e/resources.spec.ts` |
 | [US-RES-10](resources/US-RES-10-resource-list-display.md) | Resource list display | `e2e/resources.spec.ts` + unit (`ResourceList.test.tsx`) |
 
 ## Disciplines — `disciplines/`
@@ -56,7 +59,7 @@ and are flagged as such.
 | [US-DIS-01](disciplines/US-DIS-01-add-discipline.md) | Add a discipline | `e2e/disciplines.spec.ts` |
 | [US-DIS-02](disciplines/US-DIS-02-edit-discipline.md) | Edit a discipline | `e2e/disciplines.spec.ts` |
 | [US-DIS-03](disciplines/US-DIS-03-delete-discipline-ungroups.md) | Delete (ungroups resources) | `e2e/disciplines.spec.ts` |
-| [US-DIS-04](disciplines/US-DIS-04-sort-order.md) | Sort order (ties broken by name) | `e2e/disciplines.spec.ts` + unit (`selectors.extra.test.ts`) |
+| [US-DIS-04](disciplines/US-DIS-04-sort-order.md) | Disciplines display in a stable order (ties broken by name) | `e2e/disciplines.spec.ts` + unit (`selectors.extra.test.ts`) |
 
 ## Clients — `clients/`
 | Story | Title | Automated coverage |
@@ -71,13 +74,13 @@ and are flagged as such.
 | [US-PRJ-01](projects/US-PRJ-01-add-project.md) | Add a project (needs a client) | `e2e/projects.spec.ts` + `e2e/crud.spec.ts` |
 | [US-PRJ-02](projects/US-PRJ-02-edit-project.md) | Edit a project | `e2e/projects.spec.ts` |
 | [US-PRJ-03](projects/US-PRJ-03-delete-project-cascade.md) | Delete a project (cascade) | `e2e/projects.spec.ts` + unit (`integrity.test.ts`) |
-| [US-PRJ-04](projects/US-PRJ-04-manage-phases.md) | Manage phases in a project | `e2e/projects.spec.ts` |
+| [US-PRJ-04](projects/US-PRJ-04-manage-phases.md) | Manage phases in a project | manual — n/a (Phase UI hidden) |
 
 ## Tasks — `tasks/`
 | Story | Title | Automated coverage |
 |---|---|---|
-| [US-TSK-01](tasks/US-TSK-01-add-task.md) | Add a task (needs a project) | `e2e/tasks.spec.ts` |
-| [US-TSK-02](tasks/US-TSK-02-task-phase.md) | Assign a task to a phase | `e2e/tasks.spec.ts` |
+| [US-TSK-01](tasks/US-TSK-01-add-task.md) | Add a task (general or under a project) | `e2e/tasks.spec.ts` |
+| [US-TSK-02](tasks/US-TSK-02-task-phase.md) | Assign a task to a phase | manual — n/a (Phase UI hidden) |
 | [US-TSK-03](tasks/US-TSK-03-edit-task.md) | Edit a task | `e2e/tasks.spec.ts` |
 | [US-TSK-04](tasks/US-TSK-04-delete-task-cascade.md) | Delete a task (cascade) | `e2e/tasks.spec.ts` |
 
@@ -109,7 +112,7 @@ and are flagged as such.
 | [US-SCH-15](scheduler/US-SCH-15-bar-popover.md) | Bar detail popover | `e2e/scheduler.spec.ts` + unit (`AllocationBar.interaction.test.tsx`) |
 | [US-SCH-16](scheduler/US-SCH-16-collapse-group.md) | Collapse/expand a discipline group | `e2e/features.spec.ts` |
 | [US-SCH-17](scheduler/US-SCH-17-row-quick-create.md) | Row "+" quick-create | `e2e/allocation.spec.ts` |
-| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window | manual + unit (`useStore.test.ts`) |
+| [US-SCH-18](scheduler/US-SCH-18-quick-create-visible-window.md) | Quick-create defaults to visible window | manual |
 | [US-SCH-19](scheduler/US-SCH-19-status-and-note-distinct.md) | Status & note visually distinct on the bar | `e2e/scheduler.spec.ts` |
 
 ## Allocation editor — `allocation/`
@@ -132,7 +135,7 @@ and are flagged as such.
 | [US-TBR-03](toolbar/US-TBR-03-today.md) | Re-centre on Today | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
 | [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md) | Jump to a date | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
 | [US-TBR-05](toolbar/US-TBR-05-draw-mode.md) | Work / Time-off draw mode | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts` |
-| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md) | Undo/redo (buttons) | `e2e/toolbar.spec.ts` |
+| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md) | No undo/redo toolbar buttons (keyboard-only) | `e2e/toolbar.spec.ts` |
 | [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo/redo (⌘Z / ⌘⇧Z) | `e2e/toolbar.spec.ts` |
 
 ## Filters — `filters/`

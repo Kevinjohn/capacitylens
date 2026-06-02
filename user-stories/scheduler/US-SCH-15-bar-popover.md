@@ -1,6 +1,6 @@
 # US-SCH-15 — Allocation detail popover on hover/focus
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows an allocation detail popover on hover and on keyboard focus"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows a detail popover on hover (US-SCH-15)"
 
 ## Goal
 Hovering — or keyboard-focusing — an allocation bar shows a detail popover with the task, project · client, date range, hours/day, status and any note; it hides again when you leave.

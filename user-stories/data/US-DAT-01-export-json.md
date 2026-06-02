@@ -1,12 +1,12 @@
 # US-DAT-01 — Export the dataset to JSON
 
-**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "exports the dataset to a floaty-data.json download with a schemaVersion wrapper"
+**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/crud.spec.ts` → "exports the dataset and re-imports it (round-trip)"
 
 ## Goal
 Download the entire current dataset as a `floaty-data.json` file, as a one-click backup and a way to hand a snapshot to someone else.
 
 ## Why
-Floaty is local-only — everything lives in this browser's `localStorage`. Before clearing the browser, switching machines, or sharing a plan, the manager needs a portable copy. Export writes a single self-describing JSON file they can keep or re-import later.
+Floaty is local-first by default — everything lives in this browser's `localStorage`. Before clearing the browser, switching machines, or sharing a plan, the manager needs a portable copy. Export writes a single self-describing JSON file they can keep or re-import later.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open (any screen). The **Data** section is at the bottom of the left sidebar.

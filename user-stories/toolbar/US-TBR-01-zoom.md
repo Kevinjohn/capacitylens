@@ -1,6 +1,6 @@
 # US-TBR-01 — Zoom the timeline (1/2/4/6/8 weeks)
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "zooms the timeline and resizes the day columns" · `e2e/scheduler.spec.ts` → "zooming to more weeks shrinks the day columns (same bar gets narrower)"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "zooms the timeline and tracks the active level" · `e2e/scheduler.spec.ts` → "zooming to more weeks shrinks the day columns (same bar gets narrower)"
 
 ## Goal
 Change how many weeks the timeline shows at once (1, 2, 4, 6 or 8), so the manager can trade detail for overview.

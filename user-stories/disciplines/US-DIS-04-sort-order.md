@@ -1,24 +1,21 @@
-# US-DIS-04 — Control discipline order (ties broken by name)
+# US-DIS-04 — Disciplines display in a stable order (ties broken by name)
 
-**Area:** Disciplines · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "orders disciplines by sort order and falls back to name on a tie"
+**Area:** Disciplines · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "adds a discipline and shows it in the list and as a schedule group" · **Unit:** `src/store/selectors.extra.test.ts` → "orders by sortOrder, then name as a stable tiebreak on equal sortOrder"
 
 ## Goal
-Set the order disciplines appear in, via each discipline's **Sort order**, and have both the Disciplines list and the schedule grouping follow that same order — with equal sort orders broken alphabetically by name.
+Have disciplines appear in one predictable order — identical in the Disciplines list and in the schedule grouping — with newly added disciplines landing after the existing ones, and any equal ordering broken alphabetically by name.
 
 ## Why
-The manager wants the schedule to read top-to-bottom in a deliberate order (e.g. the busiest discipline first), and that order must be predictable. A single sort rule applied identically to the list and the schedule means there's no surprise about where a group lands.
+The manager wants the schedule to read top-to-bottom in a stable order, the same as the list, so a group never jumps around unexpectedly. Order is assigned **automatically** (a new discipline lands last) rather than hand-managed via a fiddly field; one shared sort rule (`byDisciplineOrder`) keeps the list and the schedule from ever disagreeing.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). Seed orders are *Design* = 0, *Development* = 1, *Copywriting* = 2.
-1. **Edit** *Copywriting* and set **Sort order** = `0`. Click **Save**.
-2. **Edit** *Design* and leave **Sort order** = `0`. Click **Save**. (Now Copywriting and Design both have order `0`.)
-3. **Edit** *Development* and set **Sort order** = `1`. Click **Save**.
-4. Observe the Disciplines list order.
-5. Click **Schedule** in the sidebar (`/`); use **Jump to date** → `2026-06-01`. Observe the group order.
+**Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). Seed order is *Design*, *Development*, *Copywriting*.
+1. Click **Add discipline**, name it `Strategy`, pick a colour, and **Save**.
+2. Note where **Strategy** lands in the Disciplines list.
+3. Click **Schedule** in the sidebar (`/`); use **Jump to date** → `2026-06-01`. Note the group order.
 
 ## Acceptance criteria
-- ✅ Disciplines sort ascending by **Sort order**: the two order-`0` disciplines come before the order-`1` *Development*.
-- ✅ The two equal-order disciplines (*Copywriting* and *Design*, both `0`) fall back to **name**, so *Copywriting* sorts before *Design* alphabetically.
-- ✅ Resulting order is **Copywriting, Design, Development** in the Disciplines list.
-- ✅ The **schedule grouping order is identical** to the list order (Copywriting group, then Design group, then Development group).
-- ✅ Changing any **Sort order** value reorders **both** surfaces consistently — the list and the schedule never disagree.
+- ✅ A discipline's sort order is **assigned automatically** — there is no Sort-order field in the discipline form.
+- ✅ The new **Strategy** discipline lands **after** the existing disciplines in the Disciplines list (it takes the next, highest sort order).
+- ✅ The **schedule grouping order is identical** to the Disciplines list order — the two surfaces never disagree.
+- ✅ The underlying rule — ascending sort order, with **equal** orders broken alphabetically by **name** — is covered by the unit test above. (Equal orders only arise from imported/seed data; they aren't reproducible from the UI, where each new order is unique.)

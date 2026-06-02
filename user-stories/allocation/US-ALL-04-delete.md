@@ -18,4 +18,4 @@ Bookings get cancelled. The manager needs a quick, single-click way to drop one 
 - ✅ After clicking **Delete**, the **Brand System** bar is gone from the schedule and the total `allocation-bar` count drops by one.
 - ✅ No confirmation dialog appears for an allocation delete — it is immediate.
 - ✅ Pressing **⌘Z** restores the exact same bar (same resource, task, dates, hours and status).
-- ✅ The toolbar **Undo** (↶) button is enabled after the delete and performs the same restore when clicked.
+- ✅ Undo is keyboard-only — **⌘Z** performs the restore; there is no toolbar Undo button.

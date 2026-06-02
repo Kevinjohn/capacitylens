@@ -1,6 +1,6 @@
 # US-RES-08 — Group a resource under a discipline
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "a resource groups under its discipline, and 'None' falls into No discipline"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/disciplines.spec.ts` → "deletes a discipline and ungroups its resources without deleting them" (exercises resource-under-discipline grouping and the *No discipline* group)
 
 ## Goal
 Assign a resource to a discipline so they group under that discipline's header on the

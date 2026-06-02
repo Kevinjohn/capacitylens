@@ -14,7 +14,7 @@ When focused on one project's delivery, the manager wants the schedule reduced t
 2. Choose **Brand Themes** (`p-brand`).
 
 ## Acceptance criteria
-- ✅ Choosing **Brand Themes** narrows the visible bars to that project only — exactly the *Brand System* bar remains.
-- ✅ Allocations from other projects (e.g. *Project Lightning* tasks) are hidden.
+- ✅ Choosing **Brand Themes** highlights that project's work — the *Brand System* bar. Resources with no Brand Themes work stay **visible but dimmed**, still showing their full real load; un-ticking **Show unallocated** (on by default) collapses the view to exactly the *Brand System* bar.
+- ✅ With **Show unallocated** off, allocations from other projects (e.g. *Project Lightning* tasks) are hidden.
 - ✅ Setting the select back to **All projects** restores every bar.
 - ✅ While a project filter is active, the **Clear** button is shown.

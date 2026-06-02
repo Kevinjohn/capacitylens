@@ -1,6 +1,6 @@
 # US-KBD-03 — Scheduler grid semantics & row summary
 
-**Area:** Keyboard & accessibility · **Persona:** Screen-reader user · **Linked E2E:** `e2e/accessibility.spec.ts` → "the scheduler exposes grid roles and an sr-only summary per resource row"
+**Area:** Keyboard & accessibility · **Persona:** Screen-reader user · **Linked E2E:** `e2e/accessibility.spec.ts` → "the scheduler exposes grid roles and an sr-only per-row capacity summary"
 
 ## Goal
 Have the schedule expose proper grid structure to assistive tech, and give each

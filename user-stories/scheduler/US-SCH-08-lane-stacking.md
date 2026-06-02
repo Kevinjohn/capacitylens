@@ -1,6 +1,6 @@
 # US-SCH-08 — Overlapping allocations stack into separate lanes
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "stacks overlapping allocations into separate lanes on a taller row"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "stacks overlapping allocations onto a taller row (US-SCH-08)"
 
 ## Goal
 When two allocations on the same resource overlap in time, they stack onto separate vertical lanes within that resource's row (making the row taller); allocations that don't overlap share one lane.

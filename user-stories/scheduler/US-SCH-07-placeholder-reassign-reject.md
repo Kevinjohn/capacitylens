@@ -1,6 +1,6 @@
 # US-SCH-07 — Reassigning onto a mismatched placeholder is rejected
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "rejects reassigning an allocation onto a placeholder bound to another project"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `src/components/scheduler/AllocationBar.interaction.test.tsx` → "surfaces a notice (instead of failing silently) when a reassign is rejected"
 
 ## Goal
 When you drag an allocation onto a placeholder that is bound to a *different* project, the move is refused: the bar stays on its original resource and a toast explains why.

@@ -1,6 +1,6 @@
 # US-TOF-04 — Time-off type shows a human label
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "shows a human-readable type label in the list matching the timeline block"
+**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "shows a human-readable type label in the list (not the raw enum)"
 
 ## Goal
 See a readable type label (e.g. "Holiday") in the Time off list and on the matching timeline block, never the raw stored value (`holiday`).

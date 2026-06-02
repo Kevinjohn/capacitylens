@@ -14,7 +14,7 @@ A project is meaningless without an owning client; that invariant keeps the whol
 2. Fill **Name** = `Spring Campaign` but leave **Client** unset.
 3. Click **Save** — observe it is rejected.
 4. Now choose **Client** = *Globex*.
-5. Pick a **Colour** (or type a valid hex like `#10b981` in **Colour hex value**).
+5. Open **Colour** and pick a swatch from the preset grid.
 6. Click **Save**. The dialog closes.
 7. Open the **Schedule** (`/`) and **Filter by project**; and start an allocation to check the **Project** picker.
 

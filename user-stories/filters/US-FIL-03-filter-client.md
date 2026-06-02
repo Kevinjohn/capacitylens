@@ -1,6 +1,6 @@
 # US-FIL-03 — Filter by client
 
-**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "filters bars to a client while keeping capacity truthful"
+**Area:** Filters · **Persona:** Studio manager · **Linked E2E:** `e2e/filters.spec.ts` → "filters bars to a client"
 
 ## Goal
 Show only the allocations whose task's project belongs to a chosen client, while capacity cues still reflect all of a person's work.
@@ -14,7 +14,7 @@ For a client review or billing check, the manager wants to see just that client'
 2. Choose **Acme Inc.**.
 
 ## Acceptance criteria
-- ✅ Choosing **Acme Inc.** narrows the visible bars to allocations on *Project Lightning* tasks (e.g. *Wireframes*, *Visual Design*, *CMS Review*); the *Brand System* bar (Globex) is hidden.
+- ✅ Choosing **Acme Inc.** highlights the allocations on *Project Lightning* tasks (e.g. *Wireframes*, *Visual Design*, *CMS Review*). Resources with no Acme work stay **visible but dimmed**, still showing their full real load (so you can see who's free to staff); un-ticking **Show unallocated** (on by default) collapses the view to just the matching Acme bars.
 - ✅ Capacity stays truthful: **over-markers** (`over-marker`) and the per-resource **utilisation %** (`utilization`) still reflect **all** of each resource's work, not just the filtered-in bars.
 - ✅ Setting the select back to **All clients** restores every bar.
 - ✅ While a client filter is active, the **Clear** button is shown.

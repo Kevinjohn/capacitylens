@@ -1,6 +1,6 @@
 # US-PRJ-03 — Delete a project (cascade; placeholder unbound, not deleted)
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "deletes a project and cascades its phases, tasks and allocations while unbinding placeholders"
+**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "deletes a project and cascades its tasks, restorable with undo"
 
 ## Goal
 Remove a project and have its phases, tasks and allocations go with it, while any placeholder bound to it is **unbound but kept**.

@@ -1,6 +1,6 @@
 # US-TBR-02 — Pan a week back / forward
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "pans the window one week with Prev and Next"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "pans the window a week with Prev and Next"
 
 ## Goal
 Move the visible window one week earlier or later with the ‹ Prev / Next › buttons.

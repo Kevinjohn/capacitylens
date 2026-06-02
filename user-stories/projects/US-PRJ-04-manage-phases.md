@@ -1,6 +1,12 @@
 # US-PRJ-04 — Manage phases inside a project
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "adds and removes phases in the project dialog and ungroups tasks of a removed phase"
+> **⏸ Not runnable today — the Phase UI is currently hidden.** Phases remain in the data model,
+> but the Project dialog **no longer exposes add/remove-phase controls** (hidden along with the
+> task Phase picker — see `ProjectForm.tsx` / `TaskForm.tsx`). Kept for when phase management is
+> re-surfaced; the steps below describe that intended behaviour and are **not executable in the
+> current build**.
+
+**Area:** Projects · **Persona:** Studio manager · **Coverage:** none currently (Phase UI hidden)
 
 ## Goal
 Add and remove a project's phases from within the Project edit dialog (phases are managed per-project, not on a top-level screen), and have the changes flow through to where phases are picked.

@@ -1,6 +1,6 @@
 # US-TBR-03 — Re-centre on Today
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "re-centres on today after scrolling away" · `e2e/scheduler.spec.ts` → "clicking Today re-centres the timeline after scrolling away"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "re-centres on Today after scrolling away" · `e2e/scheduler.spec.ts` → "clicking Today re-centres the timeline after scrolling away"
 
 ## Goal
 Jump the timeline back to today after scrolling or panning far away.

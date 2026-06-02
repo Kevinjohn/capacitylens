@@ -1,6 +1,6 @@
 # US-DAT-04 — Reject a non-Floaty file safely
 
-**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "rejects an unrecognised file with a notice and preserves existing data"
+**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "rejects a non-Floaty file with a notice and preserves existing data"
 
 ## Goal
 Pick the wrong file and have Floaty refuse it with a clear notice, leaving the current data exactly as it was — never a silent wipe.

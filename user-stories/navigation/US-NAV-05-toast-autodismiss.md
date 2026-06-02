@@ -1,6 +1,6 @@
 # US-NAV-05 — Transient toast that auto-dismisses
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "a rejected drag shows a toast that auto-dismisses and can be dismissed manually"
+**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` (an import surfaces a toast); the auto-dismiss timing is manual
 
 ## Goal
 Get a short, non-blocking message when an action is rejected or completes (e.g. a

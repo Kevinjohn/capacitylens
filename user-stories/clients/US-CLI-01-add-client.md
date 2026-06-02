@@ -1,6 +1,6 @@
 # US-CLI-01 — Add a client
 
-**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "adds a client and makes it available to projects and as a schedule filter"
+**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "adds a client and makes it available as a schedule filter"
 
 ## Goal
 Add a new client (name and colour) so projects can be created under it and the schedule can be filtered to it.

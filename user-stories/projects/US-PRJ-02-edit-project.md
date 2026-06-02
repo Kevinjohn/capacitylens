@@ -1,6 +1,6 @@
 # US-PRJ-02 — Edit a project
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "edits a project and updates its label and bar colour on the schedule"
+**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "edits a project name"
 
 ## Goal
 Change a project's name, owning client and colour, and see the changes reflected — including the colour of its allocation bars on the schedule.
@@ -13,13 +13,13 @@ Projects get renamed, move between clients (a brand handed to a different accoun
 1. On the **Project Lightning** row, click **Edit**. The dialog opens pre-filled.
 2. Change **Name** = `Project Thunder`.
 3. Change **Client** = *Globex*.
-4. Change the **Colour** (e.g. `#ef4444` in **Colour hex value**).
+4. Change the **Colour** by opening it and picking a different swatch.
 5. Click **Save**. The dialog closes.
 6. Open the **Schedule** (`/`) and **Jump to date** → `2026-06-01` to see this project's bars.
 
 ## Acceptance criteria
 - ✅ The Projects list row now reads **Project Thunder** and its "Client / Project" label shows *Globex*.
-- ✅ On the **Schedule**, the allocation bars that belonged to this project now render in the **new project colour** (`#ef4444`).
+- ✅ On the **Schedule**, the allocation bars that belonged to this project now render in the **new project colour**.
 - ✅ The project's tasks and allocations are preserved through the edit — only name, client and colour changed.
 - ✅ Clearing **Name** to empty and clicking **Save** is rejected (required-field error, dialog stays open).
 - ✅ Removing the **Client** entirely and clicking **Save** is rejected with **"A project must belong to a client."**

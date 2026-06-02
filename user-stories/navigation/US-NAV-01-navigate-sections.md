@@ -1,6 +1,6 @@
-# US-NAV-01 — Navigate between all seven sections
+# US-NAV-01 — Navigate between all eight sections
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "sidebar links route to each of the seven sections"
+**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "sidebar links route to each section"
 
 ## Goal
 Reach every part of Floaty from the left sidebar, so each section's screen actually loads.
@@ -8,13 +8,14 @@ Reach every part of Floaty from the left sidebar, so each section's screen actua
 ## Why
 The sidebar is the only way around the app. If any link is mis-wired or a screen
 fails to render, that whole area of the tool is unreachable — and a manager can't
-trust the schedule they can't navigate to. This story proves all seven routes are live.
+trust the schedule they can't navigate to. This story proves all eight routes are live.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open at Schedule (`/`). (Running near the seed dates;
 otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 1. Confirm the sidebar shows, in order: **Schedule**, **Resources**, **Disciplines**,
-   **Clients**, **Projects**, **Tasks**, **Time off** (and a **Data** section below).
+   **Clients**, **Projects**, **Tasks**, **Time off**, **Settings** (and a **Data**
+   section below).
 2. Click **Schedule**. The URL is `/` and the timeline grid (`scheduler-grid`) renders.
 3. Click **Resources**. The URL is `/resources` and the Resource list shows
    (seed rows include *Tyler Nix*).
@@ -26,12 +27,15 @@ otherwise the bars sit in June 2026 — that doesn't affect navigation.)
 7. Click **Tasks**. The URL is `/tasks` and the Task list shows (*Wireframes*, etc.).
 8. Click **Time off**. The URL is `/timeoff` and the Time-off list shows
    (*Tyler — 10–12 June (Holiday)*).
+9. Click **Settings**. The URL is `/settings` and the Settings screen shows (with the
+   **Company name** field).
 
 ## Acceptance criteria
-- ✅ Each of the seven links routes to its mapped path: `/`, `/resources`,
-  `/disciplines`, `/clients`, `/projects`, `/tasks`, `/timeoff`.
+- ✅ Each of the eight links routes to its mapped path: `/`, `/resources`,
+  `/disciplines`, `/clients`, `/projects`, `/tasks`, `/timeoff`, `/settings`.
 - ✅ **Schedule** renders the scheduler grid (`data-testid="scheduler-grid"`).
-- ✅ Each of the other six links renders its list screen with at least the seeded rows
-  visible (e.g. *Tyler Nix* on Resources, *Acme Inc.* on Clients).
+- ✅ Each of the other seven links renders its screen with at least the seeded rows /
+  fields visible (e.g. *Tyler Nix* on Resources, *Acme Inc.* on Clients, the
+  **Company name** field on Settings).
 - ✅ Navigating away and back (e.g. Resources → Schedule) re-renders each screen
   without a blank page or console error.

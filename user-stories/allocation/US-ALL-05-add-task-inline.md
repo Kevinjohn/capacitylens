@@ -11,14 +11,14 @@ When booking work, the right task often doesn't exist yet. Forcing the manager t
 ## How (end-to-end)
 **Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`.
 1. On any row, click **+** to open **New allocation** (or draw on a lane in Work mode).
-2. Choose **Project** = *Acme Inc. / Project Lightning*. Once a project is chosen, an inline task field appears.
+2. Choose **Project** = *Acme Inc. / Project Lightning*. (The inline task field is always present; with a project chosen its placeholder reads *…or add a new task*.)
 3. In the **…or add a new task** field (accessible name *New task name*), type `Accessibility Audit`.
 4. Click **Add task**.
 5. Fill the remaining fields (dates, Hours / day) and click **Save**.
 
 ## Acceptance criteria
-- ✅ The inline task field (placeholder `…or add a new task`) only appears once a **Project** is selected.
+- ✅ The inline task field is always present; its placeholder switches with the **Project** selection (`…or add a new task` with a project, `…or add a new general task` with none).
 - ✅ Typing a name and clicking **Add task** creates the task under the selected project and immediately selects it as the allocation's **Task** (the **Task** select now shows *Accessibility Audit*), and the input clears.
 - ✅ The new task is a real task of that project — it appears on the **Tasks** page and in the **Task** dropdown afterwards.
-- ✅ Clicking **Add task** with an empty name (or with no project selected) does nothing (no task created).
+- ✅ Clicking **Add task** with an empty name creates no task and shows "Enter a name for the new task." With no project selected, a named **Add task** creates a *general* (no-project) task instead.
 - ✅ Saving with the newly-added task selected creates an allocation bar labelled *Accessibility Audit*.

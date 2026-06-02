@@ -1,6 +1,6 @@
 # US-KBD-05 — Field-level error association
 
-**Area:** Keyboard & accessibility · **Persona:** Screen-reader user · **Linked E2E:** `e2e/accessibility.spec.ts` → "an invalid field is marked aria-invalid and describes itself via aria-describedby"
+**Area:** Keyboard & accessibility · **Persona:** Screen-reader user · **Linked E2E:** `e2e/accessibility.spec.ts` → "an invalid field is marked aria-invalid and described by the error"
 
 ## Goal
 When a form field is invalid, have the error tied to that specific field — not just

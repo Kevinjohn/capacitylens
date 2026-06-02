@@ -1,6 +1,6 @@
 # US-RES-03 — Edit a resource's fields
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists in list and schedule"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "edits a resource and the change persists"
 
 ## Goal
 Change an existing resource's details (role, working hours, discipline) and have those

@@ -1,6 +1,6 @@
 # US-SCH-19 — Allocation status and notes are visually distinct on the bar
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "allocation status and note are visually distinct on the bar"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "allocation status and note are visually distinct on the bar (US-SCH-19)"
 
 ## Goal
 Tell confirmed, tentative and completed allocations apart at a glance on the timeline, and flag the bars that carry a note.

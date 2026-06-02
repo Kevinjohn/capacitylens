@@ -1,6 +1,6 @@
 # US-CLI-03 — Delete a client (cascade; placeholders unbound, not deleted)
 
-**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "deletes a client and cascades to its projects, tasks and allocations while unbinding placeholders"
+**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "deletes a client and cascades to its projects, restorable with undo"
 
 ## Goal
 Remove a client and have everything underneath it (its projects → tasks → allocations) go with it, while any placeholder bound to one of those projects is **unbound but kept**.

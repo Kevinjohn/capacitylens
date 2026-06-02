@@ -1,6 +1,6 @@
 # US-KBD-01 — Operate an allocation bar by keyboard
 
-**Area:** Keyboard & accessibility · **Persona:** Keyboard-only scheduler · **Linked E2E:** `e2e/accessibility.spec.ts` → "an allocation bar is focusable and moves/resizes with the keyboard"
+**Area:** Keyboard & accessibility · **Persona:** Keyboard-only scheduler · **Linked E2E:** `e2e/accessibility.spec.ts` → "an allocation bar is focusable and Enter opens the editor", "arrow keys move a focused bar by a day"; resize/invert in `src/components/scheduler/AllocationBar.interaction.test.tsx` → "moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)"
 
 ## Goal
 Move and resize an allocation bar entirely from the keyboard — no mouse drag required —
@@ -21,7 +21,7 @@ stays on screen.
    (it shows a visible focus ring).
 2. With the bar focused, read its accessible name (screen reader, or DevTools
    accessibility pane): it announces task, `Nh per day`, status, and `start to end`
-   dates, ending with "Enter to edit; arrow keys to move, Shift+arrow to resize."
+   dates, including "Enter to edit; arrow keys to move, Shift+arrow to resize."
 3. Press **Enter** — the allocation editor (Edit allocation modal) opens. Press
    **Escape** to close it and return focus to the bar.
 4. Press **→** — the bar moves one day later. Press **←** — it moves one day earlier

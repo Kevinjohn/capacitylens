@@ -4,17 +4,25 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
-> Floaty is a **local-only** resource scheduler (a small Float clone). All data lives in
-> the browser's `localStorage`. There are no accounts, no network calls, no server.
+> Floaty is a **local-first** resource scheduler (a small Float clone). By default all data
+> lives in the browser's `localStorage` with no login or network calls. The app is
+> **multi-tenant by Account**: you pick a company on load and the whole dataset is scoped to
+> it. An **optional** SQLite server (off by default, `VITE_FLOATY_API=…`) can persist data
+> behind the same seam without changing any flow below. These stories run against the
+> **default local mode**, signed in to the seeded **Studio North** company.
 
 ---
 
 ## Launching the app (for a human tester)
 
 1. From the project root run `npm run dev` and open <http://localhost:5173>.
-2. **First run** seeds a demo dataset (see *Seed data* below). To start from the
-   seeded state again, clear it: open DevTools → Console → `localStorage.clear()` → reload.
-   (Clearing data inside the app does **not** re-seed — that's deliberate.)
+2. **First run** seeds a demo dataset (see *Seed data* below).
+3. Floaty opens on a **company picker** (you choose a tenant on every load —
+   `activeAccountId` is never persisted). Pick **Studio North** to see the seeded data these
+   stories describe. (A second seeded company, *Loft Digital*, is near-empty.)
+4. To start from the seeded state again, clear it: open DevTools → Console →
+   `localStorage.clear()` → reload. (Clearing data *inside* the app does **not** re-seed —
+   that's deliberate.)
 
 ## Navigation (left sidebar)
 
@@ -29,11 +37,15 @@ The sidebar links, in order, route to:
 | Projects | `/projects` | Project list |
 | Tasks | `/tasks` | Task list |
 | Time off | `/timeoff` | Time-off list |
+| Settings | `/settings` | Settings (company rename, theme, utilisation toggles) |
 
-The **Data** section at the bottom of the sidebar has **Export JSON** and **Import JSON**.
+That's **eight** sections. The **Data** section at the bottom of the sidebar has **Export
+JSON** and **Import JSON**. A **Switch company** control returns to the account picker.
 
 ## Seed data (first run)
 
+- **Accounts (companies):** **Studio North** (holds everything below — pick this one) and
+  *Loft Digital* (a second tenant with one Design discipline and no work).
 - **Disciplines:** Design (order 0), Development (1), Copywriting (2).
 - **Resources:**
   - *Tyler Nix* — Designer, Design, permanent, 8h, Mon–Fri.
@@ -57,7 +69,7 @@ on a later date should **Jump to date → 2026-06-01** (or zoom out) to see the 
 `Employment`, `Bound project`, `Working hours / day`, `Working days` (Mon…Sun toggle
 buttons), `Colour (…)` (a swatch-picker trigger that opens a grid of preset colour
 swatches, each button labelled by its hex), `Start`, `End`, `Hours / day`, `Status`,
-`Note`, `Assignee`, `Project`, `Phase`, `Task`, `Resource`, `Sort order`.
+`Note`, `Assignee`, `Project`, `Task`, `Resource`.
 Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add task`. List pages have an add
 button per entity: `Add resource`, `Add discipline`, `Add client`, `Add project`,
 `Add task`, `Add time off`. Each list row has `Edit` and `Delete`.
@@ -68,9 +80,12 @@ Cascade dialogs say "You can undo this with ⌘Z."
 **Scheduler toolbar.** Zoom buttons `1w`/`2w`/`4w`/`6w`/`8w` (the active one has
 `aria-pressed="true"`); `‹ Prev`, `Today`, `Next ›`; a `Jump to date` date input; a
 draw-mode toggle `Work`/`Time off` (buttons — note "Time off" here is the *toggle*, distinct
-from the "Time off" *nav link*); `Undo` and `Redo` icon buttons (`⌘Z` / `⌘⇧Z`). Filter row:
+from the "Time off" *nav link*). Undo/redo are **keyboard-only** (`⌘Z` / `⌘⇧Z`) — there are no
+toolbar buttons. Filter row:
 `Search people…`, `Filter by discipline`, `Filter by client`, `Filter by project`,
-`Hide tentative` checkbox, `Clear` (only shown when a filter is active).
+`Hide tentative` checkbox, `Show unallocated` (shown only while a project/client filter is
+active, on by default — when off, resources with no matching work are hidden instead of left
+visible-but-dimmed), `Clear` (only shown when a filter is active).
 
 ## `data-testid`s (for automated checks)
 
@@ -84,8 +99,8 @@ from the "Time off" *nav link*); `Undo` and `Redo` icon buttons (`⌘Z` / `⌘�
 
 ## Domain rules a tester should know
 
-- **A project must belong to a client; a task must belong to a project.**
-- **Placeholders** are bound to exactly one project and may only take tasks from it.
+- **A project must belong to a client; a task may be general (no project) or belong to a project.**
+- **Placeholders** are bound to exactly one project and may take that project's tasks **plus general (no-project) tasks**.
 - **Cascade deletes:** deleting a client removes its projects → tasks → allocations;
   deleting a project removes its phases/tasks/allocations and *unbinds* (does not delete)
   placeholders; deleting a task removes its allocations; deleting a resource removes its
@@ -93,7 +108,7 @@ from the "Time off" *nav link*); `Undo` and `Redo` icon buttons (`⌘Z` / `⌘�
   (ungroups resources / ungroups tasks). All deletes are **undoable with ⌘Z**.
 - **Capacity:** a day's available hours = the resource's working hours, but **0** on a
   non-working weekday or a time-off day. A day is **over-allocated** when allocated > available.
-- **Utilisation %** (left column, "Load · next 2w") is a fixed **14-day forward window from
+- **Utilisation %** (left column, "Utilisation · next 2w") is a fixed **14-day forward window from
   today**, not the visible range; it turns **red** when the resource is over-allocated on any
   day in that window.
 - **Validation:** required fields per form; an allocation/time-off range must be non-empty

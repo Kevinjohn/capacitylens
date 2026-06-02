@@ -1,6 +1,6 @@
 # US-RES-07 — Employment type and the "Temp" tag
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "freelancers and contractors show a Temp tag, permanent staff do not"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "freelancers show a Temp tag; permanent staff do not"
 
 ## Goal
 Mark a person's employment type (permanent, freelancer or contractor) so non-permanent

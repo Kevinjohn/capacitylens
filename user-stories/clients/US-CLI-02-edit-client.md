@@ -1,6 +1,6 @@
 # US-CLI-02 — Edit a client
 
-**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "edits a client and reflects the rename everywhere it is referenced"
+**Area:** Clients · **Persona:** Studio manager · **Linked E2E:** `e2e/clients.spec.ts` → "edits a client and the rename reflects in project labels"
 
 ## Goal
 Change a client's name and colour and have the change reflected everywhere the client is referenced — including the "Client / Project" labels on its projects.

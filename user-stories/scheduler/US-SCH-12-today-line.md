@@ -1,6 +1,6 @@
 # US-SCH-12 — A vertical line marks today
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "shows the today line when today is in range and hides it when panned away"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "marks today with a vertical line when in range (US-SCH-12)"
 
 ## Goal
 A vertical line marks today's date on the timeline whenever today falls within the currently visible range — and it's absent when you've panned to a range that doesn't include today.

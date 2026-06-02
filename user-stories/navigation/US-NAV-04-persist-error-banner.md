@@ -1,6 +1,6 @@
 # US-NAV-04 — Persistence-failure banner
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "shows the persistence error banner when a save fails"
+**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** manual + unit (`src/data/persist.test.ts` seed-fail — a failed write surfaces the error that flips the banner)
 
 ## Goal
 Get an unmistakable warning when Floaty can't save to browser storage, while still

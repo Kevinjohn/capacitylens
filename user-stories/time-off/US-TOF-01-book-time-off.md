@@ -1,6 +1,6 @@
 # US-TOF-01 — Book time off for a resource
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "books time off and shows it as a labelled, unavailable block on the schedule"
+**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "books time off and shows it as a labelled block on the schedule"
 
 ## Goal
 Book a stretch of time off for one resource (resource, start, end, type and an optional note) so those days read as unavailable and nobody is scheduled into them.

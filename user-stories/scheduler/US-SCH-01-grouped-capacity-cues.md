@@ -14,7 +14,7 @@ The schedule is the studio manager's daily home page. Before touching anything t
 2. Confirm each resource row sits under the right group — e.g. **Tyler Nix** under **Design**, **Nike Spiros** and **Alex Rivera** under **Development**, **Pam Gonzalez** under **Copywriting**.
 3. **Jump to date** → `2026-06-01` so the seed bars are in view. Tyler is over-allocated on **3–4 June** (8h + 4h > 8h): his bars there carry an over-allocation marker (a full-height tint with a top band).
 4. Set zoom to **1w** (or **2w**) so the fine-zoom greying renders, and keep **Jump to date** at `2026-06-01`. Weekend columns and non-working days show the **unavailable-day** grey tint.
-5. Read the left column: each row shows a **utilisation** figure ("Load · next 2w"), the per-person near-term load.
+5. Read the left column: each row shows a **utilisation** figure ("Utilisation · next 2w"), the per-person near-term load.
 
 ## Acceptance criteria
 - ✅ The grid shows **discipline group** headers (Design, Development, Copywriting) with resource rows nested under them.

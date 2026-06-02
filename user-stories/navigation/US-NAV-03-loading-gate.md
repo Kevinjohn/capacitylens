@@ -1,6 +1,6 @@
 # US-NAV-03 — Content is gated on hydration ("Loading…")
 
-**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "shows Loading… until data hydrates then renders the seeded schedule"
+**Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** manual (AppShell gates on `hydrated`) + unit (`src/components/AppShell.test.tsx` → "shows \"Loading…\" when the store is not hydrated")
 
 ## Goal
 See a brief "Loading…" placeholder until data is read from `localStorage`, then the
@@ -28,5 +28,5 @@ full of data. Gating the main content on a `hydrated` flag removes that flash en
   "0 resources" then a jump to the seeded rows).
 - ✅ After hydration completes, the seeded schedule renders (the grid and its seeded
   resource rows are present).
-- ✅ The sidebar (Floaty title + the seven links) is visible throughout, including
+- ✅ The sidebar (Floaty title + the eight links) is visible throughout, including
   during the loading phase.

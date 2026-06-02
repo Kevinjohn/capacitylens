@@ -1,6 +1,6 @@
 # US-SCH-18 — Quick-create defaults to the date you're looking at
 
-**Area:** Scheduler timeline · **Persona:** Studio manager · **Linked E2E:** `e2e/scheduler.spec.ts` → "row + quick-create defaults to the visible window's left date"
+**Area:** Scheduler timeline · **Persona:** Studio manager · **Coverage:** manual — no dedicated automated test (the default is computed in `SchedulerGrid.tsx` → `visibleStartDate`)
 
 ## Goal
 The row "+" defaults the new allocation's dates to the date currently at the **left edge of the viewport** — where the manager is actually looking — not always to today.

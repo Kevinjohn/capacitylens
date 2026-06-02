@@ -1,6 +1,6 @@
 # US-TBR-07 — Undo / Redo with ⌘Z / ⌘⇧Z
 
-**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "undoes and redoes with the keyboard and ignores the shortcut while typing"
+**Area:** Toolbar · **Persona:** Studio manager · **Linked E2E:** `e2e/toolbar.spec.ts` → "undoes/redoes with the keyboard and ignores the shortcut while typing"
 
 ## Goal
 Undo with **⌘Z** and redo with **⌘⇧Z** from anywhere on the schedule, while the shortcut stays out of the way when the user is typing in a text field.

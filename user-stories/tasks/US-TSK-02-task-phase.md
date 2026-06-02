@@ -1,6 +1,12 @@
 # US-TSK-02 — Assign a task to a phase (optional; resets on project change)
 
-**Area:** Tasks · **Persona:** Studio manager · **Linked E2E:** `e2e/tasks.spec.ts` → "offers only the project's phases and resets the phase when the project changes"
+> **⏸ Not runnable today — the Phase UI is currently hidden.** Phases remain in the data model
+> (an existing task keeps its phase, and it still drops if the task moves to another project),
+> but the task dialog **no longer shows a Phase picker** (`TaskForm.tsx`: "Phase UI is hidden
+> for now"). Kept for when phase management is re-surfaced; the steps below describe that
+> intended behaviour and are **not executable in the current build**.
+
+**Area:** Tasks · **Persona:** Studio manager · **Coverage:** none currently (Phase UI hidden)
 
 ## Goal
 Optionally place a task into one of its project's phases, with only that project's phases offered, and have the phase reset if the task's project is changed.

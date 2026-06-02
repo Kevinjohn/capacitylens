@@ -1,6 +1,6 @@
 # US-RES-10 — The resource list display
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "the resource list shows avatars, roles and temp tags, with an empty state"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "adds a person and shows them in the list and schedule" · **Unit:** `src/components/resources/ResourceList.test.tsx` (list rows: avatar, role, temp tag, empty state)
 
 ## Goal
 See every resource in one list, each with a colour avatar of their initials, their role,

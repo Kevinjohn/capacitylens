@@ -1,6 +1,6 @@
 # US-DAT-03 — Undo an import
 
-**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "restores the pre-import dataset with undo after a confirmed import"
+**Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/data.spec.ts` → "confirming an import replaces the dataset and ⌘Z restores it"
 
 ## Goal
 After a confirmed import has replaced the dataset, press ⌘Z to bring back exactly the data that was there before the import.

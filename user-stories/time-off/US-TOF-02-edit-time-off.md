@@ -1,6 +1,6 @@
 # US-TOF-02 — Edit a time-off entry
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "edits a time-off entry and reflects the change in the list and on the timeline"
+**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "edits a time-off entry and reflects the new type"
 
 ## Goal
 Change an existing time-off entry's type and/or dates, and have the list row and the timeline block update to match.

@@ -1,6 +1,6 @@
 # US-RES-06 — Set a resource's working hours per day
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "working hours drive capacity and zero hours is rejected"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "rejects zero working hours"
 
 ## Goal
 Set how many hours a day a resource works, which becomes that resource's daily capacity.
