@@ -1,17 +1,16 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { differenceInCalendarDays, format } from 'date-fns'
+import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useDragResize } from '../../hooks/useDragResize'
-import { applyGesture, type DateRange, type DragMode } from '../../lib/gestureMath'
+import { applyGesture, type DragMode } from '../../lib/gestureMath'
 import { ensureBarColors } from '@floaty/shared/lib/color'
 import { capacityAdvisory } from '../../lib/capacity'
-import { daysInclusive, parseDate } from '@floaty/shared/lib/dateMath'
-import { spanDays } from '@floaty/shared/lib/schedulingDays'
+import { parseDate } from '@floaty/shared/lib/dateMath'
 import { schedulingModeFor } from '../../store/selectors'
-import { MAX_HOURS_PER_DAY, type Weekday } from '@floaty/shared/types/entities'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
+import { computeGesture, snappedBarGeometry, volumePreservingHours } from './allocationDrag'
 import type { ID } from '@floaty/shared/types/entities'
 import type { BarLayout } from './schedulerModel'
 
@@ -35,24 +34,6 @@ function snapshotLanes(): LaneSnapshot[] {
  *  (e.g. 24h over 7 working days = 3.4285…), so round to 2 dp for labels/popovers.
  *  The stored value stays exact; only what's shown is trimmed. */
 const hoursLabel = (n: number) => Math.round(n * 100) / 100
-
-/** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes,
- *  so hours/day scales inversely with the span: new × newSpan = old × oldSpan.
- *  workingHoursPerDay cancels out, so it isn't needed here. Returns the original
- *  hours when the span can't shrink to zero (guards divide-by-zero). */
-function volumePreservingHours(
-  prev: DateRange,
-  next: DateRange,
-  opts: { workingDays?: Weekday[]; ignoreWeekends?: boolean },
-  hoursPerDay: number,
-): number {
-  const oldSpan = spanDays(prev.startDate, prev.endDate, opts)
-  const newSpan = spanDays(next.startDate, next.endDate, opts)
-  const raw = newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
-  // Clamp to a real working day — collapsing the span (e.g. a resize dragged past the
-  // opposite edge → 1-day span) would otherwise inflate hours/day without bound.
-  return Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY))
-}
 
 /** Hit-test the drop point against the cached lane rects. */
 function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSnapshot | null {
@@ -191,11 +172,15 @@ export const AllocationBar = memo(function AllocationBar({
       // days. Reused below for the source-only fallback when a reassign is rejected.
       const computeFor = (rid: ID) => {
         const wd = rid === resourceId ? workingDays : useStore.getState().data.resources.find((r) => r.id === rid)?.workingDays
-        const o = { workingDays: wd, ignoreWeekends: bar.allocation.ignoreWeekends }
-        const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays, o) : current
         // Days mode: a resize rescales hours/day to hold the work volume constant; a move keeps it.
-        const hours = isDays && mode !== 'move' && deltaDays !== 0 ? volumePreservingHours(current, dates, o, bar.allocation.hoursPerDay) : bar.allocation.hoursPerDay
-        return { dates, hours }
+        return computeGesture(
+          mode,
+          current,
+          deltaDays,
+          { workingDays: wd, ignoreWeekends: bar.allocation.ignoreWeekends },
+          bar.allocation.hoursPerDay,
+          isDays,
+        )
       }
 
       const effResourceId = reassignTo ?? resourceId
@@ -245,13 +230,19 @@ export const AllocationBar = memo(function AllocationBar({
     if (preview.deltaDays !== 0) {
       // Preview the SAME working-day-snapped result the COMMIT will apply, so the bar doesn't
       // jump on release (the old raw calendar-shift preview diverged from the weekend-aware
-      // commit). Convert the snapped dates back to pixels via the calendar-day grid — each
-      // calendar day = dayWidth — exactly as the model placed bar.x / bar.width.
-      const opts = { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends }
+      // commit). snappedBarGeometry converts the snapped dates back to pixels via the
+      // calendar-day grid — each calendar day = dayWidth — exactly as the model placed bar.x.
       const cur = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
-      const snapped = applyGesture(preview.mode, cur, preview.deltaDays, opts)
-      left = bar.x + differenceInCalendarDays(parseDate(snapped.startDate), parseDate(cur.startDate)) * dayWidth
-      width = daysInclusive(snapped.startDate, snapped.endDate) * dayWidth
+      const geo = snappedBarGeometry(
+        preview.mode,
+        cur,
+        preview.deltaDays,
+        { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends },
+        bar.x,
+        dayWidth,
+      )
+      left = geo.left
+      width = geo.width
     }
   }
 

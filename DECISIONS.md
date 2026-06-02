@@ -714,3 +714,62 @@ and `persist.ts`'s 5-attempt retry budget) branches only on `!res.ok` and retrie
 — 400 vs 500 survives solely in a display/log string. Rejected the tempting middle step of swapping the
 message regex for a structured SQLite error code: `constraint failed` is SQLite's long-stable phrasing, so
 it would harden near-zero fragility for no functional gain against an API nothing branches on.
+
+## 2026-06-02 — Modularity pass (risk-prioritized extractions)
+Reviewed a five-stage modular-refactor plan and executed only the **risk-prioritized subset**: the
+genuinely-pure extractions, where a green gate actually *proves* the extraction is safe. The high-churn
+structural splits were deferred (rationale below). All behaviour-preserving — store API, REST API, routes,
+`data-testid`s and E2E flows unchanged; full suite green (web 439 + server 42 unit, 89 E2E, lint + `tsc`
+clean). The four did-now extractions:
+
+- **`data/syncOps.ts`** — moved the pure diff/apply core (`diffOps`/`applyOps` + the `Op` type) out of
+  `ServerSyncAdapter`, which now **re-exports** them so `ServerSyncAdapter.test.ts` and every import site
+  resolve unchanged. The adapter is left owning only the network / queue / drain path.
+- **`server/src/{rowCodec,schema,txn}.ts`** — split `db.ts` (was schema migration + assertion + row codecs +
+  transaction helper + CRUD/bulk in one file) into `rowCodec.ts` (pure `toRow`/`fromRow`), `schema.ts`
+  (`migrateSchema`/`assertSchemaCurrent`, still exercised *through* `openDb` so `db.migrate.test.ts` needed
+  no change), and `txn.ts` (the shared `tx` helper). `tx` had to leave `db.ts` specifically because both
+  `db.ts` and `schema.ts` use it — keeping it in `db.ts` would make `schema.ts`↔`db.ts` a runtime import
+  cycle (the back-edges to `db.ts` for the `Db` type are type-only, so erased). All 14 `db.ts` exports stay
+  stable; `db.ts` now owns `openDb` + the CRUD/bulk/init-marker primitives. Schema migration was *in* scope
+  precisely because `db.migrate.test.ts` (236 lines) is a strong safety net for it — unlike the deferred work.
+- **`components/common/ui.tsx` → barrel** — split the 755-line kit into `dialogs.tsx` / `fields.tsx` /
+  `feedback.tsx` / `badges.tsx`; `ui.tsx` is now `export *` so every `from '../common/ui'` import is
+  untouched. `Modal` moved as a single unit (the one genuinely stateful component). The barrel carries a
+  file-level `eslint-disable react-refresh/only-export-components`: the rule can't verify `export *` (a known
+  barrel false-positive), and a barrel defines no components so it isn't a Fast-Refresh boundary anyway — the
+  four component modules lint clean and remain the boundaries. (Mirrors the earlier `controls.ts` split that
+  moved style *objects* off `ui.tsx` to keep that rule happy.)
+- **`scheduler/allocationDrag.ts`** (+ `.test.ts`) — extracted the pure drag/resize policy from
+  `AllocationBar`: `volumePreservingHours`, `computeGesture` (the dates+hours core shared by the
+  pointer-commit and the reassign-target recompute), and `snappedBarGeometry` (the live-preview pixel math).
+  Left in the component: the DOM hit-testing (`snapshotLanes`/`laneAt`/`setDropTarget`), the
+  `updateAllocation` write, the capacity advisory, the reassign-rejection fallback, and `nudge`. New unit
+  tests cover the branches a happy-path drag never hits (divide-by-zero guard, 24h clamp, `deltaDays===0`,
+  move-keeps-hours, weekend-aware threading) — and **caught a wrong assumption** in the process: a *move*
+  shifts the start by calendar days and adjusts the END to preserve working-day count; it does **not** snap
+  the start across the weekend (only resize/`snapToWorkingDay` does).
+
+**Deferred by design** — these are high-churn over the most behaviour-sensitive code, in exactly the spots
+where the test net is weakest, so a green gate would NOT prove the extraction safe. Net-negative *now*, not
+forever: revisit each as its own scoped effort, writing the characterisation test **first** (and watching it
+pass against current code, so it pins real behaviour rather than encoding the new code's self-consistency).
+- **Store slice-by-concern split (`useStore.ts`, 590 lines).** Slicing by concern leaves the ~27
+  near-identical CRUD actions as one large slice (marginal editability win), and the helpers
+  (`mutate`/`requireAccount`/`findOwned`/`updateById`) close over `set`/`get` and each other, so a split adds
+  injection wiring an editor must then understand. The real risk: the "every data mutation goes through
+  `mutate()`" undo invariant has **no test asserting it** — a split could silently break undo and ship green.
+  *Write first:* a test that every CRUD action pushes exactly one undo step (and `redo` restores).
+- **`useSchedulerViewport` hook (net-new abstraction, not a relocation).** The viewport / scroll-freeze logic
+  is the most timing-sensitive code in the app — a live `useStore.getState()` read that deliberately dodges a
+  documented stale closure, rAF coalescing, and a drag-end catch-up effect. **No existing test would fail** if
+  the extraction reintroduced the stale closure. *Write first:* a scroll-vertically-while-dragging
+  interaction test.
+- **`SchedulerGrid` render component-splits.** Risks breaking `React.memo` identity → re-render regressions
+  (jank, not a red test) in a virtualised grid, and every `data-testid` must survive for the 20 E2E specs.
+  Low mechanical benefit — the high-value pure part (`buildSchedulerModel`) is already extracted. *Write
+  first:* a row-render-count assertion.
+
+Coverage snapshot at this decision: **91% lines / 79% branches** (439 web tests). The branch gap is the
+relevant one — the deferred risks are branch / interaction / render-identity invariants that line coverage
+does not capture, which is the whole reason "tests first" (not "more coverage") gates the deferred work.
