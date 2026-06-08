@@ -779,3 +779,7 @@ pass against current code, so it pins real behaviour rather than encoding the ne
 Coverage snapshot at this decision: **91% lines / 79% branches** (439 web tests). The branch gap is the
 relevant one — the deferred risks are branch / interaction / render-identity invariants that line coverage
 does not capture, which is the whole reason "tests first" (not "more coverage") gates the deferred work.
+
+## 2026-06-08 — Deploy / DB-move
+- **Forge static-SPA deploy guide** added (`docs/deploy.md`): DigitalOcean droplet, `Static HTML` site, `/dist` web dir, deploy script (`npm ci --include=dev` guards NODE_ENV=production skipping devDeps), SPA `try_files` fallback for `createBrowserRouter`. Friends demo stays localStorage on purpose: independent per-browser sandboxes, refresh-safe — the server's *shared* dataset would be worse for independent play.
+- **DB-move action plan** added (`docs/server-migration-plan.md`): reframes the move as a *cutover + hardening* (Phases 0/1 already done), not a build. Near-term goal = friends-demo shared dataset ON the DB (daemon + `/api` proxy + build-time `VITE_FLOATY_API` flip + Basic Auth + persistent SQLite + backups), no app code. Stages B–E (concurrency/conflict UI, real auth+isolation, Postgres) are conditional/trigger-gated. Load-bearing caveats recorded there: the flag is build-time with NO localStorage fallback (server becomes a hard dependency; rollback strands server data), optimistic concurrency needs a client conflict UI not just the env flag, and `server/` is raw `node:sqlite` (no ORM) so Postgres is a rewrite.
