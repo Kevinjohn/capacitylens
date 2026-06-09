@@ -162,16 +162,19 @@ describe('AppShell undo/redo keyboard', () => {
 describe('AppShell transient notice', () => {
   it('renders a toast for a store notice and clears it on dismiss', () => {
     renderAppShell()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument()
 
     act(() => {
       useStore.getState().setNotice('That allocation could not be moved there.')
     })
-    expect(screen.getByRole('alert')).toHaveTextContent('could not be moved')
+    // An info notice renders as a POLITE status toast (role="status"); only error notices are
+    // assertive (role="alert"). (Query by text — a loading spinner also carries role="status".)
+    const toast = screen.getByText(/could not be moved/).closest('[role="status"]')
+    expect(toast).not.toBeNull()
 
     act(() => {
       screen.getByRole('button', { name: 'Dismiss' }).click()
     })
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument()
   })
 })

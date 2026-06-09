@@ -21,6 +21,7 @@ export function Button({
   disabled,
   title,
   ariaLabel,
+  describedById,
 }: {
   children: ReactNode
   onClick?: () => void
@@ -29,6 +30,9 @@ export function Button({
   disabled?: boolean
   title?: string
   ariaLabel?: string
+  /** Id of an element that explains WHY the button is disabled (e.g. the type-to-confirm
+   *  hint on the delete-company dialog), so a screen reader announces the precondition. */
+  describedById?: string
 }) {
   return (
     <button
@@ -37,6 +41,7 @@ export function Button({
       disabled={disabled}
       title={title}
       aria-label={ariaLabel}
+      aria-describedby={describedById}
       className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50 ${buttonClasses[variant]}`}
     >
       {children}
@@ -154,7 +159,19 @@ export function Modal({
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('keydown', onKey)
-      previouslyFocused?.focus?.()
+      // Restore focus to the trigger — but ONLY if it's still in the DOM. An action like delete can
+      // unmount the element that opened the dialog (a row/button), and .focus() on a detached node
+      // is a silent no-op that drops focus to <body>, stranding keyboard/SR users (WCAG 2.4.3). Fall
+      // back to the <main> landmark (made programmatically focusable) so focus stays in the content.
+      if (previouslyFocused?.isConnected) {
+        previouslyFocused.focus?.()
+      } else {
+        const main = document.querySelector<HTMLElement>('main')
+        if (main) {
+          main.tabIndex = -1
+          main.focus()
+        }
+      }
     }
   }, [])
 

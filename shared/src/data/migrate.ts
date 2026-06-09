@@ -2,11 +2,49 @@ import { emptyAppData } from '../types/entities'
 import type { AppData } from '../types/entities'
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
-// current-shape AppData. There is exactly one structural transform today
-// (v1 → v2, below); the v2 → v3 bump added `accountId`, which needs no migration
-// here — the live key is `floaty/v3` (main.tsx), so older keys are orphaned
-// rather than read, and the import path stamps `accountId` on every incoming
-// row (see useStore.importData). normalize() then guarantees every array exists.
+// current-shape AppData, plus the IMPORT-path shape guards that decide whether a
+// blob is even Floaty before we let migrate() near it. This is mostly NORMALIZE-SHAPE
+// (coerce every known table to an array via normalize()), not a general version-
+// migration engine: there is exactly ONE structural transform (v1 → v2, below). The
+// v2 → v3 bump added `accountId` and needs NO step here — the live key is `floaty/v3`
+// (main.tsx), so older keys are orphaned rather than read, and the import path stamps
+// `accountId` on every incoming row (see useStore.importData).
+
+// The known data tables. Lives HERE (not in transfer.ts) because both the shape guards
+// below and migrate() reason about the same set — keeping the list and the guards that
+// read it in one module mirrors schedule/diary and stops the two drifting.
+export const KNOWN_KEYS = ['accounts', 'disciplines', 'resources', 'clients', 'projects', 'phases', 'tasks', 'allocations', 'timeOff']
+
+// Unwrap the object the import shape-guards inspect: either the bare AppData map, or
+// the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.
+export function importCandidate(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const obj = value as Record<string, unknown>
+  return 'data' in obj && obj.data && typeof obj.data === 'object' && !Array.isArray(obj.data)
+    ? (obj.data as Record<string, unknown>)
+    : obj
+}
+
+// Recognisable-Floaty guard for the IMPORT path: any JSON that parses but isn't
+// shaped like Floaty data would otherwise be migrated to an EMPTY dataset and
+// silently wipe the user's data. (The load path stays lenient on purpose.) Lives in
+// migrate.ts so the shape guard and the migrate it gates can't drift — mirrors how
+// schedule/diary keep their `looksLike…` guard next to migrate().
+export function looksLikeFloaty(value: unknown): boolean {
+  const candidate = importCandidate(value)
+  return !!candidate && KNOWN_KEYS.some((k) => Array.isArray(candidate[k]))
+}
+
+// A KNOWN table PRESENT but not an array (e.g. `resources: {…}` from a truncated or
+// hand-edited export) is structural damage. migrate()'s asArray() would silently coerce
+// it to [], and the "imported N" count — computed post-migrate — would report the lost
+// table as success. So REJECT it, matching the localStorage LOAD path (hasNonArrayTable),
+// which routes the same blob to recovery. Principle: repair within a record, reject a
+// structurally broken file. (An ABSENT table is fine — migrate fills it empty.)
+export function hasNonArrayKnownTable(value: unknown): boolean {
+  const candidate = importCandidate(value)
+  return !!candidate && KNOWN_KEYS.some((k) => k in candidate && !Array.isArray(candidate[k]))
+}
 
 function asArray<T>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : []

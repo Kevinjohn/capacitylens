@@ -30,3 +30,22 @@ export const SWATCHES: readonly string[] = [
   // row 3 (darkest)
   '#9c1616', '#a13812', '#a5590d', '#a5780d', '#a5910d', '#59931f', '#248f47', '#1f8a93', '#1b4f98', '#3c1f93', '#6b248f', '#981b64', '#684327',
 ]
+
+// Human-readable names for the 13×4 swatch grid, derived from the column (hue) + row (shade) — so
+// the swatch buttons get an accessible NAME instead of an unreadable hex like "#e02727" (WCAG
+// 1.1.1 / 4.1.2). Columns sweep the spectrum (see SWATCHES); rows go lightest → darkest.
+const SWATCH_HUES = ['Red', 'Orange', 'Amber', 'Yellow', 'Lime', 'Green', 'Emerald', 'Cyan', 'Blue', 'Violet', 'Purple', 'Pink', 'Brown'] as const
+const SWATCH_SHADES = ['pale', 'soft', 'bright', 'dark'] as const
+
+/** Name for the swatch at flat index `i` in the 13×4 grid, e.g. `"Blue bright"`. */
+export function swatchLabel(i: number): string {
+  const hue = SWATCH_HUES[i % SWATCH_COLUMNS] ?? 'Colour'
+  const shade = SWATCH_SHADES[Math.floor(i / SWATCH_COLUMNS)] ?? ''
+  return `${hue} ${shade}`.trim()
+}
+
+/** Name for an arbitrary hex when it's a known swatch, else the hex itself (used by the trigger). */
+export function colorName(hex: string): string {
+  const i = SWATCHES.indexOf(hex)
+  return i >= 0 ? swatchLabel(i) : hex
+}

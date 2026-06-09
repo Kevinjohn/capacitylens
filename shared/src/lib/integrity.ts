@@ -131,12 +131,33 @@ export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
 }
 
 export function deleteClientCascade(data: AppData, clientId: ID): AppData {
-  const removedProjectIds = data.projects
-    .filter((p) => p.clientId === clientId)
-    .map((p) => p.id)
-  let next: AppData = { ...data, clients: data.clients.filter((c) => c.id !== clientId) }
-  for (const projectId of removedProjectIds) next = deleteProjectCascade(next, projectId)
-  return next
+  // Single pass: collect every id removed by this client's deletion FIRST, then filter each
+  // table ONCE — rather than re-copying the whole tree per project (deleteProjectCascade × N).
+  // Same cascade semantics as looping that helper: drop the client's projects + their phases +
+  // their tasks (and those tasks' allocations), unbind a surviving task's phaseId that pointed
+  // at a removed phase, and unbind a placeholder bound to a removed project.
+  const removedProjectIds = new Set(
+    data.projects.filter((p) => p.clientId === clientId).map((p) => p.id),
+  )
+  const removedPhaseIds = new Set(
+    data.phases.filter((p) => removedProjectIds.has(p.projectId)).map((p) => p.id),
+  )
+  const removedTaskIds = new Set(
+    data.tasks.filter((t) => t.projectId !== undefined && removedProjectIds.has(t.projectId)).map((t) => t.id),
+  )
+  return {
+    ...data,
+    clients: data.clients.filter((c) => c.id !== clientId),
+    projects: data.projects.filter((p) => !removedProjectIds.has(p.id)),
+    phases: data.phases.filter((p) => !removedPhaseIds.has(p.id)),
+    tasks: data.tasks
+      .filter((t) => !removedTaskIds.has(t.id))
+      .map((t) => (t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined } : t)),
+    allocations: data.allocations.filter((a) => !removedTaskIds.has(a.taskId)),
+    resources: data.resources.map((r) =>
+      r.projectId !== undefined && removedProjectIds.has(r.projectId) ? { ...r, projectId: undefined } : r,
+    ),
+  }
 }
 
 /** Deleting a discipline ungroups its resources rather than deleting them. */

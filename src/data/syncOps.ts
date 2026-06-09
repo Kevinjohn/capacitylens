@@ -5,8 +5,9 @@ import type { AppData, Entity } from '@floaty/shared/types/entities'
 // adapter. No I/O here — just two pure functions over AppData snapshots.
 
 // Parent-before-child: every create/update must follow its foreign-key targets.
-// Deletes use the reverse so a child is always removed before its parent (and the
-// DB's ON DELETE CASCADE covers any overlap — our DELETEs are idempotent).
+// Deletes use the reverse (child-before-parent). The emitted batch runs ALL upserts
+// before ALL deletes — see diffOps for why (a reparent's new binding must land before
+// the old parent's delete cascades).
 const UPSERT_ORDER = [
   'accounts',
   'clients',
@@ -32,10 +33,18 @@ export interface Op {
   accountId?: string
 }
 
-/** Compute the ordered REST operations that turn `prev` into `next`. Upserts run
- *  parent-first; deletes child-first. An entity is an "upsert" when it's new or its
- *  updatedAt changed (the store bumps updatedAt on every edit, so it's a reliable
- *  change marker); a "delete" when it's gone from `next`. Exported for unit tests. */
+/** Compute the ordered operations that turn `prev` into `next`, applied as one
+ *  transactional batch. Upserts run parent-first, then deletes run child-first. An
+ *  entity is an "upsert" when it's new or its updatedAt changed (the store bumps
+ *  updatedAt on every edit, so it's a reliable change marker); a "delete" when it's
+ *  gone from `next`.
+ *
+ *  ORDER IS LOAD-BEARING: all upserts precede all deletes. Reparent + delete in one
+ *  batch (e.g. move project P from client C1→C2, then delete C1) must apply P's new
+ *  clientId BEFORE C1 is deleted — otherwise C1's `ON DELETE CASCADE` removes P (still
+ *  bound to C1 in the DB) and its unmodified descendants, which carry no upsert op and
+ *  would be lost. Doing upserts first lets the cascade find nothing to take.
+ *  Exported for unit tests. */
 export function diffOps(prev: AppData, next: AppData): Op[] {
   const upserts: Op[] = []
   const deletes: Op[] = []
@@ -59,9 +68,9 @@ export function diffOps(prev: AppData, next: AppData): Op[] {
       }
     }
   }
-  // deletes child-first (reverse table order), then upserts parent-first.
+  // upserts parent-first, then deletes child-first (reverse table order).
   deletes.reverse()
-  return [...deletes, ...upserts]
+  return [...upserts, ...deletes]
 }
 
 /** Apply a set of (already-confirmed) ops to a base snapshot, returning a NEW AppData.

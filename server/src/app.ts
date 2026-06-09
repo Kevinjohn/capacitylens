@@ -17,6 +17,7 @@ import {
   upsertRow,
   wipe,
 } from './db'
+import { tx } from './txn'
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
@@ -48,6 +49,20 @@ export interface AppOptions {
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
   Object.prototype.hasOwnProperty.call(TABLES, entity)
 
+// A table is "scoped" (tenant-owned) when it carries an accountId column — every table
+// except top-level `accounts`. Scoped deletes must assert ownership via accountId.
+const isScopedTable = (entity: keyof typeof TABLES): boolean =>
+  TABLES[entity].columns.some((c) => c.name === 'accountId')
+
+// The wire shape of one op in a POST /api/batch body (mirrors the client's syncOps.Op).
+interface BatchOp {
+  method: 'PUT' | 'DELETE'
+  table: string
+  id: string
+  row?: Record<string, unknown>
+  accountId?: string
+}
+
 // Tenant-ownership predicate shared by every mutating route. A row is "owned" by
 // `accountId` when there's no existing row yet (a fresh upsert), or its stored accountId
 // matches. PUT/PATCH use it to keep accountId IMMUTABLE (409 on a change that would re-home
@@ -75,27 +90,53 @@ function resolveCorsOrigin(reqOrigin: string | undefined, allow: string): string
 export function statusFor(err: unknown): number {
   if (err instanceof ValidationError) return 400
   const msg = err instanceof Error ? err.message : String(err)
-  if (/FOREIGN KEY|constraint failed|NOT NULL|UNIQUE/i.test(msg)) return 400
+  // SQLite spells EVERY constraint error "<kind> constraint failed" (FOREIGN KEY / NOT NULL
+  // / UNIQUE / CHECK), so match the full phrase only. The old loose alternation on bare
+  // tokens (NOT NULL / UNIQUE / FOREIGN KEY) could misclassify an unrelated 500 whose
+  // message merely contained one of those words as a caller-fault 400 — and then leak its
+  // raw message. (Matches the whole-state siblings' tightened classifier.)
+  if (/constraint failed/i.test(msg)) return 400
   return 500
 }
 
 function fail(reply: FastifyReply, err: unknown) {
   const status = statusFor(err)
-  // 400s are caller-fault (validation / FK / constraint) and their specific message is
-  // useful — keep it. A 500 is an unexpected server/db bug: log the real error
-  // server-side but return a GENERIC body so we never leak internals (stack-ish messages,
-  // SQL, paths) to the client.
+  // A 500 is an unexpected server/db bug: log the real error server-side but return a
+  // GENERIC body so we never leak internals (stack-ish messages, SQL, paths).
   if (status === 500) {
     console.error(err)
     return reply.code(500).send({ error: 'Internal server error' })
   }
-  return reply.code(status).send({ error: err instanceof Error ? err.message : String(err) })
+  // 400s: a curated ValidationError message is safe AND useful (it's a friendly sentence we
+  // authored). A raw DB-constraint message (e.g. "NOT NULL constraint failed: clients.color")
+  // leaks schema internals — genericise it, mirroring the 500 redaction one tier down.
+  const message = err instanceof ValidationError
+    ? err.message
+    : 'That change references missing data or conflicts with an existing record.'
+  return reply.code(status).send({ error: message })
 }
 
 export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const app = Fastify({ bodyLimit: BODY_LIMIT })
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
+
+  // Single redaction funnel for any UNCAUGHT throw (a route that forgot a try/catch, a
+  // SQLITE_BUSY thrown mid-statement). Fastify framework errors (413 payload-too-large,
+  // 400 malformed JSON) carry their own statusCode + a safe generic message — preserve
+  // them; everything else routes through fail() so a 500 stays generic and a 400
+  // DB-constraint message can't leak SQLite internals.
+  app.setErrorHandler((err, _req, reply) => {
+    const fwStatus = (err as { statusCode?: number }).statusCode
+    if (typeof fwStatus === 'number') {
+      if (fwStatus >= 500) {
+        console.error(err)
+        return reply.code(fwStatus).send({ error: 'Internal server error' })
+      }
+      return reply.code(fwStatus).send({ error: err instanceof Error ? err.message : 'Bad request' })
+    }
+    return fail(reply, err)
+  })
 
   // No app-level auth in this phase. CORS is the only cross-origin gate, so the
   // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
@@ -143,24 +184,24 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
     const body = req.body as Record<string, unknown>
     if (body?.id !== id) return reply.code(400).send({ error: 'Body id must match the URL id.' })
-    const existing = getRow(db, entity, id)
-    // accountId is immutable: a write must not move an EXISTING row to another account
-    // (see ownsRow). The web store enforces this via findOwned; without the same guard a
-    // crafted request could re-home a row and orphan its children across the tenant boundary.
-    if (!ownsRow(existing, body.accountId)) {
-      return reply.code(409).send({ error: 'That record belongs to a different company.' })
-    }
-    // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row.
-    if (
-      opts.optimisticConcurrency &&
-      existing &&
-      typeof existing.updatedAt === 'string' &&
-      typeof body.updatedAt === 'string' &&
-      existing.updatedAt > body.updatedAt
-    ) {
-      return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
-    }
     try {
+      const existing = getRow(db, entity, id)
+      // accountId is immutable: a write must not move an EXISTING row to another account
+      // (see ownsRow). The web store enforces this via findOwned; without the same guard a
+      // crafted request could re-home a row and orphan its children across the tenant boundary.
+      if (!ownsRow(existing, body.accountId)) {
+        return reply.code(409).send({ error: 'That record belongs to a different company.' })
+      }
+      // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row.
+      if (
+        opts.optimisticConcurrency &&
+        existing &&
+        typeof existing.updatedAt === 'string' &&
+        typeof body.updatedAt === 'string' &&
+        existing.updatedAt > body.updatedAt
+      ) {
+        return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
+      }
       const row = sanitizeWrite(entity, body)
       validateWrite(loadState(db), entity, row)
       upsertRow(db, entity, row)
@@ -176,9 +217,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.patch('/api/:entity/:id', (req, reply) => {
     const { entity, id } = req.params as { entity: string; id: string }
     if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-    const existing = getRow(db, entity, id)
-    if (!existing) return reply.code(404).send({ error: 'Not found' })
     try {
+      const existing = getRow(db, entity, id)
+      if (!existing) return reply.code(404).send({ error: 'Not found' })
       const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id })
       // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
       if (!ownsRow(existing, merged.accountId)) {
@@ -195,16 +236,84 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.delete('/api/:entity/:id', (req, reply) => {
     const { entity, id } = req.params as { entity: string; id: string }
     if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-    // Scope the delete when the caller asserts an owning account (sync sends ?accountId=…
-    // for every scoped row): refuse (404) to delete a row that belongs to a DIFFERENT
-    // account — the server analog of the client's findOwned ownership guard. Accounts are
-    // top-level and carry no accountId, so they delete by id.
+    // Scope a scoped-table delete to its owning account — the server analog of the
+    // client's MANDATORY findOwned guard. A scoped delete MUST assert an owning account:
+    // omitting it can't prove ownership, so we refuse with 400 (rather than deleting by id,
+    // which was a tenant-guard bypass). A wrong owner is 404. Accounts are top-level and
+    // carry no accountId, so they delete by id.
     const { accountId } = req.query as { accountId?: string }
-    if (accountId !== undefined && !ownsRow(getRow(db, entity, id), accountId)) {
-      return reply.code(404).send({ error: 'Not found' })
+    try {
+      if (isScopedTable(entity)) {
+        if (accountId === undefined) {
+          return reply.code(400).send({ error: 'accountId is required to delete a scoped record.' })
+        }
+        if (!ownsRow(getRow(db, entity, id), accountId)) {
+          return reply.code(404).send({ error: 'Not found' })
+        }
+      }
+      deleteRow(db, entity, id) // idempotent
+      return reply.code(204).send()
+    } catch (err) {
+      return fail(reply, err)
     }
-    deleteRow(db, entity, id) // idempotent
-    return reply.code(204).send()
+  })
+
+  // Transactional batch write — the verb the client sync adapter uses for every save.
+  // Body: { ops: BatchOp[] }, already ordered (upserts parent-first, then deletes
+  // child-first; see the client's syncOps.diffOps). The whole list is applied in ONE
+  // transaction: all-or-nothing. This is what makes a reparent+delete safe — the
+  // re-binding upsert commits before the old parent's DELETE cascades, so the cascade
+  // finds nothing to take — and guarantees a mid-batch failure rolls back, leaving the
+  // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
+  // per-entity routes use; loadState() inside the tx reflects earlier ops, so a child
+  // validates against the parent a sibling op just upserted.
+  app.post('/api/batch', (req, reply) => {
+    const body = req.body as { ops?: unknown }
+    if (!body || !Array.isArray(body.ops)) {
+      return reply.code(400).send({ error: 'ops array is required' })
+    }
+    const ops = body.ops as BatchOp[]
+    try {
+      tx(db, () => {
+        for (const op of ops) {
+          const { method, table, id } = op
+          if (typeof table !== 'string' || typeof id !== 'string') {
+            throw new ValidationError('Each op needs a string table and id.')
+          }
+          if (!isKnownTable(table)) throw new ValidationError(`Unknown entity: ${table}`)
+          if (method === 'PUT') {
+            const row = op.row
+            if (!row || typeof row !== 'object' || (row as { id?: unknown }).id !== id) {
+              throw new ValidationError('Each PUT op needs a row whose id matches the op id.')
+            }
+            // accountId is immutable (ownsRow): a write must not re-home an existing row.
+            const existing = getRow(db, table, id)
+            if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
+              throw new ValidationError('That record belongs to a different company.')
+            }
+            const clean = sanitizeWrite(table, row as Record<string, unknown>)
+            validateWrite(loadState(db), table, clean)
+            upsertRow(db, table, clean)
+          } else if (method === 'DELETE') {
+            // Scoped deletes assert ownership (same rule as the DELETE route).
+            if (isScopedTable(table)) {
+              if (typeof op.accountId !== 'string') {
+                throw new ValidationError('accountId is required to delete a scoped record.')
+              }
+              if (!ownsRow(getRow(db, table, id), op.accountId)) {
+                throw new ValidationError('That record belongs to a different company.')
+              }
+            }
+            deleteRow(db, table, id)
+          } else {
+            throw new ValidationError(`Unknown op method: ${String(method)}`)
+          }
+        }
+      })
+      return reply.code(200).send({ ok: true, applied: ops.length })
+    } catch (err) {
+      return fail(reply, err)
+    }
   })
 
   // Bulk import into one account, reusing the SAME remap+validate+sanitize the store

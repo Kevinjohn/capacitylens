@@ -70,6 +70,16 @@ const cleanField = (rec: Record<string, unknown>, field: string, multiline = fal
   if (typeof rec[field] === 'string') rec[field] = cleanText(rec[field] as string, { multiline })
 }
 
+// Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
+// Cleaning a hand-edited value can collapse it to empty (e.g. an emoji-only name), and a
+// missing value is empty too — either would persist locally (localStorage has no NOT NULL)
+// yet be REJECTED by the server, diverging the two import paths. Fall back to a placeholder
+// so a required column is never empty and both paths accept the record identically.
+const cleanRequiredField = (rec: Record<string, unknown>, field: string, fallback: string): void => {
+  const cleaned = typeof rec[field] === 'string' ? cleanText(rec[field] as string) : ''
+  rec[field] = cleaned.length > 0 ? cleaned : fallback
+}
+
 /** Repair the value-level fields of one imported scoped record in place. The record
  *  has already had its id remapped + accountId stamped; we only touch constrained
  *  fields, leaving names/notes/refs alone. */
@@ -84,8 +94,8 @@ export function sanitizeImportedRecord(
       rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay)
       rec.workingDays = safeWorkingDays(rec.workingDays)
       rec.color = safeColor(rec.color)
-      cleanField(rec, 'name')
-      cleanField(rec, 'role')
+      cleanField(rec, 'name') // resources.name is optional (nullable)
+      cleanRequiredField(rec, 'role', 'Team member') // resources.role is NOT NULL
       break
     case 'allocations':
       rec.status = oneOf(rec.status, VALID_STATUS, 'confirmed')
@@ -103,16 +113,16 @@ export function sanitizeImportedRecord(
     case 'disciplines':
       rec.sortOrder = safeInt(rec.sortOrder, 0)
       if (rec.color !== undefined) rec.color = safeColor(rec.color)
-      cleanField(rec, 'name')
+      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
     case 'clients':
     case 'projects':
       rec.color = safeColor(rec.color)
-      cleanField(rec, 'name')
+      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
     case 'phases':
     case 'tasks':
-      cleanField(rec, 'name')
+      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
   }
   return rec

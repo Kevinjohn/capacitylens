@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ClientForm } from './ClientForm'
 import { useStore } from '../../store/useStore'
+import { colorName } from '../../lib/palette'
 import { resetStoreWithAccount } from '../../test/fixtures'
 
 beforeEach(() => {
@@ -45,7 +46,7 @@ describe('ClientForm – add mode', () => {
     await user.type(screen.getByLabelText('Name'), 'Acme')
     // Open the colour popup (trigger is labelled "<label> (<value>)") and pick a swatch.
     await user.click(screen.getByRole('button', { name: /^Colour \(/ }))
-    await user.click(screen.getByRole('button', { name: '#e02727' }))
+    await user.click(screen.getByRole('button', { name: colorName('#e02727') }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalledOnce()

@@ -1,4 +1,5 @@
 import { addDaysISO } from '@floaty/shared/lib/dateMath'
+import { byAccount } from '@floaty/shared/domain/tenancy'
 import { emptyAppData, scopedTables, SCOPED_KEYS } from '@floaty/shared/types/entities'
 import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@floaty/shared/types/entities'
 import type { SchedulerUI } from './useStore'
@@ -15,7 +16,7 @@ export function scopeData(data: AppData, accountId: ID): AppData {
   const src = scopedTables(data)
   const dst = scopedTables(scoped)
   for (const key of SCOPED_KEYS) {
-    dst[key] = src[key].filter((e) => e.accountId === accountId)
+    dst[key] = src[key].filter(byAccount(accountId))
   }
   return scoped
 }

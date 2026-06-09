@@ -48,12 +48,16 @@ export function validateText(value: string, fail: Fail, options: TextOptions = {
     }
     return ''
   }
-  if (hasDisallowedChars(trimmed, { multiline })) {
-    fail(field, VALIDATION.textInvalid)
-    return null
-  }
+  // Length cap FIRST, before the denylist scan: a unicode-property regex shouldn't run on an
+  // unbounded string. Defence-in-depth — the denylist isn't ReDoS-prone today, but bounding the
+  // input keeps it that way. Outcome-identical: an over-long string fails either way, and only a
+  // string that's BOTH over-long AND has junk changes message (now "too long" — caps win first).
   if (trimmed.length > maxLength) {
     fail(field, VALIDATION.textTooLong)
+    return null
+  }
+  if (hasDisallowedChars(trimmed, { multiline })) {
+    fail(field, VALIDATION.textInvalid)
     return null
   }
   return trimmed

@@ -2,7 +2,7 @@ import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type { AppData } from '@floaty/shared/types/entities'
 import { migrate } from '@floaty/shared/data/migrate'
-import { diffOps, applyOps, type Op } from './syncOps'
+import { diffOps, type Op } from './syncOps'
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
 // so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from
@@ -12,15 +12,21 @@ export { diffOps, applyOps } from './syncOps'
 // A PersistenceAdapter that keeps the SAME whole-tree contract the store already
 // speaks (loadAll / saveAll) but talks to the entity-level REST API:
 //   - loadAll(): GET /api/state  → one round-trip hydration (reads stay whole-tree)
-//   - saveAll(next): DIFF next against the last-synced snapshot and emit per-entity
-//     PUT (upsert) / DELETE calls. Writes are entity-level; the store never changes.
+//   - saveAll(next): DIFF next against the last-synced snapshot and POST the ordered
+//     op set to /api/batch, which applies it in ONE server-side transaction (upserts
+//     parent-first, then deletes child-first). One request, all-or-nothing. The store
+//     never changes.
 //
 // Why a diff and not a command log: the store builds the whole next AppData on every
 // action (incl. undo/redo and import), so a diff is the one place that turns any
-// state transition — forward edit OR undo — into the right set of REST calls without
-// the store knowing a server exists. lastSynced advances only from the local
-// optimistic state on full success, so a server echo can never re-trigger a write
-// (ids + timestamps are client-generated, so a re-read would match exactly).
+// state transition — forward edit OR undo — into the right ops without the store
+// knowing a server exists. Why a transactional batch and not per-op requests: a
+// reparent (move a child to a new parent) coalesced with the old parent's delete must
+// land the re-binding BEFORE the delete cascades, or the cascade takes the child's
+// unmodified descendants. A single ordered transaction guarantees that and stays
+// atomic on failure. lastSynced advances only from the local optimistic state on
+// success, so a server echo can never re-trigger a write (ids + timestamps are
+// client-generated, so a re-read would match exactly).
 
 export class ServerSyncAdapter implements PersistenceAdapter {
   private readonly baseUrl: string
@@ -64,10 +70,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
-    // Page-teardown flush: dispatch EVERY op up-front (keepalive) instead of the normal
-    // sequential drain. On pagehide the event loop dies after the first `await`, so a
-    // sequential loop would only ever get the FIRST request on the wire and lose the rest of
-    // a multi-entity change (e.g. a cascade delete's child-then-parent DELETEs).
+    // Page-teardown flush: send the whole diff as ONE keepalive batch request so it
+    // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
     if (opts?.unload) return this.flushUnload(next)
     this.queued = next
     if (this.inFlight) return this.inFlight
@@ -79,72 +83,48 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
-  // Best-effort final flush on page teardown. Fires all fetches synchronously (apply()
-  // initiates the request before its first await), so they're on the wire before the document
-  // unloads; keepalive lets them outlive it. Deliberately does NOT advance lastSynced (the
-  // page is going away — a surviving reload re-diffs against the server) and swallows per-op
-  // errors. Ordering isn't guaranteed here, but deletes are idempotent + the DB cascades, and
-  // the only FK-order casualty is the rare new-parent-and-child created within the 300ms
-  // before close — still far better than the sequential loop losing everything after op 1.
+  // Best-effort final flush on page teardown: one keepalive batch request, errors
+  // swallowed (the page is going away — a surviving reload re-diffs against the server).
+  // Deliberately does NOT advance lastSynced. One ordered, atomic request, so the
+  // FK-order race the old per-op Promise.all had on a new-parent+child pair is gone.
   private async flushUnload(next: AppData): Promise<void> {
     const ops = diffOps(this.lastSynced, next)
-    await Promise.all(ops.map((op) => this.apply(op).catch(() => {})))
+    if (ops.length === 0) return
+    await this.applyBatch(ops, { keepalive: true }).catch(() => {})
   }
 
-  // Drain the queue: diff against lastSynced, apply, advance — repeat until no newer
-  // state arrived mid-flush. Attempts EVERY op (rather than stopping at the first
-  // failure), so a single permanently-rejected row can't block all the others from
-  // syncing. On any failure it throws WITHOUT advancing lastSynced, so persist.ts
-  // surfaces it (persistError) and the next save replays the full delta since the last
-  // good sync — PUT/DELETE are idempotent, so already-applied rows simply re-apply.
+  // Drain the queue: diff against lastSynced and apply the whole delta as ONE
+  // transactional batch (the server runs it in a single tx → all-or-nothing, ordered).
+  // Advance lastSynced ONLY on success; on failure throw WITHOUT advancing, so persist.ts
+  // surfaces it (persistError) and the next save replays the full delta — the batch is
+  // idempotent (PUT upserts, DELETE no-ops on an absent id). Repeats until no newer state
+  // arrived mid-flush (coalesce-to-latest). Atomicity replaces the old per-op poison-row
+  // isolation: a bad row now fails the whole batch rather than leaving a partial write.
   private async drain(): Promise<void> {
     while (this.queued) {
       const target = this.queued
       this.queued = null
       const ops = diffOps(this.lastSynced, target)
-      const applied: Op[] = []
-      const failures: string[] = []
-      for (const op of ops) {
-        try {
-          await this.apply(op)
-          applied.push(op)
-        } catch (e) {
-          failures.push(e instanceof Error ? e.message : String(e))
-        }
-      }
-      // Advance the snapshot to reflect ONLY the ops that landed: on full success that's
-      // exactly `target`; on partial failure it's the server's real state, so the next
-      // diff re-emits just the still-failing rows (the rest are now synced and never
-      // replay) — a poison row is isolated, not left blocking every later change.
-      this.lastSynced = failures.length === 0 ? target : applyOps(this.lastSynced, applied)
-      if (failures.length > 0) {
-        throw new Error(`${failures.length} change(s) rejected: ${failures[0]}`)
-      }
+      if (ops.length > 0) await this.applyBatch(ops)
+      this.lastSynced = target
     }
   }
 
-  private async apply(op: Op): Promise<void> {
-    const path = `${this.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}`
-    // keepalive: each entity write is tiny (one row, far below the 64KB keepalive cap),
-    // so the request can outlive the page — the last debounced edit flushed on pagehide
-    // isn't cancelled by the unload (a plain fetch would be, losing it in server mode).
-    const res =
-      op.method === 'DELETE'
-        ? // Scope the delete to its owning account so the server can refuse a cross-account
-          // delete (the server analog of the store's findOwned guard).
-          await this.fetchImpl(op.accountId ? `${path}?accountId=${encodeURIComponent(op.accountId)}` : path, {
-            method: 'DELETE',
-            keepalive: true,
-          })
-        : await this.fetchImpl(path, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(op.row),
-            keepalive: true,
-          })
+  // POST the ordered ops to /api/batch; the server applies them in one transaction
+  // (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
+  // reparent+delete can't lose rows and a mid-batch failure rolls the whole thing back.
+  // keepalive (unload) lets the request outlive the page; a debounced change's batch body
+  // stays well under the 64KB keepalive cap.
+  private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<void> {
+    const res = await this.fetchImpl(`${this.baseUrl}/api/batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ops }),
+      keepalive: opts?.keepalive,
+    })
     if (!res.ok) {
       const detail = await res.text().catch(() => '')
-      throw new Error(`${op.method} ${op.table}/${op.id} failed (${res.status}) ${detail}`.trim())
+      throw new Error(`Batch sync failed (${res.status}) ${detail}`.trim())
     }
   }
 }

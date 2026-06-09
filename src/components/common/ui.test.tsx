@@ -20,6 +20,7 @@ import {
   Avatar,
 } from './ui'
 import { useStore } from '../../store/useStore'
+import { colorName } from '../../lib/palette'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type { Resource } from '@floaty/shared/types/entities'
 import { WORKDAYS } from '../../test/fixtures'
@@ -478,15 +479,15 @@ describe('ColorField', () => {
 
   it('renders a trigger labelled with the current value and no swatches until opened', () => {
     render(<ColorField label="Brand colour" value={BLUE} onChange={vi.fn()} />)
-    expect(screen.getByRole('button', { name: `Brand colour (${BLUE})` })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: `Brand colour (${colorName(BLUE)})` })).toBeInTheDocument()
     // Popup is closed → preset swatches are not in the DOM.
-    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument()
   })
 
   it('opens the full grid of preset swatches when the trigger is clicked', async () => {
     const user = userEvent.setup()
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />)
-    const trigger = screen.getByRole('button', { name: `Colour (${BLUE})` })
+    const trigger = screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` })
     expect(trigger).toHaveAttribute('aria-expanded', 'false')
     await user.click(trigger)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
@@ -498,19 +499,19 @@ describe('ColorField', () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
     render(<ColorField label="Colour" value={BLUE} onChange={onChange} />)
-    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
-    await user.click(screen.getByRole('button', { name: RED }))
+    await user.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
+    await user.click(screen.getByRole('button', { name: colorName(RED) }))
     expect(onChange).toHaveBeenCalledWith(RED)
     // Picking closes the popup.
-    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument()
   })
 
   it('marks the swatch matching the current value as pressed', async () => {
     const user = userEvent.setup()
     render(<ColorField label="Colour" value={BLUE} onChange={vi.fn()} />)
-    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
-    expect(screen.getByRole('button', { name: BLUE })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: RED })).toHaveAttribute('aria-pressed', 'false')
+    await user.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
+    expect(screen.getByRole('button', { name: colorName(BLUE) })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: colorName(RED) })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('closes the popup on an outside click', async () => {
@@ -521,10 +522,10 @@ describe('ColorField', () => {
         <button type="button">Outside</button>
       </div>,
     )
-    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
-    expect(screen.getByRole('button', { name: RED })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
+    expect(screen.getByRole('button', { name: colorName(RED) })).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Outside' }))
-    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument()
   })
 
   it('closes the popup on Escape while a swatch is focused, without bubbling Escape up', async () => {
@@ -535,13 +536,13 @@ describe('ColorField', () => {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </div>,
     )
-    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
+    await user.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
     // Move focus into the grid, then Escape: the popup must close and the keydown must
     // not reach the surrounding handler (the Modal's Escape-to-close in real use).
-    const swatch = screen.getByRole('button', { name: RED })
+    const swatch = screen.getByRole('button', { name: colorName(RED) })
     swatch.focus()
     await user.keyboard('{Escape}')
-    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument()
     expect(onEscape).not.toHaveBeenCalled()
   })
 
@@ -553,14 +554,14 @@ describe('ColorField', () => {
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
       </Modal>,
     )
-    await user.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
-    expect(screen.getByRole('button', { name: RED })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
+    expect(screen.getByRole('button', { name: colorName(RED) })).toBeInTheDocument()
     // The backdrop is the overlay wrapping the dialog; the Modal closes only when a press
     // both starts and ends on it. The open popup must swallow that press.
     const backdrop = screen.getByRole('dialog').parentElement!
     fireEvent.mouseDown(backdrop)
     fireEvent.mouseUp(backdrop)
-    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument() // popup closed
+    expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument() // popup closed
     expect(onClose).not.toHaveBeenCalled() // modal stayed open
   })
 
@@ -574,13 +575,13 @@ describe('ColorField', () => {
         </button>
       </Modal>,
     )
-    fireEvent.click(screen.getByRole('button', { name: `Colour (${BLUE})` }))
-    expect(screen.getByRole('button', { name: RED })).toBeInTheDocument() // popup open
+    fireEvent.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
+    expect(screen.getByRole('button', { name: colorName(RED) })).toBeInTheDocument() // popup open
     // A press on another in-dialog control must REACH it — the capture-phase listener
     // only swallows presses that land on the backdrop (outside the dialog panel).
     fireEvent.mouseDown(screen.getByTestId('sibling'))
     expect(onSiblingDown).toHaveBeenCalledTimes(1) // not swallowed
-    expect(screen.queryByRole('button', { name: RED })).not.toBeInTheDocument() // popup closed
+    expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument() // popup closed
   })
 })
 

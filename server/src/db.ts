@@ -21,6 +21,9 @@ export type Db = DatabaseSync
 export function openDb(path: string): Db {
   const db = new DatabaseSync(path)
   db.exec('PRAGMA journal_mode = WAL;')
+  // Wait up to 5s for a held lock instead of throwing SQLITE_BUSY immediately — two server
+  // processes on the same FLOATY_DB file (or a WAL checkpoint) contend rather than error.
+  db.exec('PRAGMA busy_timeout = 5000;')
   // A fresh file gets the current shape here; an existing file keeps its tables (IF
   // NOT EXISTS) and is brought up to shape by migrateSchema. Both run with foreign
   // keys still OFF (node:sqlite's default) so a table rebuild can drop/rename safely;

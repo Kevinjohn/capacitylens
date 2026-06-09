@@ -30,7 +30,7 @@ export function Toast({ message, tone = 'info', onDismiss }: { message: string; 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex justify-center px-4">
       <div
-        role="alert"
+        role={tone === 'error' ? 'alert' : 'status'}
         className={`pointer-events-auto flex max-w-md items-start gap-3 rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-surface shadow-pop ring-1 animate-[floaty-pop_0.16s_ease-out] ${
           tone === 'error' ? 'ring-2 ring-danger' : 'ring-black/10'
         }`}

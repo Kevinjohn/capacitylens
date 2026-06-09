@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { scopeData } from '../../store/selectors'
 import { serializeData } from '@floaty/shared/data/transfer'
@@ -22,6 +22,9 @@ export function DeleteCompanyDialog({
   const data = useStore((s) => s.data)
   const [typed, setTyped] = useState('')
   const matches = typed.trim() === account.name
+  // Hint id so the disabled Delete button can point at the type-to-confirm instruction —
+  // a screen reader then announces WHY Delete is unavailable, not just that it's disabled.
+  const hintId = useId()
 
   // Export just this company's slice (same shape as the in-app export, which import
   // re-stamps into whichever account is active).
@@ -42,7 +45,7 @@ export function DeleteCompanyDialog({
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
-          <Button variant="danger" disabled={!matches} onClick={onConfirm}>
+          <Button variant="danger" disabled={!matches} onClick={onConfirm} describedById={hintId}>
             Delete
           </Button>
         </>
@@ -63,6 +66,9 @@ export function DeleteCompanyDialog({
         onChange={setTyped}
         autoFocus
       />
+      <p id={hintId} className="text-xs text-muted">
+        Type the company name exactly to enable Delete.
+      </p>
     </Modal>
   )
 }

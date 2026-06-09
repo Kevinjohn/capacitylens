@@ -95,6 +95,14 @@ export function AppShell() {
 
   return (
     <div className="flex h-full">
+      {/* Skip past the sidebar nav straight to page content (WCAG 2.4.1). Hidden until focused;
+          targets the <main> landmark (id="main", tabIndex=-1 so it can receive programmatic focus). */}
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow focus:ring-2 focus:ring-brand"
+      >
+        Skip to content
+      </a>
       <nav className="w-48 shrink-0 border-r border-line bg-surface p-3">
         <div className="mb-4 px-2 text-xl font-bold text-brand">Floaty</div>
         {activeAccount && (
@@ -130,7 +138,7 @@ export function AppShell() {
         </ul>
         <ImportExport />
       </nav>
-      <main className="flex-1 overflow-auto">
+      <main id="main" tabIndex={-1} className="flex-1 overflow-auto">
         {persistError && (
           <div role="alert" className="bg-danger px-4 py-2 text-sm font-medium text-white">
             Changes aren’t being saved right now — we’ll keep retrying.

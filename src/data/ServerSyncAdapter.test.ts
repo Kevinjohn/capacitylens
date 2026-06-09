@@ -43,12 +43,12 @@ describe('diffOps', () => {
     ])
   })
 
-  it('orders all deletes before all upserts', () => {
+  it('orders all upserts before all deletes (so a reparent lands before the old parent is deleted)', () => {
     const prev = withData({ clients: [client('old')] })
     const next = withData({ clients: [client('new')] })
     const ops = diffOps(prev, next)
-    expect(ops[0]).toMatchObject({ method: 'DELETE', id: 'old' })
-    expect(ops[1]).toMatchObject({ method: 'PUT', id: 'new' })
+    expect(ops[0]).toMatchObject({ method: 'PUT', id: 'new' })
+    expect(ops[1]).toMatchObject({ method: 'DELETE', id: 'old' })
   })
 
   it('tags a scoped-entity DELETE with its owning account; accounts (top-level) carry none', () => {
@@ -92,23 +92,29 @@ describe('ServerSyncAdapter.loadAll', () => {
   })
 })
 
+// Helper: pull the parsed ops array out of a recorded /api/batch POST.
+const batchOps = (call: unknown[]): Array<{ method: string; table: string; id: string; accountId?: string }> =>
+  JSON.parse((call[1] as RequestInit).body as string).ops
+
 describe('ServerSyncAdapter.saveAll', () => {
-  it('issues the diffed PUT/DELETE requests in order', async () => {
+  it('sends the diffed ops to /api/batch in one ordered request', async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x/', fetchImpl)
     await a.saveAll(withData({ clients: [client('c1')], projects: [project('p1', 'c1')] }))
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
-    expect(calls.map((c) => `${(c[1] as RequestInit).method} ${c[0]}`)).toEqual([
-      'PUT http://x/api/clients/c1',
-      'PUT http://x/api/projects/p1',
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toBe('http://x/api/batch')
+    expect((calls[0][1] as RequestInit).method).toBe('POST')
+    expect(batchOps(calls[0]).map((o) => `${o.method} ${o.table}/${o.id}`)).toEqual([
+      'PUT clients/c1', // upserts parent-first
+      'PUT projects/p1',
     ])
   })
 
-  it('does NOT advance the snapshot on failure, so the next save replays the delta', async () => {
+  it('does NOT advance the snapshot on a failed batch, so the next save replays the delta', async () => {
     let failNext = false
-    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      const isWrite = init?.method === 'PUT' || init?.method === 'DELETE'
-      if (isWrite && failNext && url.includes('/api/')) return new Response('boom', { status: 500 })
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith('/api/batch') && failNext) return new Response('boom', { status: 500 })
       return new Response('{}', { status: 200 })
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
@@ -116,51 +122,28 @@ describe('ServerSyncAdapter.saveAll', () => {
     failNext = true
     await expect(a.saveAll(withData({ clients: [client('c1')] }))).rejects.toThrow()
 
-    // Recover: same state should be retried (still one PUT for c1).
+    // Recover: the same state replays as one batch with c1 (not lost).
     failNext = false
-    const before = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
     await a.saveAll(withData({ clients: [client('c1')] }))
-    const after = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
-      .slice(before)
-      .filter((c) => (c[1] as RequestInit | undefined)?.method === 'PUT')
-    expect(after).toHaveLength(1) // replayed, not lost
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(1)
+    expect(batchOps(calls[0])).toHaveLength(1)
   })
 
-  it('issues writes with keepalive so a pagehide flush is not cancelled by the unload', async () => {
+  it('flushes on unload as ONE keepalive batch request (survives the page teardown, no per-op FK race)', async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
-    await a.saveAll(withData({ clients: [client('c1')] }))
-    const init = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0][1] as RequestInit
+    await a.saveAll(withData({ clients: [client('c1')], projects: [project('p1', 'c1')] }), { unload: true })
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(1)
+    expect(calls[0][0]).toBe('http://x/api/batch')
+    const init = calls[0][1] as RequestInit
     expect(init.keepalive).toBe(true)
+    expect(batchOps(calls[0])).toHaveLength(2) // all ops in one ordered request
   })
 
-  it('on an UNLOAD flush dispatches EVERY op up-front (not awaiting each), so a pagehide sends them all', async () => {
-    const dispatched: string[] = []
-    let release: () => void = () => {}
-    const gate = new Promise<void>((r) => {
-      release = r
-    })
-    // Responses never resolve until released — simulates the page tearing down before any
-    // response lands. A sequential await-loop would only get the FIRST request out; the
-    // unload path must fire all three synchronously.
-    const fetchImpl = vi.fn((url: string) => {
-      dispatched.push(url)
-      return gate.then(() => new Response('{}', { status: 200 }))
-    }) as unknown as typeof fetch
-    const a = new ServerSyncAdapter('http://x', fetchImpl)
-
-    const p = a.saveAll(withData({ clients: [client('c1'), client('c2'), client('c3')] }), { unload: true })
-    await Promise.resolve() // let the synchronous dispatch settle past any microtask boundary
-    expect(dispatched).toEqual([
-      'http://x/api/clients/c1',
-      'http://x/api/clients/c2',
-      'http://x/api/clients/c3',
-    ])
-    release()
-    await p
-  })
-
-  it('puts the owning account on a scoped DELETE URL (so the server can refuse cross-account)', async () => {
+  it('carries the owning account on a scoped DELETE op; accounts (top-level) carry none', async () => {
     const account = { id: 'a1', name: 'Co', color: '#3b82f6', createdAt: TS1, updatedAt: TS1 }
     const prev = withData({ accounts: [account], clients: [client('c1')] })
     const fetchImpl = okFetch() as unknown as typeof fetch
@@ -169,47 +152,9 @@ describe('ServerSyncAdapter.saveAll', () => {
     ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
     await a.saveAll(emptyAppData()) // diff prev→empty = deletes
 
-    const deleteUrls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
-      .filter((c) => (c[1] as RequestInit | undefined)?.method === 'DELETE')
-      .map((c) => c[0] as string)
-    expect(deleteUrls).toContain('http://x/api/clients/c1?accountId=a1') // scoped
-    expect(deleteUrls).toContain('http://x/api/accounts/a1') // top-level: no query param
-  })
-
-  it('attempts EVERY op even when one fails, so a poison row does not block the others', async () => {
-    const attempted: string[] = []
-    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      if (init?.method === 'PUT' || init?.method === 'DELETE') attempted.push(url)
-      if (url.endsWith('/api/clients/c1')) return new Response('boom', { status: 400 }) // poison row
-      return new Response('{}', { status: 200 })
-    }) as unknown as typeof fetch
-    const a = new ServerSyncAdapter('http://x', fetchImpl)
-
-    await expect(a.saveAll(withData({ clients: [client('c1'), client('c2')] }))).rejects.toThrow()
-    // c2 is still attempted despite c1 failing first (was: stop at first failure → only c1).
-    expect(attempted).toEqual(['http://x/api/clients/c1', 'http://x/api/clients/c2'])
-  })
-
-  it('advances past the ops that LANDED, so only the failed row retries (poison isolated)', async () => {
-    let failC1 = true
-    const attempted: string[] = []
-    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
-      if (init?.method === 'PUT' || init?.method === 'DELETE') attempted.push(url)
-      if (url.endsWith('/api/clients/c1') && failC1) return new Response('boom', { status: 400 })
-      return new Response('{}', { status: 200 })
-    }) as unknown as typeof fetch
-    const a = new ServerSyncAdapter('http://x', fetchImpl)
-
-    // First flush: c1 rejected, c2 lands — both attempted.
-    await expect(a.saveAll(withData({ clients: [client('c1'), client('c2')] }))).rejects.toThrow()
-    expect(attempted).toEqual(['http://x/api/clients/c1', 'http://x/api/clients/c2'])
-
-    // Retry the SAME state: c2 is already synced (snapshot advanced), so ONLY the
-    // previously-failed c1 is re-sent — not a full delta replay.
-    failC1 = false
-    attempted.length = 0
-    await a.saveAll(withData({ clients: [client('c1'), client('c2')] }))
-    expect(attempted).toEqual(['http://x/api/clients/c1'])
+    const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
+    expect(ops.find((o) => o.table === 'clients')).toMatchObject({ method: 'DELETE', id: 'c1', accountId: 'a1' })
+    expect(ops.find((o) => o.table === 'accounts')?.accountId).toBeUndefined()
   })
 
   it('coalesces overlapping saves to the latest state', async () => {
@@ -228,10 +173,10 @@ describe('ServerSyncAdapter.saveAll', () => {
     const p2 = a.saveAll(withData({ clients: [client('c1'), client('c2')] }))
     resolveFirst!()
     await Promise.all([p1, p2])
-    const puts = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.filter(
-      (c) => (c[1] as RequestInit | undefined)?.method === 'PUT',
+    const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
+      batchOps(c).map((o) => o.id),
     )
-    // c1 (first flush) then c2 (coalesced second flush) — c1 not re-sent.
-    expect(puts.map((c) => c[0])).toEqual(['http://x/api/clients/c1', 'http://x/api/clients/c2'])
+    // first batch: [c1]; coalesced second batch: [c2] only (c1 already synced).
+    expect(batches).toEqual([['c1'], ['c2']])
   })
 })

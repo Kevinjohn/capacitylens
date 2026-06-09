@@ -10,6 +10,7 @@ import { validateText } from '../../lib/validation'
 import { MAX_NAME_LENGTH } from '@floaty/shared/lib/strings'
 import {
   Button,
+  Callout,
   DateField,
   FieldError,
   Modal,
@@ -20,6 +21,7 @@ import {
   type Option,
 } from '../common/ui'
 import { inputClass } from '../common/controls'
+import { capacityAdvisory } from '../../lib/capacity'
 import { ALLOCATION_STATUS_OPTIONS } from '../../lib/metadata'
 import type { AllocationStatus, ISODate } from '@floaty/shared/types/entities'
 
@@ -230,6 +232,11 @@ export function AllocationModal(props: AllocationModalProps) {
 
   const onDuplicate = () => {
     if (!editing) return
+    // Run the copied note through the same validator as Save, for symmetry: an existing note is
+    // already clean, but this keeps the one note-handling rule in ONE place (a future paste-edited
+    // or imported note can't slip an over-long / junk value past the duplicate path).
+    const cleanNote = validateText(editing.note ?? '', fail, { field: 'note', required: false, multiline: true })
+    if (cleanNote === null) return
     try {
       addAllocation({
         resourceId: editing.resourceId,
@@ -238,7 +245,7 @@ export function AllocationModal(props: AllocationModalProps) {
         endDate: editing.endDate,
         hoursPerDay: editing.hoursPerDay,
         status: editing.status,
-        note: editing.note,
+        note: cleanNote ? cleanNote : undefined,
         ignoreWeekends: editing.ignoreWeekends,
       })
       onClose()
@@ -250,6 +257,20 @@ export function AllocationModal(props: AllocationModalProps) {
   // In create mode the assignee is already chosen (the user clicked the + next to
   // their row), so we drop the Assignee select and name them in the title instead.
   const createName = create ? (initialResource?.name ?? initialResource?.role ?? 'resource') : undefined
+
+  // Non-blocking capacity advisory (DECISIONS.md: "advisory at allocation time"). The drag-move
+  // path shows this as a post-commit toast; surface it HERE too — on the create/edit surface that
+  // every keyboard user and every "+"-create reaches. Saving stays allowed (advisory, never a block).
+  const advisory = (() => {
+    if (!selectedResource || !startDate || !effEndDate) return null
+    const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId)
+    const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId)
+    const { overDays, timeOffDays } = capacityAdvisory(selectedResource, others, resourceTimeOff, startDate, effEndDate, effHoursPerDay)
+    const bits: string[] = []
+    if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
+    if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
+    return bits.length ? bits.join(' and ') : null
+  })()
 
   return (
     <Modal
@@ -369,6 +390,7 @@ export function AllocationModal(props: AllocationModalProps) {
         <span>Ignore weekends</span>
       </label>
 
+      {advisory && <Callout>This allocation is {advisory}. Saving is still allowed.</Callout>}
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

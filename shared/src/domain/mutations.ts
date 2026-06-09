@@ -1,6 +1,7 @@
 import { newId } from '../lib/id'
 import { validateAllocationAssignment, validateDateRange } from '../lib/integrity'
 import { sanitizeImportedRecord } from '../lib/sanitizeImport'
+import { belongsToAccount, notInAccount } from './tenancy'
 import { SCOPED_KEYS, scopedTables } from '../types/entities'
 import type {
   Allocation,
@@ -41,7 +42,7 @@ export function findOwned<K extends ScopedEntityKey>(
 ): AppData[K][number] | null {
   const row = (data[key] as ScopedEntity[]).find((e) => e.id === id)
   if (!row) return null
-  if (row.accountId !== accountId) {
+  if (!belongsToAccount(row, accountId)) {
     throw new Error('That record does not belong to the active company.')
   }
   return row as AppData[K][number]
@@ -60,7 +61,7 @@ export function assertScopedRefs(
 ): void {
   const present = (field: string) => rec[field] !== undefined && rec[field] !== null
   const inAccount = (table: ScopedEntity[], id: unknown): boolean =>
-    typeof id === 'string' && table.some((e) => e.id === id && e.accountId === accountId)
+    typeof id === 'string' && table.some((e) => e.id === id && belongsToAccount(e, accountId))
   const need = (field: string, table: ScopedEntity[], msg: string) => {
     if (present(field) && !inAccount(table, rec[field])) throw new Error(msg)
   }
@@ -73,16 +74,21 @@ export function assertScopedRefs(
       break
     case 'tasks': {
       need('projectId', data.projects, 'Task must reference a project in this company.')
-      need('phaseId', data.phases, 'Task phase must belong to this company.')
       // A phase belongs to exactly one project, so a task's phase must be a phase OF
       // the task's own project — otherwise the task is silently double-bound to two
       // projects, and deleting the phase's project orphans the task's phaseId.
       if (present('phaseId')) {
+        // Resolve the in-account phase ONCE: its absence is the "belong to this company"
+        // failure (same check `need` would do), and its projectId feeds the coherence
+        // check below — no second scan of data.phases.
+        const phase = data.phases.find(
+          (p) => p.id === rec.phaseId && belongsToAccount(p, accountId),
+        )
+        if (!phase) throw new Error('Task phase must belong to this company.')
         if (!present('projectId')) {
           throw new Error('A task with a phase must also belong to that phase’s project.')
         }
-        const phase = data.phases.find((p) => p.id === rec.phaseId && p.accountId === accountId)
-        if (phase && phase.projectId !== rec.projectId) {
+        if (phase.projectId !== rec.projectId) {
           throw new Error('Task phase must belong to the task’s project.')
         }
       }
@@ -107,8 +113,8 @@ export function assertAllocationRefs(
   resourceId: ID,
   taskId: ID,
 ): void {
-  const resource = data.resources.find((r) => r.id === resourceId && r.accountId === accountId)
-  const task = data.tasks.find((t) => t.id === taskId && t.accountId === accountId)
+  const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
+  const task = data.tasks.find((t) => t.id === taskId && belongsToAccount(t, accountId))
   if (!resource || !task) {
     throw new Error('Allocation must reference an existing resource and task in this company.')
   }
@@ -124,7 +130,7 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
 
 /** Time off references a resource exactly as an allocation does. */
 export function assertResourceExists(data: AppData, accountId: ID, resourceId: ID): void {
-  if (!data.resources.some((r) => r.id === resourceId && r.accountId === accountId)) {
+  if (!data.resources.some((r) => r.id === resourceId && belongsToAccount(r, accountId))) {
     throw new Error('Time off must reference an existing resource in this company.')
   }
 }
@@ -138,7 +144,7 @@ export function deleteAccountCascade(data: AppData, accountId: ID): AppData {
   const src = scopedTables(data)
   const dst = scopedTables(next)
   for (const key of SCOPED_KEYS) {
-    dst[key] = src[key].filter((e) => e.accountId !== accountId)
+    dst[key] = src[key].filter(notInAccount(accountId))
   }
   return next
 }
@@ -281,7 +287,7 @@ export function remapAndValidateImport(
   const dst = scopedTables(next)
   let imported = 0
   for (const key of SCOPED_KEYS) {
-    const kept = srcKept[key].filter((e) => e.accountId !== accountId)
+    const kept = srcKept[key].filter(notInAccount(accountId))
     dst[key] = [...kept, ...(brought[key] as unknown as ScopedEntity[])]
     imported += brought[key].length
   }

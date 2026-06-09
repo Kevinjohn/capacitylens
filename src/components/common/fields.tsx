@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@floaty/shared/lib/strings'
-import { SWATCHES, SWATCH_COLUMNS } from '../../lib/palette'
+import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from '../../lib/palette'
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
 // be exported without tripping react-refresh/only-export-components on this file.
 import { inputClass, selectChevronClass, selectChevronStyle } from './controls'
@@ -114,7 +114,10 @@ export function TextAreaField({
         rows={2}
         value={value}
         maxLength={maxLength}
-        aria-label={label}
+        // No aria-label: this field carries no required-asterisk (plain <span> label, not
+        // FieldLabel), so the wrapping <label> IS the accessible name with nothing to leak.
+        // The asterisk-bearing fields (TextField/Number/Date/Select) keep aria-label so the
+        // decorative " *" never bleeds into their name. (2.13 de-dup, conservative scope.)
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}
@@ -316,7 +319,7 @@ export function ColorField({
           onClick={() => setOpen((o) => !o)}
           aria-haspopup="true"
           aria-expanded={open}
-          aria-label={`${label} (${value})`}
+          aria-label={`${label} (${colorName(value)})`}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? describedById : undefined}
           className={`${controlClass(invalid)} ${selectChevronClass} flex items-center gap-2 text-left`}
@@ -336,13 +339,13 @@ export function ColorField({
             className="absolute bottom-full left-0 z-10 mb-1 grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line"
             style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
           >
-            {SWATCHES.map((hex) => {
+            {SWATCHES.map((hex, i) => {
               const selected = hex.toLowerCase() === value.toLowerCase()
               return (
                 <button
                   key={hex}
                   type="button"
-                  aria-label={hex}
+                  aria-label={swatchLabel(i)}
                   // aria-pressed both conveys selection and lets the Modal's dirty-guard
                   // register the pick as an edit (a plain button click fires no change).
                   aria-pressed={selected}

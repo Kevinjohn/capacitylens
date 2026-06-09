@@ -52,8 +52,15 @@ const put = (app: FastifyInstance, entity: string, id: string, payload: unknown)
   call(app, { method: 'PUT', url: `/api/${entity}/${id}`, payload: body(payload) })
 const patch = (app: FastifyInstance, entity: string, id: string, payload: unknown) =>
   call(app, { method: 'PATCH', url: `/api/${entity}/${id}`, payload: body(payload) })
-const del = (app: FastifyInstance, entity: string, id: string) =>
-  call(app, { method: 'DELETE', url: `/api/${entity}/${id}` })
+// Scoped tables now REQUIRE an asserted owning account on DELETE; pass accountId for them.
+// accounts (top-level) carry none, so accountId is omitted there.
+const del = (app: FastifyInstance, entity: string, id: string, accountId?: string) =>
+  call(app, {
+    method: 'DELETE',
+    url: accountId ? `/api/${entity}/${id}?accountId=${accountId}` : `/api/${entity}/${id}`,
+  })
+const batch = (app: FastifyInstance, ops: unknown[]) =>
+  call(app, { method: 'POST', url: '/api/batch', payload: body({ ops }) })
 const state = async (app: FastifyInstance) => (await call(app, { method: 'GET', url: '/api/state' })).json()
 
 /** Seed a minimal account → client → project → task → person chain. */
@@ -98,7 +105,7 @@ describe('CRUD round-trip', () => {
     const res = await patch(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Renamed' })
     expect(res.statusCode).toBe(200)
     expect(res.json().name).toBe('Renamed')
-    expect((await del(app, 'clients', 'c1')).statusCode).toBe(204)
+    expect((await del(app, 'clients', 'c1', 'a1')).statusCode).toBe(204)
     expect((await state(app)).clients).toHaveLength(0)
   })
 
@@ -149,6 +156,15 @@ describe('CRUD round-trip', () => {
     expect((await state(app)).clients).toHaveLength(0)
   })
 
+  it('refuses a scoped delete that omits accountId (the by-id bypass is closed → 400)', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    // A scoped delete MUST assert its owner; omitting accountId can't prove ownership, so
+    // it is a 400 rather than an unscoped delete-by-id (the old tenant-guard bypass).
+    expect((await call(app, { method: 'DELETE', url: '/api/clients/c1' })).statusCode).toBe(400)
+    expect((await state(app)).clients).toHaveLength(1) // not deleted
+  })
+
   it('preserves the immutable createdAt on update (a PUT cannot rewrite it)', async () => {
     const { app } = freshApp()
     await scaffold(app)
@@ -169,9 +185,10 @@ describe('CRUD round-trip', () => {
     expect((await call(app, { method: 'GET', url: '/api/meta' })).json()).toEqual({ hasData: true })
   })
 
-  it('DELETE is idempotent (missing id still 204)', async () => {
+  it('DELETE is idempotent (missing id still 204 when the owner is asserted)', async () => {
     const { app } = freshApp()
-    expect((await del(app, 'clients', 'ghost')).statusCode).toBe(204)
+    await post(app, 'accounts', account('a1'))
+    expect((await del(app, 'clients', 'ghost', 'a1')).statusCode).toBe(204)
   })
 
   it('PUT upserts idempotently: first call creates, second overwrites (no conflict)', async () => {
@@ -207,7 +224,7 @@ describe('cascade deletes (DB foreign keys mirror the store cascades)', () => {
     const { app } = freshApp()
     await scaffold(app)
     await post(app, 'allocations', allocation('al1', 'a1', 'r1', 't1'))
-    await del(app, 'clients', 'c1')
+    await del(app, 'clients', 'c1', 'a1')
     const s = await state(app)
     expect(s.clients).toHaveLength(0)
     expect(s.projects).toHaveLength(0)
@@ -221,11 +238,73 @@ describe('cascade deletes (DB foreign keys mirror the store cascades)', () => {
     await post(app, 'accounts', account('a1'))
     await post(app, 'disciplines', { id: 'd1', accountId: 'a1', name: 'Design', sortOrder: 0, ...meta() })
     await post(app, 'resources', { ...person('r1', 'a1'), disciplineId: 'd1' })
-    await del(app, 'disciplines', 'd1')
+    await del(app, 'disciplines', 'd1', 'a1')
     const s = await state(app)
     expect(s.disciplines).toHaveLength(0)
     expect(s.resources).toHaveLength(1)
     expect(s.resources[0].disciplineId).toBeUndefined()
+  })
+})
+
+describe('batch sync (/api/batch — transactional, ordered)', () => {
+  it('reparent + delete of the OLD parent in one batch preserves the moved subtree', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    await post(app, 'clients', client('c1', 'a1'))
+    await post(app, 'clients', client('c2', 'a1'))
+    await post(app, 'projects', project('p1', 'a1', 'c1')) // p1 under c1
+    await post(app, 'tasks', task('t1', 'a1', 'p1'))
+    // One batch: move p1 to c2 (upsert), then delete c1. Upserts-before-deletes inside a
+    // single tx means p1's new clientId lands BEFORE c1's ON DELETE CASCADE runs — so p1
+    // and its descendant t1 survive (the bug this fix closes would cascade-delete them).
+    const res = await batch(app, [
+      { method: 'PUT', table: 'projects', id: 'p1', row: { ...project('p1', 'a1', 'c2'), updatedAt: '2026-02-01T00:00:00.000Z' } },
+      { method: 'DELETE', table: 'clients', id: 'c1', accountId: 'a1' },
+    ])
+    expect(res.statusCode).toBe(200)
+    const s = await state(app)
+    expect(s.clients.map((c: { id: string }) => c.id)).toEqual(['c2'])
+    expect(s.projects).toHaveLength(1)
+    expect(s.projects[0].clientId).toBe('c2') // reparented, not cascade-deleted
+    expect(s.tasks).toHaveLength(1) // descendant preserved
+  })
+
+  it('rolls the WHOLE batch back if any op fails (atomic)', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    // First op valid (new client c3); second references a missing client → validation 400.
+    const res = await batch(app, [
+      { method: 'PUT', table: 'clients', id: 'c3', row: client('c3', 'a1') },
+      { method: 'PUT', table: 'projects', id: 'bad', row: project('bad', 'a1', 'ghost-client') },
+    ])
+    expect(res.statusCode).toBe(400)
+    const s = await state(app)
+    expect(s.clients).toHaveLength(0) // c3 rolled back with the bad op — nothing persisted
+    expect(s.projects).toHaveLength(0)
+  })
+
+  it('refuses a cross-account delete inside a batch and rolls back', async () => {
+    const { app } = freshApp()
+    await scaffold(app) // c1 in a1
+    await post(app, 'accounts', account('a2'))
+    const res = await batch(app, [{ method: 'DELETE', table: 'clients', id: 'c1', accountId: 'a2' }])
+    expect(res.statusCode).toBe(400)
+    expect((await state(app)).clients).toHaveLength(1) // c1 untouched
+  })
+
+  it('rejects a scoped delete op that omits accountId', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    const res = await batch(app, [{ method: 'DELETE', table: 'clients', id: 'c1' }])
+    expect(res.statusCode).toBe(400)
+    expect((await state(app)).clients).toHaveLength(1)
+  })
+
+  it('rejects an unknown table / bad op shape', async () => {
+    const { app } = freshApp()
+    expect((await batch(app, [{ method: 'PUT', table: 'widgets', id: 'x', row: { id: 'x' } }])).statusCode).toBe(400)
+    expect((await batch(app, [{ method: 'PUT', table: 'clients', id: 'c1', row: { id: 'OTHER' } }])).statusCode).toBe(400)
+    expect((await call(app, { method: 'POST', url: '/api/batch', payload: body({ nope: true }) })).statusCode).toBe(400)
   })
 })
 

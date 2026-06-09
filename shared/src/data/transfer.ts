@@ -1,4 +1,7 @@
-import { migrate } from './migrate'
+// The Floaty shape guards (looksLikeFloaty / hasNonArrayKnownTable) live in migrate.ts —
+// next to the migrate they gate, so the "is this even Floaty" check and the transform it
+// protects can't drift (mirrors schedule/diary). Imported back here for the parse path.
+import { migrate, looksLikeFloaty, hasNonArrayKnownTable } from './migrate'
 import { SCHEMA_VERSION } from '../types/entities'
 import type { AppData, PersistedState } from '../types/entities'
 
@@ -11,21 +14,6 @@ export function serializeData(data: AppData): string {
   return JSON.stringify(state, null, 2)
 }
 
-const KNOWN_KEYS = ['accounts', 'disciplines', 'resources', 'clients', 'projects', 'phases', 'tasks', 'allocations', 'timeOff']
-
-// Recognisable-Floaty guard for the IMPORT path: any JSON that parses but isn't
-// shaped like Floaty data would otherwise be migrated to an EMPTY dataset and
-// silently wipe the user's data. (The load path stays lenient on purpose.)
-function looksLikeFloaty(value: unknown): boolean {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-  const obj = value as Record<string, unknown>
-  const candidate =
-    'data' in obj && obj.data && typeof obj.data === 'object' && !Array.isArray(obj.data)
-      ? (obj.data as Record<string, unknown>)
-      : obj
-  return KNOWN_KEYS.some((k) => Array.isArray(candidate[k]))
-}
-
 // Guard against a JSON bomb / runaway file: a real agency dataset is thousands of
 // rows, not millions. Refuse anything wildly out of range rather than locking the
 // main thread trying to remap and render it. (Pairs with the file-size cap at the
@@ -33,9 +21,19 @@ function looksLikeFloaty(value: unknown): boolean {
 export const MAX_IMPORT_RECORDS = 200_000
 
 export function parseData(json: string): AppData {
-  const raw: unknown = JSON.parse(json)
+  let raw: unknown
+  try {
+    raw = JSON.parse(json)
+  } catch {
+    throw new Error("That file isn't valid JSON.")
+  }
   if (!looksLikeFloaty(raw)) {
     throw new Error('This file is not Floaty data.')
+  }
+  // Reject a structurally damaged file (a known table present but not a list) rather than
+  // letting migrate() silently coerce it to [] and under-report the loss. See above.
+  if (hasNonArrayKnownTable(raw)) {
+    throw new Error('This file is damaged: a data table is not a list. Nothing was imported.')
   }
   const data = migrate(raw)
   const total = Object.values(data).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0)
