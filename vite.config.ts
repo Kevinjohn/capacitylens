@@ -14,14 +14,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: true,
-    include: ['src/**/*.{test,spec}.{ts,tsx}'],
+    include: ['src/**/*.{test,spec}.{ts,tsx}', 'shared/**/*.{test,spec}.ts'],
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text-summary', 'html'],
-      include: ['src/**/*.{ts,tsx}'],
+      include: ['src/**/*.{ts,tsx}', 'shared/src/**/*.ts'],
       exclude: [
-        'src/**/*.test.{ts,tsx}',
+        '**/*.test.{ts,tsx}',
         'src/test/**',
         'src/main.tsx',
         'src/router.tsx',

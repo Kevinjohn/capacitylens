@@ -92,7 +92,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   header uses `minHeight`); import id-dedup beyond repair.
 
 ## Testing & process
-- **Green gate** = `tsc -b` + `eslint .` + `vitest run` + `playwright test` + `vite build`.
+- **Green gate** = `npm run gate` (`tsc -b` + `eslint .` + `vitest run` + `vite build`) **and**
+  `npm run e2e` (`playwright test`). The `server/` workspace is out of the root gate (needs
+  `--experimental-sqlite`); `npm run gate:server` covers it.
 - **Two oracles beyond "tests pass":** screenshots are the **visual** oracle (role/DOM
   assertions prove behaviour, not appearance); `@axe-core/playwright` is the **a11y** oracle
   (light + dark + a modal).

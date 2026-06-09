@@ -36,3 +36,27 @@ The single source of truth is a normalized store, multi-tenant by **Account**
 - **Time off** — per-resource unavailable ranges.
 
 The canonical type definitions live in `shared/src/types/entities.ts`.
+
+## The green gate
+
+```bash
+npm run gate         # tsc -b && eslint . && vitest run && vite build
+npm run gate:server  # type-check + test the optional server/ workspace
+npm run e2e          # Playwright (boots its own dev server)
+```
+
+The `server/` workspace is kept out of the root `gate` (it needs `--experimental-sqlite`); run it
+separately with `gate:server`. CI runs all three.
+
+## Docs map
+
+- **`DECISIONS.md`** — slim, present-tense digest of standing decisions that constrain the code
+  (read it whole; it's short).
+- **`NEEDS-INPUT.md`** — open product questions to revisit with the owner.
+- **`docs/decisions-log.md`** — dated, append-only build/remediation log (large — grep or tail it,
+  don't read it whole).
+- **`CODE_REVIEW.md`** — findings from the big review passes (referenced by the log).
+- **`CLAUDE.md`** — working notes for the AI pair.
+- **`user-stories/REFERENCE.md`** — routes / labels / `data-testid`s / seed data, the single source
+  of truth the E2E specs lean on.
+- **`server/README.md`** — how to run and reason about the optional API.

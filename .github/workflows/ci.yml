@@ -1,11 +1,9 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -13,20 +11,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # Node 22+: the server uses the built-in node:sqlite (--experimental-sqlite),
-          # which does not exist on Node 20. The e2e job boots that server.
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npm run lint
-      - run: npm run build
-      # The root `npm run test` only covers the web package (src/**). Run the shared
-      # and server package suites + type-checks explicitly so the API and domain-core
-      # are actually verified in CI, not just the UI.
+      - run: npm run gate
       - run: npm run type-check --workspace=shared
-      - run: npm run type-check --workspace=server
-      - run: npm run test --workspace=shared
-      - run: npm run test --workspace=server
-      - run: npm run test
+      - run: npm run gate:server
       - run: npx playwright install --with-deps chromium
       - run: npm run e2e

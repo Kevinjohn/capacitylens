@@ -82,6 +82,20 @@ describe('account CRUD', () => {
 describe('setActiveAccount resets per-account view state', () => {
   beforeEach(() => s().replaceAll(twoAccountData()))
 
+  it('switching the active account changes the rows in scope (read-side isolation)', () => {
+    // Drives the switch the way useScopedData composes it — scopeData(data, activeAccountId) —
+    // so it proves the *transition* changes the visible row set, not just that scopeData filters.
+    s().setActiveAccount('a1')
+    const a1 = scopeData(s().data, s().activeAccountId!)
+    expect(a1.clients.map((c) => c.id)).toEqual(['c1'])
+    expect(a1.projects.map((p) => p.id)).toEqual(['p1'])
+
+    s().setActiveAccount('a2')
+    const a2 = scopeData(s().data, s().activeAccountId!)
+    expect(a2.clients.map((c) => c.id)).toEqual(['c2'])
+    expect(a2.projects.map((p) => p.id)).toEqual(['p2'])
+  })
+
   it('clears filters, collapsed groups, selection and history on switch', () => {
     s().setActiveAccount('a1')
     s().setFilters({ search: 'x' })
