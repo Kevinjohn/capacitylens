@@ -1,6 +1,10 @@
 import { DatabaseSync } from 'node:sqlite'
-import { emptyAppData } from '@floaty/shared/types/entities'
+import { emptyAppData, isEmpty } from '@floaty/shared/types/entities'
 import type { AppData } from '@floaty/shared/types/entities'
+
+// Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
+// keep resolving it from this module; the single definition lives in shared/types.
+export { isEmpty }
 import { TABLES, SCHEMA_SQL, CREATE_ORDER, SCOPED_ORDER } from './tables'
 import { tx } from './txn'
 import { toRow, fromRow, type Row } from './rowCodec'
@@ -91,10 +95,6 @@ export function loadState(db: Db): AppData {
     data[table] = db.prepare(`SELECT * FROM ${table}`).all().map((r) => fromRow(spec, r))
   }
   return data as unknown as AppData
-}
-
-export function isEmpty(data: AppData): boolean {
-  return Object.values(data).every((v) => Array.isArray(v) && v.length === 0)
 }
 
 /** Persistent "this dataset has been initialised" marker, set on the first write. Unlike

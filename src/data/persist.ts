@@ -1,5 +1,5 @@
 import type { StoreApi } from 'zustand'
-import { emptyAppData } from '@floaty/shared/types/entities'
+import { emptyAppData, isEmpty } from '@floaty/shared/types/entities'
 import type { AppData } from '@floaty/shared/types/entities'
 import type { StoreState } from '../store/useStore'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
@@ -153,10 +153,6 @@ export interface BootstrapOptions {
   /** Called after a persistence write succeeds — lets the caller clear a prior
    *  error state once saving recovers (e.g. the server comes back). */
   onSuccess?: () => void
-}
-
-function isEmpty(data: AppData): boolean {
-  return Object.values(data).every((v) => Array.isArray(v) && v.length === 0)
 }
 
 export async function bootstrap(

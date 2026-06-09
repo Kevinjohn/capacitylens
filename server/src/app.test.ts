@@ -455,8 +455,19 @@ describe('error status mapping (statusFor)', () => {
 })
 
 describe('CORS allow-list', () => {
-  it("echoes '*' by default", async () => {
+  it('defaults FAIL-CLOSED to the localhost allow-list (not a wildcard)', async () => {
     const { app } = freshApp()
+    // A local dev origin is reflected (it's on the default allow-list)…
+    const local = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://localhost:5173' } })
+    expect(local.headers['access-control-allow-origin']).toBe('http://localhost:5173')
+    // …but an arbitrary site gets NO ACAO header (the browser blocks it) — the factory
+    // never opens to '*' unless explicitly told to.
+    const evil = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
+    expect(evil.headers['access-control-allow-origin']).toBeUndefined()
+  })
+
+  it("echoes '*' only when corsOrigin is explicitly '*'", async () => {
+    const app = buildApp(openDb(':memory:'), { corsOrigin: '*' })
     const res = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
     expect(res.headers['access-control-allow-origin']).toBe('*')
   })

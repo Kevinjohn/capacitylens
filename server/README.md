@@ -77,6 +77,9 @@ is client-asserted, not derived from a session, until app-level auth lands (see 
 
 - `FLOATY_DB` — SQLite path (default `floaty.db`; `:memory:` works).
 - `PORT` — default `8787`.
+- `FLOATY_HOST` — listen host. **Defaults to `127.0.0.1` (localhost-only)** so a dev/laptop
+  run is not reachable from the LAN. Set it to `0.0.0.0` to deliberately expose the API on the
+  network (container / LAN / deploy).
 - `FLOATY_ALLOW_RESET` — `1` to expose `POST /api/test/reset` (dev/E2E only).
 - `FLOATY_CORS_ORIGIN` — CORS allow-list, comma-separated, or `*` to allow any
   origin. **Defaults to the local Vite dev/e2e origins** so the API is not open to

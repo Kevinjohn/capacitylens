@@ -133,7 +133,7 @@ export function AppShell() {
       <main className="flex-1 overflow-auto">
         {persistError && (
           <div role="alert" className="bg-danger px-4 py-2 text-sm font-medium text-white">
-            Changes aren’t being saved — your browser storage is full or unavailable.
+            Changes aren’t being saved right now — we’ll keep retrying.
           </div>
         )}
         {hydrated ? (

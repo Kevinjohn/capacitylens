@@ -22,11 +22,21 @@ import {
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024
 
+// Fail-CLOSED CORS default: only the local Vite dev/e2e origins may make cross-origin
+// browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
+// to pass corsOrigin is still locked down; opening the API to every site requires an
+// EXPLICIT '*'. The entrypoint (index.ts) imports this same default and lets
+// FLOATY_CORS_ORIGIN override it for a deliberate deploy.
+export const DEFAULT_CORS =
+  'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273'
+
 export interface AppOptions {
   /** Gate POST /api/test/reset — only enabled for tests / explicit dev opt-in. */
   allowReset?: boolean
-  /** CORS allow-list: '*' (default, dev/tests) or a comma-separated origin list.
-   *  The production entrypoint (index.ts) passes a locked-down default. */
+  /** CORS allow-list: a comma-separated origin list, or an EXPLICIT '*' to allow any
+   *  origin. Defaults FAIL-CLOSED to the localhost allow-list (DEFAULT_CORS) when
+   *  omitted — so the factory is safe even if a caller forgets to pass it. The
+   *  entrypoint (index.ts) passes the FLOATY_CORS_ORIGIN override. */
   corsOrigin?: string
   /** When true, PUT rejects a write whose row is older than the stored row
    *  (updatedAt compare) with 409. Default off: the prototype is single-dataset,
@@ -70,12 +80,22 @@ export function statusFor(err: unknown): number {
 }
 
 function fail(reply: FastifyReply, err: unknown) {
-  return reply.code(statusFor(err)).send({ error: err instanceof Error ? err.message : String(err) })
+  const status = statusFor(err)
+  // 400s are caller-fault (validation / FK / constraint) and their specific message is
+  // useful — keep it. A 500 is an unexpected server/db bug: log the real error
+  // server-side but return a GENERIC body so we never leak internals (stack-ish messages,
+  // SQL, paths) to the client.
+  if (status === 500) {
+    console.error(err)
+    return reply.code(500).send({ error: 'Internal server error' })
+  }
+  return reply.code(status).send({ error: err instanceof Error ? err.message : String(err) })
 }
 
 export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const app = Fastify({ bodyLimit: BODY_LIMIT })
-  const corsOrigin = opts.corsOrigin ?? '*'
+  // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
+  const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
 
   // No app-level auth in this phase. CORS is the only cross-origin gate, so the
   // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
