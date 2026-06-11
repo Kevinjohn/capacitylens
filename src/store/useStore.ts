@@ -103,6 +103,10 @@ export interface SchedulerUI {
   filters: Filters
   collapsedGroups: string[] // discipline group keys that are collapsed
   recenterToken: number // bumped to ask the grid to scroll focusDate back into view
+  /** Transient: when set, SchedulerGrid scrolls the given resource row into view.
+   *  Token-per-request (like recenterToken) so the effect re-fires even for the
+   *  same resource id. Never persisted; never on the undo stack. */
+  scrollToResource: { id: ID; token: number } | null
 }
 
 export interface StoreState {
@@ -212,6 +216,10 @@ export interface StoreState {
   setFilters: (patch: Partial<Filters>) => void
   clearFilters: () => void
   toggleGroup: (key: string) => void
+  /** Clear schedule filters (so the resource row is visible) then set
+   *  scrollToResource — SchedulerGrid watches this to scroll the row into view.
+   *  Transient UI: NOT persisted, NOT on the undo stack. */
+  jumpToResource: (id: ID) => void
 }
 
 const stamp = () => {
@@ -236,6 +244,7 @@ const defaultUI = (): SchedulerUI => {
     filters: emptyFilters(),
     collapsedGroups: [],
     recenterToken: 0,
+    scrollToResource: null,
   }
 }
 
@@ -586,6 +595,16 @@ export const useStore = create<StoreState>()((set, get) => {
           collapsedGroups: s.ui.collapsedGroups.includes(key)
             ? s.ui.collapsedGroups.filter((k) => k !== key)
             : [...s.ui.collapsedGroups, key],
+        },
+      })),
+    // Transient UI (NOT mutate): clears filters so the row is visible, then bumps
+    // scrollToResource so SchedulerGrid's effect scrolls the row into view.
+    jumpToResource: (id) =>
+      set((s) => ({
+        ui: {
+          ...s.ui,
+          filters: emptyFilters(),
+          scrollToResource: { id, token: (s.ui.scrollToResource?.token ?? 0) + 1 },
         },
       })),
   }

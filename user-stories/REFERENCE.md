@@ -98,6 +98,27 @@ active, **off by default** — filtering hides resources with no matching work; 
 brings them back visible-but-dimmed so you can see who's free to staff), `Clear` (only shown
 when a filter is active).
 
+## Command palette
+
+Opened by **⌘K / Ctrl+K** from anywhere in the app (including while a text field is focused).
+Closed by **Escape**, backdrop click, or selecting an item.
+
+**Sections shown (no query):** Actions ("Go to today"), Pages (all 8 routes).
+**Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Tasks.
+**Special action:** typing a valid ISO date (`YYYY-MM-DD`) shows "Go to date YYYY-MM-DD".
+
+**Selection behaviours:**
+- Page item → navigate to that route.
+- "Go to today" → navigate to `/` + recenter the scheduler on this week.
+- "Go to date YYYY-MM-DD" → navigate to `/` + scroll the scheduler to that date.
+- Person item → navigate to `/` + clear filters + scroll that resource's row into view.
+- Project item → navigate to `/` + set project filter to that project.
+- Client item → navigate to `/` + set client filter to that client.
+- Task item → navigate to `/tasks`.
+
+**Keyboard navigation:** `ArrowUp`/`ArrowDown` move the highlight; `Enter` selects; `Escape` closes.
+Mouse hover sets the active option; mouse click selects.
+
 ## `data-testid`s (for automated checks)
 
 `scheduler-grid`, `scheduler-row`, `discipline-group`, `resource-lane`,
@@ -107,6 +128,9 @@ when a filter is active).
 `import-input`. A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
 `r-ph-designer`, `p-acme` (Project Lightning), `p-brand` (Brand Themes), `t-wires`.
+
+**Command palette:** `command-palette` (outer backdrop), `command-palette-input` (search field),
+`command-palette-option` (each result item; multiple).
 
 ## Domain rules a tester should know
 

@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { ImportExport } from './ImportExport'
@@ -6,6 +6,7 @@ import { AccountPicker } from './accounts/AccountPicker'
 import { StorageRecovery } from './StorageRecovery'
 import { ConnectionError } from './ConnectionError'
 import { Toast } from './common/ui'
+import { CommandPalette } from './CommandPalette'
 
 const LINKS: [string, string][] = [
   ['/', 'Schedule'],
@@ -33,6 +34,7 @@ export function AppShell() {
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
 
   const dirtyForm = useStore((s) => s.dirtyForm)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   // Warn before a tab close / refresh would discard an open form's unsaved edits.
   useEffect(() => {
@@ -53,9 +55,18 @@ export function AppShell() {
     return () => clearTimeout(t)
   }, [notice, setNotice])
 
-  // Global undo/redo: ⌘Z / ⌘⇧Z (ignored while typing in a field).
+  // Global keyboard shortcuts. ⌘K/Ctrl+K opens the command palette (checked FIRST,
+  // before the input bail-out so the palette can open from anywhere — including while
+  // a text field is focused). ⌘Z/⌘⇧Z is undo/redo (ignored while typing).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // ⌘K / Ctrl+K — toggle the command palette from anywhere (including inputs)
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen((prev) => !prev)
+        return
+      }
+
       if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
@@ -153,6 +164,7 @@ export function AppShell() {
         )}
       </main>
       {notice && <Toast message={notice.message} tone={notice.tone} onDismiss={() => setNotice(null)} />}
+      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   )
 }
