@@ -387,7 +387,7 @@ export function AllocationModal(props: AllocationModalProps) {
           checked={ignoreWeekends}
           onChange={(e) => setIgnoreWeekends(e.target.checked)}
         />
-        <span>Ignore weekends</span>
+        <span>Include weekends as working days</span>
       </label>
 
       {advisory && <Callout>This allocation is {advisory}. Saving is still allowed.</Callout>}
