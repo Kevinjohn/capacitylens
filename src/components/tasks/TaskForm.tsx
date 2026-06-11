@@ -45,12 +45,13 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
     <Modal
       title={task ? 'Edit task' : 'Add task'}
       onClose={onClose}
+      onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save</Button>
+          <Button type="submit">Save</Button>
         </>
       }
     >

@@ -53,12 +53,17 @@ export function Button({
 export function Modal({
   title,
   onClose,
+  onSubmit,
   children,
   footer,
   guardDirty = true,
 }: {
   title: ReactNode
   onClose: () => void
+  /** When provided, wraps the body + footer in a <form> so pressing Enter in any
+   *  text input submits. Always rendered (even when undefined) so that implicit
+   *  form submission / page navigation is always suppressed. */
+  onSubmit?: () => void
   children: ReactNode
   footer?: ReactNode
   /** When false, the unsaved-changes guard is disabled so Escape/backdrop always close.
@@ -203,8 +208,10 @@ export function Modal({
             {title}
           </h2>
         </header>
-        <div className="space-y-3 p-4">{children}</div>
-        {footer && <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">{footer}</footer>}
+        <form noValidate onSubmit={(e) => { e.preventDefault(); onSubmit?.() }}>
+          <div className="space-y-3 p-4">{children}</div>
+          {footer && <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">{footer}</footer>}
+        </form>
       </div>
     </div>
   )

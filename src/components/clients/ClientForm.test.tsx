@@ -111,6 +111,31 @@ describe('ClientForm – add mode', () => {
   })
 })
 
+describe('ClientForm – Enter key submission', () => {
+  it('saves when pressing Enter in the name field', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ClientForm onClose={onClose} />)
+
+    await user.type(screen.getByLabelText('Name'), 'Acme Corp')
+    await user.keyboard('{Enter}')
+
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(useStore.getState().data.clients[0].name).toBe('Acme Corp')
+  })
+
+  it('shows validation error when pressing Enter with a blank name', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ClientForm onClose={onClose} />)
+
+    await user.keyboard('{Enter}')
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/name is required/i)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+})
+
 describe('ClientForm – edit mode', () => {
   it('pre-fills the name field with the existing client name', () => {
     const client = useStore.getState().addClient({ name: 'Old Name', color: '#ff0000' })

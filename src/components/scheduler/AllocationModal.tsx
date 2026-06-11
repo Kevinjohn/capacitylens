@@ -284,6 +284,7 @@ export function AllocationModal(props: AllocationModalProps) {
         )
       }
       onClose={onClose}
+      onSubmit={submit}
       footer={
         <>
           {editing && (
@@ -300,7 +301,7 @@ export function AllocationModal(props: AllocationModalProps) {
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save</Button>
+          <Button type="submit">Save</Button>
         </>
       }
     >
@@ -326,6 +327,7 @@ export function AllocationModal(props: AllocationModalProps) {
           aria-label="New task name"
           aria-invalid={errorField === 'newtask' || undefined}
           onChange={(e) => setNewTaskName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddTask() } }}
         />
         <Button variant="ghost" onClick={onAddTask}>
           Add task

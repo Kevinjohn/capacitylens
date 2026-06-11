@@ -89,12 +89,13 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
     <Modal
       title={`${resource ? 'Edit' : 'Add'} ${isPlaceholder ? 'placeholder' : 'resource'}`}
       onClose={onClose}
+      onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save</Button>
+          <Button type="submit">Save</Button>
         </>
       }
     >

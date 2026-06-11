@@ -295,3 +295,71 @@ describe('AllocationModal edit', () => {
     expect(useStore.getState().data.allocations).toHaveLength(2)
   })
 })
+
+describe('AllocationModal Enter key submission', () => {
+  it('submits when Enter is pressed in the Hours/day input (hourly mode)', async () => {
+    useStore.getState().addResource({
+      kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
+    })
+    const resourceId = useStore.getState().data.resources[0].id
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+
+    // Pressing Enter in the Hours/day number input should submit
+    await user.click(screen.getByLabelText('Hours / day'))
+    await user.keyboard('{Enter}')
+
+    expect(onClose).toHaveBeenCalled()
+    expect(useStore.getState().data.allocations).toHaveLength(1)
+  })
+
+  it('does NOT submit when Enter is pressed in the Note textarea', async () => {
+    useStore.getState().addResource({
+      kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
+    })
+    const resourceId = useStore.getState().data.resources[0].id
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+
+    // Pressing Enter in a textarea inserts a newline — it must NOT submit the form
+    const noteTextarea = screen.getByLabelText('Note')
+    await user.click(noteTextarea)
+    await user.keyboard('{Enter}')
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+    // The textarea should now contain a newline
+    expect(noteTextarea).toHaveValue('\n')
+  })
+
+  it('pressing Enter in the new-task input calls onAddTask, not submit', async () => {
+    useStore.getState().addResource({
+      kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
+    })
+    const resourceId = useStore.getState().data.resources[0].id
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
+
+    // Type a task name into the inline "add new task" input and press Enter
+    await user.click(screen.getByLabelText('New task name'))
+    await user.type(screen.getByLabelText('New task name'), 'Brand new task')
+    await user.keyboard('{Enter}')
+
+    // The task should have been created, modal not closed
+    expect(onClose).not.toHaveBeenCalled()
+    const tasks = useStore.getState().data.tasks
+    expect(tasks.some((t) => t.name === 'Brand new task')).toBe(true)
+  })
+})
