@@ -186,6 +186,8 @@ export function remapAndValidateImport(
   }
   // Each foreign-key field points at exactly one table, so a ref is remapped via THAT
   // table's id map (a dangling ref — absent from the map — is left as-is, repaired below).
+  // Type annotation ensures every value is a valid ScopedEntityKey — a typo or a
+  // renamed table fails the type-check here rather than silently remapping to undefined.
   const FK_TARGET: Record<string, ScopedEntityKey> = {
     disciplineId: 'disciplines',
     projectId: 'projects',

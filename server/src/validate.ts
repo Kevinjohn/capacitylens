@@ -7,7 +7,7 @@ import {
 import { sanitizeImportedRecord } from '@floaty/shared/lib/sanitizeImport'
 import { isHexColor } from '@floaty/shared/lib/color'
 import { cleanText } from '@floaty/shared/lib/strings'
-import { SCHEDULING_MODES } from '@floaty/shared/types/entities'
+import { SCHEDULING_MODES, SCOPED_KEYS } from '@floaty/shared/types/entities'
 import type { AppData, ScopedEntityKey } from '@floaty/shared/types/entities'
 
 // The server is the integrity boundary for direct API writes. Two layers, both
@@ -28,9 +28,23 @@ export class ValidationError extends Error {
   }
 }
 
+/**
+ * Guard every write path against a missing or non-string id. SQLite TEXT PRIMARY KEY
+ * permits NULL, so a POST without an id would store an unaddressable `id: null` row;
+ * two such rows can coexist (empirically) and are undeletable by id. Reject early so
+ * the constraint never reaches the DB.
+ */
+export function assertIdPresent(row: Record<string, unknown>): void {
+  if (typeof row.id !== 'string' || row.id.trim() === '') {
+    throw new ValidationError('id must be a non-empty string.')
+  }
+}
+
 const FALLBACK_COLOR = '#6366f1'
+// Derived from SCOPED_KEYS — the single source of truth — so a new entity added to
+// AppData is automatically treated as scoped without an update here.
 const isScopedKey = (table: string): table is ScopedEntityKey =>
-  ['disciplines', 'resources', 'clients', 'projects', 'phases', 'tasks', 'allocations', 'timeOff'].includes(table)
+  (SCOPED_KEYS as string[]).includes(table)
 
 /**
  * Repair the constrained value-level fields of a write body, returning a NEW object
@@ -38,8 +52,12 @@ const isScopedKey = (table: string): table is ScopedEntityKey =>
  * sanitizeImportedRecord; accounts (not a scoped table) get their colour repaired
  * here. A well-formed body from the real client is unchanged — this only bites
  * malformed direct API writes.
+ *
+ * Also rejects any row whose id is not a non-empty string — the single funnel all
+ * write paths flow through, so no path can slip past the NULL-id guard.
  */
 export function sanitizeWrite(table: string, row: Record<string, unknown>): Record<string, unknown> {
+  assertIdPresent(row)
   const copy = { ...row }
   if (table === 'accounts') {
     copy.color = typeof copy.color === 'string' && isHexColor(copy.color) ? copy.color : FALLBACK_COLOR

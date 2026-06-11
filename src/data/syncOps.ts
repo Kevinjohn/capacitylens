@@ -22,6 +22,12 @@ const UPSERT_ORDER = [
 
 type TableKey = (typeof UPSERT_ORDER)[number]
 
+// Exhaustiveness: every AppData key must appear in UPSERT_ORDER and vice versa.
+// Adding a table to AppData without adding it here fails to compile.
+type _MissingFromOrder = Exclude<keyof AppData, TableKey>
+const _orderComplete: _MissingFromOrder extends never ? true : never = true
+void _orderComplete
+
 export interface Op {
   method: 'PUT' | 'DELETE'
   table: TableKey

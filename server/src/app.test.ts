@@ -3,6 +3,17 @@ import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fas
 import { buildApp, statusFor } from './app'
 import { ValidationError } from './validate'
 import { openDb } from './db'
+import {
+  FIXTURE_ACCOUNT,
+  FIXTURE_CLIENT,
+  FIXTURE_DISCIPLINE,
+  FIXTURE_PROJECT,
+  FIXTURE_PHASE,
+  FIXTURE_RESOURCE,
+  FIXTURE_TASK,
+  FIXTURE_ALLOCATION,
+  FIXTURE_TIMEOFF,
+} from '@floaty/shared/data/fixtures'
 
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
@@ -583,5 +594,124 @@ describe('optimistic concurrency (opt-in)', () => {
     const stale = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' })
     expect(stale.statusCode).toBe(200)
     expect((await state(app)).clients[0].name).toBe('Stale')
+  })
+})
+
+describe('null-id rejection (POST/batch without id → 400)', () => {
+  it('POST without an id is rejected with 400', async () => {
+    const { app } = freshApp()
+    const res = await post(app, 'accounts', { name: 'No Id', color: '#3b82f6', ...meta() })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/id/)
+    // nothing persisted
+    expect((await state(app)).accounts).toHaveLength(0)
+  })
+
+  it('POST with id: null is rejected with 400', async () => {
+    const { app } = freshApp()
+    const res = await post(app, 'accounts', { id: null, name: 'Null Id', color: '#3b82f6', ...meta() })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/id/)
+  })
+
+  it('POST with empty-string id is rejected with 400', async () => {
+    const { app } = freshApp()
+    const res = await post(app, 'accounts', { id: '', name: 'Empty Id', color: '#3b82f6', ...meta() })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/id/)
+  })
+
+  it('batch PUT op with a missing/non-string id is rejected with 400', async () => {
+    const { app } = freshApp()
+    // A batch op whose id field is not a string — the batch handler rejects it before
+    // it can reach sanitizeWrite (typeof id !== 'string' check).
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: body({ ops: [{ method: 'PUT', table: 'accounts', row: { name: 'No Id', color: '#3b82f6', ...meta() } }] }),
+    })
+    expect(res.statusCode).toBe(400)
+    expect((await state(app)).accounts).toHaveLength(0)
+  })
+})
+
+describe('full-fixture round-trip (every optional field set; catches column-spec gaps)', () => {
+  // Seed the fixture account + dependency chain, then write each entity via POST and
+  // GET it back via /api/state. Deep-equal catches any column that is present in the
+  // spec but not round-tripping correctly (NULL/optional handling, JSON encode/decode).
+  async function seedFixtureDeps(app: FastifyInstance) {
+    expect((await post(app, 'accounts', FIXTURE_ACCOUNT)).statusCode).toBe(201)
+    expect((await post(app, 'clients', FIXTURE_CLIENT)).statusCode).toBe(201)
+    expect((await post(app, 'disciplines', FIXTURE_DISCIPLINE)).statusCode).toBe(201)
+    expect((await post(app, 'projects', FIXTURE_PROJECT)).statusCode).toBe(201)
+    expect((await post(app, 'phases', FIXTURE_PHASE)).statusCode).toBe(201)
+  }
+
+  it('account: every field round-trips (including optional schedulingMode)', async () => {
+    const { app } = freshApp()
+    expect((await post(app, 'accounts', FIXTURE_ACCOUNT)).statusCode).toBe(201)
+    expect((await state(app)).accounts[0]).toEqual(FIXTURE_ACCOUNT)
+  })
+
+  it('client: every field round-trips', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', FIXTURE_ACCOUNT)
+    expect((await post(app, 'clients', FIXTURE_CLIENT)).statusCode).toBe(201)
+    expect((await state(app)).clients[0]).toEqual(FIXTURE_CLIENT)
+  })
+
+  it('discipline: every field round-trips (including optional color)', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', FIXTURE_ACCOUNT)
+    expect((await post(app, 'disciplines', FIXTURE_DISCIPLINE)).statusCode).toBe(201)
+    expect((await state(app)).disciplines[0]).toEqual(FIXTURE_DISCIPLINE)
+  })
+
+  it('project: every field round-trips', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', FIXTURE_ACCOUNT)
+    await post(app, 'clients', FIXTURE_CLIENT)
+    expect((await post(app, 'projects', FIXTURE_PROJECT)).statusCode).toBe(201)
+    expect((await state(app)).projects[0]).toEqual(FIXTURE_PROJECT)
+  })
+
+  it('phase: every field round-trips', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', FIXTURE_ACCOUNT)
+    await post(app, 'clients', FIXTURE_CLIENT)
+    await post(app, 'projects', FIXTURE_PROJECT)
+    expect((await post(app, 'phases', FIXTURE_PHASE)).statusCode).toBe(201)
+    expect((await state(app)).phases[0]).toEqual(FIXTURE_PHASE)
+  })
+
+  it('resource: every field round-trips (including optional name/disciplineId/projectId + json workingDays)', async () => {
+    const { app } = freshApp()
+    await seedFixtureDeps(app)
+    expect((await post(app, 'resources', FIXTURE_RESOURCE)).statusCode).toBe(201)
+    expect((await state(app)).resources[0]).toEqual(FIXTURE_RESOURCE)
+  })
+
+  it('task: every field round-trips (including optional projectId/phaseId)', async () => {
+    const { app } = freshApp()
+    await seedFixtureDeps(app)
+    expect((await post(app, 'tasks', FIXTURE_TASK)).statusCode).toBe(201)
+    expect((await state(app)).tasks[0]).toEqual(FIXTURE_TASK)
+  })
+
+  it('allocation: every field round-trips (including optional note + json ignoreWeekends + hoursPerDay 0)', async () => {
+    const { app } = freshApp()
+    await seedFixtureDeps(app)
+    await post(app, 'resources', FIXTURE_RESOURCE)
+    await post(app, 'tasks', FIXTURE_TASK)
+    expect((await post(app, 'allocations', FIXTURE_ALLOCATION)).statusCode).toBe(201)
+    expect((await state(app)).allocations[0]).toEqual(FIXTURE_ALLOCATION)
+  })
+
+  it('timeOff: every field round-trips (including optional note)', async () => {
+    const { app } = freshApp()
+    await seedFixtureDeps(app)
+    await post(app, 'resources', FIXTURE_RESOURCE)
+    expect((await post(app, 'timeOff', FIXTURE_TIMEOFF)).statusCode).toBe(201)
+    expect((await state(app)).timeOff[0]).toEqual(FIXTURE_TIMEOFF)
   })
 })

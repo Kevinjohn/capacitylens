@@ -8,12 +8,13 @@ import {
   findOwned,
   remapAndValidateImport,
 } from './mutations'
-import { emptyAppData } from '../types/entities'
+import { emptyAppData, SCOPED_KEYS } from '../types/entities'
 import type {
   Account,
   Allocation,
   AppData,
   Client,
+  Discipline,
   ID,
   Phase,
   Project,
@@ -42,6 +43,11 @@ const person = (id: ID, accountId: ID): Resource => ({
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
   color: '#3b82f6',
+})
+const discipline = (id: ID, accountId: ID): Discipline => ({
+  ...meta(id, accountId),
+  name: 'Design',
+  sortOrder: 0,
 })
 const placeholder = (id: ID, accountId: ID, projectId?: ID): Resource => ({
   ...person(id, accountId),
@@ -399,6 +405,31 @@ describe('remapAndValidateImport', () => {
     const { imported, skipped } = remapAndValidateImport(base(), A1, emptyAppData(), TS)
     expect(imported).toBe(0)
     expect(skipped).toBe(0)
+  })
+
+  it('exhaustiveness: remapAndValidateImport output covers every scoped key (repair order completeness)', () => {
+    // If a new scoped entity is added to SCOPED_KEYS but the import repair block inside
+    // remapAndValidateImport is not updated, the new table's rows would be brought in
+    // without referential repair. This test ensures the import survives and preserves
+    // rows for every scoped table — a missing repair step silently drops or corrupts rows
+    // in the affected table, causing this test to fail.
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      disciplines: [discipline('d', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      resources: [{ ...person('r', 'src'), disciplineId: 'd', projectId: 'p' }],
+      tasks: [task('t', 'src', 'p', 'ph')],
+      allocations: [allocation('al', 'src', 'r', 't')],
+      timeOff: [timeOff('to', 'src', 'r')],
+    }
+    const { data, imported } = remapAndValidateImport(base(), A1, incoming, TS)
+    // Every SCOPED_KEY must be present in the output and non-empty.
+    for (const key of SCOPED_KEYS) {
+      expect(data[key], `key "${key}" must be non-empty after import`).toHaveLength(1)
+    }
+    expect(imported).toBe(SCOPED_KEYS.length)
   })
 
   it('repairs an imported allocation’s unpadded dates instead of dropping it', () => {

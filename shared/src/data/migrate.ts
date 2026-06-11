@@ -1,4 +1,4 @@
-import { emptyAppData } from '../types/entities'
+import { emptyAppData, SCOPED_KEYS } from '../types/entities'
 import type { AppData } from '../types/entities'
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
@@ -10,10 +10,10 @@ import type { AppData } from '../types/entities'
 // (main.tsx), so older keys are orphaned rather than read, and the import path stamps
 // `accountId` on every incoming row (see useStore.importData).
 
-// The known data tables. Lives HERE (not in transfer.ts) because both the shape guards
-// below and migrate() reason about the same set — keeping the list and the guards that
-// read it in one module mirrors schedule/diary and stops the two drifting.
-export const KNOWN_KEYS = ['accounts', 'disciplines', 'resources', 'clients', 'projects', 'phases', 'tasks', 'allocations', 'timeOff']
+// The known data tables. Derived from SCOPED_KEYS (the single source of truth for the
+// scoped tables) plus 'accounts' — adding a new entity to SCOPED_KEYS automatically
+// extends this list, so the two can't drift.
+export const KNOWN_KEYS: string[] = ['accounts', ...SCOPED_KEYS]
 
 // Unwrap the object the import shape-guards inspect: either the bare AppData map, or
 // the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.

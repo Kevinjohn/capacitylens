@@ -124,6 +124,13 @@ export function sanitizeImportedRecord(
     case 'tasks':
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
+    default: {
+      // Exhaustiveness check: if a new ScopedEntityKey is added to the union without
+      // a corresponding case above, this line will fail to compile.
+      const _exhaustive: never = key
+      void _exhaustive
+      break
+    }
   }
   return rec
 }

@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results', '**/node_modules']),
+  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results', '**/node_modules', '.claude/worktrees/**']),
 
   // Baseline for every TS file in every package (web, shared, server).
   {
