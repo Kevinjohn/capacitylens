@@ -82,7 +82,7 @@ export function AccountPicker() {
         </ul>
 
         {creating ? (
-          <div className="mt-4 space-y-3 rounded-lg border border-line bg-surface p-4">
+          <form noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="mt-4 space-y-3 rounded-lg border border-line bg-surface p-4">
             <TextField
               label="Company name"
               value={name}
@@ -97,9 +97,9 @@ export function AccountPicker() {
               <Button variant="ghost" onClick={resetForm}>
                 Cancel
               </Button>
-              <Button onClick={submit}>Create company</Button>
+              <Button type="submit">Create company</Button>
             </div>
-          </div>
+          </form>
         ) : (
           <div className="mt-4">
             <Button onClick={() => setCreating(true)}>New company</Button>

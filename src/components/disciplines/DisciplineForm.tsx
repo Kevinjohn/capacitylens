@@ -34,12 +34,13 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
     <Modal
       title={discipline ? 'Edit discipline' : 'Add discipline'}
       onClose={onClose}
+      onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save</Button>
+          <Button type="submit">Save</Button>
         </>
       }
     >

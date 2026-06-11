@@ -65,12 +65,13 @@ export function TimeOffForm({
     <Modal
       title={timeOff ? 'Edit time off' : 'Add time off'}
       onClose={onClose}
+      onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save</Button>
+          <Button type="submit">Save</Button>
         </>
       }
     >

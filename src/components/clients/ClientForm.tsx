@@ -26,12 +26,13 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
     <Modal
       title={client ? 'Edit client' : 'Add client'}
       onClose={onClose}
+      onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save</Button>
+          <Button type="submit">Save</Button>
         </>
       }
     >

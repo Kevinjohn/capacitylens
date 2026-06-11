@@ -39,12 +39,13 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
     <Modal
       title={project ? 'Edit project' : 'Add project'}
       onClose={onClose}
+      onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={submit}>Save</Button>
+          <Button type="submit">Save</Button>
         </>
       }
     >

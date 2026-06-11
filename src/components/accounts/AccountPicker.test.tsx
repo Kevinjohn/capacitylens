@@ -86,6 +86,19 @@ describe('AccountPicker create + open + delete', () => {
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID)
   })
 
+  it('creates a company when pressing Enter in the company name input', async () => {
+    const user = userEvent.setup()
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    await user.type(screen.getByLabelText('Company name'), 'Enter Co')
+    await user.keyboard('{Enter}')
+
+    expect(useStore.getState().data.accounts.map((a) => a.name)).toContain('Enter Co')
+    const created = useStore.getState().data.accounts.find((a) => a.name === 'Enter Co')!
+    expect(useStore.getState().activeAccountId).toBe(created.id)
+  })
+
   it('deletes a company only after typing its name to confirm', async () => {
     const user = userEvent.setup()
     useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ name: 'Studio North' })] }))
