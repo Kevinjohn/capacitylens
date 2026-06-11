@@ -49,6 +49,10 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   overlap; save still allowed). One source: `lib/capacity.ts` `capacityAdvisory()`.
 
 ## UI & product
+- **Deliberately small (owner, 2026-06-11).** Floaty solves ONE problem — a helicopter view of
+  who's busy, free, or overworked, week-by-week — for small agencies with few staff and rotating
+  freelancers. Owner-confirmed non-goals: budgets/money, timesheets, hour-granularity workflows,
+  mobile views, per-seat/per-feature gating. Reject features that add process or granularity.
 - **"Utilisation" is the term** everywhere on the schedule (not "Load").
 - **Filtering by client/project hides non-matching resources** by default; the
   "Show unallocated" toggle opts the visible-but-dimmed staffing view back in.

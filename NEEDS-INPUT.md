@@ -14,6 +14,13 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   contractors and external suppliers are scheduled/budgeted differently — but the treatment
   needs designing alongside the third-party line above, not a pill. (Owner, 2026-06-11.)
 
+## Resolved (owner-confirmed, 2026-06-11)
+- **Scope: deliberately small.** Budgets/money, timesheets, hour-granularity tracking, and mobile
+  views are **non-goals** — the product is a helicopter who's-busy view for small agencies with
+  rotating freelancers, not a Float feature-parity build. (Promoted to DECISIONS.md.)
+- **localStorage is demo-only.** Server cutover is planned within ~a week (of 2026-06-11), so
+  multi-tab localStorage clobbering and related local-mode findings are accepted, not scheduled.
+
 ## Resolved by assumption (confirm)
 - **Local-first by default.** Data is one `AppData` blob in `localStorage` (`floaty/v3`); no
   backend, no login. The optional server is off unless `VITE_FLOATY_API` is set. Confirm this stays
@@ -27,6 +34,15 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   forgiving import over a strict all-or-nothing one.
 
 ## Genuinely open
+- **From the Cohesion Labs sheet import (2026-06-11)** — real customer data, full detail in
+  `_input/COHESION-DEMO-NOTES.md`:
+  - Their sheet books an external partner studio (Dog Eat Cog) as a *bookable* row with real
+    day amounts — live evidence for the parked third-party line, but bookable, not FYI-only.
+    Imported as a contractor "person" for now.
+  - Their visual language colour-codes rows by **person**; Floaty colours bars by
+    project/client. Do owners want a "colour by person" schedule toggle?
+  - "Poindexter 90min for Laura" — a booking referencing another person. Is a
+    person↔person (or booked-for) link on allocations ever in scope?
 - **Capacity advisory stays non-blocking.** Over-capacity / time-off overlaps warn at allocation
   time but never block the save (`lib/capacity.ts` `capacityAdvisory()`). Confirm owners want the
   soft warning, or do some want a hard stop on overbooking?
