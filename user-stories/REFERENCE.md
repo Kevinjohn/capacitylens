@@ -15,7 +15,10 @@ If the app changes, update this file first, then the affected stories.
 
 ## Launching the app (for a human tester)
 
-1. From the project root run `npm run dev` and open <http://localhost:5173>.
+1. From the project root run `npm run dev` and open **the URL Vite prints**
+   (<http://127.0.0.1:5173>; `localhost:5173` also works). If Vite exits with a
+   port-in-use error, another dev server is squatting 5173 — find it with
+   `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
 2. **First run** seeds a demo dataset (see *Seed data* below).
 3. Floaty opens on a **company picker** (you choose a tenant on every load —
    `activeAccountId` is never persisted). Pick **Studio North** to see the seeded data these
@@ -23,6 +26,10 @@ If the app changes, update this file first, then the affected stories.
 4. To start from the seeded state again, clear it: open DevTools → Console →
    `localStorage.clear()` → reload. (Clearing data *inside* the app does **not** re-seed —
    that's deliberate.)
+5. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
+   scripts for the site (per-site JavaScript setting or a content-blocker extension — these
+   also run in private windows when allowed). Enable JavaScript for the site and reload;
+   no story can run without it.
 
 ## Navigation (left sidebar)
 

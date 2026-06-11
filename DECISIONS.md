@@ -64,6 +64,11 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Unsaved-changes guard:** the modal closes only on a backdrop press that both starts and
   ends on the backdrop; once dirty, accidental dismiss (backdrop/Escape) is refused, and a
   `beforeunload` guard covers tab-close. Dirty also tracks `aria-pressed` toggle clicks.
+- **A JS-less load is never silent white.** `index.html` ships a static `#root` placeholder
+  ("Loading… if this doesn't go away, JavaScript isn't running") that React replaces on mount,
+  plus a `<noscript>` banner — everything in this app (in dev, even the CSS) arrives via JS, so
+  blocked scripts otherwise render a blank page with an empty console. Keep the placeholder
+  when touching `index.html`.
 
 ## Text validation
 - **Denylist, not allowlist.** Reject emoji + symbol-other, control/format/surrogate/private/

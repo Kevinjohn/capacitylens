@@ -20,6 +20,11 @@ and delivery-diary claim the same port), Vite exits with an error instead of sil
 on 5174 — kill the squatter (`lsof -nP -iTCP:5173 -sTCP:LISTEN`) rather than browsing a port
 nothing answers; that mismatch looks like a blank white page with an empty console.
 
+If the page instead sticks on **"Loading… / JavaScript isn't running"**, the browser is
+blocking scripts for the site (per-site JavaScript setting or a content-blocker extension —
+both also apply in private windows when allowed there). Enable JavaScript for the site and
+reload; the whole app is JS-rendered.
+
 ## Tech
 
 React + TypeScript + Vite. Zustand for state, Tailwind for styling, React Router
