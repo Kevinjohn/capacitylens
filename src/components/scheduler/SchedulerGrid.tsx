@@ -168,6 +168,21 @@ export function SchedulerGrid() {
     [items],
   )
   const layout = useMemo(() => buildLayout(heights), [heights])
+
+  // Scroll a specific resource row into view when jumpToResource fires (command
+  // palette "jump to person"). Mirrors the recenterToken pattern. Uses layout.tops
+  // (prefix-sum of row heights) to find the vertical offset.
+  const scrollToResource = ui.scrollToResource
+  useEffect(() => {
+    if (!scrollToResource || !scrollRef.current) return
+    const idx = items.findIndex(
+      (it) => it.kind === 'row' && it.row.resource.id === scrollToResource.id,
+    )
+    if (idx === -1) return
+    const top = layout.tops[idx] ?? 0
+    scrollRef.current.scrollTop = top
+  }, [scrollToResource, items, layout])
+
   // Pin the dragged row while a gesture is live: a mid-drag vertical scroll must NOT
   // re-window, or it could unmount the dragged AllocationBar and tear down its document
   // pointer listeners (orphaning the drag, so the drop never commits). We FREEZE the scroll
