@@ -62,6 +62,9 @@ JSON** and **Import JSON**. A **Switch company** control returns to the account 
 
 The scheduler auto-scrolls to today on load; demo data lives in June 2026, so a tester
 on a later date should **Jump to date → 2026-06-01** (or zoom out) to see the seed bars.
+The Playwright E2E suite avoids that drift by **freezing the clock to 2026-06-03** (a date
+inside the seed window) in `e2e/helpers.ts` `openApp()`, so the seed bars and the 3–4 June
+over-marker are always on-screen without a jump — keep that date in step with the seed.
 
 ## Control labels (accessible names)
 
