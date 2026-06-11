@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
-import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage, TemporaryTag } from '../common/ui'
+import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ResourceForm } from './ResourceForm'
 import type { Resource, ResourceKind } from '@floaty/shared/types/entities'
 
@@ -32,7 +32,6 @@ export function ResourceList() {
         {r.kind === 'placeholder' && (
           <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">placeholder</span>
         )}
-        <TemporaryTag resource={r} />
         <span className="text-sm text-muted">
           · {r.role} · {disciplineName(r.disciplineId)} · {r.workingHoursPerDay}h/day
         </span>

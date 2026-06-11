@@ -78,10 +78,12 @@ test.describe('Resources', () => {
     await expect(page.getByRole('alert')).toContainText(/greater than 0/i)
   })
 
-  test('freelancers show a Temp tag; permanent staff do not', async ({ page }) => {
+  test('the Temp tag is parked: freelancers render untagged', async ({ page }) => {
+    // Employment type is still captured on the form, but the visual pill is hidden
+    // pending the freelancer/contractor/third-party treatment (NEEDS-INPUT.md "Parked").
     await openApp(page, 'Studio North', '/resources')
-    // Alex Rivera is a seeded freelancer.
-    await expect(page.getByTestId('resource-row').filter({ hasText: 'Alex Rivera' }).getByText('Temp')).toBeVisible()
-    await expect(page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' }).getByText('Temp')).toHaveCount(0)
+    // Alex Rivera is a seeded freelancer — visible, but with no Temp tag anywhere.
+    await expect(page.getByTestId('resource-row').filter({ hasText: 'Alex Rivera' })).toBeVisible()
+    await expect(page.getByText('Temp', { exact: true })).toHaveCount(0)
   })
 })

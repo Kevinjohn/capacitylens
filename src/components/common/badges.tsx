@@ -5,10 +5,14 @@ import type { Resource } from '@floaty/shared/types/entities'
 // Colour, avatar & resource-badge slice of the shared kit (re-exported from ./ui).
 // Colours come from semantic tokens (see index.css), so everything adapts to dark mode.
 
+// PARKED — currently rendered nowhere. The Temp pill was pulled from the schedule and
+// the Resources list pending a proper treatment for freelancers / contractors / external
+// suppliers (see NEEDS-INPUT.md "Parked"). Employment type is still captured on the form;
+// this stays so re-introducing a (redesigned) marker is a one-line change per call site.
 export function TemporaryTag({ resource }: { resource: Resource }) {
   if (!isTemporary(resource)) return null
   return (
-    <span className="rounded border border-warn/40 bg-warn/10 px-1.5 py-0.5 text-2xs font-semibold uppercase tracking-wide text-ink">
+    <span className="rounded-sm border border-warn/40 bg-warn/10 px-1 text-[9px] leading-[13px] font-semibold uppercase text-ink">
       Temp
     </span>
   )

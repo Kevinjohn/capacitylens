@@ -16,9 +16,8 @@ test.describe('Feature flows', () => {
     await page.getByLabel('Filter by project').selectOption('p-brand')
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
 
-    // Default keeps non-matching resources visible (dimmed) for staffing; toggling
-    // "Show unallocated" off collapses to just the project's work.
-    await page.getByLabel('Show unallocated').uncheck()
+    // Filtering hides non-matching resources by default, collapsing the schedule to
+    // just the project's work ("Show unallocated" opts the dimmed staffing view in).
     await expect(bars).toHaveCount(1)
   })
 
@@ -68,10 +67,9 @@ test.describe('Feature flows', () => {
 
   test('dragging an allocation onto another row reassigns it', async ({ page }) => {
     await openApp(page)
+    // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
+    // early-June seed bars stay in view — no manual scroll reset needed.
     await page.getByRole('button', { name: '4w', exact: true }).click()
-    await page.getByTestId('scheduler-grid').evaluate((el) => {
-      ;(el as HTMLElement).scrollLeft = 0
-    })
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
@@ -97,9 +95,6 @@ test.describe('Feature flows', () => {
   test('drawing in Time off mode opens a prefilled time-off form', async ({ page }) => {
     await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
-    await page.getByTestId('scheduler-grid').evaluate((el) => {
-      ;(el as HTMLElement).scrollLeft = 0
-    })
     // Toolbar draw-mode toggle (a button — distinct from the "Time off" nav link).
     await page.getByRole('button', { name: 'Time off', exact: true }).click()
 

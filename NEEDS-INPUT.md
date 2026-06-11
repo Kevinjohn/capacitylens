@@ -2,6 +2,18 @@
 
 Open product questions to revisit with the owner. Don't silently resolve these — flag them.
 
+## Parked (owner-confirmed, build much later)
+- **Third-party line on the schedule.** A row type for work EXTERNAL companies are doing that
+  we have no visibility of — pure FYI, not a resource. Shape: just a start date and an end
+  date (no hours, no capacity, no utilisation), tied to a client + project. Placement is a
+  hard requirement: **always at the bottom of the schedule**, below all of our resources,
+  because they aren't ours — it's an awareness line, not a bookable lane. (Owner, 2026-06-11.)
+- **Freelancer / contractor / external-supplier differentiation.** The "Temp" pill is
+  **hidden for now** (component `TemporaryTag` kept but rendered nowhere; employment type is
+  still captured on the resource form). There IS a real distinction to surface — freelancers,
+  contractors and external suppliers are scheduled/budgeted differently — but the treatment
+  needs designing alongside the third-party line above, not a pill. (Owner, 2026-06-11.)
+
 ## Resolved by assumption (confirm)
 - **Local-first by default.** Data is one `AppData` blob in `localStorage` (`floaty/v3`); no
   backend, no login. The optional server is off unless `VITE_FLOATY_API` is set. Confirm this stays

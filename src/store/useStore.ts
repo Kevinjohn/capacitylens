@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { newId } from '@floaty/shared/lib/id'
 import { addDaysISO, startOfWeekISO, todayISO } from '@floaty/shared/lib/dateMath'
-import { DEFAULT_ORIGIN_OFFSET_DAYS, DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, type WeeksZoom } from '../lib/schedulerConfig'
+import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS, type WeeksZoom } from '../lib/schedulerConfig'
 import {
   deleteClientCascade,
   deleteDisciplineCascade,
@@ -71,8 +71,9 @@ export interface Filters {
   projectId: ID | null
   search: string
   hideTentative: boolean
-  /** When a project/client filter is active, also show resources with NO work on it
-   *  (dimmed) so you can see who's free to staff. Off = only matching resources. */
+  /** When a project/client filter is active, ALSO show resources with no work on it
+   *  (dimmed) so you can see who's free to staff. Off (the default) = filtering
+   *  hides them, leaving only the matching resources' rows. */
   showUnmatched: boolean
 }
 
@@ -82,7 +83,7 @@ export const emptyFilters = (): Filters => ({
   projectId: null,
   search: '',
   hideTentative: false,
-  showUnmatched: true,
+  showUnmatched: false,
 })
 
 export function hasActiveFilters(f: Filters): boolean {
@@ -220,14 +221,15 @@ const stamp = () => {
 const touch = () => new Date().toISOString()
 
 const defaultUI = (): SchedulerUI => {
-  // Open on the current week: origin = this Monday and focusDate = this Monday too,
-  // so the first scroll lands flush at Monday (focus == origin → recenterLeftPad
-  // clamps to 0) and the whole current week is visible from the left edge.
+  // Open on the current week: focusDate = this Monday (the grid scrolls it flush to
+  // the left edge), with the timeline ORIGIN a PAST_BUFFER_DAYS back-buffer earlier —
+  // off-screen history to the left, so scrolling back pans instead of overscrolling
+  // into the browser's back-swipe. rangeDays covers buffer + forward span.
   const weekStart = startOfWeekISO(todayISO())
   return {
     zoom: DEFAULT_ZOOM,
-    originDate: weekStart,
-    rangeDays: DEFAULT_RANGE_DAYS,
+    originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
+    rangeDays: PAST_BUFFER_DAYS + DEFAULT_RANGE_DAYS,
     focusDate: weekStart,
     drawMode: 'work',
     selectedAllocationId: null,
@@ -324,7 +326,7 @@ export const useStore = create<StoreState>()((set, get) => {
             filters: emptyFilters(),
             collapsedGroups: [],
             selectedAllocationId: null,
-            originDate: weekStart,
+            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
             focusDate: weekStart,
           },
         }
@@ -552,13 +554,13 @@ export const useStore = create<StoreState>()((set, get) => {
     panDays: (delta) => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(s.ui.originDate, delta) } })),
     goToToday: () =>
       set((s) => {
-        // Match the default view: snap to the Monday of the current week so the full
-        // week shows from the left edge (focus == origin → flush, no lead-in pad).
+        // Match the default view: focus the Monday of the current week (scrolled flush
+        // to the left edge) with the back-buffer behind it for leftward scrolling.
         const weekStart = startOfWeekISO(todayISO())
         return {
           ui: {
             ...s.ui,
-            originDate: weekStart,
+            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
             focusDate: weekStart,
             recenterToken: s.ui.recenterToken + 1,
           },
@@ -568,7 +570,7 @@ export const useStore = create<StoreState>()((set, get) => {
       set((s) => ({
         ui: {
           ...s.ui,
-          originDate: addDaysISO(date, DEFAULT_ORIGIN_OFFSET_DAYS),
+          originDate: addDaysISO(date, -PAST_BUFFER_DAYS),
           focusDate: date,
           recenterToken: s.ui.recenterToken + 1,
         },

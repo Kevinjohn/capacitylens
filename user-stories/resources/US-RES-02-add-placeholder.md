@@ -27,7 +27,7 @@ its allocations attached to a single project until a real resource takes over.
 - ✅ On **Schedule**, the placeholder's row shows its name **in quotes** (e.g. *"Senior
   Developer"*), marking it as an unstaffed slot.
 - ✅ The **Employment** field is hidden in the **Add placeholder** dialog (placeholders are
-  always permanent — no "Temp" tag).
+  always permanent).
 - ✅ Saving a placeholder with no **Bound project** keeps the dialog open and is rejected
   with the inline error "A placeholder must be bound to a project." on the Bound project
   field (`aria-invalid`).

@@ -21,12 +21,14 @@ export const DAY_COLUMN_MIN_WIDTH = 18
 /** At/above this day width the header also shows weekday letters (Mon/Tue…). */
 export const WEEKDAY_LABEL_MIN_WIDTH = 36
 
-/** How many days the timeline spans. */
+/** How many days the timeline spans FORWARD from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120
-/** Lead-in offset (days) applied when jumping to a specific date, so a little past
- *  context shows to the left of it rather than it being flush against the edge.
- *  (The default view and "Today" instead snap the origin to the current week's Monday.) */
-export const DEFAULT_ORIGIN_OFFSET_DAYS = -7
+/** Scrollable history kept to the LEFT of the focus date (default view, Today,
+ *  jump-to-date, account switch). The view still opens scrolled to the focus date —
+ *  the buffer exists so a leftward swipe PANS into the past instead of overscrolling
+ *  the left edge, which macOS treats as browser back-navigation. A whole number of
+ *  weeks, so the origin stays on the same weekday as the focused Monday. */
+export const PAST_BUFFER_DAYS = 28
 
 /**
  * The per-resource utilisation % is a near-term overbooking radar, not a

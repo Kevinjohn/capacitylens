@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hasActiveFilters, useStore } from './useStore'
 import { resetStoreWithAccount } from '../test/fixtures'
-import { weekdayOf } from '@floaty/shared/lib/dateMath'
+import { addDaysISO, weekdayOf } from '@floaty/shared/lib/dateMath'
+import { PAST_BUFFER_DAYS } from '../lib/schedulerConfig'
 
 const s = () => useStore.getState()
 beforeEach(() => resetStoreWithAccount())
@@ -91,8 +92,9 @@ describe('store scheduler UI', () => {
     // Re-selecting the (already active) account still runs the switch reset.
     s().setActiveAccount(s().activeAccountId)
     expect(s().ui.originDate).not.toBe('2020-01-01')
-    expect(weekdayOf(s().ui.originDate)).toBe(1) // this week's Monday
-    expect(s().ui.focusDate).toBe(s().ui.originDate)
+    expect(weekdayOf(s().ui.focusDate)).toBe(1) // this week's Monday
+    // Origin sits the back-buffer earlier, so the past is scrollable to the left.
+    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS))
   })
 
   it('goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)', () => {
@@ -101,10 +103,10 @@ describe('store scheduler UI', () => {
     s().goToToday()
     expect(s().ui.recenterToken).toBe(before + 1)
     expect(s().ui.originDate).not.toBe('2020-01-01')
-    // Snaps to the current week's Monday, with focus == origin so the first scroll
-    // lands flush at Monday (the full week shows from the left edge).
-    expect(weekdayOf(s().ui.originDate)).toBe(1)
-    expect(s().ui.focusDate).toBe(s().ui.originDate)
+    // Focus snaps to the current week's Monday (scrolled flush to the left edge);
+    // origin sits the back-buffer earlier so last month stays reachable by scrolling.
+    expect(weekdayOf(s().ui.focusDate)).toBe(1)
+    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS))
   })
 
   it('setNotice sets and clears the transient message', () => {
@@ -129,7 +131,7 @@ describe('store scheduler UI', () => {
     s().goToDate('2026-08-15')
     expect(s().ui.focusDate).toBe('2026-08-15')
     expect(s().ui.recenterToken).toBe(before + 1)
-    expect(s().ui.originDate < '2026-08-15').toBe(true) // offset back for lead context
+    expect(s().ui.originDate).toBe(addDaysISO('2026-08-15', -PAST_BUFFER_DAYS)) // back-buffer behind the jump
   })
 
   it('setDrawMode toggles between work and time off', () => {

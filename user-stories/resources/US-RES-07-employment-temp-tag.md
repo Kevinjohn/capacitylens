@@ -1,28 +1,31 @@
-# US-RES-07 — Employment type and the "Temp" tag
+# US-RES-07 — Employment type (Temp tag parked)
 
-**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "freelancers show a Temp tag; permanent staff do not"
+**Area:** Resources · **Persona:** Studio manager · **Linked E2E:** `e2e/resources.spec.ts` → "the Temp tag is parked: freelancers render untagged"
 
 ## Goal
-Mark a person's employment type (permanent, freelancer or contractor) so non-permanent
-staff are visibly flagged with a "Temp" tag.
+Record a person's employment type (permanent, freelancer or contractor) on their resource
+record. **No visual tag is rendered for now** — the old "Temp" pill is parked.
 
 ## Why
-A manager scanning the schedule needs to tell employees from temporary staff at a glance —
-freelancers and contractors are scheduled and budgeted differently. The "Temp" tag makes
-that distinction obvious without opening each record.
+Freelancers and contractors are scheduled and budgeted differently, so the data must be
+captured. But the owner has parked the visual treatment: the real differentiation
+(freelancers vs contractors vs external suppliers, plus a third-party FYI line on the
+schedule) will be designed together later — see `NEEDS-INPUT.md` → "Parked". Until then the
+pill is hidden rather than half-designed.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
 1. On the **Tyler Nix** row (permanent), click **Edit**.
-2. Change **Employment** = *Freelancer*. Click **Save**.
-3. Observe Tyler's list row now carries a **"Temp"** tag.
-4. Edit **Tyler Nix** again and set **Employment** = *Permanent*; Save. The tag disappears.
+2. Observe the **Employment** select (Permanent / Freelancer / Contractor) — change it to
+   *Freelancer* and Save.
+3. Observe Tyler's list row: it looks unchanged — **no tag appears**.
+4. Edit **Tyler Nix** again: the select still shows *Freelancer* (the value persisted).
+   Set it back to *Permanent*; Save.
 
 ## Acceptance criteria
-- ✅ Setting **Employment** = *Freelancer* or *Contractor* shows a **"Temp"** tag on that
-  person's row in the Resources list and on their row in **Schedule**.
-- ✅ Setting **Employment** = *Permanent* shows **no** Temp tag in either place.
-- ✅ The seeded **Alex Rivera** (freelancer) already shows a Temp tag; the seeded permanent
-  staff (Tyler, Pam, Nike) do not.
-- ✅ For a **Placeholder** the **Employment** field is hidden in the dialog and no Temp tag
-  ever shows (placeholders are always permanent).
+- ✅ The **Employment** select exists on the person form and its value round-trips
+  through Save/Edit.
+- ✅ **No "Temp" tag renders anywhere** — not in the Resources list, not on the schedule —
+  regardless of employment type. The seeded freelancer **Alex Rivera** shows no tag.
+- ✅ For a **Placeholder** the **Employment** field is hidden in the dialog (placeholders
+  are always permanent).

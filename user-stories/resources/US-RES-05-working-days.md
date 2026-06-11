@@ -1,6 +1,6 @@
 # US-RES-05 — Set a resource's working days
 
-**Area:** Resources · **Persona:** Studio manager · **Coverage:** `e2e/resources.spec.ts` → "freelancers show a Temp tag; permanent staff do not" (sets a Mon–Wed pattern) · **Unit:** `src/lib/capacity.test.ts` (non-working days carry 0 capacity). The greyed unavailable-day rendering is verified manually.
+**Area:** Resources · **Persona:** Studio manager · **Coverage:** **Unit:** `src/lib/capacity.test.ts` (non-working days carry 0 capacity) + `src/components/resources/ResourceForm.test.tsx`. The greyed unavailable-day rendering is verified manually.
 
 ## Goal
 Set which weekdays a resource works (the Mon–Sun toggles), so the schedule only treats

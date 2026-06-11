@@ -53,13 +53,13 @@ describe('ResourceList display', () => {
     expect(within(row).queryByText('Temp')).not.toBeInTheDocument()
   })
 
-  it('shows a "Temp" tag for a freelancer resource', () => {
+  it('renders a freelancer with NO "Temp" tag (the pill is parked — see NEEDS-INPUT.md)', () => {
     useStore.getState().addResource(freelancerDraft('Bob'))
     render(<ResourceList />)
     const rows = screen.getAllByTestId('resource-row')
     expect(rows).toHaveLength(1)
     const row = rows[0]
-    expect(within(row).getByText('Temp')).toBeInTheDocument()
+    expect(within(row).queryByText('Temp')).not.toBeInTheDocument()
     expect(within(row).queryByText('placeholder')).not.toBeInTheDocument()
   })
 
@@ -113,10 +113,10 @@ describe('ResourceList display', () => {
     expect(within(aliceRow).queryByText('placeholder')).not.toBeInTheDocument()
     expect(within(aliceRow).queryByText('Temp')).not.toBeInTheDocument()
 
-    // Bob row: Temp tag, no placeholder tag
+    // Bob row (freelancer): no tags either — the Temp pill is parked
     const bobRow = rows.find((r) => within(r).queryByText('Bob'))!
     expect(bobRow).toBeDefined()
-    expect(within(bobRow).getByText('Temp')).toBeInTheDocument()
+    expect(within(bobRow).queryByText('Temp')).not.toBeInTheDocument()
     expect(within(bobRow).queryByText('placeholder')).not.toBeInTheDocument()
 
     // Placeholder row: placeholder tag, no Temp tag
@@ -186,7 +186,6 @@ describe('ResourceList delete flow', () => {
     render(<ResourceList />)
 
     expect(screen.getByText('Bob')).toBeInTheDocument()
-    expect(screen.getByText('Temp')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     const dialog = screen.getByRole('dialog')
@@ -194,7 +193,6 @@ describe('ResourceList delete flow', () => {
 
     expect(useStore.getState().data.resources).toHaveLength(0)
     expect(screen.queryByText('Bob')).not.toBeInTheDocument()
-    expect(screen.queryByText('Temp')).not.toBeInTheDocument()
   })
 
   it('deletes a placeholder resource', async () => {

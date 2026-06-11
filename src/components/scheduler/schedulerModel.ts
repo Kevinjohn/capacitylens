@@ -197,7 +197,8 @@ export function buildSchedulerModel(
           dimmed,
         }
       })
-      // The "show unallocated" toggle (default on) hides the dimmed non-matching rows.
+      // Non-matching rows are hidden by default; the "Show unallocated" toggle opts
+      // the dimmed staffing view back in.
       .filter((row) => filters.showUnmatched || !row.dimmed),
     }))
     .filter((g) => g.rows.length > 0)

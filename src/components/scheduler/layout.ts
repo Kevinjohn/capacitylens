@@ -19,9 +19,6 @@ export const LAYOUT = {
   // user bumps their font size — instead of clipping the weekday labels.
   headerHeight: 44,
   groupHeaderHeight: 30,
-  // Left-edge breathing room when recentring the focus date (Today / jump-to-date),
-  // so a little past context shows to the left of it rather than it being flush.
-  recenterLeftPad: 120,
 }
 
 export const laneLayout: LaneLayout = {

@@ -7,10 +7,11 @@ import { useStore } from '../../store/useStore'
 type ButtonVariant = 'primary' | 'ghost' | 'danger'
 
 const buttonClasses: Record<ButtonVariant, string> = {
-  // brand-strong resting keeps white text >= ~4.5:1 in both light and dark.
-  primary: 'bg-brand-strong text-white hover:bg-brand shadow-sm',
+  // Pastel, not saturated: soft tint + per-theme coloured ink (the *-soft / *-soft-ink
+  // token pairs keep AA in both themes). Hover deepens the tint a notch.
+  primary: 'bg-brand-soft text-brand-soft-ink hover:bg-brand/25 shadow-sm',
   ghost: 'border bg-surface text-ink hover:bg-canvas',
-  danger: 'bg-danger text-white hover:opacity-90 shadow-sm',
+  danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger/25 shadow-sm',
 }
 
 export function Button({

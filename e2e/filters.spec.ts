@@ -22,19 +22,18 @@ test.describe('Filters', () => {
   test('filters bars to a client', async ({ page }) => {
     await openApp(page)
     await page.getByLabel('Filter by client').selectOption({ label: 'Globex' })
-    // Globex only owns Brand Themes → the Brand System bar is highlighted...
+    // Globex only owns Brand Themes → the schedule collapses to just that work by default.
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
-    // ...and resources with no Globex work stay visible but dimmed (so you can staff them).
-    await expect(page.locator('[data-testid="scheduler-row"][data-dimmed]').first()).toBeVisible()
-    // Hiding unallocated collapses to just the matching work.
-    await page.getByLabel('Show unallocated').uncheck()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(1)
+    // Opting into "Show unallocated" brings back the resources with no Globex work,
+    // dimmed, so you can see who's free to staff.
+    await page.getByLabel('Show unallocated').check()
+    await expect(page.locator('[data-testid="scheduler-row"][data-dimmed]').first()).toBeVisible()
   })
 
   test('filters the schedule to a single project', async ({ page }) => {
     await openApp(page)
     await page.getByLabel('Filter by project').selectOption('p-brand')
-    await page.getByLabel('Show unallocated').uncheck()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(1)
   })
 
@@ -51,7 +50,6 @@ test.describe('Filters', () => {
     await openApp(page)
     const all = await page.getByTestId('allocation-bar').count()
     await page.getByLabel('Filter by project').selectOption('p-brand')
-    await page.getByLabel('Show unallocated').uncheck()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(1)
     await page.getByRole('button', { name: 'Clear' }).click()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(all)

@@ -18,6 +18,9 @@
   /* A lighter divider for the scheduler's horizontal row lines, which read a touch
      heavy in light mode at full --color-line. Equal to --color-line in dark. */
   --color-line-soft: var(--c-line-soft);
+  /* Lighter still: the per-day hairlines inside scheduler lanes. A step below the
+     Monday week line in BOTH themes (line-soft collapses to full line in dark). */
+  --color-line-faint: var(--c-line-faint);
   --color-ink: var(--c-ink);
   --color-muted: var(--c-muted);
   --color-faint: var(--c-faint);
@@ -25,6 +28,11 @@
   --color-brand-strong: var(--c-brand-strong);
   --color-brand-soft: var(--c-brand-soft);
   --color-danger: var(--c-danger);
+  /* Pastel action buttons (Add/Save, Delete): a soft tinted fill + a readable
+     coloured ink on it, both per-theme so the pairing clears WCAG AA in dark too. */
+  --color-brand-soft-ink: var(--c-brand-soft-ink);
+  --color-danger-soft: var(--c-danger-soft);
+  --color-danger-soft-ink: var(--c-danger-soft-ink);
   --color-warn: var(--c-warn);
   --color-ok: var(--c-ok);
 
@@ -45,13 +53,17 @@
   --c-elevated: #ffffff;
   --c-line: #e6e8ee;
   --c-line-soft: #eef0f5;
+  --c-line-faint: #eff1f6;
   --c-ink: #1c2230;
   --c-muted: #5b6472;
   --c-faint: #6b7280; /* darkened from #98a1b1 to clear WCAG AA (~4.5:1) for small text */
   --c-brand: #6366f1;
   --c-brand-strong: #4f46e5;
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 14%, white);
+  --c-brand-soft-ink: var(--c-brand-strong);
   --c-danger: #e11d48;
+  --c-danger-soft: color-mix(in oklab, var(--c-danger) 13%, white);
+  --c-danger-soft-ink: #be123c; /* a step darker than --c-danger to clear AA on the tint */
   --c-warn: #d97706;
   --c-ok: #059669;
   color-scheme: light;
@@ -63,13 +75,17 @@
   --c-elevated: #1d212c;
   --c-line: #2a2f3c;
   --c-line-soft: var(--c-line); /* no lightening in dark — only light mode read heavy */
+  --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
   --c-ink: #e7eaf0;
   --c-muted: #a3acbd;
   --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
   --c-brand: #818cf8;
   --c-brand-strong: #4f46e5; /* deep enough that white button text clears AA (4.5:1) on dark too */
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
+  --c-brand-soft-ink: #c7d2fe; /* pale indigo — brand-strong would vanish on the dark tint */
   --c-danger: #fb7185;
+  --c-danger-soft: color-mix(in oklab, var(--c-danger) 22%, #0e1016);
+  --c-danger-soft-ink: #fda4af;
   --c-warn: #fbbf24;
   --c-ok: #34d399;
   color-scheme: dark;

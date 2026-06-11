@@ -50,6 +50,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 
 ## UI & product
 - **"Utilisation" is the term** everywhere on the schedule (not "Load").
+- **Filtering by client/project hides non-matching resources** by default; the
+  "Show unallocated" toggle opts the visible-but-dimmed staffing view back in.
+- **The timeline keeps a 4-week scrollable back-buffer** (`PAST_BUFFER_DAYS`) to the left of
+  the focus date — the view opens flush at the focused Monday, and scrolling left pans into
+  the past instead of overscrolling (macOS turns left-edge overscroll into browser back;
+  `overscroll-x-contain` on the grid guards the buffer's own edge).
 - **Theme is device-global** — own key (`floaty/theme`), NOT in `AppData`/export. Default
   **light**; `system` follows `matchMedia`; FOUC guard in `index.html`.
 - **Utilisation display toggles are device-global** too (`floaty/utilizationPrefs`, default all-on).
@@ -109,8 +115,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   instead of silently serving 5174). A URL/socket mismatch presents as a blank page with an
   empty console; don't reintroduce either silent mode.
 - **E2E freezes the clock** to a date inside the seed window (`2026-06-03`, the over-allocated
-  day) in `e2e/helpers.ts` `openApp()`. The scheduler view is today-anchored (origin snaps to
-  this week's Monday; the utilisation window runs forward from today) and the seed lives in early
+  day) in `e2e/helpers.ts` `openApp()`. The scheduler view is today-anchored (it opens scrolled
+  to this week's Monday, with the origin a 4-week back-buffer earlier; the utilisation window
+  runs forward from today) and the seed lives in early
   June 2026 — without a fixed clock the demo bars drift off-screen and the suite rots with the
   wall calendar. **Move this date if the seed dates move.**
 - **Modularity:** only pure extractions land behind the green gate (the gate *proves* them

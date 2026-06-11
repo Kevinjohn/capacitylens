@@ -4,7 +4,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO, xForDate } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
-import { Avatar, TemporaryTag } from '../common/ui'
+import { Avatar } from '../common/ui'
 import { Icon } from '../common/Icon'
 import { LAYOUT } from './layout'
 import { DateHeader } from './DateHeader'
@@ -88,13 +88,29 @@ export function SchedulerGrid() {
     focusXRef.current = focusX
   })
 
-  // Bring the focus date (today by default) into view on first render — but only
-  // once the container has been MEASURED (timelineWidth > 0), so the scroll uses the
-  // real dayWidth, not the fallback. Runs once (didScroll guard); re-fires harmlessly
-  // until the real width arrives in jsdom/SSR where it never does.
+  // Keep the left-edge DATE anchored when dayWidth changes (zoom click, container
+  // resize): scrollLeft is pixels, so the same offset would otherwise re-point at a
+  // different date — with the past buffer behind the focus date that read as a
+  // multi-week jump on every zoom flip. Skipped until the initial scroll has run
+  // (didScroll); that effect (below, so it runs AFTER this one skips on the
+  // first-measure commit) owns the first real-width placement.
+  const prevDayWidth = useRef(dayWidth)
+  useEffect(() => {
+    const prev = prevDayWidth.current
+    prevDayWidth.current = dayWidth
+    const el = scrollRef.current
+    if (!el || !didScroll.current || prev === dayWidth || prev <= 0) return
+    el.scrollLeft = (el.scrollLeft / prev) * dayWidth
+  }, [dayWidth])
+
+  // Bring the focus date (today by default) flush to the left edge on first render —
+  // the PAST_BUFFER_DAYS of history before it stay off-screen to the left, reachable
+  // by scrolling. Only once the container has been MEASURED (timelineWidth > 0), so
+  // the scroll uses the real dayWidth, not the fallback. Runs once (didScroll guard);
+  // re-fires harmlessly until the real width arrives in jsdom/SSR where it never does.
   useEffect(() => {
     if (didScroll.current || !scrollRef.current || timelineWidth === 0) return
-    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - LAYOUT.recenterLeftPad)
+    scrollRef.current.scrollLeft = focusXRef.current
     didScroll.current = true
   }, [timelineWidth])
 
@@ -102,7 +118,7 @@ export function SchedulerGrid() {
   const recenterToken = ui.recenterToken
   useEffect(() => {
     if (recenterToken === 0 || !scrollRef.current) return
-    scrollRef.current.scrollLeft = Math.max(0, focusXRef.current - LAYOUT.recenterLeftPad)
+    scrollRef.current.scrollLeft = focusXRef.current
   }, [recenterToken])
 
   const filtersActive = hasActiveFilters(ui.filters)
@@ -269,7 +285,6 @@ export function SchedulerGrid() {
               {resource.kind === 'placeholder'
                 ? `“${resource.name ?? resource.role}”`
                 : (resource.name ?? resource.role)}
-              <TemporaryTag resource={resource} />
             </span>
             <span className="block truncate text-xs text-muted">{resource.role}</span>
           </div>
@@ -332,7 +347,9 @@ export function SchedulerGrid() {
   return (
     <div
       ref={scrollRef}
-      className="relative flex h-full flex-col overflow-auto"
+      /* overscroll-x-contain: hitting the timeline's left edge must NOT chain into the
+         page — on macOS that overscroll is the browser's back-swipe, which nukes the app. */
+      className="relative flex h-full flex-col overflow-auto overscroll-x-contain"
       data-testid="scheduler-grid"
       role="grid"
       aria-label="Resource schedule"
