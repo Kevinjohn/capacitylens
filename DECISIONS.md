@@ -21,6 +21,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Pure domain core is shared.** `shared/` (`@floaty/shared`) owns types, validation,
   integrity, cascade, import-remap, migrate, seed — imported by both app and server so they
   can't drift.
+- **Entity extension is drift-proofed.** The parallel lists (KNOWN_KEYS, sanitize switch,
+  FK_TARGET, UPSERT_ORDER, server TABLES/CREATE_ORDER/SCOPED_ORDER) are exhaustiveness-checked
+  against the shared types, and fully-populated per-entity fixtures
+  (`shared/src/data/fixtures.ts`) round-trip through the server REST tests — a new entity or
+  field that misses a list fails the gate instead of silently dropping. Keep new fields
+  flowing through this: types → fixtures → tables.ts columns (+ auto ALTER) → sanitize.
 
 ## Persistence
 - **Debounced writes, flushed on unload** (`pagehide` + `visibilitychange→hidden`) so a tab
@@ -47,6 +53,11 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Blocks mode allows `hoursPerDay: 0`** (span counts, load ignored); resources still require `> 0`.
 - **Capacity advisory at allocation time is non-blocking** (warns on over-capacity / time-off
   overlap; save still allowed). One source: `lib/capacity.ts` `capacityAdvisory()`.
+- **Calendar is account-level** (like `schedulingMode`): `timezone` (IANA, default GMT) and
+  `weekStartsOn` (default Monday) live on the Account so the whole team shares "today" and
+  week boundaries — they drive the Today snap, header week blocks, lane dividers, and form
+  date defaults via `todayISO(timeZone)` / `startOfWeekISO(date, weekStartsOn)`. The weekend
+  TINT stays Sat/Sun regardless of week start.
 
 ## UI & product
 - **Deliberately small (owner, 2026-06-11).** Floaty solves ONE problem — a helicopter view of
@@ -65,6 +76,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Utilisation display toggles are device-global** too (`floaty/utilizationPrefs`, default all-on).
 - **Undo/redo is keyboard-only** (⌘Z / ⌘⇧Z, global in `AppShell`); the toolbar buttons are
   intentionally hidden (clearer affordance is a TODO).
+- **Modals are real forms.** `Modal` takes an optional `onSubmit` and wraps children+footer in
+  a `<form noValidate>`; the primary action is `type="submit"` so **Enter submits every
+  dialog** (all other buttons stay `type="button"` — the Button default). Keep new dialogs on
+  this pattern.
+- **⌘K / Ctrl+K command palette** (`CommandPalette`, fuzzy via `src/lib/fuzzy.ts`, no deps):
+  jumps to people (scroll-to-lane), projects/clients (schedule filters), tasks/pages, today,
+  or a typed ISO date. Combobox/listbox ARIA; behaviours documented in REFERENCE.md.
 - **Colours are preset swatches only** (no custom hex) → a stored colour is always a valid
   `#rrggbb`. Palette = 13 hues × 4 shades generated from HSL (`lib/palette.ts`).
 - **Resource colour derives from its discipline** — no per-resource colour control.
