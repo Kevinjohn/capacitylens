@@ -111,3 +111,35 @@ describe('SettingsView — theme', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 })
+
+describe('SettingsView — Calendar section', () => {
+  it('renders the Calendar section with defaults (Monday, GMT)', () => {
+    render(<SettingsView />)
+    expect(screen.getByRole('radiogroup', { name: 'Week starts on' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Sunday' })).toHaveAttribute('aria-checked', 'false')
+    const select = screen.getByLabelText('Timezone')
+    expect((select as HTMLSelectElement).value).toBe('Etc/GMT')
+  })
+
+  it('clicking Sunday calls updateAccount with weekStartsOn: 0', async () => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+    await user.click(screen.getByRole('radio', { name: 'Sunday' }))
+    const id = useStore.getState().activeAccountId!
+    const account = useStore.getState().data.accounts.find((a) => a.id === id)
+    expect(account?.weekStartsOn).toBe(0)
+    expect(screen.getByRole('radio', { name: 'Sunday' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('changing timezone persists the new value', async () => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+    const select = screen.getByLabelText('Timezone')
+    await user.selectOptions(select, 'Europe/London')
+    const id = useStore.getState().activeAccountId!
+    const account = useStore.getState().data.accounts.find((a) => a.id === id)
+    expect(account?.timezone).toBe('Europe/London')
+  })
+})

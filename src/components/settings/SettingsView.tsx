@@ -6,6 +6,22 @@ import { Button, FieldError, ListPage, TextField } from '../common/ui'
 import type { ThemePref } from '../../lib/theme'
 import type { SchedulingMode } from '@floaty/shared/types/entities'
 
+const WEEK_START_OPTIONS: { value: 0 | 1; label: string }[] = [
+  { value: 1, label: 'Monday' },
+  { value: 0, label: 'Sunday' },
+]
+
+function supportedTimeZones(): string[] {
+  try {
+    const zones = Intl.supportedValuesOf('timeZone') as string[]
+    if (!zones.includes('Etc/GMT')) return ['Etc/GMT', ...zones]
+    return zones
+  } catch {
+    // Fallback for older engines
+    return ['Etc/GMT', 'UTC', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Australia/Sydney']
+  }
+}
+
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
@@ -38,6 +54,10 @@ export function SettingsView() {
   const setUtilizationPref = useStore((s) => s.setUtilizationPref)
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
+  const weekStartsOn: 0 | 1 = activeAccount?.weekStartsOn ?? 1
+  const timezone: string = activeAccount?.timezone ?? 'Etc/GMT'
+  const allZones = supportedTimeZones()
+  const tzOptions = allZones.includes(timezone) ? allZones : [timezone, ...allZones]
 
   const accountName = activeAccount?.name ?? ''
   const [name, setName] = useState(accountName)
@@ -121,6 +141,54 @@ export function SettingsView() {
                 </button>
               )
             })}
+          </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">Calendar</h2>
+          <p className="mb-3 text-xs text-muted">
+            Applies to the whole team — sets which day starts the week and the time zone used to determine "today".
+          </p>
+          <div className="space-y-3">
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-ink">Week starts on</p>
+              <div role="radiogroup" aria-label="Week starts on" className="inline-flex rounded-md border border-line p-0.5">
+                {WEEK_START_OPTIONS.map((opt) => {
+                  const selected = weekStartsOn === opt.value
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => updateAccount(activeAccount.id, { weekStartsOn: opt.value })}
+                      className={`rounded px-3 py-1.5 text-sm font-medium transition ${
+                        selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div>
+              <label htmlFor="timezone-select" className="mb-1.5 block text-xs font-medium text-ink">
+                Timezone
+              </label>
+              <select
+                id="timezone-select"
+                value={timezone}
+                onChange={(e) => updateAccount(activeAccount.id, { timezone: e.target.value })}
+                className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
+              >
+                {tzOptions.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz === 'Etc/GMT' ? 'GMT' : tz}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </section>
 

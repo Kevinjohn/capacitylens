@@ -4,7 +4,7 @@ import {
   assertResourceExists,
   assertScopedRefs,
 } from '@floaty/shared/domain/mutations'
-import { sanitizeImportedRecord } from '@floaty/shared/lib/sanitizeImport'
+import { sanitizeImportedRecord, sanitizeAccount } from '@floaty/shared/lib/sanitizeImport'
 import { isHexColor } from '@floaty/shared/lib/color'
 import { cleanText } from '@floaty/shared/lib/strings'
 import { SCHEDULING_MODES, SCOPED_KEYS } from '@floaty/shared/types/entities'
@@ -68,6 +68,7 @@ export function sanitizeWrite(table: string, row: Record<string, unknown>): Reco
     if (copy.schedulingMode !== undefined && !SCHEDULING_MODES.includes(copy.schedulingMode as never)) {
       delete copy.schedulingMode
     }
+    sanitizeAccount(copy)
     return copy
   }
   if (isScopedKey(table)) return sanitizeImportedRecord(table, copy)

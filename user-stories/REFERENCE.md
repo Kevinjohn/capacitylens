@@ -44,7 +44,7 @@ The sidebar links, in order, route to:
 | Projects | `/projects` | Project list |
 | Tasks | `/tasks` | Task list |
 | Time off | `/timeoff` | Time-off list |
-| Settings | `/settings` | Settings (company rename, theme, utilisation toggles) |
+| Settings | `/settings` | Settings (company rename, scheduling, calendar, utilisation, appearance) |
 
 That's **eight** sections. The **Data** section at the bottom of the sidebar has **Export
 JSON** and **Import JSON**. A **Switch company** control returns to the account picker.

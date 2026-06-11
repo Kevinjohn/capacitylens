@@ -2,12 +2,27 @@ import { addDaysISO } from '@floaty/shared/lib/dateMath'
 import { byAccount } from '@floaty/shared/domain/tenancy'
 import { emptyAppData, scopedTables, SCOPED_KEYS } from '@floaty/shared/types/entities'
 import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@floaty/shared/types/entities'
+
+export interface CalendarConfig {
+  timeZone: string
+  weekStartsOn: 0 | 1
+}
 import type { SchedulerUI } from './useStore'
 
 /** The active company's scheduling input mode. Absent on the account reads as the
  *  original 'hourly' behaviour. Single source so the modal and the bar can't drift. */
 export const schedulingModeFor = (data: AppData, activeAccountId: ID | null): SchedulingMode =>
   data.accounts.find((a) => a.id === activeAccountId)?.schedulingMode ?? 'hourly'
+
+/** The active account's calendar config — timezone and week-start day.
+ *  Absent fields fall back to the defaults (Etc/GMT, Monday). */
+export const calendarFor = (data: AppData, activeAccountId: ID | null): CalendarConfig => {
+  const account = data.accounts.find((a) => a.id === activeAccountId)
+  return {
+    timeZone: account?.timezone ?? 'Etc/GMT',
+    weekStartsOn: account?.weekStartsOn ?? 1,
+  }
+}
 
 /** Narrow the full store data to a single account: every scoped array filtered to
  *  `accountId`, and `accounts` blanked (scoped views never read the tenant list). */

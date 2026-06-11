@@ -202,6 +202,47 @@ describe('schema migration of an existing on-disk DB', () => {
     }
   })
 
+  it('accounts.timezone and accounts.weekStartsOn are added by migration', () => {
+    // An old accounts table without the new optional columns.
+    const path = join(tmpdir(), `floaty-migrate-tz-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* fine */ }
+      }
+    }
+    cleanup()
+    try {
+      const old = new DatabaseSync(path)
+      old.exec(`
+        CREATE TABLE accounts (
+          id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
+          schedulingMode TEXT,
+          createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+        );
+      `)
+      old.exec(`INSERT INTO accounts VALUES ('a1','Studio','#111',NULL,'${TS}','${TS}');`)
+      old.close()
+
+      const db = openDb(path)
+      // After migration, both new optional columns exist and round-trip.
+      insertRow(db, 'accounts', {
+        id: 'a2', name: 'New Studio', color: '#222',
+        timezone: 'Europe/Paris', weekStartsOn: 0,
+        createdAt: TS, updatedAt: TS,
+      })
+      const row = getRow(db, 'accounts', 'a2')
+      expect(row?.timezone).toBe('Europe/Paris')
+      expect(row?.weekStartsOn).toBe(0)
+      // The old row (without the new fields) reads back without them.
+      const old2 = getRow(db, 'accounts', 'a1')
+      expect(old2?.timezone).toBeUndefined()
+      expect(old2?.weekStartsOn).toBeUndefined()
+      db.close()
+    } finally {
+      cleanup()
+    }
+  })
+
   it('throws a nullability-mismatch error when a column is present but NULL/NOT NULL disagrees with the spec', () => {
     // accounts.schedulingMode is OPTIONAL in the spec (nullable), but here the on-disk column
     // exists as NOT NULL. It's present, so migrateSchema won't touch it and the missing-column

@@ -45,6 +45,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const deleteAllocation = useStore((s) => s.deleteAllocation)
   const addTask = useStore((s) => s.addTask)
   const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId))
+  const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const isDays = mode === 'days'
   const isBlocks = mode === 'blocks'
 
@@ -63,8 +64,8 @@ export function AllocationModal(props: AllocationModalProps) {
   // `initialLocked` is only the CREATE-time default for a placeholder's bound project.
   const [projectId, setProjectId] = useState(editing ? (initialTask?.projectId ?? '') : (initialLocked ?? ''))
   const [taskId, setTaskId] = useState(editing?.taskId ?? '')
-  const [startDate, setStartDate] = useState<ISODate>(editing?.startDate ?? create?.startDate ?? todayISO())
-  const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO())
+  const [startDate, setStartDate] = useState<ISODate>(editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone))
+  const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone))
   const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? initialResource?.workingHoursPerDay ?? 8)
   const [status, setStatus] = useState<AllocationStatus>(editing?.status ?? 'confirmed')
   const [note, setNote] = useState(editing?.note ?? '')
@@ -74,7 +75,7 @@ export function AllocationModal(props: AllocationModalProps) {
   // the user drew on the lane (start..end) at full-time load, mirroring how hourly
   // create defaults hours to a full working day across the same range.
   const initialWhpd = initialResource?.workingHoursPerDay ?? 8
-  const initialStart = editing?.startDate ?? create?.startDate ?? todayISO()
+  const initialStart = editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone)
   const seedEnd = editing?.endDate ?? create?.endDate
   const initialDaysOpts = { workingDays: initialResource?.workingDays, ignoreWeekends: editing?.ignoreWeekends ?? false }
   const initialDaysOver = seedEnd ? Math.max(1, spanDays(initialStart, seedEnd, initialDaysOpts)) : 1

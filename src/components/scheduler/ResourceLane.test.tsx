@@ -61,6 +61,7 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
       totalWidth={DAY_WIDTH * DAYS.length}
       rowHeight={52}
       bars={[makeBar()]}
+      weekStartsOn={1}
       onEdit={onEdit}
       onDraw={onDraw}
       {...overrides}

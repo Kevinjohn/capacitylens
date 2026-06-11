@@ -64,6 +64,8 @@ const COLS_accounts = [
   { name: 'name' },
   { name: 'color' },
   { name: 'schedulingMode', optional: true },
+  { name: 'timezone', optional: true },
+  { name: 'weekStartsOn', json: true, optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -252,7 +254,7 @@ export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
-  schedulingMode TEXT,
+  schedulingMode TEXT, timezone TEXT, weekStartsOn TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS clients (

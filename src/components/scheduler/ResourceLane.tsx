@@ -25,6 +25,7 @@ export const ResourceLane = memo(function ResourceLane({
   rowHeight,
   bars,
   placeholder = false,
+  weekStartsOn,
   onEdit,
   onDraw,
 }: {
@@ -39,6 +40,7 @@ export const ResourceLane = memo(function ResourceLane({
   rowHeight: number
   bars: BarLayout[]
   placeholder?: boolean
+  weekStartsOn: 0 | 1
   onEdit: (allocationId: ID) => void
   onDraw: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void
 }) {
@@ -135,7 +137,7 @@ export const ResourceLane = memo(function ResourceLane({
           only, same DOM-weight rule as the weekend tint below. */}
       {days.map((d, i) => {
         if (i === 0) return null
-        const weekStart = weekdayOf(d) === 1
+        const weekStart = weekdayOf(d) === weekStartsOn
         if (!weekStart && dayWidth < DAY_COLUMN_MIN_WIDTH) return null
         return (
           <div

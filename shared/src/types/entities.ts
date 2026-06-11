@@ -15,6 +15,7 @@ export type SchedulingMode = 'hourly' | 'days' | 'blocks'
 /** Runtime list of the valid scheduling modes — the single source the server's
  *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks']
+export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1]
 export type ResourceKind = 'person' | 'placeholder'
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
@@ -32,6 +33,10 @@ export interface Account extends Entity {
   color: string
   /** How this company enters allocations. Absent = 'hourly' (the original behaviour). */
   schedulingMode?: SchedulingMode
+  /** IANA time zone used to derive "today" for this account. Absent = 'Etc/GMT'. */
+  timezone?: string
+  /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Absent = 1. */
+  weekStartsOn?: 0 | 1
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */

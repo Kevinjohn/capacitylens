@@ -322,7 +322,10 @@ export const useStore = create<StoreState>()((set, get) => {
       set((s) => {
         // Open the switched-into company on the current week (mirrors defaultUI) rather
         // than inheriting the previous tenant's panned origin/focus.
-        const weekStart = startOfWeekISO(todayISO())
+        const account = id ? s.data.accounts.find((a) => a.id === id) : null
+        const tz = account?.timezone ?? 'Etc/GMT'
+        const wso = account?.weekStartsOn ?? 1
+        const weekStart = startOfWeekISO(todayISO(tz), wso)
         return {
           activeAccountId: id,
           // Remember where we came from when dropping to the picker (id === null) so it
@@ -563,9 +566,12 @@ export const useStore = create<StoreState>()((set, get) => {
     panDays: (delta) => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(s.ui.originDate, delta) } })),
     goToToday: () =>
       set((s) => {
-        // Match the default view: focus the Monday of the current week (scrolled flush
+        // Match the default view: focus the start of the current week (scrolled flush
         // to the left edge) with the back-buffer behind it for leftward scrolling.
-        const weekStart = startOfWeekISO(todayISO())
+        const account = s.activeAccountId ? s.data.accounts.find((a) => a.id === s.activeAccountId) : null
+        const tz = account?.timezone ?? 'Etc/GMT'
+        const wso = account?.weekStartsOn ?? 1
+        const weekStart = startOfWeekISO(todayISO(tz), wso)
         return {
           ui: {
             ...s.ui,

@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react'
 import { format } from 'date-fns'
-import { parseDate, todayISO, weekdayOf } from '@floaty/shared/lib/dateMath'
+import { parseDate, weekdayOf } from '@floaty/shared/lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
 
 interface Span {
@@ -21,11 +21,11 @@ function monthSpans(days: string[]): Span[] {
   return spans
 }
 
-/** Group visible days into weeks (new block on Monday or at the window start). */
-function weekBlocks(days: string[]): Span[] {
+/** Group visible days into weeks (new block on the week-start day or at the window start). */
+function weekBlocks(days: string[], weekStartsOn: 0 | 1): Span[] {
   const blocks: Span[] = []
   days.forEach((d, i) => {
-    if (i === 0 || weekdayOf(d) === 1) blocks.push({ key: d, label: format(parseDate(d), 'd MMM'), days: 1 })
+    if (i === 0 || weekdayOf(d) === weekStartsOn) blocks.push({ key: d, label: format(parseDate(d), 'd MMM'), days: 1 })
     else blocks[blocks.length - 1].days += 1
   })
   return blocks
@@ -33,15 +33,24 @@ function weekBlocks(days: string[]): Span[] {
 
 // Memoised: its props (the memoised `days` array + numeric dayWidth) are stable
 // across data mutations, so it stops re-rendering ~120 cells on every store change.
-export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: string[]; dayWidth: number }) {
+export const DateHeader = memo(function DateHeader({
+  days,
+  dayWidth,
+  weekStartsOn,
+  today,
+}: {
+  days: string[]
+  dayWidth: number
+  weekStartsOn: 0 | 1
+  today: string
+}) {
   const showDays = dayWidth >= DAY_COLUMN_MIN_WIDTH // per-day columns vs per-week blocks
   const showWeekday = dayWidth >= WEEKDAY_LABEL_MIN_WIDTH
-  const today = todayISO()
   const totalWidth = days.length * dayWidth
   // Month/week groupings depend only on `days` — recompute on the day set changing,
   // not on a pure dayWidth (zoom) change that only re-widths the same blocks.
   const months = useMemo(() => monthSpans(days), [days])
-  const weeks = useMemo(() => weekBlocks(days), [days])
+  const weeks = useMemo(() => weekBlocks(days, weekStartsOn), [days, weekStartsOn])
 
   return (
     <div role="columnheader" aria-label="Dates" className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
@@ -65,7 +74,7 @@ export const DateHeader = memo(function DateHeader({ days, dayWidth }: { days: s
         <div className="flex flex-auto">
           {days.map((d) => {
             const wd = weekdayOf(d)
-            const weekStart = wd === 1
+            const weekStart = wd === weekStartsOn
             const weekend = wd === 0 || wd === 6
             const isToday = d === today
             const date = parseDate(d)

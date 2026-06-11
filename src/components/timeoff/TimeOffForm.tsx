@@ -19,11 +19,12 @@ export function TimeOffForm({
 }) {
   const add = useStore((s) => s.addTimeOff)
   const update = useStore((s) => s.updateTimeOff)
+  const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const resources = useScopedData().resources
 
   const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? '')
-  const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO())
-  const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO())
+  const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO(calendarTimeZone))
+  const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone))
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? 'holiday')
   const [note, setNote] = useState(timeOff?.note ?? '')
   const [error, setError] = useState<string | null>(null)

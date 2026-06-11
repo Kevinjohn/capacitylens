@@ -67,7 +67,9 @@ export function SchedulerGrid() {
   const days = useMemo(() => eachDayISO(start, end), [start, end])
   const totalWidth = days.length * dayWidth
 
-  const today = todayISO()
+  const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
+  const calendarWeekStartsOn = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.weekStartsOn ?? 1)
+  const today = todayISO(calendarTimeZone)
   // Utilisation is a near-term radar: a fixed forward window from today, independent
   // of zoom and pan, so the per-resource overbooked flag actually fires.
   const utilStart = today
@@ -352,6 +354,7 @@ export function SchedulerGrid() {
           rowHeight={rowHeight}
           bars={bars}
           placeholder={resource.kind === 'placeholder'}
+          weekStartsOn={calendarWeekStartsOn}
           onEdit={handleEdit}
           onDraw={handleDraw}
         />
@@ -396,7 +399,7 @@ export function SchedulerGrid() {
             </>
           )}
         </div>
-        <DateHeader days={days} dayWidth={dayWidth} />
+        <DateHeader days={days} dayWidth={dayWidth} weekStartsOn={calendarWeekStartsOn} today={today} />
       </div>
 
       {model.length === 0 && (

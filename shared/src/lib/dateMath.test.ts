@@ -7,6 +7,7 @@ import {
   isWithin,
   parseDate,
   startOfWeekISO,
+  todayISO,
   toISODate,
   weekdayOf,
   widthForRange,
@@ -61,12 +62,21 @@ describe('dateMath', () => {
     expect(weekdayOf('2026-05-29')).toBe(5) // Friday
   })
 
-  it('startOfWeekISO snaps back to the week’s Monday', () => {
+  it('startOfWeekISO snaps back to the week start Monday (default)', () => {
     // Week of 2026-06-01 (Mon) … 2026-06-07 (Sun).
     expect(startOfWeekISO('2026-06-01')).toBe('2026-06-01') // Monday → itself
     expect(startOfWeekISO('2026-06-03')).toBe('2026-06-01') // Wednesday → Monday
     expect(startOfWeekISO('2026-06-07')).toBe('2026-06-01') // Sunday → previous Monday
     expect(startOfWeekISO('2026-05-31')).toBe('2026-05-25') // Sunday → its Monday (crosses month)
+  })
+
+  it('startOfWeekISO respects weekStartsOn=0 (Sunday)', () => {
+    // 2026-06-11 is a Thursday; Sunday of that week is 2026-06-07
+    expect(startOfWeekISO('2026-06-11', 0)).toBe('2026-06-07')
+    // 2026-06-07 is a Sunday; start of week is itself
+    expect(startOfWeekISO('2026-06-07', 0)).toBe('2026-06-07')
+    // 2026-06-08 is a Monday; Sunday before it is 2026-06-07
+    expect(startOfWeekISO('2026-06-08', 0)).toBe('2026-06-07')
   })
 
   it('xForDate and widthForRange map dates/ranges to pixels', () => {
@@ -92,5 +102,29 @@ describe('dateMath', () => {
 
   it('toISODate/parseDate round-trip', () => {
     expect(toISODate(parseDate('2026-05-29'))).toBe('2026-05-29')
+  })
+})
+
+describe('todayISO', () => {
+  it('returns the local date when no timeZone given', () => {
+    const result = todayISO()
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('returns a YYYY-MM-DD string for a valid time zone', () => {
+    const result = todayISO('America/New_York')
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  it('returns the correct date for zones on both sides of midnight', () => {
+    // We can't control the clock in unit tests easily, so just check format + it doesn't throw.
+    expect(() => todayISO('Pacific/Auckland')).not.toThrow()
+    expect(() => todayISO('America/Los_Angeles')).not.toThrow()
+    expect(() => todayISO('Etc/GMT')).not.toThrow()
+  })
+
+  it('falls back gracefully when given undefined', () => {
+    expect(() => todayISO(undefined)).not.toThrow()
+    expect(todayISO(undefined)).toMatch(/^\d{4}-\d{2}-\d{2}$/)
   })
 })

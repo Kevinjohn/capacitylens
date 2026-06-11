@@ -80,6 +80,26 @@ const cleanRequiredField = (rec: Record<string, unknown>, field: string, fallbac
   rec[field] = cleaned.length > 0 ? cleaned : fallback
 }
 
+/** Sanitize the optional calendar fields of an account record in place.
+ *  Called by the server write path; the import path doesn't re-import accounts. */
+export function sanitizeAccount(rec: Record<string, unknown>): Record<string, unknown> {
+  if (rec.timezone !== undefined) {
+    if (typeof rec.timezone !== 'string') {
+      delete rec.timezone
+    } else {
+      try {
+        new Intl.DateTimeFormat(undefined, { timeZone: rec.timezone as string })
+      } catch {
+        delete rec.timezone
+      }
+    }
+  }
+  if (rec.weekStartsOn !== undefined && rec.weekStartsOn !== 0 && rec.weekStartsOn !== 1) {
+    delete rec.weekStartsOn
+  }
+  return rec
+}
+
 /** Repair the value-level fields of one imported scoped record in place. The record
  *  has already had its id remapped + accountId stamped; we only touch constrained
  *  fields, leaving names/notes/refs alone. */

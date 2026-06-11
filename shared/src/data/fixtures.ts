@@ -11,6 +11,8 @@ export const FIXTURE_ACCOUNT: Account = {
   name: 'Fixture Studio',
   color: '#1a2b3c',
   schedulingMode: 'days',
+  timezone: 'Europe/London',
+  weekStartsOn: 0,
   createdAt: TS1,
   updatedAt: TS2,
 }

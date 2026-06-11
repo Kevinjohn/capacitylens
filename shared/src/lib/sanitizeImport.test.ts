@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sanitizeImportedRecord } from './sanitizeImport'
+import { sanitizeImportedRecord, sanitizeAccount } from './sanitizeImport'
 
 describe('sanitizeImportedRecord', () => {
   it('repairs a resource with junk enum / numeric / colour fields', () => {
@@ -87,5 +87,36 @@ describe('sanitizeImportedRecord', () => {
 
     const alloc = sanitizeImportedRecord('allocations', { note: `done ${String.fromCodePoint(0x2705)}` })
     expect(alloc.note).toBe('done')
+  })
+})
+
+describe('sanitizeAccount', () => {
+  it('strips an invalid timezone', () => {
+    const rec = { timezone: 'Not/A/Zone' }
+    sanitizeAccount(rec)
+    expect(rec.timezone).toBeUndefined()
+  })
+
+  it('keeps a valid IANA timezone', () => {
+    const rec = { timezone: 'Europe/London' }
+    sanitizeAccount(rec)
+    expect(rec.timezone).toBe('Europe/London')
+  })
+
+  it('strips a non-string timezone', () => {
+    const rec: Record<string, unknown> = { timezone: 42 }
+    sanitizeAccount(rec)
+    expect(rec.timezone).toBeUndefined()
+  })
+
+  it('strips weekStartsOn values that are not 0 or 1', () => {
+    expect(sanitizeAccount({ weekStartsOn: 2 }).weekStartsOn).toBeUndefined()
+    expect(sanitizeAccount({ weekStartsOn: 'monday' }).weekStartsOn).toBeUndefined()
+    expect(sanitizeAccount({ weekStartsOn: null }).weekStartsOn).toBeUndefined()
+  })
+
+  it('keeps weekStartsOn = 0 or 1', () => {
+    expect(sanitizeAccount({ weekStartsOn: 0 }).weekStartsOn).toBe(0)
+    expect(sanitizeAccount({ weekStartsOn: 1 }).weekStartsOn).toBe(1)
   })
 })

@@ -45,10 +45,10 @@ export function weekdayOf(date: ISODate): Weekday {
   return parseISO(date).getDay() as Weekday
 }
 
-/** The Monday of the week containing `date` (weeks start Monday, ISO-style). */
-export function startOfWeekISO(date: ISODate): ISODate {
-  // weekStartsOn: 1 makes Monday the week start (date-fns defaults to Sunday).
-  return toISODate(startOfWeek(parseISO(date), { weekStartsOn: 1 }))
+/** The start of the week containing `date`.
+ *  `weekStartsOn`: 0 = Sunday, 1 = Monday (default, ISO-style). */
+export function startOfWeekISO(date: ISODate, weekStartsOn: 0 | 1 = 1): ISODate {
+  return toISODate(startOfWeek(parseISO(date), { weekStartsOn }))
 }
 
 /** Pixel x-offset of a date's left edge from the timeline origin.
@@ -76,9 +76,21 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
   return date >= start && date <= end
 }
 
-/** Today as a date-only ISO string (impure — reads the system clock). */
-export function todayISO(): ISODate {
-  return toISODate(new Date())
+/** Today as a date-only ISO string (impure — reads the system clock).
+ *  When `timeZone` is given, the calendar date is derived in that zone via
+ *  Intl.DateTimeFormat — so midnight UTC on 2026-06-11 is still 2026-06-10 in
+ *  America/New_York. Falls back to local date when absent. */
+export function todayISO(timeZone?: string): ISODate {
+  if (!timeZone) return toISODate(new Date())
+  // Use formatToParts for safety (avoids any locale-specific separators).
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date())
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00'
+  return `${get('year')}-${get('month')}-${get('day')}` as ISODate
 }
 
 /** Is `date`'s weekday one of `workingDays`? */
