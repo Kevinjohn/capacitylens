@@ -25,7 +25,31 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Static fallback so a JS-less load is never a silent white page. React's
+         createRoot().render() replaces #root's children the instant the app mounts;
+         in dev even the CSS arrives via JS modules, hence the inline styles. Two cases:
+         - JS disabled outright (browser setting): <noscript> renders the explanation.
+         - JS blocked selectively (content-blocker extension, per-site setting): scripts
+           never execute but <noscript> does NOT render — so the placeholder text itself
+           carries the diagnosis instead of vanishing into a blank screen. -->
+    <div id="root">
+      <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 36rem; margin: 4rem auto; padding: 0 1.5rem; color: #64748b; line-height: 1.5">
+        <p style="font-weight: 600; color: #6366f1">Floaty</p>
+        <p>Loading&hellip;</p>
+        <p style="font-size: 0.875rem">
+          If this message doesn't go away, JavaScript isn't running on this page —
+          it may be disabled for this site in your browser settings, or blocked by an
+          extension (content/script blockers also run in private windows when allowed).
+          Floaty needs JavaScript; nothing is shown without it.
+        </p>
+      </div>
+    </div>
+    <noscript>
+      <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 36rem; margin: 1rem auto; padding: 0 1.5rem; color: #b91c1c">
+        JavaScript is disabled in this browser, and Floaty cannot start without it.
+        Enable JavaScript for this site, then reload.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
