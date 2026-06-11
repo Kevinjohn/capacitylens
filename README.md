@@ -6,6 +6,20 @@ never leaves the device. An **optional** SQLite-backed API can be switched on (s
 below) when you want a shared, server-persisted dataset — the app talks to it
 through the same persistence seam, so nothing else changes.
 
+## Run it
+
+```bash
+npm install
+npm run dev
+```
+
+Open **the URL Vite prints** (`http://127.0.0.1:5173/`) and pick **Studio North** at the
+account picker to land on the seeded demo data. The dev server binds IPv4 loopback with a
+**strict port**: if 5173 is already taken (a stale server, or a sibling repo — floaty-schedule
+and delivery-diary claim the same port), Vite exits with an error instead of silently starting
+on 5174 — kill the squatter (`lsof -nP -iTCP:5173 -sTCP:LISTEN`) rather than browsing a port
+nothing answers; that mismatch looks like a blank white page with an empty console.
+
 ## Tech
 
 React + TypeScript + Vite. Zustand for state, Tailwind for styling, React Router

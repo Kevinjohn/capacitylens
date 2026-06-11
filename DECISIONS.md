@@ -98,6 +98,11 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Two oracles beyond "tests pass":** screenshots are the **visual** oracle (role/DOM
   assertions prove behaviour, not appearance); `@axe-core/playwright` is the **a11y** oracle
   (light + dark + a modal).
+- **Dev server binds loud, not lucky:** `vite.config.ts` pins `host: '127.0.0.1'` (Node 17+
+  would otherwise bind `localhost` → `::1` only) and `strictPort: true` (a squatted 5173 —
+  including by floaty-schedule / delivery-diary, which claim the same port — fails at startup
+  instead of silently serving 5174). A URL/socket mismatch presents as a blank page with an
+  empty console; don't reintroduce either silent mode.
 - **E2E freezes the clock** to a date inside the seed window (`2026-06-03`, the over-allocated
   day) in `e2e/helpers.ts` `openApp()`. The scheduler view is today-anchored (origin snaps to
   this week's Monday; the utilisation window runs forward from today) and the seed lives in early
