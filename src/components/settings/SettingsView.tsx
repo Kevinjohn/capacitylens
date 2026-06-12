@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../../auth/authContext'
-import { buildStamp } from '../../data/buildInfo'
+import { buildStamp, feedbackMailto } from '../../data/buildInfo'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { validateName } from '../../lib/validation'
@@ -117,6 +117,7 @@ export function SettingsView() {
 
   const nameUnchanged = name.trim() === activeAccount.name
   const stamp = buildStamp()
+  const feedback = feedbackMailto()
 
   return (
     <ListPage title="Settings">
@@ -299,11 +300,21 @@ export function SettingsView() {
           </section>
         )}
 
-        {/* Build provenance footer (P1.7) — only in builds stamped by the deploy script;
-            absent (today's Settings exactly) when VITE_FLOATY_BUILD_SHA is unset. */}
-        {stamp && (
-          <p data-testid="build-stamp" className="text-xs text-muted">
-            {stamp}
+        {/* Build provenance footer (P1.7) + feedback link (P5.2) — only in builds the
+            deploy script stamps; absent (today's Settings exactly) when both env vars
+            are unset. The mailto subject carries the stamp so reports arrive pinned. */}
+        {(stamp || feedback) && (
+          <p className="flex items-center gap-3 text-xs text-muted">
+            {stamp && <span data-testid="build-stamp">{stamp}</span>}
+            {feedback && (
+              <a
+                data-testid="send-feedback"
+                href={feedback}
+                className="underline underline-offset-2 hover:text-ink"
+              >
+                Send feedback
+              </a>
+            )}
           </p>
         )}
       </div>

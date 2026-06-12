@@ -158,6 +158,7 @@ stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04)
 | [US-SET-01](settings/US-SET-01-calendar-settings.md) | Team calendar (week start + timezone) | `e2e/settings-calendar.spec.ts` |
 | [US-SET-02](settings/US-SET-02-bar-labels.md) | Allocation-bar label toggles | `e2e/settings-bar-labels.spec.ts` |
 | [US-SET-03](settings/US-SET-03-build-stamp.md) | Build stamp (flag-gated) | `e2e/settings-build-stamp.spec.ts` (absence by default) |
+| [US-SET-04](settings/US-SET-04-send-feedback.md) | Send feedback mailto (flag-gated) | `e2e/settings-build-stamp.spec.ts` (absence by default) |
 
 ## Keyboard & accessibility — `accessibility/`
 | Story | Title | Automated coverage |

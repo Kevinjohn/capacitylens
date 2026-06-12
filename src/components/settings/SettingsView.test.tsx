@@ -128,6 +128,22 @@ describe('SettingsView — build stamp', () => {
     render(<SettingsView />)
     expect(screen.getByTestId('build-stamp')).toHaveTextContent('build a1b2c3d · local')
   })
+
+  it('renders no Send feedback link by default, and a stamped mailto when configured', () => {
+    const { unmount } = render(<SettingsView />)
+    expect(screen.queryByTestId('send-feedback')).not.toBeInTheDocument()
+    unmount()
+
+    vi.stubEnv('VITE_FLOATY_FEEDBACK_MAILTO', 'owner@example.com')
+    vi.stubEnv('VITE_FLOATY_BUILD_SHA', 'a1b2c3d')
+    render(<SettingsView />)
+    const link = screen.getByTestId('send-feedback')
+    expect(link).toHaveTextContent('Send feedback')
+    expect(link).toHaveAttribute(
+      'href',
+      `mailto:owner@example.com?subject=${encodeURIComponent('Floaty feedback — build a1b2c3d · local')}`,
+    )
+  })
 })
 
 describe('SettingsView — Account section (auth)', () => {

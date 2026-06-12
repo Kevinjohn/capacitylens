@@ -122,11 +122,15 @@ and project parts are device-global toggles in Settings → **Allocation bars** 
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
 task-first layout regardless of these toggles.
 
-**Build stamp (Settings, flag-gated).** When the build sets `VITE_FLOATY_BUILD_SHA`, the
-Settings page ends with a muted one-line footer (`data-testid="build-stamp"`) reading
-`build <sha> · server` (a server backend is configured, i.e. `VITE_FLOATY_API` was baked in)
-or `build <sha> · local` (localStorage mode). The default dev/local build leaves the variable
-unset and renders **nothing** — the seeded state these stories run against has no build stamp.
+**Build stamp + feedback link (Settings, flag-gated).** When the build sets
+`VITE_FLOATY_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the
+stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
+configured, i.e. `VITE_FLOATY_API` was baked in) or `build <sha> · local` (localStorage
+mode). When the build also sets `VITE_FLOATY_FEEDBACK_MAILTO`, a **Send feedback** link
+(`data-testid="send-feedback"`) sits beside the stamp — a `mailto:` whose subject carries
+the build stamp, so reports arrive pinned to a build. The default dev/local build leaves
+both variables unset and renders **nothing** — the seeded state these stories run against
+has no footer at all.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
 server mode (`VITE_FLOATY_API` set) **and** that server runs with `FLOATY_AUTH=password` or
@@ -173,7 +177,8 @@ Mouse hover sets the active option; mouse click selects.
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `export-data`, `import-data`,
 `import-input`, `build-stamp` (Settings footer; only rendered when the build sets
-`VITE_FLOATY_BUILD_SHA`). A lane carries `data-resource-id="<id>"`; a bar carries
+`VITE_FLOATY_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
+`VITE_FLOATY_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
 `r-ph-designer`, `p-acme` (Project Lightning), `p-brand` (Brand Themes), `t-wires`.
 
