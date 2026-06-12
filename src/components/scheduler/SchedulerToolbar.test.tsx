@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SchedulerToolbar } from './SchedulerToolbar'
-import { useStore } from '../../store/useStore'
+import { emptyFilters, useStore } from '../../store/useStore'
 import { resetStoreWithAccount } from '../../test/fixtures'
 
 beforeEach(() => {
@@ -98,5 +98,22 @@ describe('SchedulerToolbar Clear filter button', () => {
     // Past the debounce window: the stale 'bob' must NOT have clobbered the cleared value.
     await new Promise((r) => setTimeout(r, 250))
     expect(useStore.getState().ui.filters.search).toBe('')
+  })
+
+  it('a filters REPLACEMENT that leaves search unchanged (palette selection) still kills a pending debounce', async () => {
+    render(<SchedulerToolbar />)
+    const box = screen.getByLabelText('Search people') as HTMLInputElement
+
+    // Pending term: the store's search is '' and STAYS '' through the replacement below,
+    // so any logic keyed on the search VALUE cannot see this write — the race the palette
+    // e2e spec kept tripping (the timer resurrected the stale term over the replacement).
+    fireEvent.change(box, { target: { value: 'zzz-nobody-matches-zzz' } })
+    // What CommandPalette's project selection does: REPLACE the filters wholesale.
+    useStore.getState().setFilters({ ...emptyFilters(), projectId: 'p1' })
+
+    await new Promise((r) => setTimeout(r, 250))
+    expect(useStore.getState().ui.filters.search).toBe('') // not resurrected
+    expect(useStore.getState().ui.filters.projectId).toBe('p1') // replacement intact
+    expect(box.value).toBe('') // stale text gone from the box too
   })
 })
