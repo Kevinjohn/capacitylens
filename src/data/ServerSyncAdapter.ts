@@ -44,9 +44,13 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     this.fetchImpl = fetchImpl
   }
 
+  // P3.4: every request carries credentials so an auth-enabled server (FLOATY_AUTH ≠ off)
+  // sees the Better Auth session cookie. With auth off (the default) and same-origin
+  // requests there are no cookies to send — a verified no-op (the db-backed e2e project
+  // runs unchanged); the server pairs reflected CORS origins with Allow-Credentials.
   async loadAll(): Promise<AppData> {
     try {
-      const res = await this.fetchImpl(`${this.baseUrl}/api/state`)
+      const res = await this.fetchImpl(`${this.baseUrl}/api/state`, { credentials: 'include' })
       if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
       const json: unknown = await res.json()
       const data = migrate(json) // tolerate an older-schema server payload
@@ -63,7 +67,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   async hasExisting(): Promise<boolean> {
-    const res = await this.fetchImpl(`${this.baseUrl}/api/meta`)
+    const res = await this.fetchImpl(`${this.baseUrl}/api/meta`, { credentials: 'include' })
     if (!res.ok) throw new Error(`Failed to read meta (${res.status})`)
     const json = (await res.json()) as { hasData?: boolean }
     return json.hasData === true
@@ -121,8 +125,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ops }),
       keepalive: opts?.keepalive,
+      credentials: 'include',
     })
     if (!res.ok) {
+      // A 401 (session expired on an auth-enabled server) surfaces like any other write
+      // failure — persist.ts raises the banner, and the AuthProvider's re-check sees the
+      // 401 and swaps to the login screen. Never a silent drop.
       const detail = await res.text().catch(() => '')
       throw new Error(`Batch sync failed (${res.status}) ${detail}`.trim())
     }

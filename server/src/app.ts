@@ -268,7 +268,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     const origin = resolveCorsOrigin(req.headers.origin, corsOrigin)
     if (origin) {
       reply.header('Access-Control-Allow-Origin', origin)
-      if (origin !== '*') reply.header('Vary', 'Origin')
+      if (origin !== '*') {
+        reply.header('Vary', 'Origin')
+        // P3.4: the client sends credentials: 'include' on every request, and the browser
+        // refuses a credentialed cross-origin response without this header. Only ever
+        // paired with a REFLECTED allow-listed origin — credentials with '*' are invalid
+        // (and browsers reject them), so the wildcard stays uncredentialed by design.
+        reply.header('Access-Control-Allow-Credentials', 'true')
+      }
     }
     reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
     reply.header('Access-Control-Allow-Headers', 'Content-Type')

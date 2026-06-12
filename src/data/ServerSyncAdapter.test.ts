@@ -15,6 +15,25 @@ const project = (id: string, clientId: string, updatedAt = TS1): Project => ({ i
 
 const withData = (over: Partial<AppData>): AppData => ({ ...emptyAppData(), ...over })
 
+describe('auth-awareness (P3.4)', () => {
+  it('sends credentials on every request so a session cookie reaches an auth-enabled server', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init })
+      if (String(url).endsWith('/api/state')) return new Response(JSON.stringify(emptyAppData()), { status: 200 })
+      return new Response('{}', { status: 200 })
+    })
+    const adapter = new ServerSyncAdapter('http://api.test', fetchImpl as unknown as typeof fetch)
+    await adapter.loadAll()
+    await adapter.hasExisting()
+    await adapter.saveAll(withData({ clients: [client('c1')] }))
+    expect(calls.length).toBeGreaterThanOrEqual(3) // state, meta, batch
+    for (const { url, init } of calls) {
+      expect(init?.credentials, url).toBe('include')
+    }
+  })
+})
+
 describe('diffOps', () => {
   it('emits PUT for new rows, parent-before-child', () => {
     const next = withData({ clients: [client('c1')], projects: [project('p1', 'c1')] })

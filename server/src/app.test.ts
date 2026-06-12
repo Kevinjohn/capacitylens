@@ -570,6 +570,18 @@ describe('CORS allow-list', () => {
     expect(bad.headers['access-control-allow-origin']).toBeUndefined()
   })
 
+  it('pairs Allow-Credentials with a reflected origin, never with the wildcard (P3.4)', async () => {
+    // The client sends credentials: 'include' on every request; a credentialed
+    // cross-origin response without this header is refused by the browser. With '*'
+    // the header must be absent — credentialed wildcards are invalid by spec.
+    const { app } = freshApp()
+    const reflected = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://localhost:5173' } })
+    expect(reflected.headers['access-control-allow-credentials']).toBe('true')
+    const wildcard = buildApp(openDb(':memory:'), { corsOrigin: '*' })
+    const starred = await call(wildcard, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
+    expect(starred.headers['access-control-allow-credentials']).toBeUndefined()
+  })
+
   it('answers a write preflight with 204 + CORS headers (no OPTIONS route exists)', async () => {
     // Regression guard: every cross-origin write (JSON POST/PUT/PATCH/DELETE) is
     // preflighted by the browser, and OPTIONS matches no route — the 204 comes from the
