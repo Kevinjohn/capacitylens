@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useStore } from '../store/useStore'
+import { useStore, emptyFilters } from '../store/useStore'
 import { useScopedData } from '../store/useScopedData'
 import { fuzzyFilter } from '../lib/fuzzy'
+import { isValidISODate } from '@floaty/shared/lib/integrity'
 import type { Filters } from '../store/useStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -13,15 +14,6 @@ interface PaletteItem {
   sublabel?: string
   section: string
   onSelect: () => void
-}
-
-// ISO date pattern (YYYY-MM-DD)
-const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-
-function isValidISODate(s: string): boolean {
-  if (!ISO_DATE_RE.test(s)) return false
-  const d = new Date(s)
-  return !isNaN(d.getTime())
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -310,7 +302,7 @@ function buildItems({
       section: 'Projects',
       onSelect: () => {
         void navigate('/')
-        setFilters({ projectId: p.id })
+        setFilters({ ...emptyFilters(), projectId: p.id })
         onClose()
       },
     }
@@ -327,7 +319,7 @@ function buildItems({
     section: 'Clients',
     onSelect: () => {
       void navigate('/')
-      setFilters({ clientId: c.id })
+      setFilters({ ...emptyFilters(), clientId: c.id })
       onClose()
     },
   }))

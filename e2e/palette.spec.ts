@@ -167,6 +167,74 @@ test.describe('Command palette', () => {
     await expect(page.getByTestId('command-palette')).not.toBeVisible()
   })
 
+  test('dirty-form guard: Ctrl+K while a modal is dirty does not open the palette', async ({ page }) => {
+    await openApp(page)
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+
+    // Open the Add client form (a real modal) to get a dirty form
+    await page.getByRole('link', { name: 'Clients' }).click()
+    await page.getByRole('button', { name: 'Add client' }).click()
+
+    // Make the form dirty by typing in the Name field
+    await page.getByLabel('Name').fill('Dirty Client')
+
+    // Now press ControlOrMeta+K — the palette must NOT appear
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByTestId('command-palette')).not.toBeVisible()
+
+    // The modal (form) must still be visible
+    await expect(page.getByLabel('Name')).toBeVisible()
+
+    // The unsaved-changes notice must appear
+    await expect(
+      page.getByText('You have unsaved changes — use Cancel or Save to close this dialog.'),
+    ).toBeVisible()
+  })
+
+  test('impossible date 2026-02-31 does not show a Go to date option', async ({ page }) => {
+    await openApp(page)
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByTestId('command-palette')).toBeVisible()
+
+    await page.getByTestId('command-palette-input').fill('2026-02-31')
+
+    // No "Go to date 2026-02-31" option should appear
+    await expect(
+      page.getByTestId('command-palette').getByText(/Go to date 2026-02-31/),
+    ).not.toBeVisible()
+  })
+
+  test('palette project selection replaces stale schedule filters', async ({ page }) => {
+    await openApp(page)
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+
+    // Pre-set a stale search filter that would leave the schedule empty
+    const searchInput = page.getByPlaceholder('Search people…')
+    await searchInput.fill('zzz-nobody-matches-zzz')
+
+    // Open palette and select a seeded project (Project Lightning)
+    await page.keyboard.press('ControlOrMeta+k')
+    await expect(page.getByTestId('command-palette')).toBeVisible()
+
+    await page.getByTestId('command-palette-input').fill('Lightning')
+
+    const projectOption = page.getByTestId('command-palette-option').filter({ hasText: 'Project Lightning' })
+    await expect(projectOption).toBeVisible()
+    await projectOption.click()
+
+    // Palette closed
+    await expect(page.getByTestId('command-palette')).not.toBeVisible()
+
+    // Scheduler must be visible (not the empty-state)
+    await expect(page.getByTestId('scheduler-grid')).toBeVisible()
+    await expect(page.getByTestId('scheduler-empty')).not.toBeVisible()
+
+    // The project filter must be set to Project Lightning (value is its seeded id p-acme)
+    // and the stale search text must be gone
+    await expect(page.getByRole('combobox', { name: 'Filter by project' })).toHaveValue('p-acme')
+    await expect(page.getByPlaceholder('Search people…')).toHaveValue('')
+  })
+
   test('palette has no serious or critical accessibility violations (light mode)', async ({ page }) => {
     await openApp(page)
     await page.keyboard.press('ControlOrMeta+k')

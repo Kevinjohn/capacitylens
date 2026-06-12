@@ -55,14 +55,23 @@ export function AppShell() {
     return () => clearTimeout(t)
   }, [notice, setNotice])
 
+
   // Global keyboard shortcuts. ⌘K/Ctrl+K opens the command palette (checked FIRST,
   // before the input bail-out so the palette can open from anywhere — including while
   // a text field is focused). ⌘Z/⌘⇧Z is undo/redo (ignored while typing).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // ⌘K / Ctrl+K — toggle the command palette from anywhere (including inputs)
+      // ⌘K / Ctrl+K — toggle the command palette from anywhere (including inputs).
+      // A dirty form owns the keyboard (mirrors the beforeunload / undo guards) —
+      // show a notice and bail rather than opening a second layer of UI over the form.
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
+        if (useStore.getState().dirtyForm) {
+          useStore.getState().setNotice(
+            'You have unsaved changes — use Cancel or Save to close this dialog.',
+          )
+          return
+        }
         setPaletteOpen((prev) => !prev)
         return
       }
@@ -164,7 +173,7 @@ export function AppShell() {
         )}
       </main>
       {notice && <Toast message={notice.message} tone={notice.tone} onDismiss={() => setNotice(null)} />}
-      {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && !dirtyForm && <CommandPalette onClose={() => setPaletteOpen(false)} />}
     </div>
   )
 }

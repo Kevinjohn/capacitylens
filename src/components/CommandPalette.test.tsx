@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { CommandPalette } from './CommandPalette'
-import { useStore } from '../store/useStore'
+import { useStore, emptyFilters } from '../store/useStore'
 import { makeAppData, makeAccount, makeResourceDraft, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
 
 function renderPalette(onClose = () => {}) {
@@ -217,5 +217,88 @@ describe('CommandPalette', () => {
     // The filters should be updated
     const filters = useStore.getState().ui.filters
     expect(filters.projectId).not.toBeNull()
+  })
+
+  it('does NOT show "Go to date" for an impossible date (2026-02-31)', () => {
+    renderPalette()
+
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: '2026-02-31' } })
+
+    expect(screen.queryByText(/Go to date/)).not.toBeInTheDocument()
+  })
+
+  it('project selection REPLACES stale filters with only projectId set', () => {
+    const clients = useStore.getState().data.clients
+    const client = clients[0]
+    let projectId: string
+    act(() => {
+      const p = useStore.getState().addProject({ name: 'Project Alpha', clientId: client.id, color: '#6366f1' })
+      projectId = p.id
+    })
+
+    // Pre-set stale filters that should be wiped on project select
+    act(() => {
+      useStore.getState().setFilters({
+        search: 'stale-search',
+        disciplineId: 'disc-stale',
+        clientId: 'client-stale',
+        hideTentative: true,
+        showUnmatched: true,
+      })
+    })
+
+    renderPalette()
+
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'Alpha' } })
+
+    const options = screen.getAllByTestId('command-palette-option')
+    const projectOption = options.find((o) => o.textContent?.includes('Project Alpha'))
+    expect(projectOption).toBeTruthy()
+
+    act(() => {
+      fireEvent.mouseDown(projectOption!)
+    })
+
+    // Filters must deep-equal { ...emptyFilters(), projectId } — no stale fields survive
+    const filters = useStore.getState().ui.filters
+    expect(filters).toEqual({ ...emptyFilters(), projectId: projectId! })
+  })
+
+  it('client selection REPLACES stale filters with only clientId set', () => {
+    let clientId: string
+    act(() => {
+      const c = useStore.getState().addClient({ name: 'Client Zeta', color: '#6366f1' })
+      clientId = c.id
+    })
+
+    // Pre-set stale filters
+    act(() => {
+      useStore.getState().setFilters({
+        search: 'stale',
+        disciplineId: 'disc-stale',
+        projectId: 'proj-stale',
+        hideTentative: true,
+        showUnmatched: true,
+      })
+    })
+
+    renderPalette()
+
+    const input = screen.getByTestId('command-palette-input')
+    fireEvent.change(input, { target: { value: 'Zeta' } })
+
+    const options = screen.getAllByTestId('command-palette-option')
+    const clientOption = options.find((o) => o.textContent?.includes('Client Zeta'))
+    expect(clientOption).toBeTruthy()
+
+    act(() => {
+      fireEvent.mouseDown(clientOption!)
+    })
+
+    // Filters must deep-equal { ...emptyFilters(), clientId } — no stale fields survive
+    const filters = useStore.getState().ui.filters
+    expect(filters).toEqual({ ...emptyFilters(), clientId: clientId! })
   })
 })

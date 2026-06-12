@@ -159,6 +159,41 @@ describe('AppShell undo/redo keyboard', () => {
   })
 })
 
+describe('AppShell command palette dirty-form guard', () => {
+  it('Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette', () => {
+    useStore.getState().setHydrated(true)
+    renderAppShell()
+
+    act(() => {
+      useStore.getState().setDirtyForm(true)
+    })
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+    })
+
+    // Palette must NOT render
+    expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
+    // Notice must show the exact message
+    expect(
+      screen.getByText('You have unsaved changes — use Cancel or Save to close this dialog.'),
+    ).toBeInTheDocument()
+  })
+
+  it('Ctrl+K with dirtyForm=false opens the palette', () => {
+    useStore.getState().setHydrated(true)
+    renderAppShell()
+
+    act(() => {
+      useStore.getState().setDirtyForm(false)
+    })
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))
+    })
+
+    expect(screen.getByTestId('command-palette')).toBeInTheDocument()
+  })
+})
+
 describe('AppShell transient notice', () => {
   it('renders a toast for a store notice and clears it on dismiss', () => {
     renderAppShell()

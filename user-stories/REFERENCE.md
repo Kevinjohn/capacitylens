@@ -101,19 +101,25 @@ when a filter is active).
 ## Command palette
 
 Opened by **⌘K / Ctrl+K** from anywhere in the app (including while a text field is focused).
+**Exception:** if a dialog has unsaved changes (`dirtyForm` is true), ⌘K/Ctrl+K is blocked —
+a notice appears ("You have unsaved changes — use Cancel or Save to close this dialog.") and
+the palette does **not** open. Closing or saving the dialog re-enables the shortcut.
 Closed by **Escape**, backdrop click, or selecting an item.
 
 **Sections shown (no query):** Actions ("Go to today"), Pages (all 8 routes).
 **Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Tasks.
-**Special action:** typing a valid ISO date (`YYYY-MM-DD`) shows "Go to date YYYY-MM-DD".
+**Special action:** typing a valid, real calendar ISO date (`YYYY-MM-DD`, zero-padded,
+e.g. `2026-06-03`) shows "Go to date YYYY-MM-DD". Impossible dates like `2026-02-31`,
+unpadded dates like `2026-6-3`, and out-of-range months/days are rejected.
 
 **Selection behaviours:**
 - Page item → navigate to that route.
 - "Go to today" → navigate to `/` + recenter the scheduler on this week.
 - "Go to date YYYY-MM-DD" → navigate to `/` + scroll the scheduler to that date.
 - Person item → navigate to `/` + clear filters + scroll that resource's row into view.
-- Project item → navigate to `/` + set project filter to that project.
-- Client item → navigate to `/` + set client filter to that client.
+- Project item → navigate to `/` + **replace** schedule filters with `{ projectId }` (all other
+  filters — search, discipline, client, hideTentative, showUnmatched — are reset to defaults).
+- Client item → navigate to `/` + **replace** schedule filters with `{ clientId }` (same reset).
 - Task item → navigate to `/tasks`.
 
 **Keyboard navigation:** `ArrowUp`/`ArrowDown` move the highlight; `Enter` selects; `Escape` closes.
