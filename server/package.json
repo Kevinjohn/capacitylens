@@ -11,6 +11,7 @@
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "start:e2e": "FLOATY_ALLOW_RESET=1 FLOATY_DB=.e2e.db tsx src/index.ts",
+    "start:auth-e2e": "rm -f .auth-e2e.db .auth-e2e.db-wal .auth-e2e.db-shm && PORT=8887 FLOATY_DB=.auth-e2e.db FLOATY_AUTH=password BETTER_AUTH_SECRET=floaty-auth-e2e-secret-0123456789abcdef BETTER_AUTH_URL=http://localhost:8887 FLOATY_CORS_ORIGIN=http://localhost:5373,http://127.0.0.1:5373 tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit"

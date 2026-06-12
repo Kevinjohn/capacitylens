@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "coverage": "vitest run --coverage",
     "dev:api": "vite --port 5273",
+    "dev:auth": "vite --port 5373",
     "e2e": "playwright test",
     "gate": "tsc -b && eslint . && vitest run && vite build",
     "test:server": "npm test -w floaty-server",
