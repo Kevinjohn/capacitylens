@@ -20,9 +20,12 @@ import {
   remapAndValidateImport,
 } from '@floaty/shared/domain/mutations'
 import {
+  defaultSidebarOpen,
   readStoredBarLabelPrefs,
+  readStoredSidebarOpen,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
+  writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
   type BarLabelPrefs,
   type UtilizationPrefs,
@@ -155,6 +158,10 @@ export interface StoreState {
   /** Allocation-bar label toggles (client/project context before the task name).
    *  Device-global like `utilizationPrefs`, own localStorage key. */
   barLabelPrefs: BarLabelPrefs
+  /** Sidebar open (labels) vs collapsed (icon rail). Device-global like `theme`,
+   *  own localStorage key; the first-run default is viewport-derived (collapsed
+   *  on small screens, open on desktop). */
+  sidebarOpen: boolean
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -179,6 +186,8 @@ export interface StoreState {
   setUtilizationPref: (key: keyof UtilizationPrefs, value: boolean) => void
   /** Toggle a single bar-label display preference: persist and update state. */
   setBarLabelPref: (key: keyof BarLabelPrefs, value: boolean) => void
+  /** Open/collapse the sidebar: persist the choice and update state. */
+  setSidebarOpen: (open: boolean) => void
   undo: () => void
   redo: () => void
 
@@ -312,6 +321,7 @@ export const useStore = create<StoreState>()((set, get) => {
     theme: readStoredTheme(),
     utilizationPrefs: readStoredUtilizationPrefs(),
     barLabelPrefs: readStoredBarLabelPrefs(),
+    sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
 
     addAccount: (input) => {
       const e: Account = { ...input, id: newId(), ...stamp() }
@@ -398,6 +408,10 @@ export const useStore = create<StoreState>()((set, get) => {
         writeStoredBarLabelPrefs(next)
         return { barLabelPrefs: next }
       }),
+    setSidebarOpen: (open) => {
+      writeStoredSidebarOpen(open)
+      set({ sidebarOpen: open })
+    },
 
     undo: () =>
       set((s) => {

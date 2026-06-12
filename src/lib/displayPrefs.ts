@@ -93,3 +93,48 @@ export function writeStoredBarLabelPrefs(prefs: BarLabelPrefs): void {
     // ignore — see readStoredUtilizationPrefs
   }
 }
+
+// Sidebar open/collapsed. Device-global like the prefs above, but tri-state on
+// read: null means "the user has never chosen", and the caller falls back to the
+// viewport-derived default below instead of a fixed boolean.
+
+const SIDEBAR_STORAGE_KEY = 'floaty/sidebar'
+
+/** Small-screen query for the sidebar's first-run default. Phone-portrait widths
+ *  OR phone-landscape heights count as small — a landscape phone is the app's
+ *  recommended orientation and still shouldn't spend 192px on a menu. */
+export const SMALL_VIEWPORT_QUERY = '(max-width: 767px), (max-height: 480px)'
+
+/** The user's explicit sidebar choice, or null if they've never toggled it. */
+export function readStoredSidebarOpen(): boolean | null {
+  try {
+    const raw = localStorage.getItem(SIDEBAR_STORAGE_KEY)
+    if (raw === 'open') return true
+    if (raw === 'closed') return false
+  } catch {
+    // storage blocked — fall through to "no choice"
+  }
+  return null
+}
+
+/** Persist the sidebar choice. Best-effort, like the prefs above. */
+export function writeStoredSidebarOpen(open: boolean): void {
+  try {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? 'open' : 'closed')
+  } catch {
+    // ignore — see readStoredUtilizationPrefs
+  }
+}
+
+/** First-run default: open on desktop, collapsed on small screens. Guarded for
+ *  non-browser environments (jsdom has no matchMedia) where it defaults open. */
+export function defaultSidebarOpen(): boolean {
+  try {
+    if (typeof window.matchMedia === 'function') {
+      return !window.matchMedia(SMALL_VIEWPORT_QUERY).matches
+    }
+  } catch {
+    // matchMedia unavailable — treat as a large screen
+  }
+  return true
+}

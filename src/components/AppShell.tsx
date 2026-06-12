@@ -7,16 +7,18 @@ import { StorageRecovery } from './StorageRecovery'
 import { ConnectionError } from './ConnectionError'
 import { Toast } from './common/ui'
 import { CommandPalette } from './CommandPalette'
+import { Icon, type IconName } from './common/Icon'
+import { RotateHint } from './RotateHint'
 
-const LINKS: [string, string][] = [
-  ['/', 'Schedule'],
-  ['/resources', 'Resources'],
-  ['/disciplines', 'Disciplines'],
-  ['/clients', 'Clients'],
-  ['/projects', 'Projects'],
-  ['/tasks', 'Tasks'],
-  ['/timeoff', 'Time off'],
-  ['/settings', 'Settings'],
+const LINKS: [string, string, IconName][] = [
+  ['/', 'Schedule', 'calendar'],
+  ['/resources', 'Resources', 'people'],
+  ['/disciplines', 'Disciplines', 'tag'],
+  ['/clients', 'Clients', 'briefcase'],
+  ['/projects', 'Projects', 'folder'],
+  ['/tasks', 'Tasks', 'clipboard-check'],
+  ['/timeoff', 'Time off', 'sun'],
+  ['/settings', 'Settings', 'sliders'],
 ]
 
 export function AppShell() {
@@ -34,6 +36,8 @@ export function AppShell() {
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
 
   const dirtyForm = useStore((s) => s.dirtyForm)
+  const sidebarOpen = useStore((s) => s.sidebarOpen)
+  const setSidebarOpen = useStore((s) => s.setSidebarOpen)
   const [paletteOpen, setPaletteOpen] = useState(false)
 
   // Warn before a tab close / refresh would discard an open form's unsaved edits.
@@ -103,8 +107,15 @@ export function AppShell() {
 
   // Tenant gate: once hydrated, no chosen account means show the picker (it's
   // never persisted, so this is every load). Kept after the hydration check so
-  // the "Loading…" state still renders the shell.
-  if (hydrated && !activeAccount) return <AccountPicker />
+  // the "Loading…" state still renders the shell. The rotate hint rides along —
+  // the picker is a phone user's first contact, where the nudge matters most.
+  if (hydrated && !activeAccount)
+    return (
+      <>
+        <AccountPicker />
+        <RotateHint />
+      </>
+    )
 
   const loader = (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
@@ -123,40 +134,80 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <nav className="w-48 shrink-0 border-r border-line bg-surface p-3">
-        <div className="mb-4 px-2 text-xl font-bold text-brand">Floaty</div>
-        {activeAccount && (
-          <div className="mb-3 border-b border-line px-2 pb-3">
-            <div className="truncate text-sm font-semibold text-ink" title={activeAccount.name}>
-              {activeAccount.name}
-            </div>
-            <button
-              type="button"
-              onClick={() => setActiveAccount(null)}
-              className="mt-0.5 text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
-            >
-              Switch company
-            </button>
-          </div>
+      <nav className={`${sidebarOpen ? 'w-48 p-3' : 'w-12 p-2'} shrink-0 border-r border-line bg-surface`}>
+        <div className={`mb-4 flex items-center ${sidebarOpen ? 'justify-between pl-2' : 'justify-center'}`}>
+          {sidebarOpen && <div className="text-xl font-bold text-brand">Floaty</div>}
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-expanded={sidebarOpen}
+            aria-label={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+            title={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+            className="rounded-md p-1.5 text-muted hover:bg-canvas hover:text-ink"
+          >
+            <Icon name="panel-left" />
+          </button>
+        </div>
+        {sidebarOpen ? (
+          <>
+            {activeAccount && (
+              <div className="mb-3 border-b border-line px-2 pb-3">
+                <div className="truncate text-sm font-semibold text-ink" title={activeAccount.name}>
+                  {activeAccount.name}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveAccount(null)}
+                  className="mt-0.5 text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+                >
+                  Switch company
+                </button>
+              </div>
+            )}
+            <ul className="space-y-1">
+              {LINKS.map(([to, label, icon]) => (
+                <li key={to}>
+                  <NavLink
+                    to={to}
+                    end={to === '/'}
+                    className={({ isActive }) =>
+                      `flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
+                        isActive ? 'bg-brand-soft font-semibold text-ink' : 'text-ink hover:bg-canvas'
+                      }`
+                    }
+                  >
+                    <Icon name={icon} className="shrink-0 text-muted" />
+                    {label}
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+            <ImportExport />
+          </>
+        ) : (
+          /* Collapsed icon rail. The icons are deliberately NOT navigation: tapping
+             any of them just expands the menu (a 48px rail is a poor tap target for
+             eight destinations, and a mis-tap would navigate somewhere unintended).
+             They're hidden from the accessibility tree (aria-hidden + tabIndex -1) —
+             keyboard and screen-reader users get the single labelled toggle above. */
+          <ul className="flex flex-col items-center gap-1">
+            {LINKS.map(([to, label, icon]) => (
+              <li key={to}>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  title={label}
+                  data-testid="nav-rail-item"
+                  onClick={() => setSidebarOpen(true)}
+                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-canvas hover:text-ink"
+                >
+                  <Icon name={icon} />
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
-        <ul className="space-y-1">
-          {LINKS.map(([to, label]) => (
-            <li key={to}>
-              <NavLink
-                to={to}
-                end={to === '/'}
-                className={({ isActive }) =>
-                  `block rounded-md px-2 py-1.5 text-sm ${
-                    isActive ? 'bg-brand-soft font-semibold text-ink' : 'text-ink hover:bg-canvas'
-                  }`
-                }
-              >
-                {label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-        <ImportExport />
       </nav>
       <main id="main" tabIndex={-1} className="flex-1 overflow-auto">
         {persistError && (
@@ -174,6 +225,7 @@ export function AppShell() {
       </main>
       {notice && <Toast message={notice.message} tone={notice.tone} onDismiss={() => setNotice(null)} />}
       {paletteOpen && !dirtyForm && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      <RotateHint />
     </div>
   )
 }

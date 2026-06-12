@@ -38,6 +38,8 @@ stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04)
 | [US-NAV-05](navigation/US-NAV-05-toast-autodismiss.md) | Transient toast (auto-dismiss) | `e2e/data.spec.ts` (toast appears); auto-dismiss manual |
 | [US-NAV-06](navigation/US-NAV-06-dark-mode.md) | Light / dark theme preference | `e2e/navigation.spec.ts` + `e2e/a11y.spec.ts` (dark) |
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md) | Recoverable error screen | unit (`ErrorBoundary.test.tsx`) + manual |
+| [US-NAV-08](navigation/US-NAV-08-command-palette.md) | Command palette (⌘K / Ctrl+K) | `e2e/palette.spec.ts` |
+| [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md) | Mobile affordances (sidebar rail + rotate hint) | `e2e/mobile.spec.ts` |
 
 ## Resources — `resources/`
 | Story | Title | Automated coverage |

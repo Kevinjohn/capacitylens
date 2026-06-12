@@ -63,7 +63,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Deliberately small (owner, 2026-06-11).** Floaty solves ONE problem — a helicopter view of
   who's busy, free, or overworked, week-by-week — for small agencies with few staff and rotating
   freelancers. Owner-confirmed non-goals: budgets/money, timesheets, hour-granularity workflows,
-  mobile views, per-seat/per-feature gating. Reject features that add process or granularity.
+  mobile views (light mobile *affordances* are in scope — next bullet), per-seat/per-feature
+  gating. Reject features that add process or granularity.
+- **Light mobile affordances, not mobile views (owner, 2026-06-12).** Nav links carry icons;
+  the sidebar collapses to an icons-only rail (device-global `floaty/sidebar`, default
+  collapsed on small screens — `(max-width:767px), (max-height:480px)`) whose rail icons just
+  re-open the menu, never navigate (they're `aria-hidden`; the labelled Collapse/Expand toggle
+  is the single accessible control); portrait phones get a dismissable session-scoped
+  "Best in landscape" hint (`floaty/rotateHintDismissed`, shown over the account picker too).
+  A phone is a glanceable surface, not a workflow surface — don't grow this into mobile views.
 - **"Utilisation" is the term** everywhere on the schedule (not "Load").
 - **Filtering by client/project hides non-matching resources** by default; the
   "Show unallocated" toggle opts the visible-but-dimmed staffing view back in.

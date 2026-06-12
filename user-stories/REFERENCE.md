@@ -46,8 +46,25 @@ The sidebar links, in order, route to:
 | Time off | `/timeoff` | Time-off list |
 | Settings | `/settings` | Settings (company rename, scheduling, calendar, allocation bars, utilisation, appearance) |
 
-That's **eight** sections. The **Data** section at the bottom of the sidebar has **Export
-JSON** and **Import JSON**. A **Switch company** control returns to the account picker.
+That's **eight** sections. Each link carries a small decorative icon (`aria-hidden`; the
+accessible name stays the label text). The **Data** section at the bottom of the sidebar has
+**Export JSON** and **Import JSON**. A **Switch company** control returns to the account picker.
+
+**Collapse / expand.** A toggle button at the top of the sidebar (accessible name
+**Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only
+rail. Rail icons (`data-testid="nav-rail-item"`, one per section, `title` = the section
+label) are **not** navigation — tapping any of them just re-opens the menu; they're hidden
+from assistive tech (the labelled toggle is the single accessible control). Collapsing hides
+the company block and the Data section until re-opened. The choice is device-global
+(`localStorage` key `floaty/sidebar`); with no stored choice the sidebar starts **open on
+desktop and collapsed on small screens** (`(max-width: 767px), (max-height: 480px)` — phone
+portrait or phone landscape).
+
+**Rotate hint (portrait phones only).** On a portrait viewport ≤ 767px wide, a dismissable
+dialog titled **Best in landscape** appears (over the company picker too, since that's a
+phone's first contact). **Got it** (or Escape / backdrop) dismisses it for the session
+(`sessionStorage` key `floaty/rotateHintDismissed`); rotating to landscape hides it. It
+never appears on desktop viewports or in landscape.
 
 ## Seed data (first run)
 

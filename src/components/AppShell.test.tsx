@@ -63,6 +63,64 @@ describe('AppShell navigation links', () => {
   })
 })
 
+describe('AppShell sidebar collapse', () => {
+  beforeEach(() => {
+    // Reset to the open default and forget any persisted choice from a prior test.
+    act(() => {
+      useStore.getState().setSidebarOpen(true)
+    })
+    localStorage.removeItem('floaty/sidebar')
+  })
+
+  it('defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle', () => {
+    renderAppShell()
+
+    expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument()
+    const toggle = screen.getByRole('button', { name: 'Collapse menu' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.queryAllByTestId('nav-rail-item')).toHaveLength(0)
+  })
+
+  it('collapsing swaps links for an icon rail, persists the choice, and hides Data tools', () => {
+    renderAppShell()
+
+    act(() => {
+      screen.getByRole('button', { name: 'Collapse menu' }).click()
+    })
+
+    // The skip-to-content link survives; the eight NAV links must be gone.
+    expect(screen.queryByRole('link', { name: 'Schedule' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('nav-rail-item')).toHaveLength(8)
+    expect(screen.getByRole('button', { name: 'Expand menu' })).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByTestId('export-data')).not.toBeInTheDocument()
+    expect(localStorage.getItem('floaty/sidebar')).toBe('closed')
+  })
+
+  it('rail icons do not navigate — they just reopen the menu', () => {
+    renderAppShell()
+    act(() => {
+      useStore.getState().setSidebarOpen(false)
+    })
+
+    // Rail buttons are decorative for AT (aria-hidden, tabIndex -1); the single
+    // accessible control is the toggle. Click one by test id.
+    act(() => {
+      screen.getAllByTestId('nav-rail-item')[3].click()
+    })
+
+    expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument()
+    expect(localStorage.getItem('floaty/sidebar')).toBe('open')
+  })
+
+  it('nav links carry icons without changing their accessible names', () => {
+    renderAppShell()
+    const link = screen.getByRole('link', { name: 'Projects' })
+    expect(link.querySelector('svg')).not.toBeNull()
+    expect(link.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+})
+
 describe('AppShell hydration gate', () => {
   it('shows "Loading…" when the store is not hydrated', () => {
     renderAppShell()
