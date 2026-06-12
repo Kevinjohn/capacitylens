@@ -204,27 +204,30 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // a server whose DB is broken is a lie).
   const healthStmt = opts.healthDeep === true ? db.prepare('SELECT 1') : null
 
-  // Every hook + route below registers through a child plugin, NOT directly on the root:
+  // No app-level auth in this phase. CORS is the only cross-origin gate, so the
+  // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
+  // answered here. This hook MUST live on the ROOT instance, not in the routes child
+  // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
+  // only root-level hooks run there — a child-scoped hook would leave preflights as
+  // bare 404s without CORS headers, silently blocking every cross-origin write.
+  app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
+    const origin = resolveCorsOrigin(req.headers.origin, corsOrigin)
+    if (origin) {
+      reply.header('Access-Control-Allow-Origin', origin)
+      if (origin !== '*') reply.header('Vary', 'Origin')
+    }
+    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    reply.header('Access-Control-Allow-Headers', 'Content-Type')
+    if (req.method === 'OPTIONS') reply.code(204).send()
+  })
+
+  // Every route below registers through a child plugin, NOT directly on the root:
   // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
   // plugin LOADS (at ready(), in registration order) — a route declared straight on the
   // root would register first and silently escape the limiter. The child loads after it,
-  // so its routes are seen. The callback shadows `app` deliberately: the route code is
-  // identical with or without the wrapper.
+  // so its routes are seen, and it inherits the root CORS hook + error handler. The
+  // callback shadows `app` deliberately: the route code is identical without the wrapper.
   void app.register(async (app) => {
-    // No app-level auth in this phase. CORS is the only cross-origin gate, so the
-    // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
-    // answered here.
-    app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
-      const origin = resolveCorsOrigin(req.headers.origin, corsOrigin)
-      if (origin) {
-        reply.header('Access-Control-Allow-Origin', origin)
-        if (origin !== '*') reply.header('Vary', 'Origin')
-      }
-      reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-      reply.header('Access-Control-Allow-Headers', 'Content-Type')
-      if (req.method === 'OPTIONS') reply.code(204).send()
-    })
-
     // config.rateLimit: false exempts health from the limiter (inert when it isn't
     // registered) — the uptime monitor must never be told 429.
     app.get('/api/health', { config: { rateLimit: false } }, (_req, reply) => {

@@ -569,6 +569,23 @@ describe('CORS allow-list', () => {
     const bad = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
     expect(bad.headers['access-control-allow-origin']).toBeUndefined()
   })
+
+  it('answers a write preflight with 204 + CORS headers (no OPTIONS route exists)', async () => {
+    // Regression guard: every cross-origin write (JSON POST/PUT/PATCH/DELETE) is
+    // preflighted by the browser, and OPTIONS matches no route — the 204 comes from the
+    // ROOT-level onRequest hook on the not-found path. When the hook briefly moved into
+    // the routes child plugin, preflights became bare 404s without CORS headers and the
+    // db-backed e2e app could no longer save anything.
+    const { app } = freshApp()
+    const res = await call(app, {
+      method: 'OPTIONS',
+      url: '/api/batch',
+      headers: { origin: 'http://localhost:5173', 'access-control-request-method': 'POST' },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173')
+    expect(res.headers['access-control-allow-methods']).toContain('POST')
+  })
 })
 
 describe('optimistic concurrency (opt-in)', () => {
