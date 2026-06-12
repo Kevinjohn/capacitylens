@@ -21,12 +21,13 @@
     "gate:server": "npm run type-check -w floaty-server && npm test -w floaty-server"
   },
   "dependencies": {
+    "@floaty/shared": "*",
+    "better-auth": "^1.6.18",
     "date-fns": "^4.3.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.16.0",
-    "zustand": "^5.0.14",
-    "@floaty/shared": "*"
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.11.3",
