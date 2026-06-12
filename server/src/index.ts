@@ -15,6 +15,9 @@ import { resetForbidden } from './bootGuard'
 //                                   the API is NOT open to every site by default.
 //   FLOATY_OPTIMISTIC_CONCURRENCY   '1' to reject stale overwrites (409) instead of
 //                                   last-writer-wins.
+//   FLOATY_LOG                      '1' for structured per-request JSON logs (pino) and
+//                                   500-errors through the request logger. Default off =
+//                                   today's logging (startup line + console.error on 500s).
 
 // CORS is locked down by default to the local Vite dev/e2e origins (DEFAULT_CORS, the
 // same fail-closed default buildApp uses). Set FLOATY_CORS_ORIGIN explicitly (e.g. your
@@ -37,6 +40,7 @@ const host = process.env.FLOATY_HOST ?? '127.0.0.1'
 const allowReset = process.env.FLOATY_ALLOW_RESET === '1'
 const corsOrigin = process.env.FLOATY_CORS_ORIGIN ?? DEFAULT_CORS
 const optimisticConcurrency = process.env.FLOATY_OPTIMISTIC_CONCURRENCY === '1'
+const log = process.env.FLOATY_LOG === '1'
 
 const db = openDb(dbPath)
 
@@ -47,7 +51,7 @@ const db = openDb(dbPath)
 // on the next restart (matches /api/meta's isInitialized() check).
 seedIfUninitialized(db, seed())
 
-const app = buildApp(db, { allowReset, corsOrigin, optimisticConcurrency })
+const app = buildApp(db, { allowReset, corsOrigin, optimisticConcurrency, log })
 
 app
   .listen({ port, host })

@@ -34,6 +34,13 @@ export const DEFAULT_CORS =
 export interface AppOptions {
   /** Gate POST /api/test/reset — only enabled for tests / explicit dev opt-in. */
   allowReset?: boolean
+  /** FLOATY_LOG=1 — structured per-request logging (Fastify's bundled pino, JSON on
+   *  stdout: method/path/status/latency), and the 500-path error log routed through the
+   *  request-scoped logger. Default OFF = exactly today's behaviour (startup line +
+   *  console.error on 500s). */
+  log?: boolean
+  /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
+  logStream?: { write(msg: string): void }
   /** CORS allow-list: a comma-separated origin list, or an EXPLICIT '*' to allow any
    *  origin. Defaults FAIL-CLOSED to the localhost allow-list (DEFAULT_CORS) when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
@@ -99,12 +106,12 @@ export function statusFor(err: unknown): number {
   return 500
 }
 
-function fail(reply: FastifyReply, err: unknown) {
+function fail(reply: FastifyReply, err: unknown, logError: (e: unknown) => void = console.error) {
   const status = statusFor(err)
   // A 500 is an unexpected server/db bug: log the real error server-side but return a
   // GENERIC body so we never leak internals (stack-ish messages, SQL, paths).
   if (status === 500) {
-    console.error(err)
+    logError(err)
     return reply.code(500).send({ error: 'Internal server error' })
   }
   // 400s: a curated ValidationError message is safe AND useful (it's a friendly sentence we
@@ -117,25 +124,36 @@ function fail(reply: FastifyReply, err: unknown) {
 }
 
 export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
-  const app = Fastify({ bodyLimit: BODY_LIMIT })
+  const logOn = opts.log === true
+  const app = Fastify({
+    bodyLimit: BODY_LIMIT,
+    // FLOATY_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
+    // Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
+    logger: logOn ? (opts.logStream ? { stream: opts.logStream } : true) : false,
+  })
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
+  // 500s with logging ON go through the request-scoped logger (one parseable JSON line,
+  // correlated with the request); OFF keeps today's bare console.error.
+  const sendFail = (reply: FastifyReply, err: unknown) =>
+    fail(reply, err, logOn ? (e: unknown) => reply.log.error(e) : undefined)
 
   // Single redaction funnel for any UNCAUGHT throw (a route that forgot a try/catch, a
   // SQLITE_BUSY thrown mid-statement). Fastify framework errors (413 payload-too-large,
   // 400 malformed JSON) carry their own statusCode + a safe generic message — preserve
   // them; everything else routes through fail() so a 500 stays generic and a 400
   // DB-constraint message can't leak SQLite internals.
-  app.setErrorHandler((err, _req, reply) => {
+  app.setErrorHandler((err, req, reply) => {
     const fwStatus = (err as { statusCode?: number }).statusCode
     if (typeof fwStatus === 'number') {
       if (fwStatus >= 500) {
-        console.error(err)
+        if (logOn) req.log.error(err)
+        else console.error(err)
         return reply.code(fwStatus).send({ error: 'Internal server error' })
       }
       return reply.code(fwStatus).send({ error: err instanceof Error ? err.message : 'Bad request' })
     }
-    return fail(reply, err)
+    return sendFail(reply, err)
   })
 
   // No app-level auth in this phase. CORS is the only cross-origin gate, so the
@@ -172,7 +190,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       insertRow(db, entity, row)
       return reply.code(201).send(row)
     } catch (err) {
-      return fail(reply, err)
+      return sendFail(reply, err)
     }
   })
 
@@ -207,7 +225,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       upsertRow(db, entity, row)
       return reply.code(200).send(row)
     } catch (err) {
-      return fail(reply, err)
+      return sendFail(reply, err)
     }
   })
 
@@ -229,7 +247,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       upsertRow(db, entity, merged)
       return reply.code(200).send(merged)
     } catch (err) {
-      return fail(reply, err)
+      return sendFail(reply, err)
     }
   })
 
@@ -254,7 +272,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       deleteRow(db, entity, id) // idempotent
       return reply.code(204).send()
     } catch (err) {
-      return fail(reply, err)
+      return sendFail(reply, err)
     }
   })
 
@@ -312,7 +330,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       })
       return reply.code(200).send({ ok: true, applied: ops.length })
     } catch (err) {
-      return fail(reply, err)
+      return sendFail(reply, err)
     }
   })
 
@@ -342,7 +360,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (result.imported > 0) replaceAccountSlice(db, body.accountId, result.data)
       return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS }
     } catch (err) {
-      return fail(reply, err)
+      return sendFail(reply, err)
     }
   })
 
