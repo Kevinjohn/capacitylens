@@ -117,11 +117,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   `MAX_NOTE_LENGTH` 1000), used by client **and** server. Forms reject inline; import/server **strip**.
 
 ## Security posture (pre-share)
-- **No app-level auth.** The demo's subdomain HTTP auth covers the small trial; last-writer-wins.
+- **No app-level auth by default.** The demo's subdomain HTTP auth covers the small trial;
+  last-writer-wins. An auth seam is **wired but OFF** (`FLOATY_AUTH=off|password|sso`, Better
+  Auth, sessions + login screen): off = byte-for-byte today, no auth tables, no login UI. The
+  server-reported `authMode` is the only auth flag — no client-side flag exists.
+- **Session ≠ isolation.** Turning `FLOATY_AUTH` on gates requests, but `accountId` stays
+  client-asserted (`ownsRow` is defense-in-depth) until Stage C derives it from the session.
 - **CSP:** `object-src`/`base-uri` ship in `index.html`; a full `script-src` policy belongs in
   a host response header (where the demo's auth lives), not the app.
-- **Server `ownsRow`** tenant check is defense-in-depth, not real isolation (account is
-  client-asserted until session auth lands).
 
 ## Performance (and standing non-goals)
 - **Row virtualization** is implemented (spacer windowing, pure window math; off-screen rows

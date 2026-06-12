@@ -40,6 +40,7 @@ stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04)
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md) | Recoverable error screen | unit (`ErrorBoundary.test.tsx`) + manual |
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md) | Command palette (⌘K / Ctrl+K) | `e2e/palette.spec.ts` |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md) | Mobile affordances (sidebar rail + rotate hint) | `e2e/mobile.spec.ts` |
+| [US-NAV-10](navigation/US-NAV-10-login-screen.md) | Login screen (flag-gated; `FLOATY_AUTH` deploys only) | `e2e/login.auth.spec.ts` (auth-backed project) |
 
 ## Resources — `resources/`
 | Story | Title | Automated coverage |
@@ -150,6 +151,13 @@ stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04)
 | [US-FIL-05](filters/US-FIL-05-hide-tentative.md) | Hide tentative | `e2e/filters.spec.ts` |
 | [US-FIL-06](filters/US-FIL-06-clear-filters.md) | Clear all filters | `e2e/filters.spec.ts` |
 | [US-FIL-07](filters/US-FIL-07-empty-state.md) | Filtered empty state | `e2e/filters.spec.ts` |
+
+## Settings — `settings/`
+| Story | Title | Automated coverage |
+|---|---|---|
+| [US-SET-01](settings/US-SET-01-calendar-settings.md) | Team calendar (week start + timezone) | `e2e/settings-calendar.spec.ts` |
+| [US-SET-02](settings/US-SET-02-bar-labels.md) | Allocation-bar label toggles | `e2e/settings-bar-labels.spec.ts` |
+| [US-SET-03](settings/US-SET-03-build-stamp.md) | Build stamp (flag-gated) | `e2e/settings-build-stamp.spec.ts` (absence by default) |
 
 ## Keyboard & accessibility — `accessibility/`
 | Story | Title | Automated coverage |
