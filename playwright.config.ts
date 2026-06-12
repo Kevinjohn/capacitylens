@@ -39,8 +39,24 @@ export default defineConfig({
       testMatch: /\.auth\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${AUTH_WEB_PORT}` },
     },
+    // Phase 6 rehearsal (docs/runbook.md): exists only when FLOATY_REHEARSAL_URL is set —
+    // the PRODUCTION build served behind a local /api proxy (scripts/serve-dist.mjs), with
+    // the droplet's flags ON in the daemon. Reuses the db-backed specs verbatim; the
+    // baseURL override is the only difference. Started by hand per the runbook, so the
+    // dev webServers below are skipped for these runs (see the webServer conditional).
+    ...(process.env.FLOATY_REHEARSAL_URL
+      ? [
+          {
+            name: 'rehearsal',
+            testMatch: /\.db\.spec\.ts$/,
+            use: { ...devices['Desktop Chrome'], baseURL: process.env.FLOATY_REHEARSAL_URL },
+          },
+        ]
+      : []),
   ],
-  webServer: [
+  // Rehearsal runs bring their own production-shaped stack (runbook) — don't boot the
+  // dev servers under them. Every normal run keeps the full list.
+  webServer: process.env.FLOATY_REHEARSAL_URL ? [] : [
     {
       command: 'npm run dev',
       url: 'http://localhost:5173',
