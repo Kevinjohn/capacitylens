@@ -33,6 +33,14 @@ Open product questions to revisit with the owner. Don't silently resolve these â
   record (clean text, clamp hours, fresh ids, drop dangling required FKs). Confirm owners want a
   forgiving import over a strict all-or-nothing one.
 
+## Resolved (owner-confirmed, 2026-06-12)
+- **Production-cutover decisions.** All seven Phase 0 calls for the production plan
+  (`docs/production-plan.md`) made: seeded + Cohesion import at cutover; browser data
+  throwaway; per-tester Basic Auth entries; one Account per tester; Node 24 LTS;
+  no Sentry this round; **Better Auth** (third-party OSS) for the wired-but-off auth
+  scaffold, SSO provider choice still deferred. Plus: daemon backups are configurable
+  and OFF by default (`FLOATY_BACKUP_DIR`), enabled on the droplet.
+
 ## Genuinely open
 - **From the Cohesion Labs sheet import (2026-06-11)** â€” real customer data, full detail in
   `_input/COHESION-DEMO-NOTES.md`:
