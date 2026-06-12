@@ -450,9 +450,9 @@ top. Tasks within a phase are standalone and parallelisable.
 | 1 | Server hardening in-repo (P1.1–P1.7) | done (2026-06-12, e5b2262…0cdae13 — see decisions log) |
 | 2 | Cutover + Nginx edge (ops runsheet) | 1 d |
 | 3 | Auth wired, off (P3.1–P3.5) | done (2026-06-12, aa5f0e9…838eedb — see decisions log) |
-| 4 | Backups, drill, monitoring, runbook (P4.1–P4.5) | 0.5 d |
-| 5 | Testing-round polish | 0.5 d |
-| 6 | Rehearsal + smoke + launch | 0.5 d |
+| 4 | Backups, drill, monitoring, runbook (P4.1–P4.5) | done (2026-06-13, 76a53d4 + b442a4a; P4.2 drill re-run on the droplet pending) |
+| 5 | Testing-round polish | done (2026-06-13, cc7abc4 + runbook; P5.1 accounts are post-deploy ops) |
+| 6 | Rehearsal + smoke + launch | rehearsal done (2026-06-13, b442a4a — db-specs green vs production build + ON flags); post-deploy smoke runs on the droplet |
 
 **Total ≈ 5–6 working days** — consistent with the ~2026-06-18 cutover intent
 (NEEDS-INPUT, owner 2026-06-11), landing testers on it the following week.
