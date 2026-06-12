@@ -1,6 +1,7 @@
 import { buildApp, DEFAULT_CORS } from './app'
 import { openDb, seedIfUninitialized } from './db'
 import { seed } from '@floaty/shared/data/seed'
+import { createShutdownHandler } from './shutdown'
 
 // Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
 //   FLOATY_DB                       SQLite file (default ./floaty.db; ':memory:' ok)
@@ -45,3 +46,13 @@ app
     console.error(err)
     process.exit(1)
   })
+
+// Graceful shutdown (P1.2): the deploy restarts the daemon with a signal — drain in-flight
+// requests, then close the DB, instead of dying mid-transaction. A repeat signal force-exits.
+const shutdown = createShutdownHandler(app, db, (code) => process.exit(code))
+const onSignal = (sig: NodeJS.Signals) => {
+  console.log(`floaty-server: ${sig} — draining requests, then exiting`)
+  void shutdown()
+}
+process.on('SIGTERM', () => onSignal('SIGTERM'))
+process.on('SIGINT', () => onSignal('SIGINT'))
