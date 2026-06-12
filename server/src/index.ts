@@ -3,6 +3,7 @@ import { openDb, seedIfUninitialized } from './db'
 import { seed } from '@floaty/shared/data/seed'
 import { createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
+import { authFromEnv, runAuthMigrations, AuthConfigError } from './auth'
 
 // Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
 //   FLOATY_DB                       SQLite file (default ./floaty.db; ':memory:' ok)
@@ -24,6 +25,14 @@ import { resetForbidden } from './bootGuard'
 //   FLOATY_RATE_LIMIT               requests/minute per IP across /api/* (positive
 //                                   integer; unset/0/non-numeric = off, fail-closed).
 //                                   /api/health is exempt.
+//   FLOATY_AUTH                     off|password|sso (default off = no Better Auth at
+//                                   all; only the thin /api/auth/me exists). Any other
+//                                   value refuses to boot. When ≠ off:
+//   BETTER_AUTH_SECRET              required — session signing secret (32+ chars).
+//   BETTER_AUTH_URL                 required — the public origin the browser uses.
+//   FLOATY_SSO_*                    sso mode only: CLIENT_ID + CLIENT_SECRET, plus
+//                                   DISCOVERY_URL or AUTHORIZATION_URL + TOKEN_URL
+//                                   (optional PROVIDER_ID, SCOPES).
 
 // CORS is locked down by default to the local Vite dev/e2e origins (DEFAULT_CORS, the
 // same fail-closed default buildApp uses). Set FLOATY_CORS_ORIGIN explicitly (e.g. your
@@ -56,6 +65,27 @@ const rateLimitTrustForwarded = host === '127.0.0.1' || host === 'localhost' || 
 
 const db = openDb(dbPath)
 
+// Auth (P3.1/P3.2): parsed + initialised before the app exists; any misconfiguration
+// (bad FLOATY_AUTH value, missing secret/URL in password/sso mode) refuses to boot
+// loudly. In 'off' mode authFromEnv returns null without reading any BETTER_AUTH_* env.
+// Better Auth trusts the same browser origins the CORS allow-list names ('*' trusts
+// none extra — the same-origin deploy needs none).
+let authMode: ReturnType<typeof authFromEnv>['mode']
+let auth: ReturnType<typeof authFromEnv>['auth']
+try {
+  ;({ mode: authMode, auth } = authFromEnv(db, process.env, {
+    trustedOrigins: corsOrigin === '*' ? undefined : corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
+  }))
+} catch (err) {
+  if (err instanceof AuthConfigError) {
+    console.error(`floaty-server: refusing to start — ${err.message}`)
+    process.exit(1)
+  }
+  throw err
+}
+// Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them).
+if (auth) await runAuthMigrations(auth)
+
 // Seed once on a NEVER-INITIALISED DB — the server owns first-run seeding so the client's
 // hasExisting()/seedIfEmpty path stays a no-op against a server backend. seedIfUninitialized
 // gates on the persistent `initialized` marker, NOT mere emptiness: a user who deletes all
@@ -71,6 +101,8 @@ const app = buildApp(db, {
   healthDeep,
   rateLimit,
   rateLimitTrustForwarded,
+  authMode,
+  auth,
 })
 
 app

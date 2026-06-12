@@ -1,6 +1,16 @@
 import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
+import { DEMO_USER, type Auth, type AuthMode, type SessionUser } from './auth'
+
+// The identity requireUser attaches to every gated request (P3.2). Session/identity
+// plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
+// this is the seam Stage C will later use to derive accountId server-side.
+declare module 'fastify' {
+  interface FastifyRequest {
+    user: SessionUser | null
+  }
+}
 import { parseData, MAX_IMPORT_RECORDS } from '@floaty/shared/data/transfer'
 import { remapAndValidateImport } from '@floaty/shared/domain/mutations'
 import { seed } from '@floaty/shared/data/seed'
@@ -55,6 +65,14 @@ export interface AppOptions {
    *  Set ONLY when the listen host is loopback (i.e. behind the Nginx proxy, where every
    *  socket is 127.0.0.1); on a directly-exposed host the header is client-spoofable. */
   rateLimitTrustForwarded?: boolean
+  /** FLOATY_AUTH (P3.2): 'off' (the default) means Better Auth does not exist here —
+   *  the only auth surface is GET /api/auth/me reporting the demo identity, and
+   *  requireUser attaches that identity and continues, so NO request that succeeds
+   *  today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and
+   *  401 every other /api/* route (except /api/health) without a valid session. */
+  authMode?: AuthMode
+  /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
+  auth?: Auth | null
   /** CORS allow-list: a comma-separated origin list, or an EXPLICIT '*' to allow any
    *  origin. Defaults FAIL-CLOSED to the localhost allow-list (DEFAULT_CORS) when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
@@ -72,6 +90,17 @@ export interface AppOptions {
 export function parseRateLimit(raw: string | undefined): number {
   if (!raw || !/^\d+$/.test(raw)) return 0
   return Number(raw)
+}
+
+/** Node's IncomingHttpHeaders → web Headers, for Better Auth's web-standard API
+ *  (getSession reads the cookie; the mounted handler gets the full set). */
+function toWebHeaders(raw: FastifyRequest['headers']): Headers {
+  const headers = new Headers()
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === 'string') headers.append(key, value)
+    else if (Array.isArray(value)) for (const item of value) headers.append(key, item)
+  }
+  return headers
 }
 
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
@@ -145,6 +174,12 @@ function fail(reply: FastifyReply, err: unknown, logError: (e: unknown) => void 
 }
 
 export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
+  const authMode = opts.authMode ?? 'off'
+  const auth = opts.auth ?? null
+  // Misconfiguration, not a request-time condition: fail at construction, loudly.
+  if (authMode !== 'off' && !auth) {
+    throw new Error(`buildApp: authMode '${authMode}' requires a Better Auth instance (opts.auth)`)
+  }
   const logOn = opts.log === true
   const app = Fastify({
     bodyLimit: BODY_LIMIT,
@@ -198,6 +233,25 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     })
   }
 
+  // requireUser (P3.2) — ONE gate for everything under /api/ except /api/health (the
+  // uptime monitor has no session) and /api/auth/* (the login machinery itself; our
+  // /api/auth/me handles its own 401). Root-level so child routes inherit it; preHandler
+  // only fires for MATCHED routes, so 404s and the CORS preflight 204 are unaffected.
+  // 'off' attaches the synthetic demo identity and continues — no request that succeeds
+  // today may fail. Other modes resolve the Better Auth session or 401.
+  app.decorateRequest('user', null)
+  app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
+    const path = req.url.split('?', 1)[0]
+    if (!path.startsWith('/api/') || path === '/api/health' || path.startsWith('/api/auth/')) return
+    if (authMode === 'off') {
+      req.user = DEMO_USER
+      return
+    }
+    const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
+    if (!session) return reply.code(401).send({ error: 'Sign in to continue.' })
+    req.user = session.user
+  })
+
   // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
   // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
   // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
@@ -239,6 +293,48 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply.code(503).send({ ok: false })
       }
     })
+
+    // Thin identity route (P3.2) — exists in EVERY mode so the client never forks on a
+    // flag: { authMode, user }. 'off' reports the demo identity unconditionally; other
+    // modes report the Better Auth session user, or 401 (with authMode, so the login
+    // screen knows which form to show) when there is no session.
+    app.get('/api/auth/me', async (req, reply) => {
+      if (authMode === 'off') return { authMode, user: DEMO_USER }
+      const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
+      if (!session) return reply.code(401).send({ authMode, error: 'Sign in to continue.' })
+      return { authMode, user: session.user }
+    })
+
+    // Better Auth's own endpoints (sign-up/sign-in/sign-out/session/OAuth callbacks),
+    // mounted ONLY when auth is on — in 'off' mode this route does not exist (the OFF
+    // guarantee: zero new attack surface). The static /api/auth/me above outranks this
+    // wildcard in Fastify's router. Translation layer: Fastify req → web Request,
+    // web Response → Fastify reply (set-cookie kept as separate headers; content-length
+    // recomputed by Fastify).
+    if (authMode !== 'off' && auth) {
+      app.route({
+        method: ['GET', 'POST'],
+        url: '/api/auth/*',
+        handler: async (req, reply) => {
+          const url = new URL(req.url, `http://${req.headers.host ?? 'localhost'}`)
+          const response = await auth.handler(
+            new Request(url, {
+              method: req.method,
+              headers: toWebHeaders(req.headers),
+              body: req.body === undefined || req.body === null ? undefined : JSON.stringify(req.body),
+            }),
+          )
+          reply.status(response.status)
+          response.headers.forEach((value, key) => {
+            if (key === 'set-cookie' || key === 'content-length' || key === 'transfer-encoding') return
+            reply.header(key, value)
+          })
+          const cookies = response.headers.getSetCookie()
+          if (cookies.length > 0) reply.header('set-cookie', cookies)
+          return reply.send(response.body ? Buffer.from(await response.arrayBuffer()) : null)
+        },
+      })
+    }
 
     // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES
     // are entity-level; reads stay whole-tree so hydration is one round-trip.
