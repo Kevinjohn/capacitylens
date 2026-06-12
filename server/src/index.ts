@@ -1,4 +1,4 @@
-import { buildApp, DEFAULT_CORS } from './app'
+import { buildApp, DEFAULT_CORS, parseRateLimit } from './app'
 import { openDb, seedIfUninitialized } from './db'
 import { seed } from '@floaty/shared/data/seed'
 import { createShutdownHandler } from './shutdown'
@@ -21,6 +21,9 @@ import { resetForbidden } from './bootGuard'
 //   FLOATY_HEALTH_DEEP              '1' to make /api/health do a trivial DB read:
 //                                   { ok, db: true } or 503 { ok: false }. Default off =
 //                                   unconditional { ok: true }.
+//   FLOATY_RATE_LIMIT               requests/minute per IP across /api/* (positive
+//                                   integer; unset/0/non-numeric = off, fail-closed).
+//                                   /api/health is exempt.
 
 // CORS is locked down by default to the local Vite dev/e2e origins (DEFAULT_CORS, the
 // same fail-closed default buildApp uses). Set FLOATY_CORS_ORIGIN explicitly (e.g. your
@@ -45,6 +48,11 @@ const corsOrigin = process.env.FLOATY_CORS_ORIGIN ?? DEFAULT_CORS
 const optimisticConcurrency = process.env.FLOATY_OPTIMISTIC_CONCURRENCY === '1'
 const log = process.env.FLOATY_LOG === '1'
 const healthDeep = process.env.FLOATY_HEALTH_DEEP === '1'
+const rateLimit = parseRateLimit(process.env.FLOATY_RATE_LIMIT)
+// X-Forwarded-For is only trustworthy when Nginx proxies to us on loopback (every socket
+// is then 127.0.0.1); a deliberately-exposed host (FLOATY_HOST=0.0.0.0) keys on the
+// socket address, because the header is client-spoofable there.
+const rateLimitTrustForwarded = host === '127.0.0.1' || host === 'localhost' || host === '::1'
 
 const db = openDb(dbPath)
 
@@ -55,7 +63,15 @@ const db = openDb(dbPath)
 // on the next restart (matches /api/meta's isInitialized() check).
 seedIfUninitialized(db, seed())
 
-const app = buildApp(db, { allowReset, corsOrigin, optimisticConcurrency, log, healthDeep })
+const app = buildApp(db, {
+  allowReset,
+  corsOrigin,
+  optimisticConcurrency,
+  log,
+  healthDeep,
+  rateLimit,
+  rateLimitTrustForwarded,
+})
 
 app
   .listen({ port, host })

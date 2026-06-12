@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import rateLimitPlugin from '@fastify/rate-limit'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { parseData, MAX_IMPORT_RECORDS } from '@floaty/shared/data/transfer'
 import { remapAndValidateImport } from '@floaty/shared/domain/mutations'
@@ -45,6 +46,15 @@ export interface AppOptions {
    *  200 { ok, db: true }, or 503 { ok: false } when the read throws. Default OFF =
    *  today's unconditional { ok: true } (Playwright's webServer probe depends on it). */
   healthDeep?: boolean
+  /** FLOATY_RATE_LIMIT=<n> — n requests/minute per IP across /api/* (a guard against an
+   *  accidental client loop hammering the single-writer SQLite file, NOT a security
+   *  control). /api/health is exempt. <= 0 / omitted ⇒ the plugin is not registered at
+   *  all (today's behaviour) — see parseRateLimit for the fail-closed env parse. */
+  rateLimit?: number
+  /** Key the rate limit on the first X-Forwarded-For hop instead of the socket address.
+   *  Set ONLY when the listen host is loopback (i.e. behind the Nginx proxy, where every
+   *  socket is 127.0.0.1); on a directly-exposed host the header is client-spoofable. */
+  rateLimitTrustForwarded?: boolean
   /** CORS allow-list: a comma-separated origin list, or an EXPLICIT '*' to allow any
    *  origin. Defaults FAIL-CLOSED to the localhost allow-list (DEFAULT_CORS) when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
@@ -55,6 +65,13 @@ export interface AppOptions {
    *  no-auth, last-writer-wins by design (see the plan). Turn on once real
    *  multi-user auth + client conflict-resolution land. */
   optimisticConcurrency?: boolean
+}
+
+/** Fail-closed parse of FLOATY_RATE_LIMIT: only a positive integer turns the limiter on;
+ *  unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit). */
+export function parseRateLimit(raw: string | undefined): number {
+  if (!raw || !/^\d+$/.test(raw)) return 0
+  return Number(raw)
 }
 
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
@@ -160,233 +177,266 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     return sendFail(reply, err)
   })
 
-  // No app-level auth in this phase. CORS is the only cross-origin gate, so the
-  // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
-  // answered here.
-  app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
-    const origin = resolveCorsOrigin(req.headers.origin, corsOrigin)
-    if (origin) {
-      reply.header('Access-Control-Allow-Origin', origin)
-      if (origin !== '*') reply.header('Vary', 'Origin')
-    }
-    reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-    reply.header('Access-Control-Allow-Headers', 'Content-Type')
-    if (req.method === 'OPTIONS') reply.code(204).send()
-  })
+  // Rate limiting (P1.5, flag FLOATY_RATE_LIMIT): registered ONLY when a positive limit
+  // was configured — off means the plugin doesn't exist in the app at all. Keyed per IP;
+  // behind the Nginx proxy every socket is loopback, so rateLimitTrustForwarded swaps the
+  // key to the first X-Forwarded-For hop there (and only there). 429s flow through the
+  // setErrorHandler above, so the refusal is the API's usual { error } JSON shape.
+  const rateLimitMax = opts.rateLimit ?? 0
+  if (rateLimitMax > 0) {
+    void app.register(rateLimitPlugin, {
+      max: rateLimitMax,
+      timeWindow: '1 minute',
+      keyGenerator: (req: FastifyRequest) => {
+        if (opts.rateLimitTrustForwarded === true) {
+          const xff = req.headers['x-forwarded-for']
+          const first = (Array.isArray(xff) ? xff[0] : xff)?.split(',')[0]?.trim()
+          if (first) return first
+        }
+        return req.ip
+      },
+    })
+  }
 
-  // Deep mode prepares the trivial read ONCE; a closed/corrupt/locked DB makes get()
-  // throw, which is exactly the signal the uptime monitor needs (a bare { ok: true }
-  // from a server whose DB is broken is a lie).
+  // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
+  // the DB is known-open; a later closed/corrupt/locked DB makes get() throw at request
+  // time, which is exactly the signal the uptime monitor needs (a bare { ok: true } from
+  // a server whose DB is broken is a lie).
   const healthStmt = opts.healthDeep === true ? db.prepare('SELECT 1') : null
-  app.get('/api/health', (_req, reply) => {
-    if (!healthStmt) return { ok: true }
-    try {
-      healthStmt.get()
-      return { ok: true, db: true }
-    } catch {
-      return reply.code(503).send({ ok: false })
-    }
-  })
 
-  // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES
-  // are entity-level; reads stay whole-tree so hydration is one round-trip.
-  app.get('/api/state', () => loadState(db))
-
-  // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
-  // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
-  // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
-  app.get('/api/meta', () => ({ hasData: isInitialized(db) }))
-
-  app.post('/api/:entity', (req, reply) => {
-    const { entity } = req.params as { entity: string }
-    if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-    try {
-      const row = sanitizeWrite(entity, req.body as Record<string, unknown>)
-      validateWrite(loadState(db), entity, row)
-      insertRow(db, entity, row)
-      return reply.code(201).send(row)
-    } catch (err) {
-      return sendFail(reply, err)
-    }
-  })
-
-  // Idempotent upsert by id — the verb the client sync adapter uses for every
-  // create AND update, so a replayed batch (after a partial failure) is safe. The
-  // body's id must match the URL id.
-  app.put('/api/:entity/:id', (req, reply) => {
-    const { entity, id } = req.params as { entity: string; id: string }
-    if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-    const body = req.body as Record<string, unknown>
-    if (body?.id !== id) return reply.code(400).send({ error: 'Body id must match the URL id.' })
-    try {
-      const existing = getRow(db, entity, id)
-      // accountId is immutable: a write must not move an EXISTING row to another account
-      // (see ownsRow). The web store enforces this via findOwned; without the same guard a
-      // crafted request could re-home a row and orphan its children across the tenant boundary.
-      if (!ownsRow(existing, body.accountId)) {
-        return reply.code(409).send({ error: 'That record belongs to a different company.' })
+  // Every hook + route below registers through a child plugin, NOT directly on the root:
+  // @fastify/rate-limit attaches to routes via an onRoute hook that only exists once the
+  // plugin LOADS (at ready(), in registration order) — a route declared straight on the
+  // root would register first and silently escape the limiter. The child loads after it,
+  // so its routes are seen. The callback shadows `app` deliberately: the route code is
+  // identical with or without the wrapper.
+  void app.register(async (app) => {
+    // No app-level auth in this phase. CORS is the only cross-origin gate, so the
+    // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
+    // answered here.
+    app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
+      const origin = resolveCorsOrigin(req.headers.origin, corsOrigin)
+      if (origin) {
+        reply.header('Access-Control-Allow-Origin', origin)
+        if (origin !== '*') reply.header('Vary', 'Origin')
       }
-      // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row.
-      if (
-        opts.optimisticConcurrency &&
-        existing &&
-        typeof existing.updatedAt === 'string' &&
-        typeof body.updatedAt === 'string' &&
-        existing.updatedAt > body.updatedAt
-      ) {
-        return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
-      }
-      const row = sanitizeWrite(entity, body)
-      validateWrite(loadState(db), entity, row)
-      upsertRow(db, entity, row)
-      return reply.code(200).send(row)
-    } catch (err) {
-      return sendFail(reply, err)
-    }
-  })
+      reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+      reply.header('Access-Control-Allow-Headers', 'Content-Type')
+      if (req.method === 'OPTIONS') reply.code(204).send()
+    })
 
-  // True partial patch: merge the body over the stored row, then sanitize + validate
-  // the MERGED entity before writing. (A blind column-wise update would null every
-  // field the body omits.) 404 when the row doesn't exist.
-  app.patch('/api/:entity/:id', (req, reply) => {
-    const { entity, id } = req.params as { entity: string; id: string }
-    if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-    try {
-      const existing = getRow(db, entity, id)
-      if (!existing) return reply.code(404).send({ error: 'Not found' })
-      const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id })
-      // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
-      if (!ownsRow(existing, merged.accountId)) {
-        return reply.code(409).send({ error: 'That record belongs to a different company.' })
+    // config.rateLimit: false exempts health from the limiter (inert when it isn't
+    // registered) — the uptime monitor must never be told 429.
+    app.get('/api/health', { config: { rateLimit: false } }, (_req, reply) => {
+      if (!healthStmt) return { ok: true }
+      try {
+        healthStmt.get()
+        return { ok: true, db: true }
+      } catch {
+        return reply.code(503).send({ ok: false })
       }
-      validateWrite(loadState(db), entity, merged)
-      upsertRow(db, entity, merged)
-      return reply.code(200).send(merged)
-    } catch (err) {
-      return sendFail(reply, err)
-    }
-  })
+    })
 
-  app.delete('/api/:entity/:id', (req, reply) => {
-    const { entity, id } = req.params as { entity: string; id: string }
-    if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-    // Scope a scoped-table delete to its owning account — the server analog of the
-    // client's MANDATORY findOwned guard. A scoped delete MUST assert an owning account:
-    // omitting it can't prove ownership, so we refuse with 400 (rather than deleting by id,
-    // which was a tenant-guard bypass). A wrong owner is 404. Accounts are top-level and
-    // carry no accountId, so they delete by id.
-    const { accountId } = req.query as { accountId?: string }
-    try {
-      if (isScopedTable(entity)) {
-        if (accountId === undefined) {
-          return reply.code(400).send({ error: 'accountId is required to delete a scoped record.' })
+    // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES
+    // are entity-level; reads stay whole-tree so hydration is one round-trip.
+    app.get('/api/state', () => loadState(db))
+
+    // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
+    // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
+    // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
+    app.get('/api/meta', () => ({ hasData: isInitialized(db) }))
+
+    app.post('/api/:entity', (req, reply) => {
+      const { entity } = req.params as { entity: string }
+      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      try {
+        const row = sanitizeWrite(entity, req.body as Record<string, unknown>)
+        validateWrite(loadState(db), entity, row)
+        insertRow(db, entity, row)
+        return reply.code(201).send(row)
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // Idempotent upsert by id — the verb the client sync adapter uses for every
+    // create AND update, so a replayed batch (after a partial failure) is safe. The
+    // body's id must match the URL id.
+    app.put('/api/:entity/:id', (req, reply) => {
+      const { entity, id } = req.params as { entity: string; id: string }
+      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      const body = req.body as Record<string, unknown>
+      if (body?.id !== id) return reply.code(400).send({ error: 'Body id must match the URL id.' })
+      try {
+        const existing = getRow(db, entity, id)
+        // accountId is immutable: a write must not move an EXISTING row to another account
+        // (see ownsRow). The web store enforces this via findOwned; without the same guard a
+        // crafted request could re-home a row and orphan its children across the tenant boundary.
+        if (!ownsRow(existing, body.accountId)) {
+          return reply.code(409).send({ error: 'That record belongs to a different company.' })
         }
-        if (!ownsRow(getRow(db, entity, id), accountId)) {
-          return reply.code(404).send({ error: 'Not found' })
+        // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row.
+        if (
+          opts.optimisticConcurrency &&
+          existing &&
+          typeof existing.updatedAt === 'string' &&
+          typeof body.updatedAt === 'string' &&
+          existing.updatedAt > body.updatedAt
+        ) {
+          return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
         }
+        const row = sanitizeWrite(entity, body)
+        validateWrite(loadState(db), entity, row)
+        upsertRow(db, entity, row)
+        return reply.code(200).send(row)
+      } catch (err) {
+        return sendFail(reply, err)
       }
-      deleteRow(db, entity, id) // idempotent
-      return reply.code(204).send()
-    } catch (err) {
-      return sendFail(reply, err)
-    }
-  })
+    })
 
-  // Transactional batch write — the verb the client sync adapter uses for every save.
-  // Body: { ops: BatchOp[] }, already ordered (upserts parent-first, then deletes
-  // child-first; see the client's syncOps.diffOps). The whole list is applied in ONE
-  // transaction: all-or-nothing. This is what makes a reparent+delete safe — the
-  // re-binding upsert commits before the old parent's DELETE cascades, so the cascade
-  // finds nothing to take — and guarantees a mid-batch failure rolls back, leaving the
-  // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
-  // per-entity routes use; loadState() inside the tx reflects earlier ops, so a child
-  // validates against the parent a sibling op just upserted.
-  app.post('/api/batch', (req, reply) => {
-    const body = req.body as { ops?: unknown }
-    if (!body || !Array.isArray(body.ops)) {
-      return reply.code(400).send({ error: 'ops array is required' })
-    }
-    const ops = body.ops as BatchOp[]
-    try {
-      tx(db, () => {
-        for (const op of ops) {
-          const { method, table, id } = op
-          if (typeof table !== 'string' || typeof id !== 'string') {
-            throw new ValidationError('Each op needs a string table and id.')
+    // True partial patch: merge the body over the stored row, then sanitize + validate
+    // the MERGED entity before writing. (A blind column-wise update would null every
+    // field the body omits.) 404 when the row doesn't exist.
+    app.patch('/api/:entity/:id', (req, reply) => {
+      const { entity, id } = req.params as { entity: string; id: string }
+      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      try {
+        const existing = getRow(db, entity, id)
+        if (!existing) return reply.code(404).send({ error: 'Not found' })
+        const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id })
+        // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
+        if (!ownsRow(existing, merged.accountId)) {
+          return reply.code(409).send({ error: 'That record belongs to a different company.' })
+        }
+        validateWrite(loadState(db), entity, merged)
+        upsertRow(db, entity, merged)
+        return reply.code(200).send(merged)
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    app.delete('/api/:entity/:id', (req, reply) => {
+      const { entity, id } = req.params as { entity: string; id: string }
+      if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      // Scope a scoped-table delete to its owning account — the server analog of the
+      // client's MANDATORY findOwned guard. A scoped delete MUST assert an owning account:
+      // omitting it can't prove ownership, so we refuse with 400 (rather than deleting by id,
+      // which was a tenant-guard bypass). A wrong owner is 404. Accounts are top-level and
+      // carry no accountId, so they delete by id.
+      const { accountId } = req.query as { accountId?: string }
+      try {
+        if (isScopedTable(entity)) {
+          if (accountId === undefined) {
+            return reply.code(400).send({ error: 'accountId is required to delete a scoped record.' })
           }
-          if (!isKnownTable(table)) throw new ValidationError(`Unknown entity: ${table}`)
-          if (method === 'PUT') {
-            const row = op.row
-            if (!row || typeof row !== 'object' || (row as { id?: unknown }).id !== id) {
-              throw new ValidationError('Each PUT op needs a row whose id matches the op id.')
+          if (!ownsRow(getRow(db, entity, id), accountId)) {
+            return reply.code(404).send({ error: 'Not found' })
+          }
+        }
+        deleteRow(db, entity, id) // idempotent
+        return reply.code(204).send()
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // Transactional batch write — the verb the client sync adapter uses for every save.
+    // Body: { ops: BatchOp[] }, already ordered (upserts parent-first, then deletes
+    // child-first; see the client's syncOps.diffOps). The whole list is applied in ONE
+    // transaction: all-or-nothing. This is what makes a reparent+delete safe — the
+    // re-binding upsert commits before the old parent's DELETE cascades, so the cascade
+    // finds nothing to take — and guarantees a mid-batch failure rolls back, leaving the
+    // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
+    // per-entity routes use; loadState() inside the tx reflects earlier ops, so a child
+    // validates against the parent a sibling op just upserted.
+    app.post('/api/batch', (req, reply) => {
+      const body = req.body as { ops?: unknown }
+      if (!body || !Array.isArray(body.ops)) {
+        return reply.code(400).send({ error: 'ops array is required' })
+      }
+      const ops = body.ops as BatchOp[]
+      try {
+        tx(db, () => {
+          for (const op of ops) {
+            const { method, table, id } = op
+            if (typeof table !== 'string' || typeof id !== 'string') {
+              throw new ValidationError('Each op needs a string table and id.')
             }
-            // accountId is immutable (ownsRow): a write must not re-home an existing row.
-            const existing = getRow(db, table, id)
-            if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
-              throw new ValidationError('That record belongs to a different company.')
-            }
-            const clean = sanitizeWrite(table, row as Record<string, unknown>)
-            validateWrite(loadState(db), table, clean)
-            upsertRow(db, table, clean)
-          } else if (method === 'DELETE') {
-            // Scoped deletes assert ownership (same rule as the DELETE route).
-            if (isScopedTable(table)) {
-              if (typeof op.accountId !== 'string') {
-                throw new ValidationError('accountId is required to delete a scoped record.')
+            if (!isKnownTable(table)) throw new ValidationError(`Unknown entity: ${table}`)
+            if (method === 'PUT') {
+              const row = op.row
+              if (!row || typeof row !== 'object' || (row as { id?: unknown }).id !== id) {
+                throw new ValidationError('Each PUT op needs a row whose id matches the op id.')
               }
-              if (!ownsRow(getRow(db, table, id), op.accountId)) {
+              // accountId is immutable (ownsRow): a write must not re-home an existing row.
+              const existing = getRow(db, table, id)
+              if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
                 throw new ValidationError('That record belongs to a different company.')
               }
+              const clean = sanitizeWrite(table, row as Record<string, unknown>)
+              validateWrite(loadState(db), table, clean)
+              upsertRow(db, table, clean)
+            } else if (method === 'DELETE') {
+              // Scoped deletes assert ownership (same rule as the DELETE route).
+              if (isScopedTable(table)) {
+                if (typeof op.accountId !== 'string') {
+                  throw new ValidationError('accountId is required to delete a scoped record.')
+                }
+                if (!ownsRow(getRow(db, table, id), op.accountId)) {
+                  throw new ValidationError('That record belongs to a different company.')
+                }
+              }
+              deleteRow(db, table, id)
+            } else {
+              throw new ValidationError(`Unknown op method: ${String(method)}`)
             }
-            deleteRow(db, table, id)
-          } else {
-            throw new ValidationError(`Unknown op method: ${String(method)}`)
           }
-        }
-      })
-      return reply.code(200).send({ ok: true, applied: ops.length })
-    } catch (err) {
-      return sendFail(reply, err)
-    }
-  })
+        })
+        return reply.code(200).send({ ok: true, applied: ops.length })
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
 
-  // Bulk import into one account, reusing the SAME remap+validate+sanitize the store
-  // runs (shared/domain/mutations.remapAndValidateImport). Body: { accountId, data }.
-  // `data` may be a raw export ({schemaVersion,data} or bare AppData); parseData
-  // applies the shape guard + MAX_IMPORT_RECORDS cap + migration.
-  app.post('/api/import', (req, reply) => {
-    const body = req.body as { accountId?: string; data?: unknown }
-    if (!body || typeof body.accountId !== 'string') {
-      return reply.code(400).send({ error: 'accountId is required' })
-    }
-    let incoming
-    try {
-      incoming = parseData(JSON.stringify(body.data ?? {}))
-    } catch (err) {
-      return reply.code(400).send({ error: err instanceof Error ? err.message : 'Invalid import data' })
-    }
-    // remapAndValidateImport drops/repairs dangling refs so the slice is FK-clean
-    // before it hits SQLite; the try/catch is defence-in-depth so any residual DB
-    // constraint failure becomes a 400 (via fail's classification) rather than an
-    // uncaught 500.
-    try {
-      const result = remapAndValidateImport(loadState(db), body.accountId, incoming, new Date().toISOString())
-      // Refuse a zero-record import rather than wiping the account's slice (mirrors the
-      // client store guard — replacing a company's data with nothing is never intended).
-      if (result.imported > 0) replaceAccountSlice(db, body.accountId, result.data)
-      return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS }
-    } catch (err) {
-      return sendFail(reply, err)
-    }
-  })
+    // Bulk import into one account, reusing the SAME remap+validate+sanitize the store
+    // runs (shared/domain/mutations.remapAndValidateImport). Body: { accountId, data }.
+    // `data` may be a raw export ({schemaVersion,data} or bare AppData); parseData
+    // applies the shape guard + MAX_IMPORT_RECORDS cap + migration.
+    app.post('/api/import', (req, reply) => {
+      const body = req.body as { accountId?: string; data?: unknown }
+      if (!body || typeof body.accountId !== 'string') {
+        return reply.code(400).send({ error: 'accountId is required' })
+      }
+      let incoming
+      try {
+        incoming = parseData(JSON.stringify(body.data ?? {}))
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : 'Invalid import data' })
+      }
+      // remapAndValidateImport drops/repairs dangling refs so the slice is FK-clean
+      // before it hits SQLite; the try/catch is defence-in-depth so any residual DB
+      // constraint failure becomes a 400 (via fail's classification) rather than an
+      // uncaught 500.
+      try {
+        const result = remapAndValidateImport(loadState(db), body.accountId, incoming, new Date().toISOString())
+        // Refuse a zero-record import rather than wiping the account's slice (mirrors the
+        // client store guard — replacing a company's data with nothing is never intended).
+        if (result.imported > 0) replaceAccountSlice(db, body.accountId, result.data)
+        return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS }
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
 
-  // Test-only: wipe (and optionally re-seed) so E2E/integration runs start clean.
-  app.post('/api/test/reset', (req, reply) => {
-    if (!opts.allowReset) return reply.code(403).send({ error: 'reset disabled' })
-    const body = (req.body ?? {}) as { seed?: boolean }
-    wipe(db)
-    if (body.seed) insertAll(db, seed())
-    return { ok: true }
+    // Test-only: wipe (and optionally re-seed) so E2E/integration runs start clean.
+    app.post('/api/test/reset', (req, reply) => {
+      if (!opts.allowReset) return reply.code(403).send({ error: 'reset disabled' })
+      const body = (req.body ?? {}) as { seed?: boolean }
+      wipe(db)
+      if (body.seed) insertAll(db, seed())
+      return { ok: true }
+    })
   })
 
   return app
