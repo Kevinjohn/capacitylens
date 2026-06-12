@@ -41,6 +41,10 @@ export interface AppOptions {
   log?: boolean
   /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
   logStream?: { write(msg: string): void }
+  /** FLOATY_HEALTH_DEEP=1 — /api/health also proves the DB answers a trivial read:
+   *  200 { ok, db: true }, or 503 { ok: false } when the read throws. Default OFF =
+   *  today's unconditional { ok: true } (Playwright's webServer probe depends on it). */
+  healthDeep?: boolean
   /** CORS allow-list: a comma-separated origin list, or an EXPLICIT '*' to allow any
    *  origin. Defaults FAIL-CLOSED to the localhost allow-list (DEFAULT_CORS) when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
@@ -170,7 +174,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (req.method === 'OPTIONS') reply.code(204).send()
   })
 
-  app.get('/api/health', () => ({ ok: true }))
+  // Deep mode prepares the trivial read ONCE; a closed/corrupt/locked DB makes get()
+  // throw, which is exactly the signal the uptime monitor needs (a bare { ok: true }
+  // from a server whose DB is broken is a lie).
+  const healthStmt = opts.healthDeep === true ? db.prepare('SELECT 1') : null
+  app.get('/api/health', (_req, reply) => {
+    if (!healthStmt) return { ok: true }
+    try {
+      healthStmt.get()
+      return { ok: true, db: true }
+    } catch {
+      return reply.code(503).send({ ok: false })
+    }
+  })
 
   // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES
   // are entity-level; reads stay whole-tree so hydration is one round-trip.
