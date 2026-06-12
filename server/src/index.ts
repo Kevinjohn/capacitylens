@@ -4,6 +4,7 @@ import { seed } from '@floaty/shared/data/seed'
 import { createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
 import { authFromEnv, runAuthMigrations, AuthConfigError } from './auth'
+import { parseBackupConfig, startBackups } from './backup'
 
 // Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
 //   FLOATY_DB                       SQLite file (default ./floaty.db; ':memory:' ok)
@@ -25,6 +26,11 @@ import { authFromEnv, runAuthMigrations, AuthConfigError } from './auth'
 //   FLOATY_RATE_LIMIT               requests/minute per IP across /api/* (positive
 //                                   integer; unset/0/non-numeric = off, fail-closed).
 //                                   /api/health is exempt.
+//   FLOATY_BACKUP_DIR               set to a directory to enable periodic online DB
+//                                   snapshots there (default off — no timer, no writes).
+//   FLOATY_BACKUP_INTERVAL_MIN      snapshot cadence in minutes (default 60; only read
+//                                   when backups are on).
+//   FLOATY_BACKUP_KEEP              rolling retention count (default 48; oldest pruned).
 //   FLOATY_AUTH                     off|password|sso (default off = no Better Auth at
 //                                   all; only the thin /api/auth/me exists). Any other
 //                                   value refuses to boot. When ≠ off:
@@ -105,6 +111,13 @@ const app = buildApp(db, {
   auth,
 })
 
+// Backups (P4.1, flag FLOATY_BACKUP_DIR — default OFF: no timer, no filesystem writes).
+// Snapshot lines go through pino when FLOATY_LOG is on, console.log otherwise (P1.3).
+const backupConfig = parseBackupConfig(process.env)
+const backups = backupConfig
+  ? startBackups(db, backupConfig, log ? (m) => app.log.info(m) : console.log)
+  : null
+
 app
   .listen({ port, host })
   .then((addr) => console.log(`floaty-server listening on ${addr} (db=${dbPath}, reset=${allowReset})`))
@@ -115,7 +128,17 @@ app
 
 // Graceful shutdown (P1.2): the deploy restarts the daemon with a signal — drain in-flight
 // requests, then close the DB, instead of dying mid-transaction. A repeat signal force-exits.
-const shutdown = createShutdownHandler(app, db, (code) => process.exit(code))
+// The backup timer stops FIRST so a drain never races a snapshot of the closing DB (P4.1).
+const shutdown = createShutdownHandler(
+  {
+    close: async () => {
+      backups?.stop()
+      await app.close()
+    },
+  },
+  db,
+  (code) => process.exit(code),
+)
 const onSignal = (sig: NodeJS.Signals) => {
   console.log(`floaty-server: ${sig} — draining requests, then exiting`)
   void shutdown()
