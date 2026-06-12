@@ -74,6 +74,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Theme is device-global** — own key (`floaty/theme`), NOT in `AppData`/export. Default
   **light**; `system` follows `matchMedia`; FOUC guard in `index.html`.
 - **Utilisation display toggles are device-global** too (`floaty/utilizationPrefs`, default all-on).
+- **Bar labels carry `Client · Project` context** before the task name, behind two
+  device-global toggles (`floaty/barLabelPrefs`, Settings → Allocation bars, default both on);
+  missing metadata just skips its part. The popover keeps its own task-first layout.
 - **Undo/redo is keyboard-only** (⌘Z / ⌘⇧Z, global in `AppShell`); the toolbar buttons are
   intentionally hidden (clearer affordance is a TODO).
 - **Modals are real forms.** `Modal` takes an optional `onSubmit` and wraps children+footer in
