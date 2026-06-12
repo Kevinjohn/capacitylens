@@ -447,7 +447,7 @@ top. Tasks within a phase are standalone and parallelisable.
 | Phase | What | Effort |
 |------:|------|--------|
 | 0 | Decisions + Node pinning | done (owner, 2026-06-12) |
-| 1 | Server hardening in-repo (P1.1–P1.7) | 1–1.5 d |
+| 1 | Server hardening in-repo (P1.1–P1.7) | done (2026-06-12, e5b2262…0cdae13 — see decisions log) |
 | 2 | Cutover + Nginx edge (ops runsheet) | 1 d |
 | 3 | Auth wired, off (P3.1–P3.5) | 1.5–2 d |
 | 4 | Backups, drill, monitoring, runbook (P4.1–P4.5) | 0.5 d |
