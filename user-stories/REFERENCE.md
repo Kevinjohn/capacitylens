@@ -122,6 +122,12 @@ and project parts are device-global toggles in Settings → **Allocation bars** 
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
 task-first layout regardless of these toggles.
 
+**Build stamp (Settings, flag-gated).** When the build sets `VITE_FLOATY_BUILD_SHA`, the
+Settings page ends with a muted one-line footer (`data-testid="build-stamp"`) reading
+`build <sha> · server` (a server backend is configured, i.e. `VITE_FLOATY_API` was baked in)
+or `build <sha> · local` (localStorage mode). The default dev/local build leaves the variable
+unset and renders **nothing** — the seeded state these stories run against has no build stamp.
+
 ## Command palette
 
 Opened by **⌘K / Ctrl+K** from anywhere in the app (including while a text field is focused).
@@ -155,7 +161,8 @@ Mouse hover sets the active option; mouse click selects.
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `export-data`, `import-data`,
-`import-input`. A lane carries `data-resource-id="<id>"`; a bar carries
+`import-input`, `build-stamp` (Settings footer; only rendered when the build sets
+`VITE_FLOATY_BUILD_SHA`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
 `r-ph-designer`, `p-acme` (Project Lightning), `p-brand` (Brand Themes), `t-wires`.
 

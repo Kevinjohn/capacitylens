@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from './SettingsView'
@@ -109,6 +109,23 @@ describe('SettingsView — theme', () => {
     expect(dark).toHaveAttribute('aria-checked', 'true')
     // The choice is reflected onto <html> for the CSS to key off.
     expect(document.documentElement.dataset.theme).toBe('dark')
+  })
+})
+
+describe('SettingsView — build stamp', () => {
+  // buildStamp() reads the env at render time, so stubbing before render is enough here
+  // (the server/local suffix is exercised in buildInfo.test.ts, where modules are reset).
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('renders nothing when VITE_FLOATY_BUILD_SHA is unset (today\'s Settings)', () => {
+    render(<SettingsView />)
+    expect(screen.queryByTestId('build-stamp')).not.toBeInTheDocument()
+  })
+
+  it('renders the muted footer when the build is stamped', () => {
+    vi.stubEnv('VITE_FLOATY_BUILD_SHA', 'a1b2c3d')
+    render(<SettingsView />)
+    expect(screen.getByTestId('build-stamp')).toHaveTextContent('build a1b2c3d · local')
   })
 })
 
