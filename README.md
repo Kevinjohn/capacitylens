@@ -6,6 +6,15 @@ never leaves the device. An **optional** SQLite-backed API can be switched on (s
 below) when you want a shared, server-persisted dataset — the app talks to it
 through the same persistence seam, so nothing else changes.
 
+**Deliberately small.** Floaty replaces the resourcing spreadsheet: a helicopter view of
+who's busy, who's free, who's overworked — week by week, for small agencies with a few
+staff and rotating freelancers. It is intentionally **not** feature-rich: no budgets,
+no timesheets, no hour-level tracking. One tool, one problem, done well. Day-to-day
+navigation is keyboard-friendly: **Enter** submits any dialog, **⌘K / Ctrl+K** opens a
+command palette (jump to a person, project, client, page, or date), **⌘Z** undoes.
+Each company account sets its own calendar in Settings (timezone, default GMT; week
+start, default Monday).
+
 ## Run it
 
 ```bash
@@ -45,6 +54,7 @@ The single source of truth is a normalized store, multi-tenant by **Account**
 (every other entity is scoped to one account):
 
 - **Accounts** — tenants/companies; you pick one, and the whole dataset is scoped to it.
+  Carries the team-wide calendar config (`timezone`, `weekStartsOn`) and `schedulingMode`.
 - **Disciplines** — groupings for resources (e.g. Design, Development).
 - **Resources** — the people (or project-bound placeholders) you schedule.
 - **Clients** — group projects.

@@ -1,5 +1,17 @@
 # Floaty — Full review, 10-feature roadmap, and one-month team plan
 
+> **Status addendum (2026-06-12).** This is a dated snapshot; read it with two corrections.
+> **(1) Scope:** the owner has since confirmed the product is *deliberately small* — a
+> helicopter who's-busy view; budgets/money, timesheets, hour-granularity and mobile are
+> **non-goals** (see DECISIONS.md). Roadmap items F1/F2 (reports, money) and F10 (mobile)
+> are therefore superseded; weigh the rest against that bar. localStorage is demo-only with
+> the server cutover imminent, so the multi-tab finding is accepted, not scheduled.
+> **(2) Already fixed (2026-06-12, see decisions-log):** the TABLES drift hole, NULL-id
+> rows, the parallel-lists hazard (all drift-proofed, `641f063`); no-`<form>`/Enter
+> (`2ab569c`); the "Ignore weekends" label (`4f60dff`); F7 command palette shipped +
+> hardened (`7e74b66`, `6619d96`); account-level calendar settings (timezone/week start,
+> `97cff75`).
+
 **Date:** 2026-06-11
 **Method:** 9 specialist review agents (domain core, store, scheduler, persistence, server, UI/UX, testing, security, product strategy), every critical/high finding adversarially verified by an independent agent instructed to refute it; 26 agents, ~1.6M tokens. The scalability dimension, four stranded verifications, and all synthesis below were completed directly after the agent fleet hit a session limit. `npm run gate` was run fresh today: **green** (551 unit tests / 57 files, tsc + eslint clean, build OK, main bundle 406 kB / 127 kB gzipped with route-split list views). E2E was not re-run today; last commit (`a700543`) is on a green main.
 

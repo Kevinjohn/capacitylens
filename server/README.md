@@ -51,6 +51,7 @@ VITE_FLOATY_API=http://localhost:8787 npm run dev
 | POST | `/api/:entity` | Create. |
 | PATCH | `/api/:entity/:id` | Partial update. |
 | DELETE | `/api/:entity/:id` | Idempotent delete (DB cascades mirror the store); optional `?accountId=…` scopes it to the owner (404 cross-account). |
+| POST | `/api/batch` | `{ ops: [...] }` — one transaction of upserts/deletes in op order; **the write path the shipped sync adapter actually uses** (per-entity verbs above serve direct/manual use). |
 | POST | `/api/import` | `{ accountId, data }` — reuses `remapAndValidateImport`. |
 | POST | `/api/test/reset` | Wipe (+ optional reseed). Gated by `FLOATY_ALLOW_RESET=1`. |
 
@@ -60,12 +61,19 @@ VITE_FLOATY_API=http://localhost:8787 npm run dev
 ## Validation
 
 The server is the integrity boundary for direct API writes, not just the UI. Every
-POST/PUT/PATCH runs two shared-core layers (see `src/validate.ts`): `sanitizeWrite`
-repairs value-level fields (enums — incl. an account's `schedulingMode` — colour, hours,
-`workingDays`) exactly as the import path does, then `validateWrite` enforces referential
-integrity + date ranges. So a hand-crafted request can't persist a junk enum, non-hex
-colour, NaN/negative hours, or a dangling foreign key. PATCH is a true partial merge (body
-merged over the stored row before validation), not a column-wise overwrite.
+POST/PUT/PATCH/batch-op runs two shared-core layers (see `src/validate.ts`): `sanitizeWrite`
+**requires a non-empty string `id` (400 otherwise — SQLite's `TEXT PRIMARY KEY` would happily
+store NULL)** and repairs value-level fields (enums — incl. an account's `schedulingMode`,
+`timezone` (IANA-checked) and `weekStartsOn` (0|1) — colour, hours, `workingDays`) exactly as
+the import path does, then `validateWrite` enforces referential integrity + date ranges. So a
+hand-crafted request can't persist a junk enum, non-hex colour, NaN/negative hours, a dangling
+foreign key, or an unaddressable null-id row. PATCH is a true partial merge (body merged over
+the stored row before validation), not a column-wise overwrite.
+
+The table column specs (`src/tables.ts`) are compile-checked against the shared entity types,
+and fully-populated fixtures from `@floaty/shared/data/fixtures` are round-tripped in the API
+tests — a field added to the shared types but not to a column spec fails `gate:server` instead
+of silently dropping on write.
 
 **Tenant guard (`ownsRow`).** `accountId` is immutable: a PUT/PATCH that tries to re-home an
 existing row to another account is refused with 409. A DELETE is scoped to its owner when the

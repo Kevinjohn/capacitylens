@@ -4,7 +4,10 @@ Keep this file short — it loads every session.
 
 ## What this is
 A local-first **Float-style agency resource scheduler** in the browser (People/Resources →
-Allocations across Clients → Projects → Tasks, multi-tenant by Account). This is the **original**
+Allocations across Clients → Projects → Tasks, multi-tenant by Account). **Deliberately small
+(owner):** one problem — a helicopter view of who's busy/free/overworked, week granularity —
+for small agencies with rotating freelancers. Budgets/money, timesheets, hour-granularity
+workflows and mobile views are non-goals; don't propose them. This is the **original**
 floaty repo; `../floaty-schedule` (shift rota) and `../delivery-diary` (deliverables tracker)
 re-target this same setup to new domains. No backend or login by default; an **optional**
 SQLite-backed API plugs in behind the persistence seam.
@@ -32,6 +35,9 @@ goes through the `useScopedData` / `scopedTables()` seam.
 - **Forms reject; import + server strip/repair.** Non-Floaty JSON is shape-checked
   (`looksLikeFloaty`) before migrate so it can't wipe data; import is confirmed + undoable, with
   caps on file size + record count.
+- **Entity/field extension is drift-proofed.** New fields flow shared types → full fixtures
+  (`shared/src/data/fixtures.ts`) → `server/src/tables.ts` columns (auto ALTER) → sanitize;
+  exhaustiveness checks make a missed list fail the gate. Don't bypass the path.
 
 ## Docs map (so you don't read everything to find the right place)
 - **`DECISIONS.md`** — slim, present-tense digest of standing decisions. Read it whole; it's
