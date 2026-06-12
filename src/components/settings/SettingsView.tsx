@@ -40,8 +40,35 @@ const UTILIZATION_OPTIONS: { key: 'showTotal' | 'showDiscipline' | 'showPersonal
   { key: 'showPersonal', label: 'Show Personal Utilisation' },
 ]
 
-// App-level preferences, opened from the nav like the CRUD list pages. Two
-// sections for now: rename the active company, and pick the colour scheme.
+const BAR_LABEL_OPTIONS: { key: 'showClient' | 'showProject'; label: string }[] = [
+  { key: 'showClient', label: 'Show client name' },
+  { key: 'showProject', label: 'Show project name' },
+]
+
+// The on/off switch row shared by the Allocation bars and Utilisation sections.
+function ToggleRow({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
+  return (
+    <div className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+      <span className="text-sm text-ink">{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={label}
+        onClick={onToggle}
+        className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-brand' : 'bg-line'}`}
+      >
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-all ${
+            on ? 'left-[18px]' : 'left-0.5'
+          }`}
+        />
+      </button>
+    </div>
+  )
+}
+
+// App-level preferences, opened from the nav like the CRUD list pages.
 export function SettingsView() {
   const accounts = useStore((s) => s.data.accounts)
   const activeAccountId = useStore((s) => s.activeAccountId)
@@ -52,6 +79,8 @@ export function SettingsView() {
   const setTheme = useStore((s) => s.setTheme)
   const utilizationPrefs = useStore((s) => s.utilizationPrefs)
   const setUtilizationPref = useStore((s) => s.setUtilizationPref)
+  const barLabelPrefs = useStore((s) => s.barLabelPrefs)
+  const setBarLabelPref = useStore((s) => s.setBarLabelPref)
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
   const weekStartsOn: 0 | 1 = activeAccount?.weekStartsOn ?? 1
@@ -193,33 +222,36 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">Allocation bars</h2>
+          <p className="mb-3 text-xs text-muted">
+            What each bar on the schedule shows before the task name — applies to this browser.
+          </p>
+          <div className="divide-y divide-line">
+            {BAR_LABEL_OPTIONS.map((opt) => (
+              <ToggleRow
+                key={opt.key}
+                label={opt.label}
+                on={barLabelPrefs[opt.key]}
+                onToggle={() => setBarLabelPref(opt.key, !barLabelPrefs[opt.key])}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
           <h2 className="mb-1 text-sm font-semibold text-ink">Utilisation</h2>
           <p className="mb-3 text-xs text-muted">
             Which utilisation figures appear on the scheduler.
           </p>
           <div className="divide-y divide-line">
-            {UTILIZATION_OPTIONS.map((opt) => {
-              const on = utilizationPrefs[opt.key]
-              return (
-                <div key={opt.key} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-                  <span className="text-sm text-ink">{opt.label}</span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={on}
-                    aria-label={opt.label}
-                    onClick={() => setUtilizationPref(opt.key, !on)}
-                    className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-brand' : 'bg-line'}`}
-                  >
-                    <span
-                      className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-all ${
-                        on ? 'left-[18px]' : 'left-0.5'
-                      }`}
-                    />
-                  </button>
-                </div>
-              )
-            })}
+            {UTILIZATION_OPTIONS.map((opt) => (
+              <ToggleRow
+                key={opt.key}
+                label={opt.label}
+                on={utilizationPrefs[opt.key]}
+                onToggle={() => setUtilizationPref(opt.key, !utilizationPrefs[opt.key])}
+              />
+            ))}
           </div>
         </section>
 

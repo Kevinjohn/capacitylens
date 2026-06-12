@@ -20,8 +20,11 @@ import {
   remapAndValidateImport,
 } from '@floaty/shared/domain/mutations'
 import {
+  readStoredBarLabelPrefs,
   readStoredUtilizationPrefs,
+  writeStoredBarLabelPrefs,
   writeStoredUtilizationPrefs,
+  type BarLabelPrefs,
   type UtilizationPrefs,
 } from '../lib/displayPrefs'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
@@ -149,6 +152,9 @@ export interface StoreState {
   /** Utilisation display toggles. Device-global like `theme`, persisted to their
    *  own localStorage key — not part of account data. */
   utilizationPrefs: UtilizationPrefs
+  /** Allocation-bar label toggles (client/project context before the task name).
+   *  Device-global like `utilizationPrefs`, own localStorage key. */
+  barLabelPrefs: BarLabelPrefs
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -171,6 +177,8 @@ export interface StoreState {
   setTheme: (pref: ThemePref) => void
   /** Toggle a single utilisation display preference: persist and update state. */
   setUtilizationPref: (key: keyof UtilizationPrefs, value: boolean) => void
+  /** Toggle a single bar-label display preference: persist and update state. */
+  setBarLabelPref: (key: keyof BarLabelPrefs, value: boolean) => void
   undo: () => void
   redo: () => void
 
@@ -303,6 +311,7 @@ export const useStore = create<StoreState>()((set, get) => {
     draggingAllocationId: null,
     theme: readStoredTheme(),
     utilizationPrefs: readStoredUtilizationPrefs(),
+    barLabelPrefs: readStoredBarLabelPrefs(),
 
     addAccount: (input) => {
       const e: Account = { ...input, id: newId(), ...stamp() }
@@ -382,6 +391,12 @@ export const useStore = create<StoreState>()((set, get) => {
         const next = { ...s.utilizationPrefs, [key]: value }
         writeStoredUtilizationPrefs(next)
         return { utilizationPrefs: next }
+      }),
+    setBarLabelPref: (key, value) =>
+      set((s) => {
+        const next = { ...s.barLabelPrefs, [key]: value }
+        writeStoredBarLabelPrefs(next)
+        return { barLabelPrefs: next }
       }),
 
     undo: () =>

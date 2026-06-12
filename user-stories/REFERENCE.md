@@ -44,7 +44,7 @@ The sidebar links, in order, route to:
 | Projects | `/projects` | Project list |
 | Tasks | `/tasks` | Task list |
 | Time off | `/timeoff` | Time-off list |
-| Settings | `/settings` | Settings (company rename, scheduling, calendar, utilisation, appearance) |
+| Settings | `/settings` | Settings (company rename, scheduling, calendar, allocation bars, utilisation, appearance) |
 
 That's **eight** sections. The **Data** section at the bottom of the sidebar has **Export
 JSON** and **Import JSON**. A **Switch company** control returns to the account picker.
@@ -97,6 +97,13 @@ toolbar buttons. Filter row:
 active, **off by default** — filtering hides resources with no matching work; ticking it
 brings them back visible-but-dimmed so you can see who's free to staff), `Clear` (only shown
 when a filter is active).
+
+**Allocation bars.** A bar's label reads `Client · Project · Task · Nh` (hours hidden in
+blocks mode; a `✓ ` prefix when completed, a trailing ` •` when it has a note). The client
+and project parts are device-global toggles in Settings → **Allocation bars** — switches
+`Show client name` and `Show project name`, both **on** by default; a bar whose task has no
+project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
+task-first layout regardless of these toggles.
 
 ## Command palette
 

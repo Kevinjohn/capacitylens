@@ -1,9 +1,9 @@
-// Utilisation display preferences. Device-global (one set of choices per browser),
-// stored separately from account data — same rationale as the theme preference
+// Display preferences. Device-global (one set of choices per browser), stored
+// separately from account data — same rationale as the theme preference
 // (see theme.ts / DECISIONS.md): these are view toggles, not tenant records.
 //
-// The store holds the reactive value; these are the pure read/write helpers it
-// leans on. All three default to true (show everything) on first run.
+// The store holds the reactive values; these are the pure read/write helpers it
+// leans on. Everything defaults to true (show everything) on first run.
 
 export interface UtilizationPrefs {
   /** Show the account-wide utilisation summary. */
@@ -48,6 +48,47 @@ export function readStoredUtilizationPrefs(): UtilizationPrefs {
 export function writeStoredUtilizationPrefs(prefs: UtilizationPrefs): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+  } catch {
+    // ignore — see readStoredUtilizationPrefs
+  }
+}
+
+export interface BarLabelPrefs {
+  /** Prefix the allocation bar's label with the client name. */
+  showClient: boolean
+  /** Prefix the allocation bar's label with the project name. */
+  showProject: boolean
+}
+
+export const DEFAULT_BAR_LABEL_PREFS: BarLabelPrefs = {
+  showClient: true,
+  showProject: true,
+}
+
+const BAR_LABEL_STORAGE_KEY = 'floaty/barLabelPrefs'
+
+/** Read the saved bar-label preferences — same tolerant fallback behaviour as
+ *  readStoredUtilizationPrefs. */
+export function readStoredBarLabelPrefs(): BarLabelPrefs {
+  try {
+    const raw = localStorage.getItem(BAR_LABEL_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<BarLabelPrefs>
+      return {
+        showClient: typeof parsed.showClient === 'boolean' ? parsed.showClient : DEFAULT_BAR_LABEL_PREFS.showClient,
+        showProject: typeof parsed.showProject === 'boolean' ? parsed.showProject : DEFAULT_BAR_LABEL_PREFS.showProject,
+      }
+    }
+  } catch {
+    // storage blocked or malformed JSON — fall through to the defaults
+  }
+  return { ...DEFAULT_BAR_LABEL_PREFS }
+}
+
+/** Persist the bar-label preferences. Best-effort, like writeStoredUtilizationPrefs. */
+export function writeStoredBarLabelPrefs(prefs: BarLabelPrefs): void {
+  try {
+    localStorage.setItem(BAR_LABEL_STORAGE_KEY, JSON.stringify(prefs))
   } catch {
     // ignore — see readStoredUtilizationPrefs
   }

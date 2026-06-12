@@ -70,6 +70,7 @@ export const AllocationBar = memo(function AllocationBar({
   // Blocks are pure bookings — the bar shows the task name only, with no hours/load
   // surfaced on the label, accessible name, or popover.
   const isBlocks = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === 'blocks')
+  const barLabelPrefs = useStore((s) => s.barLabelPrefs)
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   const [pop, setPop] = useState<{ left: number; top: number } | null>(null)
   const showPopover = () => {
@@ -280,6 +281,17 @@ export const AllocationBar = memo(function AllocationBar({
     }
   }
 
+  // Client · Project context ahead of the task name, per the device-global display
+  // toggles. A bar without the metadata (e.g. a general task with no project) skips
+  // those parts. The popover keeps its own project/client line, so it stays task-first.
+  const labelText = [
+    barLabelPrefs.showClient ? bar.client : undefined,
+    barLabelPrefs.showProject ? bar.project : undefined,
+    bar.label,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   const fmt = (d: string) => format(parseDate(d), 'd MMM')
   const gripClass = 'group/grip absolute inset-y-0 flex w-2.5 cursor-ew-resize items-center justify-center'
   const gripLine = <span aria-hidden className="pointer-events-none h-4 w-0.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-60" />
@@ -293,7 +305,7 @@ export const AllocationBar = memo(function AllocationBar({
         data-status={bar.allocation.status}
         role="button"
         tabIndex={0}
-        aria-label={`${bar.label}, ${isBlocks ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
+        aria-label={`${labelText}, ${isBlocks ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
         onPointerDown={(e) => {
           hidePopover()
           // Only snapshot lanes + watch scroll once the gesture is actually armed.
@@ -348,7 +360,7 @@ export const AllocationBar = memo(function AllocationBar({
         )}
         <span className="truncate px-2.5">
           {completed ? '✓ ' : ''}
-          {bar.label}
+          {labelText}
           {isBlocks ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h`}
           {bar.allocation.note ? ' •' : ''}
         </span>

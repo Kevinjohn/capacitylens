@@ -9,6 +9,9 @@ import type { Allocation } from '@floaty/shared/types/entities'
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
   useStore.getState().clearFilters()
+  // Device-global prefs persist across tests via localStorage — reset to defaults.
+  useStore.getState().setBarLabelPref('showClient', true)
+  useStore.getState().setBarLabelPref('showProject', true)
 })
 
 function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
@@ -63,6 +66,14 @@ describe('AllocationBar rendering', () => {
     expect(el).toHaveTextContent('Sprint Planning')
   })
 
+  it('shows just the task when the bar carries no client/project metadata', () => {
+    render(<AllocationBar bar={makeBar(makeAllocation())} dayWidth={48} onEdit={vi.fn()} />)
+
+    // No stray "·" separator ahead of the task name.
+    const el = screen.getByTestId('allocation-bar')
+    expect(el.textContent).toMatch(/^My Task/)
+  })
+
   it('hides hours in blocks mode, showing the task name only', () => {
     const data = emptyAppData()
     data.accounts = [{ id: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Co', color: '#111', schedulingMode: 'blocks' }]
@@ -77,6 +88,52 @@ describe('AllocationBar rendering', () => {
     expect(el).not.toHaveTextContent('8h')
     // The accessible name must not announce a meaningless load either.
     expect(el.getAttribute('aria-label')).not.toMatch(/per day/)
+  })
+})
+
+describe('AllocationBar client/project context', () => {
+  const barWithContext = (): BarLayout => ({
+    ...makeBar(makeAllocation()),
+    client: 'Acme Inc.',
+    project: 'Lightning',
+  })
+
+  it('prefixes the label with client and project by default', () => {
+    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('Acme Inc. · Lightning · My Task')
+    // The accessible name carries the same context.
+    expect(el.getAttribute('aria-label')).toContain('Acme Inc. · Lightning · My Task')
+  })
+
+  it('omits the client when showClient is off', () => {
+    useStore.getState().setBarLabelPref('showClient', false)
+    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('Lightning · My Task')
+    expect(el).not.toHaveTextContent('Acme Inc.')
+  })
+
+  it('omits the project when showProject is off', () => {
+    useStore.getState().setBarLabelPref('showProject', false)
+    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+
+    const el = screen.getByTestId('allocation-bar')
+    expect(el).toHaveTextContent('Acme Inc. · My Task')
+    expect(el).not.toHaveTextContent('Lightning')
+  })
+
+  it('shows only the task when both toggles are off', () => {
+    useStore.getState().setBarLabelPref('showClient', false)
+    useStore.getState().setBarLabelPref('showProject', false)
+    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+
+    const el = screen.getByTestId('allocation-bar')
+    expect(el.textContent).toMatch(/^My Task/)
+    expect(el).not.toHaveTextContent('Acme Inc.')
+    expect(el).not.toHaveTextContent('Lightning')
   })
 })
 
