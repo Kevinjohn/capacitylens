@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useAuth } from '../../auth/authContext'
 import { buildStamp } from '../../data/buildInfo'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
@@ -92,6 +93,7 @@ export function SettingsView() {
   const accountName = activeAccount?.name ?? ''
   const [name, setName] = useState(accountName)
   const { error, errorField, errorId, fail } = useFieldError()
+  const { authMode, user, signOut } = useAuth()
 
   // Re-sync the field when the account name changes underneath us (undo/redo, import,
   // or account switch) — the render-time reconcile pattern used in SchedulerToolbar.
@@ -282,6 +284,20 @@ export function SettingsView() {
             })}
           </div>
         </section>
+
+        {/* Account section (P3.3) — only on an auth-enabled deploy (authMode ≠ off, as
+            reported by the server). Auth off and local mode render nothing here. */}
+        {authMode !== 'off' && (
+          <section className="rounded border border-line bg-surface p-4">
+            <h2 className="mb-1 text-sm font-semibold text-ink">Account</h2>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-muted">Signed in as {user?.email ?? user?.name ?? 'unknown'}</p>
+              <Button variant="ghost" onClick={() => void signOut()}>
+                Sign out
+              </Button>
+            </div>
+          </section>
+        )}
 
         {/* Build provenance footer (P1.7) — only in builds stamped by the deploy script;
             absent (today's Settings exactly) when VITE_FLOATY_BUILD_SHA is unset. */}

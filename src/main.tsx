@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
 import './index.css'
 import { router } from './router'
+import { AuthProvider } from './auth/AuthProvider'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { useStore } from './store/useStore'
 import { persistenceAdapter } from './data/storageAdapter'
@@ -37,7 +38,12 @@ void bootstrap(useStore, persistenceAdapter, {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
-      <RouterProvider router={router} />
+      {/* Auth boundary (P3.3): local mode and auth-off deploys pass straight through;
+          only an auth-enabled server (FLOATY_AUTH=password|sso) can swap in the login
+          screen. Wraps the router so a 401 walls off the whole app, picker included. */}
+      <AuthProvider>
+        <RouterProvider router={router} />
+      </AuthProvider>
     </ErrorBoundary>
   </StrictMode>,
 )

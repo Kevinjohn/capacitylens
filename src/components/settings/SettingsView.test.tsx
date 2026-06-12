@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from './SettingsView'
+import { AuthContext } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
 
@@ -126,6 +127,30 @@ describe('SettingsView — build stamp', () => {
     vi.stubEnv('VITE_FLOATY_BUILD_SHA', 'a1b2c3d')
     render(<SettingsView />)
     expect(screen.getByTestId('build-stamp')).toHaveTextContent('build a1b2c3d · local')
+  })
+})
+
+describe('SettingsView — Account section (auth)', () => {
+  it('renders no Account section by default (auth off / local mode — today\'s Settings)', () => {
+    render(<SettingsView />)
+    expect(screen.queryByRole('heading', { name: 'Account' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+  })
+
+  it('shows who is signed in plus Sign out when the server reports an auth mode', async () => {
+    const user = userEvent.setup()
+    const signOut = vi.fn().mockResolvedValue(undefined)
+    render(
+      <AuthContext.Provider
+        value={{ authMode: 'password', user: { id: 'u1', email: 'tester@floaty.dev' }, signOut }}
+      >
+        <SettingsView />
+      </AuthContext.Provider>,
+    )
+    expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument()
+    expect(screen.getByText(/Signed in as tester@floaty\.dev/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Sign out' }))
+    expect(signOut).toHaveBeenCalled()
   })
 })
 

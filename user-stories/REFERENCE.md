@@ -128,6 +128,17 @@ Settings page ends with a muted one-line footer (`data-testid="build-stamp"`) re
 or `build <sha> · local` (localStorage mode). The default dev/local build leaves the variable
 unset and renders **nothing** — the seeded state these stories run against has no build stamp.
 
+**Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
+server mode (`VITE_FLOATY_API` set) **and** that server runs with `FLOATY_AUTH=password` or
+`sso`: the app checks `GET /api/auth/me` once at boot, and a 401 replaces everything — company
+picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
+and a `Sign in` button in password mode; a `Continue with SSO` button in sso mode; failures
+show an inline alert). While signed in, Settings gains an **Account** section showing who is
+signed in plus a `Sign out` button. With auth off (the default everywhere) or in local mode,
+no login screen exists, Settings has no Account section, and local mode makes **no** auth
+request at all. The server's reported `authMode` is the single source of truth — there is no
+client-side auth flag.
+
 ## Command palette
 
 Opened by **⌘K / Ctrl+K** from anywhere in the app (including while a text field is focused).
