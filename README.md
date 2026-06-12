@@ -74,8 +74,8 @@ npm run gate:server  # type-check + test the optional server/ workspace
 npm run e2e          # Playwright (boots its own dev server)
 ```
 
-The `server/` workspace is kept out of the root `gate` (it needs `--experimental-sqlite`); run it
-separately with `gate:server`. CI runs all three.
+The `server/` workspace is kept out of the root `gate` (it needs Node's `node:sqlite`, no
+browser build); run it separately with `gate:server`. CI runs all three. Node 24+ (`.nvmrc`).
 
 ## Docs map
 

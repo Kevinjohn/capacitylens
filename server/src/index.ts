@@ -2,7 +2,7 @@ import { buildApp, DEFAULT_CORS } from './app'
 import { openDb, seedIfUninitialized } from './db'
 import { seed } from '@floaty/shared/data/seed'
 
-// Entry point. Run with: NODE_OPTIONS=--experimental-sqlite tsx src/index.ts
+// Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
 //   FLOATY_DB                       SQLite file (default ./floaty.db; ':memory:' ok)
 //   PORT                            listen port (default 8787)
 //   FLOATY_HOST                     listen host (default 127.0.0.1, localhost-only).

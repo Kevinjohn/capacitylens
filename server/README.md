@@ -12,8 +12,8 @@ rules are literally the client's code, not a re-implementation that can drift.
 
 ## Requirements
 
-- Node 22+ (uses the built-in `node:sqlite`, run with `--experimental-sqlite` —
-  already wired into the npm scripts via `NODE_OPTIONS`).
+- Node 24+ (uses the built-in `node:sqlite`, which needs no flag on 24 —
+  pinned by the root `.nvmrc` and `engines`).
 
 ## Run
 

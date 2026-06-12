@@ -137,8 +137,8 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 
 ## Testing & process
 - **Green gate** = `npm run gate` (`tsc -b` + `eslint .` + `vitest run` + `vite build`) **and**
-  `npm run e2e` (`playwright test`). The `server/` workspace is out of the root gate (needs
-  `--experimental-sqlite`); `npm run gate:server` covers it.
+  `npm run e2e` (`playwright test`). The `server/` workspace is out of the root gate;
+  `npm run gate:server` covers it. Node 24+ (`.nvmrc` + `engines`) — `node:sqlite` unflagged.
 - **Two oracles beyond "tests pass":** screenshots are the **visual** oracle (role/DOM
   assertions prove behaviour, not appearance); `@axe-core/playwright` is the **a11y** oracle
   (light + dark + a modal).

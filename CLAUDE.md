@@ -62,5 +62,5 @@ goes through the `useScopedData` / `scopedTables()` seam.
 ## Green gate
 `npm run gate` (= `tsc -b` + `eslint .` + `vitest run` + `vite build`) **and** `npm run e2e`
 (Playwright), all green. Screenshots are the visual oracle; `@axe-core/playwright` (light + dark +
-a modal) is the a11y oracle. The `server/` workspace is OUT of the root gate (it needs
-`--experimental-sqlite`); run it separately with `npm run gate:server`.
+a modal) is the a11y oracle. The `server/` workspace is OUT of the root gate (it needs Node's
+`node:sqlite`, Node 24+ per `.nvmrc`); run it separately with `npm run gate:server`.
