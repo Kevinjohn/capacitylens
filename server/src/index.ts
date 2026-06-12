@@ -2,6 +2,7 @@ import { buildApp, DEFAULT_CORS } from './app'
 import { openDb, seedIfUninitialized } from './db'
 import { seed } from '@floaty/shared/data/seed'
 import { createShutdownHandler } from './shutdown'
+import { resetForbidden } from './bootGuard'
 
 // Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
 //   FLOATY_DB                       SQLite file (default ./floaty.db; ':memory:' ok)
@@ -18,6 +19,15 @@ import { createShutdownHandler } from './shutdown'
 // CORS is locked down by default to the local Vite dev/e2e origins (DEFAULT_CORS, the
 // same fail-closed default buildApp uses). Set FLOATY_CORS_ORIGIN explicitly (e.g. your
 // deployed app origin, or '*') to change it.
+
+// Safety interlock before anything opens: the test-only reset route must be impossible
+// in production (see bootGuard.ts).
+if (resetForbidden(process.env)) {
+  console.error(
+    'floaty-server: refusing to start — FLOATY_ALLOW_RESET=1 with NODE_ENV=production would expose the destructive test-only reset route. Unset one of them.',
+  )
+  process.exit(1)
+}
 
 const dbPath = process.env.FLOATY_DB ?? 'floaty.db'
 const port = Number(process.env.PORT ?? 8787)
