@@ -75,7 +75,8 @@ npm run e2e          # Playwright (boots its own dev server)
 ```
 
 The `server/` workspace is kept out of the root `gate` (it needs Node's `node:sqlite`, no
-browser build); run it separately with `gate:server`. CI runs all three. Node 24+ (`.nvmrc`).
+browser build); run it separately with `gate:server`. Run all three locally before pushing — hosted CI is
+optional and not enabled here. Node 24+ (`.nvmrc`).
 
 ## Docs map
 
