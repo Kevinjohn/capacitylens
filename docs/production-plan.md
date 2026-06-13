@@ -3,6 +3,13 @@
 **Status:** plan of record for the next user-testing round. Written 2026-06-12; upgraded
 same day to hand-off-ready task specs (each task below is written so it can be given
 verbatim to a coding model/agent and implemented without further product decisions).
+
+> **Update (2026-06-13):** the GitHub Actions CI workflow referenced below (the P1.1 task spec
+> and the Phase 6 "pre-deploy" line) has since been **removed** to avoid Actions cost. The gate
+> (`gate` + `gate:server` + `e2e`) now runs **locally** before pushing — there is no hosted CI by
+> default. The task specs below are left unchanged as the dated record of what was done; see
+> `docs/decisions-log.md`.
+
 **Goal (owner):** as close to live as possible *without requiring auth* — but with auth
 wired in and switched off, so turning it on later (incl. SSO) is a config change plus
 Stage C, not a re-architecture.

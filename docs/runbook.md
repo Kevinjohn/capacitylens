@@ -8,7 +8,8 @@ the plan's Phase 2.
 
 ## Deploy
 
-Push to `main` → CI (gate + gate:server + e2e) → Forge deploy script:
+Run the gate locally (`gate` + `gate:server` + `e2e`), then push to `main` → Forge deploy script
+(there is no hosted CI by default — the local gate is the pre-push bar):
 
 ```sh
 nvm use                       # .nvmrc pins Node 24
