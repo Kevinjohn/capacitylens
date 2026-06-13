@@ -51,7 +51,7 @@
         <li><a href="#playwright">The three Playwright projects</a></li>
         <li><a href="#clock">The frozen clock</a></li>
         <li><a href="#oracles">The two oracles</a></li>
-        <li><a href="#gate">The gate &amp; CI</a></li>
+        <li><a href="#gate">The gate (optional CI)</a></li>
         <li><a href="#lockstep">User-story lock-step</a></li>
         <li><a href="#flake">Flakiness prevention</a></li>
       </ul>
@@ -174,8 +174,8 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
     cover the gap.</p>
     <h3>Screenshots — the visual oracle</h3>
     <p>The E2E suite captures real renders at key states (e.g. each zoom level) to <code>test-results/</code>
-    for human inspection. They are the oracle for visual correctness; they are not pixel-compared in CI (no
-    snapshot assertions) — they are looked at when a visual change is suspected.</p>
+    for human inspection. They are the oracle for visual correctness; they are not pixel-compared automatically
+    (no snapshot assertions) — they are looked at when a visual change is suspected.</p>
     <h3>axe — the accessibility oracle</h3>
     <p><code>@axe-core/playwright</code> runs on three scenarios and fails the suite on any serious/critical
     WCAG violation:</p>
@@ -194,24 +194,34 @@ test.use({ reducedMotion: 'reduce' })   <span class="c">// sample SETTLED colour
       <p>Dark mode is seeded by writing the theme key in <code>addInitScript</code> (it's a stored preference,
       not an OS media query). The modal scenario waits ~350 ms for the entrance animation to settle (mid-fade
       colours read as false low-contrast). The <code>expect</code> second argument is a JSON summary of
-      violations, so a CI failure is self-explanatory without opening a report.</p>
+      violations, so a failure is self-explanatory in the terminal without opening a report.</p>
     </div>
 
-    <h2 id="gate">The gate &amp; CI</h2>
+    <h2 id="gate">The gate (and optional CI)</h2>
     <p>"Green" means three commands pass (recap from page 02): <code>npm run gate</code>
     (<code>tsc -b</code> + <code>eslint</code> + <code>vitest</code> + <code>vite build</code>),
     <code>npm run gate:server</code> (type-check + vitest in <code>server/</code>, separate because of
-    <code>node:sqlite</code>), and <code>npm run e2e</code>. CI runs all three on every push and PR to
-    <code>main</code> on Node 24, plus a shared type-check, and installs the Chromium browser before E2E.</p>
-    <div class="filename">.github/workflows/ci.yml</div>
+    <code>node:sqlite</code>), and <code>npm run e2e</code>. <strong>These three are the merge bar, run
+    locally before pushing</strong> — they are plain npm scripts, so "green locally" is the whole bar.</p>
+    <div class="callout rule">
+      <span class="label">House standard — CI is optional, off by default</span>
+      <p>These repos do <strong>not</strong> enable GitHub Actions by default, to avoid Actions cost on private
+      repos. The bar is the local gate; run it when you need it. A workflow file is kept purely as a
+      <em>recipe</em> for anyone who wants hosted CI — it runs the identical commands (on Node 24, plus a
+      shared type-check, installing Chromium before E2E). Enable it deliberately. (On a <em>public</em> repo,
+      Actions minutes are free, so turning it on there costs nothing.)</p>
+    </div>
+    <p>The recipe, if you switch it on (it would run on push + PR to <code>main</code>):</p>
+    <div class="filename">.github/workflows/ci.yml (optional)</div>
 <pre><code>- run: npm ci
 - run: npm run gate
 - run: npm run type-check --workspace=shared
 - run: npm run gate:server
 - run: npx playwright install --with-deps chromium
 - run: npm run e2e</code></pre>
-    <p>Playwright's CI knobs (from the config): <code>forbidOnly</code> (a committed <code>.only</code> fails CI
-    rather than silently skipping the suite), 2 retries, 1 worker, the <code>github</code> reporter.</p>
+    <p>When Playwright runs with <code>CI=1</code> set (in a hosted CI, or locally), the config switches on:
+    <code>forbidOnly</code> (a committed <code>.only</code> fails the run rather than silently skipping the
+    suite), 2 retries, 1 worker, and the <code>github</code> reporter.</p>
 
     <h2 id="lockstep">The user-story ↔ E2E lock-step</h2>
     <p>Every capability has a manual <strong>user story</strong> (goal → why → numbered end-to-end steps →

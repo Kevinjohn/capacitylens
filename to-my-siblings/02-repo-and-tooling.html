@@ -86,7 +86,7 @@
 ├── package.json  package-lock.json
 ├── tsconfig.json  tsconfig.app.json  tsconfig.node.json
 ├── eslint.config.js  vite.config.ts  playwright.config.ts  index.html
-└── .nvmrc  .gitignore  .gitattributes  .github/workflows/ci.yml</code></pre>
+└── .nvmrc  .gitignore  .gitattributes  .github/workflows/ci.yml  <span class="c"># optional CI recipe, off by default</span></code></pre>
 
     <h2 id="workspaces">The three workspaces and why the split exists</h2>
     <table>
@@ -364,7 +364,8 @@ server: { host: '127.0.0.1', port: 5173, strictPort: true },</code></pre>
       <p>The server imports <code>node:sqlite</code>, a Node 24 built-in unavailable in the jsdom environment
       Vitest runs in. Importing it (even transitively) would crash the root test run immediately. Keeping the
       server separate also means the root gate can run on any recent Node, while the server gate requires 24.
-      CI runs all three in sequence.</p>
+      These three commands are the merge bar, run locally before pushing; hosted CI is optional and off by
+      default in these repos (see <a href="08-testing.html#gate">page 08</a>).</p>
     </div>
     <p><code>vite build</code> is part of the gate (not just <code>tsc</code>) because the production bundle
     catches import-resolution and bundler-time errors that the type-checker alone misses.</p>

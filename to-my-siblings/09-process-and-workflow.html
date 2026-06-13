@@ -166,7 +166,7 @@
     <h2 id="git">Git &amp; the bar for merging</h2>
     <ul>
       <li><strong>Branch off <code>main</code></strong> for work; commit or push only when asked. Don't commit straight to the default branch.</li>
-      <li><strong>The merge bar is the full green gate</strong>: <code>npm run gate</code> + <code>npm run gate:server</code> + <code>npm run e2e</code>, plus any user-visible change reflected in REFERENCE.md and the stories. CI enforces it on every PR.</li>
+      <li><strong>The merge bar is the full green gate</strong>: <code>npm run gate</code> + <code>npm run gate:server</code> + <code>npm run e2e</code>, plus any user-visible change reflected in REFERENCE.md and the stories. Run it locally before pushing — hosted CI is optional and off by default (see <a href="08-testing.html#gate">page 08</a>).</li>
       <li><strong>Commit messages</strong> are conventional-ish and scoped (<code>feat(client): …</code>, <code>fix(scheduler): …</code>, <code>docs: …</code>) — see the recent history for the house style.</li>
       <li><strong>One decisions-log line per landed change</strong>, with its commit ref.</li>
     </ul>

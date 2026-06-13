@@ -208,7 +208,7 @@
       <li><strong>Build the UI</strong> (page 06): copy <code>common/</code> wholesale (kit + Modal + fields), <code>index.css</code> tokens, the canonical form + list per entity, the domain's main view. Keep the a11y patterns.</li>
       <li><strong>Stand up testing</strong> (page 08): <code>setup.ts</code>, fixtures, the frozen-clock <code>openApp</code> (set the constant to <em>your</em> seed window), <code>REFERENCE.md</code>, the a11y oracle. Write component + E2E coverage 1:1 with user stories.</li>
       <li><strong>(Optional) Port the server</strong> (page 07): copy <code>tables.ts</code> (rewrite column specs for the new entities — the <code>CheckColumns</code> guard will tell you when they match), <code>rowCodec</code>, <code>db.ts</code>, <code>validate.ts</code>, <code>app.ts</code>, and the hardening modules. It is a thin shell — most of it is unchanged.</li>
-      <li><strong>Wire CI &amp; the gate</strong> (page 02/08): copy the CI workflow. The merge bar is <code>gate</code> + <code>gate:server</code> + <code>e2e</code> green.</li>
+      <li><strong>Set the merge bar</strong> (page 02/08): the bar is <code>gate</code> + <code>gate:server</code> + <code>e2e</code> green, run locally before pushing. Hosted CI is optional and off by default (a GitHub Actions recipe is on page 08) — these repos keep it off to avoid Actions cost on private repos.</li>
       <li><strong>Deploy &amp; operate</strong> (page 10) only when needed: static SPA first; the server cutover, flag register, and backups only when a shared dataset is actually required.</li>
     </ol>
     <div class="callout do">
