@@ -72,6 +72,31 @@ boot-guard refuses anyway (the daemon will not start with it under `NODE_ENV=pro
 - Droplet disk alert sized against backup retention (48 × DB size + WAL headroom; the DB
   is KB–MB scale, so any sane threshold works — set it when confirming disk headroom).
 
+## Cohesion demo import (Phase 2 step 3 — dry-run verified locally 2026-06-13)
+
+First daemon boot auto-seeds Studio North / Loft Digital. The Cohesion Labs dataset
+(`_input/cohesion-labs-import.json`, 166 records) imports into its own Account — create
+the Account first, then import **into** it (run on the droplet from the repo root; with
+Basic Auth in front, give curl `-u <user>`):
+
+```sh
+NOW=$(node -e "console.log(new Date().toISOString())")
+curl -s -X POST http://127.0.0.1:8787/api/accounts -H 'content-type: application/json' \
+  -d "{\"id\":\"a-cohesion\",\"name\":\"Cohesion Labs\",\"color\":\"#3b82f6\",\"createdAt\":\"$NOW\",\"updatedAt\":\"$NOW\"}"
+node -e "
+const data = require('./_input/cohesion-labs-import.json');
+fetch('http://127.0.0.1:8787/api/import', {
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify({ accountId: 'a-cohesion', data }),
+}).then(async (r) => console.log(r.status, await r.text()))"
+```
+
+Expected: `200 {"imported":166,"skipped":0,…}`. *Verify:* Cohesion Labs appears in the
+AccountPicker next to the seeded companies, with 12 resources / 11 clients / 12 projects /
+30 tasks / 79 allocations / 20 time-off entries; the seeded companies are untouched.
+(Hitting the daemon on loopback as above bypasses Nginx — no Basic Auth needed when SSH'd in.)
+
 ## Testers (P5.1 / P5.3 / Phase 2 #3)
 
 - **Access:** one htpasswd entry per tester (`htpasswd /etc/nginx/.htpasswd-floaty <name>`)

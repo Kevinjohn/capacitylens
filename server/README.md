@@ -95,9 +95,34 @@ is client-asserted, not derived from a session, until app-level auth lands (see 
 - `FLOATY_OPTIMISTIC_CONCURRENCY` — `1` to reject a stale overwrite (a PUT whose
   `updatedAt` is older than the stored row) with HTTP 409 instead of last-writer-wins.
 
-## Status / not yet done (Phase 2)
+Production-hardening flags (all **default OFF** = exactly the behaviour above; the full
+register with the droplet's values lives in `docs/production-plan.md`):
 
-No app-level auth; single shared dataset. Optimistic concurrency exists but is
-off by default (last-writer-wins) until real multi-user auth + client-side conflict
-resolution land. Postgres, real per-account ownership, and a one-time "push my
-localStorage data to the server" flow are deferred to Phase 2.
+- `FLOATY_LOG` — `1` for structured per-request JSON logs (Fastify's bundled pino) and
+  500-path errors through the request logger. Off = startup line + `console.error` only.
+- `FLOATY_HEALTH_DEEP` — `1` makes `/api/health` prove a trivial DB read: 200
+  `{ ok, db: true }` or 503 `{ ok: false }`. Off = unconditional `{ ok: true }`.
+- `FLOATY_RATE_LIMIT` — requests/minute per IP across `/api/*` (positive integer;
+  unset/`0`/non-numeric = off, fail-closed). `/api/health` is exempt.
+- `FLOATY_BACKUP_DIR` — set to a directory to enable periodic online DB snapshots
+  (`floaty-<YYYYMMDD-HHmmss>.db`, one at boot then hourly). Off = no timer, no writes.
+  - `FLOATY_BACKUP_INTERVAL_MIN` — cadence in minutes (default `60`).
+  - `FLOATY_BACKUP_KEEP` — rolling retention count (default `48`, oldest pruned).
+- `FLOATY_AUTH` — `off`|`password`|`sso` (default `off`: Better Auth is never
+  initialised — no auth tables, no `/api/auth/*` routes beyond the thin `/api/auth/me`,
+  every request carries a synthetic demo identity). Any other value refuses to boot.
+  When ≠ `off`:
+  - `BETTER_AUTH_SECRET` (32+ chars) and `BETTER_AUTH_URL` — required; boot refuses
+    loudly if missing.
+  - `FLOATY_SSO_*` (sso mode only) — `CLIENT_ID` + `CLIENT_SECRET`, plus
+    `DISCOVERY_URL` or `AUTHORIZATION_URL` + `TOKEN_URL` (optional `PROVIDER_ID`,
+    `SCOPES`). Provider choice is config, not code.
+
+## Status / standing posture
+
+Auth is **wired but OFF** (`FLOATY_AUTH`, Better Auth): sessions/login exist behind the
+flag, but the demo gate stays Nginx Basic Auth and the dataset is shared. `ownsRow` is
+defense-in-depth, not isolation — the account stays client-asserted until Stage C derives
+it from the session. Optimistic concurrency stays off (last-writer-wins) until a client
+conflict UI exists. Postgres and real per-account ownership remain deferred (see
+`docs/production-plan.md` and `docs/runbook.md` for the deploy/ops side).

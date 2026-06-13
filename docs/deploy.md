@@ -9,6 +9,12 @@ This guide covers the **static SPA** deploy (the default). You don't SSH in to r
 npm by hand — Forge's **Deploy Script** runs `git pull` + the npm build on the
 droplet for you on each deploy. SSH is only for debugging.
 
+> **Superseded for the controlled demo:** the demo runs in **server mode** (daemon +
+> `/api` proxy + Basic Auth + persistent SQLite). The cutover runsheet is
+> [`production-plan.md`](production-plan.md) Phase 2 and day-to-day operations live in
+> [`runbook.md`](runbook.md) — follow those, not just this page, or you'll ship a
+> localStorage-only build. The DNS/SSL/Nginx basics below still apply.
+
 ## 1. DNS
 
 Add an **A record** for the subdomain pointing at the droplet's public IP
