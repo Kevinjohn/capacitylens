@@ -64,3 +64,6 @@ goes through the `useScopedData` / `scopedTables()` seam.
 (Playwright), all green. Screenshots are the visual oracle; `@axe-core/playwright` (light + dark +
 a modal) is the a11y oracle. The `server/` workspace is OUT of the root gate (it needs Node's
 `node:sqlite`, Node 24+ per `.nvmrc`); run it separately with `npm run gate:server`.
+`npm run e2e` is Chromium; **Safari/WebKit is opt-in** — `npm run e2e:webkit` re-runs the core
+specs on WebKit (a `webkit` project mirroring `chromium`; Vite-only, so no SQLite/auth server and
+no Node 24), `npm run e2e:all` runs the full matrix. Keep specs browser-agnostic — no UA branching.

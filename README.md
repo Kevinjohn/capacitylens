@@ -71,12 +71,20 @@ The canonical type definitions live in `shared/src/types/entities.ts`.
 ```bash
 npm run gate         # tsc -b && eslint . && vitest run && vite build
 npm run gate:server  # type-check + test the optional server/ workspace
-npm run e2e          # Playwright (boots its own dev server)
+npm run e2e          # Playwright on Chromium (boots its own dev server)
+npm run e2e:webkit   # the core specs on Safari/WebKit (opt-in; Vite-only, no Node 24)
+npm run e2e:all      # the full cross-browser matrix (Chromium + WebKit)
 ```
 
 The `server/` workspace is kept out of the root `gate` (it needs Node's `node:sqlite`, no
 browser build); run it separately with `gate:server`. Run all three locally before pushing — hosted CI is
 optional and not enabled here. Node 24+ (`.nvmrc`).
+
+`e2e` is Chromium by default (the fast inner loop). Safari/WebKit coverage of the core
+localStorage specs is the opt-in `e2e:webkit` — it boots **only** the Vite dev server, so it needs
+neither the SQLite/auth servers nor Node 24, and runs anywhere the app builds. `e2e:all` runs every
+project on both engines. The db-backed/auth-backed specs stay Chromium-only (they exercise server
+round-trips, not Safari rendering).
 
 ## Docs map
 

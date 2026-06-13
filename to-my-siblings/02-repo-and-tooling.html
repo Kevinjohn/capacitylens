@@ -128,6 +128,8 @@
     "dev:api": "vite --port 5273",
     "dev:auth": "vite --port 5373",
     "e2e": "playwright test",
+    "e2e:webkit": "FLOATY_WEBKIT_ONLY=1 playwright test --project=webkit",
+    "e2e:all": "FLOATY_WEBKIT=1 playwright test",
     "gate": "tsc -b &amp;&amp; eslint . &amp;&amp; vitest run &amp;&amp; vite build",
     "test:server": "npm test -w floaty-server",
     "gate:server": "npm run type-check -w floaty-server &amp;&amp; npm test -w floaty-server"
@@ -321,8 +323,8 @@ server: { host: '127.0.0.1', port: 5173, strictPort: true },</code></pre>
     exclude: ['**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/router.tsx', 'src/vite-env.d.ts'],
   },
 }</code></pre>
-    <p>The Playwright config defines three browser projects and boots its own dev servers; it is covered in
-    full on <a href="08-testing.html#playwright">page 08</a>.</p>
+    <p>The Playwright config defines three project flavours (plus an opt-in WebKit/Safari twin) and boots its
+    own dev servers; it is covered in full on <a href="08-testing.html#playwright">page 08</a>.</p>
 
     <h2 id="html">index.html — CSP, theme guard, and the never-white placeholder</h2>
     <p>Three things live in the HTML shell, each deliberately. Keep all three when you copy it.</p>
@@ -356,7 +358,7 @@ server: { host: '127.0.0.1', port: 5173, strictPort: true },</code></pre>
       <tbody>
         <tr><td><code>npm run gate</code></td><td><code>tsc -b</code> &rarr; <code>eslint .</code> &rarr; <code>vitest run</code> &rarr; <code>vite build</code></td><td>The app + the shared core.</td></tr>
         <tr><td><code>npm run gate:server</code></td><td><code>tsc --noEmit</code> + <code>vitest run</code> in <code>server/</code></td><td>The optional server (separately — see why).</td></tr>
-        <tr><td><code>npm run e2e</code></td><td><code>playwright test</code> (boots its own dev servers)</td><td>All three Playwright projects end-to-end.</td></tr>
+        <tr><td><code>npm run e2e</code></td><td><code>playwright test</code> (boots its own dev servers)</td><td>The three Chromium projects end-to-end. Safari/WebKit is the opt-in <code>e2e:webkit</code> (page 08), not part of the merge bar.</td></tr>
       </tbody>
     </table>
     <div class="callout why">

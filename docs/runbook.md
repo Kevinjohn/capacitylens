@@ -8,7 +8,8 @@ the plan's Phase 2.
 
 ## Deploy
 
-Run the gate locally (`gate` + `gate:server` + `e2e`), then push to `main` → Forge deploy script
+Run the gate locally (`gate` + `gate:server` + `e2e`; optionally `e2e:webkit` for a Safari pass),
+then push to `main` → Forge deploy script
 (there is no hosted CI by default — the local gate is the pre-push bar):
 
 ```sh

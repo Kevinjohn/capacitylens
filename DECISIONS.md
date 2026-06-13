@@ -142,6 +142,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Green gate** = `npm run gate` (`tsc -b` + `eslint .` + `vitest run` + `vite build`) **and**
   `npm run e2e` (`playwright test`). The `server/` workspace is out of the root gate;
   `npm run gate:server` covers it. Node 24+ (`.nvmrc` + `engines`) — `node:sqlite` unflagged.
+- **Cross-browser E2E is opt-in; Chromium is the default loop.** `npm run e2e` runs the
+  chromium/db-backed/auth-backed projects on Chromium. `npm run e2e:webkit` re-runs the **core
+  localStorage specs on WebKit/Safari** (a `webkit` project that mirrors `chromium`'s `testIgnore`),
+  and `npm run e2e:all` runs the whole matrix. The WebKit-only run boots **only Vite** (env
+  `FLOATY_WEBKIT_ONLY` trims the `webServer` list) so it needs neither the SQLite/auth servers nor
+  Node 24. db-backed/auth-backed stay Chromium-only (server round-trips, not Safari rendering). Keep
+  specs browser-agnostic — no UA branching; the pointer-drag/`page.clock`/`fill` patterns already pass on WebKit.
 - **Two oracles beyond "tests pass":** screenshots are the **visual** oracle (role/DOM
   assertions prove behaviour, not appearance); `@axe-core/playwright` is the **a11y** oracle
   (light + dark + a modal).

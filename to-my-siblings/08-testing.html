@@ -48,7 +48,8 @@
         <li><a href="#vitest">Vitest setup &amp; fixtures</a></li>
         <li><a href="#component">Component tests</a></li>
         <li><a href="#unit">Pure unit tests</a></li>
-        <li><a href="#playwright">The three Playwright projects</a></li>
+        <li><a href="#playwright">The Playwright projects</a></li>
+        <li><a href="#cross-browser">Cross-browser: the opt-in Safari twin</a></li>
         <li><a href="#clock">The frozen clock</a></li>
         <li><a href="#oracles">The two oracles</a></li>
         <li><a href="#gate">The gate (optional CI)</a></li>
@@ -64,7 +65,7 @@
         <tr><td>Pure unit</td><td>Vitest (node/jsdom)</td><td><code>*.test.ts</code>, co-located</td><td>The shared core + pure view-model builders (<code>schedulerModel</code>, <code>integrity</code>, <code>virtualWindow</code>).</td></tr>
         <tr><td>Component</td><td>Vitest + Testing Library</td><td><code>*.test.tsx</code>, co-located</td><td>Forms, dialogs, lists, the palette — behaviour &amp; ARIA via the rendered DOM.</td></tr>
         <tr><td>Server integration</td><td>Vitest + <code>app.inject()</code></td><td><code>server/src/*.test.ts</code></td><td>Real Fastify app over a real <code>:memory:</code> SQLite DB; no mocks.</td></tr>
-        <tr><td>E2E</td><td>Playwright</td><td><code>e2e/*.spec.ts</code></td><td>The real app in a real browser, three flavours (below).</td></tr>
+        <tr><td>E2E</td><td>Playwright</td><td><code>e2e/*.spec.ts</code></td><td>The real app in a real browser — three stack flavours, optionally mirrored on WebKit/Safari (below).</td></tr>
       </tbody>
     </table>
     <p>Naming carries meaning: <code>.test.ts(x)</code> = Vitest, co-located; <code>.spec.ts</code> = Playwright
@@ -130,9 +131,11 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
       logic out of components and into pure functions <em>specifically so it can be tested this cheaply</em>.</p>
     </div>
 
-    <h2 id="playwright">The three Playwright projects</h2>
-    <p>One config, three browser projects, selected by file suffix. The config also boots all the dev servers
-    it needs (two Vite instances + three server instances) with <code>reuseExistingServer</code> locally.</p>
+    <h2 id="playwright">The Playwright projects</h2>
+    <p>One config, three stack flavours, selected by file suffix. The config also boots all the dev servers
+    it needs (three Vite instances + two server instances) with <code>reuseExistingServer</code> locally. A
+    fourth, opt-in <code>webkit</code> project mirrors <code>chromium</code> for Safari coverage — see the
+    next section.</p>
     <table>
       <thead><tr><th>Project</th><th>Matches</th><th>Stack under test</th></tr></thead>
       <tbody>
@@ -147,6 +150,37 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
     file-local (e.g. a <code>box()</code> bounding-box helper for drag assertions). DB specs reset the server in
     <code>beforeEach</code> via the test-only reset endpoint, and can assert directly on
     <code>GET /api/state</code> to prove a write reached the DB.</p>
+
+    <h2 id="cross-browser">Cross-browser: the opt-in Safari twin</h2>
+    <p>Chromium is the default loop — fast, and where you live while building. <strong>Safari/WebKit coverage
+    is a separate, opt-in command</strong> so the inner loop stays quick. A fourth project, <code>webkit</code>,
+    mirrors <code>chromium</code> exactly (same <code>testIgnore</code> → the same core localStorage specs) but
+    runs on <code>devices['Desktop Safari']</code>:</p>
+    <table>
+      <thead><tr><th>Command</th><th>Runs</th><th>Servers booted</th></tr></thead>
+      <tbody>
+        <tr><td><code>npm run e2e</code></td><td>chromium + db-backed + auth-backed (Chromium)</td><td>3 Vite + 2 servers</td></tr>
+        <tr><td><code>npm run e2e:webkit</code></td><td>the <code>webkit</code> project only</td><td><strong>Vite only</strong></td></tr>
+        <tr><td><code>npm run e2e:all</code></td><td>the whole matrix (Chromium + WebKit)</td><td>3 Vite + 2 servers</td></tr>
+      </tbody>
+    </table>
+    <p>The trick that keeps <code>e2e:webkit</code> cheap: it sets <code>FLOATY_WEBKIT_ONLY</code>, which both
+    makes the <code>webkit</code> project exist <em>and</em> trims the config's <code>webServer</code> list to
+    just the :5173 Vite dev server. The core specs never touch the SQLite or auth servers, so the WebKit run
+    needs <strong>neither those servers nor Node 24</strong> — it runs anywhere the app builds.
+    (<code>e2e:all</code> sets <code>FLOATY_WEBKIT</code> instead: project on, full stack.) Both are env-gated
+    spreads in the <code>projects</code>/<code>webServer</code> arrays, exactly like the <code>rehearsal</code>
+    project — add a flavour the same way.</p>
+    <div class="callout do">
+      <span class="label">Why only the core specs get a WebKit twin</span>
+      <p>The db-backed and auth-backed specs exercise <em>server round-trips and the persistence seam</em>, not
+      Safari rendering — re-running them on WebKit would re-test browser-agnostic plumbing. The cross-browser
+      risk lives in the UI: pointer-drags, focus, <code>page.clock</code>, date <code>fill()</code>, and the
+      a11y oracle. Those <em>are</em> the core specs, and they pass on WebKit unchanged — which is the point:
+      <strong>keep specs browser-agnostic, never branch on user-agent.</strong> The portable-drag rule
+      (<code>page.mouse</code> with <code>steps</code>, not HTML5 <code>dragTo</code>) is what lets the same
+      gesture register on both engines.</p>
+    </div>
 
     <h2 id="clock">The frozen clock — the single most important E2E decision</h2>
     <p>The seed data lives in early June 2026 and the scheduler is today-anchored (it opens scrolled to this
