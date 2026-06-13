@@ -127,7 +127,9 @@
     <div class="callout rule">
       <span class="label">Extension</span>
       <p>Adding a field flows on rails: types → fixtures (non-default value) → server column spec (auto-ALTER) →
-      sanitiser. Every parallel list is exhaustiveness-checked; a miss fails the build, not silently at runtime.</p>
+      sanitiser. Most parallel lists are exhaustiveness-checked, so a miss fails the build, not silently at runtime;
+      the FK map is the exception — the compiler checks its values are valid table names, and the fixtures' round-trip
+      catches a missed field.</p>
     </div>
     <div class="callout rule">
       <span class="label">UI</span>

@@ -132,7 +132,8 @@
       <thead><tr><th>Surface</th><th>Mode</th><th>Because</th></tr></thead>
       <tbody>
         <tr><td>A person at a form</td><td><strong>Reject</strong> — show an inline error, keep the dialog open</td><td>They can fix it; teaching them is better than silently changing their input.</td></tr>
-        <tr><td>A machine import or a direct API write</td><td><strong>Repair or drop</strong> — clean text, clamp numbers, mint a fresh id, drop a record with a dangling required FK</td><td>There is no human to prompt; rejecting the whole file because one row is bad is worse than salvaging the rest.</td></tr>
+        <tr><td>A machine import</td><td><strong>Repair or drop</strong> — clean text, clamp numbers, mint a fresh id, drop a record with a dangling required FK</td><td>There is no human to prompt; rejecting the whole file because one row is bad is worse than salvaging the rest.</td></tr>
+        <tr><td>A direct API write to the server</td><td><strong>Repair, then reject</strong> — clean the same value-level fields (enums, colour, hours), but throw <code>ValidationError</code> → <strong>400</strong> on a dangling required FK rather than dropping the row</td><td>A single crafted write is one record, not a file of salvageable rows; a referential break should fail loudly, not be silently swallowed.</td></tr>
       </tbody>
     </table>
     <div class="callout rule">
@@ -147,9 +148,11 @@
     <p>
       Adding a field to an entity touches several parallel lists: the type, the import sanitiser's switch, the
       foreign-key map, the server's column spec and creation order. Forgetting one would normally be a silent
-      data-loss bug. Here, each list is <strong>exhaustiveness-checked against the types</strong>, so a missed
-      list is a <em>compile error</em>, and fully-populated fixtures round-trip through the server tests so a
-      dropped field <em>fails the gate</em>.
+      data-loss bug. Here, most of those lists are <strong>exhaustiveness-checked against the types</strong>, so a missed
+      list is a <em>compile error</em>. The one exception is the FK map (<code>Record&lt;string, ScopedEntityKey&gt;</code>):
+      the compiler proves every <em>value</em> is a real table name, but not that every FK field is listed —
+      that gap is caught by the fully-populated fixtures, which round-trip through the server tests so a
+      dropped or un-remapped field <em>fails the gate</em>.
     </p>
     <div class="callout do">
       <span class="label">Do this</span>

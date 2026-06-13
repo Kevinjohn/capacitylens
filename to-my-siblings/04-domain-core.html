@@ -301,7 +301,10 @@
       "handle every member of a union". <strong>(2)</strong> <code>Record&lt;string, UnionType&gt;</code> on a
       lookup map — for "every value must be a valid member". Page 05 and 07 show a third
       (<code>Exclude&lt;keyof X, Y&gt; extends never</code>) for "this list covers every key of that type".
-      Between them, the parallel lists cannot fall out of sync silently.</p>
+      Between them, these lists are kept honest at compile time — with one caveat: idiom (2)
+      checks the map's <em>values</em>, not that every FK field appears as a key, so a brand-new
+      FK field missing from the map is caught by the round-trip fixtures rather than the
+      compiler.</p>
     </div>
 
     <h2 id="conv">Coding conventions in the core</h2>

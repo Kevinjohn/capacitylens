@@ -240,13 +240,13 @@ test.use({ reducedMotion: 'reduce' })   <span class="c">// sample SETTLED colour
     <div class="callout rule">
       <span class="label">House standard — CI is optional, off by default</span>
       <p>These repos do <strong>not</strong> enable GitHub Actions by default, to avoid Actions cost on private
-      repos. The bar is the local gate; run it when you need it. A workflow file is kept purely as a
+      repos. The bar is the local gate; run it when you need it. There's no committed workflow — the snippet below is kept here purely as a
       <em>recipe</em> for anyone who wants hosted CI — it runs the identical commands (on Node 24, plus a
       shared type-check, installing Chromium before E2E). Enable it deliberately. (On a <em>public</em> repo,
       Actions minutes are free, so turning it on there costs nothing.)</p>
     </div>
     <p>The recipe, if you switch it on (it would run on push + PR to <code>main</code>):</p>
-    <div class="filename">.github/workflows/ci.yml (optional)</div>
+    <div class="filename">.github/workflows/ci.yml (the path you'd create — not committed)</div>
 <pre><code>- run: npm ci
 - run: npm run gate
 - run: npm run type-check --workspace=shared

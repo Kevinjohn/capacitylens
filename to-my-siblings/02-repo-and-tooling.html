@@ -73,7 +73,7 @@
 │   ├── index.css             <span class="c"># Tailwind v4 @theme tokens (the design system)</span>
 │   ├── main.tsx              <span class="c"># entry: theme + bootstrap + createRoot</span>
 │   └── router.tsx
-├── shared/                   <span class="c"># @floaty/shared — pure domain core (no DOM, no Node)</span>
+├── shared/                   <span class="c"># @floaty/shared — pure domain core (no DOM; Node-agnostic by convention)</span>
 │   └── src/{types,lib,data,domain}/
 ├── server/                   <span class="c"># floaty-server — optional Fastify + node:sqlite API</span>
 │   └── src/
@@ -86,14 +86,14 @@
 ├── package.json  package-lock.json
 ├── tsconfig.json  tsconfig.app.json  tsconfig.node.json
 ├── eslint.config.js  vite.config.ts  playwright.config.ts  index.html
-└── .nvmrc  .gitignore  .gitattributes  .github/workflows/ci.yml  <span class="c"># optional CI recipe, off by default</span></code></pre>
+└── .nvmrc  .gitignore  .gitattributes  <span class="c"># no .github/ — CI isn't committed; the optional workflow is just a recipe on page 08</span></code></pre>
 
     <h2 id="workspaces">The three workspaces and why the split exists</h2>
     <table>
       <thead><tr><th>Workspace</th><th>Package name</th><th>Role</th><th>Environment</th></tr></thead>
       <tbody>
         <tr><td>(root)</td><td><code>floaty</code></td><td>The web app — React/Vite SPA.</td><td>Browser</td></tr>
-        <tr><td><code>shared/</code></td><td><code>@floaty/shared</code></td><td>The pure domain core: types, validation, integrity, cascade, import-remap, migrate, seed, fixtures.</td><td>Agnostic (no DOM, no Node, no React)</td></tr>
+        <tr><td><code>shared/</code></td><td><code>@floaty/shared</code></td><td>The pure domain core: types, validation, integrity, cascade, import-remap, migrate, seed, fixtures.</td><td>Agnostic — no DOM lib, Node-agnostic by convention, no React</td></tr>
         <tr><td><code>server/</code></td><td><code>floaty-server</code></td><td>The optional SQLite REST API.</td><td>Node 24+</td></tr>
       </tbody>
     </table>
@@ -101,9 +101,12 @@
       <span class="label">Why a shared workspace and not a folder import</span>
       <p>Making the core a real package with its own name means the app and the server import it by the same
       specifier (<code>@floaty/shared/...</code>), the workspace linker guarantees they get the identical
-      code, and the boundary is enforced: the core <em>cannot</em> accidentally import a browser or Node API
-      because its own tsconfig doesn't include those libs. That boundary is what makes "server validation is
-      client validation" structurally true rather than merely intended.</p>
+      code, and the boundary is reinforced by config: the core's tsconfig omits the DOM lib
+      (<code>"lib": ["ES2023"]</code>), so a browser API like <code>document</code> won't type-check. Node is
+      a convention rather than a compiler wall — the tsconfig keeps <code>"types": ["node"]</code> (it shares
+      the monorepo's Node toolchain), so staying off Node-specific APIs is a discipline we hold, not something
+      the compiler forbids. The core leans on cross-platform globals only (e.g. <code>crypto.randomUUID()</code>).
+      That is what makes "server validation is client validation" structurally true rather than merely intended.</p>
     </div>
 
     <h2 id="root-pkg">Root <code>package.json</code></h2>

@@ -167,8 +167,8 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
     </div>
 
     <h2 id="scope">The scoping seam</h2>
-    <p>Components never read <code>store.data</code> directly; they read the account-scoped view through one
-    memoised hook:</p>
+    <p>For account-scoped reads, components don't touch <code>store.data</code> directly — they read the scoped
+    view through one memoised hook:</p>
     <div class="filename">src/store/useScopedData.ts</div>
 <pre><code><span class="k">export function</span> <span class="f">useScopedData</span>(): <span class="t">AppData</span> {
   <span class="k">const</span> data = useStore((s) =&gt; s.data)
@@ -178,6 +178,13 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
     [data, activeAccountId],
   )
 }</code></pre>
+    <p>The exceptions are the reads that sit <em>outside</em> the scope, and they go straight to
+    <code>store.data</code> on purpose: the tenant list the seam scopes <em>by</em> (<code>AppShell</code>'s
+    <code>s.data.accounts</code> for the picker), a per-company export that scopes by an explicit id rather than
+    the active one (<code>DeleteCompanyDialog</code> calls <code>scopeData(data, account.id)</code> for the company
+    being deleted), and the scheduler's drag-time lookups (<code>AllocationBar</code> reading
+    <code>s.data.resources</code> / <code>schedulingModeFor</code>, including imperative <code>getState()</code>
+    reads off the render path). Everything else goes through <code>useScopedData</code>.</p>
     <div class="callout why">
       <span class="label">Why the <code>useMemo</code> is mandatory, not optional</span>
       <p>Zustand returns a fresh scoped object each store update. Without memoising on
