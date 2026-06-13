@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>04 · Domain core — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html" class="active"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Build / 04</div>
+      <p class="eyebrow">Build</p>
+      <h1>Domain core — <code>@floaty/shared</code></h1>
+      <p class="lead">The pure, environment-agnostic package that both the app and the server import. This is
+      where the rules live exactly once. If you copy one thing carefully into a sibling, copy the
+      <em>shape</em> of this package and its conventions.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#org">Module organisation</a></li>
+        <li><a href="#types">types/ — the shapes</a></li>
+        <li><a href="#lib">lib/ — pure utilities</a></li>
+        <li><a href="#validation">Validation: reject vs. repair</a></li>
+        <li><a href="#integrity">Integrity &amp; cascade</a></li>
+        <li><a href="#data">data/ — lifecycle</a></li>
+        <li><a href="#import">The import-remap algorithm</a></li>
+        <li><a href="#driftproof">Drift-proofing</a></li>
+        <li><a href="#conv">Coding conventions</a></li>
+      </ul>
+    </div>
+
+    <h2 id="org">Module organisation</h2>
+    <p>Four sub-directories, each with a strict rule about what belongs there. The split is by <em>how much of
+    the dataset a module touches</em>, which is also the dependency order.</p>
+    <table>
+      <thead><tr><th>Dir</th><th>Holds</th><th>The rule</th></tr></thead>
+      <tbody>
+        <tr><td><code>types/</code></td><td>Types, enums, type-derived constants, and the clamps that are part of the domain contract.</td><td>Zero dependencies. No behaviour beyond type guards and contractual clamps.</td></tr>
+        <tr><td><code>lib/</code></td><td>Pure utilities keyed on the domain types — one file per concern (id, strings, dates, colour, integrity, sanitize, scheduling-days).</td><td>Pure functions. May import <code>types/</code>. Minimal cross-<code>lib</code> imports.</td></tr>
+        <tr><td><code>data/</code></td><td>Whole-dataset lifecycle: migrate, seed, export/import transfer, test fixtures.</td><td>Knows about <code>AppData</code> as a whole and schema versions. Imports <code>types/</code> + <code>lib/</code>.</td></tr>
+        <tr><td><code>domain/</code></td><td>Whole-<code>AppData</code> mutations + the tenancy predicate — the logic that must be identical on client and server.</td><td>Pure. Imports everything below. No store, no React, no I/O.</td></tr>
+      </tbody>
+    </table>
+    <p>Consumed as raw source: the package's <code>exports</code> map (<code>"./*": "./src/*.ts"</code>) means
+    <code>import { migrate } from '@floaty/shared/data/migrate'</code> resolves straight to the
+    <code>.ts</code> file. No build, no <code>dist/</code>, no drift between built and source.</p>
+
+    <h2 id="types">types/ — the shapes and the contractual helpers</h2>
+    <p>Beyond the entity interfaces (page 03), <code>types/entities.ts</code> holds the enums, their
+    <strong>runtime mirror arrays</strong>, the clamp helpers, and the empty/seed sentinels. The runtime
+    arrays exist so the server's sanitiser can reject a junk enum value without re-typing the union.</p>
+    <div class="filename">shared/src/types/entities.ts (enums + runtime lists)</div>
+<pre><code><span class="k">export type</span> <span class="t">SchedulingMode</span> = 'hourly' | 'days' | 'blocks'
+<span class="c">// Runtime list of the valid scheduling modes — the single source the server's</span>
+<span class="c">// sanitiser uses to reject a junk `schedulingMode` on a direct account write.</span>
+<span class="k">export const</span> SCHEDULING_MODES: <span class="t">SchedulingMode</span>[] = ['hourly', 'days', 'blocks']</code></pre>
+    <p>The clamp helpers live here (not in <code>lib/</code>) because they are the domain's contractual
+    ceiling/floor, imported identically by the store's write boundary and the import sanitiser:</p>
+    <div class="filename">shared/src/types/entities.ts (clamps)</div>
+<pre><code><span class="k">export const</span> MAX_HOURS_PER_DAY = 24
+
+<span class="c">/** Clamp an ALLOCATION's hours/day into [0, 24]; non-finite → 0. 0 is legal (a</span>
+<span class="c"> *  'blocks' booking carries 0 load). Shared by the store write + the import sanitiser. */</span>
+<span class="k">export function</span> <span class="f">clampHoursPerDay</span>(h: number): number {
+  <span class="k">return</span> Number.isFinite(h) ? Math.max(0, Math.min(h, MAX_HOURS_PER_DAY)) : 0
+}
+
+<span class="c">/** Clamp a RESOURCE's working hours/day to (0, 24]. Unlike an allocation, a resource</span>
+<span class="c"> *  must work a POSITIVE number of hours, so junk / &lt;= 0 falls back to a normal 8h day. */</span>
+<span class="k">export function</span> <span class="f">clampWorkingHoursPerDay</span>(h: number): number {
+  <span class="k">return</span> Number.isFinite(h) &amp;&amp; h &gt; 0 ? Math.min(h, MAX_HOURS_PER_DAY) : 8
+}</code></pre>
+    <div class="callout why">
+      <span class="label">Why two clamps, not one</span>
+      <p>They encode different domain rules: an allocation may carry zero load (a pure booking block), but a
+      resource with zero capacity is nonsensical, so its clamp <em>floors to 8</em> rather than 0. Putting
+      both in <code>types/</code> and importing them everywhere means the form, the store, the import path, and
+      the server can never disagree on the ceiling. There is no "import version" and "form version" of a
+      clamp — there is one clamp.</p>
+    </div>
+    <p>Also here: <code>SCHEMA_VERSION</code> (bumped when the persisted shape changes; drives migrate),
+    <code>emptyAppData()</code> (the all-empty dataset), and <code>isEmpty(data)</code> — the single
+    definition of "genuinely empty" shared by the client bootstrap and the server's init-marker backfill so
+    the two "is this empty?" checks can't drift.</p>
+
+    <h2 id="lib">lib/ — pure utilities, one concern per file</h2>
+    <dl class="defs">
+      <dt>id.ts</dt><dd><code>newId()</code> wraps <code>crypto.randomUUID()</code>. <em>All</em> id generation goes through it, so call sites never touch the crypto API directly.</dd>
+      <dt>strings.ts</dt><dd>Text hygiene — the denylist (below), <code>MAX_NAME_LENGTH</code> (100) / <code>MAX_NOTE_LENGTH</code> (1000), <code>hasDisallowedChars()</code> (forms test), <code>cleanText()</code> (import strips).</dd>
+      <dt>dateMath.ts</dt><dd>All date arithmetic, wrapping <code>date-fns</code> so call sites use whole-day integer offsets on date-only ISO strings, never millisecond <code>Date</code> math (which causes DST off-by-ones). Includes the hot-path <code>isWithin</code>.</dd>
+      <dt>color.ts</dt><dd>Bar/text colour resolution, WCAG contrast math (<code>contrastRatio</code>, <code>readableTextColor</code>, <code>ensureBarColors</code>), and <code>isHexColor()</code>.</dd>
+      <dt>integrity.ts</dt><dd>Referential-integrity validators (return <code>ValidationResult</code>) + the pure cascade-delete transforms.</dd>
+      <dt>sanitizeImport.ts</dt><dd>Value-level record repair for the import/server path; contains the exhaustive switch.</dd>
+      <dt>schedulingDays.ts</dt><dd>Conversions between stored <code>[start, end, hoursPerDay]</code> and the user-facing "days of work over a span" inputs.</dd>
+    </dl>
+
+    <h3>The text denylist (allow-most, deny-specific)</h3>
+    <p>Text validation is a <strong>denylist, not an allowlist</strong>: it rejects emoji, symbol-other,
+    control/format/surrogate/private/unassigned codepoints, and keycap/variation-selector marks — but
+    <em>allows</em> all letters, marks, digits, punctuation, whitespace, currency and math. So
+    <code>José</code>, <code>Müller</code>, <code>O'Brien &amp; Co</code>, CJK and <code>€£+=</code> all pass.</p>
+    <div class="callout do">
+      <span class="label">Do this</span>
+      <p>One regex, one definition, used by client <em>and</em> server. The form calls
+      <code>hasDisallowedChars()</code> to reject; the import/server call <code>cleanText()</code> to strip.
+      Deny only what is genuinely hostile (it deliberately does <em>not</em> ban all nonspacing marks, which
+      would strip legitimate decomposed accents). An allowlist would reject the next language someone types.</p>
+    </div>
+
+    <h3>The date hot path: string compare, not re-parse</h3>
+    <div class="filename">shared/src/lib/dateMath.ts</div>
+<pre><code><span class="c">// Zero-padded YYYY-MM-DD strings sort chronologically, so a plain string compare is</span>
+<span class="c">// exact AND avoids three parseISO calls — and this is the scheduler's hottest path.</span>
+<span class="c">// The padding assumption is not just convention: validateDateRange rejects any</span>
+<span class="c">// non-YYYY-MM-DD date at EVERY write boundary, guaranteeing it.</span>
+<span class="k">export function</span> <span class="f">isWithin</span>(date: <span class="t">ISODate</span>, start: <span class="t">ISODate</span>, end: <span class="t">ISODate</span>): boolean {
+  <span class="k">return</span> date &gt;= start &amp;&amp; date &lt;= end
+}</code></pre>
+    <div class="callout why">
+      <span class="label">A pattern worth stealing: pay validation once to make the hot path free</span>
+      <p>The shortcut (compare strings) is only correct because an invariant is enforced at the boundary (all
+      stored dates are zero-padded ISO). The codebase repeatedly trades a one-time validation cost for a
+      cheaper steady state, and <em>documents the dependency at both ends</em> — the comment on
+      <code>isWithin</code> names the validator it relies on. When you optimise, write the invariant down where
+      the next person will look.</p>
+    </div>
+
+    <h2 id="validation">Validation: reject vs. repair, one rule each</h2>
+    <p>This is principle 4 in code. Each constrained field has one definition, two enforcement modes:</p>
+    <div class="filename">shared/src/lib/strings.ts (module header — the contract, stated)</div>
+<pre><code><span class="c">// Text hygiene for user-entered free text. Two surfaces use it:</span>
+<span class="c">//   - the FORMS reject disallowed input via hasDisallowedChars (so the user fixes it);</span>
+<span class="c">//   - the IMPORT + SERVER write paths can't show a form error, so they STRIP it via</span>
+<span class="c">//     cleanText (consistent with sanitizeImport's repair-don't-reject rule).</span>
+<span class="c">// One definition, imported by client + server, so the two paths can never drift.</span></code></pre>
+    <p>Validators that a form consumes return a uniform result type — they never throw:</p>
+    <div class="filename">shared/src/lib/integrity.ts</div>
+<pre><code><span class="k">export interface</span> <span class="t">ValidationResult</span> { ok: boolean; errors: string[] }
+
+<span class="c">// Both ends required, both real calendar dates, not reversed. The single source</span>
+<span class="c">// enforced at every write boundary (and the guarantor of isWithin's string compare).</span>
+<span class="k">export function</span> <span class="f">validateDateRange</span>(startDate?: <span class="t">ISODate</span> | null, endDate?: <span class="t">ISODate</span> | null): <span class="t">ValidationResult</span></code></pre>
+    <p>The store/server boundary wraps the same validators in thin <em>throwing</em> asserts, because at a write
+    boundary an invalid value is exceptional:</p>
+    <div class="filename">shared/src/domain/mutations.ts</div>
+<pre><code><span class="k">export function</span> <span class="f">assertDateRange</span>(startDate?: <span class="t">ISODate</span>, endDate?: <span class="t">ISODate</span>): void {
+  <span class="k">const</span> v = validateDateRange(startDate, endDate)
+  <span class="k">if</span> (!v.ok) <span class="k">throw new</span> Error(v.errors[0])
+}</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p><strong>Validators return <code>ValidationResult</code>; asserts throw.</strong> Forms call validators
+      and render the error; the store and server call asserts and let the boundary reject. Never throw from a
+      validator a form consumes, and never swallow an assert at a write boundary.</p>
+    </div>
+    <p>Real-calendar validity is checked by a round-trip, which catches rolled-over dates like
+    <code>2026-02-30</code> that a regex alone would pass:</p>
+<pre><code><span class="k">export function</span> <span class="f">isValidISODate</span>(s: unknown): s is <span class="t">ISODate</span> {
+  <span class="k">if</span> (<span class="k">typeof</span> s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) <span class="k">return</span> false
+  <span class="k">const</span> parsed = parseDate(s)
+  <span class="k">return</span> !Number.isNaN(parsed.getTime()) &amp;&amp; toISODate(parsed) === s
+}</code></pre>
+
+    <h2 id="integrity">Integrity &amp; cascade — pure transforms</h2>
+    <p>The cascade-delete functions are pure: they take <code>AppData</code> and return a <em>new</em>
+    <code>AppData</code>, never mutating. They encode the domain's deletion semantics, and the required-vs-optional
+    FK distinction shows up directly:</p>
+    <ul>
+      <li><code>deleteResourceCascade</code> — removes the resource + its allocations + its time-off.</li>
+      <li><code>deleteTaskCascade</code> — removes the task + its allocations.</li>
+      <li><code>deleteProjectCascade</code> — removes the project, its phases, its tasks (and those tasks' allocations), and <em>unbinds</em> (does not delete) placeholders bound to it.</li>
+      <li><code>deleteClientCascade</code> — the project cascade across all the client's projects, in a single pass using <code>Set</code> membership (not N recursive calls).</li>
+      <li><code>deletePhaseCascade</code> / <code>deleteDisciplineCascade</code> — <strong>non-destructive</strong>: they ungroup (null the optional FK on) tasks / resources rather than deleting them.</li>
+    </ul>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Deleting a <strong>required</strong>-parent removes the children (cascade). Deleting an
+      <strong>optional</strong>-parent ungroups the children (set-null). The import repair (below) mirrors this
+      exactly — a dangling required FK drops the row; a dangling optional FK unbinds it. The two halves of this
+      symmetry must always move together.</p>
+    </div>
+    <div class="callout warn">
+      <span class="label">Where timestamps are bumped — and aren't</span>
+      <p>Cascade and integrity functions never touch <code>updatedAt</code>. Timestamp bumping on an edited row
+      is the <em>store's</em> job (page 05). The core computes the next data shape; the orchestrator owns
+      identity and time. Keeping that division clean is what lets the same cascade run on the server.</p>
+    </div>
+
+    <h2 id="data">data/ — lifecycle: migrate, seed, transfer, fixtures</h2>
+    <h3>migrate.ts — turn any blob into current-shape AppData</h3>
+    <p>Two guards protect the import path before any migration runs, so a non-Floaty file can never wipe data:</p>
+<pre><code><span class="k">export const</span> KNOWN_KEYS: string[] = ['accounts', ...SCOPED_KEYS]   <span class="c">// derived — can't drift</span>
+
+<span class="c">// True if the candidate has at least one known table that IS an array.</span>
+<span class="k">export function</span> <span class="f">looksLikeFloaty</span>(value: unknown): boolean
+
+<span class="c">// True if a known key is PRESENT but NOT an array (structural damage from a</span>
+<span class="c">// truncated/hand-edited file). migrate would silently coerce it to []; this</span>
+<span class="c">// gate hard-rejects instead so the loss is surfaced, not swallowed.</span>
+<span class="k">export function</span> <span class="f">hasNonArrayKnownTable</span>(value: unknown): boolean</code></pre>
+    <p><code>migrate(raw)</code> then: returns <code>emptyAppData()</code> for non-objects; detects the schema
+    version (absent = legacy); unwraps <code>{ schemaVersion, data }</code> or accepts bare
+    <code>AppData</code>; applies version steps (e.g. an old boolean → an enum); and normalises every known
+    table to an array. It never throws on bad data — it repairs or empties.</p>
+    <div class="callout warn">
+      <span class="label">A migration that needs no migration step</span>
+      <p>When Floaty added <code>accountId</code> to every scoped entity (v2→v3), it did <em>not</em> write a
+      migration function — it changed the live <code>localStorage</code> key from <code>floaty/v2</code> to
+      <code>floaty/v3</code>, orphaning the old data, and the import path stamps <code>accountId</code> on
+      every incoming row. Bumping the storage key is a legitimate "migration" for a local-first app where the
+      old data is demo-only. Decide per change: transform, or bump-and-orphan.</p>
+    </div>
+
+    <h3>transfer.ts — export/import with caps</h3>
+    <p><code>serializeData</code> wraps <code>AppData</code> as <code>{ schemaVersion, data }</code> pretty JSON.
+    <code>parseData</code> is the only import-path function that <em>throws</em> — and only for structural
+    failures the user must see before any change: not JSON, not Floaty (<code>looksLikeFloaty</code> fails),
+    structurally damaged (<code>hasNonArrayKnownTable</code>), over the record cap
+    (<code>MAX_IMPORT_RECORDS</code> = 200,000), or zero records. The caps guard against a self-DoS / JSON
+    bomb.</p>
+
+    <h3>seed.ts &amp; fixtures.ts — two different jobs</h3>
+    <p><code>seed.ts</code> is the demo dataset shown on first run: two companies (one rich enough to
+    demonstrate stacking, over-allocation, placeholders and time-off; one near-empty to prove account
+    switching), with stable literal ids (<code>r-tyler</code>, <code>p-acme</code>) and inline comments
+    explaining the scenario each row demonstrates. <code>fixtures.ts</code> is the opposite: <em>every optional
+    field set to a non-default value</em>, used as the drift-proof round-trip oracle in server tests.</p>
+
+    <h2 id="import">The import-remap algorithm</h2>
+    <p><code>remapAndValidateImport(data, accountId, incoming, now)</code> in <code>domain/mutations.ts</code> is
+    the import pipeline shared by the in-app import and the server's <code>/api/import</code>. It is the most
+    intricate piece of the core; understand its five phases and you understand the repair philosophy.</p>
+    <ol>
+      <li><strong>Per-table id maps.</strong> One <code>Map&lt;sourceId, freshId&gt;</code> <em>per entity type</em>. Every incoming row gets a brand-new id (imports never trust source ids). Cross-table id collisions are safe because each FK resolves against its own table's map.</li>
+      <li><strong>FK remap + value sanitise.</strong> Each row is given its fresh id, stamped with the active <code>accountId</code> and <code>now</code> timestamps, has each FK remapped through the right table's map, and is passed through <code>sanitizeImportedRecord</code> for value-level repair.</li>
+      <li><strong>Referential repair, parent-before-child.</strong> Walk the dependency tree top-down so each child sees the surviving parent set: projects (drop if <code>clientId</code> didn't survive) → phases (drop if <code>projectId</code> gone) → resources (unbind dangling optional <code>disciplineId</code>/<code>projectId</code>) → tasks (unbind dangling optional <code>projectId</code>; clear <code>phaseId</code> if its phase is gone or belongs to a different project) → allocations (drop if <code>resourceId</code> or <code>taskId</code> missing, or the date range / placeholder rule fails) → timeOff (drop if <code>resourceId</code> missing or range invalid).</li>
+      <li><strong>Assemble.</strong> For each scoped table, keep the OTHER accounts' rows (via <code>notInAccount</code>) and append the repaired incoming rows.</li>
+      <li><strong>Return counts.</strong> An honest <code>{ imported, skipped }</code> — a row that merely had an optional FK unbound still counts as imported; only dropped rows are skipped.</li>
+    </ol>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>The repair order <em>is</em> the FK dependency order. A child is repaired only after its parent's
+      survivors are known. Required FK dangling → drop the row (mirrors cascade). Optional FK dangling →
+      unbind it (mirrors set-null). This is the exact mirror of the cascade rules in <code>integrity.ts</code>;
+      the two are designed as a pair.</p>
+    </div>
+
+    <h2 id="driftproof">Drift-proofing: the exhaustive switch &amp; the typed map</h2>
+    <p>The sanitiser dispatches per entity key and ends with a <code>never</code> assignment, so adding a
+    <code>ScopedEntityKey</code> without a case fails the build:</p>
+    <div class="filename">shared/src/lib/sanitizeImport.ts</div>
+<pre><code><span class="k">export function</span> <span class="f">sanitizeImportedRecord</span>(key: <span class="t">ScopedEntityKey</span>, rec: <span class="t">Record</span>&lt;string, unknown&gt;) {
+  <span class="k">switch</span> (key) {
+    <span class="k">case</span> 'resources': <span class="c">/* clamp hours, dedup workingDays, clean text … */</span> <span class="k">break</span>
+    <span class="k">case</span> 'allocations': <span class="c">/* clampHoursPerDay, normalize dates … */</span> <span class="k">break</span>
+    <span class="c">/* … every other case … */</span>
+    <span class="k">default</span>: {
+      <span class="c">// Exhaustiveness: a new ScopedEntityKey without a case here won't compile.</span>
+      <span class="k">const</span> _exhaustive: never = key
+      <span class="k">void</span> _exhaustive
+    }
+  }
+  <span class="k">return</span> rec
+}</code></pre>
+    <p>And the FK→table mapping is a typed record, so a typo'd or renamed table is a compile error, not a
+    silent remap to <code>undefined</code>:</p>
+<pre><code><span class="k">const</span> FK_TARGET: <span class="t">Record</span>&lt;string, <span class="t">ScopedEntityKey</span>&gt; = {
+  disciplineId: 'disciplines', projectId: 'projects', clientId: 'clients',
+  phaseId: 'phases', resourceId: 'resources', taskId: 'tasks',
+}</code></pre>
+    <div class="callout do">
+      <span class="label">The two exhaustiveness idioms to copy</span>
+      <p><strong>(1)</strong> <code>const _x: never = key; void _x</code> in a switch <code>default</code> — for
+      "handle every member of a union". <strong>(2)</strong> <code>Record&lt;string, UnionType&gt;</code> on a
+      lookup map — for "every value must be a valid member". Page 05 and 07 show a third
+      (<code>Exclude&lt;keyof X, Y&gt; extends never</code>) for "this list covers every key of that type".
+      Between them, the parallel lists cannot fall out of sync silently.</p>
+    </div>
+
+    <h2 id="conv">Coding conventions in the core</h2>
+    <table>
+      <thead><tr><th>Aspect</th><th>Convention</th></tr></thead>
+      <tbody>
+        <tr><td>Types / interfaces</td><td><code>PascalCase</code> — <code>AppData</code>, <code>ScopedEntity</code>, <code>ValidationResult</code>.</td></tr>
+        <tr><td>Runtime constants</td><td><code>SCREAMING_SNAKE_CASE</code> — <code>SCOPED_KEYS</code>, <code>MAX_HOURS_PER_DAY</code>, <code>FK_TARGET</code>.</td></tr>
+        <tr><td>Functions</td><td><code>camelCase</code> — <code>remapAndValidateImport</code>, <code>deleteClientCascade</code>.</td></tr>
+        <tr><td>Boolean predicates</td><td>Prefixed <code>is</code>/<code>has</code>/<code>belongs</code>/<code>not</code> — <code>isValidISODate</code>, <code>hasDisallowedChars</code>, <code>belongsToAccount</code>.</td></tr>
+        <tr><td>Exports</td><td><strong>Named only.</strong> No <code>default</code> exports anywhere in the package.</td></tr>
+        <tr><td>Purity</td><td>Every <code>lib/</code> and <code>domain/</code> function returns new data via spread; the one in-place mutator (<code>sanitizeImportedRecord</code>) is documented as such and operates on a fresh copy.</td></tr>
+        <tr><td>Errors</td><td>Validators return results; asserts throw; import/migrate never throw on bad data (only <code>parseData</code> throws, for structural failures).</td></tr>
+      </tbody>
+    </table>
+    <div class="callout do">
+      <span class="label">Comment style: explain WHY, at both ends of a dependency</span>
+      <p>Every file opens with a 3–6 line block stating its role, which surfaces consume it, and the invariant
+      it enforces. Comments justify decisions and name edge cases; they don't narrate the code. When a constant
+      is used by two divergent paths, the comment says so ("used by client <em>and</em> server, so the two
+      can't drift"). This density is not optional — it is how the next reader (human or AI) learns the
+      <em>why</em> without spelunking. See page 11 for the full comment-style guide.</p>
+    </div>
+
+    <div class="pager">
+      <a href="03-architecture.html"><span class="dir">Previous</span>← 03 · Architecture</a>
+      <a class="next" href="05-state-and-persistence.html"><span class="dir">Next</span>05 · State &amp; persistence →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

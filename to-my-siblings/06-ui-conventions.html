@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>06 · UI &amp; components — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html" class="active"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Build / 06</div>
+      <p class="eyebrow">Build</p>
+      <h1>UI &amp; components</h1>
+      <p class="lead">The component layer is thin, hand-written, and accessible by default. A small primitive
+      kit, one canonical form pattern, one canonical list pattern, a pure scheduler view-model, and a
+      token-driven design system. No component library — and that is the point.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#folders">Folder organisation</a></li>
+        <li><a href="#kit">The primitive kit</a></li>
+        <li><a href="#modal">The Modal pattern</a></li>
+        <li><a href="#fields">Field primitives</a></li>
+        <li><a href="#form">The canonical form</a></li>
+        <li><a href="#list">The canonical list</a></li>
+        <li><a href="#scheduler">The scheduler view-model</a></li>
+        <li><a href="#styling">Styling &amp; tokens</a></li>
+        <li><a href="#a11y">Accessibility</a></li>
+        <li><a href="#react">React/TS conventions</a></li>
+      </ul>
+    </div>
+
+    <h2 id="folders">Folder organisation</h2>
+<pre><code>src/components/
+├── common/         <span class="c"># the shared primitive kit (the "kit")</span>
+│   ├── ui.tsx      <span class="c"># BARREL — re-exports only (no definitions)</span>
+│   ├── dialogs.tsx <span class="c"># Button, Modal, ConfirmDialog, ListPage, EmptyState</span>
+│   ├── fields.tsx  <span class="c"># TextField, NumberField, SelectField, ColorField, WeekdayPicker…</span>
+│   ├── feedback.tsx<span class="c"># Callout, FieldError, Toast</span>
+│   ├── badges.tsx  <span class="c"># Avatar, ColorSwatch, TemporaryTag</span>
+│   ├── controls.ts <span class="c"># plain style constants — NOTE: .ts, not .tsx (see below)</span>
+│   ├── Icon.tsx    <span class="c"># one Icon component + IconName union</span>
+│   └── ErrorBoundary.tsx
+├── clients/        <span class="c"># ClientForm.tsx + ClientList.tsx (the per-entity pattern)</span>
+├── resources/  disciplines/  projects/  tasks/  timeoff/  accounts/  settings/
+├── scheduler/      <span class="c"># presentational components + PURE model/math modules</span>
+│   ├── SchedulerView.tsx  SchedulerGrid.tsx  ResourceLane.tsx  AllocationBar.tsx
+│   ├── schedulerModel.ts  layout.ts  virtualWindow.ts  allocationDrag.ts   <span class="c"># pure, unit-tested</span>
+└── AppShell.tsx  CommandPalette.tsx  …</code></pre>
+    <p>Conventions: <strong>PascalCase</strong> for component files; <strong>camelCase</strong> for pure logic
+    modules (<code>schedulerModel.ts</code>, <code>layout.ts</code>). One folder per entity, each holding
+    <code>&lt;Entity&gt;Form.tsx</code> + <code>&lt;Entity&gt;List.tsx</code>. Tests co-located
+    (<code>ClientForm.test.tsx</code> beside <code>ClientForm.tsx</code>).</p>
+    <div class="callout why">
+      <span class="label">Why <code>controls.ts</code> is not <code>.tsx</code></span>
+      <p>It exports plain style-constant objects, no components. If a style export sat next to a component
+      export in the same module, the <code>react-refresh/only-export-components</code> lint rule would fire.
+      Splitting non-component constants into a <code>.ts</code> file keeps Fast Refresh boundaries clean. The
+      barrel <code>ui.tsx</code> carries a matching <code>eslint-disable</code> comment explaining that a
+      re-export-only file is not itself a refresh boundary.</p>
+    </div>
+
+    <h2 id="kit">The primitive kit</h2>
+    <p>Everything imports from <code>'../common/ui'</code> — never from the implementation sub-files. The
+    <code>Button</code> is the template for the whole kit: a small variant union, a class map, and safe
+    defaults.</p>
+    <div class="filename">src/components/common/dialogs.tsx</div>
+<pre><code><span class="k">type</span> <span class="t">ButtonVariant</span> = 'primary' | 'ghost' | 'danger'
+<span class="k">const</span> buttonClasses: <span class="t">Record</span>&lt;<span class="t">ButtonVariant</span>, string&gt; = {
+  primary: 'bg-brand-soft text-brand-soft-ink hover:bg-brand/25 shadow-sm',
+  ghost: 'border bg-surface text-ink hover:bg-canvas',
+  danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger/25 shadow-sm',
+}
+<span class="k">export function</span> <span class="f">Button</span>({ children, onClick, variant = 'primary', type = 'button', ... }) {
+  <span class="k">return</span> &lt;button type={type} ... className={`... ${buttonClasses[variant]}`}&gt;{children}&lt;/button&gt;
+}</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p><code>Button</code> defaults to <code>type="button"</code>. Only the one primary action in a form is
+      <code>type="submit"</code>. This pairs with the Modal's form wrapper so <strong>Enter submits every
+      dialog</strong> while no other button accidentally submits it.</p>
+    </div>
+
+    <h2 id="modal">The Modal pattern — every dialog is a real form</h2>
+    <p><code>Modal</code> wraps its body and footer in a <code>&lt;form noValidate&gt;</code>. The primary footer
+    button is <code>type="submit"</code>, so Enter in any field submits. The form is rendered <em>even when no
+    <code>onSubmit</code> is given</em>, to suppress implicit page navigation.</p>
+    <div class="filename">src/components/common/dialogs.tsx (Modal essence)</div>
+<pre><code>&lt;div role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}&gt;
+  &lt;form noValidate onSubmit={(e) =&gt; { e.preventDefault(); onSubmit?.() }}&gt;
+    &lt;div className="space-y-3 p-4"&gt;{children}&lt;/div&gt;
+    {footer &amp;&amp; &lt;footer className="flex justify-end gap-2 border-t px-4 py-3"&gt;{footer}&lt;/footer&gt;}
+  &lt;/form&gt;
+&lt;/div&gt;</code></pre>
+    <p>The Modal also owns three behaviours every dialog inherits for free:</p>
+    <ul>
+      <li><strong>Focus management.</strong> On open, focus goes to the first <code>[data-autofocus]</code> target (or first focusable). Tab wraps inside the dialog. On close, focus restores to the trigger, falling back to <code>&lt;main&gt;</code> if the trigger left the DOM.</li>
+      <li><strong>Backdrop close requires both <code>mousedown</code> and <code>mouseup</code> on the backdrop</strong> — so a drag that starts in an input and releases on the backdrop doesn't dismiss the dialog.</li>
+      <li><strong>The unsaved-changes guard.</strong> The Modal listens for bubbling <code>input</code>/<code>change</code> events and <code>aria-pressed</code> toggle clicks; once dirty, Escape and backdrop show a notice instead of closing, and the dirty state is published to the store so the shell can also guard <code>beforeunload</code>. A <code>guardDirty={false}</code> prop opts confirmation-only dialogs out.</li>
+    </ul>
+    <div class="callout do">
+      <span class="label">Do this</span>
+      <p>Build every new dialog on <code>Modal</code> + a <code>ConfirmDialog</code>-style footer. You get
+      Enter-to-submit, focus trapping, the dirty guard, and ARIA labelling without writing any of it. A
+      <code>ConfirmDialog</code> deliberately passes <em>no</em> <code>onSubmit</code> (so Enter can't
+      accidentally confirm a destructive action) and its message ends with "<em>You can undo this with
+      ⌘Z.</em>".</p>
+    </div>
+
+    <h2 id="fields">Field primitives — three visual states, ARIA wired</h2>
+    <p>Every field is a <code>&lt;label&gt;</code> wrapping a <code>FieldLabel</code> (which owns the required
+    asterisk) and the native control, with ARIA threaded through. The shared <code>controlClass</code> encodes
+    three states:</p>
+    <div class="filename">src/components/common/fields.tsx</div>
+<pre><code><span class="k">function</span> <span class="f">controlClass</span>(invalid?: boolean, required?: boolean) {
+  <span class="k">if</span> (invalid) <span class="k">return</span> `${inputClass} border-danger ring-1 ring-danger`   <span class="c">// post-Save error: pops</span>
+  <span class="k">if</span> (required) <span class="k">return</span> `${inputClass} border-l-2 border-l-danger/60`     <span class="c">// at rest: quiet red edge</span>
+  <span class="k">return</span> inputClass
+}
+
+<span class="c">// aria-label is the BARE label (the asterisk is aria-hidden, so it never leaks into the name).</span>
+&lt;input aria-label={label} aria-required={required || <span class="k">undefined</span>}
+  aria-invalid={invalid || <span class="k">undefined</span>}
+  aria-describedby={invalid ? describedById : <span class="k">undefined</span>} ... /&gt;</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p><code>aria-describedby</code> is wired <em>only when invalid</em> — pointing at the error element — so
+      navigating to the offending field re-announces the message. The accessible name is the bare label string,
+      never the rendered text (which would include the asterisk). Native <code>&lt;select&gt;</code> is used
+      directly; there is no custom listbox (OS popup misalignment is accepted for free a11y).</p>
+    </div>
+    <p>Colour fields use a <strong>preset swatch grid only</strong> — no free hex input — so a stored colour is
+    always a valid 6-digit hex. Weekday/toggle controls use <code>aria-pressed</code> (they are toggles, not
+    checkboxes), which also feeds the Modal's dirty guard.</p>
+
+    <h2 id="form">The canonical form</h2>
+    <p>Forms are self-contained: local <code>useState</code> per field, validation on submit only (never on
+    blur/keystroke), one error at a time via <code>useFieldError</code>.</p>
+    <div class="filename">src/components/clients/ClientForm.tsx (essence)</div>
+<pre><code><span class="k">const</span> [name, setName] = useState(client?.name ?? '')
+<span class="k">const</span> [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client)
+<span class="k">const</span> { error, errorField, errorId, fail } = useFieldError()
+
+<span class="k">const</span> <span class="f">submit</span> = () =&gt; {
+  <span class="k">const</span> trimmed = validateName(name, fail)   <span class="c">// calls fail('name', msg) and returns null on error</span>
+  <span class="k">if</span> (!trimmed) <span class="k">return</span>
+  <span class="k">if</span> (!validateHex(color, fail)) <span class="k">return</span>
+  <span class="k">if</span> (client) updateClient(client.id, { name: trimmed, color })
+  <span class="k">else</span> addClient({ name: trimmed, color })
+  onClose()
+}
+
+<span class="k">return</span> (
+  &lt;Modal title={client ? 'Edit client' : 'Add client'} onClose={onClose} onSubmit={submit}
+    footer={&lt;&gt;&lt;Button variant="ghost" onClick={onClose}&gt;Cancel&lt;/Button&gt;
+              &lt;Button type="submit"&gt;Save&lt;/Button&gt;&lt;/&gt;}&gt;
+    &lt;TextField label="Name" value={name} onChange={setName} required
+      invalid={errorField === 'name'} describedById={errorId} /&gt;
+    &lt;FieldError id={errorId}&gt;{error}&lt;/FieldError&gt;
+  &lt;/Modal&gt;
+)</code></pre>
+    <p><code>useFieldError</code> holds <code>error</code> + <code>errorField</code> + a stable
+    <code>errorId</code> (from <code>useId()</code>) shared by the field's <code>describedById</code> and the
+    <code>&lt;FieldError&gt;</code>. Validators return the cleaned value (or <code>null</code> after calling
+    <code>fail</code>) and short-circuit; the store action runs only after every check passes.</p>
+
+    <h2 id="list">The canonical list</h2>
+    <p>Lists read scoped data, pull individual actions, and manage three pieces of modal state via one hook.
+    The form and confirm dialogs are gated at the <em>bottom</em> of the component, never inline in a row.</p>
+    <div class="filename">src/components/clients/ClientList.tsx (essence)</div>
+<pre><code><span class="k">const</span> clients = useScopedData().clients
+<span class="k">const</span> deleteClient = useStore((s) =&gt; s.deleteClient)
+<span class="k">const</span> { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState&lt;<span class="t">Client</span>&gt;()
+
+<span class="k">return</span> (
+  &lt;ListPage title="Clients" addLabel="Add client" onAdd={() =&gt; setCreating(true)}&gt;
+    {clients.length === 0 ? &lt;EmptyState&gt;No clients yet.&lt;/EmptyState&gt; : (
+      &lt;ul className="divide-y divide-line rounded border"&gt;
+        {clients.map((c) =&gt; (
+          &lt;li key={c.id} data-testid="client-row" className="flex justify-between px-3 py-2"&gt;
+            &lt;span&gt;&lt;ColorSwatch color={c.color} /&gt; {c.name}&lt;/span&gt;
+            &lt;span&gt;&lt;Button variant="ghost" onClick={() =&gt; setEditing(c)}&gt;Edit&lt;/Button&gt;
+                  &lt;Button variant="danger" onClick={() =&gt; setConfirming(c)}&gt;Delete&lt;/Button&gt;&lt;/span&gt;
+          &lt;/li&gt;))}
+      &lt;/ul&gt;)}
+
+    {creating &amp;&amp; &lt;ClientForm onClose={() =&gt; setCreating(false)} /&gt;}
+    {editing &amp;&amp; &lt;ClientForm client={editing} onClose={() =&gt; setEditing(null)} /&gt;}
+    {confirming &amp;&amp; &lt;ConfirmDialog title="Delete client?"
+       message={`Delete "${confirming.name}" and all of its projects… You can undo this with ⌘Z.`}
+       onConfirm={() =&gt; { deleteClient(confirming.id); setConfirming(null) }}
+       onCancel={() =&gt; setConfirming(null)} /&gt;}
+  &lt;/ListPage&gt;
+)</code></pre>
+    <div class="filename">src/hooks/useCrudListState.ts</div>
+<pre><code><span class="k">export function</span> <span class="f">useCrudListState</span>&lt;T&gt;() {
+  <span class="k">const</span> [creating, setCreating] = useState(false)
+  <span class="k">const</span> [editing, setEditing] = useState&lt;T | null&gt;(null)
+  <span class="k">const</span> [confirming, setConfirming] = useState&lt;T | null&gt;(null)
+  <span class="k">return</span> { creating, setCreating, editing, setEditing, confirming, setConfirming }
+}</code></pre>
+
+    <h2 id="scheduler">The scheduler view-model — a pure function</h2>
+    <p>The complex screen is built by a <strong>pure function</strong> with no React: <code>buildSchedulerModel(data,
+    origin, dayWidth, days, utilStart, utilEnd, filters)</code> returns a <code>GroupModel[]</code> tree of
+    rows, bars, day-states, time-off blocks, and utilisation. It is exhaustively unit-tested in isolation
+    because it has no hooks.</p>
+    <div class="callout why">
+      <span class="label">Why the view-model is separated from rendering</span>
+      <p>Two payoffs. <strong>Testability:</strong> all the layout/capacity/filter logic is a pure function you
+      test with plain objects (page 08). <strong>Performance:</strong> it groups allocations and time-off by
+      resource <em>once</em> up front (so building each row is a Map lookup, making it
+      <code>O(allocations + timeOff + resources)</code> not <code>O(resources &times; everything)</code>), and
+      keeps each row's slice referentially stable so <code>React.memo</code> on lanes and bars actually
+      skips work. Fixed pixel constants live in one <code>layout.ts</code> object; row virtualization math
+      lives in a pure <code>virtualWindow.ts</code> (prefix-sum built once, queried per scroll frame).</p>
+    </div>
+
+    <h2 id="styling">Styling &amp; the design tokens</h2>
+    <p>Tailwind v4. The entire palette is <strong>semantic CSS custom properties</strong> declared in a
+    <code>@theme</code> block in <code>src/index.css</code>; component classes use only the semantic names
+    (<code>bg-surface</code>, <code>text-ink</code>, <code>text-muted</code>, <code>border-line</code>) —
+    <em>never</em> Tailwind scale names like <code>text-gray-500</code>.</p>
+    <div class="filename">src/index.css (the token system)</div>
+<pre><code>@theme {
+  --color-canvas: var(--c-base);     <span class="c">/* page bg — named `canvas` not `base` on purpose:</span>
+  --color-surface: var(--c-surface); <span class="c">   --color-base would shadow Tailwind's text-base size util */</span>
+  --color-ink: var(--c-ink);  --color-muted: var(--c-muted);  --color-faint: var(--c-faint);
+  --color-brand: var(--c-brand);  --color-danger: var(--c-danger);  /* …soft + soft-ink pairs… */
+  --text-2xs: 0.6875rem;             <span class="c">/* one deliberate 11px size for dense labels */</span>
+  --shadow-pop: 0 10px 30px -10px rgb(0 0 0 / 0.3);
+}
+:root { --c-base: #f4f5f8; --c-ink: #1c2230; --c-brand: #6366f1; /* …light palette… */ color-scheme: light; }
+:root[data-theme="dark"] { --c-base: #0e1016; --c-ink: #e7eaf0; --c-brand: #818cf8; /* … */ color-scheme: dark; }</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Dark mode is <strong>one attribute swap</strong> (<code>data-theme="dark"</code> on <code>&lt;html&gt;</code>),
+      not per-component <code>dark:</code> classes. JS resolves light/dark/system to a concrete attribute; the
+      CSS only ever sees light or dark. Because components use semantic tokens, they flip automatically. Every
+      colour value is tuned to clear WCAG AA in both themes (the comments record the contrast adjustments).</p>
+    </div>
+    <p>Other token-level decisions: a global <code>:focus-visible</code> ring on all interactives; preset
+    swatch palette only; two custom keyframes (<code>floaty-pop</code>, <code>floaty-fade</code>) for
+    modal/toast entrances; and a global <code>prefers-reduced-motion</code> block that nulls all animation. The
+    metric is always called <strong>"Utilisation", never "Load"</strong> — in labels, store keys
+    (<code>utilizationPrefs</code>), and identifiers.</p>
+
+    <h2 id="a11y">Accessibility conventions</h2>
+    <p>Accessibility is a gate (page 08), so the patterns are consistent and pervasive:</p>
+    <table>
+      <thead><tr><th>Pattern</th><th>How it's done</th></tr></thead>
+      <tbody>
+        <tr><td>Active nav</td><td>React Router <code>NavLink</code> → automatic <code>aria-current="page"</code>.</td></tr>
+        <tr><td>Toggles</td><td><code>aria-pressed</code> (weekday picker, swatches) — not <code>aria-checked</code>; they're buttons, not checkboxes.</td></tr>
+        <tr><td>Command palette</td><td>Full combobox/listbox: <code>role="combobox"</code> + <code>aria-expanded</code>/<code>aria-controls</code>/<code>aria-activedescendant</code>; <code>role="listbox"</code> + <code>role="option"</code> + <code>aria-selected</code>.</td></tr>
+        <tr><td>Dialogs</td><td><code>role="dialog"</code> + <code>aria-modal</code> + <code>aria-labelledby</code>; manual Tab-trap; focus restore.</td></tr>
+        <tr><td>Decorative elements</td><td>Icons, avatars, hatch patterns, drag grips, the required asterisk → <code>aria-hidden</code> (+ <code>focusable="false"</code> on SVGs).</td></tr>
+        <tr><td>Field errors</td><td><code>role="alert"</code> on the message; field's <code>aria-describedby</code> points at it when invalid.</td></tr>
+        <tr><td>Skip link</td><td><code>sr-only focus:not-sr-only</code> "Skip to content" → <code>&lt;main id="main" tabIndex={-1}&gt;</code>.</td></tr>
+        <tr><td>Bars</td><td>Operable by keyboard: <code>role="button" tabIndex={0}</code> with an <code>aria-label</code> that announces both data <em>and</em> affordances (Enter to edit, arrows to move, etc.).</td></tr>
+        <tr><td>Toasts</td><td><code>role="alert"</code> (error) vs <code>role="status"</code> (info).</td></tr>
+      </tbody>
+    </table>
+    <div class="callout do">
+      <span class="label">The collapsed-sidebar rail trap, handled correctly</span>
+      <p>The icons-only rail's icons do <em>not</em> navigate — they re-open the menu — so they are
+      <code>aria-hidden</code> + <code>tabIndex={-1}</code>, and the single labelled Collapse/Expand toggle is
+      the only accessible control. When a decorative affordance overlaps a real one, hide the decoy from
+      assistive tech and leave exactly one labelled path.</p>
+    </div>
+
+    <h2 id="react">React/TS conventions</h2>
+    <ul>
+      <li><strong>Function components only</strong> (the one class is <code>ErrorBoundary</code>, which must be). Props typed <em>inline</em> as an object literal in the signature; only exported shapes (<code>Option</code>, <code>BarLayout</code>) get a named <code>interface</code>.</li>
+      <li><strong><code>React.memo</code> on hot-path scheduler components only</strong> (<code>AllocationBar</code>, <code>ResourceLane</code>), wrapping a <em>named</em> function for DevTools. Parent callbacks are stabilised with <code>useCallback</code> so memo is effective.</li>
+      <li><strong>Event handler naming:</strong> props are <code>onClose</code>/<code>onAdd</code>/<code>onConfirm</code>; internal handlers are named by action (<code>submit</code>, <code>requestClose</code>) — no <code>handle</code> prefix.</li>
+      <li><strong><code>data-testid</code> is kebab-case</strong>, named for the role (<code>client-row</code>, <code>allocation-bar</code>, <code>over-marker</code>). Functional data attributes like <code>data-resource-id</code> are used for drag/snapshot logic, distinct from testids.</li>
+      <li><strong>The ref-for-latest-callback pattern</strong> in effects: store <code>onClose</code> in a ref updated each render, so an empty-deps focus-trap effect runs once but always calls the latest function — avoiding effect re-runs on every store mutation while a dialog is open.</li>
+    </ul>
+
+    <div class="pager">
+      <a href="05-state-and-persistence.html"><span class="dir">Previous</span>← 05 · State &amp; persistence</a>
+      <a class="next" href="07-server.html"><span class="dir">Next</span>07 · Optional server →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

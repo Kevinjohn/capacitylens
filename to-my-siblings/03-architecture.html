@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>03 · Architecture — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html" class="active"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Build / 03</div>
+      <p class="eyebrow">Build</p>
+      <h1>Architecture</h1>
+      <p class="lead">How the pieces fit and which way dependencies point. The whole system is a set of
+      concentric layers around a pure core, with exactly one seam to the outside world. Get the layering and
+      the seam right and everything else has an obvious home.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#layers">The layers</a></li>
+        <li><a href="#dirrule">The dependency rule</a></li>
+        <li><a href="#model">The data model</a></li>
+        <li><a href="#seam">The persistence seam</a></li>
+        <li><a href="#tenancy">Multi-tenancy mechanics</a></li>
+        <li><a href="#extension">The entity-extension path</a></li>
+        <li><a href="#notdone">Deliberately not done</a></li>
+      </ul>
+    </div>
+
+    <h2 id="layers">The layers, in one diagram</h2>
+    <p>"<code>shared/</code> is a pure domain core imported by both app and server so they can't drift; the
+    store is the orchestrator; the scheduler builds a view-model; persistence is local-first behind one
+    adapter, with the server dropping in behind that same seam." That sentence is the architecture. Here it is
+    as a picture:</p>
+<pre><code>          ┌─────────────────────────────────────────────────────────────┐
+          │  React components  (src/components, src/hooks)                │
+          │  per-entity forms+lists · common/ kit · scheduler/ view      │
+          └───────────────┬─────────────────────────────────────────────┘
+                          │ reads via useScopedData()    writes via actions
+          ┌───────────────▼─────────────────────────────────────────────┐
+          │  Zustand store  (src/store/useStore.ts) — THE ORCHESTRATOR   │
+          │  owns ids + timestamps + undo/redo · activeAccount · UI slice│
+          │  selectors.ts (pure) · useScopedData / scopedTables (seam)   │
+          └───────────────┬─────────────────────────────────────────────┘
+                          │ every mutation calls into ↓
+          ┌───────────────▼─────────────────────────────────────────────┐
+          │  @floaty/shared — PURE DOMAIN CORE  (no DOM/Node/React)      │
+          │  types · lib (id,strings,dateMath,color,integrity,sanitize)  │
+          │  data (migrate,seed,transfer,fixtures) · domain (mutations,  │
+          │  tenancy)        ── imported UNCHANGED by the server ──┐     │
+          └───────────────┬───────────────────────────────────────┼─────┘
+                          │ store subscribes; diff/serialize       │
+          ┌───────────────▼──────────────────┐                    │
+          │  PersistenceAdapter  (ONE seam)   │                    │
+          │  ┌────────────────┐ ┌───────────┐ │     ┌──────────────▼─────────────┐
+          │  │LocalStorage    │ │ServerSync │─┼────▶│ floaty-server (optional)   │
+          │  │Adapter (default)│ │Adapter    │ │HTTP │ Fastify + node:sqlite      │
+          │  └────────────────┘ └───────────┘ │     │ thin shell over shared core│
+          └───────────────────────────────────┘     └────────────────────────────┘</code></pre>
+
+    <h2 id="dirrule">The dependency rule</h2>
+    <p>Dependencies point <strong>inward</strong>. The core depends on nothing; everything depends on the
+    core. Concretely, within <code>shared/</code> the sub-layers stack by how much of the dataset they touch:</p>
+<pre><code>types/   →  pure types + type-derived constants/clamps (the base; depends on nothing)
+   ↑
+lib/     →  pure per-record / generic utilities (id, strings, dates, colour,
+            integrity, sanitize, scheduling-days) — may import types/
+   ↑
+data/    →  whole-dataset lifecycle (migrate, seed, transfer, fixtures) — imports types/ + lib/
+   ↑
+domain/  →  whole-AppData mutations + the tenancy predicate — imports all of the above</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>The core never imports <em>up</em> the stack and never imports an environment API. If a function in
+      <code>shared/</code> needs the DOM, <code>window</code>, <code>process</code>, React, or the store, it
+      is in the wrong package — move it to <code>src/lib</code> (browser) or <code>server/src</code> (Node).
+      The reward is that the entire core is trivially unit-testable in plain Node and runs identically in the
+      browser and on the server.</p>
+    </div>
+    <div class="callout do">
+      <span class="label">Where does new code go?</span>
+      <p><strong>A rule about the data</strong> (validation, integrity, a derived value the server also needs)
+      → <code>shared/</code>. <strong>A browser-only utility</strong> (theme, fuzzy search, palette
+      generation, drag math, capacity display) → <code>src/lib</code>. <strong>State transition / id minting /
+      undo</strong> → the store. <strong>Pixels &amp; ARIA</strong> → a component. When in doubt, push the
+      logic <em>down</em> toward the core and keep components thin.</p>
+    </div>
+
+    <h2 id="model">The data model</h2>
+    <p>The single source of truth is a normalised, in-memory tree: <code>AppData</code>, a bag of arrays, one
+    per entity table. Two base interfaces establish the universal fields.</p>
+    <div class="filename">shared/src/types/entities.ts (the bases)</div>
+<pre><code><span class="c">/** Fields every persisted entity carries — cheap now, impossible to backfill later. */</span>
+<span class="k">export interface</span> <span class="t">Entity</span> {
+  id: <span class="t">ID</span>            <span class="c">// crypto.randomUUID()</span>
+  createdAt: <span class="t">ISOTimestamp</span>
+  updatedAt: <span class="t">ISOTimestamp</span>
+}
+
+<span class="c">/** Every domain entity belongs to exactly one account. Accounts themselves don't. */</span>
+<span class="k">export interface</span> <span class="t">ScopedEntity</span> <span class="k">extends</span> <span class="t">Entity</span> {
+  accountId: <span class="t">ID</span>
+}</code></pre>
+    <div class="callout why">
+      <span class="label">Why id/timestamps on <em>everything</em>, from day one</span>
+      <p>Stable ids enable diff-based server sync (page 05) and id-remapping import (page 04). Timestamps
+      enable last-writer-wins. Both are "cheap now, impossible to backfill later" — retrofitting a created-at
+      onto existing rows is a migration; having it from the first commit is free. Carry both bases into a
+      sibling unchanged.</p>
+    </div>
+    <p>Floaty's concrete tables (your sibling will rename these to its own domain, but the <em>shape</em> — a
+    tenant at the top, everything else scoped under it, with required vs. optional foreign keys — carries
+    over):</p>
+    <table>
+      <thead><tr><th>Entity</th><th>Scoped?</th><th>Key relationships</th></tr></thead>
+      <tbody>
+        <tr><td><code>Account</code></td><td>No (it <em>is</em> the tenant)</td><td>Holds team-wide calendar config (<code>timezone</code>, <code>weekStartsOn</code>) + <code>schedulingMode</code>.</td></tr>
+        <tr><td><code>Discipline</code></td><td>Yes</td><td>Groups resources; has a <code>sortOrder</code>.</td></tr>
+        <tr><td><code>Resource</code></td><td>Yes</td><td>A person or a project-bound placeholder; optional <code>disciplineId</code>.</td></tr>
+        <tr><td><code>Client</code></td><td>Yes</td><td>Groups projects.</td></tr>
+        <tr><td><code>Project</code></td><td>Yes</td><td><strong>Required</strong> <code>clientId</code>.</td></tr>
+        <tr><td><code>Phase</code></td><td>Yes</td><td><strong>Required</strong> <code>projectId</code>.</td></tr>
+        <tr><td><code>Task</code></td><td>Yes</td><td><em>Optional</em> <code>projectId</code> (a general task) + optional <code>phaseId</code>.</td></tr>
+        <tr><td><code>Allocation</code></td><td>Yes</td><td>The core unit: <strong>required</strong> <code>resourceId</code> + <code>taskId</code>, a date range, hours/day, status.</td></tr>
+        <tr><td><code>TimeOff</code></td><td>Yes</td><td><strong>Required</strong> <code>resourceId</code>, a date range, a type.</td></tr>
+      </tbody>
+    </table>
+    <p>The required-vs-optional FK distinction is not decoration — it <em>drives the cascade and the import
+    repair</em> (a dangling required FK drops the row; a dangling optional FK just unbinds it). That symmetry
+    is detailed on page 04.</p>
+    <p>Two derived constructs make the "loop over every scoped table" pattern safe and DRY:</p>
+    <div class="filename">shared/src/types/entities.ts (the scoped-table seam)</div>
+<pre><code><span class="k">export type</span> <span class="t">ScopedEntityKey</span> = 'disciplines' | 'resources' | 'clients' | 'projects'
+  | 'phases' | 'tasks' | 'allocations' | 'timeOff'
+
+<span class="c">// The single runtime source of "all scoped tables". Cascade, scope-to-account,</span>
+<span class="c">// and import all derive their loops from this — add an entity here and they extend.</span>
+<span class="k">export const</span> SCOPED_KEYS: <span class="t">ScopedEntityKey</span>[] = ['disciplines','resources','clients',
+  'projects','phases','tasks','allocations','timeOff']
+
+<span class="c">// A uniform ScopedEntity[] view of AppData's scoped tables — isolates into ONE named</span>
+<span class="c">// seam the single cast TS can't infer through a heterogeneous-union index.</span>
+<span class="k">export function</span> <span class="f">scopedTables</span>(data: <span class="t">AppData</span>): <span class="t">Record</span>&lt;<span class="t">ScopedEntityKey</span>, <span class="t">ScopedEntity</span>[]&gt; {
+  <span class="k">return</span> data <span class="k">as</span> <span class="t">Record</span>&lt;<span class="t">ScopedEntityKey</span>, <span class="t">ScopedEntity</span>[]&gt;
+}</code></pre>
+    <div class="callout do">
+      <span class="label">The "one cast, one place" pattern</span>
+      <p>TypeScript can't narrow a heterogeneous-union index, so iterating all scoped tables as a common
+      supertype needs one cast. Rather than scatter <code>as never</code> casts through every loop,
+      <code>scopedTables()</code> isolates that single cast behind a named function. When you must cheat the
+      type system, cheat it <em>once</em>, in a named seam, with a comment.</p>
+    </div>
+
+    <h2 id="seam">The persistence seam</h2>
+    <p>The app never reads or writes storage directly. It talks to one interface; an implementation is chosen
+    at module load based on whether <code>VITE_FLOATY_API</code> was baked into the build.</p>
+    <div class="filename">src/data/PersistenceAdapter.ts</div>
+<pre><code><span class="k">export interface</span> <span class="t">PersistenceAdapter</span> {
+  loadAll(): <span class="t">Promise</span>&lt;<span class="t">AppData</span>&gt;
+  saveAll(data: <span class="t">AppData</span>, opts?: { unload?: boolean }): <span class="t">Promise</span>&lt;void&gt;
+  hasExisting?(): <span class="t">Promise</span>&lt;boolean&gt;   <span class="c">// distinguishes first-run from "user cleared everything"</span>
+}</code></pre>
+    <p>Three methods (one optional) is the entire contract. <code>LocalStorageAdapter</code> implements it
+    against a versioned <code>localStorage</code> key; <code>ServerSyncAdapter</code> implements it against the
+    REST API by diffing snapshots. The selection is one ternary in <code>storageAdapter.ts</code>. Full detail
+    — including the debounced write, flush-on-unload, and the diff algorithm — is on
+    <a href="05-state-and-persistence.html">page 05</a>.</p>
+
+    <h2 id="tenancy">Multi-tenancy mechanics</h2>
+    <p>The tenant boundary is defined in exactly one place so a read filter, a write guard, and a cascade can
+    never disagree about what "belongs to account X" means:</p>
+    <div class="filename">shared/src/domain/tenancy.ts</div>
+<pre><code><span class="k">export const</span> <span class="f">belongsToAccount</span> = (entity: <span class="t">ScopedEntity</span>, accountId: <span class="t">ID</span>): boolean =&gt;
+  entity.accountId === accountId
+
+<span class="k">export const</span> <span class="f">byAccount</span> = (accountId: <span class="t">ID</span>) =&gt; (entity: <span class="t">ScopedEntity</span>): boolean =&gt;
+  belongsToAccount(entity, accountId)            <span class="c">// positive predicate for .filter()</span>
+
+<span class="k">export const</span> <span class="f">notInAccount</span> = (accountId: <span class="t">ID</span>) =&gt; (entity: <span class="t">ScopedEntity</span>): boolean =&gt;
+  !belongsToAccount(entity, accountId)           <span class="c">// complement: keep rows NOT in this account</span></code></pre>
+    <p>On the read side, the store exposes <code>useScopedData()</code> which filters <code>AppData</code> down
+    to the active account (memoised so unrelated mutations don't re-render every consumer). On the write side,
+    every update/delete first resolves the row through a guard that returns <code>null</code> for a missing id
+    (a stale-id no-op) but <em>throws</em> for a cross-account id (a real integrity violation). The active
+    account id is in store state but is <strong>never persisted</strong> — it is re-chosen at every load.</p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Switching accounts resets the undo/redo history and all per-account UI state. Undo must never cross an
+      account boundary, and the previous tenant's filters/selection don't apply to the next. This is enforced
+      in <code>setActiveAccount</code> (page 05).</p>
+    </div>
+
+    <h2 id="extension">The entity-extension path (the rails)</h2>
+    <p>This is the architecture's signature mechanism and the thing a sibling most benefits from copying
+    wholesale. Adding a field or a whole entity is normally a silent-data-loss minefield because the same fact
+    is restated in many parallel lists. Here every list is checked against the types, so a miss is a build
+    failure, not a runtime bug.</p>
+    <p>The parallel lists that all describe "the set of entities/fields":</p>
+    <table>
+      <thead><tr><th>List</th><th>Where</th><th>Checked how</th></tr></thead>
+      <tbody>
+        <tr><td><code>ScopedEntityKey</code> / <code>SCOPED_KEYS</code></td><td>shared types</td><td>The type is the source; the array is the runtime mirror.</td></tr>
+        <tr><td><code>KNOWN_KEYS</code></td><td>shared <code>data/migrate.ts</code></td><td>Derived: <code>['accounts', ...SCOPED_KEYS]</code> — can't fall out of sync.</td></tr>
+        <tr><td>the <code>sanitizeImportedRecord</code> switch</td><td>shared <code>lib/sanitizeImport.ts</code></td><td><code>default: const _exhaustive: never = key</code> — a missing case won't compile.</td></tr>
+        <tr><td><code>FK_TARGET</code></td><td>shared <code>domain/mutations.ts</code></td><td>Typed <code>Record&lt;string, ScopedEntityKey&gt;</code> — a bad table name won't compile.</td></tr>
+        <tr><td><code>UPSERT_ORDER</code></td><td>client <code>data/syncOps.ts</code></td><td><code>Exclude&lt;keyof AppData, TableKey&gt; extends never</code> — a missing table won't compile.</td></tr>
+        <tr><td><code>TABLES</code> / <code>CREATE_ORDER</code> / <code>SCOPED_ORDER</code> + column specs</td><td>server <code>tables.ts</code></td><td><code>CheckColumns</code> (bidirectional) + <code>Exclude&lt;…&gt; extends never</code>.</td></tr>
+        <tr><td>full per-entity fixtures</td><td>shared <code>data/fixtures.ts</code></td><td>Typed as the entity interface + round-tripped through server tests — a dropped field fails the gate.</td></tr>
+      </tbody>
+    </table>
+    <p>So the procedure for adding a field is a fixed, on-rails sequence:</p>
+    <ol>
+      <li><strong>Add it to the shared type</strong> (<code>entities.ts</code>). If it's constrained (enum, clamp), add the rule there too.</li>
+      <li><strong>Set it in <code>fixtures.ts</code></strong> to a non-default value. (The fixture is typed as the entity, so this is also where TS reminds you it's required.)</li>
+      <li><strong>Add the column to <code>server/src/tables.ts</code></strong>. The <code>CheckColumns</code> type fails the build until you do; the runtime auto-ALTER adds the DB column on next open.</li>
+      <li><strong>Teach the sanitiser</strong> in <code>sanitizeImport.ts</code> how to clean/clamp it (if it needs repair on import).</li>
+    </ol>
+    <div class="callout do">
+      <span class="label">Do this</span>
+      <p>Trust the compiler. After step 1, run <code>npm run gate</code> + <code>npm run gate:server</code> and
+      let the failures route you through steps 2–4. Each missed list produces a precise type error pointing at
+      the file to fix. You physically cannot ship a half-wired field. Page 04 (sanitiser, fixtures) and page
+      07 (column specs) show the exact code of each checkpoint.</p>
+    </div>
+
+    <h2 id="notdone">Deliberately not done at this size</h2>
+    <p>An architecture is as much what you refuse to build as what you build. These were considered and
+    rejected <em>for the current scale</em>; each is a candidate only when a real constraint forces it.</p>
+    <ul>
+      <li><strong>No generic store/CRUD factory and no schema-driven forms.</strong> Each entity has a hand-written form and list. The repetition is small and the explicitness is worth more than the abstraction at nine entities.</li>
+      <li><strong>No custom listbox to replace native <code>&lt;select&gt;</code>.</strong> OS popup misalignment is accepted in exchange for free accessibility and zero code.</li>
+      <li><strong>No measurement-based row virtualization for font-scaling.</strong> Body rows keep fixed pixel heights; only the date header uses <code>minHeight</code>.</li>
+      <li><strong>No import id-dedup beyond repair</strong>, no ORM in the server (raw <code>node:sqlite</code>), no Postgres.</li>
+    </ul>
+    <div class="callout warn">
+      <span class="label">The modularity rule that governs refactors</span>
+      <p>Only <em>pure extractions</em> (the gate proves them safe) land freely. High-churn structural splits —
+      slicing the store by concern, extracting a viewport hook, splitting the grid render — wait until a
+      <strong>characterisation test is written first</strong>. You don't refactor a hot, under-tested module
+      and hope; you pin its behaviour with a test, then move it. More on page 09.</p>
+    </div>
+
+    <div class="pager">
+      <a href="02-repo-and-tooling.html"><span class="dir">Previous</span>← 02 · Repository &amp; tooling</a>
+      <a class="next" href="04-domain-core.html"><span class="dir">Next</span>04 · Domain core →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

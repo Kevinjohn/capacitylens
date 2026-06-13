@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>10 · Deployment &amp; ops — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html" class="active"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Assure / 10</div>
+      <p class="eyebrow">Assure</p>
+      <h1>Deployment &amp; ops</h1>
+      <p class="lead">Two deploy modes, a flag register that keeps every behaviour change opt-in, real backup
+      and restore drills, and a staged migration plan where each later stage is gated on a product trigger —
+      not a schedule. The discipline here is "ship the small thing safely, and never build ahead of need".</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#modes">Two deploy modes</a></li>
+        <li><a href="#static">Static SPA deploy</a></li>
+        <li><a href="#server">Server cutover</a></li>
+        <li><a href="#flags">The flag register</a></li>
+        <li><a href="#clientflags">Client build flags</a></li>
+        <li><a href="#backups">Backups &amp; restore</a></li>
+        <li><a href="#rollback">Rollback is a data decision</a></li>
+        <li><a href="#stages">The staged plan</a></li>
+        <li><a href="#security">Security posture</a></li>
+      </ul>
+    </div>
+
+    <h2 id="modes">Two deploy modes</h2>
+    <table>
+      <thead><tr><th>Mode</th><th>What ships</th><th>Data</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Static SPA</strong> (default)</td><td>The Vite build (<code>dist/</code>) on a static host. No backend.</td><td>Each browser's own <code>localStorage</code> — per-browser islands.</td><td>Solo use, demos, the simplest possible deploy.</td></tr>
+        <tr><td><strong>Server mode</strong></td><td>The build (with <code>VITE_FLOATY_API</code> baked in) + the Fastify daemon behind an <code>/api</code> proxy + persistent SQLite.</td><td>One shared, server-persisted dataset, last-writer-wins.</td><td>A shared dataset across people/devices.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warn">
+      <span class="label">The one structural fact that frames everything</span>
+      <p><code>VITE_FLOATY_API</code> is inlined <strong>at build time</strong> with <strong>no localStorage
+      fallback</strong>. A build either targets the server or it doesn't. So in server mode the server is a
+      <em>hard dependency</em> (server down ⇒ app down), and rollback = rebuild without the flag, which strands
+      whatever is on the server. Rollback is a data decision, not just a redeploy (see below).</p>
+    </div>
+
+    <h2 id="static">Static SPA deploy (the default)</h2>
+    <p>The reference target is Laravel Forge + DigitalOcean, but any static host works. The essentials:</p>
+    <ul>
+      <li><strong>Site type: Static HTML</strong>; <strong>web directory: <code>/dist</code></strong> (the Vite output, not <code>/public</code>).</li>
+      <li><strong>Deploy script</strong> runs the build on the host:</li>
+    </ul>
+    <div class="filename">deploy script (static)</div>
+<pre><code>git pull origin $FORGE_SITE_BRANCH
+<span class="c"># --include=dev guards against NODE_ENV=production skipping vite/tsc/tailwind</span>
+<span class="c"># ("vite: not found"). Prepend `export NODE_ENV=development` if the build still fails.</span>
+npm ci --include=dev
+npm run build   <span class="c"># tsc -b &amp;&amp; vite build  ->  dist/</span></code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule — the SPA fallback</span>
+      <p>The app uses real URLs (<code>createBrowserRouter</code>), so the host <strong>must</strong> rewrite
+      unknown paths to <code>index.html</code> or refreshing a deep link like <code>/projects</code> 404s:
+      <code>location / { try_files $uri $uri/ /index.html; }</code>. Then enable HTTPS (Let's Encrypt). Each
+      visitor's data lives in their own browser — there is no shared dataset in this mode.</p>
+    </div>
+
+    <h2 id="server">Server cutover (the controlled-demo architecture)</h2>
+    <p>Moving to a shared dataset is a <strong>cutover plus hardening</strong>, not a build — the server and the
+    sync adapter already exist. The target architecture:</p>
+<pre><code>Browser ──HTTPS──&gt; Nginx (Let's Encrypt, Basic Auth, security headers)
+                     ├── /          → dist/  (Vite build, VITE_FLOATY_API baked in)
+                     └── /api/*      → 127.0.0.1:8787  (Fastify daemon, node:sqlite)
+                                         └── /home/.../floaty.db (WAL) + online backups</code></pre>
+    <p>The cutover steps (operations, mostly no code):</p>
+    <ol>
+      <li><strong>Persistent DB path</strong> <em>outside</em> the deploy tree so <code>git pull</code> never touches it (<code>FLOATY_DB=/home/forge/floaty-data/floaty.db</code>).</li>
+      <li><strong>Run the server as a managed daemon</strong> (<code>npm start --workspace=server</code>); add a daemon restart to the deploy script so new code actually runs.</li>
+      <li><strong>Reverse-proxy <code>/api</code> → <code>127.0.0.1:8787</code></strong>. Same-origin, so CORS stays moot and fail-closed (leave <code>FLOATY_CORS_ORIGIN</code> unset — the localhost defaults never match a real origin).</li>
+      <li><strong>Flip the build onto the server</strong>: <code>export VITE_FLOATY_API=https://&lt;site&gt;</code> <em>before</em> <code>npm run build</code>.</li>
+      <li><strong>Gate it with Nginx Basic Auth</strong> over the whole site — one htpasswd entry per user (attribution in access logs, per-person revocation). The API is destructive and unauthenticated; it must not be naked on the internet.</li>
+      <li><strong>Security headers in the host config</strong>, not the app (the app ships only the safe <code>object-src</code>/<code>base-uri</code> CSP). Ship the full CSP as <code>Report-Only</code> first, click through the whole app, then enforce. Note <code>style-src 'unsafe-inline'</code> is required because the scheduler positions bars with inline styles.</li>
+      <li><strong>Cache headers</strong>: hashed <code>/assets/</code> immutable for a year; <code>index.html</code> <code>no-cache</code> — or testers get stuck on a stale build after a deploy.</li>
+    </ol>
+
+    <h2 id="flags">The flag register — every behaviour change, opt-in</h2>
+    <p>This is principle 10 made operational. One table is the single source of truth for every flag, its
+    default (unset = today's behaviour), and what the production host actually sets.</p>
+    <table>
+      <thead><tr><th>Flag</th><th>Default</th><th>Droplet</th><th>On means</th></tr></thead>
+      <tbody>
+        <tr><td><code>FLOATY_LOG</code></td><td>off</td><td><code>1</code></td><td>Structured per-request JSON logs (pino).</td></tr>
+        <tr><td><code>FLOATY_HEALTH_DEEP</code></td><td>off</td><td><code>1</code></td><td><code>/api/health</code> proves a DB read.</td></tr>
+        <tr><td><code>FLOATY_RATE_LIMIT</code></td><td>off</td><td><code>300</code></td><td><em>n</em> req/min/IP on <code>/api/*</code>; health exempt.</td></tr>
+        <tr><td><code>FLOATY_BACKUP_DIR</code></td><td>off</td><td>a path</td><td>Periodic online DB snapshots.</td></tr>
+        <tr><td><code>FLOATY_AUTH</code></td><td><code>off</code></td><td><code>off</code></td><td><code>password</code>/<code>sso</code>: sessions required.</td></tr>
+        <tr><td><code>VITE_FLOATY_BUILD_SHA</code></td><td>none</td><td>git sha</td><td>Settings shows <code>build &lt;sha&gt; · server|local</code>.</td></tr>
+        <tr><td><code>VITE_FLOATY_FEEDBACK_MAILTO</code></td><td>none</td><td>an address</td><td>"Send feedback" mailto in Settings.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout do">
+      <span class="label">The three deliberately un-flagged changes</span>
+      <p>A change is <em>not</em> flagged when an "off" default would <strong>preserve a defect</strong>: the
+      Node-version pin (an environment prerequisite, not behaviour), graceful shutdown (only changes
+      termination — today it can kill a request mid-transaction), and the reset boot-guard (a safety interlock
+      on an existing flag; defaulting a guard off defeats it). Document the exceptions with rationale, as the
+      register does.</p>
+    </div>
+
+    <h2 id="clientflags">Client build flags &amp; the build stamp</h2>
+    <p>Client flags are build-time Vite env (<code>VITE_*</code>), inlined into the bundle. The build stamp is a
+    deliberate safety device: a build that <em>silently</em> lost <code>VITE_FLOATY_API</code> reverts to
+    localStorage and looks identical otherwise. So Settings shows a one-line footer — <code>build &lt;sha&gt; ·
+    server</code> or <code>build &lt;sha&gt; · local</code> — and the post-deploy smoke test asserts it says
+    <code>server</code>.</p>
+    <div class="filename">deploy script (server mode, the exports)</div>
+<pre><code>export VITE_FLOATY_API="https://&lt;site&gt;"                       <span class="c"># server mode — REQUIRED</span>
+export VITE_FLOATY_BUILD_SHA="$(git rev-parse --short HEAD)"  <span class="c"># the tell-tale stamp</span>
+export VITE_FLOATY_FEEDBACK_MAILTO="&lt;owner address&gt;"
+npm run build</code></pre>
+
+    <h2 id="backups">Backups, restore, and demo reset</h2>
+    <p>Backups are a <em>server feature</em> (flag <code>FLOATY_BACKUP_DIR</code>), not a host cron — because
+    WAL mode means a raw <code>cp</code> can catch a torn state. The daemon writes online
+    <code>backup()</code> snapshots once at boot then hourly, keeping the newest 48 (RPO ≤ 1 h).</p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule — a backup that's never been restored is a hope</span>
+      <p>Run the restore drill once before real use: stop the daemon, copy a snapshot over the live DB,
+      <strong>remove the WAL sidecars</strong> (<code>floaty.db-wal</code>/<code>-shm</code> — stale ones would
+      replay old frames over the restored file), restart, verify in the app. Document the exact command
+      sequence in a one-page <code>runbook.md</code>. Snapshot before each demo session; restoring it is the
+      reset-to-clean button (which is why the destructive reset route stays forbidden in production).</p>
+    </div>
+    <p>Monitoring: an uptime check on <code>/api/health</code> (with deep health on, a 200 proves the DB
+    answers; a 503 means the DB is broken while the process lives) plus a disk alert sized against backup
+    retention. A production-shaped <strong>rehearsal</strong> runs the db-backed E2E specs against a real
+    production build served behind a local <code>/api</code> proxy (<code>scripts/serve-dist.mjs</code>) with
+    the droplet's flags ON — proving the ON-state behaviour before the cutover.</p>
+
+    <h2 id="rollback">Rollback is a data decision</h2>
+    <div class="callout warn">
+      <span class="label">Export before you roll back</span>
+      <p>Rebuilding without <code>VITE_FLOATY_API</code> returns the app to browser-local storage but
+      <strong>strands the server data</strong> (nothing migrates back). Before flipping, export it:
+      <code>curl -su &lt;user&gt; https://&lt;site&gt;/api/state &gt; export-$(date +%F).json</code>. Rolling back to a
+      good state <em>without</em> leaving server mode is the restore sequence above.</p>
+    </div>
+
+    <h2 id="stages">The staged migration plan — triggers, not a schedule</h2>
+    <p>Beyond the shared demo, further stages are <strong>conditional</strong>. Each is gated on a product
+    trigger; you do not build ahead of the trigger.</p>
+    <table>
+      <thead><tr><th>Stage</th><th>What</th><th>Trigger</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>Static localStorage deploy.</td><td>Today's default.</td></tr>
+        <tr><td>Near-term</td><td>Shared dataset on the DB, behind Basic Auth (the cutover above).</td><td>People need one shared, durable dataset.</td></tr>
+        <tr><td>B</td><td>Optimistic concurrency — but <em>build the client 409/conflict UI first</em>, then turn on <code>FLOATY_OPTIMISTIC_CONCURRENCY</code>. Move off any experimental driver. Tested restore.</td><td>The shared dataset starts mattering / people co-edit.</td></tr>
+        <tr><td>C <span class="tag red">the big one</span></td><td>Real auth + per-account isolation: app login, derive <code>accountId</code> from the session (never the client), server-enforce ownership on every read/write, isolation tests + a security review as the gate.</td><td>Real users in separate trust domains who must not see each other's data.</td></tr>
+        <tr><td>D</td><td>Productised "push my localStorage to the server" import flow.</td><td>Real users with existing local data to carry over.</td></tr>
+        <tr><td>E</td><td>Postgres. Note: no ORM seam, so this is a data-layer <em>rewrite</em>, not a dialect swap.</td><td>SQLite concurrency/scale/managed-backup needs justify the ops cost.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout why">
+      <span class="label">Why "triggers, not schedules"</span>
+      <p>Each stage carries real cost (a conflict UI, a security review, a rewrite). Building them before the
+      need exists is speculative complexity in a deliberately-small product. The plan names the exact condition
+      that makes each stage worth its cost, so the team can defer with confidence rather than gold-plating.</p>
+    </div>
+
+    <h2 id="security">Security posture, stated honestly</h2>
+    <ul>
+      <li><strong>No app-level auth by default.</strong> The demo's gate is Nginx Basic Auth; the dataset is shared, last-writer-wins.</li>
+      <li><strong>Auth is wired but OFF</strong> (<code>FLOATY_AUTH</code>, Better Auth): off = byte-for-byte today, no auth tables, no login UI. The server-reported <code>authMode</code> is the only auth flag — there is no client-side auth flag.</li>
+      <li><strong>Session ≠ isolation.</strong> Turning auth on gates requests, but <code>accountId</code> stays client-asserted (<code>ownsRow</code> is defence-in-depth) until Stage C derives it from the session.</li>
+      <li><strong>CSP</strong>: <code>object-src</code>/<code>base-uri</code> ship in the app; the full policy belongs in a host header.</li>
+    </ul>
+    <div class="callout dont">
+      <span class="label">Don't</span>
+      <p>Do not expose <em>real, isolated</em> user data on the shared/no-auth model. Until Stage C lands, the
+      Basic Auth gate is the only thing between the destructive API and the internet — anyone with the URL +
+      credentials can edit or wipe the shared dataset. That line moves only when Stage C is built and
+      security-reviewed.</p>
+    </div>
+
+    <div class="pager">
+      <a href="09-process-and-workflow.html"><span class="dir">Previous</span>← 09 · Process &amp; workflow</a>
+      <a class="next" href="11-quick-reference.html"><span class="dir">Next</span>11 · Quick reference →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

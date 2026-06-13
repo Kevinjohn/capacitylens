@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>05 · State &amp; persistence — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html" class="active"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Build / 05</div>
+      <p class="eyebrow">Build</p>
+      <h1>State &amp; persistence</h1>
+      <p class="lead">The Zustand store is the orchestrator: it owns identity, time, and history, and delegates
+      every rule to the shared core. Persistence sits behind one adapter, debounced and flushed safely. This
+      page is the contract between the UI and everything below it.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#store">The store's three zones</a></li>
+        <li><a href="#draft">Draft / Patch types</a></li>
+        <li><a href="#mutate">id, time &amp; the mutate helper</a></li>
+        <li><a href="#undo">Undo / redo</a></li>
+        <li><a href="#actions">Action patterns</a></li>
+        <li><a href="#scope">The scoping seam</a></li>
+        <li><a href="#selectors">Selectors</a></li>
+        <li><a href="#adapters">The adapters</a></li>
+        <li><a href="#sync">Server sync by diffing</a></li>
+        <li><a href="#bootstrap">Bootstrap &amp; persistence wiring</a></li>
+        <li><a href="#void">The void-promise discipline</a></li>
+      </ul>
+    </div>
+
+    <h2 id="store">The store's three zones</h2>
+    <p>One Zustand store, created with plain <code>create&lt;StoreState&gt;()((set, get) =&gt; …)</code> — no
+    middleware, no immer, no devtools. Its state divides into three zones with different lifecycles:</p>
+    <table>
+      <thead><tr><th>Zone</th><th>Fields</th><th>Snapshotted for undo?</th><th>Persisted?</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Data</strong></td><td><code>data: AppData</code></td><td>Yes</td><td>Yes (via the adapter)</td></tr>
+        <tr><td><strong>UI</strong></td><td><code>ui: SchedulerUI</code> (zoom, dates, filters, selection, draw mode)</td><td>No</td><td>No</td></tr>
+        <tr><td><strong>Transient</strong></td><td><code>hydrated</code>, <code>activeAccountId</code>, <code>past</code>/<code>future</code>, <code>persistError</code>, <code>notice</code>, <code>dirtyForm</code>, <code>theme</code>, prefs…</td><td>No</td><td>No (theme/prefs have their own keys)</td></tr>
+      </tbody>
+    </table>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Only <code>data</code> is on the undo stack and only <code>data</code> goes through the adapter. UI and
+      transient state must never land in either. The mechanism that enforces this is that <em>only data
+      mutations call <code>mutate()</code></em>; everything else calls <code>set()</code> directly.</p>
+    </div>
+
+    <h2 id="draft">Draft / Patch — callers never supply identity</h2>
+    <p>Two utility types stop a caller from ever passing an id, an <code>accountId</code>, or a timestamp. The
+    store stamps all of those itself.</p>
+    <div class="filename">src/store/useStore.ts</div>
+<pre><code><span class="c">// A Draft drops the server-owned fields (id/timestamps) AND accountId — the store</span>
+<span class="c">// stamps the active account, so callers never supply it.</span>
+<span class="k">export type</span> <span class="t">Draft</span>&lt;T <span class="k">extends</span> <span class="t">Entity</span>&gt; = <span class="t">Omit</span>&lt;T, 'id' | 'accountId' | 'createdAt' | 'updatedAt'&gt;
+<span class="k">export type</span> <span class="t">Patch</span>&lt;T <span class="k">extends</span> <span class="t">Entity</span>&gt; = <span class="t">Partial</span>&lt;<span class="t">Draft</span>&lt;T&gt;&gt;</code></pre>
+    <p><code>addResource(draft: Draft&lt;Resource&gt;)</code>, <code>updateResource(id, patch:
+    Patch&lt;Resource&gt;)</code>. The compiler refuses any attempt to pass identity from a component.</p>
+
+    <h2 id="mutate">id, time &amp; the <code>mutate</code> helper</h2>
+    <p>Identity and time are minted in two tiny closures, and every data change funnels through one helper that
+    also drives undo:</p>
+    <div class="filename">src/store/useStore.ts (inside the create closure)</div>
+<pre><code><span class="k">const</span> <span class="f">stamp</span> = () =&gt; { <span class="k">const</span> now = <span class="k">new</span> Date().toISOString(); <span class="k">return</span> { createdAt: now, updatedAt: now } }
+<span class="k">const</span> <span class="f">touch</span> = () =&gt; <span class="k">new</span> Date().toISOString()
+
+<span class="k">const</span> <span class="f">requireAccount</span> = (): <span class="t">ID</span> =&gt; {
+  <span class="k">const</span> id = get().activeAccountId
+  <span class="k">if</span> (!id) <span class="k">throw new</span> Error('No active account — cannot mutate scoped data.')
+  <span class="k">return</span> id
+}
+
+<span class="k">const</span> <span class="f">updateById</span> = &lt;T <span class="k">extends</span> <span class="t">Entity</span>&gt;(list: T[], id: <span class="t">ID</span>, patch: <span class="t">Partial</span>&lt;<span class="t">Omit</span>&lt;T, keyof <span class="t">Entity</span>&gt;&gt;): T[] =&gt;
+  list.map((x) =&gt; (x.id === id ? { ...x, ...patch, updatedAt: touch() } : x))
+
+<span class="c">// EVERY data mutation goes through mutate(): it snapshots prior data onto the undo</span>
+<span class="c">// stack (capped) and clears the redo stack. This is the ONLY writer of `past`.</span>
+<span class="k">const</span> <span class="f">mutate</span> = (producer: (d: <span class="t">AppData</span>) =&gt; <span class="t">AppData</span>) =&gt;
+  set((s) =&gt; ({ data: producer(s.data), past: [...s.past, s.data].slice(-HISTORY_LIMIT), future: [] }))</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>The store — not the core, not the component — owns id minting (<code>newId()</code>), timestamps
+      (<code>stamp</code>/<code>touch</code>), and history (<code>mutate</code>). The core computes the next
+      data; the store assigns identity and records the transition. Keep this division: it is what lets the same
+      core run server-side where the server owns its own ids/time.</p>
+    </div>
+
+    <h2 id="undo">Undo / redo — two stacks, capped</h2>
+    <p>History is two arrays of full <code>AppData</code> snapshots. Undo pops <code>past</code> onto
+    <code>future</code>; redo does the reverse. Both capped at <code>HISTORY_LIMIT</code> (50).</p>
+<pre><code>undo: () =&gt; set((s) =&gt; {
+  <span class="k">if</span> (s.past.length === 0) <span class="k">return</span> {}
+  <span class="k">const</span> previous = s.past[s.past.length - 1]
+  <span class="k">return</span> { data: previous, past: s.past.slice(0, -1), future: [s.data, ...s.future].slice(0, HISTORY_LIMIT) }
+}),</code></pre>
+    <p>Undo/redo is wired to <span class="kbd">⌘Z</span> / <span class="kbd">⌘⇧Z</span> globally in the shell —
+    the keyboard handler calls <code>useStore.getState().undo()</code>. The toolbar buttons are intentionally
+    hidden (a clearer affordance is a flagged open question, not a missing feature).</p>
+    <div class="callout warn">
+      <span class="label">Account switches reset history</span>
+      <p><code>setActiveAccount</code> sets <code>past: []</code> and <code>future: []</code> (and clears
+      per-account UI: filters, collapsed groups, selection, focus dates). Undo must never cross an account
+      boundary. This is the read-side of the tenancy rule from page 03.</p>
+    </div>
+
+    <h2 id="actions">Action patterns</h2>
+    <p>Three shapes cover almost everything. The pattern for a <strong>create</strong> with full integrity:</p>
+<pre><code>addAllocation: (input) =&gt; {
+  <span class="k">const</span> accountId = requireAccount()
+  assertAllocation(get().data, accountId, input.resourceId, input.taskId)   <span class="c">// shared core</span>
+  assertDateRange(input.startDate, input.endDate)                            <span class="c">// shared core</span>
+  <span class="k">const</span> e: <span class="t">Allocation</span> = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay),
+    id: newId(), accountId, ...stamp() }
+  mutate((d) =&gt; ({ ...d, allocations: [...d.allocations, e] }))
+  <span class="k">return</span> e                                  <span class="c">// returned so callers can chain off the new id</span>
+},</code></pre>
+    <p>The pattern for an <strong>update</strong> — note the stale-id no-op and effective-range validation:</p>
+<pre><code>updateAllocation: (id, patch) =&gt; {
+  <span class="k">const</span> existing = findOwned(get().data, 'allocations', id)
+  <span class="k">if</span> (!existing) <span class="k">return</span>   <span class="c">// stale id (e.g. drag committed after an undo) → silent no-op</span>
+  <span class="c">// Validate the EFFECTIVE range (patch merged over existing), so a note/status-only</span>
+  <span class="c">// patch isn't rejected for omitting dates.</span>
+  assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
+  <span class="k">const</span> safe = patch.hoursPerDay !== <span class="k">undefined</span>
+    ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch
+  mutate((d) =&gt; ({ ...d, allocations: updateById(d.allocations, id, safe) }))
+},</code></pre>
+    <p>And transient UI uses plain <code>set</code>, with a comment that says why:</p>
+<pre><code><span class="c">// Plain set (NOT mutate): transient UI, must never land on the undo/redo stack.</span>
+setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre>
+    <div class="callout do">
+      <span class="label">Action conventions</span>
+      <p>Name actions <code>verb + noun</code> (<code>addClient</code>, <code>updateResource</code>,
+      <code>setZoom</code>, <code>goToToday</code>) — never a <code>handle</code> prefix. Create actions
+      <code>return</code> the new entity. Update/delete actions resolve through <code>findOwned</code> first
+      (missing → no-op; cross-account → throw). All immutability is by spread — no immer.</p>
+    </div>
+
+    <h2 id="scope">The scoping seam</h2>
+    <p>Components never read <code>store.data</code> directly; they read the account-scoped view through one
+    memoised hook:</p>
+    <div class="filename">src/store/useScopedData.ts</div>
+<pre><code><span class="k">export function</span> <span class="f">useScopedData</span>(): <span class="t">AppData</span> {
+  <span class="k">const</span> data = useStore((s) =&gt; s.data)
+  <span class="k">const</span> activeAccountId = useStore((s) =&gt; s.activeAccountId)
+  <span class="k">return</span> useMemo(
+    () =&gt; (activeAccountId ? scopeData(data, activeAccountId) : emptyAppData()),
+    [data, activeAccountId],
+  )
+}</code></pre>
+    <div class="callout why">
+      <span class="label">Why the <code>useMemo</code> is mandatory, not optional</span>
+      <p>Zustand returns a fresh scoped object each store update. Without memoising on
+      <code>[data, activeAccountId]</code>, every component subscribed to scoped data would re-render on every
+      unrelated mutation. <code>scopeData</code> itself loops <code>SCOPED_KEYS</code> applying
+      <code>byAccount(accountId)</code> — using the same tenancy predicate as the write guard and the cascade.</p>
+    </div>
+
+    <h2 id="selectors">Selectors — pure functions, memoised at the call site</h2>
+    <p>Selectors are <strong>plain exported functions</strong> (not hooks), taking <code>AppData</code> plus
+    params and returning derived values. They are <em>not</em> self-memoising — the call site wraps them in
+    <code>useMemo</code> when needed. Naming is <code>{entity}For{Parent}</code> / <code>{entity}ById</code>,
+    never a <code>get</code> prefix.</p>
+<pre><code><span class="k">export const</span> <span class="f">allocationsForResource</span> = (data: <span class="t">AppData</span>, resourceId: <span class="t">ID</span>) =&gt;
+  data.allocations.filter((a) =&gt; a.resourceId === resourceId)
+<span class="k">export const</span> <span class="f">taskById</span> = (data: <span class="t">AppData</span>, id: <span class="t">ID</span>) =&gt; data.tasks.find((t) =&gt; t.id === id)
+
+<span class="c">// Canonical ordering gets its OWN comparator so the scheduler grouping and the</span>
+<span class="c">// Disciplines list always agree (sortOrder, then name as a stable tiebreak).</span>
+<span class="k">export const</span> <span class="f">byDisciplineOrder</span> = (a: <span class="t">Discipline</span>, b: <span class="t">Discipline</span>): number =&gt;
+  a.sortOrder - b.sortOrder || (a.name &lt; b.name ? -1 : a.name &gt; b.name ? 1 : 0)</code></pre>
+
+    <h2 id="adapters">The adapters</h2>
+    <p>The seam is the three-method interface from page 03. Two implementations; one ternary selects between
+    them at module load:</p>
+    <div class="filename">src/data/storageAdapter.ts</div>
+<pre><code><span class="k">export const</span> STORAGE_KEY = 'floaty/v3'
+<span class="k">export const</span> storageAdapter = <span class="k">new</span> LocalStorageAdapter(STORAGE_KEY)
+
+<span class="k">export const</span> persistenceAdapter: <span class="t">PersistenceAdapter</span> = isServerConfigured()
+  ? <span class="k">new</span> ServerSyncAdapter(API_BASE)
+  : storageAdapter</code></pre>
+    <p><code>LocalStorageAdapter</code> stores <code>{ schemaVersion, data }</code> as one JSON blob under the
+    versioned key, runs <code>migrate()</code> on load, and raises a typed <code>LoadError('corrupt' |
+    'unavailable', …)</code> that routes to two different recovery screens. <code>storageAdapter</code> is
+    exported separately because the recovery UI needs its extra <code>readRaw()/clear()</code> methods, which
+    are deliberately <em>not</em> on the shared interface.</p>
+    <p><code>API_BASE</code> and <code>isServerConfigured()</code> read the build-time env once:</p>
+    <div class="filename">src/data/apiConfig.ts</div>
+<pre><code><span class="k">export const</span> API_BASE = (import.meta.env.VITE_FLOATY_API ?? '').replace(/\/+$/, '')
+<span class="k">export function</span> <span class="f">isServerConfigured</span>(): boolean { <span class="k">return</span> API_BASE.length &gt; 0 }</code></pre>
+
+    <h2 id="sync">Server sync by diffing snapshots</h2>
+    <p>The clever part of the server adapter: the store already produces a fresh <code>AppData</code> on every
+    action (including undo/redo and import). So the adapter never needs a command log — it <strong>diffs the
+    previous synced snapshot against the new one</strong> and turns the difference into ordered ops.</p>
+    <div class="filename">src/data/syncOps.ts</div>
+<pre><code><span class="k">const</span> UPSERT_ORDER = ['accounts','clients','disciplines','projects','phases',
+  'resources','tasks','allocations','timeOff'] <span class="k">as const</span>
+
+<span class="c">// Exhaustiveness: a new AppData key not added here won't compile.</span>
+<span class="k">type</span> _MissingFromOrder = <span class="t">Exclude</span>&lt;keyof <span class="t">AppData</span>, <span class="t">TableKey</span>&gt;
+<span class="k">const</span> _orderComplete: _MissingFromOrder <span class="k">extends</span> never ? true : never = true
+
+<span class="k">export function</span> <span class="f">diffOps</span>(prev: <span class="t">AppData</span>, next: <span class="t">AppData</span>): <span class="t">Op</span>[] {
+  <span class="k">const</span> upserts: <span class="t">Op</span>[] = [], deletes: <span class="t">Op</span>[] = []
+  <span class="k">for</span> (<span class="k">const</span> table <span class="k">of</span> UPSERT_ORDER) {
+    <span class="k">const</span> prevById = <span class="k">new</span> Map(prev[table].map((e) =&gt; [e.id, e]))
+    <span class="k">const</span> nextById = <span class="k">new</span> Map(next[table].map((e) =&gt; [e.id, e]))
+    <span class="k">for</span> (<span class="k">const</span> row <span class="k">of</span> next[table]) {
+      <span class="k">const</span> before = prevById.get(row.id)
+      <span class="k">if</span> (!before || before.updatedAt !== row.updatedAt) upserts.push({ method: 'PUT', table, id: row.id, row })
+    }
+    <span class="k">for</span> (<span class="k">const</span> row <span class="k">of</span> prev[table]) <span class="k">if</span> (!nextById.has(row.id)) deletes.push({ method: 'DELETE', table, id: row.id, accountId: row.accountId })
+  }
+  deletes.reverse()                 <span class="c">// upserts parent-first, deletes child-first</span>
+  <span class="k">return</span> [...upserts, ...deletes]
+}</code></pre>
+    <div class="callout why">
+      <span class="label">Why all-upserts-then-all-deletes, in one transaction</span>
+      <p>A reparent coalesced with the old parent's delete must land the re-binding <em>before</em> the cascade
+      fires. Diffing detects changed rows by <code>updatedAt</code> (last-writer-wins, since ids/timestamps are
+      client-generated). The ops are sent to <code>POST /api/batch</code> as <strong>one transaction</strong>;
+      <code>lastSynced</code> only advances on success, so a failure replays the full delta next time. Writes
+      coalesce to the latest snapshot while one is in flight.</p>
+    </div>
+
+    <h2 id="bootstrap">Bootstrap &amp; persistence wiring</h2>
+    <p><code>main.tsx</code> fires bootstrap <em>before</em> the first render; the shell gates content on
+    <code>hydrated</code>, so there's no flash of empty data.</p>
+    <div class="filename">src/main.tsx (order)</div>
+<pre><code>applyThemeToDom(useStore.getState().theme)        <span class="c">// 1. re-affirm theme from the store</span>
+watchSystemTheme(() =&gt; useStore.getState().theme)  <span class="c">// 2. follow OS changes when theme==='system'</span>
+<span class="k">void</span> bootstrap(useStore, persistenceAdapter, { seedIfEmpty: seed(), onError, onSuccess }) <span class="c">// 3. async, voided</span>
+createRoot(rootEl).render(&lt;App /&gt;)                 <span class="c">// 4. render starts alongside bootstrap</span></code></pre>
+    <p><code>bootstrap</code> loads via the adapter, decides whether to seed, marks hydrated, and attaches the
+    persistence subscription. Three behaviours are load-bearing:</p>
+    <ul>
+      <li><strong>Seed-once gated on a marker, not emptiness.</strong> It uses <code>hasExisting()</code> to tell a genuine first run from a deliberate clear. Clearing all data does <em>not</em> re-seed.</li>
+      <li><strong>Load failure renders empty and attaches NO persistence</strong> — so corrupt/unreachable data is never overwritten. A <code>LoadError</code> kind routes to the corrupt-reset screen or the connection-retry screen.</li>
+      <li><strong>A failing seed write surfaces the banner but still attaches persistence</strong> — otherwise the session would silently never save and never warn.</li>
+    </ul>
+    <p>Writes are debounced (300 ms) and flushed on teardown so a tab close inside the debounce window can't
+    drop the last edit:</p>
+    <div class="filename">src/data/persist.ts (flush wiring)</div>
+<pre><code><span class="c">// pagehide is the reliable close/navigate signal (fires for bfcache where beforeunload</span>
+<span class="c">// doesn't); visibilitychange→hidden covers tab switches and mobile.</span>
+window.addEventListener('pagehide', () =&gt; flushOnUnload())
+document.addEventListener('visibilitychange', () =&gt; {
+  <span class="k">if</span> (document.visibilityState === 'hidden') flushOnUnload()
+  <span class="k">else</span> retryStrandedWrite()
+})
+window.addEventListener('online', () =&gt; retryStrandedWrite())</code></pre>
+    <p>The flush passes <code>{ unload: true }</code> so an async adapter dispatches its writes up-front (a
+    sequential await-loop would only get the first request out before the event loop dies). Failed writes
+    retry with exponential backoff (cap 5 attempts, max 30 s); a fresh user edit or an
+    <code>online</code> event resets the budget.</p>
+
+    <h2 id="void">The void-promise discipline</h2>
+    <p>Because ESLint enforces <code>no-floating-promises</code> (page 02), every intentional fire-and-forget is
+    marked with an explicit <code>void</code>, and the two-argument <code>.then(onOk, onErr)</code> form is
+    used over <code>.then().catch()</code> so a throw inside the success handler isn't misreported as a save
+    error:</p>
+<pre><code><span class="k">void</span> adapter.saveAll(data, { unload: true }).catch(() =&gt; {})
+<span class="k">void</span> adapter.saveAll(data).then(onSuccess, onError)</code></pre>
+    <div class="callout do">
+      <span class="label">Reactive vs. imperative store access</span>
+      <p><code>useStore(selector)</code> in render (subscribes, re-renders on change);
+      <code>useStore.getState()</code> inside an event handler (one-shot read, no subscription). Mixing them up
+      — subscribing inside a callback — causes needless re-subscription churn. The convention is explicit and
+      consistent across the codebase.</p>
+    </div>
+
+    <div class="pager">
+      <a href="04-domain-core.html"><span class="dir">Previous</span>← 04 · Domain core</a>
+      <a class="next" href="06-ui-conventions.html"><span class="dir">Next</span>06 · UI &amp; components →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

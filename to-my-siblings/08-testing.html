@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>08 · Testing &amp; the gate — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html" class="active"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Assure / 08</div>
+      <p class="eyebrow">Assure</p>
+      <h1>Testing &amp; the gate</h1>
+      <p class="lead">Four test layers, two extra oracles, one green gate. The suite is the safety net that
+      lets the codebase refactor fearlessly and the AI pair work autonomously. Copy the structure, the frozen
+      clock, and the oracles into every sibling.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#layers">The four layers</a></li>
+        <li><a href="#vitest">Vitest setup &amp; fixtures</a></li>
+        <li><a href="#component">Component tests</a></li>
+        <li><a href="#unit">Pure unit tests</a></li>
+        <li><a href="#playwright">The three Playwright projects</a></li>
+        <li><a href="#clock">The frozen clock</a></li>
+        <li><a href="#oracles">The two oracles</a></li>
+        <li><a href="#gate">The gate &amp; CI</a></li>
+        <li><a href="#lockstep">User-story lock-step</a></li>
+        <li><a href="#flake">Flakiness prevention</a></li>
+      </ul>
+    </div>
+
+    <h2 id="layers">The four layers</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>Tool</th><th>File pattern</th><th>Tests</th></tr></thead>
+      <tbody>
+        <tr><td>Pure unit</td><td>Vitest (node/jsdom)</td><td><code>*.test.ts</code>, co-located</td><td>The shared core + pure view-model builders (<code>schedulerModel</code>, <code>integrity</code>, <code>virtualWindow</code>).</td></tr>
+        <tr><td>Component</td><td>Vitest + Testing Library</td><td><code>*.test.tsx</code>, co-located</td><td>Forms, dialogs, lists, the palette — behaviour &amp; ARIA via the rendered DOM.</td></tr>
+        <tr><td>Server integration</td><td>Vitest + <code>app.inject()</code></td><td><code>server/src/*.test.ts</code></td><td>Real Fastify app over a real <code>:memory:</code> SQLite DB; no mocks.</td></tr>
+        <tr><td>E2E</td><td>Playwright</td><td><code>e2e/*.spec.ts</code></td><td>The real app in a real browser, three flavours (below).</td></tr>
+      </tbody>
+    </table>
+    <p>Naming carries meaning: <code>.test.ts(x)</code> = Vitest, co-located; <code>.spec.ts</code> = Playwright
+    in <code>e2e/</code>; the suffixes <code>.db.spec.ts</code> and <code>.auth.spec.ts</code> route a spec to a
+    specific Playwright project.</p>
+
+    <h2 id="vitest">Vitest setup &amp; the fixture factories</h2>
+    <p>The setup file is minimal — jest-dom matchers and a cleanup between tests; no global mocks:</p>
+    <div class="filename">src/test/setup.ts</div>
+<pre><code><span class="k">import</span> { afterEach } <span class="k">from</span> 'vitest'
+<span class="k">import</span> { cleanup } <span class="k">from</span> '@testing-library/react'
+<span class="k">import</span> '@testing-library/jest-dom/vitest'
+afterEach(() =&gt; { cleanup() })   <span class="c">// unmount trees + reset jsdom between tests</span></code></pre>
+    <p>Test data is built by <strong>factory functions with <code>Partial&lt;T&gt;</code> overrides</strong> in
+    <code>src/test/fixtures.ts</code> — every factory has valid defaults; a test overrides only the field that
+    matters. The canonical reset for any store test sets data <em>and</em> the active account in one call:</p>
+    <div class="filename">src/test/fixtures.ts</div>
+<pre><code><span class="k">const</span> TS = '2026-05-01T00:00:00.000Z'
+<span class="k">export function</span> <span class="f">makeResourceDraft</span>(over: <span class="t">Partial</span>&lt;<span class="t">Draft</span>&lt;<span class="t">Resource</span>&gt;&gt; = {}): <span class="t">Draft</span>&lt;<span class="t">Resource</span>&gt; {
+  <span class="k">return</span> { kind: 'person', name: 'Test Person', role: 'Designer', employmentType: 'permanent',
+    workingHoursPerDay: 8, workingDays: [1,2,3,4,5], color: '#6366f1', ...over }
+}
+<span class="k">export function</span> <span class="f">resetStoreWithAccount</span>(accountId = DEFAULT_ACCOUNT_ID): void {
+  useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId })] }))
+  useStore.getState().setActiveAccount(accountId)
+}</code></pre>
+
+    <h2 id="component">Component tests — behaviour, not appearance</h2>
+    <p>Queries go by <strong>semantic role or label</strong>, never CSS class or <code>querySelector</code>.
+    Interactions use <code>userEvent.setup()</code>. Assertions cover store state, callback invocation, and
+    accessible attributes. The ARIA wiring is tested <em>explicitly</em>:</p>
+<pre><code>it('associates the error with the offending field', <span class="k">async</span> () =&gt; {
+  <span class="k">const</span> user = userEvent.setup()
+  render(&lt;ClientForm onClose={vi.fn()} /&gt;)
+  <span class="k">await</span> user.click(screen.getByRole('button', { name: 'Save' }))
+
+  <span class="k">const</span> nameInput = screen.getByLabelText('Name')
+  expect(nameInput).toHaveAttribute('aria-invalid', 'true')
+  <span class="k">const</span> describedBy = nameInput.getAttribute('aria-describedby')
+  expect(screen.getByRole('alert')).toHaveAttribute('id', describedBy)   <span class="c">// the link is real</span>
+})</code></pre>
+    <p>Describe blocks are <code>'Component – mode'</code>; <code>it</code> descriptions are full sentences that
+    read as specifications. Every test that touches the store calls <code>resetStoreWithAccount()</code> in
+    <code>beforeEach</code>.</p>
+
+    <h2 id="unit">Pure unit tests — local dataset factories</h2>
+    <p>Pure tests build a fresh dataset per call and extract repetitive call/assert patterns into file-local
+    helpers, so each <code>it</code> is one or two lines. Floating-point results use <code>toBeCloseTo</code>;
+    arrays use <code>toEqual</code>; error messages use case-insensitive regex.</p>
+<pre><code><span class="k">const</span> <span class="f">build</span> = (filters = emptyFilters()) =&gt; buildSchedulerModel(dataset(), start, 48, days, start, end, filters)
+<span class="k">const</span> <span class="f">barIds</span> = (m) =&gt; m.flatMap((g) =&gt; g.rows).flatMap((r) =&gt; r.bars).map((b) =&gt; b.allocation.id).sort()
+
+it('hideTentative removes tentative bars, but capacity still counts them', () =&gt; {
+  <span class="k">const</span> m = build({ ...emptyFilters(), hideTentative: true })
+  expect(barIds(m)).toEqual(['a1', 'a3'])
+  <span class="k">const</span> r1 = m.flatMap((g) =&gt; g.rows).find((r) =&gt; r.resource.id === 'r1')!
+  expect(r1.utilization).toBeCloseTo(0.6)   <span class="c">// filter is visual; load math is unaffected</span>
+})</code></pre>
+    <div class="callout do">
+      <span class="label">Why pure view-models pay off in tests</span>
+      <p>Because <code>buildSchedulerModel</code> is a pure function (page 06), the hardest logic in the app —
+      bar layout, capacity, utilisation, filtering — is tested with plain objects and zero rendering. Push
+      logic out of components and into pure functions <em>specifically so it can be tested this cheaply</em>.</p>
+    </div>
+
+    <h2 id="playwright">The three Playwright projects</h2>
+    <p>One config, three browser projects, selected by file suffix. The config also boots all the dev servers
+    it needs (two Vite instances + three server instances) with <code>reuseExistingServer</code> locally.</p>
+    <table>
+      <thead><tr><th>Project</th><th>Matches</th><th>Stack under test</th></tr></thead>
+      <tbody>
+        <tr><td><code>chromium</code></td><td><code>*.spec.ts</code> (ignores db/auth)</td><td>The default localStorage app on :5173.</td></tr>
+        <tr><td><code>db-backed</code></td><td><code>*.db.spec.ts</code></td><td>The SQLite server (:8787, reset-enabled, temp DB) + a Vite build with <code>VITE_FLOATY_API</code> on :5273 — exercises the real <code>ServerSyncAdapter</code>.</td></tr>
+        <tr><td><code>auth-backed</code></td><td><code>*.auth.spec.ts</code></td><td>A server booted with <code>FLOATY_AUTH=password</code> (fresh DB) + a Vite app on :5373 — the only place the flag-gated login screen exists.</td></tr>
+      </tbody>
+    </table>
+    <p>Selector strategy in specs mirrors the component tests: <code>getByRole</code> &gt; <code>getByLabel</code>
+    &gt; <code>getByTestId</code> &gt; <code>getByText</code> &gt; scoped <code>[data-…]</code> locators. There
+    are no page-object classes — shared setup is one helper (<code>openApp</code>); everything else is
+    file-local (e.g. a <code>box()</code> bounding-box helper for drag assertions). DB specs reset the server in
+    <code>beforeEach</code> via the test-only reset endpoint, and can assert directly on
+    <code>GET /api/state</code> to prove a write reached the DB.</p>
+
+    <h2 id="clock">The frozen clock — the single most important E2E decision</h2>
+    <p>The seed data lives in early June 2026 and the scheduler is today-anchored (it opens scrolled to this
+    week's Monday; the utilisation window runs forward 14 days from <em>today</em>). On any later wall-clock
+    date the seed bars scroll off-screen and every spec that finds a bar by label rots. So the shared opener
+    freezes the clock to a date inside the seed window <em>before</em> navigating:</p>
+    <div class="filename">e2e/helpers.ts</div>
+<pre><code><span class="k">const</span> FIXED_NOW = <span class="k">new</span> Date('2026-06-03T12:00:00')   <span class="c">// the over-allocated day, inside the seed window</span>
+
+<span class="k">export async function</span> <span class="f">openApp</span>(page, company = 'Studio North', path = '/') {
+  <span class="k">await</span> page.clock.setFixedTime(FIXED_NOW)   <span class="c">// MUST precede goto — app reads it on first render</span>
+  <span class="k">await</span> page.goto(path)
+  <span class="k">await</span> page.getByRole('button', { name: company, exact: true }).click()  <span class="c">// exact: avoids "Delete Studio North"</span>
+}</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>The frozen date must stay in step with the seed dates. If you move the seed, move this constant. Noon
+      is chosen so a host in any timezone still lands inside the window. The rule is documented at both ends —
+      in <code>helpers.ts</code> and in the user-story <code>REFERENCE.md</code> — so neither can drift
+      unnoticed.</p>
+    </div>
+
+    <h2 id="oracles">The two oracles beyond "tests pass"</h2>
+    <p>Role/DOM assertions prove behaviour but not <em>appearance</em> or <em>accessibility</em>. Two oracles
+    cover the gap.</p>
+    <h3>Screenshots — the visual oracle</h3>
+    <p>The E2E suite captures real renders at key states (e.g. each zoom level) to <code>test-results/</code>
+    for human inspection. They are the oracle for visual correctness; they are not pixel-compared in CI (no
+    snapshot assertions) — they are looked at when a visual change is suspected.</p>
+    <h3>axe — the accessibility oracle</h3>
+    <p><code>@axe-core/playwright</code> runs on three scenarios and fails the suite on any serious/critical
+    WCAG violation:</p>
+    <div class="filename">e2e/a11y.spec.ts (essence)</div>
+<pre><code><span class="k">const</span> WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
+test.use({ reducedMotion: 'reduce' })   <span class="c">// sample SETTLED colours, not mid-fade</span>
+
+<span class="k">async function</span> <span class="f">assertClean</span>(page) {
+  <span class="k">const</span> results = <span class="k">await new</span> AxeBuilder({ page }).withTags(WCAG).analyze()
+  <span class="k">const</span> blocking = results.violations.filter((v) =&gt; v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking, JSON.stringify(blocking.map((v) =&gt; v.id), null, 2)).toEqual([])  <span class="c">// failure msg = the list</span>
+}
+<span class="c">// 1) light-mode scheduler  2) dark-mode (theme seeded via addInitScript)  3) a modal open</span></code></pre>
+    <div class="callout do">
+      <span class="label">Three details that make the a11y oracle reliable</span>
+      <p>Dark mode is seeded by writing the theme key in <code>addInitScript</code> (it's a stored preference,
+      not an OS media query). The modal scenario waits ~350 ms for the entrance animation to settle (mid-fade
+      colours read as false low-contrast). The <code>expect</code> second argument is a JSON summary of
+      violations, so a CI failure is self-explanatory without opening a report.</p>
+    </div>
+
+    <h2 id="gate">The gate &amp; CI</h2>
+    <p>"Green" means three commands pass (recap from page 02): <code>npm run gate</code>
+    (<code>tsc -b</code> + <code>eslint</code> + <code>vitest</code> + <code>vite build</code>),
+    <code>npm run gate:server</code> (type-check + vitest in <code>server/</code>, separate because of
+    <code>node:sqlite</code>), and <code>npm run e2e</code>. CI runs all three on every push and PR to
+    <code>main</code> on Node 24, plus a shared type-check, and installs the Chromium browser before E2E.</p>
+    <div class="filename">.github/workflows/ci.yml</div>
+<pre><code>- run: npm ci
+- run: npm run gate
+- run: npm run type-check --workspace=shared
+- run: npm run gate:server
+- run: npx playwright install --with-deps chromium
+- run: npm run e2e</code></pre>
+    <p>Playwright's CI knobs (from the config): <code>forbidOnly</code> (a committed <code>.only</code> fails CI
+    rather than silently skipping the suite), 2 retries, 1 worker, the <code>github</code> reporter.</p>
+
+    <h2 id="lockstep">The user-story ↔ E2E lock-step</h2>
+    <p>Every capability has a manual <strong>user story</strong> (goal → why → numbered end-to-end steps →
+    checkable ✅ acceptance criteria) that names its automated coverage, and the suite mirrors the stories
+    1:1. A single <code>user-stories/REFERENCE.md</code> is the <strong>source of truth</strong> for routes,
+    control labels, <code>data-testid</code>s, the seed data, and domain rules — both the stories and the specs
+    lean on it.</p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>When the app changes, update <code>REFERENCE.md</code> <em>first</em>, then the affected stories, then
+      the specs. The reference is what keeps a label rename from quietly breaking five specs. The full
+      story/template system is on <a href="09-process-and-workflow.html#stories">page 09</a>.</p>
+    </div>
+
+    <h2 id="flake">Flakiness prevention, by construction</h2>
+    <ul>
+      <li><strong>Frozen clock</strong> before navigation — deterministic regardless of run date.</li>
+      <li><strong><code>strictPort: true</code></strong> in Vite — the suite can't silently hit the wrong port.</li>
+      <li><strong><code>exact: true</code></strong> on role queries where a sibling shares a name substring.</li>
+      <li><strong><code>steps: 8</code></strong> on drag mouse-moves — enough intermediate events to register as a drag, not a click; positions asserted with a margin, never exact pixels.</li>
+      <li><strong><code>beforeEach</code> + server reset</strong> in DB specs — each test starts clean.</li>
+      <li><strong><code>reducedMotion: 'reduce'</code></strong> + a single explicit settle wait in the modal a11y test — everything else relies on Playwright's auto-waiting locators (no scattered <code>waitForTimeout</code>).</li>
+      <li><strong><code>expect.poll()</code></strong> for server-side write confirmation, not a fixed sleep.</li>
+    </ul>
+
+    <div class="pager">
+      <a href="07-server.html"><span class="dir">Previous</span>← 07 · Optional server</a>
+      <a class="next" href="09-process-and-workflow.html"><span class="dir">Next</span>09 · Process &amp; workflow →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

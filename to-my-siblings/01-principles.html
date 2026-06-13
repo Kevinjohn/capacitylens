@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>01 · Principles &amp; the why — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html" class="active"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Orient / 01</div>
+      <p class="eyebrow">Orient</p>
+      <h1>Principles &amp; the why</h1>
+      <p class="lead">Every concrete convention in this handbook descends from a small number of judgement
+      calls. Understand these, and the rest is consequence. This page is the philosophy; later pages are the
+      mechanics.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#small">1. Deliberately small</a></li>
+        <li><a href="#local">2. Local-first, server-optional</a></li>
+        <li><a href="#nodrift">3. One source of truth</a></li>
+        <li><a href="#repair">4. Reject vs. repair</a></li>
+        <li><a href="#driftproof">5. Drift-proof extension</a></li>
+        <li><a href="#tenancy">6. Multi-tenant by account</a></li>
+        <li><a href="#deviceglobal">7. Device-global vs. data</a></li>
+        <li><a href="#separate">8. Keep distinct signals distinct</a></li>
+        <li><a href="#oracles">9. Two oracles</a></li>
+        <li><a href="#flags">10. Flags off by default</a></li>
+        <li><a href="#docs">11. Decisions are docs</a></li>
+        <li><a href="#never-white">12. Never a silent white page</a></li>
+      </ul>
+    </div>
+
+    <h2 id="small">1. Deliberately small (the most important one)</h2>
+    <p>
+      Floaty solves exactly one problem: <strong>a helicopter view of who is busy, free, or overworked,
+      week by week</strong>, for small agencies with a few staff and rotating freelancers. That is the
+      entire product. It deliberately replaces a resourcing spreadsheet — not Float, not a PSA suite.
+    </p>
+    <p>The owner-confirmed <strong>non-goals</strong> are written down so they can be defended:</p>
+    <ul>
+      <li>No budgets or money.</li>
+      <li>No timesheets.</li>
+      <li>No hour-granularity workflows (week granularity is the grain).</li>
+      <li>No mobile <em>views</em> (light mobile <em>affordances</em> are the single agreed exception).</li>
+      <li>No per-seat / per-feature gating.</li>
+    </ul>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Reject features that add process or granularity. When a request would grow the surface, the default
+      answer is no, and the non-goal is cited. A sibling repo has its <em>own</em> one-sentence problem
+      statement and its <em>own</em> non-goals list — write them first, in its <code>CLAUDE.md</code> and
+      <code>DECISIONS.md</code>, before any feature work.</p>
+    </div>
+    <div class="callout why">
+      <span class="label">Why</span>
+      <p>Scope is the thing that kills small, sharp tools. Writing the non-goals down converts a thousand
+      future "could we just…" conversations into one citation. It also makes the codebase legible: a reader
+      can trust that the absence of timesheets is a decision, not an omission.</p>
+    </div>
+
+    <h2 id="local">2. Local-first by default, server-optional behind one seam</h2>
+    <p>
+      With zero configuration the app has <strong>no backend and no login</strong>. The whole dataset is one
+      <code>AppData</code> blob in <code>localStorage</code> (under a versioned key). It never leaves the
+      device. This is the default a new contributor, a demo, and the test suite all run against.
+    </p>
+    <p>
+      An <strong>optional</strong> Node + <code>node:sqlite</code> REST API plugs in behind the same
+      <code>PersistenceAdapter</code> interface, switched on by a single build-time env var
+      (<code>VITE_FLOATY_API</code>). When it is on, the app talks to the server through that one seam and
+      <em>nothing else in the app changes</em>. Server mode is last-writer-wins with no per-user isolation —
+      a deliberate, documented posture, not an oversight.
+    </p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>There is exactly one persistence seam — the <code>PersistenceAdapter</code> interface. Local storage
+      and server sync are two implementations of it. No component, store action, or selector may know which
+      one is active. Adding a third backend means adding a third implementation, never a second seam.</p>
+    </div>
+
+    <h2 id="nodrift">3. One source of truth, shared so it cannot drift</h2>
+    <p>
+      The pure domain core — types, validation, integrity rules, cascade-delete, import-remap, migration,
+      seed — lives in a workspace package (<code>@floaty/shared</code>) that is <strong>imported by both the
+      web app and the server</strong>. There is no second copy of the rules on the server. Server-side
+      validation is <em>literally the client's code running in Node</em>.
+    </p>
+    <div class="callout why">
+      <span class="label">Why</span>
+      <p>The classic failure mode of a client + server pair is rule drift: the client clamps hours to 24, the
+      server forgets to, and a hand-crafted request stores garbage. By making it physically the same module,
+      drift is not "discouraged" — it is impossible. The package has <strong>no</strong> environment
+      dependencies (no React, no DOM, no Zustand, no <code>localStorage</code>) precisely so it can run in
+      both places.</p>
+    </div>
+
+    <h2 id="repair">4. Forms reject; import and the server strip/repair</h2>
+    <p>
+      Every constrained field has <strong>one</strong> rule, enforced two ways depending on who is at the
+      keyboard:
+    </p>
+    <table>
+      <thead><tr><th>Surface</th><th>Mode</th><th>Because</th></tr></thead>
+      <tbody>
+        <tr><td>A person at a form</td><td><strong>Reject</strong> — show an inline error, keep the dialog open</td><td>They can fix it; teaching them is better than silently changing their input.</td></tr>
+        <tr><td>A machine import or a direct API write</td><td><strong>Repair or drop</strong> — clean text, clamp numbers, mint a fresh id, drop a record with a dangling required FK</td><td>There is no human to prompt; rejecting the whole file because one row is bad is worse than salvaging the rest.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>The <em>definition</em> of each rule (max length, allowed characters, hours clamp) is a single shared
+      function. The form calls it to <em>test</em> ("is this disallowed?"); the import path calls a sibling
+      function to <em>fix</em> ("clean this"). They can never disagree because they read the same constants.
+      See <a href="04-domain-core.html#validation">Domain core → Validation</a>.</p>
+    </div>
+
+    <h2 id="driftproof">5. Extending an entity is drift-proofed by the compiler</h2>
+    <p>
+      Adding a field to an entity touches several parallel lists: the type, the import sanitiser's switch, the
+      foreign-key map, the server's column spec and creation order. Forgetting one would normally be a silent
+      data-loss bug. Here, each list is <strong>exhaustiveness-checked against the types</strong>, so a missed
+      list is a <em>compile error</em>, and fully-populated fixtures round-trip through the server tests so a
+      dropped field <em>fails the gate</em>.
+    </p>
+    <div class="callout do">
+      <span class="label">Do this</span>
+      <p>When you add a field, follow the path on rails: <code>shared types</code> →
+      <code>fixtures.ts</code> (set the new field to a non-default value) → <code>server tables.ts</code>
+      columns (the auto-ALTER adds the DB column) → the sanitiser. If you miss a step, the build tells you
+      exactly where. Page <a href="03-architecture.html#extension">03</a> walks the whole path.</p>
+    </div>
+
+    <h2 id="tenancy">6. Multi-tenant by account, through one read seam</h2>
+    <p>
+      Every domain entity carries an <code>accountId</code>. You pick a company on load; the dataset is scoped
+      to it. The active account id is held in memory and <strong>never persisted</strong> — it is a runtime
+      selection, not part of the data. All scoped reads go through one hook/function so a read filter, a write
+      guard, and a cascade can never independently define "belongs to account X".
+    </p>
+    <div class="callout warn">
+      <span class="label">Posture, stated honestly</span>
+      <p>In the current trust model, the account picker is <strong>convenience scoping, not a security
+      boundary</strong>. <code>accountId</code> is client-asserted; the server's ownership check is
+      defence-in-depth, not isolation. This is fine for a trusted demo and is documented as such — turning it
+      into a real boundary is a named future stage, not a default. Never expose isolated user data on this
+      model.</p>
+    </div>
+
+    <h2 id="deviceglobal">7. Device-global preferences are separate from the dataset</h2>
+    <p>
+      Theme, utilisation display toggles, allocation-bar label toggles, and sidebar collapsed-state are
+      <strong>per-device preferences</strong>, not data. Each lives under its own <code>localStorage</code>
+      key and is excluded from <code>AppData</code> and from export/import.
+    </p>
+    <div class="callout why">
+      <span class="label">Why</span>
+      <p>If theme were in the dataset, importing a colleague's export would flip your colour scheme, and the
+      server would sync your personal display choices to everyone. A preference about <em>this screen</em>
+      belongs to the screen. The default theme is <strong>light</strong>; <code>system</code> follows the OS;
+      a flash-of-wrong-theme guard runs before first paint.</p>
+    </div>
+
+    <h2 id="separate">8. Keep conceptually distinct signals distinct</h2>
+    <p>
+      A recurring discipline: when two things <em>look</em> similar but answer <em>different questions</em>,
+      they get separate code paths and separate names, and merging them is explicitly forbidden. Floaty's
+      canonical example is its two "over-capacity" signals:
+    </p>
+    <ul>
+      <li>The per-day <strong>over-marker</strong> flags <em>any</em> work on a zero-capacity day.</li>
+      <li><strong>Utilisation&nbsp;%</strong> is a working-day ratio over a fixed forward 14-day window from today.</li>
+    </ul>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>They answer different questions ("is anything booked on a day off?" vs. "how loaded is this person
+      this fortnight?") so they are never merged. Your sibling will have its own such pairs — find them, name
+      them distinctly, and write the "don't merge these" note where the next person will see it. Naming is
+      part of this: it is always "Utilisation", never "Load", everywhere in Floaty.</p>
+    </div>
+
+    <h2 id="oracles">9. Two oracles beyond "the tests pass"</h2>
+    <p>
+      Automated tests assert behaviour, not appearance — role and DOM assertions prove that a button does the
+      thing, not that it looks right. Two additional oracles cover what assertions can't:
+    </p>
+    <ul>
+      <li><strong>Screenshots are the visual oracle.</strong> The E2E suite captures real renders at key states for human inspection.</li>
+      <li><strong><code>@axe-core/playwright</code> is the accessibility oracle</strong>, run in light mode, dark mode, and with a modal open — failing the suite on any serious/critical WCAG violation.</li>
+    </ul>
+    <p>Accessibility is therefore a gate, not an afterthought. See <a href="08-testing.html#oracles">Testing → The two oracles</a>.</p>
+
+    <h2 id="flags">10. Every behavioural change ships behind a flag, default OFF</h2>
+    <p>
+      Production-hardening and new server behaviours are introduced behind environment flags whose
+      <strong>unset state is byte-for-byte today's behaviour</strong>. The flags are <code>FLOATY_*</code> on
+      the server (runtime) and <code>VITE_FLOATY_*</code> on the client (build-time, inlined). Flag parsing is
+      <strong>fail-closed</strong>: a non-numeric rate limit, a typo'd auth mode, a missing secret — each
+      means "off" or "refuse to boot", never "accidentally on".
+    </p>
+    <div class="callout do">
+      <span class="label">Do this</span>
+      <p>A handful of changes are deliberately <em>not</em> flagged — graceful shutdown, a production
+      safety-interlock, a Node version bump. The test is: would an "off" default <em>preserve a defect</em>?
+      If yes, don't flag it; fix it. Otherwise, flag it off. Document the exceptions with their rationale, as
+      Floaty does in its flag register.</p>
+    </div>
+
+    <h2 id="docs">11. Decisions are documentation, and documentation is cheap to keep</h2>
+    <p>The repo treats its own decisions as a first-class artifact, split by access pattern so keeping it current is nearly free:</p>
+    <dl class="defs">
+      <dt>DECISIONS.md</dt><dd>A slim, present-tense digest of the calls that still constrain the code. Read whole; short by design.</dd>
+      <dt>docs/decisions-log.md</dt><dd>An append-only, dated history of every review/remediation round. Large — you grep it or tail it, never read it whole.</dd>
+      <dt>NEEDS-INPUT.md</dt><dd>Open product questions. You <em>flag</em> these, you don't silently resolve them.</dd>
+      <dt>CLAUDE.md</dt><dd>The short working-notes file loaded into the AI pair's context every session — the load-bearing invariants in one breath.</dd>
+      <dt>user-stories/</dt><dd>Manual test scripts kept 1:1 with the Playwright specs, with one REFERENCE file as their single source of truth.</dd>
+    </dl>
+    <p>The full mechanics — how to log a decision in one line, when to promote it to the digest — are on page <a href="09-process-and-workflow.html">09</a>.</p>
+
+    <h2 id="never-white">12. A JS-less load is never a silent white page</h2>
+    <p>
+      A small but characteristic decision that captures the house attitude to failure. The entire app is
+      JS-rendered, so a browser that blocks scripts would otherwise show a blank page with an empty console —
+      undiagnosable. So <code>index.html</code> ships a static placeholder inside <code>#root</code> ("Loading…
+      if this doesn't go away, JavaScript isn't running") that React replaces on mount, plus a
+      <code>&lt;noscript&gt;</code> banner for the JS-disabled case.
+    </p>
+    <div class="callout why">
+      <span class="label">Why this is a principle, not a detail</span>
+      <p>The instinct it encodes — <em>a failure should diagnose itself, never present as a mysterious
+      blank</em> — recurs everywhere in this codebase: the dev server binds loudly rather than silently on the
+      wrong port; the server throws at startup on schema drift rather than failing on a later write; load
+      errors route to a specific recovery screen rather than an empty app. Carry the instinct, not just the
+      placeholder.</p>
+    </div>
+
+    <div class="pager">
+      <a href="index.html"><span class="dir">Previous</span>← 00 · Home</a>
+      <a class="next" href="02-repo-and-tooling.html"><span class="dir">Next</span>02 · Repository &amp; tooling →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

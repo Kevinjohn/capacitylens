@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>07 · Optional server — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html" class="active"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Build / 07</div>
+      <p class="eyebrow">Build</p>
+      <h1>The optional server</h1>
+      <p class="lead">An opt-in Fastify + <code>node:sqlite</code> REST API that plugs in behind the
+      persistence seam. It is deliberately a <strong>thin shell over the shared core</strong> — it owns
+      transport, storage, and ops concerns, and delegates every domain rule to the same code the client runs.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#stack">Stack &amp; the thin-shell rule</a></li>
+        <li><a href="#app">App structure &amp; routes</a></li>
+        <li><a href="#validate">Two-layer validation</a></li>
+        <li><a href="#tables">Auto-ALTER column specs</a></li>
+        <li><a href="#codec">Row codec</a></li>
+        <li><a href="#db">Connection &amp; migration</a></li>
+        <li><a href="#hardening">Hardening modules</a></li>
+        <li><a href="#env">Env vars</a></li>
+        <li><a href="#http">HTTP &amp; error conventions</a></li>
+      </ul>
+    </div>
+
+    <h2 id="stack">Stack &amp; the thin-shell rule</h2>
+    <p><strong>Fastify 5</strong> (with its bundled pino logger and <code>@fastify/rate-limit</code>),
+    <strong><code>node:sqlite</code></strong> (<code>DatabaseSync</code> + the online <code>backup</code> API) —
+    <em>no ORM, no driver library</em>. Node 24+ is required because <code>node:sqlite</code> needs no flag
+    there. The server runs its TypeScript directly via <code>tsx</code> (no build), and consumes
+    <code>@floaty/shared</code> as a workspace dependency.</p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>The server contains <strong>no copy of any domain rule</strong>. Validation, sanitisation, integrity,
+      cascade, and import all come from <code>@floaty/shared</code>. The server's job is HTTP + SQLite + ops.
+      When a request needs to validate, it calls the client's validators. "Server validation is client
+      validation" is structural here, not a goal.</p>
+    </div>
+    <div class="filename">server/src/README + module comments capture the spirit</div>
+<pre><code><span class="c">// Imports the same pure domain-core the client uses — @floaty/shared/domain/mutations,</span>
+<span class="c">// @floaty/shared/data/{migrate,seed,transfer}, /types/entities, /lib/* — so server-side</span>
+<span class="c">// validation, integrity, cascade and import rules are literally the client's code.</span></code></pre>
+
+    <h2 id="app">App structure &amp; the route table</h2>
+    <p>The app is built by a factory, <code>buildApp(db, opts)</code>, returning a Fastify instance. The entry
+    point calls it once; tests call it repeatedly against a <code>:memory:</code> DB via
+    <code>app.inject()</code> (no separate HTTP client). Hooks register in a deliberate order, and routes live
+    in a child plugin so the rate-limit plugin's <code>onRoute</code> hook can attach to them.</p>
+    <table>
+      <thead><tr><th>Method · Path</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /api/health</code></td><td>Liveness. Deep mode proves a DB read (200 <code>{ok,db:true}</code> / 503). Exempt from rate limiting. Used by Playwright's webServer probe.</td></tr>
+        <tr><td><code>GET /api/auth/me</code></td><td>Identity — exists in <em>every</em> mode so the client never forks. Off → the demo identity; on → the session user (401 if none).</td></tr>
+        <tr><td><code>GET /api/state</code></td><td>Whole <code>AppData</code> tree — backs the client's <code>loadAll()</code>.</td></tr>
+        <tr><td><code>GET /api/meta</code></td><td><code>{ hasData }</code> from the init marker — backs <code>hasExisting()</code>.</td></tr>
+        <tr><td><code>POST /api/:entity</code></td><td>Create one row (201).</td></tr>
+        <tr><td><code>PUT /api/:entity/:id</code></td><td>Idempotent upsert. URL/body id must match; <code>ownsRow</code> check; optional optimistic-concurrency check.</td></tr>
+        <tr><td><code>PATCH /api/:entity/:id</code></td><td>True partial merge (<code>{...existing, ...body, id}</code>) then validate; 404 if absent.</td></tr>
+        <tr><td><code>DELETE /api/:entity/:id</code></td><td>Idempotent. Scoped tables require <code>?accountId=</code> (400 absent, 404 cross-account).</td></tr>
+        <tr><td><code>POST /api/batch</code></td><td><strong>The write path the sync adapter uses.</strong> <code>{ ops: [...] }</code> applied in one transaction, in op order.</td></tr>
+        <tr><td><code>POST /api/import</code></td><td><code>{ accountId, data }</code> → reuses <code>parseData</code> + <code>remapAndValidateImport</code> → replaces that account's slice.</td></tr>
+        <tr><td><code>POST /api/test/reset</code></td><td>Wipe (+ optional reseed). Gated by <code>FLOATY_ALLOW_RESET=1</code>; refused in production by a boot-guard.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout why">
+      <span class="label">Two ordering subtleties worth copying</span>
+      <p><strong>(1)</strong> The CORS/preflight hook is on the <em>root</em> instance, not the routes child —
+      <code>OPTIONS</code> requests match no route, and only root-level hooks run on the not-found path; moving
+      it into the child once silently broke all cross-origin writes. <strong>(2)</strong> Inside
+      <code>/api/batch</code>, <code>loadState()</code> is read <em>inside</em> the transaction, so a child op
+      validates against a parent upserted earlier in the same batch.</p>
+    </div>
+
+    <h2 id="validate">Two-layer validation on every write</h2>
+    <p>Every POST/PUT/PATCH/batch-op passes through two shared-core layers, so a hand-crafted request can't
+    persist junk:</p>
+    <div class="filename">server/src/validate.ts</div>
+<pre><code><span class="c">// Layer 1 — sanitizeWrite: requires a non-empty id, then repairs value-level fields</span>
+<span class="c">// using the SAME sanitiser the import path uses (one code path = parity).</span>
+<span class="k">export function</span> <span class="f">sanitizeWrite</span>(table: string, row: <span class="t">Record</span>&lt;string, unknown&gt;) {
+  assertIdPresent(row)                <span class="c">// 400 if id missing/null/'' — TEXT PRIMARY KEY would store NULL otherwise</span>
+  <span class="k">const</span> copy = { ...row }            <span class="c">// never mutate input</span>
+  <span class="k">if</span> (table === 'accounts') { <span class="c">/* hex colour, cleanText name, drop junk schedulingMode, sanitizeAccount */</span> <span class="k">return</span> copy }
+  <span class="k">if</span> (isScopedKey(table)) <span class="k">return</span> sanitizeImportedRecord(table, copy)   <span class="c">// shared core</span>
+  <span class="k">return</span> copy
+}
+
+<span class="c">// Layer 2 — validateWrite: referential integrity + date ranges, via shared asserts.</span>
+<span class="c">// Any thrown Error becomes a ValidationError (so routes return 400, not 500).</span>
+<span class="k">export function</span> <span class="f">validateWrite</span>(state: <span class="t">AppData</span>, table: string, row: <span class="t">Record</span>&lt;string, unknown&gt;): void</code></pre>
+    <p>The tenant guard, <code>ownsRow</code>, makes <code>accountId</code> immutable: a PUT/PATCH that tries to
+    re-home a row to another account is <strong>409</strong>; a scoped DELETE without the owning
+    <code>accountId</code> is <strong>400</strong>, and against the wrong owner <strong>404</strong>. This is
+    defence-in-depth, not isolation (the account is still client-asserted — page 10's Stage C is where that
+    changes).</p>
+
+    <h2 id="tables">The auto-ALTER, compile-checked column specs</h2>
+    <p>This is the server end of the entity-extension rails (page 03). Each table's columns are declared as a
+    typed tuple, <strong>checked bidirectionally against the entity type</strong>, and the DB is auto-ALTERed
+    to add any missing columns on open.</p>
+    <div class="filename">server/src/tables.ts</div>
+<pre><code><span class="k">export interface</span> <span class="t">ColumnSpec</span> { name: string; json?: boolean; optional?: boolean }
+
+<span class="c">// Bidirectional check: every column name is a key of E, AND every key of E is a column.</span>
+<span class="k">type</span> <span class="t">CheckColumns</span>&lt;E, Cols <span class="k">extends</span> readonly <span class="t">ColumnSpec</span>[]&gt; =
+  Cols[number]['name'] <span class="k">extends</span> keyof E
+    ? <span class="t">Exclude</span>&lt;keyof E, Cols[number]['name']&gt; <span class="k">extends</span> never ? true : never
+    : never
+
+<span class="k">const</span> COLS_resources = [
+  { name: 'id' }, { name: 'accountId' }, { name: 'kind' }, { name: 'name', optional: true },
+  { name: 'role' }, { name: 'disciplineId', optional: true }, { name: 'employmentType' },
+  { name: 'workingHoursPerDay' }, { name: 'workingDays', json: true },
+  { name: 'projectId', optional: true }, { name: 'color' }, ...META,
+] <span class="k">as const satisfies</span> <span class="t">ColumnSpec</span>[]
+
+<span class="k">declare const</span> _checkResources: <span class="t">CheckColumns</span>&lt;<span class="t">Resource</span>, typeof COLS_resources&gt;  <span class="c">// fails build on drift</span></code></pre>
+    <p>The creation/scoped orders carry the same <code>Exclude&lt;…&gt; extends never</code> exhaustiveness
+    guard seen in <code>syncOps.ts</code>, and <code>SCHEMA_SQL</code>'s FK cascade rules mirror
+    <code>integrity.ts</code> exactly (annotated in comments). On open, <code>migrateSchema</code> introspects
+    the live DB and adds any column present in a spec but missing in the table — so step 3 of the field-addition
+    procedure (page 03) is "add the column spec", and the DB upgrades itself.</p>
+    <div class="callout do">
+      <span class="label"><code>as const satisfies ColumnSpec[]</code> is the magic incantation</span>
+      <p><code>as const</code> makes TS infer the literal tuple (so <code>Cols[number]['name']</code> is a string
+      <em>literal union</em>, not just <code>string</code>); <code>satisfies ColumnSpec[]</code> keeps the
+      element shapes checked. Together they let <code>CheckColumns</code> compare names to entity keys exactly.
+      Copy this idiom for any "list that must mirror a type".</p>
+    </div>
+
+    <h2 id="codec">Row codec — arrays/booleans/optionals across the SQLite boundary</h2>
+    <p>Pure functions translate between domain objects and SQLite rows, driven by the column specs:</p>
+    <div class="filename">server/src/rowCodec.ts</div>
+<pre><code><span class="c">// json:true columns (arrays like workingDays, booleans like ignoreWeekends) are</span>
+<span class="c">// JSON.stringify'd on write / JSON.parse'd on read — node:sqlite can't bind a raw boolean.</span>
+<span class="c">// optional:true columns: NULL in the DB maps to OMISSION in JS (the key is unset), so a</span>
+<span class="c">// round-trip deep-equals the original client object — no stray null fields.</span>
+<span class="k">export function</span> <span class="f">toRow</span>(spec: <span class="t">TableSpec</span>, obj: <span class="t">Row</span>): <span class="t">SQLInputValue</span>[]
+<span class="k">export function</span> <span class="f">fromRow</span>(spec: <span class="t">TableSpec</span>, row: <span class="t">Row</span>): <span class="t">Row</span></code></pre>
+
+    <h2 id="db">Connection, migration &amp; the init marker</h2>
+    <div class="filename">server/src/db.ts</div>
+<pre><code><span class="k">export function</span> <span class="f">openDb</span>(path: string): <span class="t">Db</span> {
+  <span class="k">const</span> db = <span class="k">new</span> DatabaseSync(path)
+  db.exec('PRAGMA journal_mode = WAL;')   <span class="c">// concurrent reads; cp can't catch a torn write</span>
+  db.exec('PRAGMA busy_timeout = 5000;')  <span class="c">// wait for a lock instead of throwing SQLITE_BUSY</span>
+  db.exec(SCHEMA_SQL)                      <span class="c">// CREATE TABLE IF NOT EXISTS … (no-op on existing tables)</span>
+  migrateSchema(db)                        <span class="c">// add any missing optional columns; rebuild tasks if needed</span>
+  assertSchemaCurrent(db)                  <span class="c">// LOUD startup throw on any required-column / NULL drift</span>
+  <span class="k">if</span> (!isInitialized(db) &amp;&amp; !isEmpty(loadState(db))) markInitialized(db)  <span class="c">// backfill pre-marker DBs</span>
+  db.exec('PRAGMA foreign_keys = ON;')    <span class="c">// enforced AFTER migration (table rebuilds are FK-unsafe)</span>
+  <span class="k">return</span> db
+}</code></pre>
+    <div class="callout why">
+      <span class="label">Two principle-12 details</span>
+      <p><code>assertSchemaCurrent</code> throws <em>at startup</em> on any column drift or
+      <code>optional?</code>-vs-<code>NULL</code> mismatch, instead of failing silently on a later write — the
+      same "fail loud, fail early" instinct as the dev-server port pin. And <code>foreign_keys</code> is turned
+      ON only <em>after</em> migration, because table rebuilds (drop/rename) are FK-unsafe;
+      <code>node:sqlite</code> defaults it off.</p>
+    </div>
+    <p>The <strong>init marker</strong> is a <code>_meta</code> row, not a row count: a user who deletes all
+    their data keeps <code>initialized=1</code>, so the demo never re-seeds (mirroring the client's seed-once
+    rule). <code>upsertRow</code> excludes <code>createdAt</code> from its <code>SET</code> clause —
+    <code>createdAt</code> is immutable, so a re-PUT must never rewrite it. Bulk operations (<code>insertAll</code>,
+    <code>wipe</code>, <code>replaceAccountSlice</code>) run inside one <code>tx()</code>.</p>
+    <div class="filename">server/src/txn.ts (the whole helper)</div>
+<pre><code><span class="k">export function</span> <span class="f">tx</span>(db: <span class="t">Db</span>, fn: () =&gt; void): void {
+  db.exec('BEGIN')
+  <span class="k">try</span> { fn(); db.exec('COMMIT') } <span class="k">catch</span> (e) { db.exec('ROLLBACK'); <span class="k">throw</span> e }
+}</code></pre>
+
+    <h2 id="hardening">Production-hardening modules — all flag-gated, default OFF</h2>
+    <p>Each lives in its own module, is enabled by an env flag, and its unset state is exactly today's
+    behaviour. The flag parsers are fail-closed.</p>
+    <dl class="defs">
+      <dt>auth.ts (Better Auth)</dt><dd><code>FLOATY_AUTH=off|password|sso</code>. <strong>Off</strong>: Better Auth is never initialised — no auth tables, no <code>/api/auth/*</code> routes beyond the thin <code>/api/auth/me</code>, and every request carries a synthetic <code>DEMO_USER</code>. Any unknown value refuses to boot. On modes require <code>BETTER_AUTH_SECRET</code> + <code>BETTER_AUTH_URL</code> (boot refusal if missing). The auth library's own tables live in the same SQLite file but are deliberately outside the entity drift-proofing lists (commented as such).</dd>
+      <dt>backup.ts</dt><dd><code>FLOATY_BACKUP_DIR</code> set → online <code>backup()</code> snapshots (<code>floaty-&lt;YYYYMMDD-HHmmss&gt;.db</code>) once at boot then hourly; prune to the newest <code>FLOATY_BACKUP_KEEP</code> (48). The timer is <code>unref()</code>'d (must not keep a draining process alive); failed snapshots log and continue. Unset → no timer, no filesystem writes.</dd>
+      <dt>bootGuard.ts</dt><dd><code>resetForbidden(env)</code> = <code>FLOATY_ALLOW_RESET==='1' &amp;&amp; NODE_ENV==='production'</code>. If true, the process exits 1 before listening — the destructive reset route can never be reachable in production.</dd>
+      <dt>shutdown.ts</dt><dd>On SIGTERM/SIGINT: <code>await app.close()</code> (drain in-flight) → <code>db.close()</code> → exit 0. A second signal force-exits 1. Injected <code>app</code>/<code>db</code>/<code>exit</code> make it unit-testable.</dd>
+      <dt>rate limit</dt><dd><code>FLOATY_RATE_LIMIT=&lt;n&gt;</code>, parsed by <code>/^\d+$/</code> (fail-closed: <code>0</code>/non-numeric/unset = off, plugin not registered). <code>/api/health</code> exempt. Behind the loopback proxy it trusts <code>X-Forwarded-For</code>; on a directly-exposed host it ignores it (spoofable).</dd>
+      <dt>logging / health-deep</dt><dd><code>FLOATY_LOG=1</code> → Fastify's bundled pino (JSON per request); off → startup line + <code>console.error</code> on 500s. <code>FLOATY_HEALTH_DEEP=1</code> → health proves a <code>SELECT 1</code>.</dd>
+    </dl>
+    <div class="callout do">
+      <span class="label">The OFF-guarantee, enforced by the test suite</span>
+      <p>"Off = byte-for-byte today" is not a claim, it's a test: the entire existing server + E2E suites run in
+      off mode and must stay green. When you add a flagged feature, the proof that its default is inert is that
+      every prior test passes unchanged.</p>
+    </div>
+
+    <h2 id="env">Environment variables</h2>
+    <table>
+      <thead><tr><th>Var</th><th>Default</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>FLOATY_DB</code></td><td><code>floaty.db</code></td><td>SQLite path (<code>:memory:</code> works).</td></tr>
+        <tr><td><code>PORT</code></td><td><code>8787</code></td><td>Listen port.</td></tr>
+        <tr><td><code>FLOATY_HOST</code></td><td><code>127.0.0.1</code></td><td>Listen host — localhost-only by default; <code>0.0.0.0</code> to expose.</td></tr>
+        <tr><td><code>FLOATY_CORS_ORIGIN</code></td><td>local dev origins</td><td>Allow-list (comma-sep) or <code>*</code>. Defaults so the API isn't open to every site.</td></tr>
+        <tr><td><code>FLOATY_ALLOW_RESET</code></td><td>off</td><td><code>1</code> exposes the reset route (dev/E2E only; boot-guard blocks it in prod).</td></tr>
+        <tr><td><code>FLOATY_OPTIMISTIC_CONCURRENCY</code></td><td>off</td><td><code>1</code> rejects a stale overwrite with 409 instead of last-writer-wins.</td></tr>
+        <tr><td><code>FLOATY_LOG</code> · <code>FLOATY_HEALTH_DEEP</code> · <code>FLOATY_RATE_LIMIT</code></td><td>off</td><td>Logging / deep health / rate limit (page 10's flag register).</td></tr>
+        <tr><td><code>FLOATY_BACKUP_DIR</code> (+ <code>_INTERVAL_MIN</code>=60, <code>_KEEP</code>=48)</td><td>off</td><td>Periodic online snapshots.</td></tr>
+        <tr><td><code>FLOATY_AUTH</code> (+ <code>BETTER_AUTH_*</code>, <code>FLOATY_SSO_*</code>)</td><td><code>off</code></td><td>Auth mode &amp; its required secrets.</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="http">HTTP status &amp; error conventions</h2>
+    <table>
+      <thead><tr><th>Code</th><th>When</th></tr></thead>
+      <tbody>
+        <tr><td>201 / 200 / 204</td><td>Create / update-read / delete (delete is idempotent — deleting a missing row is also 204).</td></tr>
+        <tr><td>400</td><td>Validation, missing/empty id, bad FK, missing required param, bad op shape, SQLite <code>/constraint failed/i</code>.</td></tr>
+        <tr><td>401 / 403</td><td>Auth required (on modes, no session) / reset disabled.</td></tr>
+        <tr><td>404 / 409</td><td>Unknown entity or missing row, cross-account delete / <code>accountId</code> immutability or stale overwrite.</td></tr>
+        <tr><td>413 / 429 / 503</td><td>Body too large / rate limited / DB read failed (deep health).</td></tr>
+      </tbody>
+    </table>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>500 bodies are <em>always</em> generic (<code>{ error: 'Internal server error' }</code>) with the real
+      error logged server-side — never leak the raw SQLite message (it exposes column names/schema). A
+      <code>ValidationError</code> (a class) carries a safe, authored message and maps to 400. DB constraint
+      failures are classified 400 (caller fault) via an exact <code>/constraint failed/i</code> match, not a
+      loose one that could misclassify an unrelated 500.</p>
+    </div>
+
+    <div class="pager">
+      <a href="06-ui-conventions.html"><span class="dir">Previous</span>← 06 · UI &amp; components</a>
+      <a class="next" href="08-testing.html"><span class="dir">Next</span>08 · Testing &amp; the gate →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

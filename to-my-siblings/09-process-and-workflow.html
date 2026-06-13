@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>09 · Process &amp; workflow — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html" class="active"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Assure / 09</div>
+      <p class="eyebrow">Assure</p>
+      <h1>Process &amp; workflow</h1>
+      <p class="lead">How knowledge is captured and how change is governed. This is the part that lets a small
+      team (and an AI pair) keep moving fast without the decisions evaporating — and it is designed so that
+      keeping the docs current costs almost nothing.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#map">The docs map</a></li>
+        <li><a href="#claude">CLAUDE.md</a></li>
+        <li><a href="#log">Logging a decision</a></li>
+        <li><a href="#needs">Open questions</a></li>
+        <li><a href="#stories">The user-story system</a></li>
+        <li><a href="#modularity">The modularity rule</a></li>
+        <li><a href="#git">Git &amp; the merge bar</a></li>
+        <li><a href="#newsibling">Adopting this in a sibling</a></li>
+      </ul>
+    </div>
+
+    <h2 id="map">The docs map — split by access pattern</h2>
+    <p>Documentation is split not by topic but by <em>how it is read and written</em>, so each file stays cheap
+    to keep current. Know which file a fact belongs in.</p>
+    <table>
+      <thead><tr><th>File</th><th>What it is</th><th>How you read/write it</th></tr></thead>
+      <tbody>
+        <tr><td><code>CLAUDE.md</code></td><td>The load-bearing invariants in one breath; loaded into the AI pair's context every session.</td><td>Keep it <strong>short</strong>. Read whole. Edit only when an invariant changes.</td></tr>
+        <tr><td><code>DECISIONS.md</code></td><td>A slim, present-tense digest of standing calls that still constrain the code.</td><td>Read whole (it's short). Edit a line only when a load-bearing call changes.</td></tr>
+        <tr><td><code>docs/decisions-log.md</code></td><td>Append-only, dated history of every review/remediation round, with commit refs.</td><td><strong>Don't read whole</strong> (it's large). Grep it, or tail-read to append.</td></tr>
+        <tr><td><code>NEEDS-INPUT.md</code></td><td>Open product questions for the owner.</td><td>Flag here; don't silently resolve.</td></tr>
+        <tr><td><code>CODE_REVIEW.md</code></td><td>Findings from the big adversarial review passes (referenced by the log).</td><td>Reference when remediating.</td></tr>
+        <tr><td><code>user-stories/</code> (+ <code>REFERENCE.md</code>)</td><td>Manual test scripts, 1:1 with the E2E specs; REFERENCE is their source of truth.</td><td>Update REFERENCE first, then stories.</td></tr>
+        <tr><td><code>README.md</code>, <code>server/README.md</code></td><td>Stable orientation for a newcomer.</td><td>Touch rarely.</td></tr>
+        <tr><td><code>STRETCH.md</code></td><td>The aspirational backlog / definition of "polished".</td><td>A north star, not a tracker.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout why">
+      <span class="label">Why the digest/log split is the whole trick</span>
+      <p>A single growing decisions file becomes either too long to load or too lossy to trust. Splitting it
+      into a <em>short digest you always read</em> and a <em>long log you only append to</em> means: the
+      digest never costs much to load, the log never costs much to write, and the source code is always the
+      final authority with the digest as its index. This is the cheapest durable-memory pattern the repo has,
+      and the single most valuable process habit to carry into a sibling.</p>
+    </div>
+
+    <h2 id="claude">CLAUDE.md — the one file an agent must internalise</h2>
+    <p>Every repo carries a short <code>CLAUDE.md</code> that an AI pair (or a new human) reads first. It is
+    deliberately tiny — "keep this file short; it loads every session" — and contains: the one-sentence product
+    statement and non-goals; the architecture in one breath; the load-bearing invariants ("don't break"); the
+    docs map; how to log a decision; and the definition of the green gate.</p>
+    <div class="callout do">
+      <span class="label">Do this in a sibling</span>
+      <p>Write the sibling's <code>CLAUDE.md</code> first, before any feature work, by adapting Floaty's. The
+      sections are the same; the <em>contents</em> change (the product statement, the entity names, the
+      invariants specific to the new domain). It is the contract the rest of the repo is built to honour.</p>
+    </div>
+
+    <h2 id="log">Logging a decision (keep it cheap)</h2>
+    <p>The procedure is three steps, optimised so the common case is one appended line:</p>
+    <ol>
+      <li><strong>Append one line to <code>docs/decisions-log.md</code></strong> — <code>- 2026-06-13 — &lt;area&gt; — &lt;what changed&gt; (&lt;sha&gt;)</code>. Full rationale only for load-bearing calls.</li>
+      <li><strong>Append by reading the file <em>tail</em></strong> (open it near EOF), never the whole file — that locality is the entire point of the split.</li>
+      <li><strong>If the call constrains future work, promote it to <code>DECISIONS.md</code></strong> as one line. When a promoted call later changes, <em>edit that line</em> so the digest never drifts from the code.</li>
+    </ol>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Two directions, two files. New facts flow <em>down</em> into the append-only log; standing
+      constraints get promoted <em>up</em> into the digest and edited in place when they change. Never let the
+      digest accumulate dated history, and never let the log become something you have to read whole.</p>
+    </div>
+
+    <h2 id="needs">Open questions are flagged, not silently resolved</h2>
+    <p><code>NEEDS-INPUT.md</code> holds genuine product questions for the owner, grouped by status (parked,
+    resolved, genuinely open). The discipline: when you hit a question that is the <em>owner's</em> to answer —
+    a scope call, a UX trade-off, a posture decision — you <strong>flag it here</strong> rather than guessing
+    and baking the guess into code. Resolved questions are marked with the date and who decided, and
+    load-bearing resolutions are promoted to <code>DECISIONS.md</code>.</p>
+    <div class="callout why">
+      <span class="label">Why this matters for an AI pair specifically</span>
+      <p>An autonomous agent will happily resolve an ambiguous product question by inventing a reasonable-looking
+      answer. That is exactly the failure this file prevents: ambiguity about <em>the product</em> is escalated,
+      not resolved unilaterally. Ambiguity about <em>the code</em> (which the agent can verify) is resolved by
+      reading the source. Knowing which is which is a core competence here.</p>
+    </div>
+
+    <h2 id="stories">The user-story system</h2>
+    <p>Every capability has a runnable manual story under <code>user-stories/&lt;area&gt;/</code>. The shape is
+    fixed by a template: <em>goal</em> (one sentence) → <em>why</em> (the value) → <em>how</em> (numbered,
+    end-to-end steps from a defined precondition) → <em>acceptance criteria</em> (checkable ✅ assertions,
+    including edge/negative cases). Each story names its <strong>linked E2E test</strong> (or the unit
+    test/manual check when no dedicated spec exists), so manual scripts and the automated suite stay in
+    lock-step.</p>
+    <div class="filename">user-stories/TEMPLATE.md (the shape)</div>
+<pre><code># US-XXX-NN — &lt;short title&gt;
+**Area:** &lt;area&gt; · **Persona:** &lt;who&gt; · **Linked E2E:** `e2e/&lt;file&gt;.spec.ts` → "&lt;test title&gt;"
+
+## Goal     &lt;one sentence — the outcome the user wants&gt;
+## Why      &lt;the value/motivation&gt;
+## How (end-to-end)
+**Precondition:** &lt;starting state&gt;
+1. &lt;action&gt;  2. &lt;action&gt;  3. &lt;observed result&gt;
+## Acceptance criteria
+- ✅ &lt;a concrete, checkable assertion&gt;
+- ✅ &lt;edge/negative case where relevant&gt;</code></pre>
+    <p>And the single source of truth they all depend on:</p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule — REFERENCE-first</span>
+      <p><code>user-stories/REFERENCE.md</code> pins the exact current facts every story and spec depend on:
+      routes, control labels (accessible names), <code>data-testid</code>s, the first-run seed data, and the
+      domain rules a tester must know. <strong>When the app changes, update REFERENCE.md first</strong>, then
+      the affected stories, then the specs. This ordering is what stops a relabelled button from quietly
+      breaking the suite.</p>
+    </div>
+
+    <h2 id="modularity">The modularity rule — when you may refactor</h2>
+    <p>The codebase is opinionated about <em>when</em> structural change is allowed, because a refactor of a
+    hot, under-tested module is how regressions slip in:</p>
+    <ul>
+      <li><strong>Pure extractions land freely.</strong> Moving a pure function to its own file, lifting a constant, splitting out a tested helper — the green gate <em>proves</em> these safe, so they need no special ceremony.</li>
+      <li><strong>High-churn structural splits wait for a characterisation test.</strong> Slicing the store by concern, extracting a viewport hook, splitting the grid's render — these touch hot, stateful code. The rule: <strong>write a characterisation test that pins the current behaviour first</strong>, then do the split, and watch the test stay green.</li>
+    </ul>
+    <div class="callout do">
+      <span class="label">Do this</span>
+      <p>Before a risky refactor, ask: "does the gate already prove this safe?" If yes, go. If no, write the
+      test that <em>makes</em> it provable, then go. Never refactor a hot module and rely on eyeballing the
+      diff.</p>
+    </div>
+
+    <h2 id="git">Git &amp; the bar for merging</h2>
+    <ul>
+      <li><strong>Branch off <code>main</code></strong> for work; commit or push only when asked. Don't commit straight to the default branch.</li>
+      <li><strong>The merge bar is the full green gate</strong>: <code>npm run gate</code> + <code>npm run gate:server</code> + <code>npm run e2e</code>, plus any user-visible change reflected in REFERENCE.md and the stories. CI enforces it on every PR.</li>
+      <li><strong>Commit messages</strong> are conventional-ish and scoped (<code>feat(client): …</code>, <code>fix(scheduler): …</code>, <code>docs: …</code>) — see the recent history for the house style.</li>
+      <li><strong>One decisions-log line per landed change</strong>, with its commit ref.</li>
+    </ul>
+
+    <h2 id="newsibling">Adopting the process in a sibling</h2>
+    <p>The process files are as copyable as the code. To stand up a sibling's process layer:</p>
+    <ol>
+      <li>Copy <code>CLAUDE.md</code>, <code>DECISIONS.md</code>, <code>NEEDS-INPUT.md</code>, and the <code>docs/</code> + <code>user-stories/</code> skeletons.</li>
+      <li>Rewrite the product statement and non-goals for the new domain (page 01's rule).</li>
+      <li>Rewrite <code>user-stories/REFERENCE.md</code> for the new routes/labels/seed.</li>
+      <li>Start the decisions-log fresh; promote the standing architectural calls (which you inherited from this handbook) into the sibling's <code>DECISIONS.md</code> so they are explicit there too.</li>
+    </ol>
+
+    <div class="pager">
+      <a href="08-testing.html"><span class="dir">Previous</span>← 08 · Testing &amp; the gate</a>
+      <a class="next" href="10-deployment-and-ops.html"><span class="dir">Next</span>10 · Deployment &amp; ops →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

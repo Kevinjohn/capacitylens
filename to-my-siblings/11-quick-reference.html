@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>11 · Quick reference — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html" class="active"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Reference / 11</div>
+      <p class="eyebrow">Reference</p>
+      <h1>Quick reference</h1>
+      <p class="lead">The cheat-sheet you keep open. Naming at a glance, the comment style, every load-bearing
+      rule in one list, the anti-patterns, the exhaustiveness idioms, and a concrete, ordered runbook for
+      standardising a brand-new sibling repo.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#naming">Naming conventions</a></li>
+        <li><a href="#comments">Comment style</a></li>
+        <li><a href="#wheredoes">Where does X go?</a></li>
+        <li><a href="#golden">The golden rules</a></li>
+        <li><a href="#idioms">Exhaustiveness idioms</a></li>
+        <li><a href="#anti">Anti-patterns</a></li>
+        <li><a href="#newrepo">Standardise a new sibling</a></li>
+      </ul>
+    </div>
+
+    <h2 id="naming">Naming conventions at a glance</h2>
+    <table>
+      <thead><tr><th>Thing</th><th>Convention</th><th>Examples</th></tr></thead>
+      <tbody>
+        <tr><td>Types / interfaces</td><td><code>PascalCase</code></td><td><code>AppData</code>, <code>ScopedEntity</code>, <code>ValidationResult</code>, <code>BarLayout</code></td></tr>
+        <tr><td>Runtime constants</td><td><code>SCREAMING_SNAKE_CASE</code></td><td><code>SCOPED_KEYS</code>, <code>MAX_HOURS_PER_DAY</code>, <code>FK_TARGET</code>, <code>HISTORY_LIMIT</code></td></tr>
+        <tr><td>Functions / vars</td><td><code>camelCase</code></td><td><code>remapAndValidateImport</code>, <code>buildSchedulerModel</code></td></tr>
+        <tr><td>Boolean predicates</td><td><code>is/has/belongs/not</code> prefix</td><td><code>isValidISODate</code>, <code>hasDisallowedChars</code>, <code>belongsToAccount</code></td></tr>
+        <tr><td>Store actions</td><td><code>verb + noun</code>, no <code>handle</code></td><td><code>addClient</code>, <code>updateResource</code>, <code>setZoom</code>, <code>goToToday</code></td></tr>
+        <tr><td>Selectors</td><td><code>{entity}For{Parent}</code> / <code>{entity}ById</code>, no <code>get</code></td><td><code>allocationsForResource</code>, <code>taskById</code>, <code>resourcesByDiscipline</code></td></tr>
+        <tr><td>Event-handler props</td><td><code>on*</code></td><td><code>onClose</code>, <code>onConfirm</code>, <code>onAdd</code></td></tr>
+        <tr><td>Internal handlers</td><td>named by action</td><td><code>submit</code>, <code>requestClose</code>, <code>toggle</code></td></tr>
+        <tr><td>Component files</td><td><code>PascalCase.tsx</code></td><td><code>ClientForm.tsx</code>, <code>ResourceLane.tsx</code></td></tr>
+        <tr><td>Pure-logic files</td><td><code>camelCase.ts</code></td><td><code>schedulerModel.ts</code>, <code>layout.ts</code></td></tr>
+        <tr><td>Tests</td><td><code>.test.ts(x)</code> co-located; <code>.spec.ts</code> in e2e; <code>.db/.auth.spec.ts</code></td><td><code>ClientForm.test.tsx</code>, <code>scheduler.spec.ts</code></td></tr>
+        <tr><td><code>data-testid</code></td><td>kebab-case, role-named</td><td><code>client-row</code>, <code>allocation-bar</code>, <code>over-marker</code></td></tr>
+        <tr><td>Server env vars</td><td><code>FLOATY_*</code> (runtime)</td><td><code>FLOATY_DB</code>, <code>FLOATY_AUTH</code>, <code>FLOATY_RATE_LIMIT</code></td></tr>
+        <tr><td>Client env vars</td><td><code>VITE_FLOATY_*</code> (build-time)</td><td><code>VITE_FLOATY_API</code>, <code>VITE_FLOATY_BUILD_SHA</code></td></tr>
+        <tr><td>localStorage keys</td><td><code>{app}/{thing}</code></td><td><code>floaty/v3</code> (data), <code>floaty/theme</code>, <code>floaty/utilizationPrefs</code></td></tr>
+        <tr><td>Exports</td><td><strong>Named only</strong>, no defaults</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="comments">Comment style</h2>
+    <ul>
+      <li><strong>Every file opens with a 3–6 line block</strong> stating its role, who consumes it, and the invariant it enforces.</li>
+      <li><strong>Comments explain <em>why</em>, not <em>what</em></strong>. If the code is clear, no comment. If a decision is non-obvious, the rationale and the rejected alternative go in a comment.</li>
+      <li><strong>Dual-surface contracts are stated</strong>: when a constant/function is used by two divergent paths (form vs import, client vs server), say so ("used by client <em>and</em> server, so the two can't drift").</li>
+      <li><strong>Performance shortcuts name the invariant they depend on</strong>, at both ends (e.g. <code>isWithin</code>'s string-compare comment names the validator that guarantees zero-padding).</li>
+      <li><strong>Degenerate-case guards are always explained</strong> (why this clamp, why this fallback, why this iteration cap).</li>
+      <li><strong>JSDoc <code>/** */</code> on exported functions/types</strong> when the signature alone is insufficient; plain <code>//</code> inline elsewhere.</li>
+    </ul>
+
+    <h2 id="wheredoes">Where does X go?</h2>
+    <table>
+      <thead><tr><th>If it is…</th><th>It goes in…</th></tr></thead>
+      <tbody>
+        <tr><td>A rule about the data (validation, integrity, a derived value the server also needs)</td><td><code>shared/</code> (the core)</td></tr>
+        <tr><td>A pure browser-only utility (theme, fuzzy search, palette, drag/capacity math)</td><td><code>src/lib/</code></td></tr>
+        <tr><td>A state transition, id minting, undo, or persistence wiring</td><td><code>src/store/</code> &amp; <code>src/data/</code></td></tr>
+        <tr><td>Pixels, ARIA, event handling</td><td>a component in <code>src/components/</code></td></tr>
+        <tr><td>A shared UI primitive used across entities</td><td><code>src/components/common/</code></td></tr>
+        <tr><td>HTTP, SQLite, or an ops concern</td><td><code>server/src/</code></td></tr>
+        <tr><td>A non-component style constant</td><td>a <code>.ts</code> file (not <code>.tsx</code>)</td></tr>
+        <tr><td>A device preference (theme, toggles)</td><td>its own <code>localStorage</code> key — never <code>AppData</code></td></tr>
+      </tbody>
+    </table>
+    <p class="kdesc" style="color:var(--muted)">Default move: push logic <em>down</em> toward the core; keep
+    components thin.</p>
+
+    <h2 id="golden">The golden rules (load-bearing, consolidated)</h2>
+    <div class="callout rule">
+      <span class="label">Architecture</span>
+      <p>One persistence seam (<code>PersistenceAdapter</code>) — no code knows which backend is live. The core
+      imports nothing up the stack and no environment API. Dependencies point inward. One cast for the
+      scoped-table union, in one named seam (<code>scopedTables</code>).</p>
+    </div>
+    <div class="callout rule">
+      <span class="label">Data &amp; tenancy</span>
+      <p>Every entity carries <code>id</code> + <code>createdAt</code> + <code>updatedAt</code>; scoped entities
+      also carry <code>accountId</code>. The active account is never persisted. The tenancy predicate is defined
+      once. Switching accounts resets undo + per-account UI. The store owns ids, timestamps, and history; the
+      core computes next-data only.</p>
+    </div>
+    <div class="callout rule">
+      <span class="label">Validation</span>
+      <p>One rule per field, two modes: forms <em>reject</em> (validators return <code>ValidationResult</code>);
+      import + server <em>repair</em> (sanitisers + asserts that throw at the boundary). Required-FK dangling →
+      drop the row; optional-FK dangling → unbind. Import repair mirrors cascade, exactly.</p>
+    </div>
+    <div class="callout rule">
+      <span class="label">Extension</span>
+      <p>Adding a field flows on rails: types → fixtures (non-default value) → server column spec (auto-ALTER) →
+      sanitiser. Every parallel list is exhaustiveness-checked; a miss fails the build, not silently at runtime.</p>
+    </div>
+    <div class="callout rule">
+      <span class="label">UI</span>
+      <p>Every dialog is a <code>&lt;form noValidate&gt;</code> via <code>Modal</code>; Enter submits; only the
+      primary button is <code>type="submit"</code>. Semantic colour tokens only; dark mode is one
+      <code>data-theme</code> swap. Native <code>&lt;select&gt;</code>. Preset swatches only. Accessibility is a
+      gate. "Utilisation", never "Load".</p>
+    </div>
+    <div class="callout rule">
+      <span class="label">Server &amp; ops</span>
+      <p>Server is a thin shell over the core — no duplicated rules. 500 bodies are generic; never leak SQLite
+      errors. Every behaviour change ships behind a fail-closed flag, default OFF = today's behaviour. Backups
+      must have a tested restore. Rollback from server mode strands data — export first.</p>
+    </div>
+    <div class="callout rule">
+      <span class="label">Process</span>
+      <p>Decisions: append one line to the dated log (tail-read), promote load-bearing calls to the digest, edit
+      the digest line when they change. Flag open <em>product</em> questions; resolve <em>code</em> questions by
+      reading source. REFERENCE.md first, then stories, then specs. Pure extractions land freely; structural
+      splits need a characterisation test first. The merge bar is the full green gate.</p>
+    </div>
+
+    <h2 id="idioms">The three exhaustiveness idioms</h2>
+    <p>These are how the parallel lists are kept honest. Memorise them.</p>
+<pre><code><span class="c">// (1) Handle every member of a union — in a switch default:</span>
+<span class="k">default</span>: { <span class="k">const</span> _exhaustive: never = key; <span class="k">void</span> _exhaustive }
+
+<span class="c">// (2) Every value of a lookup map must be a valid union member:</span>
+<span class="k">const</span> FK_TARGET: <span class="t">Record</span>&lt;string, <span class="t">ScopedEntityKey</span>&gt; = { projectId: 'projects', /* … */ }
+
+<span class="c">// (3) This list covers every key of that type:</span>
+<span class="k">type</span> _Missing = <span class="t">Exclude</span>&lt;keyof <span class="t">AppData</span>, <span class="t">TableKey</span>&gt;
+<span class="k">const</span> _complete: _Missing <span class="k">extends</span> never ? true : never = true
+
+<span class="c">// (3b) Bidirectional column-spec check (server tables.ts), enabled by `as const satisfies`:</span>
+<span class="k">type</span> <span class="t">CheckColumns</span>&lt;E, C <span class="k">extends</span> readonly <span class="t">ColumnSpec</span>[]&gt; =
+  C[number]['name'] <span class="k">extends</span> keyof E
+    ? (<span class="t">Exclude</span>&lt;keyof E, C[number]['name']&gt; <span class="k">extends</span> never ? true : never) : never</code></pre>
+
+    <h2 id="anti">Anti-patterns — considered and rejected</h2>
+    <div class="callout dont">
+      <span class="label">Don't add abstraction this small product doesn't need</span>
+      <p>No generic store/CRUD factory, no schema-driven forms, no custom listbox replacing native
+      <code>&lt;select&gt;</code>, no ORM, no extra runtime libraries. Explicit hand-written forms/lists at this
+      scale beat the abstraction.</p>
+    </div>
+    <div class="callout dont">
+      <span class="label">Don't reintroduce silent failures</span>
+      <p>Don't drop the dev-server host pin or <code>strictPort</code> (silent wrong-port white page). Don't
+      remove the JS-less placeholder. Don't let the server fail on a later write instead of throwing at startup
+      on schema drift. Don't leak raw SQLite errors in 500 bodies.</p>
+    </div>
+    <div class="callout dont">
+      <span class="label">Don't merge distinct signals or mix data with preferences</span>
+      <p>Keep conceptually distinct signals on separate code paths (and name them differently). Never put theme
+      or display toggles in <code>AppData</code>/export. Never persist the active account id.</p>
+    </div>
+    <div class="callout dont">
+      <span class="label">Don't bypass the rails</span>
+      <p>Don't add a field to the type and skip the fixture/column/sanitiser. Don't put a floating promise
+      without <code>void</code>. Don't validate from a form by throwing, or swallow an assert at a write
+      boundary. Don't refactor a hot module without a characterisation test.</p>
+    </div>
+    <div class="callout dont">
+      <span class="label">Don't grow the scope</span>
+      <p>Reject features that add process or granularity unless the owner has changed the product statement.
+      Mobile <em>views</em>, budgets, timesheets, hour-granularity, per-seat gating are non-goals — cite them.</p>
+    </div>
+
+    <h2 id="newrepo">Runbook: standardise a new sibling repo</h2>
+    <p>An ordered, do-this-then-that sequence a developer or an agent can follow. Each step ends green.</p>
+    <ol>
+      <li><strong>Copy the toolchain</strong> (page 02): the three <code>package.json</code>s, five tsconfigs, <code>eslint.config.js</code>, <code>vite.config.ts</code>, <code>playwright.config.ts</code>, <code>index.html</code>, dotfiles. Rename the app, the <code>@scope/shared</code> package, and the env-var prefix. <code>npm install</code> at the root. Confirm an empty <code>npm run gate</code> passes.</li>
+      <li><strong>Write the product layer</strong> (page 01 + 09): the one-sentence problem statement and the non-goals, in the new <code>CLAUDE.md</code> and <code>DECISIONS.md</code>. Copy the standing architectural decisions from this handbook into <code>DECISIONS.md</code> so they're explicit.</li>
+      <li><strong>Define the data model</strong> (page 03–04): write <code>shared/src/types/entities.ts</code> for the new domain — keep the <code>Entity</code>/<code>ScopedEntity</code> bases, the tenant-at-top shape, required-vs-optional FKs, the enum + runtime-list pattern, the clamps, <code>SCOPED_KEYS</code>/<code>scopedTables</code>, <code>SCHEMA_VERSION</code>, <code>emptyAppData</code>/<code>isEmpty</code>.</li>
+      <li><strong>Port the core</strong> (page 04): bring over <code>lib/</code> (id, strings, dateMath, color where relevant), then write the domain's integrity validators + cascade transforms, the sanitiser (with the exhaustive switch), <code>tenancy.ts</code>, and <code>mutations.ts</code> (asserts + <code>remapAndValidateImport</code>). Write its unit tests as you go.</li>
+      <li><strong>Build the store &amp; seam</strong> (page 05): the Zustand store (Draft/Patch, stamp/touch, mutate, undo, requireAccount, action patterns), selectors, <code>useScopedData</code>, the <code>PersistenceAdapter</code> + <code>LocalStorageAdapter</code>, <code>persist.ts</code> bootstrap. (Add <code>ServerSyncAdapter</code> + <code>syncOps</code> when/if you do server mode.)</li>
+      <li><strong>Build the UI</strong> (page 06): copy <code>common/</code> wholesale (kit + Modal + fields), <code>index.css</code> tokens, the canonical form + list per entity, the domain's main view. Keep the a11y patterns.</li>
+      <li><strong>Stand up testing</strong> (page 08): <code>setup.ts</code>, fixtures, the frozen-clock <code>openApp</code> (set the constant to <em>your</em> seed window), <code>REFERENCE.md</code>, the a11y oracle. Write component + E2E coverage 1:1 with user stories.</li>
+      <li><strong>(Optional) Port the server</strong> (page 07): copy <code>tables.ts</code> (rewrite column specs for the new entities — the <code>CheckColumns</code> guard will tell you when they match), <code>rowCodec</code>, <code>db.ts</code>, <code>validate.ts</code>, <code>app.ts</code>, and the hardening modules. It is a thin shell — most of it is unchanged.</li>
+      <li><strong>Wire CI &amp; the gate</strong> (page 02/08): copy the CI workflow. The merge bar is <code>gate</code> + <code>gate:server</code> + <code>e2e</code> green.</li>
+      <li><strong>Deploy &amp; operate</strong> (page 10) only when needed: static SPA first; the server cutover, flag register, and backups only when a shared dataset is actually required.</li>
+    </ol>
+    <div class="callout do">
+      <span class="label">The end state</span>
+      <p>A sibling that a stranger could mistake for Floaty under the hood: same layers, same conventions, same
+      gate, same process — solving a different problem. That is what "standardise" means here, and it's the
+      whole reason this handbook exists. Welcome to the family.</p>
+    </div>
+
+    <div class="pager">
+      <a href="10-deployment-and-ops.html"><span class="dir">Previous</span>← 10 · Deployment &amp; ops</a>
+      <a class="next" href="index.html"><span class="dir">Back to</span>00 · Home →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

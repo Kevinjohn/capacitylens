@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>02 · Repository &amp; tooling — To my siblings</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
+    <p class="tagline">The Floaty house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html" class="active"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Orient / 02</div>
+      <p class="eyebrow">Orient</p>
+      <h1>Repository &amp; tooling</h1>
+      <p class="lead">The exact shape of the repo and every configuration file, with the reasoning for the
+      non-obvious settings. A sibling repo should start by copying these almost verbatim — the deps and
+      scripts are identical; only the package names change.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#tree">Directory tree</a></li>
+        <li><a href="#workspaces">The three workspaces</a></li>
+        <li><a href="#root-pkg">Root package.json</a></li>
+        <li><a href="#shared-pkg">shared / server package.json</a></li>
+        <li><a href="#ts">TypeScript config</a></li>
+        <li><a href="#eslint">ESLint</a></li>
+        <li><a href="#vite">Vite</a></li>
+        <li><a href="#html">index.html</a></li>
+        <li><a href="#dotfiles">Dotfiles</a></li>
+        <li><a href="#gate">The green gate</a></li>
+        <li><a href="#stack">The stack &amp; versions</a></li>
+      </ul>
+    </div>
+
+    <h2 id="tree">Directory tree</h2>
+    <p>The repo is an npm-workspaces monorepo with three packages. Tests are <strong>co-located</strong> with
+    the code they cover; only Playwright specs live apart in <code>e2e/</code>.</p>
+<pre><code>floaty-v1/
+├── src/                      <span class="c"># the web app (the root workspace)</span>
+│   ├── auth/                 <span class="c"># AuthProvider, LoginScreen (flag-gated)</span>
+│   ├── components/           <span class="c"># per-entity folders + common/ + scheduler/</span>
+│   ├── data/                 <span class="c"># PersistenceAdapter seam + adapters + bootstrap</span>
+│   ├── hooks/                <span class="c"># reusable hooks (useCrudListState, useFieldError, …)</span>
+│   ├── lib/                  <span class="c"># app-only pure utils (theme, palette, capacity, fuzzy…)</span>
+│   ├── store/                <span class="c"># Zustand store, selectors, scoping seam</span>
+│   ├── test/                 <span class="c"># vitest setup + shared fixtures</span>
+│   ├── index.css             <span class="c"># Tailwind v4 @theme tokens (the design system)</span>
+│   ├── main.tsx              <span class="c"># entry: theme + bootstrap + createRoot</span>
+│   └── router.tsx
+├── shared/                   <span class="c"># @floaty/shared — pure domain core (no DOM, no Node)</span>
+│   └── src/{types,lib,data,domain}/
+├── server/                   <span class="c"># floaty-server — optional Fastify + node:sqlite API</span>
+│   └── src/
+├── e2e/                      <span class="c"># Playwright specs (*.spec.ts, *.db.spec.ts, *.auth.spec.ts)</span>
+├── user-stories/             <span class="c"># manual test scripts, 1:1 with e2e; REFERENCE.md is canon</span>
+├── docs/                     <span class="c"># decisions-log, production-plan, runbook, deploy, …</span>
+├── public/                   <span class="c"># static assets served as-is</span>
+├── scripts/                  <span class="c"># serve-dist.mjs (the rehearsal /api proxy)</span>
+├── CLAUDE.md  DECISIONS.md  NEEDS-INPUT.md  CODE_REVIEW.md  README.md  STRETCH.md
+├── package.json  package-lock.json
+├── tsconfig.json  tsconfig.app.json  tsconfig.node.json
+├── eslint.config.js  vite.config.ts  playwright.config.ts  index.html
+└── .nvmrc  .gitignore  .gitattributes  .github/workflows/ci.yml</code></pre>
+
+    <h2 id="workspaces">The three workspaces and why the split exists</h2>
+    <table>
+      <thead><tr><th>Workspace</th><th>Package name</th><th>Role</th><th>Environment</th></tr></thead>
+      <tbody>
+        <tr><td>(root)</td><td><code>floaty</code></td><td>The web app — React/Vite SPA.</td><td>Browser</td></tr>
+        <tr><td><code>shared/</code></td><td><code>@floaty/shared</code></td><td>The pure domain core: types, validation, integrity, cascade, import-remap, migrate, seed, fixtures.</td><td>Agnostic (no DOM, no Node, no React)</td></tr>
+        <tr><td><code>server/</code></td><td><code>floaty-server</code></td><td>The optional SQLite REST API.</td><td>Node 24+</td></tr>
+      </tbody>
+    </table>
+    <div class="callout why">
+      <span class="label">Why a shared workspace and not a folder import</span>
+      <p>Making the core a real package with its own name means the app and the server import it by the same
+      specifier (<code>@floaty/shared/...</code>), the workspace linker guarantees they get the identical
+      code, and the boundary is enforced: the core <em>cannot</em> accidentally import a browser or Node API
+      because its own tsconfig doesn't include those libs. That boundary is what makes "server validation is
+      client validation" structurally true rather than merely intended.</p>
+    </div>
+
+    <h2 id="root-pkg">Root <code>package.json</code></h2>
+    <p>Copy this almost as-is; change <code>name</code> and the <code>@floaty/shared</code> dependency
+    specifier to your scope. Note <code>"type": "module"</code>, the <code>engines</code> pin, and the
+    <code>workspaces</code> array.</p>
+    <div class="filename">package.json</div>
+<pre><code>{
+  "name": "floaty",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": { "node": "&gt;=24" },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b &amp;&amp; vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "dev:api": "vite --port 5273",
+    "dev:auth": "vite --port 5373",
+    "e2e": "playwright test",
+    "gate": "tsc -b &amp;&amp; eslint . &amp;&amp; vitest run &amp;&amp; vite build",
+    "test:server": "npm test -w floaty-server",
+    "gate:server": "npm run type-check -w floaty-server &amp;&amp; npm test -w floaty-server"
+  },
+  "dependencies": {
+    "@floaty/shared": "*",
+    "better-auth": "^1.6.18",
+    "date-fns": "^4.3.0",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "react-router-dom": "^7.16.0",
+    "zustand": "^5.0.14"
+  },
+  "workspaces": ["shared", "server"]
+}</code></pre>
+    <p class="kdesc" style="color:var(--muted)">(devDependencies omitted here for brevity — they are the
+    Vite/Vitest/Playwright/ESLint/Tailwind/Testing-Library set; see <a href="#stack">the stack</a> below.)</p>
+    <div class="callout do">
+      <span class="label">Runtime dependencies, deliberately few</span>
+      <p>The whole app runs on <strong>five</strong> runtime libraries: <code>react</code> +
+      <code>react-dom</code>, <code>react-router-dom</code>, <code>zustand</code> for state,
+      <code>date-fns</code> for date math, and <code>better-auth</code> (only used when the auth flag is on).
+      Tailwind is a dev/build dependency. No component library, no form library, no state-machine library, no
+      icon package. Resist adding to this list — almost everything has been built from primitives on purpose
+      (see the "deliberately not done" notes throughout).</p>
+    </div>
+
+    <h2 id="shared-pkg"><code>shared/</code> and <code>server/</code> package.json</h2>
+    <p>The shared package is consumed <strong>as raw TypeScript source — there is no build step</strong>. The
+    wildcard <code>exports</code> map routes every subpath straight to a <code>.ts</code> file, and the
+    consumers' bundler/transpiler handle it.</p>
+    <div class="filename">shared/package.json</div>
+<pre><code>{
+  "name": "@floaty/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./*": "./src/*.ts" },
+  "dependencies": { "date-fns": "^4.3.0" },
+  "devDependencies": { "@types/node": "^22.10.0", "vitest": "^4.1.7" },
+  "scripts": { "test": "vitest run", "type-check": "tsc --noEmit" }
+}</code></pre>
+    <p><code>@floaty/shared/types/entities</code> resolves to <code>shared/src/types/entities.ts</code>,
+    <code>@floaty/shared/lib/integrity</code> to <code>shared/src/lib/integrity.ts</code>, and so on.</p>
+    <div class="filename">server/package.json (excerpt)</div>
+<pre><code>{
+  "name": "floaty-server",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "&gt;=24" },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "start:e2e": "FLOATY_ALLOW_RESET=1 FLOATY_DB=.e2e.db tsx src/index.ts",
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "^11.0.0",
+    "@floaty/shared": "*",
+    "better-auth": "^1.6.18",
+    "fastify": "^5.6.1"
+  },
+  "devDependencies": { "@types/node": "^22.10.0", "tsx": "^4.19.2", "typescript": "~6.0.2", "vitest": "^4.1.7" }
+}</code></pre>
+    <div class="callout warn">
+      <span class="label">Install at the root, always</span>
+      <p>Run <code>npm install</code> from the repo root, never inside a workspace — the root install is what
+      links <code>@floaty/shared</code> into both the app and the server. The server runs its TypeScript
+      directly via <code>tsx</code> (no emit); the app is transpiled by Vite.</p>
+    </div>
+
+    <h2 id="ts">TypeScript configuration</h2>
+    <p>The root uses <strong>project references</strong> (<code>tsc -b</code>) so a single build command
+    type-checks the app and its build-tooling config as separate projects with separate settings.</p>
+    <div class="filename">tsconfig.json (the solution file)</div>
+<pre><code>{
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.app.json" },
+    { "path": "./tsconfig.node.json" }
+  ]
+}</code></pre>
+    <p><code>tsconfig.app.json</code> covers <code>src</code> <em>and</em> <code>shared/src</code> with the DOM
+    lib; <code>tsconfig.node.json</code> covers <code>vite.config.ts</code> with the Node types. Both are
+    strict. The settings worth copying exactly:</p>
+    <div class="filename">tsconfig.app.json (compilerOptions)</div>
+<pre><code>{
+  "target": "es2023",
+  "lib": ["ES2023", "DOM"],
+  "module": "esnext",
+  "moduleResolution": "bundler",
+  "allowImportingTsExtensions": true,
+  "verbatimModuleSyntax": true,
+  "moduleDetection": "force",
+  "noEmit": true,
+  "jsx": "react-jsx",
+  "strict": true,
+  "noUnusedLocals": true,
+  "noUnusedParameters": true,
+  "erasableSyntaxOnly": true,
+  "noFallthroughCasesInSwitch": true,
+  "include": ["src", "shared/src"]
+}</code></pre>
+    <dl class="defs">
+      <dt>moduleResolution: "bundler"</dt><dd>Matches how Vite resolves; lets you import <code>.ts</code> files without extension gymnastics.</dd>
+      <dt>verbatimModuleSyntax: true</dt><dd>Forces <code>import type</code> for type-only imports — a value-import of a type is a compile error. Keeps the emitted graph honest.</dd>
+      <dt>noUnusedLocals / noUnusedParameters</dt><dd>Dead code fails the type-gate, not just the linter.</dd>
+      <dt>noFallthroughCasesInSwitch</dt><dd>Pairs with the exhaustive-switch convention (page 04) so a forgotten <code>break</code> is caught.</dd>
+      <dt>erasableSyntaxOnly</dt><dd>Disallows TS-only runtime constructs (enums, namespaces, parameter properties) — everything must be plain erasable types, so the source stays bundler-portable.</dd>
+    </dl>
+    <p>The <code>shared/</code> and <code>server/</code> workspaces each have their own strict
+    <code>tsconfig.json</code> with <code>"types": ["node"]</code> (no DOM) and <code>noEmit</code>. The
+    server's sets <code>verbatimModuleSyntax: false</code> and <code>esModuleInterop: true</code> because it
+    interops with CommonJS Node built-ins.</p>
+
+    <h2 id="eslint">ESLint — flat config, type-aware on the app only</h2>
+    <p>One flat config covers all three packages, layering rules by file glob. The crucial addition over
+    <code>recommended</code> is enforcing the un-awaited-promise discipline on the app source.</p>
+    <div class="filename">eslint.config.js</div>
+<pre><code><span class="k">import</span> js <span class="k">from</span> <span class="s">'@eslint/js'</span>
+<span class="k">import</span> globals <span class="k">from</span> <span class="s">'globals'</span>
+<span class="k">import</span> reactHooks <span class="k">from</span> <span class="s">'eslint-plugin-react-hooks'</span>
+<span class="k">import</span> reactRefresh <span class="k">from</span> <span class="s">'eslint-plugin-react-refresh'</span>
+<span class="k">import</span> tseslint <span class="k">from</span> <span class="s">'typescript-eslint'</span>
+<span class="k">import</span> { defineConfig, globalIgnores } <span class="k">from</span> <span class="s">'eslint/config'</span>
+
+<span class="k">export default</span> defineConfig([
+  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results', '**/node_modules', '.claude/worktrees/**']),
+
+  <span class="c">// Baseline for every TS file in every package (web, shared, server).</span>
+  { files: ['**/*.{ts,tsx}'], extends: [js.configs.recommended, tseslint.configs.recommended] },
+
+  <span class="c">// The web app is the only React package — React/Fast-Refresh rules + browser globals here only.</span>
+  { files: ['src/**/*.{ts,tsx}'],
+    extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
+    languageOptions: { globals: globals.browser } },
+
+  <span class="c">// Node packages: Node globals.</span>
+  { files: ['server/**/*.ts', 'shared/**/*.ts'], languageOptions: { globals: globals.node } },
+
+  <span class="c">// Type-aware linting for the app source only (it's the code in the web tsconfig project).</span>
+  { files: ['src/**/*.{ts,tsx}'],
+    languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } },
+    rules: {
+      <span class="c">// Catch an un-awaited / un-voided promise instead of letting it float silently.</span>
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+    } },
+])</code></pre>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p><code>no-floating-promises</code> + <code>no-misused-promises</code> are the reason the codebase uses
+      an explicit <code>void</code> for every intentional fire-and-forget async call (see page 05). A floating
+      promise without <code>void</code> is a lint failure. Keep this rule on; it is what makes the
+      <code>void</code> convention enforceable rather than aspirational.</p>
+    </div>
+
+    <h2 id="vite">Vite — bind loud, fail loud</h2>
+    <p>The Vite config carries the shared alias, the embedded Vitest config, and two deliberately
+    "fail-loud" server settings.</p>
+    <div class="filename">vite.config.ts (server block + alias)</div>
+<pre><code>resolve: {
+  alias: { '@floaty/shared': fileURLToPath(new URL('./shared/src', import.meta.url)) },
+},
+<span class="c">// Bind IPv4 loopback explicitly. Node 17+ resolves `localhost` to ::1 (IPv6) first, so</span>
+<span class="c">// the default host would listen on ::1 only and a browser hitting 127.0.0.1 gets</span>
+<span class="c">// connection-refused (blank page, no console error). strictPort: a squatted 5173 (incl.</span>
+<span class="c">// by a sibling repo on the same port) FAILS at startup instead of silently using 5174.</span>
+server: { host: '127.0.0.1', port: 5173, strictPort: true },</code></pre>
+    <div class="callout why">
+      <span class="label">Why these two settings matter to siblings specifically</span>
+      <p><code>floaty-schedule</code> and <code>delivery-diary</code> claim the <em>same</em> port 5173. Without
+      <code>strictPort</code>, starting a second one silently lands on 5174 while your browser stares at the
+      wrong port's white page. With it, the second one exits with a clear error and you kill the squatter.
+      Both the <code>host</code> pin and <code>strictPort</code> exist to convert a silent
+      blank-page-with-empty-console into a loud, diagnosable failure — principle&nbsp;12 in action.</p>
+    </div>
+    <p>The Vitest config is embedded in the same file (one config, no second file):</p>
+    <div class="filename">vite.config.ts (test block)</div>
+<pre><code>test: {
+  environment: 'jsdom',
+  setupFiles: ['./src/test/setup.ts'],
+  css: true,
+  include: ['src/**/*.{test,spec}.{ts,tsx}', 'shared/**/*.{test,spec}.ts'],
+  exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
+  coverage: {
+    provider: 'v8',
+    reporter: ['text-summary', 'html'],
+    include: ['src/**/*.{ts,tsx}', 'shared/src/**/*.ts'],
+    exclude: ['**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/router.tsx', 'src/vite-env.d.ts'],
+  },
+}</code></pre>
+    <p>The Playwright config defines three browser projects and boots its own dev servers; it is covered in
+    full on <a href="08-testing.html#playwright">page 08</a>.</p>
+
+    <h2 id="html">index.html — CSP, theme guard, and the never-white placeholder</h2>
+    <p>Three things live in the HTML shell, each deliberately. Keep all three when you copy it.</p>
+    <ol>
+      <li>A <strong>defence-in-depth CSP</strong> meta tag that is safe to ship in HTML (<code>object-src 'none'; base-uri 'none'</code>). The full <code>script-src</code> policy belongs in a host response header, not the app.</li>
+      <li>A <strong>theme FOUC guard</strong>: an inline script that sets <code>data-theme</code> before first paint so dark-mode users never flash light. It mirrors <code>readStoredTheme()/resolveTheme()</code> in <code>src/lib/theme.ts</code> (default light).</li>
+      <li>The <strong>static placeholder</strong> inside <code>#root</code> plus a <code>&lt;noscript&gt;</code> banner (principle 12).</li>
+    </ol>
+    <div class="filename">index.html (theme guard)</div>
+<pre><code>&lt;script&gt;
+  (function () {
+    try {
+      var p = localStorage.getItem('floaty/theme') || 'light'
+      var dark = p === 'dark' || (p === 'system' &amp;&amp; matchMedia('(prefers-color-scheme: dark)').matches)
+      document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    } catch (e) { <span class="c">/* storage/matchMedia unavailable — leave the default light palette */</span> }
+  })()
+&lt;/script&gt;</code></pre>
+
+    <h2 id="dotfiles">Dotfiles</h2>
+    <dl class="defs">
+      <dt>.nvmrc</dt><dd>Contains just <code>24</code>. The deploy script runs <code>nvm use</code> to pin Node 24 (see below).</dd>
+      <dt>.gitattributes</dt><dd><code>* text=auto</code> — LF normalisation, nothing exotic.</dd>
+      <dt>.gitignore</dt><dd>Standard Node/Vite ignores plus the test artifact dirs (<code>/test-results/</code>, <code>/playwright-report/</code>, <code>/blob-report/</code>, <code>coverage/</code>) and <code>/_input/</code> (design/competitor reference scraps — not app assets).</dd>
+    </dl>
+
+    <h2 id="gate">The green gate</h2>
+    <p>"Done" has a precise definition. Three commands, all green:</p>
+    <table>
+      <thead><tr><th>Command</th><th>Runs</th><th>Covers</th></tr></thead>
+      <tbody>
+        <tr><td><code>npm run gate</code></td><td><code>tsc -b</code> &rarr; <code>eslint .</code> &rarr; <code>vitest run</code> &rarr; <code>vite build</code></td><td>The app + the shared core.</td></tr>
+        <tr><td><code>npm run gate:server</code></td><td><code>tsc --noEmit</code> + <code>vitest run</code> in <code>server/</code></td><td>The optional server (separately — see why).</td></tr>
+        <tr><td><code>npm run e2e</code></td><td><code>playwright test</code> (boots its own dev servers)</td><td>All three Playwright projects end-to-end.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout why">
+      <span class="label">Why the server is out of the root gate</span>
+      <p>The server imports <code>node:sqlite</code>, a Node 24 built-in unavailable in the jsdom environment
+      Vitest runs in. Importing it (even transitively) would crash the root test run immediately. Keeping the
+      server separate also means the root gate can run on any recent Node, while the server gate requires 24.
+      CI runs all three in sequence.</p>
+    </div>
+    <p><code>vite build</code> is part of the gate (not just <code>tsc</code>) because the production bundle
+    catches import-resolution and bundler-time errors that the type-checker alone misses.</p>
+
+    <h2 id="stack">The stack &amp; versions</h2>
+    <p>React 19 + TypeScript ~6 + Vite 8. Zustand 5 for state, Tailwind v4 for styling, React Router 7 for
+    navigation. Vitest 4 + Testing Library for unit/component, Playwright for E2E,
+    <code>@axe-core/playwright</code> for the a11y oracle. <strong>Node 24+</strong> is required
+    (<code>.nvmrc</code> + <code>engines</code>) because the server uses <code>node:sqlite</code> unflagged —
+    on Node 24 it needs no <code>--experimental-sqlite</code>.</p>
+    <div class="callout do">
+      <span class="label">Starting a sibling</span>
+      <p>Copy the three <code>package.json</code> files, the five tsconfigs, <code>eslint.config.js</code>,
+      <code>vite.config.ts</code>, <code>playwright.config.ts</code>, <code>index.html</code>, and the
+      dotfiles. Rename the packages and the <code>@floaty</code> scope to your own. You now have an empty
+      app with the identical toolchain and an identical green gate — before writing a line of domain code.</p>
+    </div>
+
+    <div class="pager">
+      <a href="01-principles.html"><span class="dir">Previous</span>← 01 · Principles</a>
+      <a class="next" href="03-architecture.html"><span class="dir">Next</span>03 · Architecture →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>
