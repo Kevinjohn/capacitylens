@@ -22,8 +22,10 @@ import type { AppData, ScopedEntityKey } from '@floaty/shared/types/entities'
 /** A caller-fault error (bad request body) — mapped to HTTP 400. Distinct from an
  *  unexpected server/db error, which must surface as 500. */
 export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message)
+  // Accepts ErrorOptions so a re-tag from a catch can forward `{ cause }` and preserve the full
+  // chain (not just the message) — see validateWrite below.
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options)
     this.name = 'ValidationError'
   }
 }
@@ -106,7 +108,7 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
     }
   } catch (e) {
     // The shared asserts throw plain Errors; tag them as caller-fault so the route
-    // returns 400, not 500.
-    throw new ValidationError(e instanceof Error ? e.message : String(e))
+    // returns 400, not 500. Forward the original as `cause` so the full chain survives the re-tag.
+    throw new ValidationError(e instanceof Error ? e.message : String(e), { cause: e })
   }
 }

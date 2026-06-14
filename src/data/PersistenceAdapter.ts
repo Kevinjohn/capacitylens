@@ -31,8 +31,10 @@ export type LoadErrorKind = 'corrupt' | 'unavailable'
 export class LoadError extends Error {
   readonly kind: LoadErrorKind
 
-  constructor(kind: LoadErrorKind, message: string) {
-    super(message)
+  // Accepts ErrorOptions so adapters reclassifying a caught failure (parse/migrate/storage/network)
+  // can forward `{ cause }` and preserve the FULL error chain, not just a re-worded message.
+  constructor(kind: LoadErrorKind, message: string, options?: ErrorOptions) {
+    super(message, options)
     this.kind = kind
     this.name = 'LoadError'
   }

@@ -24,8 +24,10 @@ export function parseData(json: string): AppData {
   let raw: unknown
   try {
     raw = JSON.parse(json)
-  } catch {
-    throw new Error("That file isn't valid JSON.")
+  } catch (e) {
+    // Forward the SyntaxError as `cause` so the parse failure's chain survives behind our friendly
+    // message (ESLint preserve-caught-error enforces this for re-thrown native errors).
+    throw new Error("That file isn't valid JSON.", { cause: e })
   }
   if (!looksLikeFloaty(raw)) {
     throw new Error('This file is not Floaty data.')

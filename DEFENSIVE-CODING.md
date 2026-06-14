@@ -18,8 +18,13 @@ design; read it whole.
 When something goes wrong, the error must end up somewhere a human (user, operator, or contributor)
 can see it. A `catch` block has exactly three legitimate jobs:
 
-1. **Re-throw with more context** — `catch (e) { throw new Error(\`Corrupt JSON in ${table}.${col} (id=${id}): ${msg}\`) }`.
-   The original failure is preserved and made more diagnosable.
+1. **Re-throw with more context — and ALWAYS attach `{ cause: e }`** so the *full error chain*
+   survives, not just a re-worded message:
+   `catch (e) { throw new Error(\`Corrupt JSON in ${table}.${col} (id=${id})\`, { cause: e }) }`.
+   ESLint's **`preserve-caught-error`** rule enforces this for native errors; it does **not** fire on
+   custom error classes or bare `catch {}`, so those are on you — our custom classes (`LoadError`,
+   `ValidationError`) take an `ErrorOptions` and forward the cause, and a bare `catch {` that
+   re-throws should bind the error (`catch (e)`) and pass it through.
 2. **Route it to a visible surface** — a thrown integrity message → a form `FieldError` / a `Toast` /
    the `ErrorBoundary`; a load failure → a typed `LoadError` that picks the right recovery screen;
    a server fault → the redaction funnel (`statusFor → fail`). The user is told what happened.

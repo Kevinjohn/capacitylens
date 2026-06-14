@@ -68,7 +68,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // RETRYING, never by clearing local storage (the corrupt-data reset path,
       // which can't recover a server-backed app). Flag as 'unavailable' so bootstrap
       // routes to the connection-error screen, not StorageRecovery.
-      throw new LoadError('unavailable', e instanceof Error ? e.message : 'Failed to load state from server.')
+      throw new LoadError('unavailable', e instanceof Error ? e.message : 'Failed to load state from server.', {
+        cause: e,
+      })
     }
   }
 

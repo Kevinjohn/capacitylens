@@ -45,7 +45,7 @@ export class LocalStorageAdapter implements PersistenceAdapter {
       // branch — and reset would wipe storage to "fix" a problem that was never corruption). The
       // sibling methods (hasExisting / readRaw / clear) already guard getItem this same way.
       console.warn('LocalStorageAdapter.loadAll: reading local storage failed', e)
-      throw new LoadError('unavailable', 'Local storage could not be read on this device.')
+      throw new LoadError('unavailable', 'Local storage could not be read on this device.', { cause: e })
     }
     if (!raw) return emptyAppData()
     // A parse/migrate failure here means the stored bytes are CORRUPT, not absent.
@@ -54,8 +54,8 @@ export class LocalStorageAdapter implements PersistenceAdapter {
     let parsed: unknown
     try {
       parsed = JSON.parse(raw)
-    } catch {
-      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.')
+    } catch (e) {
+      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.', { cause: e })
     }
     // Parseable but STRUCTURALLY damaged (e.g. a partial write left a table as a string):
     // migrate() would coerce it to [] and silently drop the data, then the next autosave
@@ -66,8 +66,8 @@ export class LocalStorageAdapter implements PersistenceAdapter {
     }
     try {
       return migrate(parsed)
-    } catch {
-      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.')
+    } catch (e) {
+      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.', { cause: e })
     }
   }
 
