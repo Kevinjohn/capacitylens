@@ -5,8 +5,23 @@ import type { ISODate, Weekday } from '../types/entities'
 // ISO strings. We never do millisecond Date math for positioning — that is the
 // classic DST / timezone off-by-one bug. date-fns' calendar-day helpers are
 // timezone-agnostic for our purposes.
+//
+// PRECONDITION (load-bearing): every `ISODate` argument MUST be a validated,
+// zero-padded "YYYY-MM-DD" string. These helpers are PURE and deliberately do NOT
+// re-validate — `validateDateRange` (lib/integrity.ts, via `isValidISODate`) enforces
+// it at every write boundary (store add/update, import remap, server validate), and
+// import normalises dates on the way in. Pass an invalid/unpadded string and `parseISO`
+// returns an Invalid Date whose downstream `format()` throws a RangeError. Do NOT
+// "harden" that by wrapping these in try/catch: it would swallow a real upstream bug in
+// the hottest path. The guarantee lives at the boundary, by design.
 
-/** Parse a date-only ISO string ("YYYY-MM-DD") to a local Date at midnight. */
+/**
+ * Parse a validated date-only ISO string ("YYYY-MM-DD") to a local Date at midnight.
+ *
+ * @param date a validated `ISODate` (see the module precondition above). An invalid or
+ *   unpadded string parses to an **Invalid Date**, which makes a later `format()`/`toISODate`
+ *   throw a RangeError — surface that as the upstream-validation bug it is, don't catch it here.
+ */
 export function parseDate(date: ISODate): Date {
   return parseISO(date)
 }
@@ -16,12 +31,16 @@ export function toISODate(date: Date): ISODate {
   return format(date, 'yyyy-MM-dd')
 }
 
-/** Whole-calendar-day offset of `date` from `origin` (may be negative). */
+/** Whole-calendar-day offset of `date` from `origin` (may be negative).
+ *  Both args must be validated `ISODate`s (see the module precondition); an invalid one
+ *  yields `NaN` here, which the geometry callers (`xForDate`) `Number.isFinite`-guard to 0. */
 export function dayIndex(date: ISODate, origin: ISODate): number {
   return differenceInCalendarDays(parseISO(date), parseISO(origin))
 }
 
-/** Add (or subtract, with a negative `days`) whole days to a date-only ISO string. */
+/** Add (or subtract, with a negative `days`) whole days to a date-only ISO string.
+ *  `date` must be a validated `ISODate` (see the module precondition) — an invalid one
+ *  produces an Invalid Date and the inner `toISODate`/`format()` throws RangeError. */
 export function addDaysISO(date: ISODate, days: number): ISODate {
   return toISODate(addDays(parseISO(date), days))
 }
@@ -79,18 +98,29 @@ export function isWithin(date: ISODate, start: ISODate, end: ISODate): boolean {
 /** Today as a date-only ISO string (impure — reads the system clock).
  *  When `timeZone` is given, the calendar date is derived in that zone via
  *  Intl.DateTimeFormat — so midnight UTC on 2026-06-11 is still 2026-06-10 in
- *  America/New_York. Falls back to local date when absent. */
+ *  America/New_York. Falls back to the LOCAL date when `timeZone` is absent OR
+ *  invalid (an invalid IANA zone is warned about, then ignored — never throws). */
 export function todayISO(timeZone?: string): ISODate {
   if (!timeZone) return toISODate(new Date())
-  // Use formatToParts for safety (avoids any locale-specific separators).
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00'
-  return `${get('year')}-${get('month')}-${get('day')}` as ISODate
+  try {
+    // Use formatToParts for safety (avoids any locale-specific separators).
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(new Date())
+    const get = (t: string) => parts.find((p) => p.type === t)?.value ?? '00'
+    return `${get('year')}-${get('month')}-${get('day')}` as ISODate
+  } catch (e) {
+    // A malformed IANA timeZone makes the Intl.DateTimeFormat constructor throw a RangeError,
+    // which would otherwise crash "today" resolution and with it the whole forward-window
+    // utilisation calc. The client path can still hold an un-sanitised `account.timezone`
+    // (sanitizeAccount only runs on the server write path), so degrade to the LOCAL date —
+    // but WARN, never silently, so a bad zone is discoverable instead of masked.
+    console.warn(`todayISO: invalid timeZone ${JSON.stringify(timeZone)} — falling back to local date`, e)
+    return toISODate(new Date())
+  }
 }
 
 /** Is `date`'s weekday one of `workingDays`? */

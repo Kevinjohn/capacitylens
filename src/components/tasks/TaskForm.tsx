@@ -2,10 +2,13 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
+import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
 import type { Task } from '@floaty/shared/types/entities'
 
+/** Add (no `task`) or edit a task: name + OPTIONAL project (a general task has none; changing the
+ *  project clears the phase, which belonged to the old one). `onClose` fires on save or cancel. */
 export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }) {
   const add = useStore((s) => s.addTask)
   const update = useStore((s) => s.updateTask)
@@ -36,9 +39,15 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
     if (!trimmed) return
     // A task may be general (no project) or project-bound — project is optional.
     const patch = { name: trimmed, projectId: projectId || undefined, phaseId: phaseId || undefined }
-    if (task) update(task.id, patch)
-    else add(patch)
-    onClose()
+    // Surface a store-side rejection as a form error rather than an uncaught React error — see the
+    // store CRUD contract.
+    try {
+      if (task) update(task.id, patch)
+      else add(patch)
+      onClose()
+    } catch (e) {
+      fail(null, errorMessage(e))
+    }
   }
 
   return (

@@ -5,6 +5,22 @@ import type { Allocation, ID, ISODate, Resource, TimeOff } from '@floaty/shared/
 // non-working weekday or a time-off day, otherwise their workingHoursPerDay.
 // A day is over-allocated when allocated hours exceed available hours (which
 // includes any allocation landing on a zero-capacity day).
+//
+// PRECONDITION: every `workingHoursPerDay` / `hoursPerDay` reaching this module is a finite,
+// non-negative number — guaranteed at every write boundary by integrity.ts (clampHoursPerDay /
+// clampWorkingHoursPerDay) on store add/update, import remap, and server validate. A NaN/undefined
+// slipping through is WORSE than a crash here: `NaN > x` is always false, so an over-allocated day
+// would read as "never over" — a silently WRONG answer in a multi-tenant scheduler, not a visible
+// failure. We therefore do NOT throw on this per-day × per-allocation hot path (that would swallow
+// or crash in the wrong place); in DEV we WARN so corruption surfaces as a fault to investigate.
+function devAssertFinite(label: string, n: number): void {
+  if (import.meta.env.DEV && !Number.isFinite(n)) {
+    console.warn(
+      `capacity: ${label} is not a finite number (${String(n)}). Upstream validation (integrity.ts) ` +
+        `should have prevented this — over/utilisation results for this resource will be wrong.`,
+    )
+  }
+}
 
 export function isWorkingDay(resource: Resource, date: ISODate): boolean {
   return resource.workingDays.includes(weekdayOf(date))
@@ -16,6 +32,9 @@ export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): 
   )
 }
 
+/** Available working hours for `resource` on `date`: 0 on a non-working weekday or a time-off
+ *  day, otherwise their `workingHoursPerDay`.
+ *  @remarks Assumes a finite, non-negative `workingHoursPerDay` (see the top-of-file precondition). */
 export function availableHoursOnDay(
   resource: Resource,
   date: ISODate,
@@ -23,9 +42,13 @@ export function availableHoursOnDay(
 ): number {
   if (!isWorkingDay(resource, date)) return 0
   if (isOnTimeOff(resource.id, date, timeOff)) return 0
+  devAssertFinite('workingHoursPerDay', resource.workingHoursPerDay)
   return resource.workingHoursPerDay
 }
 
+/** Sum of allocated hours for `resourceId` on `date` across every overlapping allocation.
+ *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition) — a NaN would
+ *    poison the sum and make every over/utilisation comparison read as "never over". */
 export function allocatedHoursOnDay(
   resourceId: ID,
   date: ISODate,
@@ -37,6 +60,7 @@ export function allocatedHoursOnDay(
       sum += a.hoursPerDay
     }
   }
+  devAssertFinite('allocated hours sum', sum)
   return sum
 }
 
@@ -47,6 +71,8 @@ export interface DayCapacity {
   over: boolean
 }
 
+/** Allocated vs. available hours for one resource-day, with the `over` flag (allocated > available).
+ *  @remarks Assumes finite, non-negative hours (see the top-of-file precondition). */
 export function dayCapacity(
   resource: Resource,
   date: ISODate,

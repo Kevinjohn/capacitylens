@@ -67,7 +67,8 @@ test.describe('Data import/export', () => {
     await openApp(page)
     await importFile(page, 'random.json', JSON.stringify({ hello: 'world' }))
 
-    await expect(page.getByRole('alert')).toContainText(/not valid Floaty JSON/i)
+    // Surfaces the SPECIFIC reason from parseData (a JSON object with no Floaty keys), not a generic catch-all.
+    await expect(page.getByRole('alert')).toContainText(/not Floaty data/i)
     await expect(page.getByText('Tyler Nix')).toBeVisible() // data preserved, no dialog, no wipe
   })
 
@@ -75,8 +76,9 @@ test.describe('Data import/export', () => {
     await openApp(page)
     await importFile(page, 'empty.json', EMPTY_FLOATY)
 
-    // No confirmation dialog, an error notice, and the seeded data is preserved.
-    await expect(page.getByRole('alert')).toContainText(/not valid Floaty JSON/i)
+    // No confirmation dialog, an error notice naming the specific reason (a Floaty-shaped but
+    // empty file → would silently wipe the account), and the seeded data is preserved.
+    await expect(page.getByRole('alert')).toContainText(/no Floaty records/i)
     await expect(page.getByRole('dialog', { name: 'Import data?' })).toHaveCount(0)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })

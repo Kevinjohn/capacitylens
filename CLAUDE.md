@@ -35,6 +35,11 @@ goes through the `useScopedData` / `scopedTables()` seam.
 - **Forms reject; import + server strip/repair.** Non-Floaty JSON is shape-checked
   (`looksLikeFloaty`) before migrate so it can't wipe data; import is confirmed + undoable, with
   caps on file size + record count.
+- **Surface, never swallow.** A `catch` exists only to re-throw with more context, route the error
+  to a visible surface (`FieldError`/`Toast`/`setNotice`/typed `LoadError`/503), or degrade to a
+  documented default for *non-tenant device prefs only*. No `catch {}` on a data path; never wrap a
+  pure function, a hot render path, or the store's deliberate integrity throws (that hides
+  corruption — the anti-goal). Full standard in **`DEFENSIVE-CODING.md`** — follow it on every change.
 - **Entity/field extension is drift-proofed.** New fields flow shared types → full fixtures
   (`shared/src/data/fixtures.ts`) → `server/src/tables.ts` columns (auto ALTER) → sanitize;
   exhaustiveness checks make a missed list fail the gate. Don't bypass the path.
@@ -42,6 +47,9 @@ goes through the `useScopedData` / `scopedTables()` seam.
 ## Docs map (so you don't read everything to find the right place)
 - **`DECISIONS.md`** — slim, present-tense digest of standing decisions. Read it whole; it's
   short. Edit a line here only when a *load-bearing* call actually changes.
+- **`DEFENSIVE-CODING.md`** — the defensive-coding & commenting standard (surface-not-swallow, the
+  two-tier error model, where `try/catch` belongs vs is harmful, the TSDoc/why-comment bar). Short;
+  read it whole and follow it on every change.
 - **`NEEDS-INPUT.md`** — open product questions. Flag, don't silently resolve.
 - **`docs/decisions-log.md`** — append-only history of dated review/remediation rounds.
   **Don't read it whole** (it's large) — grep it, or read the tail to append.

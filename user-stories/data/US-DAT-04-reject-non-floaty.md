@@ -18,6 +18,6 @@ Import replaces everything, so feeding it a random JSON or a non-Floaty file mus
 3. Observe the result — no confirmation dialog appears; instead a notice toast is shown.
 
 ## Acceptance criteria
-- ✅ Choosing an unrecognised file shows the rejection toast **"Could not import that file — it is not valid Floaty JSON."** and does **not** open the "Import data?" confirmation dialog.
+- ✅ Choosing an unrecognised file shows a rejection toast naming the SPECIFIC reason — **"This file is not Floaty data."** for a JSON object with none of Floaty's entity keys, or **"That file isn't valid JSON."** for a non-JSON/garbage file — and does **not** open the "Import data?" confirmation dialog. (The toast surfaces the real reason rather than one generic message, so the manager knows what was wrong with the file.)
 - ✅ The current dataset is fully preserved — no entities are removed or changed (the Clients list still shows *Acme Inc.* and *Globex*; the seed schedule is intact). There is no silent wipe.
 - ✅ A subsequent valid import still works normally (the failed attempt doesn't leave the import flow stuck).

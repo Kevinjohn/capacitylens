@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
+import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { validateProjectClient } from '@floaty/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
 import type { Project } from '@floaty/shared/types/entities'
 
+/** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
+ *  save or cancel. */
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
   const add = useStore((s) => s.addProject)
   const update = useStore((s) => s.updateProject)
@@ -30,9 +33,15 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       return
     }
     if (!validateHex(color, fail)) return
-    if (project) update(project.id, { name: trimmed, clientId, color })
-    else add({ name: trimmed, clientId, color })
-    onClose()
+    // Surface a store-side rejection (e.g. a clientId that isn't in this company) as a form error
+    // instead of an uncaught React error — see the store CRUD contract.
+    try {
+      if (project) update(project.id, { name: trimmed, clientId, color })
+      else add({ name: trimmed, clientId, color })
+      onClose()
+    } catch (e) {
+      fail(null, errorMessage(e))
+    }
   }
 
   return (

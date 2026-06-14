@@ -4,6 +4,7 @@ import { scopeData } from '../../store/selectors'
 import { serializeData } from '@floaty/shared/data/transfer'
 import { todayISO } from '@floaty/shared/lib/dateMath'
 import { downloadTextFile } from '../../lib/download'
+import { errorMessage } from '../../lib/errorMessage'
 import { Button, Modal, TextField } from '../common/ui'
 import type { Account } from '@floaty/shared/types/entities'
 
@@ -21,6 +22,9 @@ export function DeleteCompanyDialog({
 }) {
   const data = useStore((s) => s.data)
   const [typed, setTyped] = useState('')
+  // Surface a failed "export first" inline: this is the LAST backup before a no-undo cascade delete,
+  // so a silently-failed export (the user thinks they're covered, then deletes) is the worst case.
+  const [exportError, setExportError] = useState<string | null>(null)
   const matches = typed.trim() === account.name
   // Hint id so the disabled Delete button can point at the type-to-confirm instruction —
   // a screen reader then announces WHY Delete is unavailable, not just that it's disabled.
@@ -30,7 +34,15 @@ export function DeleteCompanyDialog({
   // re-stamps into whichever account is active).
   const exportFirst = () => {
     const slug = account.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'company'
-    downloadTextFile(`floaty-${slug}-${todayISO()}.json`, serializeData(scopeData(data, account.id)))
+    try {
+      downloadTextFile(`floaty-${slug}-${todayISO()}.json`, serializeData(scopeData(data, account.id)))
+      setExportError(null)
+    } catch (e) {
+      // The backup did NOT save. Make it loud and inline so the user does NOT proceed to delete
+      // believing they have an export they don't. Export and Delete are separate steps, so they can
+      // retry or back out.
+      setExportError(errorMessage(e))
+    }
   }
 
   return (
@@ -60,6 +72,11 @@ export function DeleteCompanyDialog({
           Export first
         </Button>
       </div>
+      {exportError && (
+        <p role="alert" className="text-sm font-medium text-danger">
+          {exportError} Your data was not exported — do not delete until you have a backup.
+        </p>
+      )}
       <TextField
         label={`Type “${account.name}” to confirm`}
         value={typed}

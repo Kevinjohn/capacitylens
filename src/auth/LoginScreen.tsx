@@ -25,25 +25,42 @@ export function LoginScreen({
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const { error: failure } = await authClient.signIn.email({ email, password })
-    if (failure) {
-      setError(failure.message ?? 'Sign-in failed.')
+    try {
+      const { error: failure } = await authClient.signIn.email({ email, password })
+      if (failure) {
+        setError(failure.message ?? 'Sign-in failed.')
+        setBusy(false)
+        return
+      }
+      onSignedIn()
+    } catch (err) {
+      // Better Auth returns an auth FAILURE as { error } (handled above). A THROW here is a
+      // pre-response network/transport error — without this catch `busy` stayed true forever (button
+      // stuck disabled, no message). Surface a generic message + reset busy; log the real cause.
+      console.error('LoginScreen: password sign-in request failed', err)
+      setError('Could not reach the server. Check your connection and try again.')
       setBusy(false)
-      return
     }
-    onSignedIn()
   }
 
   const signInWithSso = async () => {
     setBusy(true)
     setError(null)
-    // On success the client follows the provider redirect; only a failure returns here.
-    const { error: failure } = await authClient.signIn.oauth2({
-      providerId: 'sso',
-      callbackURL: window.location.href,
-    })
-    if (failure) {
-      setError(failure.message ?? 'Sign-in failed.')
+    try {
+      // On success the client follows the provider redirect; only a failure returns here.
+      const { error: failure } = await authClient.signIn.oauth2({
+        providerId: 'sso',
+        callbackURL: window.location.href,
+      })
+      if (failure) {
+        setError(failure.message ?? 'Sign-in failed.')
+        setBusy(false)
+      }
+    } catch (err) {
+      // Same as the password path: a thrown (pre-redirect) network error would otherwise strand the
+      // button disabled with no feedback. Surface it and reset busy.
+      console.error('LoginScreen: SSO sign-in request failed', err)
+      setError('Could not reach the server. Check your connection and try again.')
       setBusy(false)
     }
   }

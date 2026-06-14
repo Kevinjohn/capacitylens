@@ -8,6 +8,21 @@ import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 // container (and is trivially testable). attachPersistence debounce-saves on
 // every data change; bootstrap loads (and seeds only on a genuine first run).
 
+/**
+ * Wire the store to a PersistenceAdapter (OUTSIDE the store) and return an unsubscribe.
+ *
+ * Lifecycle of a write — the moving parts, top-down (each is detailed inline below):
+ *  1. A data change fires the store subscription → schedule a DEBOUNCED save (immediate when
+ *     `debounceMs <= 0`). A fresh edit resets the retry budget.
+ *  2. `save()` runs `adapter.saveAll`; on success it clears the error state (`onSuccess`) and the
+ *     retry budget, on failure it calls `onError` and `scheduleRetry()`.
+ *  3. `scheduleRetry()` re-sends the LATEST store state with capped exponential backoff
+ *     (max 5 attempts), so a transient failure self-heals without waiting for the next edit.
+ *  4. A STRANDED write (failed AND budget exhausted) is re-attempted when the connection plausibly
+ *     recovers — the `online` event, or the tab becoming visible again (gated on a real failure).
+ *  5. On page teardown (`pagehide` / `visibilitychange→hidden`) a PENDING debounced write is
+ *     flushed through the adapter's keepalive `unload` path.
+ */
 export function attachPersistence(
   store: StoreApi<StoreState>,
   adapter: PersistenceAdapter,
@@ -188,7 +203,12 @@ export async function bootstrap(
   let existed: boolean
   try {
     existed = adapter.hasExisting ? await adapter.hasExisting() : !isEmpty(loaded)
-  } catch {
+  } catch (e) {
+    // hasExisting failed AFTER a good load (e.g. the server's /api/meta blipped). The fallback is
+    // safe — infer existence from the loaded data, so we still skip seeding when there's data — but
+    // leave a dev breadcrumb so a totally-silent meta failure isn't invisible while debugging.
+    // Deliberately NOT routed to onError: this is non-fatal and would wrongly raise the persist banner.
+    console.warn('bootstrap: hasExisting() failed; inferring existence from loaded data', e)
     existed = !isEmpty(loaded)
   }
   const seedNeeded = !existed && !!opts.seedIfEmpty

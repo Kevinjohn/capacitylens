@@ -79,6 +79,13 @@ export function AllocationModal(props: AllocationModalProps) {
   const seedEnd = editing?.endDate ?? create?.endDate
   const initialDaysOpts = { workingDays: initialResource?.workingDays, ignoreWeekends: editing?.ignoreWeekends ?? false }
   const initialDaysOver = seedEnd ? Math.max(1, spanDays(initialStart, seedEnd, initialDaysOpts)) : 1
+  // These two hold a NaN while the user has the field empty or part-typed: NumberField.onChange
+  // emits NaN for empty/garbage input and only clamps to a real number on blur. We deliberately
+  // do NOT guard the NaN here — it's contained by THREE downstream guards so a transient NaN can
+  // never reach the store: (1) endDateForSpan clamps the span to [1, MAX_SPAN_DAYS] (a NaN
+  // collapses to a valid 1-day span, never an Invalid Date into format()); (2) the submit reject
+  // `!(daysOfWork > 0)` fails for NaN (NaN > 0 is false), blocking save with a field error; and
+  // (3) hoursPerDayFor is therefore never reached with a NaN daysOfWork on the save path.
   const [daysOver, setDaysOver] = useState(initialDaysOver)
   const [daysOfWork, setDaysOfWork] = useState(
     editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,

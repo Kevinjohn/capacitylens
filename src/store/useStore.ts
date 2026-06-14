@@ -191,6 +191,18 @@ export interface StoreState {
   undo: () => void
   redo: () => void
 
+  // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / tasks /
+  // allocations / time off). CONTRACT — identical for every add*/update*/delete* below, and
+  // invisible in the signatures, so it lives here:
+  //  • Runs against the ACTIVE account and is undoable (⌘Z).
+  //  • THROWS an Error whose message is SAFE TO DISPLAY on a tenancy/integrity violation (a
+  //    cross-account id, a dangling required FK, a reversed date range, an empty working-day set,
+  //    or no active account). The store is the LAST line of defence ("forms reject; store
+  //    backstops"), so these MUST throw — do not wrap them to swallow.
+  //  • Silently NO-OPS on a STALE id (update/delete of a row not owned by the active account — e.g.
+  //    a drag committed after an undo removed the row). That's a benign race, not corruption.
+  //  • Callers that take USER INPUT must wrap the call in try/catch and surface e.message (see
+  //    TimeOffForm / AllocationModal). A throw left uncaught surfaces only as a React error.
   addDiscipline: (input: Draft<Discipline>) => Discipline
   updateDiscipline: (id: ID, patch: Patch<Discipline>) => void
   deleteDiscipline: (id: ID) => void
@@ -270,6 +282,12 @@ const HISTORY_LIMIT = 50
 export const useStore = create<StoreState>()((set, get) => {
   // Every data mutation goes through mutate(): it snapshots the previous data
   // onto the undo stack and clears the redo stack.
+  //
+  // DO NOT wrap mutate(), its producers, undo/redo, the assert* helpers, or importData in a
+  // try/catch to "be safe". Their integrity throws are the store's whole point — the last line that
+  // stops bad multi-tenant data being persisted. Swallowing here would convert a loud, fixable
+  // rejection into SILENT data corruption (the explicit anti-goal; see DEFENSIVE-CODING.md §4). If
+  // a producer throws, `set` never runs, so state is left untouched — a clean, atomic failure.
   const mutate = (producer: (d: AppData) => AppData) =>
     set((s) => ({ data: producer(s.data), past: [...s.past, s.data].slice(-HISTORY_LIMIT), future: [] }))
 
@@ -337,7 +355,17 @@ export const useStore = create<StoreState>()((set, get) => {
     },
     // Switching tenant resets per-account view state and history — undo must never
     // cross an account boundary, and the previous account's filters/selection don't apply.
-    setActiveAccount: (id) =>
+    setActiveAccount: (rawId) => {
+      // A non-null id that matches NO account is a stale/unknown tenant. Surface it and drop to the
+      // picker rather than silently activating a dead id — a dead id would pass requireAccount() and
+      // render an empty schedule as if it were real (exactly the hidden-corruption class we guard
+      // against). Never throw: null is legitimate and tests/recovery set ids; the picker is safe.
+      let id = rawId
+      if (id !== null && !get().data.accounts.some((a) => a.id === id)) {
+        console.warn(`setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`)
+        get().setNotice('That company no longer exists.', 'error')
+        id = null
+      }
       set((s) => {
         // Open the switched-into company on the current week (mirrors defaultUI) rather
         // than inheriting the previous tenant's panned origin/focus.
@@ -361,7 +389,8 @@ export const useStore = create<StoreState>()((set, get) => {
             focusDate: weekStart,
           },
         }
-      }),
+      })
+    },
 
     replaceAll: (data) => set({ data, past: [], future: [] }),
     // Replace only the active account's slice; other accounts and the account

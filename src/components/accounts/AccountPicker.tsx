@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
+import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { Avatar, Button, ColorField, FieldError, TextField } from '../common/ui'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
@@ -35,9 +36,15 @@ export function AccountPicker() {
     const trimmed = validateName(name, fail)
     if (!trimmed) return
     if (!validateHex(color, fail)) return
-    const account = addAccount({ name: trimmed, color })
-    resetForm()
-    setActiveAccount(account.id)
+    // Surface a store-side rejection as a form error rather than an uncaught React error. (addAccount
+    // is the one CRUD action that works with no active account — bootstrapping the first tenant.)
+    try {
+      const account = addAccount({ name: trimmed, color })
+      resetForm()
+      setActiveAccount(account.id)
+    } catch (e) {
+      fail(null, errorMessage(e))
+    }
   }
 
   return (

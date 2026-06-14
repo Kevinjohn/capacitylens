@@ -34,7 +34,19 @@ export class LocalStorageAdapter implements PersistenceAdapter {
   }
 
   async loadAll(): Promise<AppData> {
-    const raw = localStorage.getItem(this.key)
+    let raw: string | null
+    try {
+      raw = localStorage.getItem(this.key)
+    } catch (e) {
+      // Reading storage ITSELF failed (SecurityError / storage disabled in a sandboxed or
+      // private-mode context) — the bytes aren't corrupt, the store is UNAVAILABLE. Classify it
+      // as such so bootstrap shows the non-destructive retry screen, NOT the corrupt → reset/import
+      // path (which the previously-unguarded read fell into via bootstrap's default 'corrupt'
+      // branch — and reset would wipe storage to "fix" a problem that was never corruption). The
+      // sibling methods (hasExisting / readRaw / clear) already guard getItem this same way.
+      console.warn('LocalStorageAdapter.loadAll: reading local storage failed', e)
+      throw new LoadError('unavailable', 'Local storage could not be read on this device.')
+    }
     if (!raw) return emptyAppData()
     // A parse/migrate failure here means the stored bytes are CORRUPT, not absent.
     // Rethrow rather than returning empty: bootstrap must tell these apart so it

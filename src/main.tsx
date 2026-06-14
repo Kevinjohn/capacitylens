@@ -28,14 +28,22 @@ void bootstrap(useStore, persistenceAdapter, {
   onSuccess: () => {
     if (useStore.getState().persistError) useStore.getState().setPersistError(false)
   },
-}).catch(() => {
+}).catch((e) => {
   // Hydration itself failed — still let the app render (with the banner) rather
-  // than dying on an unhandled rejection.
+  // than dying on an unhandled rejection. The banner tells the user "changes aren't saving",
+  // but log the real cause too so a contributor isn't left guessing what broke at boot.
+  console.error('bootstrap: hydration failed; rendering with the persist-error banner', e)
   useStore.getState().setHydrated(true)
   useStore.getState().setPersistError(true)
 })
 
-createRoot(document.getElementById('root')!).render(
+// Fail loud and LEGIBLE if the mount node is missing (e.g. a fork that renamed/removed it in
+// index.html): a fatal, unrecoverable boot precondition deserves a clear message, not the cryptic
+// "Cannot read properties of null" that `getElementById('root')!` would throw on a blank screen.
+const rootEl = document.getElementById('root')
+if (!rootEl) throw new Error('Floaty mount node #root not found in index.html')
+
+createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
       {/* Auth boundary (P3.3): local mode and auth-off deploys pass straight through;

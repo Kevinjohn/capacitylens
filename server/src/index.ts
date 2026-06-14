@@ -1,5 +1,5 @@
 import { buildApp, DEFAULT_CORS, parseRateLimit } from './app'
-import { openDb, seedIfUninitialized } from './db'
+import { openDb, seedIfUninitialized, type Db } from './db'
 import { seed } from '@floaty/shared/data/seed'
 import { createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
@@ -44,6 +44,26 @@ import { parseBackupConfig, startBackups } from './backup'
 // same fail-closed default buildApp uses). Set FLOATY_CORS_ORIGIN explicitly (e.g. your
 // deployed app origin, or '*') to change it.
 
+// Print one clear "refusing to start" line and exit non-zero. Boot SHOULD crash on a bad
+// precondition (we never limp along half-configured) — this just makes the failure legible to an
+// operator instead of a raw stack, matching the framed AuthConfigError / resetForbidden paths.
+function refuseToStart(reason: string): never {
+  console.error(`floaty-server: refusing to start — ${reason}`)
+  process.exit(1)
+}
+
+// Fail-closed PORT parse (mirrors parseRateLimit): a typo like PORT=abc or an out-of-range value
+// must not silently fall through to a confusing app.listen error — reject it up front with a clear
+// message. Unset → the 8787 default.
+function parsePort(raw: string | undefined): number {
+  if (raw === undefined) return 8787
+  const n = Number(raw)
+  if (!Number.isInteger(n) || n < 1 || n > 65535) {
+    refuseToStart(`PORT must be an integer 1..65535, got ${JSON.stringify(raw)}.`)
+  }
+  return n
+}
+
 // Safety interlock before anything opens: the test-only reset route must be impossible
 // in production (see bootGuard.ts).
 if (resetForbidden(process.env)) {
@@ -54,7 +74,7 @@ if (resetForbidden(process.env)) {
 }
 
 const dbPath = process.env.FLOATY_DB ?? 'floaty.db'
-const port = Number(process.env.PORT ?? 8787)
+const port = parsePort(process.env.PORT)
 // Bind localhost-only by default so a dev/laptop run isn't reachable from the LAN; set
 // FLOATY_HOST=0.0.0.0 to deliberately expose it (container/LAN/deploy).
 const host = process.env.FLOATY_HOST ?? '127.0.0.1'
@@ -69,7 +89,14 @@ const rateLimit = parseRateLimit(process.env.FLOATY_RATE_LIMIT)
 // socket address, because the header is client-spoofable there.
 const rateLimitTrustForwarded = host === '127.0.0.1' || host === 'localhost' || host === '::1'
 
-const db = openDb(dbPath)
+// openDb crashing is the right outcome (a broken/unopenable DB must NOT start) — frame it so the
+// operator gets one clear line, not a raw node:sqlite stack.
+let db: Db
+try {
+  db = openDb(dbPath)
+} catch (e) {
+  refuseToStart(e instanceof Error ? e.message : String(e))
+}
 
 // Auth (P3.1/P3.2): parsed + initialised before the app exists; any misconfiguration
 // (bad FLOATY_AUTH value, missing secret/URL in password/sso mode) refuses to boot
@@ -89,15 +116,20 @@ try {
   }
   throw err
 }
-// Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them).
-if (auth) await runAuthMigrations(auth)
-
+// Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them), then seed
+// a never-initialised DB. Both are boot preconditions — a failure must crash legibly, not limp on.
+//
 // Seed once on a NEVER-INITIALISED DB — the server owns first-run seeding so the client's
 // hasExisting()/seedIfEmpty path stays a no-op against a server backend. seedIfUninitialized
 // gates on the persistent `initialized` marker, NOT mere emptiness: a user who deletes all
 // their data leaves an empty-but-initialised DB and must NOT get the demo dataset re-seeded
 // on the next restart (matches /api/meta's isInitialized() check).
-seedIfUninitialized(db, seed())
+try {
+  if (auth) await runAuthMigrations(auth)
+  seedIfUninitialized(db, seed())
+} catch (e) {
+  refuseToStart(e instanceof Error ? e.message : String(e))
+}
 
 const app = buildApp(db, {
   allowReset,

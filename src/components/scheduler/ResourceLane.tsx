@@ -56,6 +56,12 @@ export const ResourceLane = memo(function ResourceLane({
   const indexAt = (clientX: number): number => {
     const rect = laneRef.current?.getBoundingClientRect()
     if (!rect) return 0
+    // Clamp to [0, days.length-1] BEFORE this index becomes a date: a pointerup can land
+    // outside the lane (the gesture is tracked on the document, so the pointer may release
+    // past either edge), which would otherwise yield a negative or out-of-range day. Bounding
+    // the untrusted pointer coord here means addDaysISO(origin, idx) always gets a valid offset
+    // inside the visible window — a drop past the edge snaps to the first/last day, never an
+    // off-window date.
     return Math.max(0, Math.min(days.length - 1, Math.floor((clientX - rect.left) / dayWidth)))
   }
 

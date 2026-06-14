@@ -45,6 +45,22 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   **confirmation dialog** + **undoable** `importData`; honest delta ("imported N, M skipped").
 - **Caps** on file size + record count (self-DoS / JSON-bomb).
 
+## Error handling & comments (open-source posture)
+- **Surface, never swallow** — the standard is **[`DEFENSIVE-CODING.md`](DEFENSIVE-CODING.md)**
+  (read it whole). A `catch` only re-throws with more context, routes the error to a visible
+  surface (`FieldError` / `Toast` / `setNotice` / typed `LoadError` / a 503), or degrades to a
+  documented default for **non-tenant device prefs only** (theme/util toggles/sidebar/rotate hint).
+  No `catch {}` on a data path; no generic message replacing a specific one.
+- **Two-tier model:** validators return a value / call `fail(field, msg)` and never throw; the
+  write boundary (`mutations.ts`, store, `server/validate.ts`) throws a **user-safe message**; the
+  UI catches and shows it. Typed/classified errors (`LoadError`, `ValidationError`, `AuthConfigError`)
+  over stringly-typed ones.
+- **Some `try/catch` is harmful by design.** Pure functions, hot render paths, the store's
+  deliberate integrity throws, and total helpers (`errorMessage`) carry guard-comments saying *not*
+  to wrap them — wrapping would hide corruption. Add safety as a clamp/early-return in the pure core.
+- **Comments explain WHY for a junior; every exported symbol gets TSDoc** with preconditions and
+  `@throws` (and what a throw *means*). Baseline audit + this standard: 2026-06-14 decisions-log.
+
 ## Scheduling & capacity
 - **Two distinct "over" signals, kept separate:** the per-day **over-marker** flags *any* work
   on a zero-capacity day; the **utilisation %** / `overSoon` red flag is a working-day-only

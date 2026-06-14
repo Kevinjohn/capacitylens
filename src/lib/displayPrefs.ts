@@ -4,6 +4,12 @@
 //
 // The store holds the reactive values; these are the pure read/write helpers it
 // leans on. Everything defaults to true (show everything) on first run.
+//
+// ON THE SWALLOW (deliberate): every localStorage access below is wrapped and falls back to a
+// documented default. This is the ONE category where swallow-to-default is correct (see
+// DEFENSIVE-CODING.md §5) — these are device-global, NON-TENANT view toggles, so a blocked /
+// private-mode / quota / corrupt store can lose a toggle but can NEVER corrupt account data, and
+// the in-memory store still honours the choice for the session. Do NOT copy this onto a data path.
 
 export interface UtilizationPrefs {
   /** Show the account-wide utilisation summary. */
@@ -49,7 +55,7 @@ export function writeStoredUtilizationPrefs(prefs: UtilizationPrefs): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
   } catch {
-    // ignore — see readStoredUtilizationPrefs
+    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
 }
 
@@ -90,7 +96,7 @@ export function writeStoredBarLabelPrefs(prefs: BarLabelPrefs): void {
   try {
     localStorage.setItem(BAR_LABEL_STORAGE_KEY, JSON.stringify(prefs))
   } catch {
-    // ignore — see readStoredUtilizationPrefs
+    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
 }
 
@@ -122,7 +128,7 @@ export function writeStoredSidebarOpen(open: boolean): void {
   try {
     localStorage.setItem(SIDEBAR_STORAGE_KEY, open ? 'open' : 'closed')
   } catch {
-    // ignore — see readStoredUtilizationPrefs
+    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
 }
 

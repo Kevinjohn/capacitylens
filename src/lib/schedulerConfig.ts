@@ -41,7 +41,11 @@ export const UTILIZATION_WINDOW_DAYS = 14
 
 /** Day-column width (px) that fits `weeks` weeks into `availableWidth`, clamped legible. */
 export function resolveDayWidth(availableWidth: number, weeks: WeeksZoom): number {
-  if (availableWidth <= 0) return MIN_DAY_WIDTH
+  // `availableWidth` comes from a measured DOM rect, which can be NaN (unmeasured / detached
+  // element). Treat non-finite the same as <= 0: a NaN would slip past the `<= 0` check
+  // (NaN <= 0 is false) and Math.floor(NaN/…) → NaN → Math.min/max(NaN) → NaN, propagating a
+  // NaN width into layout. Fall back to the minimum legible width instead.
+  if (!Number.isFinite(availableWidth) || availableWidth <= 0) return MIN_DAY_WIDTH
   const raw = Math.floor(availableWidth / (weeks * 7))
   return Math.min(MAX_DAY_WIDTH, Math.max(MIN_DAY_WIDTH, raw))
 }

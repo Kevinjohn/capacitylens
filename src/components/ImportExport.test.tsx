@@ -160,9 +160,10 @@ describe('ImportExport – Import', () => {
     fireEvent.change(input)
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    // No confirmation dialog appears, an error notice is shown, and data is preserved.
+    // No confirmation dialog appears, an error notice naming the specific reason (empty Floaty
+    // file → no records) is shown, and data is preserved.
     expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull()
-    expect(useStore.getState().notice?.message).toMatch(/valid Floaty JSON/i)
+    expect(useStore.getState().notice?.message).toMatch(/no Floaty records/i)
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0)
   })
 
@@ -177,7 +178,8 @@ describe('ImportExport – Import', () => {
     fireEvent.change(input)
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    expect(useStore.getState().notice?.message).toMatch(/valid Floaty JSON/i)
+    // Invalid JSON now surfaces parseData's specific "That file isn't valid JSON." message.
+    expect(useStore.getState().notice?.message).toMatch(/valid JSON/i)
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0) // data preserved
   })
 })

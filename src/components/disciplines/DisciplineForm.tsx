@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
+import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { Discipline } from '@floaty/shared/types/entities'
 
+/** Add (no `discipline`) or edit a discipline: name + colour. `sortOrder` is auto-assigned (one past
+ *  the current max, not the count — see below). `onClose` fires on save or cancel. */
 export function DisciplineForm({ discipline, onClose }: { discipline?: Discipline; onClose: () => void }) {
   const add = useStore((s) => s.addDiscipline)
   const update = useStore((s) => s.updateDiscipline)
@@ -25,9 +28,15 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
     const trimmed = validateName(name, fail)
     if (!trimmed) return
     if (!validateHex(color, fail)) return
-    if (discipline) update(discipline.id, { name: trimmed, color, sortOrder })
-    else add({ name: trimmed, color, sortOrder })
-    onClose()
+    // Surface a store-side rejection as a form error rather than an uncaught React error — see the
+    // store CRUD contract.
+    try {
+      if (discipline) update(discipline.id, { name: trimmed, color, sortOrder })
+      else add({ name: trimmed, color, sortOrder })
+      onClose()
+    } catch (e) {
+      fail(null, errorMessage(e))
+    }
   }
 
   return (

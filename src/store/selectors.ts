@@ -25,7 +25,13 @@ export const calendarFor = (data: AppData, activeAccountId: ID | null): Calendar
 }
 
 /** Narrow the full store data to a single account: every scoped array filtered to
- *  `accountId`, and `accounts` blanked (scoped views never read the tenant list). */
+ *  `accountId`, and `accounts` blanked (scoped views never read the tenant list).
+ *
+ *  This is THE read-side tenancy boundary, and its correctness rests on a NON-LOCAL fact:
+ *  `SCOPED_KEYS` must be EXHAUSTIVE over AppData's scoped tables. `scoped` starts as emptyAppData()
+ *  and only the SCOPED_KEYS are copied across — so a scoped table that AppData gains but SCOPED_KEYS
+ *  omits would render EMPTY in every scoped view (the rows silently vanish). The exhaustiveness gate
+ *  (see CLAUDE.md / DECISIONS.md) keeps SCOPED_KEYS complete; never add a scoped table without it. */
 export function scopeData(data: AppData, accountId: ID): AppData {
   const scoped = emptyAppData()
   const src = scopedTables(data)
@@ -55,6 +61,9 @@ export const phasesForProject = (data: AppData, projectId: ID) =>
 export const tasksForProject = (data: AppData, projectId: ID) =>
   data.tasks.filter((t) => t.projectId === projectId)
 
+// Find-by-id helpers. Each returns `T | undefined` — `find` MISSES for a stale or cross-account
+// id, so callers must narrow (optional-chain / guard) before dereferencing, never assume the id
+// resolves. (The fix for a possibly-undefined result belongs at the CONSUMER, not as a throw here.)
 export const taskById = (data: AppData, id: ID) => data.tasks.find((t) => t.id === id)
 export const projectById = (data: AppData, id: ID) => data.projects.find((p) => p.id === id)
 export const clientById = (data: AppData, id: ID) => data.clients.find((c) => c.id === id)

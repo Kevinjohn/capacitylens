@@ -21,7 +21,14 @@ export function toRow(spec: TableSpec, obj: Row): SQLInputValue[] {
 }
 
 /** SQL row → object: JSON-decode json columns, drop NULL optionals so the result
- *  deep-equals the client's object (which omits absent optionals). */
+ *  deep-equals the client's object (which omits absent optionals).
+ *
+ *  @throws {Error} a typed "Corrupt JSON in <table>.<column> (id=…)" error if a json column on
+ *    disk can't be parsed (corruption, a manual edit, or a value written by an older/buggy codec).
+ *    We RETHROW with the exact location rather than swallowing: loadState() reads every row through
+ *    here, so a silent fallback to the raw string would quietly poison the in-memory AppData tree
+ *    (the local-first data-corruption anti-goal), and a bare JSON.parse throw would surface only as
+ *    an opaque 500 with no clue WHICH row is bad. Naming table.column.id makes it diagnosable. */
 export function fromRow(spec: TableSpec, row: Row): Row {
   const obj: Row = {}
   for (const c of spec.columns) {
@@ -30,7 +37,19 @@ export function fromRow(spec: TableSpec, row: Row): Row {
       if (!c.optional) obj[c.name] = v // required column: keep as-is (shouldn't be null)
       continue
     }
-    obj[c.name] = c.json ? JSON.parse(v as string) : v
+    if (c.json) {
+      try {
+        obj[c.name] = JSON.parse(v as string)
+      } catch (e) {
+        const id = typeof row.id === 'string' ? row.id : '?'
+        throw new Error(
+          `Corrupt JSON in ${spec.key}.${c.name} (id=${id}): ${e instanceof Error ? e.message : String(e)}`,
+          { cause: e },
+        )
+      }
+    } else {
+      obj[c.name] = v
+    }
   }
   return obj
 }

@@ -44,6 +44,24 @@ function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSn
   return null
 }
 
+/**
+ * One draggable/resizable allocation bar in a resource lane.
+ *
+ * Gesture lifecycle (read this before touching the pointer handlers):
+ * - **Armed on pointerdown.** `onPointerDown` only sets up side effects once `useDragResize`
+ *   confirms the gesture is armed (left button, not re-entrant) — otherwise the scroll-watch and
+ *   lane snapshot would leak with no commit/cancel/click to tear them down.
+ * - **Side effects + teardown.** Arming takes a one-time `snapshotLanes()` (cached lane rects, to
+ *   avoid per-move layout thrash) and starts a capture-phase scroll watcher that re-snapshots on
+ *   scroll (a drop after a scroll would otherwise hit-test stale rects and reassign to the wrong
+ *   row). Both are torn down on commit/cancel/click AND on unmount (the cleanup effect), so a bar
+ *   removed mid-drag (undo, account switch, hot reload) can't leak the document scroll listener.
+ * - **Drag-pin.** On the FIRST move we set the store's `draggingAllocationId` to this bar — that
+ *   FREEZES SchedulerGrid's vertical virtualisation so a mid-gesture scroll can't unmount this bar
+ *   and orphan the live drag. It's released on commit/cancel/click and, defensively, on unmount.
+ * - **onEdit must be a STABLE ref.** The lane passes one callback for every bar; that referential
+ *   stability is what lets `React.memo` skip re-rendering untouched bars during a sibling's drag.
+ */
 export const AllocationBar = memo(function AllocationBar({
   bar,
   dayWidth,
@@ -261,6 +279,9 @@ export const AllocationBar = memo(function AllocationBar({
   const completed = bar.allocation.status === 'completed'
   // Nudge the bar colour so the label clears WCAG AA against its ink (many mid-tones don't).
   // Memoised on the colour: the 0–30-iteration contrast loop must not re-run on every render.
+  // bar.color is always a valid preset hex — resolveBarColor (schedulerModel) returns a preset
+  // or discipline-derived swatch, never a user-typed hex ("preset swatches only" invariant) — so
+  // the contrast loop is bounded (a malformed hex couldn't send it off the WCAG-step rails).
   const { bg, ink } = useMemo(() => ensureBarColors(bar.color), [bar.color])
 
   // Keyboard equivalent of drag: ←/→ move a day, Shift+←/→ resize the end a day.
@@ -276,8 +297,11 @@ export const AllocationBar = memo(function AllocationBar({
         : null
     try {
       updateAllocation(bar.allocation.id, { ...next, ...hoursPatch })
-    } catch {
-      /* e.g. integrity rejected — ignore, the bar stays put */
+    } catch (e) {
+      // Integrity rejected the keyboard move/resize (e.g. into an illegal slot). Surface it the
+      // same way the pointer-drag commit path does (onCommit above) — a silent no-op left the bar
+      // sitting still with no hint why, which reads as a broken key.
+      setNotice(e instanceof Error ? e.message : 'That move was not allowed.', 'error')
     }
   }
 

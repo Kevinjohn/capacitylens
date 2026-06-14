@@ -61,7 +61,13 @@ export function migrateSchema(db: Db): void {
 
 /** 12-step table rebuild (per the SQLite docs) to make tasks.projectId nullable
  *  while preserving rows + the foreign keys other tables hold against tasks(id).
- *  The target DDL mirrors the `tasks` block in SCHEMA_SQL. */
+ *  The target DDL mirrors the `tasks` block in SCHEMA_SQL.
+ *
+ *  ASSUMPTION (true today, verified): `tasks` has NO indexes, triggers, or extra constraints
+ *  beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
+ *  if one is ever added to `tasks`, this rebuild must be updated to recreate it AFTER the rename —
+ *  otherwise a migration would quietly lose it. (If that risk grows, gate with a PRAGMA index_list
+ *  check that throws on anything unexpected.) */
 function rebuildTasksTable(db: Db): void {
   db.exec(`
     CREATE TABLE tasks_new (

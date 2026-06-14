@@ -161,6 +161,11 @@ export function NumberField({
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
+        // Number('') and Number('abc') are NaN, so this INTENTIONALLY emits a transient NaN to the
+        // parent while the field is empty/part-typed. That's contained, not a bug: onBlur (below)
+        // clamps it to a real number, and the form's submit-time numeric guards are the real
+        // backstop (e.g. ResourceForm's `!(hours > 0)` rejects a NaN because `NaN > 0` is false).
+        // Don't "fix" this by blocking the NaN here — the empty/intermediate state must round-trip.
         onChange={(e) => onChange(Number(e.target.value))}
         // Clamp to [min, max] on blur — type=number's own min/max are advisory and
         // aren't enforced on paste/typing, so a stray entry would otherwise stick.

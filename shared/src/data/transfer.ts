@@ -36,6 +36,11 @@ export function parseData(json: string): AppData {
     throw new Error('This file is damaged: a data table is not a list. Nothing was imported.')
   }
   const data = migrate(raw)
+  // NOTE: this `total` counts EVERY table on AppData (it includes `accounts`), because here we're
+  // gating the FILE — its size and emptiness — not the per-account import. The importer
+  // (remapAndValidateImport) later counts only the SCOPED_KEYS it actually brings into the active
+  // account, so its "imported N" can be smaller than this total by exactly the accounts array.
+  // The two counts answer different questions on purpose; don't "reconcile" them into one.
   const total = Object.values(data).reduce((n, arr) => n + (Array.isArray(arr) ? arr.length : 0), 0)
   if (total > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${total.toLocaleString()}).`)

@@ -55,8 +55,16 @@ export function diffOps(prev: AppData, next: AppData): Op[] {
   const upserts: Op[] = []
   const deletes: Op[] = []
   for (const table of UPSERT_ORDER) {
+    // INVARIANT: every AppData reaching the adapter is post-migrate (migrate() guarantees each
+    // table column is an array) and lastSynced begins as emptyAppData() — so these `as Entity[]`
+    // casts are always over real arrays. A non-array here is an UPSTREAM PROGRAMMER ERROR, not
+    // user data; the assert turns an otherwise-cryptic "x.map is not a function" into a diagnosable
+    // message. Pure function — a throw correctly propagates to the caller's error path.
     const prevRows = prev[table] as Entity[]
     const nextRows = next[table] as Entity[]
+    if (!Array.isArray(prevRows) || !Array.isArray(nextRows)) {
+      throw new Error(`diffOps: table "${table}" is not an array — inputs must be post-migrate AppData.`)
+    }
     const prevById = new Map(prevRows.map((e) => [e.id, e]))
     const nextById = new Map(nextRows.map((e) => [e.id, e]))
     for (const row of nextRows) {
@@ -80,12 +88,25 @@ export function diffOps(prev: AppData, next: AppData): Op[] {
 }
 
 /** Apply a set of (already-confirmed) ops to a base snapshot, returning a NEW AppData.
- *  Lets the sync advance lastSynced by EXACTLY the writes that landed, so a partial flush
- *  leaves only the failed rows in the next diff (the rest are marked synced and never
- *  replay). Exported for unit tests. */
+ *
+ *  Diff-replay utility, exported for unit tests. It is NOT wired into a partial-advance sync path:
+ *  `ServerSyncAdapter.drain()` relies on BATCH ATOMICITY — a batch either fully applies or throws,
+ *  so on success `lastSynced` advances to the WHOLE target (see drain), and there is no production
+ *  caller that advances `lastSynced` by only-the-ops-that-landed. If a per-op partial-advance
+ *  recovery is ever added, this is the building block; until then, don't assume sync recovers
+ *  row-by-row from a partial flush. */
 export function applyOps(base: AppData, ops: Op[]): AppData {
   const next = {} as Record<TableKey, Entity[]>
-  for (const table of UPSERT_ORDER) next[table] = [...(base[table] as Entity[])]
+  // Same invariant as diffOps: `base` is post-migrate, so every table is an array; and `ops` are
+  // produced only by diffOps over UPSERT_ORDER, so every op.table is a known table (next[op.table]
+  // is always defined below). A non-array base is a programmer error — fail loud, don't paper over.
+  for (const table of UPSERT_ORDER) {
+    const rows = base[table] as Entity[]
+    if (!Array.isArray(rows)) {
+      throw new Error(`applyOps: table "${table}" is not an array — base must be post-migrate AppData.`)
+    }
+    next[table] = [...rows]
+  }
   for (const op of ops) {
     const list = next[op.table]
     if (op.method === 'DELETE') {

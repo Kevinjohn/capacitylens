@@ -18,8 +18,31 @@ import { migrateSchema, assertSchemaCurrent } from './schema'
 
 export type Db = DatabaseSync
 
+// `table` is interpolated DIRECTLY into the SQL strings below (SQL can't parameterise an
+// identifier), so it MUST be a vetted key of TABLES — this is the SQL-injection safety boundary.
+// Every route already gates the table name through isKnownTable before reaching these primitives;
+// this assertion is defence-in-depth (a future caller can't turn an unchecked string into an
+// injection point) and turns a cryptic "cannot read properties of undefined" into a clear message.
+// One own-property lookup — `Object.hasOwn`, not `in`, so a prototype key like "constructor" can't
+// masquerade as a table.
+function assertKnownTable(table: string): void {
+  if (!Object.hasOwn(TABLES, table)) {
+    throw new Error(`Unknown table "${table}" — not a known entity table (SQL-identifier safety guard).`)
+  }
+}
+
 export function openDb(path: string): Db {
-  const db = new DatabaseSync(path)
+  let db: Db
+  try {
+    db = new DatabaseSync(path)
+  } catch (e) {
+    // Boot SHOULD crash on an unopenable DB — but frame the raw node:sqlite error with the path so
+    // an operator sees "could not open <FLOATY_DB>" instead of a bare stack. Rethrow (don't swallow).
+    throw new Error(
+      `Could not open the SQLite database at "${path}": ${e instanceof Error ? e.message : String(e)}`,
+      { cause: e },
+    )
+  }
   db.exec('PRAGMA journal_mode = WAL;')
   // Wait up to 5s for a held lock instead of throwing SQLITE_BUSY immediately — two server
   // processes on the same FLOATY_DB file (or a WAL checkpoint) contend rather than error.
@@ -48,6 +71,7 @@ const placeholders = (n: number) => Array.from({ length: n }, () => '?').join(',
 // (insertAll / replaceAccountSlice) loop over so they can mark ONCE at the end instead of
 // re-running an `INSERT OR IGNORE INTO _meta` per row.
 function insertRowRaw(db: Db, table: string, obj: Row): void {
+  assertKnownTable(table)
   const spec = TABLES[table]
   const cols = spec.columns.map((c) => c.name)
   db.prepare(`INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders(cols.length)})`).run(
@@ -64,6 +88,7 @@ export function insertRow(db: Db, table: string, obj: Row): void {
  *  create/update, so replaying a batch after a partial failure can't double-insert
  *  (a re-PUT of an already-written row just overwrites it). */
 export function upsertRow(db: Db, table: string, obj: Row): void {
+  assertKnownTable(table)
   const spec = TABLES[table]
   const cols = spec.columns.map((c) => c.name)
   // Exclude id (the conflict key) AND createdAt from the UPDATE: createdAt is immutable
@@ -81,10 +106,12 @@ export function upsertRow(db: Db, table: string, obj: Row): void {
 /** Idempotent: deleting an absent id is a no-op (the store's cascade and the DB's
  *  ON DELETE can both target the same row; whichever loses the race must not error). */
 export function deleteRow(db: Db, table: string, id: string): void {
+  assertKnownTable(table)
   db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id)
 }
 
 export function getRow(db: Db, table: string, id: string): Row | undefined {
+  assertKnownTable(table)
   const spec = TABLES[table]
   const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id)
   return row ? fromRow(spec, row) : undefined

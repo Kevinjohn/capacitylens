@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore'
 import { useScopedData } from '../store/useScopedData'
 import { parseData, serializeData } from '@floaty/shared/data/transfer'
 import { downloadTextFile } from '../lib/download'
+import { errorMessage } from '../lib/errorMessage'
 import { ConfirmDialog } from './common/ui'
 import type { AppData } from '@floaty/shared/types/entities'
 
@@ -39,7 +40,13 @@ export function ImportExport() {
   const [pendingImport, setPendingImport] = useState<{ data: AppData; name: string } | null>(null)
 
   const onExport = () => {
-    downloadTextFile('floaty-data.json', serializeData(data))
+    // downloadTextFile throws if the download couldn't start — surface it rather than letting it
+    // escape as an uncaught handler error, so the user knows the export did NOT save.
+    try {
+      downloadTextFile('floaty-data.json', serializeData(data))
+    } catch (e) {
+      setNotice(errorMessage(e), 'error')
+    }
   }
 
   const onImport = async (file: File) => {
@@ -51,13 +58,21 @@ export function ImportExport() {
     try {
       const parsed = parseData(await file.text())
       setPendingImport({ data: parsed, name: file.name })
-    } catch {
-      setNotice('Could not import that file — it is not valid Floaty JSON.', 'error')
+    } catch (e) {
+      // parseData throws PRECISE, user-ready messages ("This file isn't valid JSON.", "This file is
+      // damaged: a data table is not a list.", "This file has too many records (…)", "This file
+      // contains no Floaty records.") — surface the REAL reason instead of a generic catch-all, so
+      // the user (and a contributor) knows why the file was rejected.
+      setNotice(errorMessage(e) || 'Could not import that file — it is not valid Floaty JSON.', 'error')
     }
   }
 
   const confirmImport = () => {
     if (!pendingImport) return
+    // importData → requireAccount() throws if there's no active account, but ImportExport only ever
+    // renders behind AppShell's tenant gate, so an account is always active here — confirmImport
+    // can't throw on that path today. (Cross-file invariant; if this panel is ever rendered outside
+    // the gate, add a guard. Don't wrap importData in a swallowing try/catch — its throws matter.)
     const { imported, skipped } = importData(pendingImport.data)
     setPendingImport(null)
     // When EVERY record was dropped (imported === 0) the store no-ops — it pushes NO undo

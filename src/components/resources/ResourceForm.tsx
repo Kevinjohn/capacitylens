@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
+import { errorMessage } from '../../lib/errorMessage'
 import { validateText, validateWorkingDays } from '../../lib/validation'
 import {
   Button,
@@ -18,9 +19,20 @@ import { EMPLOYMENT_TYPE_OPTIONS } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { EmploymentType, Resource, ResourceKind, Weekday } from '@floaty/shared/types/entities'
 
-// People and placeholders now have their own add buttons, so the form opens locked
-// to a single kind (taken from the resource being edited, or the `kind` the caller
-// chose for a new one) — no in-modal type switcher.
+/**
+ * Add/edit a person or a placeholder. The richest validation path in the app.
+ *
+ * @param resource the resource to edit, or undefined to add a new one.
+ * @param kind     the kind for a NEW resource ('person' | 'placeholder'); ignored when editing
+ *   (an existing resource's own `kind` wins). The form opens LOCKED to one kind — people and
+ *   placeholders have separate add buttons, so there's no in-modal type switcher.
+ * @param onClose  called after a successful save, or on cancel.
+ *
+ * Non-obvious rules enforced here: a PERSON requires a name (a placeholder's is optional); a
+ * PLACEHOLDER must be bound to a project; working hours/day must be > 0 and at least one working
+ * day must be selected (a zero-capacity resource reads as permanently over-allocated); and a
+ * resource's colour is DERIVED from its discipline (no per-resource colour control — see DECISIONS).
+ */
 export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?: Resource; kind?: ResourceKind; onClose: () => void }) {
   const add = useStore((s) => s.addResource)
   const update = useStore((s) => s.updateResource)
@@ -80,9 +92,16 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
       // from the discipline. Keep a stable fallback so the entity stays valid.
       color: resource?.color ?? DEFAULT_COLORS.resource,
     }
-    if (resource) update(resource.id, patch)
-    else add(patch)
-    onClose()
+    // Surface a store-side rejection (e.g. a dangling disciplineId/placeholder projectId, or the
+    // empty-working-days backstop) as a form error rather than an uncaught React error — see the
+    // store CRUD contract.
+    try {
+      if (resource) update(resource.id, patch)
+      else add(patch)
+      onClose()
+    } catch (e) {
+      fail(null, errorMessage(e))
+    }
   }
 
   return (

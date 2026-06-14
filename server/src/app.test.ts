@@ -542,6 +542,51 @@ describe('error status mapping (statusFor)', () => {
     expect(statusFor(new Error('something unexpected blew up'))).toBe(500)
     expect(statusFor('a string')).toBe(500)
   })
+
+  // PINNING TEST: the 400-vs-500 split rests on node:sqlite spelling constraint errors
+  // "<kind> constraint failed". The case above uses fabricated strings; these trigger REAL
+  // violations so a library/locale change to that wording fails HERE (a gate failure) instead of
+  // silently misclassifying genuine 500s as 400s — or vice versa — in production.
+  describe('pins node:sqlite constraint wording on real violations', () => {
+    const grab = (fn: () => void): Error => {
+      try {
+        fn()
+      } catch (e) {
+        return e as Error
+      }
+      throw new Error('expected a constraint violation, but none was thrown')
+    }
+
+    it('NOT NULL violation still says "constraint failed" → 400', () => {
+      const db = openDb(':memory:')
+      const e = grab(() =>
+        db.exec(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', NULL, '#fff', 't', 't')`),
+      )
+      expect(e.message).toMatch(/constraint failed/i)
+      expect(statusFor(e)).toBe(400)
+    })
+
+    it('UNIQUE/PRIMARY KEY violation still says "constraint failed" → 400', () => {
+      const db = openDb(':memory:')
+      db.exec(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', 'Studio', '#fff', 't', 't')`)
+      const e = grab(() =>
+        db.exec(`INSERT INTO accounts (id, name, color, createdAt, updatedAt) VALUES ('a', 'Dup', '#fff', 't', 't')`),
+      )
+      expect(e.message).toMatch(/constraint failed/i)
+      expect(statusFor(e)).toBe(400)
+    })
+
+    it('FOREIGN KEY violation still says "constraint failed" → 400', () => {
+      const db = openDb(':memory:') // openDb turns foreign_keys ON
+      const e = grab(() =>
+        db.exec(
+          `INSERT INTO clients (id, accountId, name, color, createdAt, updatedAt) VALUES ('c', 'no-such-account', 'Acme', '#fff', 't', 't')`,
+        ),
+      )
+      expect(e.message).toMatch(/constraint failed/i)
+      expect(statusFor(e)).toBe(400)
+    })
+  })
 })
 
 describe('CORS allow-list', () => {

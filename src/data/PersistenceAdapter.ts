@@ -10,7 +10,12 @@ export interface PersistenceAdapter {
    *  get the first request out before the event loop dies). Synchronous adapters ignore it. */
   saveAll(data: AppData, opts?: { unload?: boolean }): Promise<void>
   /** True when a dataset was ever persisted — lets bootstrap distinguish a
-   *  genuine first run from a user who deliberately cleared everything. */
+   *  genuine first run from a user who deliberately cleared everything.
+   *
+   *  MAY THROW (e.g. a server `/api/meta` round-trip can fail). A throw is INDETERMINATE,
+   *  not "no data": callers MUST compensate non-destructively — bootstrap falls back to
+   *  `!isEmpty(loaded)` — and must NEVER react to a throw by discarding already-loaded data or
+   *  skipping the persistence attach (that would strand the user unable to save). */
   hasExisting?(): Promise<boolean>
 }
 

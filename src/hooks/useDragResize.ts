@@ -56,6 +56,10 @@ export function useDragResize(args: UseDragResizeArgs) {
     // pointerId (treat a missing id as "the active pointer").
     const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId
 
+    // NOTE: the snapDeltaToDays(...) calls below divide by dayWidth, but the divide-by-zero /
+    // undefined-dayWidth guard lives in the PURE gestureMath.snapDeltaToDays (it returns 0 when
+    // dayWidth <= 0). This hook intentionally stays guard-free here — do NOT wrap these pure calls
+    // in try/catch (that would be the harmful pattern; the guard belongs in the pure layer).
     const onMove = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return
       const dx = ev.clientX - startX

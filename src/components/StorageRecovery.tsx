@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { storageAdapter } from '../data/storageAdapter'
 import { downloadTextFile } from '../lib/download'
+import { errorMessage } from '../lib/errorMessage'
 import { Button, ConfirmDialog } from './common/ui'
 
 // Shown when bootstrap found stored data it could NOT read (corrupt JSON / failed
@@ -9,12 +10,30 @@ import { Button, ConfirmDialog } from './common/ui'
 // before resetting, rather than silently starting from empty and overwriting them.
 export function StorageRecovery() {
   const [confirming, setConfirming] = useState(false)
+  // This is the data-SALVAGE screen, so a failure of the salvage itself must be VISIBLE here —
+  // never a silent no-op or an uncaught handler error that leaves the user stranded with neither a
+  // backup nor a reset.
+  const [error, setError] = useState<string | null>(null)
 
   const downloadRaw = () => {
-    downloadTextFile('floaty-corrupt-backup.json', storageAdapter.readRaw() ?? '')
+    const raw = storageAdapter.readRaw()
+    if (raw === null) {
+      // readRaw() returns null when storage can't be read at all — don't hand the user an EMPTY
+      // file they'd mistake for a real backup. Tell them instead.
+      setError('Couldn’t read the stored bytes — your browser may be blocking storage access. Check its storage/privacy settings and try again.')
+      return
+    }
+    try {
+      downloadTextFile('floaty-corrupt-backup.json', raw)
+      setError(null)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
   }
 
-  // Clear the unreadable data and reload — bootstrap then reseeds from scratch.
+  // Clear the unreadable data and reload — bootstrap then reseeds from scratch. storageAdapter.clear()
+  // swallows its own storage errors by design (the reload re-attempts and reseeds anyway), so this
+  // can't throw; the reload always runs.
   const reset = () => {
     storageAdapter.clear()
     window.location.reload()
@@ -37,6 +56,11 @@ export function StorageRecovery() {
             Reset data
           </Button>
         </div>
+        {error && (
+          <p role="alert" className="mt-3 text-sm font-medium text-danger">
+            {error}
+          </p>
+        )}
       </div>
 
       {confirming && (

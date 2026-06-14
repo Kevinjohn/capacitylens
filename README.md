@@ -90,6 +90,9 @@ round-trips, not Safari rendering).
 
 - **`DECISIONS.md`** — slim, present-tense digest of standing decisions that constrain the code
   (read it whole; it's short).
+- **`DEFENSIVE-CODING.md`** — the defensive-coding & commenting standard for contributors:
+  surface-never-swallow, the error model, where `try/catch` belongs vs. is harmful, and the
+  TSDoc/why-comment bar. Read it before sending a change.
 - **`NEEDS-INPUT.md`** — open product questions to revisit with the owner.
 - **`docs/decisions-log.md`** — dated, append-only build/remediation log (large — grep or tail it,
   don't read it whole).

@@ -9,7 +9,15 @@ export function tx(db: Db, fn: () => void): void {
     fn()
     db.exec('COMMIT')
   } catch (e) {
-    db.exec('ROLLBACK')
+    // Roll back, but NEVER let a ROLLBACK failure MASK the original error. If BEGIN never armed a
+    // transaction or the connection is gone, db.exec('ROLLBACK') itself throws — swallow ONLY that
+    // (after logging), then always rethrow `e`, the real cause, so the diagnostic chain stays
+    // intact. The rare acceptable nested swallow: the original failure is still surfaced.
+    try {
+      db.exec('ROLLBACK')
+    } catch (rollbackError) {
+      console.error('tx: ROLLBACK failed after an error; preserving the original cause', rollbackError)
+    }
     throw e
   }
 }

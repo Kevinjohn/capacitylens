@@ -7,6 +7,10 @@ import { createAuthClient } from 'better-auth/react'
 import { genericOAuthClient } from 'better-auth/client/plugins'
 import { API_BASE } from '../data/apiConfig'
 
+// ASSUMES SERVER MODE: API_BASE is non-empty here. This module is only ever loaded on demand from
+// LoginScreen / AuthProvider.signOut, both of which only run in server mode — so an empty baseURL
+// can't occur in practice. If a future change statically imports this elsewhere, guard that
+// API_BASE is set first (a client pointed at `/api/auth` with no origin would silently misbehave).
 export const authClient = createAuthClient({
   baseURL: `${API_BASE}/api/auth`,
   // The generic OAuth2/OIDC client mirrors the server's sso mode (provider stays config).

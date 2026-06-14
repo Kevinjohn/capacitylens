@@ -30,7 +30,7 @@ export function TimeOffList() {
                 <span className="font-medium">{resourceName(t.resourceId)}</span>
                 <span className="text-sm text-muted">
                   {' '}
-                  · {t.startDate} → {t.endDate} · {TIME_OFF_TYPE_LABELS[t.type]}
+                  · {t.startDate} → {t.endDate} · {TIME_OFF_TYPE_LABELS[t.type] ?? t.type}
                   {t.note ? ` · ${t.note}` : ''}
                 </span>
               </span>

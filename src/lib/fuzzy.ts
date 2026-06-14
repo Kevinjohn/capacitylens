@@ -21,7 +21,11 @@ export interface FuzzyScore {
   text: string
 }
 
-/** Return the score for `query` against `text`, or Infinity if no match. */
+/** Return the score for `query` against `text`, or Infinity if no match.
+ *  @remarks Pure and TOTAL — although `query` is untrusted user input, every branch returns a
+ *    number and the regex is a fixed pattern over a single capture (no catastrophic backtracking),
+ *    so this cannot throw. Do NOT wrap it in try/catch — there's nothing to guard and a wrapper
+ *    would only mask a future real bug. */
 export function fuzzyScore(query: string, text: string): number {
   if (!query) return 0
 

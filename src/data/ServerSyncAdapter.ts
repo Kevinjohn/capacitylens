@@ -53,7 +53,13 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       const res = await this.fetchImpl(`${this.baseUrl}/api/state`, { credentials: 'include' })
       if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
       const json: unknown = await res.json()
-      const data = migrate(json) // tolerate an older-schema server payload
+      // migrate() is TOLERANT: it coerces a malformed/non-Floaty object to an EMPTY AppData rather
+      // than throwing. So a 200 carrying a non-Floaty body (a proxy HTML error page, a truncated
+      // response) hydrates EMPTY and sets lastSynced=empty here — accepted because in server mode
+      // the SERVER is the source of truth (there's nothing local to overwrite). If a suspicious
+      // 200 should instead be a hard failure, reuse the shared hasNonArrayKnownTable guard before
+      // migrate and throw LoadError('unavailable').
+      const data = migrate(json)
       this.lastSynced = data
       return data
     } catch (e) {
@@ -109,6 +115,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       const target = this.queued
       this.queued = null
       const ops = diffOps(this.lastSynced, target)
+      // The ABSENCE of a try/catch here is INTENTIONAL — do not "harden" it. An applyBatch throw
+      // MUST propagate so saveAll rejects, persist.ts surfaces it (persistError) and retries, and
+      // lastSynced is NOT advanced. Swallowing here would advance lastSynced past writes that never
+      // landed, silently dropping them from every future diff — permanent data loss.
       if (ops.length > 0) await this.applyBatch(ops)
       this.lastSynced = target
     }

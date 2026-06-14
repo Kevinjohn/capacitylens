@@ -21,6 +21,26 @@ type ModalState =
   | { kind: 'create'; resourceId: ID; startDate: ISODate; endDate: ISODate }
   | { kind: 'timeoff'; resourceId: ID; startDate: ISODate; endDate: ISODate }
 
+/**
+ * The week-grid scheduler: the helicopter view of who's busy/free. Two non-obvious
+ * mechanisms run here — read this before touching the scroll/render path.
+ *
+ * **1. Vertical virtualization.** The model (groups → rows) is flattened into one ordered
+ * `items` list (group headers + the rows of expanded groups), then each item's height is
+ * measured (`heights`), prefix-summed by `buildLayout`, and `windowFromLayout` picks the
+ * on-screen slice for the current `scrollTop`/viewport height. Only that slice is in the DOM;
+ * the rows above and below it are RESERVED by `topPad`/`bottomPad` spacer divs so the
+ * scrollbar geometry stays correct (drop the spacers and the scroll height collapses, so the
+ * thumb and every offset would be wrong). `heights`/`layout` are memoised on the item set, so a
+ * scroll frame only runs the cheap edge-scan, not a full re-measure.
+ *
+ * **2. The drag-freeze (load-bearing).** While a bar is being dragged, `onScroll` SKIPS
+ * `setScrollTop` (it reads `draggingAllocationId` live via `getState` to dodge a stale closure),
+ * so the visible window does not re-window mid-gesture. This is not a perf nicety: re-windowing
+ * could unmount the dragged `AllocationBar` and tear down its document pointer listeners,
+ * orphaning the live cross-row drag so the drop never commits. When the drag ENDS, a one-shot
+ * effect (keyed on `dragging`) catches the window up to whatever scrolling happened while frozen.
+ */
 export function SchedulerGrid() {
   const data = useScopedData()
   const ui = useStore((s) => s.ui)

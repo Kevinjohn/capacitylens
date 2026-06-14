@@ -78,7 +78,14 @@ export function validateAllocationAssignment(
 }
 
 // ---- Cascade deletes ----
+//
+// Every `delete*Cascade` below is PURE: it returns a NEW `AppData` and never mutates its input.
+// Bumping `updatedAt` timestamps and pushing onto the undo stack are the STORE's job (see
+// useStore.ts) — these transforms only express the referential consequences of a delete (which
+// children are removed vs. unbound), mirroring the server's ON DELETE CASCADE / SET NULL rules so
+// the local and server paths can't diverge. Safe to compose/test in isolation.
 
+/** Delete a resource and its allocations + time off. PURE — returns a new AppData. */
 export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
   return {
     ...data,
@@ -88,6 +95,7 @@ export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
   }
 }
 
+/** Delete a task and its allocations. PURE — returns a new AppData. */
 export function deleteTaskCascade(data: AppData, taskId: ID): AppData {
   return {
     ...data,
@@ -105,6 +113,8 @@ export function deletePhaseCascade(data: AppData, phaseId: ID): AppData {
   }
 }
 
+/** Delete a project: drops its phases + tasks + those tasks' allocations, unbinds a surviving
+ *  task's phase and any placeholder bound to it. PURE — returns a new AppData. */
 export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
   const removedTaskIds = new Set(
     data.tasks.filter((t) => t.projectId === projectId).map((t) => t.id),
@@ -130,6 +140,8 @@ export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
   }
 }
 
+/** Delete a client and everything beneath it (projects → phases → tasks → allocations), unbinding
+ *  surviving phases/placeholders as needed. PURE — returns a new AppData. */
 export function deleteClientCascade(data: AppData, clientId: ID): AppData {
   // Single pass: collect every id removed by this client's deletion FIRST, then filter each
   // table ONCE — rather than re-copying the whole tree per project (deleteProjectCascade × N).

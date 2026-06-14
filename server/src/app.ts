@@ -152,6 +152,11 @@ export function statusFor(err: unknown): number {
   // tokens (NOT NULL / UNIQUE / FOREIGN KEY) could misclassify an unrelated 500 whose
   // message merely contained one of those words as a caller-fault 400 — and then leak its
   // raw message. (Matches the whole-state siblings' tightened classifier.)
+  //
+  // FRAGILE BY NATURE: this rests on node:sqlite's EXACT wording. A library/locale change to the
+  // phrase would silently misclassify — a real 500 → 400 (losing its server-side log) or a 400 →
+  // 500 — so it's pinned by a unit test that triggers each real constraint kind and asserts the
+  // message still contains "constraint failed" (see the statusFor test in app.test.ts).
   if (/constraint failed/i.test(msg)) return 400
   return 500
 }
@@ -247,9 +252,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       req.user = DEMO_USER
       return
     }
-    const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
-    if (!session) return reply.code(401).send({ error: 'Sign in to continue.' })
-    req.user = session.user
+    try {
+      const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
+      if (!session) return reply.code(401).send({ error: 'Sign in to continue.' })
+      req.user = session.user
+    } catch (e) {
+      // The auth backend (Better Auth / its DB) FAILED — this is NOT "no session". CRITICAL: do
+      // not fall through leaving req.user null while letting the handler run (that would serve an
+      // UNAUTHENTICATED request). Reject with a 503 (distinct from a credentials-style 401);
+      // returning a reply from a preHandler short-circuits the route, so the handler never executes.
+      req.log.error(e)
+      return reply.code(503).send({ error: 'Sign-in is temporarily unavailable.' })
+    }
   })
 
   // Deep mode prepares the trivial read ONCE, here in the synchronous factory body while
@@ -297,6 +311,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         healthStmt.get()
         return { ok: true, db: true }
       } catch {
+        // INTENTIONAL empty catch: the 503 IS the surfacing. A broken DB must make the uptime
+        // monitor see 503 — not a lying { ok: true } 200, and not a thrown 500. Do NOT "fix" this
+        // by logging-and-rethrowing; the status code is the signal the monitor needs.
         return reply.code(503).send({ ok: false })
       }
     })
@@ -307,9 +324,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // screen knows which form to show) when there is no session.
     app.get('/api/auth/me', async (req, reply) => {
       if (authMode === 'off') return { authMode, user: DEMO_USER }
-      const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
-      if (!session) return reply.code(401).send({ authMode, error: 'Sign in to continue.' })
-      return { authMode, user: session.user }
+      try {
+        const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
+        if (!session) return reply.code(401).send({ authMode, error: 'Sign in to continue.' })
+        return { authMode, user: session.user }
+      } catch (e) {
+        // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
+        // (the client can tell "temporarily unavailable" from a 401 "bad/again credentials") rather
+        // than letting it fall through to the generic 500 redaction.
+        req.log.error(e)
+        return reply.code(503).send({ authMode, error: 'Sign-in is temporarily unavailable.' })
+      }
     })
 
     // Better Auth's own endpoints (sign-up/sign-in/sign-out/session/OAuth callbacks),

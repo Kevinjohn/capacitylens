@@ -119,12 +119,16 @@ export function assertAllocationRefs(
     throw new Error('Allocation must reference an existing resource and task in this company.')
   }
   const v = validateAllocationAssignment(resource, task.projectId)
+  // `errors[0]` is guaranteed present: every validator sets ok=false and pushes a message in the
+  // same step, so `!v.ok` always implies a non-empty `errors` array. (Documented coupling between
+  // ValidationResult.ok and errors — don't split the two without revisiting this read.)
   if (!v.ok) throw new Error(v.errors[0])
 }
 
 /** No allocation or time-off may persist an empty, malformed, or reversed range. */
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
   const v = validateDateRange(startDate, endDate)
+  // errors[0] is safe — see assertAllocationRefs: !ok always implies at least one pushed message.
   if (!v.ok) throw new Error(v.errors[0])
 }
 
@@ -215,6 +219,9 @@ export function remapAndValidateImport(
   for (const key of SCOPED_KEYS) {
     const ownIds = idMaps[key]
     brought[key] = (incoming[key] as unknown as Array<Record<string, unknown>>).map((e) => {
+      // `ownIds.get(e.id) as ID` is sound: the FIRST loop above seeded this table's map with a
+      // fresh id for EVERY record bearing a string id, so any record reaching here with a string
+      // id is guaranteed to have an entry. A missing/non-string id falls to a fresh newId().
       const mapped = typeof e.id === 'string' ? (ownIds.get(e.id) as ID) : newId()
       const newRecordId = usedIds.has(mapped) ? newId() : mapped
       usedIds.add(newRecordId)
@@ -271,6 +278,11 @@ export function remapAndValidateImport(
   // and the placeholder rule, exactly as the store / server validators do. (An
   // allocation to a now-unbound placeholder on a project task fails the placeholder
   // rule and is dropped here — the same outcome the store would produce.)
+  // The `as unknown as <Entity>[]` casts in this block are sound: every row in `brought[*]` was
+  // just produced by sanitizeImportedRecord (value-level fields coerced to their typed shape) and
+  // stamped with id/accountId/timestamps, so reading them as typed entities for the referential
+  // checks below is safe. Results are cast back to loose records afterwards so a dangling optional
+  // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
   const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]))
   const tasks = new Map((brought.tasks as unknown as Task[]).map((t) => [t.id, t]))
   brought.allocations = (brought.allocations as unknown as Allocation[]).filter((a) => {
