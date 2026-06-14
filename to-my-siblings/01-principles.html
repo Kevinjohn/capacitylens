@@ -56,6 +56,7 @@
         <li><a href="#flags">10. Flags off by default</a></li>
         <li><a href="#docs">11. Decisions are docs</a></li>
         <li><a href="#never-white">12. Never a silent white page</a></li>
+        <li><a href="#surface">13. Surface, never swallow</a></li>
       </ul>
     </div>
 
@@ -263,6 +264,34 @@
       wrong port; the server throws at startup on schema drift rather than failing on a later write; load
       errors route to a specific recovery screen rather than an empty app. Carry the instinct, not just the
       placeholder.</p>
+    </div>
+
+    <h2 id="surface">13. Surface, never swallow (and know where try/catch is harmful)</h2>
+    <p>
+      The same self-diagnosing instinct, made into an error-handling rule. A <code>catch</code> exists only to
+      do one of three things: <strong>re-throw with more context</strong>, <strong>route the error to a
+      visible surface</strong> (a form field error, a toast, a typed load-error that picks a recovery screen,
+      an HTTP status), or <strong>degrade to a documented default</strong> — and that last one <em>only</em>
+      for genuinely non-load-bearing state (device preferences). A <code>catch&nbsp;{}</code> that drops the
+      error, or one that replaces a specific, already-authored message with a generic one, is the anti-goal:
+      in a local-first app it turns a loud, fixable failure into invisible data corruption.
+    </p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>When you re-throw from a <code>catch</code>, attach the caught error as <code>{ cause: e }</code> so
+      the <em>full chain</em> survives, not just a re-worded message. ESLint's
+      <code>preserve-caught-error</code> enforces this for native errors; it does <strong>not</strong> fire on
+      custom error classes or a bare <code>catch&nbsp;{}</code>, so make those carry the cause too (Floaty's
+      <code>LoadError</code> and <code>ValidationError</code> take an <code>ErrorOptions</code> and forward
+      it). <em>This convention came from a sibling repo — exactly the kind of lesson this handbook is for.</em></p>
+    </div>
+    <div class="callout warn">
+      <span class="label">The half a naive sweep gets wrong</span>
+      <p>"More try/catch" is not the goal — <em>surfacing</em> is. Wrapping a pure function, a hot render path,
+      or a deliberate integrity throw (the store's last-line guards) <em>hides</em> corruption rather than
+      catching it. Put the safety as a clamp in the pure core instead, and leave a guard-comment so the next
+      contributor doesn't re-add the harmful wrapper. The full standard — the boundaries that get guarded, the
+      two-tier error model, the only acceptable swallows — is a short repo doc, <code>DEFENSIVE-CODING.md</code>.</p>
     </div>
 
     <div class="pager">
