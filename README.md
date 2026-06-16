@@ -13,7 +13,9 @@ no timesheets, no hour-level tracking. One tool, one problem, done well. Day-to-
 navigation is keyboard-friendly: **Enter** submits any dialog, **⌘K / Ctrl+K** opens a
 command palette (jump to a person, project, client, page, or date), **⌘Z** undoes.
 Each company account sets its own calendar in Settings (timezone, default GMT; week
-start, default Monday).
+start, default Monday) and can turn disciplines on or off for the whole team.
+
+See **[CHANGELOG.md](CHANGELOG.md)** for release notes (currently **v0.2.0**).
 
 ## Run it
 
@@ -54,8 +56,10 @@ The single source of truth is a normalized store, multi-tenant by **Account**
 (every other entity is scoped to one account):
 
 - **Accounts** — tenants/companies; you pick one, and the whole dataset is scoped to it.
-  Carries the team-wide calendar config (`timezone`, `weekStartsOn`) and `schedulingMode`.
-- **Disciplines** — groupings for resources (e.g. Design, Development).
+  Carries the team-wide calendar config (`timezone`, `weekStartsOn`), `schedulingMode`, and
+  whether disciplines are used (`disciplinesEnabled`, default on).
+- **Disciplines** — optional groupings for resources (e.g. Design, Development); a company
+  that doesn't use them can switch them off in Settings (they then vanish from the UI, data kept).
 - **Resources** — the people (or project-bound placeholders) you schedule.
 - **Clients** — group projects.
 - **Projects** — belong to a client.
