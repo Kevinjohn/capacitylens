@@ -97,6 +97,11 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   if (rec.weekStartsOn !== undefined && rec.weekStartsOn !== 0 && rec.weekStartsOn !== 1) {
     delete rec.weekStartsOn
   }
+  // Drop a non-boolean disciplinesEnabled rather than persist junk; its absence reads
+  // back as the default (true) on the client.
+  if (rec.disciplinesEnabled !== undefined && typeof rec.disciplinesEnabled !== 'boolean') {
+    delete rec.disciplinesEnabled
+  }
   return rec
 }
 

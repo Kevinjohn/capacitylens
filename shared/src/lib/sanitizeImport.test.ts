@@ -119,4 +119,15 @@ describe('sanitizeAccount', () => {
     expect(sanitizeAccount({ weekStartsOn: 0 }).weekStartsOn).toBe(0)
     expect(sanitizeAccount({ weekStartsOn: 1 }).weekStartsOn).toBe(1)
   })
+
+  it('strips a non-boolean disciplinesEnabled', () => {
+    expect(sanitizeAccount({ disciplinesEnabled: 'yes' }).disciplinesEnabled).toBeUndefined()
+    expect(sanitizeAccount({ disciplinesEnabled: 1 }).disciplinesEnabled).toBeUndefined()
+    expect(sanitizeAccount({ disciplinesEnabled: null }).disciplinesEnabled).toBeUndefined()
+  })
+
+  it('keeps a boolean disciplinesEnabled', () => {
+    expect(sanitizeAccount({ disciplinesEnabled: false }).disciplinesEnabled).toBe(false)
+    expect(sanitizeAccount({ disciplinesEnabled: true }).disciplinesEnabled).toBe(true)
+  })
 })

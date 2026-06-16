@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { disciplinesEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
@@ -37,6 +38,9 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
   const add = useStore((s) => s.addResource)
   const update = useStore((s) => s.updateResource)
   const data = useScopedData()
+  // When the account doesn't use disciplines, hide the picker. Any existing disciplineId
+  // on an edited resource is left untouched (the field just isn't shown).
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   const disciplines = data.disciplines
   const projects = data.projects
   const clients = data.clients
@@ -121,7 +125,9 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
       <RequiredLegend />
       <TextField label={isPlaceholder ? 'Name (optional)' : 'Name'} value={name} onChange={setName} required={!isPlaceholder} invalid={errorField === 'name'} describedById={errorId} />
       <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" invalid={errorField === 'role'} describedById={errorId} />
-      <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
+      {disciplinesEnabled && (
+        <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
+      )}
       {!isPlaceholder && (
         <SelectField
           label="Employment"

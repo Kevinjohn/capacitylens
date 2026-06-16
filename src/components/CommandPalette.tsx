@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, emptyFilters } from '../store/useStore'
+import { disciplinesEnabledFor } from '../store/selectors'
 import { useScopedData } from '../store/useScopedData'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { isValidISODate } from '@floaty/shared/lib/integrity'
@@ -25,6 +26,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const jumpToResource = useStore((s) => s.jumpToResource)
   const setFilters = useStore((s) => s.setFilters)
   const data = useScopedData()
+  // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
 
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -41,6 +44,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const items: PaletteItem[] = buildItems({
     query,
     data,
+    disciplinesEnabled,
     navigate,
     goToToday,
     goToDate,
@@ -206,6 +210,7 @@ const SECTION_LIMIT = 5 // max results per entity section
 function buildItems({
   query,
   data,
+  disciplinesEnabled,
   navigate,
   goToToday,
   goToDate,
@@ -215,6 +220,7 @@ function buildItems({
 }: {
   query: string
   data: ReturnType<typeof useScopedData>
+  disciplinesEnabled: boolean
   navigate: ReturnType<typeof useNavigate>
   goToToday: () => void
   goToDate: (iso: string) => void
@@ -263,7 +269,10 @@ function buildItems({
   const pages: PaletteItem[] = [
     { id: 'page-schedule', label: 'Schedule', sublabel: '/', section: 'Pages', onSelect: () => { void navigate('/'); onClose() } },
     { id: 'page-resources', label: 'Resources', sublabel: '/resources', section: 'Pages', onSelect: () => { void navigate('/resources'); onClose() } },
-    { id: 'page-disciplines', label: 'Disciplines', sublabel: '/disciplines', section: 'Pages', onSelect: () => { void navigate('/disciplines'); onClose() } },
+    // Disciplines page entry only when the account uses disciplines (route is guarded too).
+    ...(disciplinesEnabled
+      ? [{ id: 'page-disciplines', label: 'Disciplines', sublabel: '/disciplines', section: 'Pages', onSelect: () => { void navigate('/disciplines'); onClose() } } as PaletteItem]
+      : []),
     { id: 'page-clients', label: 'Clients', sublabel: '/clients', section: 'Pages', onSelect: () => { void navigate('/clients'); onClose() } },
     { id: 'page-projects', label: 'Projects', sublabel: '/projects', section: 'Pages', onSelect: () => { void navigate('/projects'); onClose() } },
     { id: 'page-tasks', label: 'Tasks', sublabel: '/tasks', section: 'Pages', onSelect: () => { void navigate('/tasks'); onClose() } },

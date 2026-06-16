@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react'
 import { format } from 'date-fns'
 import { parseDate, weekdayOf } from '@floaty/shared/lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
+import { LAYOUT } from './layout'
 
 interface Span {
   key: string
@@ -54,15 +55,25 @@ export const DateHeader = memo(function DateHeader({
 
   return (
     <div role="columnheader" aria-label="Dates" className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
-      {/* Month tier — padding-driven height (not a fixed px) so it scales with font size. */}
+      {/* Month tier — padding-driven height (not a fixed px) so it scales with font size.
+          Each month's LABEL is position:sticky, pinned to the left edge of the visible
+          timeline (left = leftColWidth, just past the sticky utilisation column), so the
+          month you're scrolled into stays labelled instead of scrolling away with its 1st.
+          It's an inline-block (must be narrower than its month for sticky to have room to
+          move), bounded to its own month's width (maxWidth) so it can't bleed into the next
+          month, and opaque (bg-surface) so the next month's label cleanly takes over at the
+          boundary. NOTE: no `overflow-hidden` on the span's ANCESTORS here — an
+          overflow-hidden ancestor traps position:sticky (truncate on the span itself is
+          fine). */}
       <div className="flex shrink-0 border-b border-line">
         {months.map((m) => (
-          <div
-            key={m.key}
-            className="flex items-center overflow-hidden border-r border-line px-2 py-0.5 text-2xs font-semibold text-muted"
-            style={{ width: m.days * dayWidth }}
-          >
-            <span className="truncate">{m.label}</span>
+          <div key={m.key} className="shrink-0 border-r border-line" style={{ width: m.days * dayWidth }}>
+            <span
+              className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold text-muted"
+              style={{ left: LAYOUT.leftColWidth }}
+            >
+              {m.label}
+            </span>
           </div>
         ))}
       </div>

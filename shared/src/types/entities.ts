@@ -37,6 +37,10 @@ export interface Account extends Entity {
   timezone?: string
   /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Absent = 1. */
   weekStartsOn?: 0 | 1
+  /** Whether this company uses disciplines. Absent = true (the original behaviour).
+   *  When false, disciplines are hidden across the whole UI (nav, resource form,
+   *  schedule grouping + filter, lists, command palette) — the data is preserved. */
+  disciplinesEnabled?: boolean
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */

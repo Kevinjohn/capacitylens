@@ -87,6 +87,7 @@ export function SettingsView() {
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
   const weekStartsOn: 0 | 1 = activeAccount?.weekStartsOn ?? 1
   const timezone: string = activeAccount?.timezone ?? 'Etc/GMT'
+  const disciplinesEnabled: boolean = activeAccount?.disciplinesEnabled ?? true
   const allZones = supportedTimeZones()
   const tzOptions = allZones.includes(timezone) ? allZones : [timezone, ...allZones]
 
@@ -227,6 +228,22 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">Disciplines</h2>
+          <p className="mb-3 text-xs text-muted">
+            Group people by discipline across the app. Turn this off if your team doesn't use
+            disciplines — they're then hidden from the schedule, resource form and navigation. Your
+            existing discipline data is kept and reappears if you turn it back on.
+          </p>
+          <div className="divide-y divide-line">
+            <ToggleRow
+              label="Use disciplines"
+              on={disciplinesEnabled}
+              onToggle={() => updateAccount(activeAccount.id, { disciplinesEnabled: !disciplinesEnabled })}
+            />
+          </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
           <h2 className="mb-1 text-sm font-semibold text-ink">Allocation bars</h2>
           <p className="mb-3 text-xs text-muted">
             What each bar on the schedule shows before the task name — applies to this browser.
@@ -249,7 +266,8 @@ export function SettingsView() {
             Which utilisation figures appear on the scheduler.
           </p>
           <div className="divide-y divide-line">
-            {UTILIZATION_OPTIONS.map((opt) => (
+            {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
+            {UTILIZATION_OPTIONS.filter((opt) => disciplinesEnabled || opt.key !== 'showDiscipline').map((opt) => (
               <ToggleRow
                 key={opt.key}
                 label={opt.label}

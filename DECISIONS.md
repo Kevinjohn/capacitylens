@@ -74,6 +74,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   week boundaries — they drive the Today snap, header week blocks, lane dividers, and form
   date defaults via `todayISO(timeZone)` / `startOfWeekISO(date, weekStartsOn)`. The weekend
   TINT stays Sat/Sun regardless of week start.
+- **Disciplines are optional (account-level)** — `disciplinesEnabled` on the Account (absent =
+  true; Settings → Disciplines). Off hides disciplines across the WHOLE UI (nav + `/disciplines`
+  route guard, resource-form field, schedule grouping + filter, Resources list, command palette,
+  the Settings discipline-utilisation toggle) and renders the schedule FLAT (one all-resources
+  group, no bands) — the discipline data is preserved and returns when re-enabled. Any new
+  discipline surface MUST gate on `disciplinesEnabledFor(data, activeAccountId)`.
 
 ## UI & product
 - **Deliberately small (owner, 2026-06-11).** Floaty solves ONE problem — a helicopter view of

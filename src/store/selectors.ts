@@ -14,6 +14,12 @@ import type { SchedulerUI } from './useStore'
 export const schedulingModeFor = (data: AppData, activeAccountId: ID | null): SchedulingMode =>
   data.accounts.find((a) => a.id === activeAccountId)?.schedulingMode ?? 'hourly'
 
+/** Whether the active company uses disciplines. Absent on the account reads as true
+ *  (the original behaviour). Single source so every discipline surface (nav, resource
+ *  form, schedule grouping + filter, lists, command palette) gates on the same value. */
+export const disciplinesEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.disciplinesEnabled ?? true
+
 /** The active account's calendar config — timezone and week-start day.
  *  Absent fields fall back to the defaults (Etc/GMT, Monday). */
 export const calendarFor = (data: AppData, activeAccountId: ID | null): CalendarConfig => {

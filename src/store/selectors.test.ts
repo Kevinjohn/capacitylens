@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resourcesByDiscipline, tasksForProject, visibleRange } from './selectors'
+import { disciplinesEnabledFor, resourcesByDiscipline, tasksForProject, visibleRange } from './selectors'
 import { emptyFilters } from './useStore'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type { AppData } from '@floaty/shared/types/entities'
@@ -31,6 +31,26 @@ describe('resourcesByDiscipline', () => {
     expect(groups[0].resources.map((r) => r.id)).toEqual(['r1'])
     expect(groups[2].discipline).toBeNull()
     expect(groups[2].resources.map((r) => r.id)).toEqual(['r3'])
+  })
+})
+
+describe('disciplinesEnabledFor', () => {
+  const accounts = (disciplinesEnabled?: boolean) => ({
+    ...emptyAppData(),
+    accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#1', disciplinesEnabled }],
+  })
+
+  it('defaults to true when the field is absent', () => {
+    expect(disciplinesEnabledFor(accounts(undefined), 'a1')).toBe(true)
+  })
+
+  it('defaults to true when no account matches', () => {
+    expect(disciplinesEnabledFor(accounts(false), 'missing')).toBe(true)
+  })
+
+  it('returns the explicit account value', () => {
+    expect(disciplinesEnabledFor(accounts(false), 'a1')).toBe(false)
+    expect(disciplinesEnabledFor(accounts(true), 'a1')).toBe(true)
   })
 })
 

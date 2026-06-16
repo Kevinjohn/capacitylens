@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
-import { visibleRange } from '../../store/selectors'
+import { disciplinesEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO, xForDate } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar } from '../common/ui'
@@ -47,6 +47,9 @@ export function SchedulerGrid() {
   // Utilisation display toggles (Settings → Utilisation). Each gates one of the three
   // utilisation figures: total (header), discipline (group header), personal (per row).
   const utilizationPrefs = useStore((s) => s.utilizationPrefs)
+  // Account-level: when disciplines are off, the schedule renders flat (no discipline
+  // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   const toggleGroup = useStore((s) => s.toggleGroup)
   const [modal, setModal] = useState<ModalState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -96,8 +99,8 @@ export function SchedulerGrid() {
   const utilEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
 
   const model = useMemo(
-    () => buildSchedulerModel(data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters),
-    [data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters],
+    () => buildSchedulerModel(data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters, disciplinesEnabled),
+    [data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters, disciplinesEnabled],
   )
 
   const todayX = today >= start && today <= end ? xForDate(today, ui.originDate, dayWidth) : null
@@ -177,11 +180,17 @@ export function SchedulerGrid() {
   const items = useMemo(() => {
     const out: Item[] = []
     for (const group of model) {
+      // Disciplines off → render the rows flat: no group-header band and collapse
+      // doesn't apply (the model already returns a single all-resources group).
+      if (!disciplinesEnabled) {
+        for (const row of group.rows) out.push({ kind: 'row', group, row })
+        continue
+      }
       out.push({ kind: 'group', group })
       if (!ui.collapsedGroups.includes(group.key)) for (const row of group.rows) out.push({ kind: 'row', group, row })
     }
     return out
-  }, [model, ui.collapsedGroups])
+  }, [model, ui.collapsedGroups, disciplinesEnabled])
 
   // Heights + their prefix-sum depend only on the item set (model/collapse), NOT on
   // scroll — memoise so a scroll frame only runs the cheap edge-scan in windowFromLayout.
@@ -289,7 +298,7 @@ export function SchedulerGrid() {
       >
         <div
           role="rowheader"
-          className={`sticky left-0 z-10 flex shrink-0 items-center gap-2 border-r border-line bg-surface ps-3 ${
+          className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-surface ps-3 ${
             resource.kind === 'placeholder' ? 'hatch-lines' : ''
           }`}
           style={{ width: LAYOUT.leftColWidth }}
@@ -306,24 +315,31 @@ export function SchedulerGrid() {
             {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
             {bars.length} allocation{bars.length === 1 ? '' : 's'}.
           </span>
-          {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
-              discipline reads as one colour; fall back to the resource's own colour for
-              the ungrouped "No discipline" bucket. */}
-          <Avatar
-            name={resource.name ?? resource.role}
-            color={group.color ?? resource.color}
-            placeholder={resource.kind === 'placeholder'}
-          />
-          {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
-          <div className="ms-1.5 min-w-0 flex-1">
-            <span className="flex items-center gap-1 truncate text-sm font-medium">
-              {/* Placeholders ("slots") read as quoted names in the schedule view — the
-                  quotes do the work the old "slot" pill did, without the extra chrome. */}
-              {resource.kind === 'placeholder'
-                ? `“${resource.name ?? resource.role}”`
-                : (resource.name ?? resource.role)}
-            </span>
-            <span className="block truncate text-xs text-muted">{resource.role}</span>
+          {/* Avatar + identity, pinned to the TOP of the lane (pt-2.5 ≈ the bars' top
+              inset, LAYOUT.rowPadding) rather than vertically centred — so a tall row
+              with stacked allocations keeps the name where the eye expects it instead of
+              drifting downward as the row grows. The "+/%" box stays self-stretch (full
+              height), so only this identity block moves to the top. */}
+          <div className="flex min-w-0 flex-1 items-start gap-2 pt-2.5">
+            {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
+                discipline reads as one colour; fall back to the resource's own colour for
+                the ungrouped "No discipline" bucket. */}
+            <Avatar
+              name={resource.name ?? resource.role}
+              color={group.color ?? resource.color}
+              placeholder={resource.kind === 'placeholder'}
+            />
+            {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
+            <div className="ms-1.5 min-w-0 flex-1">
+              <span className="flex items-center gap-1 truncate text-sm font-medium">
+                {/* Placeholders ("slots") read as quoted names in the schedule view — the
+                    quotes do the work the old "slot" pill did, without the extra chrome. */}
+                {resource.kind === 'placeholder'
+                  ? `“${resource.name ?? resource.role}”`
+                  : (resource.name ?? resource.role)}
+              </span>
+              <span className="block truncate text-xs text-muted">{resource.role}</span>
+            </div>
           </div>
           {/* Right column: the add button and (optionally) the allocation %, stacked.
               The box always fills the full row height (self-stretch), and each cell takes

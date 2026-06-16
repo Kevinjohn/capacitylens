@@ -44,11 +44,16 @@ The sidebar links, in order, route to:
 | Projects | `/projects` | Project list |
 | Tasks | `/tasks` | Task list |
 | Time off | `/timeoff` | Time-off list |
-| Settings | `/settings` | Settings (company rename, scheduling, calendar, allocation bars, utilisation, appearance) |
+| Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, allocation bars, utilisation, appearance) |
 
-That's **eight** sections. Each link carries a small decorative icon (`aria-hidden`; the
-accessible name stays the label text). The **Data** section at the bottom of the sidebar has
-**Export JSON** and **Import JSON**. A **Switch company** control returns to the account picker.
+That's **eight** sections by default — **seven** when the company turns disciplines off (the
+**Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). Each link
+carries a small decorative icon (`aria-hidden`; the accessible name stays the label text). The
+**Data** section (**Export JSON** / **Import JSON**) sits below the nav links. The company block —
+the active company name plus a **Switch company** control (which returns to the account picker) —
+is pinned to the **bottom** of the sidebar, below a divider beneath the Data section. (It used to
+sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
+both the open menu and the collapsed rail, so the nav icons don't shift when the sidebar collapses.)
 
 **Collapse / expand.** A toggle button at the top of the sidebar (accessible name
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only
@@ -122,6 +127,15 @@ and project parts are device-global toggles in Settings → **Allocation bars** 
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
 task-first layout regardless of these toggles.
 
+**Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**
+(on by default). Turning it off hides disciplines across the whole app — the **Disciplines** nav
+link and route (a direct `/disciplines` URL redirects to `/`), the **Discipline** field in the
+resource form, the **Filter by discipline** control, the discipline part of each Resources-list
+row, the Disciplines command-palette entry, and the **Show Discipline Utilisation** toggle — and
+the schedule then renders **flat** (no `discipline-group` bands). It's stored on the account
+(`disciplinesEnabled`, syncs + exports), so it applies to everyone on that company; the discipline
+data itself is kept and reappears if switched back on. Both seed companies leave it on.
+
 **Build stamp + feedback link (Settings, flag-gated).** When the build sets
 `VITE_FLOATY_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
@@ -151,7 +165,7 @@ a notice appears ("You have unsaved changes — use Cancel or Save to close this
 the palette does **not** open. Closing or saving the dialog re-enables the shortcut.
 Closed by **Escape**, backdrop click, or selecting an item.
 
-**Sections shown (no query):** Actions ("Go to today"), Pages (all 8 routes).
+**Sections shown (no query):** Actions ("Go to today"), Pages (all 8 routes; 7 — no Disciplines — when the company turns disciplines off).
 **Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Tasks.
 **Special action:** typing a valid, real calendar ISO date (`YYYY-MM-DD`, zero-padded,
 e.g. `2026-06-03`) shows "Go to date YYYY-MM-DD". Impossible dates like `2026-02-31`,
@@ -194,6 +208,10 @@ Mouse hover sets the active option; mouse click selects.
   placeholders; deleting a task removes its allocations; deleting a resource removes its
   allocations + time off. Deleting a **discipline** or **phase** is *non-destructive*
   (ungroups resources / ungroups tasks). All deletes are **undoable with ⌘Z**.
+- **Disciplines are optional (account-level).** Default **on**. When a company turns them off
+  (Settings → Disciplines → *Use disciplines*) disciplines are hidden everywhere and the schedule
+  renders flat — see the *Disciplines (account-level)* note above. The seed companies leave it
+  **on**, so every story below runs with disciplines visible.
 - **Capacity:** a day's available hours = the resource's working hours, but **0** on a
   non-working weekday or a time-off day. A day is **over-allocated** when allocated > available.
 - **Utilisation %** (left column, "Utilisation · next 2w") is a fixed **14-day forward window from

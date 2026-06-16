@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
+import { disciplinesEnabledFor } from '../store/selectors'
 import { ImportExport } from './ImportExport'
 import { AccountPicker } from './accounts/AccountPicker'
 import { StorageRecovery } from './StorageRecovery'
@@ -34,6 +35,10 @@ export function AppShell() {
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
+  // Drop the Disciplines destination from the nav when the active account doesn't use
+  // disciplines (the route itself is also guarded — see router.tsx).
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
+  const navLinks = disciplinesEnabled ? LINKS : LINKS.filter(([to]) => to !== '/disciplines')
 
   const dirtyForm = useStore((s) => s.dirtyForm)
   const sidebarOpen = useStore((s) => s.sidebarOpen)
@@ -134,7 +139,7 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <nav className={`${sidebarOpen ? 'w-48 p-3' : 'w-12 p-2'} shrink-0 border-r border-line bg-surface`}>
+      <nav className={`${sidebarOpen ? 'w-48 p-3' : 'w-12 p-2'} flex flex-col shrink-0 border-r border-line bg-surface`}>
         <div className={`mb-4 flex items-center ${sidebarOpen ? 'justify-between pl-2' : 'justify-center'}`}>
           {sidebarOpen && <div className="text-xl font-bold text-brand">Floaty</div>}
           <button
@@ -150,22 +155,8 @@ export function AppShell() {
         </div>
         {sidebarOpen ? (
           <>
-            {activeAccount && (
-              <div className="mb-3 border-b border-line px-2 pb-3">
-                <div className="truncate text-sm font-semibold text-ink" title={activeAccount.name}>
-                  {activeAccount.name}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveAccount(null)}
-                  className="mt-0.5 text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
-                >
-                  Switch company
-                </button>
-              </div>
-            )}
             <ul className="space-y-1">
-              {LINKS.map(([to, label, icon]) => (
+              {navLinks.map(([to, label, icon]) => (
                 <li key={to}>
                   <NavLink
                     to={to}
@@ -183,6 +174,25 @@ export function AppShell() {
               ))}
             </ul>
             <ImportExport />
+            {/* Company name + "Switch company" pinned to the BOTTOM (mt-auto), with a
+                divider above it closing off the data section. Kept out of the top so the
+                logo/collapse header is the first thing in BOTH the open menu and the
+                collapsed icon rail — otherwise this box pushes the nav down only when
+                open, and the icons jump position as the sidebar collapses. */}
+            {activeAccount && (
+              <div className="mt-auto border-t border-line px-2 pt-3">
+                <div className="truncate text-sm font-semibold text-ink" title={activeAccount.name}>
+                  {activeAccount.name}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveAccount(null)}
+                  className="mt-0.5 text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+                >
+                  Switch company
+                </button>
+              </div>
+            )}
           </>
         ) : (
           /* Collapsed icon rail. The icons are deliberately NOT navigation: tapping

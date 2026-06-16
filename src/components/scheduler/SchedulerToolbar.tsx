@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
+import { disciplinesEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
 import { Button } from '../common/ui'
@@ -24,6 +25,9 @@ export function SchedulerToolbar() {
   const projects = data.projects
 
   const activeAccountId = useStore((s) => s.activeAccountId)
+  // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
+  // also ignores filters.disciplineId in that case, so a stale value can't hide anyone).
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   // Debounce the search into the store: each keystroke otherwise rebuilds the whole
   // scheduler model (new filters object → model useMemo) and re-renders every lane.
   // Keep the input snappy locally; push to filters after a short pause.
@@ -141,20 +145,22 @@ export function SchedulerToolbar() {
           aria-label="Search people"
           className={`${controlBase} w-44 @max-[680px]:w-full`}
         />
-        <select
-          aria-label="Filter by discipline"
-          className={`${controlBase} ${selectChevronClass}`}
-          style={selectChevronStyle}
-          value={filters.disciplineId ?? ''}
-          onChange={(e) => setFilters({ disciplineId: e.target.value || null })}
-        >
-          <option value="">All disciplines</option>
-          {disciplines.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.name}
-            </option>
-          ))}
-        </select>
+        {disciplinesEnabled && (
+          <select
+            aria-label="Filter by discipline"
+            className={`${controlBase} ${selectChevronClass}`}
+            style={selectChevronStyle}
+            value={filters.disciplineId ?? ''}
+            onChange={(e) => setFilters({ disciplineId: e.target.value || null })}
+          >
+            <option value="">All disciplines</option>
+            {disciplines.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        )}
         <select
           aria-label="Filter by client"
           className={`${controlBase} ${selectChevronClass}`}

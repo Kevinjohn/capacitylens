@@ -13,6 +13,7 @@ export const FIXTURE_ACCOUNT: Account = {
   schedulingMode: 'days',
   timezone: 'Europe/London',
   weekStartsOn: 0,
+  disciplinesEnabled: false,
   createdAt: TS1,
   updatedAt: TS2,
 }

@@ -38,7 +38,8 @@ function dataset(): AppData {
   }
 }
 
-const build = (filters = emptyFilters()) => buildSchedulerModel(dataset(), start, 48, days, start, end, filters)
+const build = (filters = emptyFilters(), disciplinesEnabled = true) =>
+  buildSchedulerModel(dataset(), start, 48, days, start, end, filters, disciplinesEnabled)
 const allBars = (model: GroupModel[]) => model.flatMap((g) => g.rows).flatMap((r) => r.bars)
 const barIds = (model: GroupModel[]) => allBars(model).map((b) => b.allocation.id).sort()
 
@@ -60,7 +61,7 @@ describe('buildSchedulerModel', () => {
       { id: 'ph', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'placeholder', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#9' },
       ...d.resources, // r1 (person, Design), r2 (person, Dev)
     ]
-    const model = buildSchedulerModel(d, start, 48, days, start, end, emptyFilters())
+    const model = buildSchedulerModel(d, start, 48, days, start, end, emptyFilters(), true)
     const design = model.find((g) => g.title === 'Design')!
     expect(design.rows.map((r) => r.resource.id)).toEqual(['r1', 'ph'])
   })
@@ -77,7 +78,7 @@ describe('buildSchedulerModel', () => {
     // `days` spans the full week (6/1–6/7), but the utilisation window is just 6/3–6/4.
     // Over that window r1 has only a2 (4h × 2 working days) / (8h × 2) = 0.5,
     // proving the headline % is no longer averaged across the whole timeline.
-    const model = buildSchedulerModel(dataset(), start, 48, days, '2026-06-03', '2026-06-04', emptyFilters())
+    const model = buildSchedulerModel(dataset(), start, 48, days, '2026-06-03', '2026-06-04', emptyFilters(), true)
     const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!
     expect(r1.utilization).toBeCloseTo(0.5)
     // The visible model (bars/day-states) still covers the full `days` range.
@@ -88,7 +89,7 @@ describe('buildSchedulerModel', () => {
     const d = dataset()
     // Stack a second 8h allocation on r1's 6/1–6/2 (8 + 8 > 8 available -> over).
     d.allocations.push({ id: 'a4', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
-    const rows = buildSchedulerModel(d, start, 48, days, start, end, emptyFilters()).flatMap((g) => g.rows)
+    const rows = buildSchedulerModel(d, start, 48, days, start, end, emptyFilters(), true).flatMap((g) => g.rows)
     expect(rows.find((r) => r.resource.id === 'r1')!.overSoon).toBe(true)
     expect(rows.find((r) => r.resource.id === 'r2')!.overSoon).toBe(false) // 8h == 8h available, not over
   })
@@ -141,5 +142,19 @@ describe('buildSchedulerModel', () => {
   it('search narrows to matching resources and drops now-empty groups', () => {
     const model = build({ ...emptyFilters(), search: 'dev sam' })
     expect(model.map((g) => g.title)).toEqual(['Development'])
+  })
+
+  it('disciplines off → one flat group holding every resource (no discipline bands)', () => {
+    const model = build(emptyFilters(), false)
+    expect(model).toHaveLength(1)
+    expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(['r1', 'r2'])
+    expect(model[0].color).toBeUndefined() // no discipline colour → avatar falls back to resource colour
+    expect(barIds(model)).toEqual(['a1', 'a2', 'a3'])
+  })
+
+  it('disciplines off → the discipline filter is ignored (everyone still shown)', () => {
+    const model = build({ ...emptyFilters(), disciplineId: 'd-dev' }, false)
+    expect(model).toHaveLength(1)
+    expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(['r1', 'r2'])
   })
 })

@@ -72,6 +72,10 @@ export function buildSchedulerModel(
   utilStart: ISODate,
   utilEnd: ISODate,
   filters: Filters,
+  // When false (account.disciplinesEnabled === false) the schedule renders FLAT: one
+  // synthetic group holding every resource (no discipline bands), and the discipline
+  // filter is ignored. SchedulerGrid skips the group-header row for the flat group.
+  disciplinesEnabled: boolean,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
@@ -114,12 +118,15 @@ export function buildSchedulerModel(
   const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === 'tentative')
   const allocVisible = (a: Allocation): boolean => matchesProjectClient(a) && notTentativeHidden(a)
   const resourceVisible = (r: Resource): boolean => {
-    if (filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
+    if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
     if (search && !`${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false
     return true
   }
 
-  return resourcesByDiscipline(data)
+  // Disciplines on → group by discipline (with the "ungrouped" bucket last); off → one
+  // flat group of every resource, which the grid renders without a group-header band.
+  const groups = disciplinesEnabled ? resourcesByDiscipline(data) : [{ discipline: null, resources: data.resources }]
+  return groups
     .map((group) => ({
       key: group.discipline?.id ?? 'none',
       title: group.discipline?.name ?? 'No discipline',
