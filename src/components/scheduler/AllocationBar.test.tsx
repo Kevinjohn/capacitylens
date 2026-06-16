@@ -1,10 +1,17 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
+import { buildColumnGeometry } from './columnGeometry'
 import type { BarLayout } from './schedulerModel'
+import { eachDayISO } from '@floaty/shared/lib/dateMath'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type { Allocation } from '@floaty/shared/types/entities'
+
+// Uniform geometry over June at 48px/day (minimise off). These tests don't drag across columns;
+// the resolver only needs to exist for the prop contract (origin at clientX 0).
+const GEOM = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 48, { minimiseWeekends: false, weekendWidth: 22 })
+const indexAtClientX = (clientX: number) => GEOM.indexAt(clientX)
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
@@ -47,7 +54,7 @@ describe('AllocationBar rendering', () => {
     const bar = makeBar(allocation)
     const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} dayWidth={48} onEdit={onEdit} />)
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveAttribute('data-status', 'confirmed')
@@ -60,14 +67,14 @@ describe('AllocationBar rendering', () => {
     const bar = makeBar(allocation, 'Sprint Planning')
     const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} dayWidth={48} onEdit={onEdit} />)
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveTextContent('Sprint Planning')
   })
 
   it('shows just the task when the bar carries no client/project metadata', () => {
-    render(<AllocationBar bar={makeBar(makeAllocation())} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={makeBar(makeAllocation())} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     // No stray "·" separator ahead of the task name.
     const el = screen.getByTestId('allocation-bar')
@@ -81,7 +88,7 @@ describe('AllocationBar rendering', () => {
     useStore.getState().setActiveAccount('acct-test')
 
     const bar = makeBar(makeAllocation())
-    render(<AllocationBar bar={bar} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveTextContent('My Task')
@@ -99,7 +106,7 @@ describe('AllocationBar client/project context', () => {
   })
 
   it('prefixes the label with client and project by default', () => {
-    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveTextContent('Acme Inc. · Lightning · My Task')
@@ -109,7 +116,7 @@ describe('AllocationBar client/project context', () => {
 
   it('omits the client when showClient is off', () => {
     useStore.getState().setBarLabelPref('showClient', false)
-    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveTextContent('Lightning · My Task')
@@ -118,7 +125,7 @@ describe('AllocationBar client/project context', () => {
 
   it('omits the project when showProject is off', () => {
     useStore.getState().setBarLabelPref('showProject', false)
-    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveTextContent('Acme Inc. · My Task')
@@ -128,7 +135,7 @@ describe('AllocationBar client/project context', () => {
   it('shows only the task when both toggles are off', () => {
     useStore.getState().setBarLabelPref('showClient', false)
     useStore.getState().setBarLabelPref('showProject', false)
-    render(<AllocationBar bar={barWithContext()} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
     expect(el.textContent).toMatch(/^My Task/)
@@ -143,7 +150,7 @@ describe('AllocationBar click interaction', () => {
     const bar = makeBar(allocation)
     const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} dayWidth={48} onEdit={onEdit} />)
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
     const el = screen.getByTestId('allocation-bar')
 
@@ -161,7 +168,7 @@ describe('AllocationBar click interaction', () => {
     const bar = makeBar(allocation)
     const onEdit = vi.fn()
 
-    render(<AllocationBar bar={bar} dayWidth={48} onEdit={onEdit} />)
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
 
     const el = screen.getByTestId('allocation-bar')
 

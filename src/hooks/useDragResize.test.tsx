@@ -4,15 +4,17 @@ import { useDragResize } from './useDragResize'
 import type { DragMode } from '../lib/gestureMath'
 
 interface HarnessProps {
-  dayWidth?: number
+  // A uniform-grid stand-in for the lane's geometry inverse: clientX → day index at 48px/day,
+  // origin at clientX 0. So a 48px move snaps to a 1-day delta, exactly as before.
+  indexAtClientX?: (clientX: number) => number
   onPreview?: (mode: DragMode, deltaDays: number, deltaY: number, pointer: { clientX: number; clientY: number }) => void
   onCommit: (mode: DragMode, deltaDays: number, pointer: { clientX: number; clientY: number }) => void
   onClick?: () => void
   onCancel?: () => void
 }
 
-function Harness({ dayWidth = 48, onPreview = vi.fn(), onCommit, onClick, onCancel }: HarnessProps) {
-  const { onPointerDown } = useDragResize({ dayWidth, onPreview, onCommit, onClick, onCancel })
+function Harness({ indexAtClientX = (x) => Math.floor(x / 48), onPreview = vi.fn(), onCommit, onClick, onCancel }: HarnessProps) {
+  const { onPointerDown } = useDragResize({ indexAtClientX, onPreview, onCommit, onClick, onCancel })
   return (
     <div data-testid="drag-target" onPointerDown={onPointerDown}>
       <span data-handle="start" data-testid="handle-start">start</span>

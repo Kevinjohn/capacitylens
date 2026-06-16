@@ -1,8 +1,7 @@
-import { differenceInCalendarDays } from 'date-fns'
 import { applyGesture, type DateRange, type DragMode, type GestureOpts } from '../../lib/gestureMath'
-import { daysInclusive, parseDate } from '@floaty/shared/lib/dateMath'
 import { spanDays } from '@floaty/shared/lib/schedulingDays'
 import { MAX_HOURS_PER_DAY } from '@floaty/shared/types/entities'
+import type { ColumnGeometry } from './columnGeometry'
 
 // Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable
 // without rendering the bar or driving pointer events. No React, no DOM, no store — the DOM
@@ -49,21 +48,21 @@ export function computeGesture(
 }
 
 /** Pixel geometry for the live drag preview: snap the dates the SAME way the commit will
- *  (applyGesture) and convert back to left/width on the calendar-day grid (each calendar
- *  day = dayWidth, exactly as schedulerModel placed bar.x / bar.width), so the bar doesn't
- *  jump on release. Callers apply this only when deltaDays !== 0 (an unchanged drag keeps
- *  bar.x / bar.width). */
+ *  (applyGesture), then run them through the SAME ColumnGeometry the view-model used to place
+ *  bar.x / bar.width. Going through one geometry is what keeps the bar from jumping on release —
+ *  even when the snapped range crosses a narrowed weekend, the preview is pixel-identical to the
+ *  committed bar. Callers apply this only when deltaDays !== 0 (an unchanged drag keeps bar.x /
+ *  bar.width). */
 export function snappedBarGeometry(
   mode: DragMode,
   current: DateRange,
   deltaDays: number,
   opts: GestureOpts,
-  barX: number,
-  dayWidth: number,
+  geom: ColumnGeometry,
 ): { left: number; width: number } {
   const snapped = applyGesture(mode, current, deltaDays, opts)
   return {
-    left: barX + differenceInCalendarDays(parseDate(snapped.startDate), parseDate(current.startDate)) * dayWidth,
-    width: daysInclusive(snapped.startDate, snapped.endDate) * dayWidth,
+    left: geom.xForDateInGeom(snapped.startDate),
+    width: geom.widthForDates(snapped.startDate, snapped.endDate),
   }
 }

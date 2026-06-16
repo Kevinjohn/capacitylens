@@ -1,10 +1,18 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, act } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
+import { buildColumnGeometry } from './columnGeometry'
 import type { BarLayout } from './schedulerModel'
+import { eachDayISO } from '@floaty/shared/lib/dateMath'
 import { useStore } from '../../store/useStore'
 import { type Allocation } from '@floaty/shared/types/entities'
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
+
+// Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01. Standalone bars are
+// rendered without a lane, so the clientX→index resolver assumes the lane sits at clientX 0:
+// floor(clientX / 48), exactly the old snapDeltaToDays behaviour for these single-lane drags.
+const GEOM = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 48, { minimiseWeekends: false, weekendWidth: 22 })
+const indexAtClientX = (clientX: number) => GEOM.indexAt(clientX)
 
 function seedAllocation(): Allocation {
   const s = useStore.getState()
@@ -22,7 +30,7 @@ beforeEach(() => resetStoreWithAccount())
 describe('AllocationBar interactions', () => {
   it('shows a detail popover on hover and hides it on leave', () => {
     const a = seedAllocation()
-    render(<AllocationBar bar={{ ...barFor(a), project: 'Project Lightning', client: 'Acme' }} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={{ ...barFor(a), project: 'Project Lightning', client: 'Acme' }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     const bar = screen.getByTestId('allocation-bar')
 
     expect(screen.queryByTestId('allocation-popover')).toBeNull()
@@ -37,21 +45,21 @@ describe('AllocationBar interactions', () => {
   it('opens the editor on Enter (keyboard operable)', () => {
     const a = seedAllocation()
     const onEdit = vi.fn()
-    render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={onEdit} />)
+    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
     fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'Enter' })
     expect(onEdit).toHaveBeenCalled()
   })
 
   it('moves with arrow keys and resizes with Shift+arrow (keyboard equivalent of drag)', () => {
     const a = seedAllocation() // 2026-06-01 → 2026-06-03
-    const { rerender } = render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    const { rerender } = render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
     let moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!
     expect([moved.startDate, moved.endDate]).toEqual(['2026-06-02', '2026-06-04'])
 
     // Reflect the new dates in the bar prop (as the grid would re-render), then resize the end.
-    rerender(<AllocationBar bar={barFor(moved)} dayWidth={48} onEdit={vi.fn()} />)
+    rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
     moved = useStore.getState().data.allocations.find((x) => x.id === a.id)!
     expect([moved.startDate, moved.endDate]).toEqual(['2026-06-02', '2026-06-05']) // end extended, start fixed
@@ -59,7 +67,7 @@ describe('AllocationBar interactions', () => {
 
   it('commits a move drag to the store (shifts both dates by a day)', () => {
     const a = seedAllocation()
-    render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     const bar = screen.getByTestId('allocation-bar')
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 })
@@ -74,7 +82,7 @@ describe('AllocationBar interactions', () => {
   it('a click (no movement) opens the editor instead of moving', () => {
     const a = seedAllocation()
     const onEdit = vi.fn()
-    render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={onEdit} />)
+    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={onEdit} />)
     const bar = screen.getByTestId('allocation-bar')
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 })
@@ -103,7 +111,7 @@ describe('AllocationBar interactions', () => {
       <>
         <div data-resource-id={person.id} data-testid="lane-src" />
         <div data-resource-id={slot.id} data-testid="lane-dst" />
-        <AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />
+        <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
       </>,
     )
     screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
@@ -136,7 +144,7 @@ describe('AllocationBar interactions', () => {
       <>
         <div data-resource-id={r1.id} data-testid="lane-src" />
         <div data-resource-id={r2.id} data-testid="lane-dst" />
-        <AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />
+        <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
       </>,
     )
     screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
@@ -160,7 +168,7 @@ describe('AllocationBar interactions', () => {
     it('rescales hours/day when the end is resized by keyboard (Shift+arrow)', () => {
       enableDays()
       const a = seedAllocation() // 2026-06-01 → 2026-06-03, 8h/day, Mon–Fri = 3 working days
-      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
       const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
@@ -172,7 +180,7 @@ describe('AllocationBar interactions', () => {
     it('leaves hours/day untouched on a move (span unchanged)', () => {
       enableDays()
       const a = seedAllocation()
-      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
       const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
@@ -182,7 +190,7 @@ describe('AllocationBar interactions', () => {
     it('rescales hours/day when the end grip is dragged', () => {
       enableDays()
       const a = seedAllocation()
-      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
       fireEvent.pointerDown(screen.getByTestId('resize-end'), { clientX: 144, button: 0 })
       document.dispatchEvent(new MouseEvent('pointermove', { clientX: 192, bubbles: true })) // +48px ≈ +1 day
@@ -196,7 +204,7 @@ describe('AllocationBar interactions', () => {
     it('hourly mode keeps hours/day fixed on resize (regression guard)', () => {
       // No enableDays() — the default account is hourly.
       const a = seedAllocation()
-      render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
       const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
@@ -207,7 +215,7 @@ describe('AllocationBar interactions', () => {
 
   it('pins the dragged row (draggingAllocationId) on the first move and clears it on commit', () => {
     const a = seedAllocation()
-    render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     const bar = screen.getByTestId('allocation-bar')
     expect(useStore.getState().draggingAllocationId).toBeNull()
 
@@ -221,7 +229,7 @@ describe('AllocationBar interactions', () => {
 
   it('clears the drag-pin on pointercancel, and on unmount if the bar still owns it', () => {
     const a = seedAllocation()
-    const { unmount } = render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    const { unmount } = render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 })
     document.dispatchEvent(new MouseEvent('pointermove', { clientX: 120, bubbles: true }))
     expect(useStore.getState().draggingAllocationId).toBe(a.id)
@@ -253,7 +261,7 @@ describe('AllocationBar interactions', () => {
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
         <div data-resource-id={dst.id} data-testid="lane-dst" />
-        <AllocationBar bar={{ allocation: a, x: 0, width: 48, top: 0, color: '#3b82f6', label: 'Wires' }} dayWidth={48} onEdit={vi.fn()} />
+        <AllocationBar bar={{ allocation: a, x: 0, width: 48, top: 0, color: '#3b82f6', label: 'Wires' }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
       </>,
     )
     screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
@@ -280,7 +288,7 @@ describe('AllocationBar interactions', () => {
     // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.
     const a = st.addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
     const dayWidth = 48
-    render(<AllocationBar bar={{ allocation: a, x: 0, width: 5 * dayWidth, top: 0, color: '#3b82f6', label: 'Wires' }} dayWidth={dayWidth} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={{ allocation: a, x: 0, width: 5 * dayWidth, top: 0, color: '#3b82f6', label: 'Wires' }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     const bar = screen.getByTestId('allocation-bar')
 
     fireEvent.pointerDown(bar, { clientX: 10, clientY: 10, button: 0 })
@@ -296,7 +304,7 @@ describe('AllocationBar interactions', () => {
 
   it('aborts a drag on pointercancel without committing or leaking listeners', () => {
     const a = seedAllocation()
-    render(<AllocationBar bar={barFor(a)} dayWidth={48} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     const bar = screen.getByTestId('allocation-bar')
 
     fireEvent.pointerDown(bar, { clientX: 50, button: 0 })

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react'
-import { snapDeltaToDays, type DragMode } from '../lib/gestureMath'
+import { type DragMode } from '../lib/gestureMath'
 
 // Thin DOM wrapper over the pure gestureMath. Mode comes from a `data-handle` on
 // the pressed element (resize grips) or defaults to 'move'. During the gesture it
@@ -14,7 +14,11 @@ export interface Pointer {
 }
 
 export interface UseDragResizeArgs {
-  dayWidth: number
+  /** Maps a document clientX to a snapped day index (the ColumnGeometry inverse, applied
+   *  against the live lane rect — supplied by the lane). The day delta is the difference of
+   *  the two endpoints' indices, so each end snaps to a column independently — correct even
+   *  when the pointer crosses narrowed weekend columns of unequal width. */
+  indexAtClientX: (clientX: number) => number
   onPreview: (mode: DragMode, deltaDays: number, deltaY: number, pointer: Pointer) => void
   onCommit: (mode: DragMode, deltaDays: number, pointer: Pointer) => void
   onClick?: () => void
@@ -56,17 +60,19 @@ export function useDragResize(args: UseDragResizeArgs) {
     // pointerId (treat a missing id as "the active pointer").
     const fromOtherPointer = (ev: PointerEvent) => ev.pointerId !== undefined && ev.pointerId !== pointerId
 
-    // NOTE: the snapDeltaToDays(...) calls below divide by dayWidth, but the divide-by-zero /
-    // undefined-dayWidth guard lives in the PURE gestureMath.snapDeltaToDays (it returns 0 when
-    // dayWidth <= 0). This hook intentionally stays guard-free here — do NOT wrap these pure calls
-    // in try/catch (that would be the harmful pattern; the guard belongs in the pure layer).
+    // NOTE: the day delta is `indexAtClientX(here) - indexAtClientX(start)`. The
+    // divide-by-zero / out-of-range guarding lives in the PURE ColumnGeometry.indexAt (it's
+    // total and never returns NaN). This hook intentionally stays guard-free — do NOT wrap
+    // these pure calls in try/catch (the guard belongs in the geometry layer). The 4px
+    // arm-vs-click test below stays a RAW pixel test, independent of the day snapping.
     const onMove = (ev: PointerEvent) => {
       if (fromOtherPointer(ev)) return
       const dx = ev.clientX - startX
       const dy = ev.clientY - startY
       if (!dragging && Math.max(Math.abs(dx), Math.abs(dy)) < threshold) return
       dragging = true
-      argsRef.current.onPreview(mode, snapDeltaToDays(dx, argsRef.current.dayWidth), dy, {
+      const deltaDays = argsRef.current.indexAtClientX(ev.clientX) - argsRef.current.indexAtClientX(startX)
+      argsRef.current.onPreview(mode, deltaDays, dy, {
         clientX: ev.clientX,
         clientY: ev.clientY,
       })
@@ -84,7 +90,8 @@ export function useDragResize(args: UseDragResizeArgs) {
         argsRef.current.onClick?.()
         return
       }
-      argsRef.current.onCommit(mode, snapDeltaToDays(ev.clientX - startX, argsRef.current.dayWidth), {
+      const deltaDays = argsRef.current.indexAtClientX(ev.clientX) - argsRef.current.indexAtClientX(startX)
+      argsRef.current.onCommit(mode, deltaDays, {
         clientX: ev.clientX,
         clientY: ev.clientY,
       })

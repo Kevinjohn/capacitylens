@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, visibleRange } from '../../store/selectors'
-import { addDaysISO, eachDayISO, todayISO, xForDate } from '@floaty/shared/lib/dateMath'
+import { addDaysISO, eachDayISO, todayISO } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar } from '../common/ui'
 import { Icon } from '../common/Icon'
@@ -11,6 +11,7 @@ import { DateHeader } from './DateHeader'
 import { ResourceLane } from './ResourceLane'
 import { AllocationModal } from './AllocationModal'
 import { TimeOffForm } from '../timeoff/TimeOffForm'
+import { buildColumnGeometry } from './columnGeometry'
 import { buildSchedulerModel } from './schedulerModel'
 import { buildLayout, windowFromLayout } from './virtualWindow'
 import type { GroupModel, RowModel } from './schedulerModel'
@@ -88,7 +89,14 @@ export function SchedulerGrid() {
 
   const { start, end } = visibleRange(ui)
   const days = useMemo(() => eachDayISO(start, end), [start, end])
-  const totalWidth = days.length * dayWidth
+  // One ColumnGeometry owns every px↔day↔date conversion (bar/header/lane/today/scroll/drag),
+  // so weekend columns can be narrowed without the uniform-grid assumption leaking anywhere.
+  // Hard-wired off here (behaviour-preserving); the "minimise weekends" pref wires in next.
+  const geom = useMemo(
+    () => buildColumnGeometry(days, dayWidth, { minimiseWeekends: false, weekendWidth: 0 }),
+    [days, dayWidth],
+  )
+  const totalWidth = geom.totalWidth
 
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const calendarWeekStartsOn = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.weekStartsOn ?? 1)
@@ -99,34 +107,44 @@ export function SchedulerGrid() {
   const utilEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
 
   const model = useMemo(
-    () => buildSchedulerModel(data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters, disciplinesEnabled),
-    [data, ui.originDate, dayWidth, days, utilStart, utilEnd, ui.filters, disciplinesEnabled],
+    () => buildSchedulerModel(data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled),
+    [data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled],
   )
 
-  const todayX = today >= start && today <= end ? xForDate(today, ui.originDate, dayWidth) : null
+  const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null
 
   // Where the grid scrolls on a focus request (Today / jump-to-date). Held in a ref
   // so zoom/resize re-renders don't re-fire the recenter effect.
-  const focusX = xForDate(ui.focusDate, ui.originDate, dayWidth)
+  const focusX = geom.xForDateInGeom(ui.focusDate)
   const focusXRef = useRef(focusX)
   useEffect(() => {
     focusXRef.current = focusX
   })
 
-  // Keep the left-edge DATE anchored when dayWidth changes (zoom click, container
-  // resize): scrollLeft is pixels, so the same offset would otherwise re-point at a
-  // different date — with the past buffer behind the focus date that read as a
-  // multi-week jump on every zoom flip. Skipped until the initial scroll has run
-  // (didScroll); that effect (below, so it runs AFTER this one skips on the
-  // first-measure commit) owns the first real-width placement.
-  const prevDayWidth = useRef(dayWidth)
+  // Keep the left-edge DATE anchored when the COLUMN WIDTHS change (zoom click, container
+  // resize, or the minimise-weekends toggle): scrollLeft is pixels, so the same offset would
+  // otherwise re-point at a different date — with the past buffer behind the focus date that
+  // read as a multi-week jump on every zoom flip. We read the date at the left edge under the
+  // PREVIOUS geometry, then re-locate it under the new one (variable widths rule out a flat
+  // ratio). Skipped until the initial scroll has run (didScroll); that effect (below, so it runs
+  // AFTER this one skips on the first-measure commit) owns the first real-width placement.
+  //
+  // A PAN (Back/Forward week → originDate change → a new `days` array) must NOT re-anchor:
+  // preserving scrollLeft while the window shifts is exactly what advances the view by a week.
+  // The `days === prevDays` test distinguishes a width change (same day set, new widths) from a
+  // pan (new day set) — `days` is referentially stable across a pure zoom/resize.
+  const prevGeomRef = useRef(geom)
+  const prevDaysRef = useRef(days)
   useEffect(() => {
-    const prev = prevDayWidth.current
-    prevDayWidth.current = dayWidth
+    const prevGeom = prevGeomRef.current
+    const prevDays = prevDaysRef.current
+    prevGeomRef.current = geom
+    prevDaysRef.current = days
     const el = scrollRef.current
-    if (!el || !didScroll.current || prev === dayWidth || prev <= 0) return
-    el.scrollLeft = (el.scrollLeft / prev) * dayWidth
-  }, [dayWidth])
+    if (!el || !didScroll.current || days !== prevDays || prevGeom === geom || prevGeom.totalWidth <= 0) return
+    const leftDate = days[prevGeom.indexAt(el.scrollLeft)] ?? days[0]
+    el.scrollLeft = geom.xForDateInGeom(leftDate)
+  }, [geom, days])
 
   // Bring the focus date (today by default) flush to the left edge on first render —
   // the PAST_BUFFER_DAYS of history before it stay off-screen to the left, reachable
@@ -158,11 +176,12 @@ export function SchedulerGrid() {
   )
 
   // The date currently at the left edge of the viewport — what the "+" quick-create
-  // should default to, so it lands where the user is looking (not always today).
+  // should default to, so it lands where the user is looking (not always today). geom.indexAt
+  // inverts the (possibly variable-width) columns and clamps into the window.
   const visibleStartDate = (): ISODate => {
     const el = scrollRef.current
-    const offsetDays = el ? Math.max(0, Math.floor(el.scrollLeft / dayWidth)) : 0
-    return addDaysISO(ui.originDate, offsetDays)
+    const idx = el ? geom.indexAt(el.scrollLeft) : 0
+    return days[idx] ?? days[0] ?? ui.originDate
   }
 
   // Derived from the model only — memoise so opening a modal / measuring the
@@ -389,8 +408,8 @@ export function SchedulerGrid() {
           timeOff={timeOff}
           todayX={todayX}
           dayWidth={dayWidth}
+          geom={geom}
           origin={ui.originDate}
-          totalWidth={totalWidth}
           rowHeight={rowHeight}
           bars={bars}
           placeholder={resource.kind === 'placeholder'}
@@ -439,7 +458,7 @@ export function SchedulerGrid() {
             </>
           )}
         </div>
-        <DateHeader days={days} dayWidth={dayWidth} weekStartsOn={calendarWeekStartsOn} today={today} />
+        <DateHeader days={days} dayWidth={dayWidth} geom={geom} weekStartsOn={calendarWeekStartsOn} today={today} />
       </div>
 
       {model.length === 0 && (

@@ -1,22 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { applyGesture, snapDeltaToDays, type DateRange } from './gestureMath'
+import { applyGesture, type DateRange } from './gestureMath'
 import type { Weekday } from '@floaty/shared/types/entities'
 
+// Pixel→day snapping no longer lives here: the drag hook derives the day delta from the
+// ColumnGeometry inverse (geom.indexAt), so each endpoint snaps to a column independently —
+// correct even across narrowed weekend columns. See columnGeometry.test.ts. applyGesture
+// (the weekend-aware DATE math) is unchanged and still owned here.
+
 const range: DateRange = { startDate: '2026-05-10', endDate: '2026-05-12' }
-
-describe('snapDeltaToDays', () => {
-  it('rounds pixels to the nearest whole day', () => {
-    expect(snapDeltaToDays(40, 40)).toBe(1)
-    expect(snapDeltaToDays(59, 40)).toBe(1)
-    expect(snapDeltaToDays(60, 40)).toBe(2)
-    expect(snapDeltaToDays(-40, 40)).toBe(-1)
-    expect(snapDeltaToDays(10, 40)).toBe(0)
-  })
-
-  it('is safe when dayWidth is zero', () => {
-    expect(snapDeltaToDays(100, 0)).toBe(0)
-  })
-})
 
 describe('applyGesture: move', () => {
   it('shifts both ends by the delta', () => {

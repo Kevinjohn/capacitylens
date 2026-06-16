@@ -21,12 +21,6 @@ export interface GestureOpts {
   ignoreWeekends?: boolean
 }
 
-/** Snap a pixel delta to a whole number of days. */
-export function snapDeltaToDays(deltaPx: number, dayWidth: number): number {
-  if (dayWidth <= 0) return 0
-  return Math.round(deltaPx / dayWidth)
-}
-
 /** Step `date` to the nearest working day in `direction` (+1 forward, -1 backward),
  *  returning it unchanged when it's already a working day. Keeps a weekend-aware resize
  *  edge off non-working days. Bounded to a week so an empty working set can't loop. */

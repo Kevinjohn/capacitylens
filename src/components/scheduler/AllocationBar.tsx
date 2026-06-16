@@ -11,6 +11,7 @@ import { schedulingModeFor } from '../../store/selectors'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
 import { computeGesture, snappedBarGeometry, volumePreservingHours } from './allocationDrag'
+import type { ColumnGeometry } from './columnGeometry'
 import type { ID } from '@floaty/shared/types/entities'
 import type { BarLayout } from './schedulerModel'
 
@@ -64,11 +65,18 @@ function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSn
  */
 export const AllocationBar = memo(function AllocationBar({
   bar,
-  dayWidth,
+  geom,
+  indexAtClientX,
   onEdit,
 }: {
   bar: BarLayout
-  dayWidth: number
+  // The column geometry the view-model used to place bar.x / bar.width — the live drag
+  // preview goes back through it so a drag across a narrowed weekend doesn't jump on release.
+  geom: ColumnGeometry
+  // The lane's clientX→day-index resolver (live lane rect + geom), shared with the lane's
+  // draw gesture so the bar's drag and the lane's draw use ONE inverse — never diverging
+  // across narrow weekend columns.
+  indexAtClientX: (clientX: number) => number
   // Takes the allocation id so the prop is a STABLE reference (the lane passes the
   // same callback for every bar) — which is what lets React.memo skip re-renders.
   onEdit: (id: ID) => void
@@ -150,7 +158,7 @@ export const AllocationBar = memo(function AllocationBar({
   )
 
   const { onPointerDown } = useDragResize({
-    dayWidth,
+    indexAtClientX,
     onPreview: (mode, deltaDays, deltaY, pointer) => {
       // Pin this row on the FIRST move so a mid-gesture vertical scroll can't virtualise it
       // out of the DOM and tear down the document pointer listeners (losing the drag).
@@ -249,16 +257,16 @@ export const AllocationBar = memo(function AllocationBar({
     if (preview.deltaDays !== 0) {
       // Preview the SAME working-day-snapped result the COMMIT will apply, so the bar doesn't
       // jump on release (the old raw calendar-shift preview diverged from the weekend-aware
-      // commit). snappedBarGeometry converts the snapped dates back to pixels via the
-      // calendar-day grid — each calendar day = dayWidth — exactly as the model placed bar.x.
+      // commit). snappedBarGeometry runs the snapped dates through the SAME ColumnGeometry the
+      // model used to place bar.x / bar.width — so the preview is pixel-identical even when the
+      // range crosses a narrowed weekend.
       const cur = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
       const geo = snappedBarGeometry(
         preview.mode,
         cur,
         preview.deltaDays,
         { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends },
-        bar.x,
-        dayWidth,
+        geom,
       )
       left = geo.left
       width = geo.width

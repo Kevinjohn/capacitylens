@@ -1,10 +1,10 @@
-import { widthForRange, xForDate } from '@floaty/shared/lib/dateMath'
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
 import { capacityForWindow, dayCapacity } from '../../lib/capacity'
 import { resolveBarColor } from '@floaty/shared/lib/color'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { resourcesByDiscipline } from '../../store/selectors'
 import { laneLayout } from './layout'
+import type { ColumnGeometry } from './columnGeometry'
 import type { Filters } from '../../store/useStore'
 import type { Allocation, AppData, ID, ISODate, Resource, TimeOff } from '@floaty/shared/types/entities'
 
@@ -63,8 +63,10 @@ export interface GroupModel {
 
 export function buildSchedulerModel(
   data: AppData,
-  origin: ISODate,
-  dayWidth: number,
+  // Per-column pixel geometry (built once in SchedulerGrid). Owns the date→x / range→width
+  // math so bars line up with the header even when weekend columns are narrowed; replaces the
+  // old uniform `origin` + `dayWidth` scalars. Its origin (days[0]) === ui.originDate.
+  geom: ColumnGeometry,
   days: ISODate[],
   // The utilisation window is deliberately decoupled from `days`: per-day states
   // span the whole visible timeline, but the headline % is a fixed near-term
@@ -157,8 +159,8 @@ export function buildSchedulerModel(
           const client = meta?.clientId ? clientById.get(meta.clientId) : undefined
           return {
             allocation: a,
-            x: xForDate(a.startDate, origin, dayWidth),
-            width: widthForRange(a.startDate, a.endDate, dayWidth),
+            x: geom.xForDateInGeom(a.startDate),
+            width: geom.widthForDates(a.startDate, a.endDate),
             top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
             color: resolveBarColor(a, colorMaps),
             label: taskById.get(a.taskId)?.name ?? 'Task',
@@ -173,8 +175,8 @@ export function buildSchedulerModel(
         })
         const timeOff: TimeOffBlock[] = resTimeOff.map((t) => ({
             id: t.id,
-            x: xForDate(t.startDate, origin, dayWidth),
-            width: widthForRange(t.startDate, t.endDate, dayWidth),
+            x: geom.xForDateInGeom(t.startDate),
+            width: geom.widthForDates(t.startDate, t.endDate),
             label: TIME_OFF_TYPE_LABELS[t.type],
             note: t.note,
           }))

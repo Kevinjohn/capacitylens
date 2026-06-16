@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, act } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import { ResourceLane } from './ResourceLane'
+import { buildColumnGeometry } from './columnGeometry'
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '@floaty/shared/types/entities'
@@ -14,6 +15,7 @@ beforeEach(() => {
 const DAYS: [string, string, string] = ['2026-06-01', '2026-06-02', '2026-06-03']
 const DAY_WIDTH = 48
 const ORIGIN = '2026-06-01'
+const GEOM = buildColumnGeometry(DAYS, DAY_WIDTH, { minimiseWeekends: false, weekendWidth: 22 })
 
 const DAY_STATES: DayState[] = [
   { unavailable: true, over: false },
@@ -57,8 +59,8 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
       timeOff={TIME_OFF_BLOCKS}
       todayX={48}
       dayWidth={DAY_WIDTH}
+      geom={GEOM}
       origin={ORIGIN}
-      totalWidth={DAY_WIDTH * DAYS.length}
       rowHeight={52}
       bars={[makeBar()]}
       weekStartsOn={1}

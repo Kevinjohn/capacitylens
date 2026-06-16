@@ -4,6 +4,7 @@ import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
 import { Icon } from '../common/Icon'
 import { AllocationBar } from './AllocationBar'
 import { LAYOUT } from './layout'
+import type { ColumnGeometry } from './columnGeometry'
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
 import type { ID, ISODate } from '@floaty/shared/types/entities'
 
@@ -20,8 +21,8 @@ export const ResourceLane = memo(function ResourceLane({
   timeOff,
   todayX,
   dayWidth,
+  geom,
   origin,
-  totalWidth,
   rowHeight,
   bars,
   placeholder = false,
@@ -34,9 +35,11 @@ export const ResourceLane = memo(function ResourceLane({
   dayStates: DayState[]
   timeOff: TimeOffBlock[]
   todayX: number | null
+  // dayWidth still gates the density thresholds (per-day columns / weekday tint); the
+  // pixel POSITIONS all come from geom, which may narrow weekend columns.
   dayWidth: number
+  geom: ColumnGeometry
   origin: ISODate
-  totalWidth: number
   rowHeight: number
   bars: BarLayout[]
   placeholder?: boolean
@@ -56,13 +59,13 @@ export const ResourceLane = memo(function ResourceLane({
   const indexAt = (clientX: number): number => {
     const rect = laneRef.current?.getBoundingClientRect()
     if (!rect) return 0
-    // Clamp to [0, days.length-1] BEFORE this index becomes a date: a pointerup can land
-    // outside the lane (the gesture is tracked on the document, so the pointer may release
-    // past either edge), which would otherwise yield a negative or out-of-range day. Bounding
-    // the untrusted pointer coord here means addDaysISO(origin, idx) always gets a valid offset
-    // inside the visible window — a drop past the edge snaps to the first/last day, never an
-    // off-window date.
-    return Math.max(0, Math.min(days.length - 1, Math.floor((clientX - rect.left) / dayWidth)))
+    // geom.indexAt is the exact inverse of the column layout AND clamps to [0, days.length-1]:
+    // a pointerup can land outside the lane (the gesture is tracked on the document, so the
+    // pointer may release past either edge), and bounding the untrusted coord here means
+    // addDaysISO(origin, idx) always gets a valid offset inside the visible window — a drop
+    // past the edge snaps to the first/last day, never an off-window date. This is the SINGLE
+    // pointer→day inverse, shared with the bars' drag math (passed to AllocationBar below).
+    return geom.indexAt(clientX - rect.left)
   }
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -124,7 +127,7 @@ export const ResourceLane = memo(function ResourceLane({
       data-resource-id={resourceId}
       role="gridcell"
       className="relative shrink-0 transition-colors"
-      style={{ width: totalWidth, height: rowHeight }}
+      style={{ width: geom.totalWidth, height: rowHeight }}
       onPointerDown={onPointerDown}
       onPointerMove={(e) => {
         if (e.pointerType !== 'mouse') return // touch/pen have no hover state
@@ -149,7 +152,7 @@ export const ResourceLane = memo(function ResourceLane({
           <div
             key={`w-${d}`}
             className={`absolute top-0 h-full border-l ${weekStart ? 'border-line' : 'border-line-faint'}`}
-            style={{ left: i * dayWidth }}
+            style={{ left: geom.x(i) }}
           />
         )
       })}
@@ -162,7 +165,7 @@ export const ResourceLane = memo(function ResourceLane({
               key={`u-${d}`}
               data-testid="unavailable-day"
               className="absolute top-0 h-full bg-canvas"
-              style={{ left: i * dayWidth, width: dayWidth }}
+              style={{ left: geom.x(i), width: geom.widthOf(i) }}
             />
           ) : null,
         )}
@@ -176,7 +179,7 @@ export const ResourceLane = memo(function ResourceLane({
             data-testid="over-marker"
             title="Overbooked"
             className="pointer-events-none absolute top-0 h-full border-t-[3px] border-danger bg-danger/12"
-            style={{ left: i * dayWidth, width: dayWidth }}
+            style={{ left: geom.x(i), width: geom.widthOf(i) }}
           />
         ) : null,
       )}
@@ -210,7 +213,7 @@ export const ResourceLane = memo(function ResourceLane({
           aria-hidden
           data-testid="day-add-hint"
           className="pointer-events-none absolute top-0 flex h-full items-center justify-center text-faint/50"
-          style={{ left: hoverDay * dayWidth, width: dayWidth }}
+          style={{ left: geom.x(hoverDay), width: geom.widthOf(hoverDay) }}
         >
           <Icon name="plus" size={14} />
         </div>
@@ -221,8 +224,8 @@ export const ResourceLane = memo(function ResourceLane({
         <div
           className="pointer-events-none absolute rounded border-2 border-brand bg-brand/20"
           style={{
-            left: Math.min(draw.a, draw.b) * dayWidth,
-            width: (Math.abs(draw.b - draw.a) + 1) * dayWidth,
+            left: geom.x(Math.min(draw.a, draw.b)),
+            width: geom.spanWidth(Math.min(draw.a, draw.b), Math.max(draw.a, draw.b)),
             top: LAYOUT.rowPadding,
             height: LAYOUT.barHeight,
           }}
@@ -230,7 +233,7 @@ export const ResourceLane = memo(function ResourceLane({
       )}
 
       {bars.map((bar) => (
-        <AllocationBar key={bar.allocation.id} bar={bar} dayWidth={dayWidth} onEdit={onEdit} />
+        <AllocationBar key={bar.allocation.id} bar={bar} geom={geom} indexAtClientX={indexAt} onEdit={onEdit} />
       ))}
 
       {/* today line */}

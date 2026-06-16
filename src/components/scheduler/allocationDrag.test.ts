@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { volumePreservingHours, computeGesture, snappedBarGeometry } from './allocationDrag'
+import { buildColumnGeometry } from './columnGeometry'
+import { eachDayISO } from '@floaty/shared/lib/dateMath'
 import type { DateRange } from '../../lib/gestureMath'
 
 // These functions were extracted from AllocationBar so the gesture math could be tested
@@ -57,11 +59,15 @@ describe('computeGesture', () => {
 
 describe('snappedBarGeometry', () => {
   const current = range('2026-06-01', '2026-06-04') // span 4 days
+  // Uniform geometry over June (origin 2026-06-01, dayWidth 20), minimise off — the preview
+  // pixels reduce to the absolute index*dayWidth positions the view-model would place.
+  const geom = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 20, { minimiseWeekends: false, weekendWidth: 12 })
 
-  it('converts a non-weekend-aware move to pixels (left shifts, width holds)', () => {
-    const { left, width } = snappedBarGeometry('move', current, 2, IGNORE, 100, 20)
-    expect(left).toBe(100 + 2 * 20) // barX + 2 calendar days
-    expect(width).toBe(4 * 20) // a move leaves the span (4 days) unchanged
+  it('converts a non-weekend-aware move to absolute pixels (left at the snapped start, width holds)', () => {
+    // Move +2: 06-01..06-04 → 06-03..06-06. Left = index 2 × 20; width = 4-day span × 20.
+    const { left, width } = snappedBarGeometry('move', current, 2, IGNORE, geom)
+    expect(left).toBe(2 * 20)
+    expect(width).toBe(4 * 20)
   })
 
   it('threads opts through to applyGesture (weekend-aware result differs from naive)', () => {
@@ -70,9 +76,23 @@ describe('snappedBarGeometry', () => {
     // geometry differs. The exact weekend math is applyGesture's own concern (and tests) —
     // here we only prove snappedBarGeometry threads opts through rather than dropping them.
     const thuFri = range('2026-06-04', '2026-06-05')
-    const naive = snappedBarGeometry('move', thuFri, 1, IGNORE, 0, 10)
-    const weekendAware = snappedBarGeometry('move', thuFri, 1, { workingDays: [1, 2, 3, 4, 5] }, 0, 10)
-    expect(naive).toEqual({ left: 10, width: 20 }) // +1 calendar day, 2-day span held
-    expect(weekendAware).not.toEqual(naive) // opts threaded → weekend-aware math applied
+    const naive = snappedBarGeometry('move', thuFri, 1, IGNORE, geom)
+    const weekendAware = snappedBarGeometry('move', thuFri, 1, { workingDays: [1, 2, 3, 4, 5] }, geom)
+    expect(naive).toEqual({ left: 4 * 20, width: 2 * 20 }) // +1 calendar day, 2-day span held
+    expect(weekendAware).not.toEqual(naive) // opts threaded → weekend-aware (wider) span
+  })
+
+  it('keeps the preview pixel-identical to the view-model when the range crosses a narrow weekend', () => {
+    // Minimise ON: Sat/Sun are 8px, weekdays 20px. A Fri→following-Mon span must measure from
+    // the REAL mixed column widths (the same geometry the committed bar uses) — not 4×20.
+    const narrow = buildColumnGeometry(eachDayISO('2026-06-01', '2026-06-30'), 20, { minimiseWeekends: true, weekendWidth: 8 })
+    // 06-05 = Fri, 06-08 = Mon. The committed bar's geometry for that exact range:
+    const committed = { left: narrow.xForDateInGeom('2026-06-05'), width: narrow.widthForDates('2026-06-05', '2026-06-08') }
+    // Reach it by a weekend-aware resize-end of a single Friday +1 day (Fri 06-05, end extends
+    // across the weekend to Mon 06-08 — the start stays on Friday).
+    const preview = snappedBarGeometry('resize-end', range('2026-06-05', '2026-06-05'), 1, { workingDays: [1, 2, 3, 4, 5] }, narrow)
+    expect(preview).toEqual(committed)
+    // Width = Fri(20) + Sat(8) + Sun(8) + Mon(20) = 56, NOT 4×20.
+    expect(preview.width).toBe(56)
   })
 })
