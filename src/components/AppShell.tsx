@@ -217,7 +217,10 @@ export function AppShell() {
                   title={label}
                   data-testid="nav-rail-item"
                   onClick={() => setSidebarOpen(true)}
-                  className="flex w-full items-center rounded-md px-2 py-1.5 text-muted hover:bg-canvas hover:text-ink"
+                  /* h-8 matches an expanded nav row's height (text-sm line + py-1.5), so the
+                     icon-only rail keeps the SAME vertical rhythm as the open menu and the
+                     icons don't bunch up / shift vertically when the sidebar collapses. */
+                  className="flex h-8 w-full items-center rounded-md px-2 text-muted hover:bg-canvas hover:text-ink"
                 >
                   <Icon name={icon} />
                 </button>
