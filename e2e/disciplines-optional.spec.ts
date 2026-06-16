@@ -19,6 +19,12 @@ test.describe('Disciplines optional (account-level)', () => {
     // Sidebar nav link is gone.
     await expect(page.getByRole('link', { name: 'Disciplines' })).toHaveCount(0)
 
+    // …and the collapsed icon rail (the "mobile menu") drops it too: 7 icons, no Disciplines.
+    await page.getByRole('button', { name: 'Collapse menu' }).click()
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(7)
+    await expect(page.locator('[data-testid="nav-rail-item"][title="Disciplines"]')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Expand menu' }).click()
+
     // Schedule renders flat: the rows are still there, but there are no discipline-group
     // bands and the discipline filter control is hidden.
     await page.getByRole('link', { name: 'Schedule' }).click()

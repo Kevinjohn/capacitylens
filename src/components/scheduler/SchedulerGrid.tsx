@@ -315,12 +315,16 @@ export function SchedulerGrid() {
             {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
             {bars.length} allocation{bars.length === 1 ? '' : 's'}.
           </span>
-          {/* Avatar + identity, pinned to the TOP of the lane (pt-2.5 ≈ the bars' top
-              inset, LAYOUT.rowPadding) rather than vertically centred — so a tall row
-              with stacked allocations keeps the name where the eye expects it instead of
-              drifting downward as the row grows. The "+/%" box stays self-stretch (full
-              height), so only this identity block moves to the top. */}
-          <div className="flex min-w-0 flex-1 items-start gap-2 pt-2.5">
+          {/* Avatar + identity, vertically centred within the FIRST lane band
+              (rowPadding + barHeight + rowPadding = a single-lane row height) and pinned to
+              the top of the row. So a one-lane row keeps its balanced top/bottom padding
+              (the band IS the whole row), while a taller multi-allocation row keeps the name
+              aligned with the first bar instead of drifting to the row's centre as it grows.
+              The "+/%" box stays self-stretch (full height); only this block is banded. */}
+          <div
+            className="flex min-w-0 flex-1 items-center gap-2"
+            style={{ height: LAYOUT.rowPadding * 2 + LAYOUT.barHeight }}
+          >
             {/* Avatar fill follows the DISCIPLINE colour (group.color), so everyone in a
                 discipline reads as one colour; fall back to the resource's own colour for
                 the ungrouped "No discipline" bucket. */}

@@ -55,11 +55,14 @@ is pinned to the **bottom** of the sidebar, below a divider beneath the Data sec
 sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
 both the open menu and the collapsed rail, so the nav icons don't shift when the sidebar collapses.)
 
-**Collapse / expand.** A toggle button at the top of the sidebar (accessible name
-**Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only
-rail. Rail icons (`data-testid="nav-rail-item"`, one per section, `title` = the section
-label) are **not** navigation — tapping any of them just re-opens the menu; they're hidden
-from assistive tech (the labelled toggle is the single accessible control). Collapsing hides
+**Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
+**Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
+The toggle sits at the same left inset as the nav icons, so the toggle + icon column keep their
+x-position when collapsing — only the labels and the "Floaty" wordmark come and go. Rail icons
+(`data-testid="nav-rail-item"`, one per **visible** section — so 7 when disciplines are off —
+`title` = the section label, plus an instant hover tooltip) are **not** navigation — tapping any
+of them just re-opens the menu; they're hidden from assistive tech (the labelled toggle is the
+single accessible control). Collapsing hides
 the company block and the Data section until re-opened. The choice is device-global
 (`localStorage` key `floaty/sidebar`); with no stored choice the sidebar starts **open on
 desktop and collapsed on small screens** (`(max-width: 767px), (max-height: 480px)` — phone

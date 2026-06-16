@@ -139,19 +139,23 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <nav className={`${sidebarOpen ? 'w-48 p-3' : 'w-12 p-2'} flex flex-col shrink-0 border-r border-line bg-surface`}>
-        <div className={`mb-4 flex items-center ${sidebarOpen ? 'justify-between pl-2' : 'justify-center'}`}>
-          {sidebarOpen && <div className="text-xl font-bold text-brand">Floaty</div>}
+      <nav className={`${sidebarOpen ? 'w-48' : 'w-14'} flex shrink-0 flex-col border-r border-line bg-surface p-2`}>
+        {/* The collapse/expand toggle sits FIRST and at the same left inset (px-2) as every
+            nav icon below it, so the toggle and the icons keep their exact x-position when the
+            sidebar collapses — only the labels and the "Floaty" wordmark come and go, the
+            icon column never shifts. */}
+        <div className="mb-2 flex items-center gap-1">
           <button
             type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-expanded={sidebarOpen}
             aria-label={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
             title={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
-            className="rounded-md p-1.5 text-muted hover:bg-canvas hover:text-ink"
+            className="flex items-center rounded-md px-2 py-1.5 text-muted hover:bg-canvas hover:text-ink"
           >
             <Icon name="panel-left" />
           </button>
+          {sidebarOpen && <div className="text-xl font-bold text-brand">Floaty</div>}
         </div>
         {sidebarOpen ? (
           <>
@@ -196,13 +200,16 @@ export function AppShell() {
           </>
         ) : (
           /* Collapsed icon rail. The icons are deliberately NOT navigation: tapping
-             any of them just expands the menu (a 48px rail is a poor tap target for
+             any of them just expands the menu (a narrow rail is a poor tap target for
              eight destinations, and a mis-tap would navigate somewhere unintended).
              They're hidden from the accessibility tree (aria-hidden + tabIndex -1) —
-             keyboard and screen-reader users get the single labelled toggle above. */
-          <ul className="flex flex-col items-center gap-1">
-            {LINKS.map(([to, label, icon]) => (
-              <li key={to}>
+             keyboard and screen-reader users get the single labelled toggle above.
+             Filtered through `navLinks`, so a discipline-disabled account drops the tag
+             icon here too. Each icon carries an instant hover tooltip (the rail is
+             otherwise unlabelled; the native `title` is slow and absent on touch). */
+          <ul className="flex flex-col gap-1">
+            {navLinks.map(([to, label, icon]) => (
+              <li key={to} className="group/rail relative">
                 <button
                   type="button"
                   tabIndex={-1}
@@ -210,10 +217,16 @@ export function AppShell() {
                   title={label}
                   data-testid="nav-rail-item"
                   onClick={() => setSidebarOpen(true)}
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-muted hover:bg-canvas hover:text-ink"
+                  className="flex w-full items-center rounded-md px-2 py-1.5 text-muted hover:bg-canvas hover:text-ink"
                 >
                   <Icon name={icon} />
                 </button>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-full top-1/2 z-50 ml-1 -translate-y-1/2 whitespace-nowrap rounded bg-elevated px-2 py-1 text-xs font-medium text-ink opacity-0 shadow-pop ring-1 ring-line transition-opacity group-hover/rail:opacity-100"
+                >
+                  {label}
+                </span>
               </li>
             ))}
           </ul>
