@@ -5,6 +5,18 @@ All notable changes to Floaty are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
+## [0.4.0] — 2026-06-16
+
+Cross-browser end-to-end test coverage.
+
+### Added
+- **Firefox/Gecko E2E coverage.** `npm run e2e:firefox` runs the core specs on Firefox
+  (mirroring the existing Safari/WebKit twin), and the new **`npm run e2e:browsers`** runs them
+  on all three engines — Chromium + WebKit, then Firefox. Both stay opt-in, so Chromium remains
+  the default `npm run e2e` inner loop, and the multi-engine runs need only Vite (no SQLite/auth
+  server, no Node 24). Firefox always runs after WebKit and unconditionally; a run fails if any
+  engine fails. `npm run e2e:all` now adds Firefox on top of its WebKit + server-backed coverage.
+
 ## [0.3.0] — 2026-06-16
 
 A new display feature plus the scheduler-geometry work behind it.
@@ -66,5 +78,6 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
+[0.4.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.2.0
