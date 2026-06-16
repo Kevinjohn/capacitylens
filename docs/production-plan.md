@@ -10,6 +10,17 @@ verbatim to a coding model/agent and implemented without further product decisio
 > default. The task specs below are left unchanged as the dated record of what was done; see
 > `docs/decisions-log.md`.
 
+> **Update (2026-06-16) — Phase 2 cutover EXECUTED (alpha).** The move is live on
+> DigitalOcean+Forge (`small-saas-agency-resource-alpha.kevinjohngallagher.com`): Node 24, the
+> Fastify daemon as a Forge Background process (wrapper `/home/forge/floaty-data/run-server.sh`),
+> the Nginx `/api` proxy, and the `VITE_FLOATY_API` build flip. Verified: `/api/health`
+> {ok,db:true}, `/api/state` seeded, Settings `build … · server`. **Two owner divergences from
+> the plan below:** (1) **no Basic Auth** and **no per-tester Accounts** — the round is SHARED +
+> OPEN (just persist a shared dataset); (2) the deploy script keeps `NODE_ENV=development` for
+> alpha. **Still open before beta:** flip to `NODE_ENV=production`, add an auth gate, and finish
+> the Phase 2 edge hardening (steps 5–6 security headers + cache-control, and the droplet restore
+> drill). Full runsheet: `docs/decisions-log.md` 2026-06-16; ops: `docs/runbook.md`.
+
 **Goal (owner):** as close to live as possible *without requiring auth* — but with auth
 wired in and switched off, so turning it on later (incl. SSO) is a config change plus
 Stage C, not a re-architecture.
@@ -20,8 +31,9 @@ This builds on two existing docs and does not repeat them:
   (daemon + `/api` proxy + Basic Auth + persistent SQLite). **This plan executes that
   move**, hardened to near-live standards, and adds the auth seam.
 
-**Posture stays:** one shared server dataset, last-writer-wins, Basic Auth as the gate,
-multi-tenancy is UX not security. Stage C (real isolation) stays parked — see
+**Posture (as deployed for alpha, 2026-06-16):** one shared server dataset, last-writer-wins,
+multi-tenancy is UX not security — and, per the owner, **no auth gate this round** (the plan's
+Basic Auth was dropped; add before beta). Stage C (real isolation) stays parked — see
 "Deliberately not in this round" at the end.
 
 ## Ground rules for every task in this plan (owner, 2026-06-12)

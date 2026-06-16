@@ -41,6 +41,24 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   scaffold, SSO provider choice still deferred. Plus: daemon backups are configurable
   and OFF by default (`FLOATY_BACKUP_DIR`), enabled on the droplet.
 
+## Resolved (owner-confirmed, 2026-06-16)
+- **Server cutover EXECUTED — SHARED + OPEN.** The alpha demo is live in server mode on
+  DigitalOcean+Forge. The owner dropped **both Basic Auth and per-tester Accounts** for this
+  round — the goal was simply to persist a shared dataset so testers opening the same Account
+  see the same data. Stranded-localStorage + open-destructive-API risks explicitly accepted.
+  Full runsheet + verification: decisions-log 2026-06-16; ops in `docs/runbook.md`.
+
+## Open — before beta (owner-deferred 2026-06-16)
+- **Build ships React in DEV mode.** The Forge deploy script keeps `NODE_ENV=development` for
+  alpha → main chunk 646 kB vs 422 kB prod. Flip to `NODE_ENV=production` (keep
+  `npm ci --include=dev` so `tsx`/`vite` still install) and redeploy before beta.
+- **No auth gate.** Add Stage C session auth (or at minimum Nginx Basic Auth) before exposing
+  beyond the trusted alpha group (see Security posture in DECISIONS.md).
+- **Phase 2 edge-hardening remainders** (not yet done on the droplet): Nginx security headers
+  (CSP report-only → enforce), cache-control (`index.html` no-cache / `/assets` immutable —
+  without it testers can get stuck on a stale build after a deploy), and re-running the restore
+  drill on the droplet (P4.2). See `docs/production-plan.md` Phase 2.
+
 ## Genuinely open
 - **From the Cohesion Labs sheet import (2026-06-11)** — real customer data, full detail in
   `_input/COHESION-DEMO-NOTES.md`:
@@ -56,10 +74,11 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   soft warning, or do some want a hard stop on overbooking?
 - **Undo/redo affordance.** Undo/redo is keyboard-only (⌘Z / ⌘⇧Z); the toolbar buttons are hidden
   on purpose pending a clearer affordance. Do owners want visible buttons, or is keyboard enough?
-- **Shared server dataset for the demo.** `docs/server-migration-plan.md` describes moving the
-  friends-demo onto the DB (daemon + `/api` proxy + Basic Auth + persistent SQLite). Build-time
-  flag with **no localStorage fallback** — the server becomes a hard dependency. Confirm before
-  cutting over.
+- **Shared server dataset for the demo — DONE (cutover executed 2026-06-16).** The demo now
+  runs in server mode on DigitalOcean+Forge (daemon + `/api` proxy + persistent SQLite),
+  build-time flag, no localStorage fallback. Diverged from the migration plan: **no Basic Auth**
+  and **no per-tester Accounts** this round (shared + open — see the 2026-06-16 resolved block
+  above and DECISIONS.md Security posture).
 - **Real auth + per-account isolation.** Stage C of the migration plan (the big one). Today the
   server's `ownsRow` tenant check is defence-in-depth, not real isolation — account is
   client-asserted until session auth lands. Required before exposing isolated user data publicly.

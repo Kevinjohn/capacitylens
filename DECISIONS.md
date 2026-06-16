@@ -133,14 +133,21 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   `MAX_NOTE_LENGTH` 1000), used by client **and** server. Forms reject inline; import/server **strip**.
 
 ## Security posture (pre-share)
-- **No app-level auth by default.** The demo's subdomain HTTP auth covers the small trial;
-  last-writer-wins. An auth seam is **wired but OFF** (`FLOATY_AUTH=off|password|sso`, Better
-  Auth, sessions + login screen): off = byte-for-byte today, no auth tables, no login UI. The
-  server-reported `authMode` is the only auth flag — no client-side flag exists.
+- **Alpha is live, SHARED + OPEN (owner, 2026-06-16).** The DigitalOcean+Forge demo
+  (`small-saas-agency-resource-alpha.kevinjohngallagher.com`) runs in server mode — one shared
+  dataset, last-writer-wins — with **no auth gate at all** this round: no app-level auth AND no
+  Nginx Basic Auth (the earlier plan's Basic Auth gate was deliberately dropped). Anyone with
+  the URL can read/edit/wipe the data; owner-accepted for the trusted alpha group only.
+  **Before beta: add a real gate** (Stage C session auth, or at minimum Nginx Basic Auth) — see
+  `NEEDS-INPUT.md` and decisions-log 2026-06-16.
+- **Auth seam is wired but OFF.** `FLOATY_AUTH=off|password|sso` (Better Auth, sessions + login
+  screen): off = byte-for-byte today, no auth tables, no login UI. The server-reported
+  `authMode` is the only auth flag — no client-side flag exists.
 - **Session ≠ isolation.** Turning `FLOATY_AUTH` on gates requests, but `accountId` stays
   client-asserted (`ownsRow` is defense-in-depth) until Stage C derives it from the session.
 - **CSP:** `object-src`/`base-uri` ship in `index.html`; a full `script-src` policy belongs in
-  a host response header (where the demo's auth lives), not the app.
+  a host response header, not the app — **not yet added at the host** (Phase 2 edge-hardening
+  remainder, see `docs/production-plan.md`).
 
 ## Performance (and standing non-goals)
 - **Row virtualization** is implemented (spacer windowing, pure window math; off-screen rows

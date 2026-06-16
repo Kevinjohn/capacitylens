@@ -6,6 +6,26 @@ Flags and their droplet values live in the **flag register** in
 (Nginx + daemon + paths) is in the plan's "Target architecture"; the cutover steps are
 the plan's Phase 2.
 
+> **Live setup (alpha, 2026-06-16) — read this first.** The demo is deployed at
+> **small-saas-agency-resource-alpha.kevinjohngallagher.com** (DigitalOcean + Forge,
+> zero-downtime releases — app at `current/`, web root `current/dist`). What's actually wired —
+> this **supersedes the Basic-Auth / per-tester-Account instructions below**:
+> - **Server:** a Forge **Background process** named `floaty-server` runs
+>   `/home/forge/floaty-data/run-server.sh` (a wrapper that `cd current && exec npm start -w
+>   floaty-server` with `NODE_ENV=production` + the droplet flags). `FLOATY_DB=/home/forge/floaty-data/floaty.db`.
+> - **Nginx:** `location /api/ → 127.0.0.1:8787` added via Forge's Nginx editor (no trailing
+>   slash on `proxy_pass`, so the `/api` prefix is preserved).
+> - **Deploy script (Forge):** `git pull` → `npm ci --include=dev` → `export VITE_FLOATY_API` +
+>   `VITE_FLOATY_BUILD_SHA` → `npm run build`. **`NODE_ENV=development` is kept for alpha** (flip
+>   to `production` before beta).
+> - **No auth this round (owner):** no Nginx Basic Auth, `FLOATY_AUTH` off — the dataset is
+>   shared and OPEN. Wherever this runbook says `curl -u` / htpasswd / per-tester creds, **that
+>   gate does not exist yet**. **No per-tester Accounts** either — testers share the seeded Accounts.
+> - **Deploy gotcha:** the daemon runs from the rotating `current/` symlink, so a **server-code**
+>   change (`server/`) needs a manual restart of the `floaty-server` Background process in Forge
+>   after the deploy; client/`dist` changes go live on the symlink swap automatically.
+> - **Not yet done (Phase 2 remainders):** Nginx security headers, cache-control, droplet restore drill.
+
 ## Deploy
 
 Run the gate locally (`gate` + `gate:server` + `e2e`; optionally `e2e:webkit` for a Safari pass),
