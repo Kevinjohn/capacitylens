@@ -51,6 +51,7 @@
         <li><a href="#form">The canonical form</a></li>
         <li><a href="#list">The canonical list</a></li>
         <li><a href="#scheduler">The scheduler view-model</a></li>
+        <li><a href="#variable-columns">Variable-width timeline columns</a></li>
         <li><a href="#styling">Styling &amp; tokens</a></li>
         <li><a href="#a11y">Accessibility</a></li>
         <li><a href="#react">React/TS conventions</a></li>
@@ -72,7 +73,7 @@
 ├── resources/  disciplines/  projects/  tasks/  timeoff/  accounts/  settings/
 ├── scheduler/      <span class="c"># presentational components + PURE model/math modules</span>
 │   ├── SchedulerView.tsx  SchedulerGrid.tsx  ResourceLane.tsx  AllocationBar.tsx
-│   ├── schedulerModel.ts  layout.ts  virtualWindow.ts  allocationDrag.ts   <span class="c"># pure, unit-tested</span>
+│   ├── schedulerModel.ts  columnGeometry.ts  layout.ts  virtualWindow.ts  allocationDrag.ts   <span class="c"># pure, unit-tested</span>
 └── AppShell.tsx  CommandPalette.tsx  …</code></pre>
     <p>Conventions: <strong>PascalCase</strong> for component files; <strong>camelCase</strong> for pure logic
     modules (<code>schedulerModel.ts</code>, <code>layout.ts</code>). One folder per entity, each holding
@@ -229,9 +230,10 @@
 
     <h2 id="scheduler">The scheduler view-model — a pure function</h2>
     <p>The complex screen is built by a <strong>pure function</strong> with no React: <code>buildSchedulerModel(data,
-    origin, dayWidth, days, utilStart, utilEnd, filters)</code> returns a <code>GroupModel[]</code> tree of
+    geom, days, utilStart, utilEnd, filters, disciplinesEnabled)</code> returns a <code>GroupModel[]</code> tree of
     rows, bars, day-states, time-off blocks, and utilisation. It is exhaustively unit-tested in isolation
-    because it has no hooks.</p>
+    because it has no hooks. (<code>geom</code> is the <a href="#variable-columns">ColumnGeometry</a> below — it
+    owns every pixel conversion, so the model never multiplies by a <code>dayWidth</code> scalar.)</p>
     <div class="callout why">
       <span class="label">Why the view-model is separated from rendering</span>
       <p>Two payoffs. <strong>Testability:</strong> all the layout/capacity/filter logic is a pure function you
@@ -242,6 +244,128 @@
       skips work. Fixed pixel constants live in one <code>layout.ts</code> object; row virtualization math
       lives in a pure <code>virtualWindow.ts</code> (prefix-sum built once, queried per scroll frame).</p>
     </div>
+
+    <h2 id="variable-columns">Variable-width timeline columns — the <code>ColumnGeometry</code> pattern</h2>
+    <p>A timeline that draws every day at one fixed <code>dayWidth</code> is a <strong>uniform grid</strong>:
+    every position is <code>index&nbsp;&times;&nbsp;dayWidth</code> and the pointer&rarr;date inverse is a single
+    <code>Math.floor((clientX&nbsp;&minus;&nbsp;laneLeft)&nbsp;/&nbsp;dayWidth)</code>. That scalar is
+    load-bearing: it shows up in the bar layout, the lane overlays, the today line, the date header, the
+    zoom/resize scroll-anchor <em>and</em> the drag/resize math. The day you want <em>one</em> column a
+    different width — Floaty's <strong>"minimise weekends"</strong>, where Sat/Sun shrink to a date-number
+    sliver — you must give up the uniform assumption across ~7 files at once. The pattern that makes that safe
+    is to replace the scalar with <strong>one pure geometry object</strong> that every site asks instead of
+    multiplying.</p>
+
+    <div class="filename">src/components/scheduler/columnGeometry.ts (the abstraction)</div>
+<pre><code><span class="k">export interface</span> <span class="t">ColumnGeometry</span> {
+  <span class="k">readonly</span> widths: number[]     <span class="c">// per-day px width</span>
+  <span class="k">readonly</span> offsets: number[]    <span class="c">// prefix sum, length n+1; offsets[i] = left edge of day i</span>
+  <span class="k">readonly</span> totalWidth: number
+  <span class="k">readonly</span> minimiseActive: boolean
+  <span class="f">x</span>(index: number): number             <span class="c">// left edge of column i (clamped 0..n)</span>
+  <span class="f">widthOf</span>(index: number): number       <span class="c">// 0 out of range</span>
+  <span class="f">spanWidth</span>(s: number, e: number): number
+  <span class="f">indexAt</span>(px: number): number          <span class="c">// the EXACT inverse of x() — binary search</span>
+  <span class="f">xForDateInGeom</span>(date: <span class="t">ISODate</span>): number <span class="c">// extrapolates at full width off-window</span>
+  <span class="f">widthForDates</span>(start: <span class="t">ISODate</span>, end: <span class="t">ISODate</span>): number
+}
+<span class="c">// Built once per render in SchedulerGrid, memoised on [days, dayWidth, minimiseWeekends, weekendWidth].</span>
+<span class="k">export function</span> <span class="f">buildColumnGeometry</span>(days: <span class="t">ISODate</span>[], dayWidth: number,
+  opts: { minimiseWeekends: boolean; weekendWidth: number }): <span class="t">ColumnGeometry</span></code></pre>
+    <p>Everything that used to multiply by <code>dayWidth</code> now asks the geometry. With the feature
+    <em>off</em>, every <code>widths[i] === dayWidth</code>, so <code>x(i) === i&times;dayWidth</code>,
+    <code>indexAt === floor(px/dayWidth)</code> and <code>totalWidth === days.length&times;dayWidth</code> —
+    <strong>byte-identical</strong> to the old uniform grid.</p>
+
+    <div class="callout do">
+      <span class="label">Sequence it as two commits: mechanical, then the feature</span>
+      <p>This is the whole trick for a wide-blast-radius refactor. <strong>Commit&nbsp;1 (mechanical):</strong>
+      introduce the geometry and thread it through every site, built with the flag <em>hard-wired off</em> so
+      it is byte-identical — every existing unit test and E2E passes <em>unchanged</em>, which is the proof the
+      threading didn't change behaviour. <strong>Commit&nbsp;2 (the feature):</strong> add the device-global
+      pref, flip the flag on, switch the header label, add the fit; the only new behaviour is the widths. A
+      reviewer reads commit&nbsp;1 for "is the wiring faithful?" and commit&nbsp;2 for "is the feature right?"
+      — separately. Keep the branch off any other scheduler work; it touches the files most scheduler tweaks
+      do, and interleaving is the one avoidable risk.</p>
+    </div>
+
+    <p>The threading, atomically — each site trades the scalar for a geometry call:</p>
+    <table>
+      <thead><tr><th>File</th><th>Was</th><th>Now</th></tr></thead>
+      <tbody>
+        <tr><td><code>schedulerModel.ts</code></td><td><code>xForDate(d, origin, dayWidth)</code> · <code>widthForRange(…)</code></td><td><code>geom.xForDateInGeom(d)</code> · <code>geom.widthForDates(…)</code> — the <code>origin</code>+<code>dayWidth</code> params drop out</td></tr>
+        <tr><td><code>DateHeader.tsx</code></td><td>cell <code>width: dayWidth</code>; month span <code>m.days&times;dayWidth</code></td><td><code>geom.widthOf(i)</code> · <code>geom.spanWidth(start, end)</code>; weekend label becomes "S" when <code>geom.minimiseActive</code></td></tr>
+        <tr><td><code>ResourceLane.tsx</code></td><td>overlay <code>left: i&times;dayWidth</code>; local <code>floor((x&minus;rect.left)/dayWidth)</code></td><td><code>geom.x(i)</code> · <code>geom.widthOf(i)</code>; <code>geom.indexAt(x&minus;rect.left)</code> — and it passes this one resolver to the bar</td></tr>
+        <tr><td><code>useDragResize.ts</code></td><td><code>snapDeltaToDays(dx, dayWidth)</code></td><td><code>indexAtClientX(curr) &minus; indexAtClientX(start)</code> — each endpoint snapped to its own column</td></tr>
+        <tr><td><code>allocationDrag.ts</code></td><td><code>snappedBarGeometry(…, barX, dayWidth)</code></td><td><code>snappedBarGeometry(…, geom)</code> — the live preview runs through the same geometry as the commit</td></tr>
+        <tr><td><code>SchedulerGrid.tsx</code></td><td><code>todayX</code>/<code>focusX</code>/<code>totalWidth</code>/<code>visibleStartDate</code> via <code>&times;dayWidth</code>&nbsp;/&nbsp;<code>/dayWidth</code></td><td>all via <code>geom</code>; builds the one memoised <code>geom</code> and threads it down</td></tr>
+      </tbody>
+    </table>
+
+    <p>Three invariants make it correct. Each is a bug class that <em>passing unit tests will not catch</em> —
+    they only bite with real layout, real sub-pixel scroll, or a real pointer, so they need an E2E and a
+    screenshot, not just green Vitest.</p>
+
+    <div class="callout rule">
+      <span class="label">1 · One inverse, the exact inverse, shared by drag AND draw</span>
+      <p><code>indexAt</code> must be the <em>exact</em> inverse of <code>x()</code> at every boundary — a click
+      at <code>offsets[i]</code>&nbsp;&rarr;&nbsp;<code>i</code>, at <code>offsets[i]&minus;1</code>&nbsp;&rarr;&nbsp;<code>i&minus;1</code>
+      — one binary search, unit-tested with the round-trip <code>indexAt(x(i)) === i</code>. The drag
+      day-delta is <code>indexAt(curr)&nbsp;&minus;&nbsp;indexAt(start)</code> (each endpoint snapped to its own
+      column), <em>never</em> <code>round(&Delta;px&nbsp;/&nbsp;dayWidth)</code>: with unequal column widths a
+      single rounded delta lands on the wrong day as soon as the path crosses a narrow column. The lane's
+      draw-to-create and the bar's drag take the <em>same</em> resolver, so the two inverses can't diverge.</p>
+    </div>
+
+    <div class="callout rule">
+      <span class="label">2 · Integer-pixel widths, or the scroll-anchor drifts</span>
+      <p>Round the special column width to a <strong>whole pixel</strong>. A rem-based width is fractional
+      (<code>1.4&nbsp;&times;&nbsp;15.99&nbsp;=&nbsp;22.39</code>), which makes fractional offsets
+      (<code>offset(Mon)&nbsp;=&nbsp;1699.12</code>) — but the browser stores <code>scrollLeft</code> as a whole
+      number (<code>1699</code>). The scroll-anchor recovers the left-edge date with
+      <code>geom.indexAt(scrollLeft)</code>, and <code>indexAt(1699)</code> floors to the column <em>before</em>
+      Monday, so the left-edge date drifts back a day (onto the narrow weekend) on <em>every</em> zoom flip.
+      Whole-pixel widths (the day width is already floored) make the offsets integers and the round-trip exact.
+      This one cost a debugging cycle — it is invisible to unit tests because jsdom has no real scroll.</p>
+    </div>
+
+    <div class="callout rule">
+      <span class="label">3 · The live preview and the commit go through the SAME geometry</span>
+      <p>The drag preview (pixels, mid-gesture) and the committed bar (the rebuilt view-model) must both run the
+      snapped dates through the same <code>ColumnGeometry</code>. Then a drag that crosses a narrow column lands
+      exactly where it previewed — no jump on release. Two different pixel formulas diverge precisely where the
+      widths are unequal, which is exactly the new case.</p>
+    </div>
+
+    <div class="callout dont">
+      <span class="label">Don't re-anchor the scroll on a pan</span>
+      <p>The scroll-anchor preserves the left-edge <em>date</em> when the column <em>widths</em> change (zoom,
+      container resize, toggling the feature): read the date under the previous geometry, re-locate it under the
+      new one (a flat <code>scrollLeft&times;ratio</code> is wrong once widths vary). But a <em>pan</em>
+      (Prev/Next&nbsp;week shifts the origin and rebuilds the <code>days</code> array) must <em>not</em>
+      re-anchor — preserving <code>scrollLeft</code> while the window slides is exactly what advances the view by
+      a week. Distinguish them by the day array's referential identity (<code>days === prevDays</code>
+      &rArr; a width change, not a pan), and key the effect on the memoised geometry.</p>
+    </div>
+
+    <div class="callout why">
+      <span class="label">Make "N weeks" still mean N weeks — the weekend-aware fit</span>
+      <p>The zoom picks a <code>dayWidth</code> to fit <em>weeks</em> weeks. The naïve fit
+      <code>floor(avail&nbsp;/&nbsp;(weeks&times;7))</code> assumes 7 <em>equal</em> columns — but with two
+      narrow columns a week occupies only <code>5&times;dayWidth&nbsp;+&nbsp;2&times;weekendWidth</code>, so the
+      viewport under-fills and a "1-week" view creeps to ~1.5. Make the fit width-aware
+      (<code>weeks&times;(5&times;dayWidth&nbsp;+&nbsp;2&times;weekendWidth)&nbsp;=&nbsp;avail</code>, applied
+      <em>only</em> while the special columns are genuinely narrower), and raise the max-column-width cap so the
+      widened weekday columns can actually fill a normal screen. Leave the cap and the right edge simply
+      under-fills — cosmetic, but the owner notices on the very first click.</p>
+    </div>
+
+    <p>What stays put: the weekend-aware <em>date</em> math (working-day counts, the gesture model) is untouched
+    — it works on dates and working-day counts, not pixels. The pref itself is an ordinary
+    <strong>device-global</strong> toggle (<a href="05-state-and-persistence.html">page&nbsp;05</a>): its own
+    <code>localStorage</code> key, default on, never on the account and never in the exported dataset. The whole
+    feature is a small pure module plus a textbook pref; the engineering is the disciplined threading and the
+    three invariants above — and an E2E with a screenshot, because that is the only oracle that sees them.</p>
 
     <h2 id="styling">Styling &amp; the design tokens</h2>
     <p>Tailwind v4. The entire palette is <strong>semantic CSS custom properties</strong> declared in a
