@@ -22,9 +22,11 @@ import {
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
+  readStoredMinimiseWeekends,
   readStoredSidebarOpen,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
+  writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
   type BarLabelPrefs,
@@ -162,6 +164,9 @@ export interface StoreState {
    *  own localStorage key; the first-run default is viewport-derived (collapsed
    *  on small screens, open on desktop). */
   sidebarOpen: boolean
+  /** Shrink the weekend (Sat/Sun) columns on the schedule to a sliver. Device-global like
+   *  `theme`, own localStorage key, NOT in AppData/export — and defaults ON. */
+  minimiseWeekends: boolean
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -188,6 +193,8 @@ export interface StoreState {
   setBarLabelPref: (key: keyof BarLabelPrefs, value: boolean) => void
   /** Open/collapse the sidebar: persist the choice and update state. */
   setSidebarOpen: (open: boolean) => void
+  /** Toggle the minimise-weekends preference: persist and update state. */
+  setMinimiseWeekends: (value: boolean) => void
   undo: () => void
   redo: () => void
 
@@ -340,6 +347,7 @@ export const useStore = create<StoreState>()((set, get) => {
     utilizationPrefs: readStoredUtilizationPrefs(),
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
+    minimiseWeekends: readStoredMinimiseWeekends(),
 
     addAccount: (input) => {
       const e: Account = { ...input, id: newId(), ...stamp() }
@@ -440,6 +448,10 @@ export const useStore = create<StoreState>()((set, get) => {
     setSidebarOpen: (open) => {
       writeStoredSidebarOpen(open)
       set({ sidebarOpen: open })
+    },
+    setMinimiseWeekends: (value) => {
+      writeStoredMinimiseWeekends(value)
+      set({ minimiseWeekends: value })
     },
 
     undo: () =>

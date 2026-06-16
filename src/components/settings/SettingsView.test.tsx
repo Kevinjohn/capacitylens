@@ -170,6 +170,25 @@ describe('SettingsView — Account section (auth)', () => {
   })
 })
 
+describe('SettingsView — Schedule (minimise weekends)', () => {
+  it('reflects the default-on preference and toggles it through the store', async () => {
+    const user = userEvent.setup()
+    useStore.getState().setMinimiseWeekends(true) // deterministic starting point (device-global pref)
+    render(<SettingsView />)
+
+    const sw = screen.getByRole('switch', { name: 'Minimise weekends' })
+    expect(sw).toHaveAttribute('aria-checked', 'true') // default on
+
+    await user.click(sw)
+    expect(useStore.getState().minimiseWeekends).toBe(false)
+    expect(sw).toHaveAttribute('aria-checked', 'false')
+
+    await user.click(sw)
+    expect(useStore.getState().minimiseWeekends).toBe(true)
+    expect(sw).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
 describe('SettingsView — Calendar section', () => {
   it('renders the Calendar section with defaults (Monday, GMT)', () => {
     render(<SettingsView />)

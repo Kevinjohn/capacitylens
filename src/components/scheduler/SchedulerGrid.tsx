@@ -3,7 +3,7 @@ import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO } from '@floaty/shared/lib/dateMath'
-import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, resolveDayWidth } from '../../lib/schedulerConfig'
+import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar } from '../common/ui'
 import { Icon } from '../common/Icon'
 import { LAYOUT } from './layout'
@@ -48,6 +48,8 @@ export function SchedulerGrid() {
   // Utilisation display toggles (Settings → Utilisation). Each gates one of the three
   // utilisation figures: total (header), discipline (group header), personal (per row).
   const utilizationPrefs = useStore((s) => s.utilizationPrefs)
+  // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
+  const minimiseWeekends = useStore((s) => s.minimiseWeekends)
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
@@ -57,6 +59,9 @@ export function SchedulerGrid() {
   const didScroll = useRef(false)
   const [timelineWidth, setTimelineWidth] = useState(0)
   const [timelineHeight, setTimelineHeight] = useState(0) // viewport height for row virtualization
+  // Root font size (px) for resolving the rem-based weekend column width. Re-read on the same
+  // ResizeObserver tick as the container, so a font-size / zoom change reflows the columns too.
+  const [rootFontSizePx, setRootFontSizePx] = useState(16)
   const [scrollTop, setScrollTop] = useState(0)
   const scrollRaf = useRef(0)
 
@@ -68,6 +73,8 @@ export function SchedulerGrid() {
     const measure = () => {
       setTimelineWidth(el.clientWidth)
       setTimelineHeight(el.clientHeight)
+      // getComputedStyle().fontSize is '' in jsdom/SSR → parseFloat NaN → fall back to 16px.
+      setRootFontSizePx(parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)
     }
     measure()
     if (typeof ResizeObserver === 'undefined') return
@@ -90,11 +97,13 @@ export function SchedulerGrid() {
   const { start, end } = visibleRange(ui)
   const days = useMemo(() => eachDayISO(start, end), [start, end])
   // One ColumnGeometry owns every px↔day↔date conversion (bar/header/lane/today/scroll/drag),
-  // so weekend columns can be narrowed without the uniform-grid assumption leaking anywhere.
-  // Hard-wired off here (behaviour-preserving); the "minimise weekends" pref wires in next.
+  // so the narrowed weekend columns don't leak the old uniform-grid assumption anywhere. The
+  // weekend width is rem-based (tracks font size); buildColumnGeometry caps it at dayWidth and
+  // only narrows at/above the per-day-column zoom threshold.
+  const weekendWidth = WEEKEND_COLUMN_REM * rootFontSizePx
   const geom = useMemo(
-    () => buildColumnGeometry(days, dayWidth, { minimiseWeekends: false, weekendWidth: 0 }),
-    [days, dayWidth],
+    () => buildColumnGeometry(days, dayWidth, { minimiseWeekends, weekendWidth }),
+    [days, dayWidth, minimiseWeekends, weekendWidth],
   )
   const totalWidth = geom.totalWidth
 

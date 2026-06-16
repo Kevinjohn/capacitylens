@@ -83,6 +83,8 @@ export function SettingsView() {
   const setUtilizationPref = useStore((s) => s.setUtilizationPref)
   const barLabelPrefs = useStore((s) => s.barLabelPrefs)
   const setBarLabelPref = useStore((s) => s.setBarLabelPref)
+  const minimiseWeekends = useStore((s) => s.minimiseWeekends)
+  const setMinimiseWeekends = useStore((s) => s.setMinimiseWeekends)
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
   const weekStartsOn: 0 | 1 = activeAccount?.weekStartsOn ?? 1
@@ -239,6 +241,22 @@ export function SettingsView() {
               label="Use disciplines"
               on={disciplinesEnabled}
               onToggle={() => updateAccount(activeAccount.id, { disciplinesEnabled: !disciplinesEnabled })}
+            />
+          </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">Schedule</h2>
+          <p className="mb-3 text-xs text-muted">
+            How the week grid is drawn — applies to this browser. Minimise weekends shrinks the
+            Saturday and Sunday columns so the working week dominates the view. Weekend work still
+            shows; the columns just narrow.
+          </p>
+          <div className="divide-y divide-line">
+            <ToggleRow
+              label="Minimise weekends"
+              on={minimiseWeekends}
+              onToggle={() => setMinimiseWeekends(!minimiseWeekends)}
             />
           </div>
         </section>

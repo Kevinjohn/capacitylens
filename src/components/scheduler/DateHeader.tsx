@@ -108,7 +108,11 @@ export const DateHeader = memo(function DateHeader({
                 style={{ width: geom.widthOf(i) }}
               >
                 <span className="font-medium">{format(date, 'd')}</span>
-                {showWeekday && <span className="text-2xs uppercase">{format(date, 'EEE')}</span>}
+                {/* Narrowed weekend columns have no room for "Sat"/"Sun" — both read just "S"
+                    (the date number always stays). Weekdays keep their three-letter label. */}
+                {showWeekday && (
+                  <span className="text-2xs uppercase">{geom.minimiseActive && weekend ? 'S' : format(date, 'EEE')}</span>
+                )}
               </div>
             )
           })}

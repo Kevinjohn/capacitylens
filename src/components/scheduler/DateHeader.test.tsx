@@ -66,4 +66,41 @@ describe('DateHeader', () => {
       expect(screen.queryByText('Sat')).not.toBeInTheDocument()
     })
   })
+
+  describe('with minimise weekends ON (narrowed weekend columns)', () => {
+    // Fri, Sat, Sun, Mon — a window straddling a full weekend.
+    const WEEKEND_DAYS = ['2026-06-05', '2026-06-06', '2026-06-07', '2026-06-08']
+    const renderMinimised = (dayWidth: number) =>
+      render(
+        <DateHeader
+          days={WEEKEND_DAYS}
+          dayWidth={dayWidth}
+          geom={buildColumnGeometry(WEEKEND_DAYS, dayWidth, { minimiseWeekends: true, weekendWidth: 22 })}
+          weekStartsOn={1}
+          today="2026-06-05"
+        />,
+      )
+
+    it('shows "S" for BOTH Saturday and Sunday, and keeps the weekday letters either side', () => {
+      renderMinimised(48)
+      expect(screen.getByText('Fri')).toBeInTheDocument()
+      expect(screen.getByText('Mon')).toBeInTheDocument()
+      expect(screen.getAllByText('S')).toHaveLength(2) // Sat + Sun both collapse to "S"
+      expect(screen.queryByText('Sat')).not.toBeInTheDocument()
+      expect(screen.queryByText('Sun')).not.toBeInTheDocument()
+    })
+
+    it('still shows the date number in each narrowed weekend column', () => {
+      renderMinimised(48)
+      expect(screen.getByText('6')).toBeInTheDocument() // Sat 06-06
+      expect(screen.getByText('7')).toBeInTheDocument() // Sun 06-07
+    })
+
+    it('renders weekend cells at the narrow width and weekdays at dayWidth', () => {
+      const { container } = renderMinimised(48)
+      const cells = container.querySelectorAll('.flex.flex-auto > div')
+      // Fri(48), Sat(22), Sun(22), Mon(48) — widths come straight from the geometry.
+      expect(Array.from(cells).map((c) => (c as HTMLElement).style.width)).toEqual(['48px', '22px', '22px', '48px'])
+    })
+  })
 })

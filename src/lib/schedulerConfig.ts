@@ -21,6 +21,12 @@ export const DAY_COLUMN_MIN_WIDTH = 18
 /** At/above this day width the header also shows weekday letters (Mon/Tue…). */
 export const WEEKDAY_LABEL_MIN_WIDTH = 36
 
+/** Bare-minimum width of a Sat/Sun column when "minimise weekends" is on — just room for a
+ *  two-digit date. Expressed in REM (not px) so it tracks the user's font size / zoom; it's
+ *  resolved to px against the root font size where the ColumnGeometry is built. Only applies at
+ *  fine zoom (dayWidth >= DAY_COLUMN_MIN_WIDTH); buildColumnGeometry also caps it at dayWidth. */
+export const WEEKEND_COLUMN_REM = 1.4 // ≈ a 2-digit number at text-xs + a little padding
+
 /** How many days the timeline spans FORWARD from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120
 /** Scrollable history kept to the LEFT of the focus date (default view, Today,

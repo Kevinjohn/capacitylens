@@ -1,9 +1,14 @@
 # Plan — "Minimise weekends" (deferred Alpha feature #5)
 
-> **Status:** designed, not started. The other four Alpha items shipped in **v0.2.0**.
-> This is the 5th, deferred because it's a **variable-width-column refactor of the
-> scheduler's positioning AND drag-gesture core** (Size **L**) — far more than a CSS tweak.
-> Build it on its own branch off `main` (suggested: `minimise-weekends`).
+> **Status: IMPLEMENTED** (2026-06-16, branch `minimise-weekends`) — built as designed, in the
+> two reviewable commits below. `ColumnGeometry` (`src/components/scheduler/columnGeometry.ts`)
+> replaced the uniform grid; the device-global pref defaults ON. See `DECISIONS.md` (UI &
+> product → "Weekends minimise by default") and the decisions-log for the landing record. The
+> plan below is kept as the design record.
+>
+> The other four Alpha items shipped in **v0.2.0**. This is the 5th, a **variable-width-column
+> refactor of the scheduler's positioning AND drag-gesture core** (Size **L**) — far more than a
+> CSS tweak. Built on its own branch off `main` (`minimise-weekends`).
 >
 > **Before you start (read current code — some of these files changed in v0.2.0):**
 > `DateHeader.tsx` gained the sticky month label; `SchedulerGrid.tsx` gained the

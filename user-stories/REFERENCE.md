@@ -44,7 +44,7 @@ The sidebar links, in order, route to:
 | Projects | `/projects` | Project list |
 | Tasks | `/tasks` | Task list |
 | Time off | `/timeoff` | Time-off list |
-| Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, allocation bars, utilisation, appearance) |
+| Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, allocation bars, utilisation, appearance) |
 
 That's **eight** sections by default — **seven** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). Each link
@@ -98,6 +98,13 @@ The Playwright E2E suite avoids that drift by **freezing the clock to 2026-06-03
 inside the seed window) in `e2e/helpers.ts` `openApp()`, so the seed bars and the 3–4 June
 over-marker are always on-screen without a jump — keep that date in step with the seed.
 
+**Weekend columns.** By default the **Minimise weekends** display pref (Settings → Schedule,
+on by default) shrinks the Saturday and Sunday columns to a sliver — just wide enough for the
+date number — and their weekday label reads a single **"S"** (both Sat and Sun), so the working
+week dominates the helicopter view. Weekends are not removed: people can still work weekends,
+bars span across them, and the narrowing only applies at a fine enough zoom to show per-day
+columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` labels.
+
 ## Control labels (accessible names)
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
@@ -122,6 +129,13 @@ toolbar buttons. Filter row:
 active, **off by default** — filtering hides resources with no matching work; ticking it
 brings them back visible-but-dimmed so you can see who's free to staff), `Clear` (only shown
 when a filter is active).
+
+**Schedule display (minimise weekends).** Settings → **Schedule** has a single switch
+**Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
+It's a **device-global** display pref (own `localStorage` key `floaty/minimiseWeekends`, NOT on the
+account and NOT in export) — like the theme and bar-label toggles. On → narrow Sat/Sun columns
+with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See *Weekend
+columns* above.
 
 **Allocation bars.** A bar's label reads `Client · Project · Task · Nh` (hours hidden in
 blocks mode; a `✓ ` prefix when completed, a trailing ` •` when it has a note). The client

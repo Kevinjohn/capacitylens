@@ -144,3 +144,31 @@ export function defaultSidebarOpen(): boolean {
   }
   return true
 }
+
+// "Minimise weekends": shrink the Saturday/Sunday columns on the schedule to a sliver.
+// Device-global like the prefs above (own key, not account data), but DEFAULTS ON — the owner's
+// stated default. A plain on/off string (like the sidebar) rather than JSON: it's a single bool.
+
+const MINIMISE_WEEKENDS_STORAGE_KEY = 'floaty/minimiseWeekends'
+
+/** The saved "minimise weekends" choice; defaults to TRUE (on) when unset, unrecognised, or
+ *  when storage is unavailable. */
+export function readStoredMinimiseWeekends(): boolean {
+  try {
+    const raw = localStorage.getItem(MINIMISE_WEEKENDS_STORAGE_KEY)
+    if (raw === 'off') return false
+    if (raw === 'on') return true
+  } catch {
+    // storage blocked — fall through to the default
+  }
+  return true
+}
+
+/** Persist the "minimise weekends" choice. Best-effort, like the prefs above. */
+export function writeStoredMinimiseWeekends(on: boolean): void {
+  try {
+    localStorage.setItem(MINIMISE_WEEKENDS_STORAGE_KEY, on ? 'on' : 'off')
+  } catch {
+    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
+  }
+}

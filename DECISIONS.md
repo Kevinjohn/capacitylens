@@ -107,6 +107,16 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Bar labels carry `Client · Project` context** before the task name, behind two
   device-global toggles (`floaty/barLabelPrefs`, Settings → Allocation bars, default both on);
   missing metadata just skips its part. The popover keeps its own task-first layout.
+- **Weekends minimise by default** — device-global `floaty/minimiseWeekends` (Settings →
+  Schedule, default **ON**), NOT on the account / not in export. On = the Sat/Sun columns shrink
+  to a rem-based sliver (`WEEKEND_COLUMN_REM`, capped at `dayWidth`, fine-zoom only) labelled a
+  single **"S"**; weekends are never removed (weekend work + spanning bars still render). This
+  makes the grid **variable-width**, so ALL px↔day↔date math runs through ONE `ColumnGeometry`
+  (prefix-summed offsets — `columnGeometry.ts`): the view-model bar/time-off x/width, the header
+  cell/month widths, every lane overlay, today/focus/scroll-anchor, AND the drag/resize inverse
+  (`geom.indexAt`, the exact inverse of `geom.x`). Never reintroduce `index * dayWidth`; build new
+  scheduler positioning on `geom`, and keep the live drag preview going through the same geom as
+  the commit (so a drag across a narrow weekend can't jump on release).
 - **Undo/redo is keyboard-only** (⌘Z / ⌘⇧Z, global in `AppShell`); the toolbar buttons are
   intentionally hidden (clearer affordance is a TODO).
 - **Modals are real forms.** `Modal` takes an optional `onSubmit` and wraps children+footer in
