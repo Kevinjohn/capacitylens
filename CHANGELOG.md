@@ -5,6 +5,18 @@ All notable changes to Floaty are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
+## [0.5.0] — 2026-06-16
+
+A cosmetic preview of the planned sign-in step.
+
+### Added
+- **Demo sign-in screen.** A Google-style *"Choose an account"* screen now appears before the
+  company picker in the default deploy, to preview the intended "sign in, then pick a company"
+  flow. It is **not** real authentication — there's no password and no popup; clicking the
+  account just continues. You stay "signed in" across reloads, with **Sign out** on the picker
+  and in the sidebar to return to it. It never appears when the optional real login wall
+  (`FLOATY_AUTH`) is enabled.
+
 ## [0.4.0] — 2026-06-16
 
 Cross-browser end-to-end test coverage.
