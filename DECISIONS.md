@@ -145,6 +145,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   plus a `<noscript>` banner — everything in this app (in dev, even the CSS) arrives via JS, so
   blocked scripts otherwise render a blank page with an empty console. Keep the placeholder
   when touching `index.html`.
+- **Demo "fake sign-in" precedes the picker (cosmetic, 2026-06-16).** A Google-style *Choose an
+  account* screen (`src/components/FakeSignIn.tsx`) gates the app **before** the account picker so
+  a viewer sees "log in first, then pick a company". It is **not** real auth: a device-global flag
+  (`floaty/fakeSignedIn`, default off, NOT in `AppData`/export) is flipped by clicking the account
+  and cleared by **Sign out** (picker + sidebar, which also drops the active company). Mounted in
+  AppShell **only** when `authMode === 'off'`, so it never stacks with the real login wall — the
+  real, server-authoritative seam stays `src/auth/`. Persona/avatar: `src/lib/fakeAuth.ts` /
+  `src/assets/avatar-demo.svg`. Story US-NAV-11; spec `e2e/fake-signin.spec.ts`.
 
 ## Text validation
 - **Denylist, not allowlist.** Reject emoji + symbol-other, control/format/surrogate/private/

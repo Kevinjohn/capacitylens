@@ -2,8 +2,10 @@ import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
+import { useAuth } from '../auth/authContext'
 import { ImportExport } from './ImportExport'
 import { AccountPicker } from './accounts/AccountPicker'
+import { FakeSignIn } from './FakeSignIn'
 import { StorageRecovery } from './StorageRecovery'
 import { ConnectionError } from './ConnectionError'
 import { Toast } from './common/ui'
@@ -35,6 +37,11 @@ export function AppShell() {
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
+  // Cosmetic demo sign-in (see the gate below). `authMode` comes from the real auth seam;
+  // the demo gate only runs when real auth is OFF, so the two never double-gate.
+  const { authMode } = useAuth()
+  const fakeSignedIn = useStore((s) => s.fakeSignedIn)
+  const setFakeSignedIn = useStore((s) => s.setFakeSignedIn)
   // Drop the Disciplines destination from the nav when the active account doesn't use
   // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
@@ -109,6 +116,21 @@ export function AppShell() {
   // recovery screen rather than letting the user edit an empty dataset that would
   // overwrite the unreadable-but-recoverable bytes.
   if (loadError) return <StorageRecovery />
+
+  // Fake sign-in gate (cosmetic demo): show a Google-style sign-in BEFORE the account
+  // picker so a viewer sees the intended "log in first, then pick a company" flow. Active
+  // ONLY when real auth is OFF — an enabled login wall (AuthProvider/LoginScreen) already
+  // owns the sign-in step, so never double-gate. Device-global flag (never persisted in
+  // tenant data); "Sign out" (here in the sidebar, or on the picker) clears it. Keep the
+  // `hydrated &&` guard so the loader still shows during hydration. The rotate hint rides
+  // along — this is now a phone user's first contact.
+  if (hydrated && authMode === 'off' && !fakeSignedIn)
+    return (
+      <>
+        <FakeSignIn onSignIn={() => setFakeSignedIn(true)} />
+        <RotateHint />
+      </>
+    )
 
   // Tenant gate: once hydrated, no chosen account means show the picker (it's
   // never persisted, so this is every load). Kept after the hydration check so
@@ -191,10 +213,25 @@ export function AppShell() {
                 <button
                   type="button"
                   onClick={() => setActiveAccount(null)}
-                  className="mt-0.5 text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+                  className="mt-0.5 block text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
                 >
                   Switch company
                 </button>
+                {/* Demo "Sign out" — only when the real auth seam is off (it owns sign-out
+                    otherwise, via Settings). Drops the active company too, so signing back
+                    in lands on the picker: "log in first, THEN pick a company". */}
+                {authMode === 'off' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveAccount(null)
+                      setFakeSignedIn(false)
+                    }}
+                    className="mt-1 block text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+                  >
+                    Sign out
+                  </button>
+                )}
               </div>
             )}
           </>

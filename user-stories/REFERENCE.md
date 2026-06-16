@@ -20,13 +20,19 @@ If the app changes, update this file first, then the affected stories.
    port-in-use error, another dev server is squatting 5173 — find it with
    `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
 2. **First run** seeds a demo dataset (see *Seed data* below).
-3. Floaty opens on a **company picker** (you choose a tenant on every load —
-   `activeAccountId` is never persisted). Pick **Studio North** to see the seeded data these
-   stories describe. (A second seeded company, *Loft Digital*, is near-empty.)
-4. To start from the seeded state again, clear it: open DevTools → Console →
+3. Floaty opens on a **demo sign-in** — a cosmetic, Google-style *"Choose an account"* screen
+   (the **Jordan Avery** account; heading `Choose an account`). It is **not** real auth and
+   has **no** popup: click the account (or "Use another account") to continue. It is shown only
+   when real auth is off (the default) and is skipped once "signed in" (the choice persists
+   device-globally; "Sign out" on the picker/sidebar returns to it).
+4. Then the **company picker** (you choose a tenant on every load — `activeAccountId` is never
+   persisted). Pick **Studio North** to see the seeded data these stories describe. (A second
+   seeded company, *Loft Digital*, is near-empty.) While "signed in", the picker shows
+   *"Signed in as Jordan Avery"* with a **Sign out** link.
+5. To start from the seeded state again, clear it: open DevTools → Console →
    `localStorage.clear()` → reload. (Clearing data *inside* the app does **not** re-seed —
    that's deliberate.)
-5. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
+6. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
    also run in private windows when allowed). Enable JavaScript for the site and reload;
    no story can run without it.
@@ -174,6 +180,16 @@ no login screen exists, Settings has no Account section, and local mode makes **
 request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
+**Demo sign-in (cosmetic; not real auth).** In the default (auth-off) deploy, a Google-style
+*"Choose an account"* screen (heading `Choose an account`; the **Jordan Avery** account row,
+`data-testid="fake-sign-in"`; a "Use another account" row) is shown **before** the company
+picker, to preview a "log in first, then pick a company" flow. There is no password and no
+popup — any choice just advances. The signed-in state is a **device-global** flag
+(`floaty/fakeSignedIn`, default off; never in `AppData`/export), so it persists across reloads
+and is cleared by **Sign out** (on the picker and the sidebar footer). It is mounted only when
+`authMode === 'off'`, so it never collides with the real login wall above. The persona lives in
+`src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
+
 ## Command palette
 
 Opened by **⌘K / Ctrl+K** from anywhere in the app (including while a text field is focused).
@@ -207,7 +223,8 @@ Mouse hover sets the active option; mouse click selects.
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `export-data`, `import-data`,
-`import-input`, `build-stamp` (Settings footer; only rendered when the build sets
+`import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
+`build-stamp` (Settings footer; only rendered when the build sets
 `VITE_FLOATY_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_FLOATY_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,

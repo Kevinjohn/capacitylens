@@ -5,6 +5,8 @@ import {
   writeStoredSidebarOpen,
   readStoredMinimiseWeekends,
   writeStoredMinimiseWeekends,
+  readStoredFakeSignedIn,
+  writeStoredFakeSignedIn,
 } from './displayPrefs'
 
 describe('sidebar preference', () => {
@@ -54,5 +56,27 @@ describe('minimise-weekends preference', () => {
   it('treats an unrecognised stored value as the default (on)', () => {
     localStorage.setItem('floaty/minimiseWeekends', 'maybe')
     expect(readStoredMinimiseWeekends()).toBe(true)
+  })
+})
+
+describe('fake sign-in (cosmetic demo) preference', () => {
+  beforeEach(() => {
+    localStorage.removeItem('floaty/fakeSignedIn')
+  })
+
+  it('defaults to FALSE (signed out → show the demo sign-in) when never chosen', () => {
+    expect(readStoredFakeSignedIn()).toBe(false)
+  })
+
+  it('round-trips an explicit on/off choice', () => {
+    writeStoredFakeSignedIn(true)
+    expect(readStoredFakeSignedIn()).toBe(true)
+    writeStoredFakeSignedIn(false)
+    expect(readStoredFakeSignedIn()).toBe(false)
+  })
+
+  it('treats an unrecognised stored value as the default (signed out)', () => {
+    localStorage.setItem('floaty/fakeSignedIn', 'perhaps')
+    expect(readStoredFakeSignedIn()).toBe(false)
   })
 })

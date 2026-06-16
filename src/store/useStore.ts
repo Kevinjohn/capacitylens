@@ -22,10 +22,12 @@ import {
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
+  readStoredFakeSignedIn,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
+  writeStoredFakeSignedIn,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
@@ -167,6 +169,12 @@ export interface StoreState {
   /** Shrink the weekend (Sat/Sun) columns on the schedule to a sliver. Device-global like
    *  `theme`, own localStorage key, NOT in AppData/export — and defaults ON. */
   minimiseWeekends: boolean
+  /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
+   *  the account picker so a viewer sees "log in first, then pick a company". Device-global
+   *  like `theme` (own localStorage key, NOT in AppData/export), defaults OFF (signed out).
+   *  NOT real auth — the real seam is `src/auth/`; the gate is active only when that auth is
+   *  off. See `src/components/FakeSignIn.tsx`. */
+  fakeSignedIn: boolean
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -195,6 +203,8 @@ export interface StoreState {
   setSidebarOpen: (open: boolean) => void
   /** Toggle the minimise-weekends preference: persist and update state. */
   setMinimiseWeekends: (value: boolean) => void
+  /** Set the cosmetic fake-sign-in state: persist and update state. */
+  setFakeSignedIn: (value: boolean) => void
   undo: () => void
   redo: () => void
 
@@ -348,6 +358,7 @@ export const useStore = create<StoreState>()((set, get) => {
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
+    fakeSignedIn: readStoredFakeSignedIn(),
 
     addAccount: (input) => {
       const e: Account = { ...input, id: newId(), ...stamp() }
@@ -452,6 +463,12 @@ export const useStore = create<StoreState>()((set, get) => {
     setMinimiseWeekends: (value) => {
       writeStoredMinimiseWeekends(value)
       set({ minimiseWeekends: value })
+    },
+    // Plain set (NOT mutate): a device-global demo flag, never on the undo/redo stack,
+    // never in AppData/export.
+    setFakeSignedIn: (value) => {
+      writeStoredFakeSignedIn(value)
+      set({ fakeSignedIn: value })
     },
 
     undo: () =>

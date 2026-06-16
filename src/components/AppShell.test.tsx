@@ -6,8 +6,10 @@ import { useStore } from '../store/useStore'
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
 
 beforeEach(() => {
-  // Seed an active account so the shell (not the account picker) renders — these
-  // tests exercise the nav/hydration gate, which sits *after* the account gate.
+  // Sign through the cosmetic demo gate AND seed an active account so the shell (not the
+  // demo sign-in, not the account picker) renders — these tests exercise the nav/hydration
+  // gate, which sits *after* both of those gates.
+  useStore.getState().setFakeSignedIn(true)
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }))
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
   useStore.getState().clearFilters()
@@ -269,5 +271,32 @@ describe('AppShell transient notice', () => {
       screen.getByRole('button', { name: 'Dismiss' }).click()
     })
     expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument()
+  })
+})
+
+describe('AppShell fake sign-in gate (cosmetic demo)', () => {
+  it('shows the demo sign-in (not the picker/shell) when not signed in', () => {
+    useStore.getState().setFakeSignedIn(false)
+    useStore.getState().setHydrated(true)
+    renderAppShell()
+
+    expect(screen.getByRole('heading', { name: 'Choose an account' })).toBeInTheDocument()
+    // Both downstream gates are walled off behind the demo sign-in.
+    expect(screen.queryByText('Choose a company')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Schedule' })).not.toBeInTheDocument()
+  })
+
+  it('clicking the demo account signs in and reveals the next screen (the picker)', () => {
+    useStore.getState().setFakeSignedIn(false)
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setHydrated(true)
+    renderAppShell()
+
+    act(() => {
+      screen.getByTestId('fake-sign-in').click()
+    })
+
+    expect(useStore.getState().fakeSignedIn).toBe(true)
+    expect(screen.getByText('Choose a company')).toBeInTheDocument()
   })
 })

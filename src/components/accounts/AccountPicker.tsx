@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useAuth } from '../../auth/authContext'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
+import { FAKE_USER } from '../../lib/fakeAuth'
 import { validateHex, validateName } from '../../lib/validation'
 import { Avatar, Button, ColorField, FieldError, TextField } from '../common/ui'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
@@ -19,6 +21,10 @@ export function AccountPicker() {
   const previousAccountId = useStore((s) => s.previousAccountId)
   // If we got here via "Switch company" and that account still exists, offer a way back.
   const previous = accounts.find((a) => a.id === previousAccountId) ?? null
+  // Cosmetic demo sign-in (see FakeSignIn): when the real auth seam is off, the picker is
+  // the post-"login" screen, so show who's "signed in" + a Sign out back to the demo gate.
+  const { authMode } = useAuth()
+  const setFakeSignedIn = useStore((s) => s.setFakeSignedIn)
 
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
@@ -50,6 +56,20 @@ export function AccountPicker() {
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-md">
+        {authMode === 'off' && (
+          <div className="mb-4 flex items-center justify-between gap-2 text-sm">
+            <span className="truncate text-muted">
+              Signed in as <span className="font-medium text-ink">{FAKE_USER.name}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setFakeSignedIn(false)}
+              className="shrink-0 text-muted underline-offset-2 hover:text-ink hover:underline"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
         {previous && (
           <button
             type="button"

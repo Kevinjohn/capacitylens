@@ -12,6 +12,9 @@ beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
   useStore.getState().setActiveAccount(null)
   useStore.getState().setHydrated(true)
+  // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
+  // sits in front of it) — these tests exercise the account gate, not the demo one.
+  useStore.getState().setFakeSignedIn(true)
 })
 
 function renderShell() {

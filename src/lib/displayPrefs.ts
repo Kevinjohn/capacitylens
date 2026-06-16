@@ -172,3 +172,34 @@ export function writeStoredMinimiseWeekends(on: boolean): void {
     // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
   }
 }
+
+// "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
+// "log in first, then pick a company" flow. Device-global like the prefs above (own key,
+// on/off string, NOT account data) and DEFAULTS OFF so the demo sign-in shows on first run.
+// This is NOT real auth — the real, server-authoritative seam is `src/auth/`. The flag is
+// flipped on by the demo sign-in screen and cleared by "Sign out". See
+// `src/components/FakeSignIn.tsx` and DECISIONS.md.
+
+const FAKE_SIGNED_IN_STORAGE_KEY = 'floaty/fakeSignedIn'
+
+/** The saved fake-sign-in state; defaults to FALSE (signed out → show the demo sign-in)
+ *  when unset, unrecognised, or when storage is unavailable. */
+export function readStoredFakeSignedIn(): boolean {
+  try {
+    const raw = localStorage.getItem(FAKE_SIGNED_IN_STORAGE_KEY)
+    if (raw === 'on') return true
+    if (raw === 'off') return false
+  } catch {
+    // storage blocked — fall through to the default (signed out)
+  }
+  return false
+}
+
+/** Persist the fake-sign-in state. Best-effort, like the prefs above. */
+export function writeStoredFakeSignedIn(on: boolean): void {
+  try {
+    localStorage.setItem(FAKE_SIGNED_IN_STORAGE_KEY, on ? 'on' : 'off')
+  } catch {
+    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
+  }
+}

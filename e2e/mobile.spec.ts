@@ -14,12 +14,16 @@ test.describe('portrait phone', () => {
 
   test('shows the rotate hint; dismissing it sticks for the session', async ({ page }) => {
     await page.goto('/')
+    // The hint rides over the demo sign-in (a phone user's first contact) just as it does
+    // the picker.
     const dialog = page.getByRole('dialog', { name: 'Best in landscape' })
     await expect(dialog).toBeVisible()
     await dialog.getByRole('button', { name: 'Got it' }).click()
     await expect(dialog).toBeHidden()
 
-    // Session-scoped dismissal: a reload in the same tab stays quiet.
+    // Click through the demo sign-in so a reload lands on the picker (the sign-in flag
+    // persists; the session-scoped hint dismissal must still hold).
+    await page.getByTestId('fake-sign-in').click()
     await page.reload()
     await expect(page.getByRole('button', { name: 'Studio North', exact: true })).toBeVisible()
     await expect(page.getByRole('dialog', { name: 'Best in landscape' })).toBeHidden()
@@ -31,9 +35,10 @@ test.describe('portrait phone', () => {
     // did not apply in this describe-scoped setup — emulate explicitly instead.
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/')
-    // Settle first: hydration swaps the loading shell for the account picker, which
-    // remounts the hint — sample the final mount, not a transitional one.
-    await expect(page.getByRole('button', { name: 'Studio North', exact: true })).toBeVisible()
+    // Settle first: hydration swaps the loading shell for the demo sign-in (now the first
+    // screen), which remounts the hint — sample the final mount, not a transitional one.
+    // This also audits the demo sign-in screen itself for a11y violations.
+    await expect(page.getByRole('heading', { name: 'Choose an account' })).toBeVisible()
     const dialog = page.getByRole('dialog', { name: 'Best in landscape' })
     await expect(dialog).toBeVisible()
     await expect(dialog).toHaveCSS('opacity', '1')

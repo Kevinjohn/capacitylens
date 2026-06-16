@@ -19,9 +19,16 @@ export async function openApp(page: Page, company = 'Studio North', path = '/'):
   // Must precede goto so the app reads the frozen date on its first render.
   await page.clock.setFixedTime(FIXED_NOW)
   await page.goto(path)
+  // A cosmetic demo "fake sign-in" gate now precedes the company picker in the default
+  // (auth-off) deploy. It is skipped once "signed in" (the flag persists), so wait for
+  // whichever screen this load lands on, and click through the sign-in if it's up.
+  const signIn = page.getByTestId('fake-sign-in')
+  const companyButton = page.getByRole('button', { name: company, exact: true })
+  await signIn.or(companyButton).first().waitFor()
+  if (await signIn.isVisible()) await signIn.click()
   // The picker lists the seeded companies; the open button's accessible name is
   // exactly the company name (the Delete button is "Delete <company>").
   // Picking an account leaves the URL intact, so a deep link like `/resources`
   // still lands on that route once the tenant gate clears.
-  await page.getByRole('button', { name: company, exact: true }).click()
+  await companyButton.click()
 }
