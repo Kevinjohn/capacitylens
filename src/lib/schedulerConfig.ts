@@ -8,8 +8,10 @@ export const ZOOM_LEVELS: WeeksZoom[] = [1, 2, 4, 6, 8]
 export const DEFAULT_ZOOM: WeeksZoom = 2
 
 export const MIN_DAY_WIDTH = 8
-// Generous cap so a 1-week view genuinely fills a normal screen (only bites on ultra-wide).
-export const MAX_DAY_WIDTH = 120
+// Generous cap so a 1-week view genuinely fills a normal screen — including the weekend-aware
+// fit, which widens the weekday columns to make up for the narrowed Sat/Sun (a "1-week" view
+// must show ~1 week, not 1.5). Only bites past ~1920px-wide screens.
+export const MAX_DAY_WIDTH = 240
 /** Used when the real timeline width can't be measured (tests / first paint / SSR). */
 export const FALLBACK_TIMELINE_WIDTH = 1000
 
@@ -45,13 +47,27 @@ export const PAST_BUFFER_DAYS = 28
  */
 export const UTILIZATION_WINDOW_DAYS = 14
 
-/** Day-column width (px) that fits `weeks` weeks into `availableWidth`, clamped legible. */
-export function resolveDayWidth(availableWidth: number, weeks: WeeksZoom): number {
+/**
+ * Day-column width (px) that fits `weeks` weeks into `availableWidth`, clamped legible.
+ *
+ * `weekendWidth` (optional) is the px width of a minimised Sat/Sun column. When given, the fit
+ * accounts for the narrowed weekends — a week of viewport is then 5 weekday columns + 2 narrow
+ * weekend columns, so the weekday columns are widened to fill `weeks` weeks (otherwise the
+ * narrow weekends leave the right edge under-filled and a "1-week" view shows ~1.5 weeks). The
+ * caller passes it ONLY when minimise is actually narrowing (weekday width > weekendWidth);
+ * omit it (or pass a non-positive / non-finite value) for the uniform 7-equal-columns fit.
+ */
+export function resolveDayWidth(availableWidth: number, weeks: WeeksZoom, weekendWidth?: number): number {
   // `availableWidth` comes from a measured DOM rect, which can be NaN (unmeasured / detached
   // element). Treat non-finite the same as <= 0: a NaN would slip past the `<= 0` check
   // (NaN <= 0 is false) and Math.floor(NaN/…) → NaN → Math.min/max(NaN) → NaN, propagating a
   // NaN width into layout. Fall back to the minimum legible width instead.
   if (!Number.isFinite(availableWidth) || availableWidth <= 0) return MIN_DAY_WIDTH
-  const raw = Math.floor(availableWidth / (weeks * 7))
+  const raw =
+    Number.isFinite(weekendWidth) && (weekendWidth as number) > 0
+      ? // 5 weekday columns + 2 weekend columns per week fill `availableWidth`:
+        // weeks·(5·dayWidth + 2·weekendWidth) = availableWidth.
+        Math.floor((availableWidth - weeks * 2 * (weekendWidth as number)) / (weeks * 5))
+      : Math.floor(availableWidth / (weeks * 7))
   return Math.min(MAX_DAY_WIDTH, Math.max(MIN_DAY_WIDTH, raw))
 }

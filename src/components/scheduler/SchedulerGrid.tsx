@@ -92,15 +92,25 @@ export function SchedulerGrid() {
     }
   }, [])
 
-  const dayWidth = resolveDayWidth((timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth, ui.zoom)
+  const avail = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth
+  // Bare-minimum weekend column width, rem-based so it tracks font size, ROUNDED to a whole
+  // pixel. Integer widths keep every ColumnGeometry offset — and the scrollLeft we set from it —
+  // a whole number, so the zoom scroll-anchor's date round-trip is exact; a fractional width
+  // (22.39) made offsets the browser couldn't store exactly, drifting the left-edge date back
+  // onto the narrow weekend column on every zoom flip.
+  const weekendWidth = Math.round(WEEKEND_COLUMN_REM * rootFontSizePx)
+  // Fit ui.zoom weeks. When minimise is actually narrowing the weekends (the uniform column would
+  // be wider than a weekend column), use the weekend-aware fit so a "1-week" view shows ~1 week —
+  // the narrowed Sat/Sun would otherwise leave the right edge under-filled (a "1-week" view would
+  // creep to ~1.5 weeks). Off / coarse zoom falls back to the uniform 7-equal-columns fit.
+  const uniformDayWidth = resolveDayWidth(avail, ui.zoom)
+  const dayWidth =
+    minimiseWeekends && uniformDayWidth > weekendWidth ? resolveDayWidth(avail, ui.zoom, weekendWidth) : uniformDayWidth
 
   const { start, end } = visibleRange(ui)
   const days = useMemo(() => eachDayISO(start, end), [start, end])
   // One ColumnGeometry owns every px↔day↔date conversion (bar/header/lane/today/scroll/drag),
-  // so the narrowed weekend columns don't leak the old uniform-grid assumption anywhere. The
-  // weekend width is rem-based (tracks font size); buildColumnGeometry caps it at dayWidth and
-  // only narrows at/above the per-day-column zoom threshold.
-  const weekendWidth = WEEKEND_COLUMN_REM * rootFontSizePx
+  // so the narrowed weekend columns don't leak the old uniform-grid assumption anywhere.
   const geom = useMemo(
     () => buildColumnGeometry(days, dayWidth, { minimiseWeekends, weekendWidth }),
     [days, dayWidth, minimiseWeekends, weekendWidth],

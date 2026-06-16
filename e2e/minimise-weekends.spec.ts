@@ -9,6 +9,28 @@ async function box(locator: Locator) {
   return b
 }
 
+// Read the leftmost visible date-header cell + how many day columns are on screen. Used to
+// guard (a) the zoom scroll-anchor (the left-edge date must not drift onto the weekend) and
+// (b) the weekend-aware fit (a "1-week" view must show ~1 week, not ~1.5).
+async function probe(page: import('@playwright/test').Page) {
+  return page.evaluate(() => {
+    const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement
+    const header = document.querySelector('[role="columnheader"][aria-label="Dates"]') as HTMLElement
+    const dayTier = header?.querySelector('.flex.flex-auto')
+    const cells = dayTier ? Array.from(dayTier.children) : []
+    const gridRect = grid.getBoundingClientRect()
+    const laneLeft = gridRect.left + 256 // past the sticky left column
+    let leftDate = ''
+    let visibleDays = 0
+    for (const c of cells) {
+      const r = (c as HTMLElement).getBoundingClientRect()
+      if (!leftDate && r.right > laneLeft + 1) leftDate = (c.textContent || '').trim()
+      if (r.right > laneLeft && r.left < gridRect.right) visibleDays++
+    }
+    return { leftDate, visibleDays }
+  })
+}
+
 // Covers US-SET-05. "Minimise weekends" (device-global, default ON) shrinks the
 // Sat/Sun columns to a sliver and labels both "S"; off restores full-width Sat/Sun columns.
 // All label assertions are scoped to the date header (role=columnheader "Dates") so a stray
@@ -62,6 +84,30 @@ test.describe('Minimise weekends', () => {
     await page.getByRole('button', { name: 'Studio North', exact: true }).click()
     await page.getByRole('link', { name: 'Settings' }).click()
     await expect(page.getByRole('switch', { name: 'Minimise weekends' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  test('a 1-week zoom shows ~1 week (weekend-aware fit), not ~1.5', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 800 })
+    await openApp(page) // minimise on by default
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+    const { visibleDays } = await probe(page)
+    // With the fit, the working week fills the viewport: ~7 days. The narrow-weekend under-fill
+    // bug showed ~11–12. A 2-week zoom of the same width would show ~14, so <=9 pins "~1 week".
+    expect(visibleDays).toBeGreaterThanOrEqual(6)
+    expect(visibleDays).toBeLessThanOrEqual(9)
+  })
+
+  test('zoom flips preserve the left-edge date (no drift onto the weekend)', async ({ page }) => {
+    await openApp(page)
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+    const before = await probe(page)
+    // Round-trip the zoom; the integer-pixel geometry must round-trip the left-edge date exactly.
+    await page.getByRole('button', { name: '2w', exact: true }).click()
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+    const after = await probe(page)
+    expect(after.leftDate).toBe(before.leftDate)
+    // And it must be a weekday (the focused Monday), never drifted back onto the narrow "S" weekend.
+    expect(before.leftDate).not.toMatch(/S$/)
   })
 
   test('a bar dragged across the narrowed weekend commits a later date (no crash)', async ({ page }) => {

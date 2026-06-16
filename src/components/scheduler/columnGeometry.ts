@@ -69,8 +69,12 @@ export function buildColumnGeometry(days: ISODate[], dayWidth: number, opts: Bui
   const n = days.length
   const minimiseActive = opts.minimiseWeekends && dayWidth >= DAY_COLUMN_MIN_WIDTH
   // A narrowed weekend is never wider than a normal day; an unmeasured/garbage width (NaN, 0)
-  // degrades to dayWidth so the prefix sum stays finite and strictly increasing.
-  const rawNarrow = Math.min(opts.weekendWidth, dayWidth)
+  // degrades to dayWidth so the prefix sum stays finite and strictly increasing. ROUNDED to a
+  // whole pixel so every offset is an integer: a fractional weekend width (e.g. 22.39) makes
+  // fractional offsets, but the browser stores scrollLeft as a whole number — the mismatch made
+  // the zoom scroll-anchor's indexAt() floor to the previous (weekend) column, drifting the
+  // left-edge date back a day on every zoom flip. dayWidth is already integer (resolveDayWidth).
+  const rawNarrow = Math.round(Math.min(opts.weekendWidth, dayWidth))
   const narrowWidth = Number.isFinite(rawNarrow) && rawNarrow > 0 ? rawNarrow : dayWidth
 
   const widths: number[] = new Array(n)
