@@ -116,7 +116,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   cell/month widths, every lane overlay, today/focus/scroll-anchor, AND the drag/resize inverse
   (`geom.indexAt`, the exact inverse of `geom.x`). Never reintroduce `index * dayWidth`; build new
   scheduler positioning on `geom`, and keep the live drag preview going through the same geom as
-  the commit (so a drag across a narrow weekend can't jump on release).
+  the commit (so a drag across a narrow weekend can't jump on release). Two coupled invariants:
+  (1) **integer-pixel widths** — `weekendWidth` is rounded to a whole px so every offset is whole,
+  else the browser-rounded `scrollLeft` makes the zoom anchor's `indexAt` floor onto the weekend
+  and the left-edge date drifts; (2) **weekend-aware zoom fit** — `resolveDayWidth` takes the
+  weekend width and widens the weekday columns so a "1-week" view shows ~1 week (narrow weekends
+  would otherwise under-fill it to ~1.5); `MAX_DAY_WIDTH` is 240 to let that fill a normal screen.
 - **Undo/redo is keyboard-only** (⌘Z / ⌘⇧Z, global in `AppShell`); the toolbar buttons are
   intentionally hidden (clearer affordance is a TODO).
 - **Modals are real forms.** `Modal` takes an optional `onSubmit` and wraps children+footer in
