@@ -77,18 +77,23 @@ npm run gate         # tsc -b && eslint . && vitest run && vite build
 npm run gate:server  # type-check + test the optional server/ workspace
 npm run e2e          # Playwright on Chromium (boots its own dev server)
 npm run e2e:webkit   # the core specs on Safari/WebKit (opt-in; Vite-only, no Node 24)
-npm run e2e:all      # the full cross-browser matrix (Chromium + WebKit)
+npm run e2e:firefox  # the core specs on Firefox/Gecko (opt-in; Vite-only, no Node 24)
+npm run e2e:browsers # the core specs on ALL 3 engines: Chromium + WebKit + Firefox (Vite-only, no Node 24)
+npm run e2e:all      # e2e:browsers PLUS the Chromium-only db/auth server specs (needs the servers + Node 24)
 ```
 
 The `server/` workspace is kept out of the root `gate` (it needs Node's `node:sqlite`, no
 browser build); run it separately with `gate:server`. Run all three locally before pushing — hosted CI is
 optional and not enabled here. Node 24+ (`.nvmrc`).
 
-`e2e` is Chromium by default (the fast inner loop). Safari/WebKit coverage of the core
-localStorage specs is the opt-in `e2e:webkit` — it boots **only** the Vite dev server, so it needs
-neither the SQLite/auth servers nor Node 24, and runs anywhere the app builds. `e2e:all` runs every
-project on both engines. The db-backed/auth-backed specs stay Chromium-only (they exercise server
-round-trips, not Safari rendering).
+`e2e` is Chromium by default (the fast inner loop). Cross-engine coverage of the core localStorage
+specs is opt-in: `e2e:webkit` / `e2e:firefox` run a single engine, and **`e2e:browsers` runs the
+core specs on all three** (Chromium + WebKit, then Firefox). All of these boot **only** the Vite dev
+server, so they need neither the SQLite/auth servers nor Node 24 and run anywhere the app builds.
+`e2e:all` is the superset — `e2e:browsers` plus the Chromium-only db/auth server specs (so it needs
+the servers + Node 24). In both `e2e:browsers` and `e2e:all`, WebKit runs first and Firefox second,
+both always run, and the run fails if either engine fails. The db-backed/auth-backed specs stay
+Chromium-only (they exercise server round-trips, not cross-engine rendering).
 
 ## Docs map
 
