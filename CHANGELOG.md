@@ -5,6 +5,28 @@ All notable changes to Floaty are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
+## [0.3.0] — 2026-06-16
+
+A new display feature plus the scheduler-geometry work behind it.
+
+### Added
+- **Minimise weekends** (Settings → **Schedule**, on by default, per-browser). Shrinks the
+  Saturday and Sunday columns to a sliver — just wide enough for the date number, labelled a
+  single **"S"** — so the working week dominates the schedule. Weekends aren't removed:
+  weekend work and bars that span a weekend still render across the narrowed columns, and a
+  drag across a weekend lands on the right date. Turn it off for full-width Sat/Sun columns.
+
+### Changed
+- **The schedule fills the viewport more tightly at each zoom.** A "1-week" view now shows
+  ~1 week and "2 weeks" ~2 weeks, accounting for the narrowed weekend columns; day columns
+  can also grow wider on larger screens (the maximum column width was raised) so a one-week
+  view fills the space instead of leaving slack on the right.
+
+### Fixed
+- **The left-edge date no longer drifts when you change zoom.** Switching zoom levels used to
+  nudge the visible start date back a day onto the weekend; the timeline now holds the same
+  date across zoom changes.
+
 ## [0.2.0] — 2026-06-16
 
 An Alpha-feedback round: four scheduler / sidebar refinements.
@@ -44,4 +66,5 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
+[0.3.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.2.0
