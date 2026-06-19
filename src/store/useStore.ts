@@ -205,6 +205,10 @@ export interface StoreState {
   setMinimiseWeekends: (value: boolean) => void
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void
+  /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
+   *  clear the device-global flag so the demo sign-in shows again. Cosmetic only — never
+   *  touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
+  signOutDemo: () => void
   undo: () => void
   redo: () => void
 
@@ -469,6 +473,14 @@ export const useStore = create<StoreState>()((set, get) => {
     setFakeSignedIn: (value) => {
       writeStoredFakeSignedIn(value)
       set({ fakeSignedIn: value })
+    },
+    // Reuse setActiveAccount(null) to drop the tenant and reset its view/undo state, then ALSO
+    // clear previousAccountId (so re-signing-in is a fresh pick, not a one-click "← Back to {company}")
+    // and the device-global flag. Cosmetic demo only — the real auth seam (src/auth/) is untouched.
+    signOutDemo: () => {
+      get().setActiveAccount(null)
+      writeStoredFakeSignedIn(false)
+      set({ previousAccountId: null, fakeSignedIn: false })
     },
 
     undo: () =>

@@ -145,6 +145,34 @@ export function defaultSidebarOpen(): boolean {
   return true
 }
 
+// Shared shape for the simple device-global on/off flags below (minimise-weekends and
+// fake-sign-in): a single boolean stored as the literal string 'on'/'off' under its own key,
+// with a fixed boolean default. The sidebar pref above is deliberately NOT one of these — it's
+// tri-state ('open'/'closed'/never-chosen). Same swallow-to-default rule as the file header:
+// a blocked/corrupt store loses the toggle but can never touch tenant data.
+
+/** Read an on/off flag stored as 'on'/'off' under `key`; returns `fallback` when unset,
+ *  unrecognised, or when storage is unavailable. */
+function readBoolPref(key: string, fallback: boolean): boolean {
+  try {
+    const raw = localStorage.getItem(key)
+    if (raw === 'on') return true
+    if (raw === 'off') return false
+  } catch {
+    // storage blocked — fall through to the fallback
+  }
+  return fallback
+}
+
+/** Persist an on/off flag as 'on'/'off' under `key`. Best-effort, like the prefs above. */
+function writeBoolPref(key: string, on: boolean): void {
+  try {
+    localStorage.setItem(key, on ? 'on' : 'off')
+  } catch {
+    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
+  }
+}
+
 // "Minimise weekends": shrink the Saturday/Sunday columns on the schedule to a sliver.
 // Device-global like the prefs above (own key, not account data), but DEFAULTS ON — the owner's
 // stated default. A plain on/off string (like the sidebar) rather than JSON: it's a single bool.
@@ -154,23 +182,12 @@ const MINIMISE_WEEKENDS_STORAGE_KEY = 'floaty/minimiseWeekends'
 /** The saved "minimise weekends" choice; defaults to TRUE (on) when unset, unrecognised, or
  *  when storage is unavailable. */
 export function readStoredMinimiseWeekends(): boolean {
-  try {
-    const raw = localStorage.getItem(MINIMISE_WEEKENDS_STORAGE_KEY)
-    if (raw === 'off') return false
-    if (raw === 'on') return true
-  } catch {
-    // storage blocked — fall through to the default
-  }
-  return true
+  return readBoolPref(MINIMISE_WEEKENDS_STORAGE_KEY, true)
 }
 
 /** Persist the "minimise weekends" choice. Best-effort, like the prefs above. */
 export function writeStoredMinimiseWeekends(on: boolean): void {
-  try {
-    localStorage.setItem(MINIMISE_WEEKENDS_STORAGE_KEY, on ? 'on' : 'off')
-  } catch {
-    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
-  }
+  writeBoolPref(MINIMISE_WEEKENDS_STORAGE_KEY, on)
 }
 
 // "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
@@ -185,21 +202,10 @@ const FAKE_SIGNED_IN_STORAGE_KEY = 'floaty/fakeSignedIn'
 /** The saved fake-sign-in state; defaults to FALSE (signed out → show the demo sign-in)
  *  when unset, unrecognised, or when storage is unavailable. */
 export function readStoredFakeSignedIn(): boolean {
-  try {
-    const raw = localStorage.getItem(FAKE_SIGNED_IN_STORAGE_KEY)
-    if (raw === 'on') return true
-    if (raw === 'off') return false
-  } catch {
-    // storage blocked — fall through to the default (signed out)
-  }
-  return false
+  return readBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, false)
 }
 
 /** Persist the fake-sign-in state. Best-effort, like the prefs above. */
 export function writeStoredFakeSignedIn(on: boolean): void {
-  try {
-    localStorage.setItem(FAKE_SIGNED_IN_STORAGE_KEY, on ? 'on' : 'off')
-  } catch {
-    // best-effort write — storage blocked/full; deliberate non-tenant swallow (see file header).
-  }
+  writeBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, on)
 }

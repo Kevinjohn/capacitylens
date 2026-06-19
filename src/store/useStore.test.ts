@@ -97,6 +97,19 @@ describe('store scheduler UI', () => {
     expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS))
   })
 
+  it('signOutDemo drops the active company, the back-breadcrumb, and the fake flag', () => {
+    // A company is active (resetStoreWithAccount). Turn the demo flag on, then sign out: it
+    // must clear the active company AND previousAccountId — leaving the latter set would give
+    // the re-shown picker a one-click "← Back to {company}", defeating the fresh "log in first,
+    // then pick a company" intent.
+    expect(s().activeAccountId).not.toBeNull()
+    s().setFakeSignedIn(true)
+    s().signOutDemo()
+    expect(s().activeAccountId).toBeNull()
+    expect(s().previousAccountId).toBeNull()
+    expect(s().fakeSignedIn).toBe(false)
+  })
+
   it('goToToday resets the origin and bumps recenterToken (so the grid re-scrolls)', () => {
     const before = s().ui.recenterToken
     s().setOriginDate('2020-01-01')

@@ -2,7 +2,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
-import { useAuth } from '../auth/authContext'
+import { useDemoAuthActive } from '../lib/fakeAuth'
 import { ImportExport } from './ImportExport'
 import { AccountPicker } from './accounts/AccountPicker'
 import { FakeSignIn } from './FakeSignIn'
@@ -37,11 +37,12 @@ export function AppShell() {
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
-  // Cosmetic demo sign-in (see the gate below). `authMode` comes from the real auth seam;
-  // the demo gate only runs when real auth is OFF, so the two never double-gate.
-  const { authMode } = useAuth()
+  // Cosmetic demo sign-in (see the gate below). `demoAuthActive` is true only when the real
+  // auth seam is OFF, so the demo gate and the real login wall never double-gate.
+  const demoAuthActive = useDemoAuthActive()
   const fakeSignedIn = useStore((s) => s.fakeSignedIn)
   const setFakeSignedIn = useStore((s) => s.setFakeSignedIn)
+  const signOutDemo = useStore((s) => s.signOutDemo)
   // Drop the Disciplines destination from the nav when the active account doesn't use
   // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
@@ -124,7 +125,7 @@ export function AppShell() {
   // tenant data); "Sign out" (here in the sidebar, or on the picker) clears it. Keep the
   // `hydrated &&` guard so the loader still shows during hydration. The rotate hint rides
   // along — this is now a phone user's first contact.
-  if (hydrated && authMode === 'off' && !fakeSignedIn)
+  if (hydrated && demoAuthActive && !fakeSignedIn)
     return (
       <>
         <FakeSignIn onSignIn={() => setFakeSignedIn(true)} />
@@ -218,15 +219,13 @@ export function AppShell() {
                   Switch company
                 </button>
                 {/* Demo "Sign out" — only when the real auth seam is off (it owns sign-out
-                    otherwise, via Settings). Drops the active company too, so signing back
-                    in lands on the picker: "log in first, THEN pick a company". */}
-                {authMode === 'off' && (
+                    otherwise, via Settings). `signOutDemo` drops the active company AND the
+                    "back" breadcrumb, so signing back in lands on a fresh picker: "log in
+                    first, THEN pick a company". */}
+                {demoAuthActive && (
                   <button
                     type="button"
-                    onClick={() => {
-                      setActiveAccount(null)
-                      setFakeSignedIn(false)
-                    }}
+                    onClick={signOutDemo}
                     className="mt-1 block text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
                   >
                     Sign out

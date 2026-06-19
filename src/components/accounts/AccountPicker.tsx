@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { useAuth } from '../../auth/authContext'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
-import { FAKE_USER } from '../../lib/fakeAuth'
+import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
 import { validateHex, validateName } from '../../lib/validation'
 import { Avatar, Button, ColorField, FieldError, TextField } from '../common/ui'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
@@ -23,8 +22,8 @@ export function AccountPicker() {
   const previous = accounts.find((a) => a.id === previousAccountId) ?? null
   // Cosmetic demo sign-in (see FakeSignIn): when the real auth seam is off, the picker is
   // the post-"login" screen, so show who's "signed in" + a Sign out back to the demo gate.
-  const { authMode } = useAuth()
-  const setFakeSignedIn = useStore((s) => s.setFakeSignedIn)
+  const demoAuthActive = useDemoAuthActive()
+  const signOutDemo = useStore((s) => s.signOutDemo)
 
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
@@ -56,14 +55,14 @@ export function AccountPicker() {
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <div className="w-full max-w-md">
-        {authMode === 'off' && (
+        {demoAuthActive && (
           <div className="mb-4 flex items-center justify-between gap-2 text-sm">
             <span className="truncate text-muted">
               Signed in as <span className="font-medium text-ink">{FAKE_USER.name}</span>
             </span>
             <button
               type="button"
-              onClick={() => setFakeSignedIn(false)}
+              onClick={signOutDemo}
               className="shrink-0 text-muted underline-offset-2 hover:text-ink hover:underline"
             >
               Sign out
