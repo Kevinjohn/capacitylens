@@ -10,6 +10,7 @@ import {
   FIXTURE_PROJECT,
   FIXTURE_PHASE,
   FIXTURE_RESOURCE,
+  FIXTURE_RESOURCE_EXTERNAL,
   FIXTURE_TASK,
   FIXTURE_ALLOCATION,
   FIXTURE_TIMEOFF,
@@ -763,6 +764,13 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app)
     expect((await post(app, 'resources', FIXTURE_RESOURCE)).statusCode).toBe(201)
     expect((await state(app)).resources[0]).toEqual(FIXTURE_RESOURCE)
+  })
+
+  it('external resource: kind + company name round-trip (no discipline/project binding)', async () => {
+    const { app } = freshApp()
+    await seedFixtureDeps(app)
+    expect((await post(app, 'resources', FIXTURE_RESOURCE_EXTERNAL)).statusCode).toBe(201)
+    expect((await state(app)).resources[0]).toEqual(FIXTURE_RESOURCE_EXTERNAL)
   })
 
   it('task: every field round-trips (including optional projectId/phaseId)', async () => {

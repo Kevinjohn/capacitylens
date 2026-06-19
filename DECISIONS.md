@@ -137,6 +137,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Placeholders** bind to one project but may take *general* tasks, so the modal's Project
   select stays **enabled but restricted** ("locked" = restricted, not immutable). In the
   schedule they sort after people, show an `@` avatar + diagonal hatch, and a quoted name.
+- **External / 3rd parties are a resource kind (`external`), not a bookable lane (owner, 2026-06-19).**
+  Outsourced work: a **company name** (`name`) + optional descriptor (`role`), **assignable to any
+  task** (no project restriction), but **no hours/capacity/utilisation** — allocations carry
+  `hoursPerDay: 0` and the scheduler model skips all capacity reads for them. Own **External** tab
+  (out of Resources); single **neutral** colour (`resolveBarColor` short-circuits their bars,
+  overriding the project-colour rule) in a band **always at the schedule bottom**, disciplines on or
+  off; excluded from utilisation averages + the time-off picker. Resolves the "third-party line".
 - **Unsaved-changes guard:** the modal closes only on a backdrop press that both starts and
   ends on the backdrop; once dirty, accidental dismiss (backdrop/Escape) is refused, and a
   `beforeunload` guard covers tab-close. Dirty also tracks `aria-pressed` toggle clicks.

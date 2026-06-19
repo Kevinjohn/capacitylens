@@ -23,7 +23,7 @@ function seedAllocation(): Allocation {
   return s.addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
 }
 
-const barFor = (allocation: Allocation): BarLayout => ({ allocation, x: 0, width: 144, top: 0, color: '#3b82f6', label: 'Wires' })
+const barFor = (allocation: Allocation): BarLayout => ({ allocation, x: 0, width: 144, top: 0, color: '#3b82f6', label: 'Wires', external: false })
 
 beforeEach(() => resetStoreWithAccount())
 
@@ -261,7 +261,7 @@ describe('AllocationBar interactions', () => {
       <>
         <div data-resource-id={src.id} data-testid="lane-src" />
         <div data-resource-id={dst.id} data-testid="lane-dst" />
-        <AllocationBar bar={{ allocation: a, x: 0, width: 48, top: 0, color: '#3b82f6', label: 'Wires' }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+        <AllocationBar bar={{ allocation: a, x: 0, width: 48, top: 0, color: '#3b82f6', label: 'Wires', external: false }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
       </>,
     )
     screen.getByTestId('lane-src').getBoundingClientRect = () => rect(0, 50)
@@ -288,7 +288,7 @@ describe('AllocationBar interactions', () => {
     // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.
     const a = st.addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
     const dayWidth = 48
-    render(<AllocationBar bar={{ allocation: a, x: 0, width: 5 * dayWidth, top: 0, color: '#3b82f6', label: 'Wires' }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+    render(<AllocationBar bar={{ allocation: a, x: 0, width: 5 * dayWidth, top: 0, color: '#3b82f6', label: 'Wires', external: false }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
     const bar = screen.getByTestId('allocation-bar')
 
     fireEvent.pointerDown(bar, { clientX: 10, clientY: 10, button: 0 })

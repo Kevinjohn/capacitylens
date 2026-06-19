@@ -1,6 +1,11 @@
+import { isExternalResource } from '../types/entities'
 import type { Allocation, Client, ID, Project, Resource, Task } from '../types/entities'
 
-const FALLBACK = '#9ca3af'
+/** The single neutral grey — the bar/colour fallback AND the colour of external / 3rd-party
+ *  identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
+ *  src/lib/palette so both sides share ONE definition. */
+export const NEUTRAL_COLOR = '#9ca3af'
+const FALLBACK = NEUTRAL_COLOR
 
 /** Id→entity maps for O(1) colour resolution. The scheduler model already builds
  *  these to position bars, so colour resolution reuses them instead of re-scanning
@@ -16,6 +21,11 @@ export interface BarColorMaps {
 // client colour, then the resource colour, then a neutral grey — so a bar is
 // always visible even if some relation is missing.
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
+  const resource = maps.resources.get(allocation.resourceId)
+  // External / 3rd-party work reads as a single neutral colour (an "awareness" signal),
+  // overriding the usual project→client colouring so an outsourced bar never looks like one of
+  // our own. See DECISIONS.md "external kind": single neutral colour.
+  if (resource && isExternalResource(resource)) return NEUTRAL_COLOR
   const task = maps.tasks.get(allocation.taskId)
   const project = task?.projectId ? maps.projects.get(task.projectId) : undefined
   if (project?.color) return project.color
@@ -23,7 +33,6 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   const client = project ? maps.clients.get(project.clientId) : undefined
   if (client?.color) return client.color
 
-  const resource = maps.resources.get(allocation.resourceId)
   return resource?.color ?? FALLBACK
 }
 

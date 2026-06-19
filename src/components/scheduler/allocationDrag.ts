@@ -1,12 +1,23 @@
 import { applyGesture, type DateRange, type DragMode, type GestureOpts } from '../../lib/gestureMath'
 import { spanDays } from '@floaty/shared/lib/schedulingDays'
-import { MAX_HOURS_PER_DAY } from '@floaty/shared/types/entities'
+import { isExternalResource, MAX_HOURS_PER_DAY } from '@floaty/shared/types/entities'
+import type { Resource } from '@floaty/shared/types/entities'
 import type { ColumnGeometry } from './columnGeometry'
 
 // Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable
 // without rendering the bar or driving pointer events. No React, no DOM, no store — the DOM
 // hit-testing (snapshotLanes / laneAt / setDropTarget) and the store write + capacity
 // advisory stay in the component; this module is only the date/hours/geometry computation.
+
+/** Hours/day an allocation should carry after being REASSIGNED (dragged) to `target`. The TARGET's
+ *  kind decides: an external / 3rd party carries no load (0); a real resource must carry > 0, so a
+ *  0-hour booking dragged OFF an external is given the target's working day (else it persists an
+ *  illegal 0-hour allocation the modal rejects). `current` (the source's hours) is kept for a
+ *  real→real reassign. A same-resource move never calls this. */
+export function reconcileReassignedHours(current: number, target: Resource): number {
+  if (isExternalResource(target)) return 0
+  return current > 0 ? current : target.workingHoursPerDay
+}
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so
  *  hours/day scales inversely with the span: new × newSpan = old × oldSpan.

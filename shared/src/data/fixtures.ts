@@ -1,6 +1,8 @@
 // Fully-populated test fixtures — EVERY optional field set to a non-default value.
 // Used by the server round-trip tests (server/src/app.test.ts) and available for
 // future app-level tests. Pure data, no behaviour.
+import { externalCapacityDefaults } from '../types/entities'
+import { NEUTRAL_COLOR } from '../lib/color'
 import type { Account, Allocation, Client, Discipline, Phase, Project, Resource, Task, TimeOff } from '../types/entities'
 
 const TS1 = '2026-01-01T00:00:00.000Z'
@@ -68,6 +70,21 @@ export const FIXTURE_RESOURCE: Resource = {
   workingDays: [1, 2, 3],
   projectId: 'fix-p1',
   color: '#445566',
+  createdAt: TS1,
+  updatedAt: TS2,
+}
+
+/** The external / 3rd-party kind: a company name + optional descriptor, and NO discipline or
+ *  project binding (externals carry unused silent-default working hours/days). Proves `kind`
+ *  round-trips through the server with the optional FK columns left NULL. */
+export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
+  id: 'fix-r2',
+  accountId: 'fix-a1',
+  kind: 'external',
+  name: 'Fixture External Co',
+  role: 'Fixture Partner',
+  ...externalCapacityDefaults(),
+  color: NEUTRAL_COLOR,
   createdAt: TS1,
   updatedAt: TS2,
 }

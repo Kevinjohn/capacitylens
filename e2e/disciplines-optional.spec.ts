@@ -19,9 +19,9 @@ test.describe('Disciplines optional (account-level)', () => {
     // Sidebar nav link is gone.
     await expect(page.getByRole('link', { name: 'Disciplines' })).toHaveCount(0)
 
-    // …and the collapsed icon rail (the "mobile menu") drops it too: 7 icons, no Disciplines.
+    // …and the collapsed icon rail (the "mobile menu") drops it too: 8 icons, no Disciplines.
     await page.getByRole('button', { name: 'Collapse menu' }).click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(7)
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
     await expect(page.locator('[data-testid="nav-rail-item"][title="Disciplines"]')).toHaveCount(0)
     await page.getByRole('button', { name: 'Expand menu' }).click()
 
@@ -29,7 +29,14 @@ test.describe('Disciplines optional (account-level)', () => {
     // bands and the discipline filter control is hidden.
     await page.getByRole('link', { name: 'Schedule' }).click()
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Tyler Nix' })).toBeVisible()
-    await expect(page.getByTestId('discipline-group')).toHaveCount(0)
+    // The External band is the LAST item; scroll to the bottom so it's inside the virtualised
+    // window before asserting (the grid drops off-screen rows from the DOM).
+    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight })
+    // Our people render flat — no Design/Development bands. The External band is the ONE
+    // exception: it always keeps its header so outsourced work stays segregated, disciplines
+    // on or off (the seeded "Dog Eat Cog" makes the band present here).
+    await expect(page.getByTestId('discipline-group')).toHaveCount(1)
+    await expect(page.getByTestId('discipline-group')).toContainText('External / 3rd party')
     await expect(page.getByLabel('Filter by discipline')).toHaveCount(0)
 
     // The command palette no longer offers the Disciplines page.

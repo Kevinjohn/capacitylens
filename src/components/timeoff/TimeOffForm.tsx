@@ -5,6 +5,7 @@ import { todayISO } from '@floaty/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
 import { Button, DateField, FieldError, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS } from '../../lib/metadata'
+import { isExternalResource } from '@floaty/shared/types/entities'
 import type { ISODate, TimeOff, TimeOffType } from '@floaty/shared/types/entities'
 
 export function TimeOffForm({
@@ -35,10 +36,17 @@ export function TimeOffForm({
     setErrorField(field)
   }
 
-  const resourceOptions: Option[] = resources.map((r) => ({ value: r.id, label: r.name ?? r.role }))
+  // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
+  const resourceOptions: Option[] = resources
+    .filter((r) => !isExternalResource(r))
+    .map((r) => ({ value: r.id, label: r.name ?? r.role }))
 
   const submit = () => {
-    if (!resourceId) {
+    // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no
+    // capacity (the picker omits them, but a draw on an external lane could seed one), so guard the
+    // write boundary too rather than persist an orphan time-off the schedule never renders.
+    const chosen = resources.find((r) => r.id === resourceId)
+    if (!chosen || isExternalResource(chosen)) {
       fail('resource', 'Choose a resource.')
       return
     }

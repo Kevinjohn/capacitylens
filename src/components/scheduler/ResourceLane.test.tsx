@@ -45,6 +45,7 @@ const makeBar = (): BarLayout => ({
   top: 6,
   color: '#2563eb',
   label: 'My Task',
+  external: false,
 })
 
 function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {}) {

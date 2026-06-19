@@ -23,6 +23,7 @@ import {
 import { inputClass } from '../common/controls'
 import { capacityAdvisory } from '../../lib/capacity'
 import { ALLOCATION_STATUS_OPTIONS } from '../../lib/metadata'
+import { isExternalResource } from '@floaty/shared/types/entities'
 import type { AllocationStatus, ISODate } from '@floaty/shared/types/entities'
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
@@ -107,6 +108,9 @@ export function AllocationModal(props: AllocationModalProps) {
 
   const selectedResource = data.resources.find((r) => r.id === resourceId)
   const isPlaceholder = selectedResource?.kind === 'placeholder'
+  // External / 3rd-party assignees carry no hours: the modal collects just a date span and
+  // persists hoursPerDay 0 (like a 'blocks' booking), with no capacity advisory.
+  const isExternal = !!selectedResource && isExternalResource(selectedResource)
   const lockedProjectId = isPlaceholder ? selectedResource?.projectId : undefined
 
   // Effective range/hours fed to the capacity check and the store. In days mode the
@@ -114,15 +118,20 @@ export function AllocationModal(props: AllocationModalProps) {
   // the assignee's working week; in hourly mode the typed fields are used as-is.
   const workingHoursPerDay = selectedResource?.workingHoursPerDay ?? initialWhpd
   const daysOpts = { workingDays: selectedResource?.workingDays, ignoreWeekends }
-  // Days and blocks both derive the end date from a (start, days-over) span; only
-  // hourly types an explicit end. Blocks carry no load, so hours/day is the block's
-  // fraction of a working day (0 for now); days rescale hours to fit the work volume.
-  const effEndDate = (isDays || isBlocks) && startDate ? endDateForSpan(startDate, daysOver, daysOpts) : endDate
-  const effHoursPerDay = isBlocks
-    ? blockHoursPerDay(workingHoursPerDay)
-    : isDays
-      ? hoursPerDayFor(daysOfWork, daysOver, workingHoursPerDay)
-      : hoursPerDay
+  // Effective end date + hours, derived TOGETHER in one expression (so they can't desync) from the
+  // assignee kind + the account's scheduling mode:
+  //   external → a plain typed start/end span, no load (hoursPerDay 0);
+  //   blocks   → a (start, days-over) span, no load (0);
+  //   days     → a (start, days-over) span, hours rescaled to fit the work volume;
+  //   hourly   → the typed end + hours as-is.
+  const spanEnd = startDate ? endDateForSpan(startDate, daysOver, daysOpts) : endDate
+  const { endDate: effEndDate, hoursPerDay: effHoursPerDay } = isExternal
+    ? { endDate, hoursPerDay: 0 }
+    : isBlocks
+      ? { endDate: spanEnd, hoursPerDay: blockHoursPerDay(workingHoursPerDay) }
+      : isDays
+        ? { endDate: spanEnd, hoursPerDay: hoursPerDayFor(daysOfWork, daysOver, workingHoursPerDay) }
+        : { endDate, hoursPerDay }
   // Guard the formatted end-date hint: effEndDate is derived from a user-typed span, and a
   // value past the date range parses to an Invalid Date, which format() would throw on
   // mid-render (crashing the modal). endDateForSpan already caps the span, so this is
@@ -134,7 +143,7 @@ export function AllocationModal(props: AllocationModalProps) {
 
   const resourceOptions: Option[] = data.resources.map((r) => ({
     value: r.id,
-    label: `${r.name ?? r.role}${r.kind === 'placeholder' ? ' (slot)' : ''}`,
+    label: `${r.name ?? r.role}${r.kind === 'placeholder' ? ' (slot)' : r.kind === 'external' ? ' (external)' : ''}`,
   }))
   // "No project" lets you pick general (no-project) tasks. A placeholder is offered
   // only its bound project plus the general option (it can take general tasks too).
@@ -186,7 +195,17 @@ export function AllocationModal(props: AllocationModalProps) {
       fail('task', 'Choose (or add) a task.')
       return
     }
-    if (isBlocks) {
+    if (isExternal) {
+      // External is a plain span: start + end, no hours (hoursPerDay persists as 0).
+      if (!startDate || !endDate) {
+        fail('dates', 'Start and end dates are required.')
+        return
+      }
+      if (endDate < startDate) {
+        fail('dates', 'End date cannot be before the start date.')
+        return
+      }
+    } else if (isBlocks) {
       // A block is just a span: start + days over (>= 1, so always valid). The end
       // date is derived and load is ignored, so there's nothing else to validate.
       if (!startDate) {
@@ -270,6 +289,8 @@ export function AllocationModal(props: AllocationModalProps) {
   // path shows this as a post-commit toast; surface it HERE too — on the create/edit surface that
   // every keyboard user and every "+"-create reaches. Saving stays allowed (advisory, never a block).
   const advisory = (() => {
+    // External parties have no capacity — never show an over-capacity / time-off advisory.
+    if (isExternal) return null
     if (!selectedResource || !startDate || !effEndDate) return null
     const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId)
     const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId)
@@ -342,7 +363,16 @@ export function AllocationModal(props: AllocationModalProps) {
         </Button>
       </div>
 
-      {isBlocks ? (
+      {isExternal ? (
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+          </div>
+          <div className="flex-1">
+            <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
+          </div>
+        </div>
+      ) : isBlocks ? (
         <>
           <div className="flex gap-2">
             <div className="flex-1">

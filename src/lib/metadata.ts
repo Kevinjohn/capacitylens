@@ -29,6 +29,7 @@ export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
 export const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
   person: 'Person',
   placeholder: 'Placeholder',
+  external: 'External / 3rd party',
 }
 
 export const TIME_OFF_TYPE_LABELS: Record<TimeOffType, string> = {

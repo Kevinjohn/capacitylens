@@ -47,6 +47,17 @@ const build = (filters = emptyFilters(), disciplinesEnabled = true) =>
 const allBars = (model: GroupModel[]) => model.flatMap((g) => g.rows).flatMap((r) => r.bars)
 const barIds = (model: GroupModel[]) => allBars(model).map((b) => b.allocation.id).sort()
 
+// dataset() + one external party booked on a project task over a weekend (zero-capacity for a
+// person), plus a stray time-off row — to prove externals carry NO capacity signals at all.
+function withExternal(): AppData {
+  const d = dataset()
+  d.resources.push({ id: 'ext1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'external', name: 'Dog Eat Cog', role: 'Partner studio', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#9ca3af' })
+  // 6/05 Fri–6/07 Sun: spans 2 zero-capacity days that WOULD flag over for a person. hoursPerDay 0.
+  d.allocations.push({ id: 'aext', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'ext1', taskId: 't1', startDate: '2026-06-05', endDate: '2026-06-07', hoursPerDay: 0, status: 'confirmed' })
+  d.timeOff.push({ id: 'toext', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'ext1', startDate: '2026-06-02', endDate: '2026-06-03', type: 'holiday' })
+  return d
+}
+
 describe('buildSchedulerModel', () => {
   it('groups by discipline and positions bars (no filters)', () => {
     const model = build()
@@ -160,5 +171,42 @@ describe('buildSchedulerModel', () => {
     const model = build({ ...emptyFilters(), disciplineId: 'd-dev' }, false)
     expect(model).toHaveLength(1)
     expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(['r1', 'r2'])
+  })
+})
+
+describe('external / 3rd-party band', () => {
+  const buildExt = (filters = emptyFilters(), disciplinesEnabled = true) =>
+    buildSchedulerModel(withExternal(), geom, days, start, end, filters, disciplinesEnabled)
+
+  it('renders external resources in a neutral band that is ALWAYS last', () => {
+    const model = buildExt()
+    // Discipline bands first, then the external band — never interleaved.
+    expect(model.map((g) => g.key)).toEqual(['d-design', 'd-dev', 'external'])
+    const last = model[model.length - 1]
+    expect(last.title).toBe('External / 3rd party')
+    expect(last.color).toBe('#9ca3af') // NEUTRAL_COLOR
+    expect(last.rows.map((r) => r.resource.id)).toEqual(['ext1'])
+  })
+
+  it('external rows carry NO capacity: utilisation 0, never overSoon, no day markers, no time-off', () => {
+    const ext = buildExt().at(-1)!.rows[0]
+    expect(ext.utilization).toBe(0)
+    expect(ext.overSoon).toBe(false)
+    // Its booking spans a weekend (zero-capacity for a person), yet no day is flagged.
+    expect(ext.dayStates.every((d) => !d.over && !d.unavailable)).toBe(true)
+    expect(ext.timeOff).toEqual([]) // the stray time-off row is ignored for externals
+  })
+
+  it('external parties are still assignable — their task bars still render', () => {
+    const ext = buildExt().at(-1)!.rows[0]
+    expect(ext.bars.map((b) => b.allocation.id)).toEqual(['aext'])
+  })
+
+  it('disciplines off → external STILL forms its own trailing band (below the flat group)', () => {
+    const model = buildExt(emptyFilters(), false)
+    expect(model).toHaveLength(2) // flat (our people) + external
+    expect(model[0].rows.map((r) => r.resource.id).sort()).toEqual(['r1', 'r2'])
+    expect(model[1].key).toBe('external')
+    expect(model[1].rows.map((r) => r.resource.id)).toEqual(['ext1'])
   })
 })

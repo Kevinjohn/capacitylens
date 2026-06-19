@@ -1,6 +1,6 @@
 import { addDaysISO } from '@floaty/shared/lib/dateMath'
 import { byAccount } from '@floaty/shared/domain/tenancy'
-import { emptyAppData, scopedTables, SCOPED_KEYS } from '@floaty/shared/types/entities'
+import { emptyAppData, isCapacityTracked, isExternalResource, scopedTables, SCOPED_KEYS } from '@floaty/shared/types/entities'
 import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@floaty/shared/types/entities'
 
 export interface CalendarConfig {
@@ -78,6 +78,9 @@ export const resourceById = (data: AppData, id: ID) => data.resources.find((r) =
 export interface DisciplineGroup {
   discipline: Discipline | null // null = the "no discipline" bucket
   resources: Resource[]
+  /** True for the synthetic trailing group of external / 3rd-party resources — rendered as a
+   *  neutral band at the very bottom of the schedule (externals have no discipline to group by). */
+  external?: boolean
 }
 
 /** Canonical discipline ordering: by sortOrder, then name as a stable tiebreak.
@@ -86,16 +89,29 @@ export interface DisciplineGroup {
 export const byDisciplineOrder = (a: Discipline, b: Discipline): number =>
   a.sortOrder - b.sortOrder || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0)
 
-/** Resources grouped by discipline (sorted), with an "ungrouped" bucket last. */
+/** The trailing external / 3rd-party band (neutral, always last), or null when there are none. The
+ *  ONE source for the partition so the disciplines-on (here) and disciplines-off (schedulerModel)
+ *  schedules can't disagree on where externals split off or how the band is shaped. */
+export function externalBand(resources: Resource[]): DisciplineGroup | null {
+  const external = resources.filter(isExternalResource)
+  return external.length ? { discipline: null, resources: external, external: true } : null
+}
+
+/** Resources grouped by discipline (sorted), with an "ungrouped" bucket, then a trailing EXTERNAL
+ *  band last. External / 3rd-party resources are partitioned out of the discipline buckets entirely
+ *  so they always render as their own neutral band at the very bottom of the schedule. */
 export function resourcesByDiscipline(data: AppData): DisciplineGroup[] {
+  const ours = data.resources.filter(isCapacityTracked) // externals get their own trailing band
   const sorted = [...data.disciplines].sort(byDisciplineOrder)
   const groups: DisciplineGroup[] = sorted.map((d) => ({
     discipline: d,
-    resources: data.resources.filter((r) => r.disciplineId === d.id),
+    resources: ours.filter((r) => r.disciplineId === d.id),
   }))
   const known = new Set(data.disciplines.map((d) => d.id))
-  const ungrouped = data.resources.filter((r) => !r.disciplineId || !known.has(r.disciplineId))
+  const ungrouped = ours.filter((r) => !r.disciplineId || !known.has(r.disciplineId))
   if (ungrouped.length) groups.push({ discipline: null, resources: ungrouped })
+  const band = externalBand(data.resources)
+  if (band) groups.push(band)
   return groups
 }
 

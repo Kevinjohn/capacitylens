@@ -16,6 +16,7 @@ import { RotateHint } from './RotateHint'
 const LINKS: [string, string, IconName][] = [
   ['/', 'Schedule', 'calendar'],
   ['/resources', 'Resources', 'people'],
+  ['/external', 'External', 'building'],
   ['/disciplines', 'Disciplines', 'tag'],
   ['/clients', 'Clients', 'briefcase'],
   ['/projects', 'Projects', 'folder'],

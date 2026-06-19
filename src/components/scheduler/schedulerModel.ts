@@ -2,7 +2,9 @@ import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
 import { capacityForWindow, dayCapacity } from '../../lib/capacity'
 import { resolveBarColor } from '@floaty/shared/lib/color'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
-import { resourcesByDiscipline } from '../../store/selectors'
+import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
+import { isCapacityTracked, isExternalResource } from '@floaty/shared/types/entities'
+import { NEUTRAL_COLOR } from '../../lib/palette'
 import { laneLayout } from './layout'
 import type { ColumnGeometry } from './columnGeometry'
 import type { Filters } from '../../store/useStore'
@@ -26,6 +28,8 @@ export interface BarLayout {
   label: string
   project?: string
   client?: string
+  /** True when the assignee is an external / 3rd-party resource — the bar hides its hours. */
+  external: boolean
 }
 
 /** Per-day capacity state for a lane background cell. */
@@ -58,6 +62,9 @@ export interface GroupModel {
   key: string
   title: string
   color?: string
+  /** True for the external / 3rd-party band. The view reads THIS (not the key string) to keep the
+   *  band's header in flat mode and to suppress its utilisation average. */
+  external: boolean
   rows: RowModel[]
 }
 
@@ -125,14 +132,25 @@ export function buildSchedulerModel(
     return true
   }
 
-  // Disciplines on → group by discipline (with the "ungrouped" bucket last); off → one
-  // flat group of every resource, which the grid renders without a group-header band.
-  const groups = disciplinesEnabled ? resourcesByDiscipline(data) : [{ discipline: null, resources: data.resources }]
+  // Disciplines on → group by discipline (ungrouped bucket, then the external band, last). Off →
+  // one flat group of every NON-external resource, with the external band STILL trailing (the band
+  // is required regardless of disciplines on/off). SchedulerGrid renders the flat group without a
+  // header but still draws the external band's header. Build the flat groups LAZILY so the common
+  // disciplines-on path doesn't scan resources for a value it discards.
+  const groups = disciplinesEnabled
+    ? resourcesByDiscipline(data)
+    : (() => {
+        const flat: DisciplineGroup[] = [{ discipline: null, resources: data.resources.filter(isCapacityTracked) }]
+        const band = externalBand(data.resources)
+        if (band) flat.push(band)
+        return flat
+      })()
   return groups
     .map((group) => ({
-      key: group.discipline?.id ?? 'none',
-      title: group.discipline?.name ?? 'No discipline',
-      color: group.discipline?.color,
+      key: group.external ? 'external' : (group.discipline?.id ?? 'none'),
+      title: group.external ? 'External / 3rd party' : (group.discipline?.name ?? 'No discipline'),
+      color: group.external ? NEUTRAL_COLOR : group.discipline?.color,
+      external: !!group.external,
       // People first, placeholders ("slots") second, within each discipline. Stable
       // sort, so the existing relative order is preserved within each partition.
       rows: group.resources
@@ -143,6 +161,10 @@ export function buildSchedulerModel(
         // allocations/time-off, not the whole dataset per day (was O(res×days×allocs)).
         const allAllocs = allocsByResource.get(resource.id) ?? []
         const resTimeOff = timeOffByResource.get(resource.id) ?? []
+        // External / 3rd-party rows have NO capacity: no over-markers, no utilisation, no time-off
+        // — an awareness band, not a bookable lane. We starve the capacity path rather than
+        // special-case the (dumb) lane; their task bars still render.
+        const isExternal = isExternalResource(resource)
         // A row is "dimmed" when a project/client filter is active and this resource
         // has NO VISIBLE work on it — we still show their full real load (so you can see
         // who's free to staff), just visually de-emphasised. Uses `allocVisible` (the
@@ -166,34 +188,45 @@ export function buildSchedulerModel(
             label: taskById.get(a.taskId)?.name ?? 'Task',
             project: project?.name,
             client: client?.name,
+            external: isExternal,
           }
         })
         // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
-        const dayStates: DayState[] = days.map((d) => {
-          const cap = dayCapacity(resource, d, allAllocs, resTimeOff)
-          return { over: cap.over, unavailable: cap.available === 0 }
-        })
-        const timeOff: TimeOffBlock[] = resTimeOff.map((t) => ({
-            id: t.id,
-            x: geom.xForDateInGeom(t.startDate),
-            width: geom.widthForDates(t.startDate, t.endDate),
-            label: TIME_OFF_TYPE_LABELS[t.type],
-            note: t.note,
-          }))
+        // External rows carry none — flat, unmarked day cells and no time-off blocks.
+        const dayStates: DayState[] = isExternal
+          ? days.map(() => ({ over: false, unavailable: false }))
+          : days.map((d) => {
+              const cap = dayCapacity(resource, d, allAllocs, resTimeOff)
+              return { over: cap.over, unavailable: cap.available === 0 }
+            })
+        const timeOff: TimeOffBlock[] = isExternal
+          ? []
+          : resTimeOff.map((t) => ({
+              id: t.id,
+              x: geom.xForDateInGeom(t.startDate),
+              width: geom.widthForDates(t.startDate, t.endDate),
+              label: TIME_OFF_TYPE_LABELS[t.type],
+              note: t.note,
+            }))
         // Compute the utilisation window once and derive both the % and the
         // near-term overbooked flag from it. Both ignore zero-capacity days
         // (weekends / time off) so an allocation that merely spans them doesn't
         // inflate the % past 100% or trip the overbooked flag — that's distinct
         // from the per-day over-marker, which DOES flag any zero-capacity day.
-        const winCaps = capacityForWindow(resource, allAllocs, resTimeOff, utilStart, utilEnd)
-        let alloc = 0
-        let avail = 0
+        // External rows are skipped entirely: utilisation 0, never overbooked.
+        let utilization = 0
         let overSoon = false
-        for (const c of winCaps) {
-          if (c.available === 0) continue
-          alloc += c.allocated
-          avail += c.available
-          if (c.allocated > c.available) overSoon = true
+        if (!isExternal) {
+          const winCaps = capacityForWindow(resource, allAllocs, resTimeOff, utilStart, utilEnd)
+          let alloc = 0
+          let avail = 0
+          for (const c of winCaps) {
+            if (c.available === 0) continue
+            alloc += c.allocated
+            avail += c.available
+            if (c.allocated > c.available) overSoon = true
+          }
+          utilization = avail === 0 ? 0 : alloc / avail
         }
         return {
           resource,
@@ -201,7 +234,7 @@ export function buildSchedulerModel(
           bars,
           dayStates,
           timeOff,
-          utilization: avail === 0 ? 0 : alloc / avail,
+          utilization,
           overSoon,
           dimmed,
         }

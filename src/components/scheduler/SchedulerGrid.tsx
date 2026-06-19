@@ -15,6 +15,7 @@ import { buildColumnGeometry } from './columnGeometry'
 import { buildSchedulerModel } from './schedulerModel'
 import { buildLayout, windowFromLayout } from './virtualWindow'
 import type { GroupModel, RowModel } from './schedulerModel'
+import { isCapacityTracked, isExternalResource } from '@floaty/shared/types/entities'
 import type { ID, ISODate } from '@floaty/shared/types/entities'
 
 type ModalState =
@@ -189,8 +190,16 @@ export function SchedulerGrid() {
   // grid-level UI changes (e.g. opening a modal). setModal is referentially stable.
   const handleEdit = useCallback((allocationId: ID) => setModal({ kind: 'edit', allocationId }), [])
   const handleDraw = useCallback(
-    (resourceId: ID, startDate: ISODate, endDate: ISODate) =>
-      setModal({ kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate }),
+    (resourceId: ID, startDate: ISODate, endDate: ISODate) => {
+      // Time off is meaningless for externals (no capacity) — a draw on their lane is a no-op rather
+      // than opening a time-off form seeded with a resource the picker itself excludes. Read kind
+      // LIVE (getState) so this stays off the callback's deps and ResourceLane's memo holds.
+      if (ui.drawMode === 'timeoff') {
+        const r = useStore.getState().data.resources.find((x) => x.id === resourceId)
+        if (r && isExternalResource(r)) return
+      }
+      setModal({ kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate })
+    },
     [ui.drawMode],
   )
 
@@ -206,7 +215,9 @@ export function SchedulerGrid() {
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
   const overallUtil = useMemo(() => {
-    const rows = model.flatMap((g) => g.rows)
+    // Exclude external / 3rd-party rows: they carry no capacity (utilisation 0) and would
+    // otherwise drag the headline average down.
+    const rows = model.flatMap((g) => g.rows).filter((r) => isCapacityTracked(r.resource))
     return rows.length ? Math.round((rows.reduce((sum, r) => sum + r.utilization, 0) / rows.length) * 100) : 0
   }, [model])
 
@@ -218,9 +229,10 @@ export function SchedulerGrid() {
   const items = useMemo(() => {
     const out: Item[] = []
     for (const group of model) {
-      // Disciplines off → render the rows flat: no group-header band and collapse
-      // doesn't apply (the model already returns a single all-resources group).
-      if (!disciplinesEnabled) {
+      // Disciplines off → render the rows flat (no group-header band, no collapse) — EXCEPT the
+      // external band, which always keeps its header so it reads as a distinct band at the bottom
+      // regardless of disciplines being on/off.
+      if (!disciplinesEnabled && !group.external) {
         for (const row of group.rows) out.push({ kind: 'row', group, row })
         continue
       }
@@ -311,9 +323,11 @@ export function SchedulerGrid() {
       <div role="gridcell" className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
         {ui.collapsedGroups.includes(group.key)
           ? `${group.rows.length} hidden`
-          : utilizationPrefs.showDiscipline
-            ? `${group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0}% avg utilisation`
-            : ''}
+          : group.external
+            ? '' /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
+            : utilizationPrefs.showDiscipline
+              ? `${group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0}% avg utilisation`
+              : ''}
       </div>
     </div>
   )
@@ -402,7 +416,7 @@ export function SchedulerGrid() {
             >
               <Icon name="plus" size={15} />
             </button>
-            {utilizationPrefs.showPersonal && (
+            {utilizationPrefs.showPersonal && isCapacityTracked(resource) && (
             <span
               data-testid="utilization"
               title={

@@ -18,6 +18,9 @@ export function ResourceList() {
   // being created so the right modal opens.
   const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null)
 
+  // External / 3rd parties are intentionally absent from this tab — they live on their own
+  // /external tab. They're neither 'person' nor 'placeholder', so these filters already exclude
+  // them; don't add a third section here.
   const people = resources.filter((r) => r.kind === 'person')
   const placeholders = resources.filter((r) => r.kind === 'placeholder')
 

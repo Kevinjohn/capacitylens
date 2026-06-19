@@ -16,7 +16,17 @@ export type SchedulingMode = 'hourly' | 'days' | 'blocks'
  *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks']
 export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1]
-export type ResourceKind = 'person' | 'placeholder'
+/**
+ * What a resource row represents:
+ * - `person`      — a real team member with capacity (the default).
+ * - `placeholder` — an unfilled role/"slot", bound to one project (see `projectId`).
+ * - `external`    — an outsourced 3rd-party company. Can be assigned tasks, but has NO
+ *   hours/capacity/utilisation and is EXCLUDED from all capacity math; it renders in its own
+ *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
+ *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays` are unused silent
+ *   defaults. Resolves the "third-party line" — see NEEDS-INPUT.md / DECISIONS.md.
+ */
+export type ResourceKind = 'person' | 'placeholder' | 'external'
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
 
@@ -56,12 +66,15 @@ export interface Discipline extends ScopedEntity {
 
 export interface Resource extends ScopedEntity {
   kind: ResourceKind
-  /** Optional: placeholders may be nameless (shown by `role`). */
+  /** Optional: placeholders may be nameless (shown by `role`). For `external` this holds the
+   *  COMPANY name (the External form requires it). */
   name?: string
-  /** e.g. "Senior Designer" — the label used for nameless placeholders. */
+  /** e.g. "Senior Designer" — the label used for nameless placeholders; an `external`'s
+   *  optional descriptor (e.g. "Print", "Overflow dev"). */
   role: string
   disciplineId?: ID
   employmentType: EmploymentType
+  /** Capacity per working day. Unused (silent default) for `external` — externals have no capacity. */
   workingHoursPerDay: number
   /** Working weekdays, e.g. [1,2,3,4,5] for Mon–Fri. */
   workingDays: Weekday[]
@@ -180,6 +193,26 @@ export function clampHoursPerDay(h: number): number {
  *  and the store resource write path so the two stay in lockstep. */
 export function clampWorkingHoursPerDay(h: number): number {
   return Number.isFinite(h) && h > 0 ? Math.min(h, MAX_HOURS_PER_DAY) : 8
+}
+
+/** Outsourced / 3rd-party resources have NO capacity (no hours, utilisation, or over-markers) and
+ *  render in their own neutral band. This is the SINGLE predicate every capacity surface gates on —
+ *  so a new capacity-free kind is a one-line change here, not N scattered `kind === 'external'`
+ *  checks across the scheduler / forms / import. */
+export function isExternalResource(r: { kind: ResourceKind }): boolean {
+  return r.kind === 'external'
+}
+/** Inverse of {@link isExternalResource} — true when a resource participates in capacity/utilisation. */
+export function isCapacityTracked(r: { kind: ResourceKind }): boolean {
+  return !isExternalResource(r)
+}
+
+/** The unused silent-default capacity fields every `external` resource is created with: externals
+ *  have no capacity, but the Resource type + store still require a positive working day and a
+ *  non-empty week. A FACTORY (not a shared object) so each call gets its own `workingDays` array —
+ *  no aliasing if a consumer mutates it. One source for the External form, seed, and fixtures. */
+export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'workingHoursPerDay' | 'workingDays'> {
+  return { employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5] }
 }
 
 /** Bump when the persisted shape changes; drives data/migrate.ts. */

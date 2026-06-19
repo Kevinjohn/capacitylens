@@ -67,6 +67,8 @@ export function validateAllocationAssignment(
   taskProjectId: ID | undefined,
 ): ValidationResult {
   const errors: string[] = []
+  // Only PLACEHOLDERS are project-restricted. `person` and `external` are intentionally
+  // unrestricted (an external 3rd party can be assigned any task) — don't add a guard here.
   if (resource.kind === 'placeholder' && taskProjectId !== undefined) {
     if (!resource.projectId) {
       errors.push('This placeholder is not bound to a project yet.')

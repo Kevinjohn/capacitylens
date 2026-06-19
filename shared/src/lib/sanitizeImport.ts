@@ -10,7 +10,7 @@ import { clampHoursPerDay, clampWorkingHoursPerDay, type ScopedEntityKey, type W
 
 const FALLBACK_COLOR = '#6366f1' // brand
 const VALID_STATUS = ['confirmed', 'tentative', 'completed'] as const
-const VALID_KIND = ['person', 'placeholder'] as const
+const VALID_KIND = ['person', 'placeholder', 'external'] as const
 const VALID_EMPLOYMENT = ['permanent', 'freelancer', 'contractor'] as const
 const VALID_TIMEOFF = ['holiday', 'sick', 'unpaid', 'other'] as const
 

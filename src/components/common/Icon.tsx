@@ -21,6 +21,7 @@ export type IconName =
   | 'clipboard-check'
   | 'sun'
   | 'sliders'
+  | 'building'
   | 'panel-left'
 
 const PATHS: Record<IconName, string> = {
@@ -41,6 +42,7 @@ const PATHS: Record<IconName, string> = {
   'clipboard-check': 'M5 5h10v11.5H5zM7.5 5V3.5h5V5M7.5 11l1.75 1.75L13 9',
   sun: 'M10 7.25a2.75 2.75 0 1 0 0 5.5a2.75 2.75 0 1 0 0-5.5M10 3v1.75M10 15.25V17M3 10h1.75M15.25 10H17M5.05 5.05l1.25 1.25M13.7 13.7l1.25 1.25M14.95 5.05l-1.25 1.25M6.3 13.7l-1.25 1.25',
   sliders: 'M3.5 6h13M3.5 10h13M3.5 14h13M7.5 4.25v3.5M12.5 8.25v3.5M8.5 12.25v3.5',
+  building: 'M4.5 16.5V4.5h7v12M11.5 16.5V8.5h4v8M3.5 16.5h13M6.5 7h.01M9 7h.01M6.5 9.5h.01M9 9.5h.01M6.5 12h.01M9 12h.01M13.5 11h.01M13.5 13.5h.01',
   'panel-left': 'M3.5 4.5h13v11h-13zM7.75 4.5v11',
 }
 

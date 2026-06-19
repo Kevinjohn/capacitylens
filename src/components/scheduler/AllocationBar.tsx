@@ -10,8 +10,9 @@ import { parseDate } from '@floaty/shared/lib/dateMath'
 import { schedulingModeFor } from '../../store/selectors'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
-import { computeGesture, snappedBarGeometry, volumePreservingHours } from './allocationDrag'
+import { computeGesture, reconcileReassignedHours, snappedBarGeometry, volumePreservingHours } from './allocationDrag'
 import type { ColumnGeometry } from './columnGeometry'
+import { isCapacityTracked } from '@floaty/shared/types/entities'
 import type { ID } from '@floaty/shared/types/entities'
 import type { BarLayout } from './schedulerModel'
 
@@ -96,6 +97,10 @@ export const AllocationBar = memo(function AllocationBar({
   // Blocks are pure bookings — the bar shows the task name only, with no hours/load
   // surfaced on the label, accessible name, or popover.
   const isBlocks = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === 'blocks')
+  // External / 3rd-party work carries no hours either (hoursPerDay 0); hide the load the same way
+  // blocks do. The assignee's kind is already on the bar (from the model), so read it there rather
+  // than re-scanning the store per render.
+  const hideHours = isBlocks || bar.external
   const barLabelPrefs = useStore((s) => s.barLabelPrefs)
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   const [pop, setPop] = useState<{ left: number; top: number } | null>(null)
@@ -212,7 +217,14 @@ export const AllocationBar = memo(function AllocationBar({
 
       const effResourceId = reassignTo ?? resourceId
       const { dates, hours } = computeFor(effResourceId)
-      const hoursPatch = hours !== bar.allocation.hoursPerDay ? { hoursPerDay: hours } : null
+      // On a REASSIGN, reconcile the load with the TARGET's kind: an external carries no hours (0),
+      // and a real resource must carry > 0 — otherwise dragging a 0-hour external booking onto a
+      // person would persist an illegal 0-hour allocation (the modal rejects it, and it under-counts
+      // their utilisation), and dragging a person's work onto an external would leave a non-zero load
+      // on a capacity-free row. A same-resource move keeps its hours untouched.
+      const targetResource = reassignTo ? useStore.getState().data.resources.find((r) => r.id === reassignTo) : undefined
+      const reconciledHours = targetResource ? reconcileReassignedHours(hours, targetResource) : hours
+      const hoursPatch = reconciledHours !== bar.allocation.hoursPerDay ? { hoursPerDay: reconciledHours } : null
       try {
         updateAllocation(bar.allocation.id, {
           ...dates,
@@ -225,10 +237,11 @@ export const AllocationBar = memo(function AllocationBar({
         const { data } = useStore.getState()
         const resource = data.resources.find((r) => r.id === effResourceId)
         let advisory = ''
-        if (resource) {
+        // External parties have no capacity — skip the over-capacity / time-off advisory for them.
+        if (resource && isCapacityTracked(resource)) {
           const others = data.allocations.filter((a) => a.resourceId === effResourceId && a.id !== bar.allocation.id)
           const overTimeOff = data.timeOff.filter((t) => t.resourceId === effResourceId)
-          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, hours)
+          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, reconciledHours)
           const bits: string[] = []
           if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
           if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
@@ -337,7 +350,7 @@ export const AllocationBar = memo(function AllocationBar({
         data-status={bar.allocation.status}
         role="button"
         tabIndex={0}
-        aria-label={`${labelText}, ${isBlocks ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
+        aria-label={`${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
         onPointerDown={(e) => {
           hidePopover()
           // Only snapshot lanes + watch scroll once the gesture is actually armed.
@@ -393,7 +406,7 @@ export const AllocationBar = memo(function AllocationBar({
         <span className="truncate px-2.5">
           {completed ? '✓ ' : ''}
           {labelText}
-          {isBlocks ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h`}
+          {hideHours ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h`}
           {bar.allocation.note ? ' •' : ''}
         </span>
         <span data-handle="end" data-testid="resize-end" className={`right-0 ${gripClass}`}>
@@ -423,7 +436,7 @@ export const AllocationBar = memo(function AllocationBar({
             )}
             <div className="text-muted">
               {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
-              {isBlocks ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h/day`} · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
+              {hideHours ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h/day`} · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
             </div>
             {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted">{bar.allocation.note}</div>}
             <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">

@@ -5,6 +5,7 @@ import { disciplinesEnabledFor } from '../store/selectors'
 import { useScopedData } from '../store/useScopedData'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { isValidISODate } from '@floaty/shared/lib/integrity'
+import { isExternalResource } from '@floaty/shared/types/entities'
 import type { Filters } from '../store/useStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -269,6 +270,7 @@ function buildItems({
   const pages: PaletteItem[] = [
     { id: 'page-schedule', label: 'Schedule', sublabel: '/', section: 'Pages', onSelect: () => { void navigate('/'); onClose() } },
     { id: 'page-resources', label: 'Resources', sublabel: '/resources', section: 'Pages', onSelect: () => { void navigate('/resources'); onClose() } },
+    { id: 'page-external', label: 'External', sublabel: '/external', section: 'Pages', onSelect: () => { void navigate('/external'); onClose() } },
     // Disciplines page entry only when the account uses disciplines (route is guarded too).
     ...(disciplinesEnabled
       ? [{ id: 'page-disciplines', label: 'Disciplines', sublabel: '/disciplines', section: 'Pages', onSelect: () => { void navigate('/disciplines'); onClose() } } as PaletteItem]
@@ -287,7 +289,9 @@ function buildItems({
   // ── Resources ──────────────────────────────────────────────────────────────
   const resourceItems: PaletteItem[] = data.resources.map((r) => ({
     id: `res-${r.id}`,
-    label: r.name ?? r.role,
+    // External / 3rd parties are jump targets too (they're schedule rows), but mark them so they
+    // don't read as one of our own people in the list — mirrors the assignee dropdown's " (external)".
+    label: `${r.name ?? r.role}${isExternalResource(r) ? ' (external)' : ''}`,
     sublabel: r.name ? r.role : undefined,
     section: 'People',
     onSelect: () => {

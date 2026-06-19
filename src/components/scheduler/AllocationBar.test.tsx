@@ -45,6 +45,7 @@ function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
     top: 0,
     color: '#ec4899',
     label: labelOverride ?? 'My Task',
+    external: false,
   }
 }
 

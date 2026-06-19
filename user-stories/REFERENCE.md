@@ -45,6 +45,7 @@ The sidebar links, in order, route to:
 |---|---|---|
 | Schedule | `/` | Timeline scheduler |
 | Resources | `/resources` | Resource list |
+| External | `/external` | External / 3rd-party list |
 | Disciplines | `/disciplines` | Discipline list |
 | Clients | `/clients` | Client list |
 | Projects | `/projects` | Project list |
@@ -52,7 +53,7 @@ The sidebar links, in order, route to:
 | Time off | `/timeoff` | Time-off list |
 | Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, allocation bars, utilisation, appearance) |
 
-That's **eight** sections by default — **seven** when the company turns disciplines off (the
+That's **nine** sections by default — **eight** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). Each link
 carries a small decorative icon (`aria-hidden`; the accessible name stays the label text). The
 **Data** section (**Export JSON** / **Import JSON**) sits below the nav links. The company block —
@@ -65,7 +66,7 @@ both the open menu and the collapsed rail, so the nav icons don't shift when the
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
 The toggle sits at the same left inset as the nav icons, so the toggle + icon column keep their
 x-position when collapsing — only the labels and the "Floaty" wordmark come and go. Rail icons
-(`data-testid="nav-rail-item"`, one per **visible** section — so 7 when disciplines are off —
+(`data-testid="nav-rail-item"`, one per **visible** section — so 8 when disciplines are off —
 `title` = the section label, plus an instant hover tooltip) are **not** navigation — tapping any
 of them just re-opens the menu; they're hidden from assistive tech (the labelled toggle is the
 single accessible control). Collapsing hides
@@ -91,6 +92,9 @@ never appears on desktop viewports or in landscape.
   - *Nike Spiros* — Web Developer, Development, permanent, 8h, Mon–Fri.
   - *Alex Rivera* — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
   - *Senior Designer* — a **placeholder** (no name), Design, **bound to Project Lightning**.
+  - *Dog Eat Cog* — an **external / 3rd party** (`r-ext-dogeatcog`): a company, no discipline/
+    capacity, booked on Visual Design (Project Lightning) as a span only. Renders in the schedule's
+    bottom band.
 - **Clients:** Acme Inc., Globex.
 - **Projects:** Project Lightning (Acme), Brand Themes (Globex).
 - **Phases (Project Lightning):** Discovery, Build.
@@ -117,10 +121,10 @@ columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` la
 `Employment`, `Bound project`, `Working hours / day`, `Working days` (Mon…Sun toggle
 buttons), `Colour (…)` (a swatch-picker trigger that opens a grid of preset colour
 swatches, each button labelled by its hex), `Start`, `End`, `Hours / day`, `Status`,
-`Note`, `Assignee`, `Project`, `Task`, `Resource`.
+`Note`, `Assignee`, `Project`, `Task`, `Resource`, plus `Company` + `Descriptor` (the External form).
 Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add task`. List pages have an add
 button per entity: `Add resource`, `Add discipline`, `Add client`, `Add project`,
-`Add task`, `Add time off`. Each list row has `Edit` and `Delete`.
+`Add task`, `Add time off`, `Add external party`. Each list row has `Edit` and `Delete`.
 
 **Delete confirmation** is a dialog titled `Delete <entity>?` with `Delete` and `Cancel`.
 Cascade dialogs say "You can undo this with ⌘Z."
@@ -198,7 +202,7 @@ a notice appears ("You have unsaved changes — use Cancel or Save to close this
 the palette does **not** open. Closing or saving the dialog re-enables the shortcut.
 Closed by **Escape**, backdrop click, or selecting an item.
 
-**Sections shown (no query):** Actions ("Go to today"), Pages (all 8 routes; 7 — no Disciplines — when the company turns disciplines off).
+**Sections shown (no query):** Actions ("Go to today"), Pages (all 9 routes; 8 — no Disciplines — when the company turns disciplines off).
 **Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Tasks.
 **Special action:** typing a valid, real calendar ISO date (`YYYY-MM-DD`, zero-padded,
 e.g. `2026-06-03`) shows "Go to date YYYY-MM-DD". Impossible dates like `2026-02-31`,
@@ -222,13 +226,13 @@ Mouse hover sets the active option; mouse click selects.
 `scheduler-grid`, `scheduler-row`, `discipline-group`, `resource-lane`,
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
-`scheduler-empty`, `timeoff-row`, `discipline-row`, `export-data`, `import-data`,
+`scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `build-stamp` (Settings footer; only rendered when the build sets
 `VITE_FLOATY_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_FLOATY_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
-`r-ph-designer`, `p-acme` (Project Lightning), `p-brand` (Brand Themes), `t-wires`.
+`r-ph-designer`, `r-ext-dogeatcog` (external party), `p-acme` (Project Lightning), `p-brand` (Brand Themes), `t-wires`.
 
 **Command palette:** `command-palette` (outer backdrop), `command-palette-input` (search field),
 `command-palette-option` (each result item; multiple).
@@ -237,6 +241,10 @@ Mouse hover sets the active option; mouse click selects.
 
 - **A project must belong to a client; a task may be general (no project) or belong to a project.**
 - **Placeholders** are bound to exactly one project and may take that project's tasks **plus general (no-project) tasks**.
+- **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
+  descriptor), managed on the **External** tab (not Resources), assignable to **any** task with **no
+  hours**, shown in a **neutral band at the bottom of the schedule** with **no utilisation / over-markers**.
+  Their allocations carry `hoursPerDay: 0` (a span, not a load); they're excluded from the Time-off picker.
 - **Cascade deletes:** deleting a client removes its projects → tasks → allocations;
   deleting a project removes its phases/tasks/allocations and *unbinds* (does not delete)
   placeholders; deleting a task removes its allocations; deleting a resource removes its

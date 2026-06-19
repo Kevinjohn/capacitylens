@@ -1,3 +1,5 @@
+import { externalCapacityDefaults } from '../types/entities'
+import { NEUTRAL_COLOR } from '../lib/color'
 import type { AppData } from '../types/entities'
 
 // Two demo companies, loaded on first run so the account picker isn't empty.
@@ -30,6 +32,10 @@ export function seed(): AppData {
       { id: 'r-nike', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Nike Spiros', role: 'Web Developer', disciplineId: 'd-dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#10b981' },
       { id: 'r-alex', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Alex Rivera', role: 'Front End (freelance)', disciplineId: 'd-dev', employmentType: 'freelancer', workingHoursPerDay: 8, workingDays: [1, 2, 3], color: '#0ea5e9' },
       { id: 'r-ph-designer', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'placeholder', role: 'Senior Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a855f7', projectId: 'p-acme' },
+      // External / 3rd-party partner studio: assignable to tasks but has NO capacity/utilisation —
+      // renders neutral in its own band at the bottom of the schedule (see ResourceKind). Its
+      // working hours/days are unused silent defaults.
+      { id: 'r-ext-dogeatcog', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'external', name: 'Dog Eat Cog', role: 'Partner studio', ...externalCapacityDefaults(), color: NEUTRAL_COLOR },
       { id: 'r-jo', accountId: LOFT, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Jo Mensah', role: 'Product Designer', disciplineId: 'd-loft-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#0ea5e9' },
     ],
     clients: [
@@ -62,6 +68,8 @@ export function seed(): AppData {
       { id: 'a-nike-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-nike', taskId: 't-cms', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
       { id: 'a-alex-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', taskId: 't-cms', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
       { id: 'a-ph-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ph-designer', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+      // External partner studio booked on Acme's visual design — a span only, no hours (hoursPerDay 0).
+      { id: 'a-ext-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ext-dogeatcog', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-09', hoursPerDay: 0, status: 'confirmed' },
       { id: 'a-pam-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-pam', taskId: 't-brand', startDate: '2026-06-01', endDate: '2026-06-09', hoursPerDay: 6, status: 'confirmed' },
       { id: 'a-jo-1', accountId: LOFT, createdAt: TS, updatedAt: TS, resourceId: 'r-jo', taskId: 't-loft-screens', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
     ],

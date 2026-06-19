@@ -90,10 +90,10 @@ describe('AppShell sidebar collapse', () => {
       screen.getByRole('button', { name: 'Collapse menu' }).click()
     })
 
-    // The skip-to-content link survives; the eight NAV links must be gone.
+    // The skip-to-content link survives; the nine NAV links must be gone.
     expect(screen.queryByRole('link', { name: 'Schedule' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
-    expect(screen.getAllByTestId('nav-rail-item')).toHaveLength(8)
+    expect(screen.getAllByTestId('nav-rail-item')).toHaveLength(9)
     expect(screen.getByRole('button', { name: 'Expand menu' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByTestId('export-data')).not.toBeInTheDocument()
     expect(localStorage.getItem('floaty/sidebar')).toBe('closed')

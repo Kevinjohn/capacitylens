@@ -2,7 +2,7 @@ import { newId } from '../lib/id'
 import { validateAllocationAssignment, validateDateRange } from '../lib/integrity'
 import { sanitizeImportedRecord } from '../lib/sanitizeImport'
 import { belongsToAccount, notInAccount } from './tenancy'
-import { SCOPED_KEYS, scopedTables } from '../types/entities'
+import { isExternalResource, SCOPED_KEYS, scopedTables } from '../types/entities'
 import type {
   Allocation,
   AppData,
@@ -285,13 +285,22 @@ export function remapAndValidateImport(
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
   const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]))
   const tasks = new Map((brought.tasks as unknown as Task[]).map((t) => [t.id, t]))
-  brought.allocations = (brought.allocations as unknown as Allocation[]).filter((a) => {
-    if (!validateDateRange(a.startDate, a.endDate).ok) return false
-    const resource = resources.get(a.resourceId)
-    const task = tasks.get(a.taskId)
-    if (!resource || !task) return false
-    return validateAllocationAssignment(resource, task.projectId).ok
-  }) as unknown as Array<Record<string, unknown>>
+  brought.allocations = (brought.allocations as unknown as Allocation[])
+    .filter((a) => {
+      if (!validateDateRange(a.startDate, a.endDate).ok) return false
+      const resource = resources.get(a.resourceId)
+      const task = tasks.get(a.taskId)
+      if (!resource || !task) return false
+      return validateAllocationAssignment(resource, task.projectId).ok
+    })
+    .map((a) => {
+      // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
+      // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it
+      // can't see the owning resource's kind — coerce it here, where the whole resource set is in
+      // scope, so a hand-edited/legacy file can't land a non-zero load on a capacity-free resource.
+      const resource = resources.get(a.resourceId)
+      return resource && isExternalResource(resource) && a.hoursPerDay !== 0 ? { ...a, hoursPerDay: 0 } : a
+    }) as unknown as Array<Record<string, unknown>>
   brought.timeOff = (brought.timeOff as unknown as TimeOff[]).filter(
     (t) => resources.has(t.resourceId) && validateDateRange(t.startDate, t.endDate).ok,
   ) as unknown as Array<Record<string, unknown>>

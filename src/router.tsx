@@ -11,6 +11,7 @@ import { disciplinesEnabledFor } from './store/selectors'
 // pages are split out — not needed until navigated to, which trims the initial
 // bundle. AppShell wraps <Outlet> in a Suspense boundary for these lazy chunks.
 const ResourceList = lazy(() => import('./components/resources/ResourceList').then((m) => ({ default: m.ResourceList })))
+const ExternalList = lazy(() => import('./components/external/ExternalList').then((m) => ({ default: m.ExternalList })))
 const DisciplineList = lazy(() => import('./components/disciplines/DisciplineList').then((m) => ({ default: m.DisciplineList })))
 const ClientList = lazy(() => import('./components/clients/ClientList').then((m) => ({ default: m.ClientList })))
 const ProjectList = lazy(() => import('./components/projects/ProjectList').then((m) => ({ default: m.ProjectList })))
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <SchedulerView /> },
       { path: 'resources', element: <ResourceList /> },
+      { path: 'external', element: <ExternalList /> },
       { path: 'disciplines', element: <DisciplineRoute /> },
       { path: 'clients', element: <ClientList /> },
       { path: 'projects', element: <ProjectList /> },

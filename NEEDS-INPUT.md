@@ -3,16 +3,24 @@
 Open product questions to revisit with the owner. Don't silently resolve these — flag them.
 
 ## Parked (owner-confirmed, build much later)
-- **Third-party line on the schedule.** A row type for work EXTERNAL companies are doing that
-  we have no visibility of — pure FYI, not a resource. Shape: just a start date and an end
-  date (no hours, no capacity, no utilisation), tied to a client + project. Placement is a
-  hard requirement: **always at the bottom of the schedule**, below all of our resources,
-  because they aren't ours — it's an awareness line, not a bookable lane. (Owner, 2026-06-11.)
 - **Freelancer / contractor / external-supplier differentiation.** The "Temp" pill is
   **hidden for now** (component `TemporaryTag` kept but rendered nowhere; employment type is
   still captured on the resource form). There IS a real distinction to surface — freelancers,
   contractors and external suppliers are scheduled/budgeted differently — but the treatment
-  needs designing alongside the third-party line above, not a pill. (Owner, 2026-06-11.)
+  still needs designing (a pill is the wrong shape). The **third-party line shipped separately**
+  as the `external` resource kind (see *Resolved 2026-06-19*); this Temp-pill distinction for our
+  OWN freelancers/contractors stays parked. (Owner, 2026-06-11.)
+
+## Resolved (owner-confirmed, 2026-06-19)
+- **Third-party line — BUILT as the `external` resource kind.** The parked third-party line
+  shipped, reframed from "a row type, not a resource" to a third `ResourceKind` (`external`): it
+  carries a **company name** (+ optional descriptor) and is **assignable to any task** — so it's
+  tied to a client + project *through the task* and is **bookable** (resolving the Cohesion
+  "bookable vs FYI-only" tension below) — but has **no hours / no capacity / no utilisation**
+  (allocations persist `hoursPerDay: 0`). Managed on a dedicated **External** tab (out of
+  Resources), rendered in a single **neutral** colour in a band **always at the bottom** of the
+  schedule (disciplines on or off), and excluded from utilisation averages + the time-off picker.
+  Promoted to DECISIONS.md; spec `e2e/external.spec.ts`. (Owner, 2026-06-19.)
 
 ## Resolved (owner-confirmed, 2026-06-11)
 - **Scope: deliberately small.** Budgets/money, timesheets, hour-granularity tracking, and mobile

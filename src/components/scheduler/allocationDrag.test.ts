@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { volumePreservingHours, computeGesture, snappedBarGeometry } from './allocationDrag'
+import { volumePreservingHours, computeGesture, snappedBarGeometry, reconcileReassignedHours } from './allocationDrag'
 import { buildColumnGeometry } from './columnGeometry'
 import { eachDayISO } from '@floaty/shared/lib/dateMath'
 import type { DateRange } from '../../lib/gestureMath'
+import type { Resource } from '@floaty/shared/types/entities'
 
 // These functions were extracted from AllocationBar so the gesture math could be tested
 // directly. The branches below are exactly the ones a happy-path drag interaction test
@@ -94,5 +95,21 @@ describe('snappedBarGeometry', () => {
     expect(preview).toEqual(committed)
     // Width = Fri(20) + Sat(8) + Sun(8) + Mon(20) = 56, NOT 4×20.
     expect(preview.width).toBe(56)
+  })
+})
+
+describe('reconcileReassignedHours', () => {
+  const res = (kind: Resource['kind'], workingHoursPerDay = 8): Resource => ({
+    id: 'r', accountId: 'a', createdAt: 't', updatedAt: 't', kind, role: 'R',
+    employmentType: 'permanent', workingHoursPerDay, workingDays: [1, 2, 3, 4, 5], color: '#000000',
+  })
+  it('forces 0 hours when reassigning onto an external (a capacity-free row carries no load)', () => {
+    expect(reconcileReassignedHours(8, res('external'))).toBe(0)
+  })
+  it('keeps a real resource positive hours on a real-to-real reassign', () => {
+    expect(reconcileReassignedHours(6, res('person'))).toBe(6)
+  })
+  it('promotes a 0-hour booking (dragged off an external) to the target working day', () => {
+    expect(reconcileReassignedHours(0, res('person', 7))).toBe(7)
   })
 })

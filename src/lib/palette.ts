@@ -1,7 +1,9 @@
 // Default colours for newly-created entities — one place to tune the brand
 // palette instead of hex literals scattered across forms.
 
-export const NEUTRAL_COLOR = '#9ca3af'
+// One definition lives in the shared core (used by the bar-colour fallback AND external identity);
+// re-export it here so app-side imports keep their `../lib/palette` path and the two can't drift.
+export { NEUTRAL_COLOR } from '@floaty/shared/lib/color'
 
 export const DEFAULT_COLORS = {
   client: '#2d75da', // blue
