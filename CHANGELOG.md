@@ -5,6 +5,19 @@ All notable changes to Floaty are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
+## [0.6.0] — 2026-06-19
+
+Track outsourced work without managing it.
+
+### Added
+- **External / 3rd-party resources.** A new resource type for work you've outsourced to another
+  company — managed on a dedicated **External** tab, separate from your own people. Book an external
+  party onto any task as a simple **start–end span**: no hours, no capacity, no utilisation (you
+  don't track their time, just that the work is with them). They render in their own neutral band
+  pinned to the **bottom** of the schedule and are left out of utilisation figures, over-allocation
+  markers, and time off. Their booking dialog drops the hours and weekend fields, since weekends are
+  just plain calendar days for them.
+
 ## [0.5.0] — 2026-06-16
 
 A cosmetic preview of the planned sign-in step.
