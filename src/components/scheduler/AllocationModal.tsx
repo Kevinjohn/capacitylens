@@ -247,7 +247,9 @@ export function AllocationModal(props: AllocationModalProps) {
       }
     }
     // Both modes persist the same shape; days mode just feeds the DERIVED end/hours.
-    const fields = { taskId, startDate, endDate: effEndDate, hoursPerDay: effHoursPerDay, status, note: cleanNote ? cleanNote : undefined, ignoreWeekends }
+    // Externals have no working week — weekends are plain calendar days for them, so a span is
+    // literal (ignoreWeekends: true) and the toggle is hidden below.
+    const fields = { taskId, startDate, endDate: effEndDate, hoursPerDay: effHoursPerDay, status, note: cleanNote ? cleanNote : undefined, ignoreWeekends: isExternal ? true : ignoreWeekends }
     try {
       if (editing) updateAllocation(editing.id, { resourceId, ...fields })
       else addAllocation({ resourceId, ...fields })
@@ -420,15 +422,19 @@ export function AllocationModal(props: AllocationModalProps) {
       <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
       <TextAreaField label="Note" value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
 
-      <label className="flex items-center gap-2 text-sm text-muted">
-        <input
-          type="checkbox"
-          className="rounded border-line"
-          checked={ignoreWeekends}
-          onChange={(e) => setIgnoreWeekends(e.target.checked)}
-        />
-        <span>Include weekends as working days</span>
-      </label>
+      {/* Externals have no working week — their booking is a literal start/end span, so the weekend
+          toggle is meaningless and hidden (they store ignoreWeekends: true). */}
+      {!isExternal && (
+        <label className="flex items-center gap-2 text-sm text-muted">
+          <input
+            type="checkbox"
+            className="rounded border-line"
+            checked={ignoreWeekends}
+            onChange={(e) => setIgnoreWeekends(e.target.checked)}
+          />
+          <span>Include weekends as working days</span>
+        </label>
+      )}
 
       {advisory && <Callout>This allocation is {advisory}. Saving is still allowed.</Callout>}
       <FieldError id={errorId}>{error}</FieldError>

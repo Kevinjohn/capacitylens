@@ -69,7 +69,7 @@ export function seed(): AppData {
       { id: 'a-alex-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', taskId: 't-cms', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
       { id: 'a-ph-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ph-designer', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
       // External partner studio booked on Acme's visual design — a span only, no hours (hoursPerDay 0).
-      { id: 'a-ext-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ext-dogeatcog', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-09', hoursPerDay: 0, status: 'confirmed' },
+      { id: 'a-ext-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ext-dogeatcog', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-09', hoursPerDay: 0, status: 'confirmed', ignoreWeekends: true },
       { id: 'a-pam-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-pam', taskId: 't-brand', startDate: '2026-06-01', endDate: '2026-06-09', hoursPerDay: 6, status: 'confirmed' },
       { id: 'a-jo-1', accountId: LOFT, createdAt: TS, updatedAt: TS, resourceId: 'r-jo', taskId: 't-loft-screens', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
     ],

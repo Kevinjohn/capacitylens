@@ -244,7 +244,9 @@ Mouse hover sets the active option; mouse click selects.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), managed on the **External** tab (not Resources), assignable to **any** task with **no
   hours**, shown in a **neutral band at the bottom of the schedule** with **no utilisation / over-markers**.
-  Their allocations carry `hoursPerDay: 0` (a span, not a load); they're excluded from the Time-off picker.
+  Their allocations carry `hoursPerDay: 0` and are a **literal start/end span** (`ignoreWeekends: true`
+  — the "Include weekends" toggle is hidden, weekends count as plain calendar days); they're excluded
+  from the Time-off picker.
 - **Cascade deletes:** deleting a client removes its projects → tasks → allocations;
   deleting a project removes its phases/tasks/allocations and *unbinds* (does not delete)
   placeholders; deleting a task removes its allocations; deleting a resource removes its
