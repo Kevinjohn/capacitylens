@@ -4,6 +4,7 @@ import { resolveBarColor } from '@floaty/shared/lib/color'
 import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
 import { isCapacityTracked, isExternalResource } from '@floaty/shared/types/entities'
+import { internalClientFor } from '@floaty/shared/data/internalClient'
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { laneLayout } from './layout'
 import type { ColumnGeometry } from './columnGeometry'
@@ -93,12 +94,25 @@ export function buildSchedulerModel(
   const resourceById = new Map(data.resources.map((r) => [r.id, r]))
   // Reused for every bar's colour (project → client → resource → grey fallback).
   const colorMaps = { activities: activityById, projects: projectById, clients: clientById, resources: resourceById }
+  // The built-in Internal client for the data being rendered (one per account; the data here is
+  // already scoped to the active account, so every client shares that accountId). A project-less
+  // activity DERIVES this as its client for display + filtering — without ever writing it onto the
+  // activity (no activity.clientId field). If somehow absent (a partial/legacy blob), project-less
+  // activities fall back to no client. Uses the SHARED `internalClientFor` predicate (the single
+  // source of truth for "the account's builtin Internal") rather than an inline flag scan, so the
+  // definition can't drift from migrate/import/server. The accountId comes from the scoped data
+  // itself (all rows here belong to the active account); absent any client, there's no builtin.
+  const scopedAccountId = data.clients[0]?.accountId
+  const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined
   const activityMeta = new Map(
     data.activities.map((t) => {
-      // Internal/repeatable (no-project) activities resolve to no project/client. `kind` feeds the
-      // activity lens ('Internal — All' / 'Repeatable — All') without a second activity lookup.
+      // A project activity's client is its project's client. A project-less internal/repeatable
+      // activity has NO project, so its client is DERIVED as the account's built-in Internal client
+      // (purely for the view-model — never persisted). `kind` feeds the activity lens
+      // ('Internal — All' / 'Repeatable — All') without a second activity lookup.
       const project = t.projectId ? projectById.get(t.projectId) : undefined
-      return [t.id, { projectId: t.projectId, clientId: project?.clientId, kind: t.kind }]
+      const clientId = project ? project.clientId : internalClient?.id
+      return [t.id, { projectId: t.projectId, clientId, kind: t.kind }]
     }),
   )
   // Group allocations / time off by resource ONCE up front, so building each row

@@ -35,6 +35,7 @@ import {
   type UtilizationPrefs,
 } from '../lib/displayPrefs'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
+import { buildInternalClient, isBuiltinClient } from '@floaty/shared/data/internalClient'
 import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@floaty/shared/types/entities'
 import type {
   Account,
@@ -56,7 +57,15 @@ import type {
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
-export type Draft<T extends Entity> = Omit<T, 'id' | 'accountId' | 'createdAt' | 'updatedAt'>
+//
+// It ALSO drops `builtin` (a field only `Client` carries — `Omit` is a harmless no-op on every other
+// entity): the built-in "Internal" client is minted exclusively by the privileged seed / addAccount /
+// migrate paths, which construct the full Client record directly, NOT via addClient/updateClient.
+// Public CRUD must NOT be able to create a SECOND builtin or promote a normal client to one — that
+// would break the "exactly one Internal per account" invariant the scheduler / migrate / import all
+// rely on. Excluding the field at the type level is the guard; the store also strips it defensively at
+// runtime (see addClient/updateClient).
+export type Draft<T extends Entity> = Omit<T, 'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin'>
 export type Patch<T extends Entity> = Partial<Draft<T>>
 
 /** A transient toast message + severity. */
@@ -381,8 +390,13 @@ export const useStore = create<StoreState>()((set, get) => {
     fakeSignedIn: readStoredFakeSignedIn(),
 
     addAccount: (input) => {
-      const e: Account = { ...input, id: newId(), ...stamp() }
-      mutate((d) => ({ ...d, accounts: [...d.accounts, e] }))
+      const ts = stamp()
+      const e: Account = { ...input, id: newId(), ...ts }
+      // Every new account gets its built-in "Internal" client (one per account; see
+      // internalClient.ts). Created atomically with the account so the one-per-account invariant
+      // holds the instant the tenant exists — matching seed() and the v5→v6 migrate.
+      const internal = buildInternalClient(e.id, ts.createdAt)
+      mutate((d) => ({ ...d, accounts: [...d.accounts, e], clients: [...d.clients, internal] }))
       return e
     },
     updateAccount: (id, patch) => mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, patch) })),
@@ -554,16 +568,34 @@ export const useStore = create<StoreState>()((set, get) => {
     },
 
     addClient: (input) => {
-      const e: Client = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      // `builtin` is excluded from Draft<Client> at the type level (only seed/addAccount/migrate may
+      // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
+      // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
+      // break the "exactly one Internal per account" invariant. See Draft<Client>.
+      const safe: Record<string, unknown> = { ...input }
+      delete safe.builtin
+      const e: Client = { ...(safe as Draft<Client>), id: newId(), accountId: requireAccount(), ...stamp() }
       mutate((d) => ({ ...d, clients: [...d.clients, e] }))
       return e
     },
     updateClient: (id, patch) => {
-      if (!findOwned(get().data, 'clients', id)) return
-      mutate((d) => ({ ...d, clients: updateById(d.clients, id, patch) }))
+      const existing = findOwned(get().data, 'clients', id)
+      if (!existing) return
+      // The built-in Internal client is protected: it can't be renamed (or recoloured) — it's a
+      // fixed bucket. Throw a display-safe message (the form catches + surfaces it; the UI also
+      // hides the affordance). Surface, don't swallow — see DEFENSIVE-CODING.md.
+      if (isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be renamed.')
+      // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
+      // untyped/cast patch can't PROMOTE a normal client to a second builtin (same invariant as above).
+      const safePatch: Record<string, unknown> = { ...patch }
+      delete safePatch.builtin
+      mutate((d) => ({ ...d, clients: updateById(d.clients, id, safePatch as Patch<Client>) }))
     },
     deleteClient: (id) => {
-      if (!findOwned(get().data, 'clients', id)) return
+      const existing = findOwned(get().data, 'clients', id)
+      if (!existing) return
+      // The built-in Internal client cannot be deleted — every account must keep exactly one.
+      if (isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be deleted.')
       mutate((d) => deleteClientCascade(d, id))
     },
 

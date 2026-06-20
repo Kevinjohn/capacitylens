@@ -1,5 +1,6 @@
 import { externalCapacityDefaults } from '../types/entities'
 import { NEUTRAL_COLOR } from '../lib/color'
+import { INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from './internalClient'
 import type { AppData } from '../types/entities'
 
 // Two demo companies, loaded on first run so the account picker isn't empty.
@@ -39,6 +40,11 @@ export function seed(): AppData {
       { id: 'r-jo', accountId: LOFT, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Jo Mensah', role: 'Product Designer', disciplineId: 'd-loft-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#0ea5e9' },
     ],
     clients: [
+      // One built-in "Internal" pseudo-client per account (builtin: true) — owns project-less
+      // internal/repeatable work and can own real projects. Protected (no rename/delete). See
+      // internalClient.ts; the invariant is also enforced by migrate (v5→v6) and addAccount.
+      { id: 'c-internal-studio', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true },
+      { id: 'c-internal-loft', accountId: LOFT, createdAt: TS, updatedAt: TS, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true },
       { id: 'c-acme', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Acme Inc.', color: '#ef4444' },
       { id: 'c-globex', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Globex', color: '#3b82f6' },
       { id: 'c-loft-northwind', accountId: LOFT, createdAt: TS, updatedAt: TS, name: 'Northwind', color: '#14b8a6' },

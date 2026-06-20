@@ -75,6 +75,10 @@ const COLS_clients = [
   { name: 'accountId' },
   { name: 'name' },
   { name: 'color' },
+  // JSON so node:sqlite (which can't bind a raw boolean) round-trips it as "true"/"false";
+  // absent → NULL → omitted on read, matching the client object. True only for the built-in
+  // Internal pseudo-client (one per account).
+  { name: 'builtin', json: true, optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -262,7 +266,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 CREATE TABLE IF NOT EXISTS clients (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  name TEXT NOT NULL, color TEXT NOT NULL,
+  name TEXT NOT NULL, color TEXT NOT NULL, builtin TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS disciplines (

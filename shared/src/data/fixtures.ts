@@ -25,6 +25,10 @@ export const FIXTURE_CLIENT: Client = {
   accountId: 'fix-a1',
   name: 'Fixture Client',
   color: '#aabbcc',
+  // Built-in flag set so the round-trip test proves the new optional column persists (true/false →
+  // JSON column, omitted when absent). The built-in Internal client owns real projects, so a project
+  // (FIXTURE_PROJECT) pointing at it is valid.
+  builtin: true,
   createdAt: TS1,
   updatedAt: TS2,
 }

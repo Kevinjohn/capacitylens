@@ -1,6 +1,7 @@
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
+import { isBuiltinClient } from '@floaty/shared/data/internalClient'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
 import type { Client } from '@floaty/shared/types/entities'
@@ -21,15 +22,20 @@ export function ClientList() {
               <span className="flex items-center gap-2">
                 <ColorSwatch color={c.color} />
                 {c.name}
+                {/* The built-in Internal client is read-only — no Edit/Delete affordance (the store
+                    also rejects renaming/deleting it). A quiet "Built-in" tag explains the absence. */}
+                {isBuiltinClient(c) && <span className="text-xs text-muted">Built-in</span>}
               </span>
-              <span className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEditing(c)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => setConfirming(c)}>
-                  Delete
-                </Button>
-              </span>
+              {!isBuiltinClient(c) && (
+                <span className="flex gap-2">
+                  <Button variant="ghost" onClick={() => setEditing(c)}>
+                    Edit
+                  </Button>
+                  <Button variant="danger" onClick={() => setConfirming(c)}>
+                    Delete
+                  </Button>
+                </span>
+              )}
             </li>
           ))}
         </ul>

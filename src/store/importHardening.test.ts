@@ -21,7 +21,8 @@ describe('importData hardening', () => {
       ],
     } as unknown as AppData
     s().importData(incoming)
-    const ids = s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID).map((c) => c.id)
+    // Exclude the guaranteed built-in Internal client; the two imported clients each get a fresh id.
+    const ids = s().data.clients.filter((c) => c.accountId === DEFAULT_ACCOUNT_ID && !c.builtin).map((c) => c.id)
     expect(ids).toHaveLength(2)
     expect(new Set(ids).size).toBe(2) // distinct
   })
@@ -66,6 +67,32 @@ describe('importData hardening', () => {
     s().importData(incoming)
     expect(({} as Record<string, unknown>).polluted).toBeUndefined()
     expect(Object.prototype).not.toHaveProperty('polluted')
+  })
+
+  it('does not create a second builtin Internal client on import; re-points an Internal-owned project at the existing one', () => {
+    // The active account already has its builtin Internal client.
+    s().replaceAll({
+      ...emptyAppData(),
+      accounts: [{ id: DEFAULT_ACCOUNT_ID, createdAt: 't', updatedAt: 't', name: 'Test Co', color: '#111111' }],
+      clients: [{ id: 'existing-internal', accountId: DEFAULT_ACCOUNT_ID, createdAt: 't', updatedAt: 't', name: 'Internal', color: '#9c3ace', builtin: true }],
+    })
+    s().setActiveAccount(DEFAULT_ACCOUNT_ID)
+    // An imported file carrying its OWN builtin Internal client + a project owned by it.
+    const incoming = {
+      ...emptyAppData(),
+      clients: [{ id: 'src-internal', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Internal', color: '#9c3ace', builtin: true }],
+      projects: [{ id: 'src-p', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Internal Project', clientId: 'src-internal', color: '#222222' }],
+    } as unknown as AppData
+    s().importData(incoming)
+    // Import REPLACES the account slice, so exactly ONE builtin remains (the imported one, kept as
+    // the account's Internal) — never two. Its name stays the reserved "Internal".
+    const builtins = s().data.clients.filter((c) => c.builtin && c.accountId === DEFAULT_ACCOUNT_ID)
+    expect(builtins).toHaveLength(1)
+    expect(builtins[0].name).toBe('Internal')
+    // The imported Internal-owned project survived and points at that single Internal client.
+    const proj = s().data.projects.find((p) => p.name === 'Internal Project')
+    expect(proj).toBeTruthy()
+    expect(proj!.clientId).toBe(builtins[0].id)
   })
 
   it('refuses a zero-record import rather than wiping the active account', () => {

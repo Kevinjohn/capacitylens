@@ -281,7 +281,9 @@ describe('remapAndValidateImport', () => {
     const start: AppData = { ...base(), clients: [client('keep', A2)] }
     const { data } = remapAndValidateImport(start, A1, incoming(), TS)
     expect(data.clients.some((c) => c.id === 'keep' && c.accountId === A2)).toBe(true)
-    expect(data.clients.filter((c) => c.accountId === A1)).toHaveLength(1)
+    // The imported (non-builtin) client lands; import also guarantees one built-in Internal for A1.
+    expect(data.clients.filter((c) => c.accountId === A1 && !c.builtin)).toHaveLength(1)
+    expect(data.clients.filter((c) => c.accountId === A1 && c.builtin)).toHaveLength(1)
   })
 
   it('drops invalid allocations / time-off and reports the skipped count', () => {
@@ -370,11 +372,32 @@ describe('remapAndValidateImport', () => {
       ],
     }
     const { data, imported } = remapAndValidateImport(base(), A1, dup, TS)
-    expect(imported).toBe(2)
-    const brought = data.clients.filter((c) => c.accountId === A1)
+    expect(imported).toBe(2) // the auto-added built-in Internal is infrastructure, not counted
+    const brought = data.clients.filter((c) => c.accountId === A1 && !c.builtin)
     expect(brought).toHaveLength(2)
     expect(new Set(brought.map((c) => c.id)).size).toBe(2) // two distinct ids, not one shared id
     expect(brought.map((c) => c.name).sort()).toEqual(['First', 'Second'])
+  })
+
+  it('does not count an auto-added built-in Internal that the file already carries (no N+1 over-report)', () => {
+    // A pre-v6 FULL export gets a builtin Internal synthesised by migrate BEFORE this import runs, so
+    // the file reaching here already carries one. It must be KEPT (every account needs exactly one) but
+    // NOT counted — `imported` reflects only the file's genuine non-builtin records.
+    const withBuiltin: AppData = {
+      ...emptyAppData(),
+      clients: [
+        { ...client('src-internal', 'src'), name: 'Internal', color: '#9c3ace', builtin: true },
+        { ...client('src-c', 'src'), name: 'Acme' },
+      ],
+      projects: [project('src-p', 'src', 'src-c')],
+    }
+    const { data, imported, skipped } = remapAndValidateImport(base(), A1, withBuiltin, TS)
+    expect(imported).toBe(2) // the real (non-builtin) client + project — NOT the builtin (would be 3)
+    expect(skipped).toBe(0)
+    // Exactly one builtin lands for A1 (the kept imported one), and it is NOT in the genuine count;
+    // the one real non-builtin client (src-c) lands alongside it.
+    expect(data.clients.filter((c) => c.accountId === A1 && c.builtin)).toHaveLength(1)
+    expect(data.clients.filter((c) => c.accountId === A1 && !c.builtin)).toHaveLength(1)
   })
 
   it('resolves a foreign key against its OWN table when a source id collides across tables', () => {
@@ -447,10 +470,13 @@ describe('remapAndValidateImport', () => {
       timeOff: [timeOff('to', 'src', 'r')],
     }
     const { data, imported } = remapAndValidateImport(base(), A1, incoming, TS)
-    // Every SCOPED_KEY must be present in the output and non-empty.
+    // Every SCOPED_KEY must be present in the output and non-empty. `clients` carries TWO rows: the
+    // imported client plus the guaranteed built-in Internal (synthesised — the file had none).
     for (const key of SCOPED_KEYS) {
-      expect(data[key], `key "${key}" must be non-empty after import`).toHaveLength(1)
+      const expectedLen = key === 'clients' ? 2 : 1
+      expect(data[key], `key "${key}" must be non-empty after import`).toHaveLength(expectedLen)
     }
+    // The synthesised Internal is bookkeeping, so the FILE'S record count is still SCOPED_KEYS.length.
     expect(imported).toBe(SCOPED_KEYS.length)
   })
 

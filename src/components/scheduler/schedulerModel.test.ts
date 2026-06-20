@@ -262,3 +262,42 @@ describe('external / 3rd-party band', () => {
     expect(model[1].rows.map((r) => r.resource.id)).toEqual(['ext1'])
   })
 })
+
+// dataset() + a built-in Internal client that owns a real project (pInt), plus a project-less
+// internal activity. Both bucket under Internal: filtering by the Internal client id must show
+// (a) the project-less activity AND (b) the Internal-owned project's activity.
+function withInternal(): AppData {
+  const d = dataset()
+  d.clients.push({ id: 'c-internal', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Internal', color: '#9c3ace', builtin: true })
+  // A REAL project owned by the Internal client, with a project activity on it.
+  d.projects.push({ id: 'pInt', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Internal Project', clientId: 'c-internal', color: '#6' })
+  d.activities.push({ id: 'tIntProj', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Internal Proj Activity', kind: 'project', projectId: 'pInt' })
+  // A project-less internal activity (derives client = Internal in the view-model).
+  d.activities.push({ id: 'tIntNoProj', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' })
+  // r1 books both; a3 (under p1/Acme) is unrelated to Internal.
+  d.allocations.push({ id: 'aIntProj', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 'tIntProj', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 4, status: 'confirmed' })
+  d.allocations.push({ id: 'aIntNoProj', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 'tIntNoProj', startDate: '2026-06-03', endDate: '2026-06-04', hoursPerDay: 4, status: 'confirmed' })
+  return d
+}
+
+describe('built-in Internal client bucketing + filter', () => {
+  const internalId = 'c-internal'
+  const buildInternal = (filters = emptyFilters()) =>
+    buildSchedulerModel(withInternal(), geom, days, start, end, filters, true)
+  const internalBarIds = (m: GroupModel[]) =>
+    m.flatMap((g) => g.rows).flatMap((r) => r.bars).map((b) => b.allocation.id).sort()
+
+  it('filtering by the Internal client shows BOTH the project-less activity AND the Internal-owned project activity', () => {
+    const model = buildInternal({ ...emptyFilters(), clientId: internalId })
+    // aIntProj (under the Internal-owned project pInt) + aIntNoProj (project-less, derived Internal);
+    // a3 (under Acme's p1) and the other Acme work are excluded.
+    expect(internalBarIds(model)).toEqual(['aIntNoProj', 'aIntProj'])
+  })
+
+  it('a project-less activity is NOT shown when filtering by a different (non-Internal) client', () => {
+    const model = buildInternal({ ...emptyFilters(), clientId: 'c1' })
+    // Only Acme (c1) work — never the project-less internal activity.
+    expect(internalBarIds(model)).not.toContain('aIntNoProj')
+    expect(internalBarIds(model)).not.toContain('aIntProj')
+  })
+})

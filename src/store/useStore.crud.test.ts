@@ -259,7 +259,9 @@ describe('date-range + reference guards at the store boundary', () => {
       clients: [{ id: 'imp', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Imported', color: '#222222' }],
     }
     s().importData(incoming)
-    expect(s().data.clients.map((c) => c.name)).toEqual(['Imported']) // 'Keep' replaced
+    // 'Keep' replaced by the imported client; import also guarantees one built-in Internal client.
+    expect(s().data.clients.filter((c) => !c.builtin).map((c) => c.name)).toEqual(['Imported'])
+    expect(s().data.clients.filter((c) => c.builtin)).toHaveLength(1)
     s().undo()
     expect(s().data.clients.map((c) => c.name)).toEqual(['Keep']) // undo restores the pre-import slice
   })

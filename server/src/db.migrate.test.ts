@@ -120,7 +120,21 @@ describe('schema migration of an existing on-disk DB', () => {
       })
       expect(getRow(db, 'allocations', 'al1')?.ignoreWeekends).toBe(true)
 
+      // (e) The built-in "Internal" client (schema v6) was backfilled on open: the old DB had
+      //     account a1 with NO builtin client, so openDb's ensureInternalClients added exactly one.
+      const internalA1 = loadState(db).clients.filter((c) => c.builtin === true && c.accountId === 'a1')
+      expect(internalA1).toHaveLength(1)
+      expect(internalA1[0].name).toBe('Internal')
+      // a2 (inserted above WITHOUT a builtin client) gets one only on the NEXT open — ensure-on-open
+      // is the mirror of migrate-on-load, not a per-insert trigger.
       db.close()
+
+      // (f) Idempotent: re-opening the now-migrated DB adds NO duplicate for a1, and backfills the
+      //     one missing for a2.
+      const reopened = openDb(path)
+      expect(reopened.prepare(`SELECT COUNT(*) AS n FROM clients WHERE builtin = 'true' AND accountId = 'a1'`).get()).toEqual({ n: 1 })
+      expect(reopened.prepare(`SELECT COUNT(*) AS n FROM clients WHERE builtin = 'true' AND accountId = 'a2'`).get()).toEqual({ n: 1 })
+      reopened.close()
     } finally {
       cleanup()
     }
