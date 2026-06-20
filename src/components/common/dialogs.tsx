@@ -23,6 +23,7 @@ export function Button({
   title,
   ariaLabel,
   describedById,
+  testId,
 }: {
   children: ReactNode
   onClick?: () => void
@@ -34,6 +35,9 @@ export function Button({
   /** Id of an element that explains WHY the button is disabled (e.g. the type-to-confirm
    *  hint on the delete-company dialog), so a screen reader announces the precondition. */
   describedById?: string
+  /** Optional test hook, forwarded to the underlying <button> so the testid lands on the
+   *  interactive control itself (the house pattern) — not on a wrapping span. */
+  testId?: string
 }) {
   return (
     <button
@@ -43,6 +47,7 @@ export function Button({
       title={title}
       aria-label={ariaLabel}
       aria-describedby={describedById}
+      data-testid={testId}
       className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50 ${buttonClasses[variant]}`}
     >
       {children}

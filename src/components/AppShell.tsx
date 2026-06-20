@@ -6,6 +6,7 @@ import { useDemoAuthActive } from '../lib/fakeAuth'
 import { ImportExport } from './ImportExport'
 import { AccountPicker } from './accounts/AccountPicker'
 import { FakeSignIn } from './FakeSignIn'
+import { IntroPage } from './IntroPage'
 import { StorageRecovery } from './StorageRecovery'
 import { ConnectionError } from './ConnectionError'
 import { Toast } from './common/ui'
@@ -46,6 +47,9 @@ export function AppShell() {
   const fakeSignedIn = useStore((s) => s.fakeSignedIn)
   const setFakeSignedIn = useStore((s) => s.setFakeSignedIn)
   const signOutDemo = useStore((s) => s.signOutDemo)
+  // Post-login intro gate (see below). Device-global, once-per-device flag.
+  const introSeen = useStore((s) => s.introSeen)
+  const setIntroSeen = useStore((s) => s.setIntroSeen)
   // Drop the Disciplines destination from the nav when the active account doesn't use
   // disciplines (the route itself is also guarded — see router.tsx).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
@@ -144,6 +148,21 @@ export function AppShell() {
     return (
       <>
         <AccountPicker />
+        <RotateHint />
+      </>
+    )
+
+  // Post-login intro gate: a one-time "What Floaty is" page shown AFTER a company is chosen and
+  // BEFORE the app proper, explaining Floaty is a resourcing tool, not a project-management tool.
+  // This single slot sits after the tenant gate so it covers ALL THREE entry modes — they all
+  // converge here on a chosen activeAccount: real-auth (login wall → picker), the cosmetic
+  // fake-sign-in, and the no-auth default. Device-global once-per-device flag (`floaty/introSeen`,
+  // NOT persisted in tenant data); Continue flips it and the app renders. The rotate hint rides
+  // along, mirroring the gates above.
+  if (hydrated && activeAccount && !introSeen)
+    return (
+      <>
+        <IntroPage onContinue={() => setIntroSeen(true)} />
         <RotateHint />
       </>
     )

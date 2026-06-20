@@ -249,3 +249,22 @@ export function readStoredExternalEnabled(): boolean {
 export function writeStoredExternalEnabled(on: boolean): void {
   writeBoolPref(EXTERNAL_ENABLED_STORAGE_KEY, on)
 }
+
+// "Intro seen": whether the post-login "What Floaty is" intermediary page has been dismissed on
+// this device. Device-global like the prefs above (own key, on/off string, NOT account data) and
+// DEFAULTS OFF so the intro shows on first contact, then stays dismissed. Frequency is
+// once-per-device by design (see NEEDS-INPUT.md — owner may prefer every-login). See
+// `src/components/IntroPage.tsx`.
+
+const INTRO_SEEN_STORAGE_KEY = 'floaty/introSeen'
+
+/** The saved "intro seen" state; defaults to FALSE (not yet seen → show the intro) when unset,
+ *  unrecognised, or when storage is unavailable. */
+export function readStoredIntroSeen(): boolean {
+  return readBoolPref(INTRO_SEEN_STORAGE_KEY, false)
+}
+
+/** Persist the "intro seen" state. Best-effort, like the prefs above. */
+export function writeStoredIntroSeen(on: boolean): void {
+  writeBoolPref(INTRO_SEEN_STORAGE_KEY, on)
+}

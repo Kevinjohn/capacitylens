@@ -25,8 +25,23 @@ test.describe('fake sign-in (cosmetic demo gate)', () => {
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toBeVisible()
     await expect(page.getByText('Signed in as Jordan Avery')).toBeVisible()
 
-    // Pick a company → the app.
+    // Pick a company → the post-login "What Floaty is" intro page (once per device).
     await page.getByRole('button', { name: 'Studio North', exact: true }).click()
+    await expect(page.getByRole('heading', { name: 'Welcome to Floaty' })).toBeVisible()
+    // The intro is a resourcing-vs-PM explainer; one h1, no company picker, no app nav behind it.
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Schedule' })).toHaveCount(0)
+
+    // a11y oracle while the intro is up (one h1, focusable Continue).
+    const introResults = await new AxeBuilder({ page }).analyze()
+    const introBlocking = introResults.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+    expect(
+      introBlocking,
+      JSON.stringify(introBlocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2),
+    ).toEqual([])
+
+    // Continue dismisses the intro → the app.
+    await page.getByTestId('intro-continue').click()
     await expect(page.getByRole('link', { name: 'Schedule' })).toBeVisible()
   })
 

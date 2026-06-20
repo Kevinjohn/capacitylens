@@ -29,10 +29,15 @@ If the app changes, update this file first, then the affected stories.
    persisted). Pick **Studio North** to see the seeded data these stories describe. (A second
    seeded company, *Loft Digital*, is near-empty.) While "signed in", the picker shows
    *"Signed in as Jordan Avery"* with a **Sign out** link.
-5. To start from the seeded state again, clear it: open DevTools → Console →
+5. Then a one-time **"What Floaty is" intro page** (heading `Welcome to Floaty`) — a minimal
+   post-login explainer that Floaty is a resourcing tool, not a project-management tool. Click
+   **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
+   (`floaty/introSeen`, default off, never in `AppData`/export) and is skipped thereafter. The
+   wording is **placeholder copy** (single-sourced in `src/lib/introCopy.ts`), pending a human edit.
+6. To start from the seeded state again, clear it: open DevTools → Console →
    `localStorage.clear()` → reload. (Clearing data *inside* the app does **not** re-seed —
    that's deliberate.)
-6. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
+7. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
    also run in private windows when allowed). Enable JavaScript for the site and reload;
    no story can run without it.
@@ -226,6 +231,16 @@ and is cleared by **Sign out** (on the picker and the sidebar footer). It is mou
 `authMode === 'off'`, so it never collides with the real login wall above. The persona lives in
 `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
 
+**Post-login intro page ("What Floaty is").** After a company is chosen — in **every** entry mode
+(real auth, the cosmetic demo sign-in, and the no-auth default all converge on a chosen account) —
+a minimal full-screen page (heading `Welcome to Floaty`) explains Floaty is a **resourcing tool**,
+not a project-management tool, before the app proper. It has a single **Continue** button
+(`data-testid="intro-continue"`). Shown **once per device** (`floaty/introSeen`, default off; never
+in `AppData`/export) and skipped thereafter — so it does not reappear on reload. The copy is
+**placeholder** (a human edits it later), single-sourced in `src/lib/introCopy.ts`; the component is
+`src/components/IntroPage.tsx`. Spec `e2e/fake-signin.spec.ts` (and `e2e/login.auth.spec.ts` for the
+real-auth path).
+
 ## Command palette
 
 Opened by **⌘K / Ctrl+K** from anywhere in the app (including while a text field is focused).
@@ -260,6 +275,7 @@ Mouse hover sets the active option; mouse click selects.
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
+`intro-continue` (the post-login "What Floaty is" page's Continue button; shown once per device),
 `build-stamp` (Settings footer; only rendered when the build sets
 `VITE_FLOATY_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_FLOATY_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
