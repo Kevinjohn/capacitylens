@@ -6,10 +6,11 @@ import { useStore } from '../store/useStore'
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
 
 beforeEach(() => {
-  // Sign through the cosmetic demo gate AND seed an active account so the shell (not the
-  // demo sign-in, not the account picker) renders — these tests exercise the nav/hydration
-  // gate, which sits *after* both of those gates.
+  // Sign through the cosmetic demo gate, dismiss the post-login intro page, AND seed an active
+  // account so the shell (not the demo sign-in, not the account picker, not the intro) renders —
+  // these tests exercise the nav/hydration gate, which sits *after* all of those gates.
   useStore.getState().setFakeSignedIn(true)
+  useStore.getState().setIntroSeen(true)
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }))
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
   useStore.getState().clearFilters()

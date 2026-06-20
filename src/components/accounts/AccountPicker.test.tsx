@@ -15,6 +15,9 @@ beforeEach(() => {
   // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
   // sits in front of it) — these tests exercise the account gate, not the demo one.
   useStore.getState().setFakeSignedIn(true)
+  // Dismiss the post-login intro page too: it gates the app AFTER a company is chosen, and
+  // these tests assert on the picker / shell, not the intro (covered by IntroPage.test.tsx).
+  useStore.getState().setIntroSeen(true)
 })
 
 function renderShell() {

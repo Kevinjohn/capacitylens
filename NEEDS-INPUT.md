@@ -68,6 +68,10 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   drill on the droplet (P4.2). See `docs/production-plan.md` Phase 2.
 
 ## Genuinely open
+- **Intro page frequency is once-per-device** (`floaty/introSeen`, default off — the post-login
+  "What Floaty is" page in `src/components/IntroPage.tsx`). The owner may prefer it every login
+  instead; that's a one-line change (don't read/persist `introSeen`, or reset it on sign-out). The
+  copy is placeholder, single-sourced in `src/lib/introCopy.ts`, pending a human edit.
 - **Built-in "Internal" client — shipped as a REAL builtin client; the virtual-only option was
   rejected (2026-06-20).** Internal is a persisted `Client` with `builtin: true` (one per account),
   so it can OWN real projects — the owner's stated requirement. A lighter **virtual-only** sentinel

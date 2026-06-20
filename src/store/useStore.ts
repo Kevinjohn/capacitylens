@@ -24,6 +24,7 @@ import {
   readStoredBarLabelPrefs,
   readStoredExternalEnabled,
   readStoredFakeSignedIn,
+  readStoredIntroSeen,
   readStoredMinimiseWeekends,
   readStoredPlaceholdersEnabled,
   readStoredSidebarOpen,
@@ -31,6 +32,7 @@ import {
   writeStoredBarLabelPrefs,
   writeStoredExternalEnabled,
   writeStoredFakeSignedIn,
+  writeStoredIntroSeen,
   writeStoredMinimiseWeekends,
   writeStoredPlaceholdersEnabled,
   writeStoredSidebarOpen,
@@ -217,6 +219,11 @@ export interface StoreState {
    *  NOT real auth — the real seam is `src/auth/`; the gate is active only when that auth is
    *  off. See `src/components/FakeSignIn.tsx`. */
   fakeSignedIn: boolean
+  /** Whether the post-login "What Floaty is" intro page has been dismissed on this device.
+   *  Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF so
+   *  the intro shows once on first contact (after a company is chosen), then stays dismissed.
+   *  Frequency is once-per-device by design — see NEEDS-INPUT.md. See `src/components/IntroPage.tsx`. */
+  introSeen: boolean
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -251,6 +258,8 @@ export interface StoreState {
   setExternalEnabled: (value: boolean) => void
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void
+  /** Mark the post-login intro page as seen on this device: persist and update state. */
+  setIntroSeen: (value: boolean) => void
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
    *  clear the device-global flag so the demo sign-in shows again. Cosmetic only — never
    *  touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
@@ -411,6 +420,7 @@ export const useStore = create<StoreState>()((set, get) => {
     placeholdersEnabled: readStoredPlaceholdersEnabled(),
     externalEnabled: readStoredExternalEnabled(),
     fakeSignedIn: readStoredFakeSignedIn(),
+    introSeen: readStoredIntroSeen(),
 
     addAccount: (input) => {
       const ts = stamp()
@@ -534,6 +544,12 @@ export const useStore = create<StoreState>()((set, get) => {
     setFakeSignedIn: (value) => {
       writeStoredFakeSignedIn(value)
       set({ fakeSignedIn: value })
+    },
+    // Plain set (NOT mutate): a device-global view flag, never on the undo/redo stack,
+    // never in AppData/export.
+    setIntroSeen: (value) => {
+      writeStoredIntroSeen(value)
+      set({ introSeen: value })
     },
     // Reuse setActiveAccount(null) to drop the tenant and reset its view/undo state, then ALSO
     // clear previousAccountId (so re-signing-in is a fresh pick, not a one-click "← Back to {company}")

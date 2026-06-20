@@ -61,9 +61,13 @@ test.describe('login screen (FLOATY_AUTH=password)', () => {
     await page.getByLabel('Password').fill(PASSWORD)
     await page.getByRole('button', { name: 'Sign in' }).click()
 
-    // The normal boot flow resumes: server-seeded company picker → the app.
+    // The normal boot flow resumes: server-seeded company picker → the post-login intro → the app.
     // exact: true — a bare /Studio North/ would also match "Delete Studio North".
     await page.getByRole('button', { name: 'Studio North', exact: true }).click()
+    // The "What Floaty is" intro gate fires after the company pick in every entry mode (incl. real
+    // auth — they all converge on a chosen account); dismiss it to reach the app.
+    await expect(page.getByRole('heading', { name: 'Welcome to Floaty' })).toBeVisible()
+    await page.getByTestId('intro-continue').click()
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
 
     // Settings gains the Account section only on an auth-enabled deploy.
