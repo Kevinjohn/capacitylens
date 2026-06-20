@@ -8,6 +8,10 @@ import { WORKDAYS, resetStoreWithAccount } from '../../test/fixtures'
 beforeEach(() => {
   resetStoreWithAccount()
   useStore.getState().clearFilters()
+  // Placeholders are gated behind a device-global pref that defaults OFF. Most tests here exercise
+  // the placeholder management section, so enable it for the suite; the default-OFF hide behaviour
+  // has its own dedicated test below.
+  useStore.getState().setPlaceholdersEnabled(true)
 })
 
 // Shared resource shape helpers
@@ -80,10 +84,35 @@ describe('ResourceList display', () => {
     expect(rows).toHaveLength(1)
     const row = rows[0]
     expect(within(row).getByText('placeholder')).toBeInTheDocument()
-    // The placeholder's role is displayed as its name
-    expect(within(row).getByText('Senior Designer')).toBeInTheDocument()
+    // The placeholder's NAME shows as the literal "Placeholder"; its role is in the secondary text.
+    expect(within(row).getByText('Placeholder')).toBeInTheDocument()
+    expect(within(row).getByText(/Senior Designer/)).toBeInTheDocument()
     // No "Temp" tag since it is permanent
     expect(within(row).queryByText('Temp')).not.toBeInTheDocument()
+  })
+
+  it('hides the Placeholders section + its placeholders when the pref is OFF (default)', () => {
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
+    const project = useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' })
+    useStore.getState().addResource(personDraft('Alice'))
+    useStore.getState().addResource({
+      kind: 'placeholder',
+      role: 'Senior Designer',
+      employmentType: 'permanent' as const,
+      workingHoursPerDay: 8,
+      workingDays: WORKDAYS,
+      color: '#a855f7',
+      projectId: project.id,
+    })
+    // Turn the feature off — the placeholder data still exists, it's just hidden.
+    useStore.getState().setPlaceholdersEnabled(false)
+    render(<ResourceList />)
+    // The person still renders; the placeholder section/heading/row do not.
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.queryByText('Placeholders')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add placeholder/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('placeholder')).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('resource-row')).toHaveLength(1)
   })
 
   it('renders all three resource types together', () => {
@@ -119,10 +148,11 @@ describe('ResourceList display', () => {
     expect(within(bobRow).queryByText('Temp')).not.toBeInTheDocument()
     expect(within(bobRow).queryByText('placeholder')).not.toBeInTheDocument()
 
-    // Placeholder row: placeholder tag, no Temp tag
-    const slotRow = rows.find((r) => within(r).queryByText('Senior Designer'))!
+    // Placeholder row: placeholder tag, no Temp tag (role "Senior Designer" is in its secondary text)
+    const slotRow = rows.find((r) => within(r).queryByText(/Senior Designer/))!
     expect(slotRow).toBeDefined()
     expect(within(slotRow).getByText('placeholder')).toBeInTheDocument()
+    expect(within(slotRow).getByText('Placeholder')).toBeInTheDocument()
     expect(within(slotRow).queryByText('Temp')).not.toBeInTheDocument()
   })
 })
@@ -210,16 +240,21 @@ describe('ResourceList delete flow', () => {
     })
     render(<ResourceList />)
 
-    expect(screen.getByText('Senior Designer')).toBeInTheDocument()
+    // The placeholder's name shows as the literal "Placeholder"; its role ("Senior Designer") is in
+    // the secondary text. Match the role with a substring matcher since it's combined with the rest.
+    expect(screen.getByText('Placeholder')).toBeInTheDocument()
+    expect(screen.getByText(/Senior Designer/)).toBeInTheDocument()
     expect(screen.getByText('placeholder')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Delete' }))
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent(/Senior Designer/i)
+    // The confirm dialog names the placeholder by its DISPLAY name ("Placeholder"), matching the
+    // row above it — not its role ("Senior Designer"), which would read inconsistently.
+    expect(dialog).toHaveTextContent(/Delete "Placeholder"/i)
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     expect(useStore.getState().data.resources).toHaveLength(0)
-    expect(screen.queryByText('Senior Designer')).not.toBeInTheDocument()
+    expect(screen.queryByText('Placeholder')).not.toBeInTheDocument()
     expect(screen.queryByText('placeholder')).not.toBeInTheDocument()
   })
 })

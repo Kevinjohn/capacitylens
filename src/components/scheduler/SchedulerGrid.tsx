@@ -5,6 +5,7 @@ import { disciplinesEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar } from '../common/ui'
+import { resourceDisplayName } from '../../lib/metadata'
 import { Icon } from '../common/Icon'
 import { LAYOUT } from './layout'
 import { DateHeader } from './DateHeader'
@@ -51,6 +52,9 @@ export function SchedulerGrid() {
   const utilizationPrefs = useStore((s) => s.utilizationPrefs)
   // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
   const minimiseWeekends = useStore((s) => s.minimiseWeekends)
+  // Device-global display pref (default OFF): when off, placeholder ("slot") rows are hidden from
+  // the schedule (and dropped from utilisation) by buildSchedulerModel's resourceVisible filter.
+  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
@@ -127,8 +131,8 @@ export function SchedulerGrid() {
   const utilEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
 
   const model = useMemo(
-    () => buildSchedulerModel(data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled),
-    [data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled],
+    () => buildSchedulerModel(data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled, placeholdersEnabled),
+    [data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled, placeholdersEnabled],
   )
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null
@@ -388,11 +392,9 @@ export function SchedulerGrid() {
             {/* ms-1.5: a little extra breathing room between the avatar and the text. */}
             <div className="ms-1.5 min-w-0 flex-1">
               <span className="flex items-center gap-1 truncate text-sm font-medium">
-                {/* Placeholders ("slots") read as quoted names in the schedule view — the
-                    quotes do the work the old "slot" pill did, without the extra chrome. */}
-                {resource.kind === 'placeholder'
-                  ? `“${resource.name ?? resource.role}”`
-                  : (resource.name ?? resource.role)}
+                {/* A placeholder ("slot") reads as the literal word "Placeholder" — an as-yet-unfilled
+                    slot — with its role/discipline shown as secondary text below. */}
+                {resourceDisplayName(resource)}
               </span>
               <span className="block truncate text-xs text-muted">{resource.role}</span>
             </div>
@@ -410,7 +412,7 @@ export function SchedulerGrid() {
                 const d = visibleStartDate()
                 setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
               }}
-              aria-label={`Add allocation for ${resource.name ?? resource.role}`}
+              aria-label={`Add allocation for ${resourceDisplayName(resource)}`}
               title="Add allocation"
               className="flex w-11 flex-1 items-center justify-center text-muted transition hover:bg-canvas hover:text-ink"
             >

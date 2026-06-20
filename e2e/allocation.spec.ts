@@ -67,9 +67,16 @@ test.describe('Allocation editor', () => {
   })
 
   test('snaps the project to a placeholder bound project when chosen', async ({ page }) => {
-    // Open create mode from the placeholder's OWN row (in create mode the assignee is
-    // fixed to the clicked row). "Senior Designer" (slot) is bound to p-acme.
-    await page.getByRole('button', { name: 'Add allocation for Senior Designer' }).click()
+    // Placeholders are hidden by default (device-global pref) — turn them on in Settings first so
+    // the seeded placeholder's lane (and its "+" button) appears in the schedule.
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.getByRole('switch', { name: 'Show placeholders' }).click()
+    await page.getByRole('link', { name: 'Schedule' }).click()
+    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    // Open create mode from the placeholder's OWN row (in create mode the assignee is fixed to the
+    // clicked row). The seeded "Senior Designer" slot shows as "Placeholder" and is bound to p-acme.
+    await page.getByRole('button', { name: 'Add allocation for Placeholder' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
     const project = dialog.getByLabel('Project', { exact: true })
     await expect(project).toHaveValue('p-acme') // bound project preselected

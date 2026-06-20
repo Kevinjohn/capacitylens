@@ -22,9 +22,13 @@ export function ColorSwatch({ color }: { color: string }) {
   return <span className="inline-block h-3 w-3 rounded-sm ring-1 ring-inset ring-black/10" style={{ backgroundColor: color }} />
 }
 
-// Symbol shown on placeholder ("slot") avatars in place of initials.
-// Kept as a constant so it's a one-line change when we revisit the treatment.
-export const PLACEHOLDER_AVATAR_SYMBOL = '@'
+// Symbol shown on placeholder ("slot") avatars in place of initials — a question mark, reading as
+// "an as-yet-unfilled slot". Kept as a constant so it's a one-line change when we revisit the
+// treatment. (The placeholder feature itself is gated behind the device-global
+// `floaty/placeholdersEnabled` pref, default off — see displayPrefs.ts / DECISIONS.md.)
+// The placeholder DISPLAY NAME ("Placeholder") lives in src/lib/metadata.ts (a non-component
+// module) — react-refresh forbids a non-component function export from this file.
+export const PLACEHOLDER_AVATAR_SYMBOL = '?'
 
 export function Avatar({
   name,

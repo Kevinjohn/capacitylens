@@ -25,6 +25,11 @@ function base(): AppData {
 beforeEach(() => {
   useStore.getState().replaceAll(base())
   useStore.getState().setActiveAccount(ACC)
+  // Placeholders default OFF (device-global pref). Several tests reassign to / from a placeholder
+  // via the Assignee picker, which only offers placeholders when the pref is on — enable it for
+  // the suite. The risk-A case (editing an allocation already ON a placeholder while the pref is
+  // OFF still shows that placeholder) has its own dedicated test below.
+  useStore.getState().setPlaceholdersEnabled(true)
 })
 
 describe('AllocationModal create', () => {
@@ -269,6 +274,23 @@ describe('AllocationModal edit', () => {
     expect(screen.getByLabelText('Project')).toHaveValue('p2')
     // The non-bound project (p1 / "Lightning") is no longer offered to the placeholder.
     expect(screen.queryByRole('option', { name: 'Acme / Lightning' })).not.toBeInTheDocument()
+  })
+
+  it('risk A: editing an allocation on a HIDDEN placeholder still offers that placeholder so the value is preserved', async () => {
+    const ph = useStore.getState().addResource({
+      kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a', projectId: 'p1',
+    })
+    const alloc = useStore.getState().addAllocation({ resourceId: ph.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    // Turn placeholders OFF — they're hidden everywhere, but an allocation already on one must not
+    // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
+    useStore.getState().setPlaceholdersEnabled(false)
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
+
+    const assignee = screen.getByLabelText('Assignee')
+    expect(assignee).toHaveValue(ph.id)
+    // The placeholder option is present (labelled "Placeholder (slot)") even though placeholders are
+    // hidden — without it the <select> would coerce to the first option and silently reassign.
+    expect(screen.getByRole('option', { name: 'Placeholder (slot)' })).toBeInTheDocument()
   })
 
   it('reopens a placeholder→general-activity allocation with the general activity still selected', async () => {

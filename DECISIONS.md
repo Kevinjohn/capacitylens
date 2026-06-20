@@ -157,7 +157,19 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Resource colour derives from its discipline** — no per-resource colour control.
 - **Placeholders** bind to one project but may take *general* activities, so the modal's Project
   select stays **enabled but restricted** ("locked" = restricted, not immutable). In the
-  schedule they sort after people, show an `@` avatar + diagonal hatch, and a quoted name.
+  schedule they sort after people and show a **`?`** avatar + diagonal hatch, named the literal
+  **"Placeholder"** (role/discipline as secondary text — name interpreted literally per the
+  acceptance; revisit if the owner wants numbering/the role).
+- **Placeholders are behind a device-global setting, default OFF (owner, 2026-06-20).** Pure VIEW
+  pref `floaty/placeholdersEnabled` (own key, default `false`, NOT in `AppData`/export — like
+  theme/minimiseWeekends), Settings → **Placeholders** → *Show placeholders*. OFF (out-of-the-box)
+  HIDES placeholders everywhere — the schedule row (so also their bars + utilisation contribution),
+  the assignee picker, the command palette, and ResourceList's Placeholders section/Add button —
+  but their data is untouched and returns when re-enabled (a dataset with placeholders hides, never
+  errors). **Single hide chokepoint:** `buildSchedulerModel`'s `resourceVisible` (one filter does
+  rows + bars + utilisation). Export/import + `useScopedData` + shared integrity/cascade are NOT
+  gated. Editing an allocation already on a hidden placeholder still offers that placeholder in the
+  picker (no silent reassign). Any new placeholder surface MUST gate on `placeholdersEnabled`.
 - **External / 3rd parties are a resource kind (`external`), not a bookable lane (owner, 2026-06-19).**
   Outsourced work: a **company name** (`name`) + optional descriptor (`role`), **assignable to any
   activity** (no project restriction), but **no hours/capacity/utilisation** — allocations carry

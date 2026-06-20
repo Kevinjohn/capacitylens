@@ -24,11 +24,13 @@ import {
   readStoredBarLabelPrefs,
   readStoredFakeSignedIn,
   readStoredMinimiseWeekends,
+  readStoredPlaceholdersEnabled,
   readStoredSidebarOpen,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
   writeStoredFakeSignedIn,
   writeStoredMinimiseWeekends,
+  writeStoredPlaceholdersEnabled,
   writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
   type BarLabelPrefs,
@@ -194,6 +196,12 @@ export interface StoreState {
   /** Shrink the weekend (Sat/Sun) columns on the schedule to a sliver. Device-global like
    *  `theme`, own localStorage key, NOT in AppData/export — and defaults ON. */
   minimiseWeekends: boolean
+  /** Whether the placeholder ("slot") resource feature is surfaced. Device-global like `theme`,
+   *  own localStorage key, NOT in AppData/export — and defaults OFF (hidden out of the box).
+   *  A pure VIEW pref: OFF hides placeholder rows / pickers / management UI everywhere but never
+   *  touches tenant data (existing placeholders + their allocations are preserved and reappear
+   *  when re-enabled). Threaded into `buildSchedulerModel`'s `resourceVisible`. */
+  placeholdersEnabled: boolean
   /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
    *  the account picker so a viewer sees "log in first, then pick a company". Device-global
    *  like `theme` (own localStorage key, NOT in AppData/export), defaults OFF (signed out).
@@ -228,6 +236,8 @@ export interface StoreState {
   setSidebarOpen: (open: boolean) => void
   /** Toggle the minimise-weekends preference: persist and update state. */
   setMinimiseWeekends: (value: boolean) => void
+  /** Toggle the placeholders-enabled preference: persist and update state. */
+  setPlaceholdersEnabled: (value: boolean) => void
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
@@ -387,6 +397,7 @@ export const useStore = create<StoreState>()((set, get) => {
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
+    placeholdersEnabled: readStoredPlaceholdersEnabled(),
     fakeSignedIn: readStoredFakeSignedIn(),
 
     addAccount: (input) => {
@@ -497,6 +508,10 @@ export const useStore = create<StoreState>()((set, get) => {
     setMinimiseWeekends: (value) => {
       writeStoredMinimiseWeekends(value)
       set({ minimiseWeekends: value })
+    },
+    setPlaceholdersEnabled: (value) => {
+      writeStoredPlaceholdersEnabled(value)
+      set({ placeholdersEnabled: value })
     },
     // Plain set (NOT mutate): a device-global demo flag, never on the undo/redo stack,
     // never in AppData/export.

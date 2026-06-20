@@ -7,6 +7,8 @@ import {
   writeStoredMinimiseWeekends,
   readStoredFakeSignedIn,
   writeStoredFakeSignedIn,
+  readStoredPlaceholdersEnabled,
+  writeStoredPlaceholdersEnabled,
 } from './displayPrefs'
 
 describe('sidebar preference', () => {
@@ -78,5 +80,27 @@ describe('fake sign-in (cosmetic demo) preference', () => {
   it('treats an unrecognised stored value as the default (signed out)', () => {
     localStorage.setItem('floaty/fakeSignedIn', 'perhaps')
     expect(readStoredFakeSignedIn()).toBe(false)
+  })
+})
+
+describe('placeholders-enabled (device-global view) preference', () => {
+  beforeEach(() => {
+    localStorage.removeItem('floaty/placeholdersEnabled')
+  })
+
+  it('defaults to FALSE (hidden) when the user has never chosen', () => {
+    expect(readStoredPlaceholdersEnabled()).toBe(false)
+  })
+
+  it('round-trips an explicit on/off choice', () => {
+    writeStoredPlaceholdersEnabled(true)
+    expect(readStoredPlaceholdersEnabled()).toBe(true)
+    writeStoredPlaceholdersEnabled(false)
+    expect(readStoredPlaceholdersEnabled()).toBe(false)
+  })
+
+  it('treats an unrecognised stored value as the default (hidden)', () => {
+    localStorage.setItem('floaty/placeholdersEnabled', 'sometimes')
+    expect(readStoredPlaceholdersEnabled()).toBe(false)
   })
 })

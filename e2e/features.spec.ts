@@ -120,13 +120,16 @@ test.describe('Feature flows', () => {
   })
 
   test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
-    await openApp(page)
+    await openApp(page, 'Studio North', '/settings')
+    // Placeholders are hidden by default (device-global pref) — enable them so the lane renders.
+    await page.getByRole('switch', { name: 'Show placeholders' }).click()
+    await page.getByRole('link', { name: 'Schedule' }).click()
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0
     })
 
-    // The "Senior Designer" placeholder is bound to p-acme — select it by id, not position.
+    // The seeded placeholder is bound to p-acme — select it by id, not position.
     const lane = page.locator('[data-resource-id="r-ph-designer"]')
     const b = await box(lane)
     const y = b.y + b.height / 2
