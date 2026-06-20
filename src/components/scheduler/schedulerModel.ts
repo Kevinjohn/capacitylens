@@ -1,5 +1,5 @@
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
-import { capacityForWindow, dayCapacity } from '../../lib/capacity'
+import { capacityForWindow, dayCapacity, utilization as utilizationOf } from '../../lib/capacity'
 import { resolveBarColor } from '@floaty/shared/lib/color'
 import { TIME_OFF_TYPE_LABELS, resourceDisplayName } from '../../lib/metadata'
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
@@ -54,8 +54,8 @@ export interface RowModel {
   bars: BarLayout[]
   dayStates: DayState[]
   timeOff: TimeOffBlock[]
-  utilization: number
-  overSoon: boolean // over-allocated on at least one day inside the utilisation window
+  utilization: number // working-day ratio over the VISIBLE window [visStart, visEnd]
+  overSoon: boolean // over-allocated on >=1 working day inside the FIXED forward window [overStart, overEnd]
   dimmed: boolean // no work on the active project/client filter — shown for staffing context
 }
 
@@ -76,11 +76,23 @@ export function buildSchedulerModel(
   // old uniform `origin` + `dayWidth` scalars. Its origin (days[0]) === ui.originDate.
   geom: ColumnGeometry,
   days: ISODate[],
-  // The utilisation window is deliberately decoupled from `days`: per-day states
-  // span the whole visible timeline, but the headline % is a fixed near-term
-  // window (see UTILIZATION_WINDOW_DAYS) so overbooking isn't averaged away.
-  utilStart: ISODate,
-  utilEnd: ISODate,
+  // TWO separate windows, deliberately distinct (CLAUDE.md / DECISIONS.md):
+  //
+  // - [visStart, visEnd] drives the DISPLAYED utilisation % (per-person `utilization`, and so the
+  //   per-discipline avg + overall figures that average it). It tracks the currently VISIBLE span
+  //   (the zoom range anchored at the scroll left-edge), so "63% utilisation" answers "over the
+  //   weeks I'm looking at". SchedulerGrid passes this day-quantized (recomputed only when the
+  //   left-edge DAY or the zoom changes, never per scroll pixel).
+  // - [overStart, overEnd] drives the `overSoon` red flag ONLY: a FIXED forward window from today
+  //   (UTILIZATION_WINDOW_DAYS), independent of zoom/pan — the second, zoom-independent "over soon"
+  //   warning that must stay separate from the zoomable %. Don't widen it to the visible window.
+  //
+  // The per-day over-marker (dayStates.over) is a THIRD, distinct signal and is unchanged — it
+  // flags ANY work on a zero-capacity day across the whole `days` timeline.
+  visStart: ISODate,
+  visEnd: ISODate,
+  overStart: ISODate,
+  overEnd: ISODate,
   filters: Filters,
   // When false (account.disciplinesEnabled === false) the schedule renders FLAT: one
   // synthetic group holding every resource (no discipline bands), and the discipline
@@ -259,25 +271,23 @@ export function buildSchedulerModel(
               label: TIME_OFF_TYPE_LABELS[t.type],
               note: t.note,
             }))
-        // Compute the utilisation window once and derive both the % and the
-        // near-term overbooked flag from it. Both ignore zero-capacity days
-        // (weekends / time off) so an allocation that merely spans them doesn't
-        // inflate the % past 100% or trip the overbooked flag — that's distinct
-        // from the per-day over-marker, which DOES flag any zero-capacity day.
-        // External rows are skipped entirely: utilisation 0, never overbooked.
-        let utilization = 0
+        // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
+        // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
+        // deliberately separate signals (see the param doc above). Both ignore zero-capacity days
+        // (weekends / time off) so an allocation that merely spans them doesn't inflate the % past
+        // 100% or trip the flag — distinct again from the per-day over-marker (dayStates.over),
+        // which DOES flag any zero-capacity day. External rows are skipped entirely: utilisation 0,
+        // never overbooked. `utilization` reuses the pure capacity helper (its own [start,end] ratio).
+        const utilization = isExternal ? 0 : utilizationOf(resource, allAllocs, resTimeOff, visStart, visEnd)
         let overSoon = false
         if (!isExternal) {
-          const winCaps = capacityForWindow(resource, allAllocs, resTimeOff, utilStart, utilEnd)
-          let alloc = 0
-          let avail = 0
-          for (const c of winCaps) {
-            if (c.available === 0) continue
-            alloc += c.allocated
-            avail += c.available
-            if (c.allocated > c.available) overSoon = true
+          for (const c of capacityForWindow(resource, allAllocs, resTimeOff, overStart, overEnd)) {
+            // Working day, genuinely over (skip zero-capacity weekend/time-off days).
+            if (c.available > 0 && c.allocated > c.available) {
+              overSoon = true
+              break
+            }
           }
-          utilization = avail === 0 ? 0 : alloc / avail
         }
         return {
           resource,

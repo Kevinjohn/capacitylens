@@ -71,6 +71,14 @@ export function SchedulerGrid() {
   // ResizeObserver tick as the container, so a font-size / zoom change reflows the columns too.
   const [rootFontSizePx, setRootFontSizePx] = useState(16)
   const [scrollTop, setScrollTop] = useState(0)
+  // The left-edge DAY index of the visible window, DAY-QUANTIZED: updated only when the
+  // scroll left edge crosses into a new day column (or zoom changes `days`), NOT on every
+  // scroll pixel. It anchors the visible-window utilisation %; quantizing here keeps the heavy
+  // model rebuild off the per-pixel scroll path (a pixel of horizontal scroll that stays in the
+  // same column leaves leftEdgeIdx unchanged → React bails the re-render). Starts at -1 ("not yet
+  // measured") so the % anchors at the focus date until the first real scroll settles (at first
+  // paint scrollLeft=0 points at the past-buffer origin, NOT today — see visibleWindow below).
+  const [leftEdgeIdx, setLeftEdgeIdx] = useState(-1)
   const scrollRaf = useRef(0)
 
   // Measure the scroll container so the day-column width can fit ui.zoom weeks (and
@@ -128,10 +136,34 @@ export function SchedulerGrid() {
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const calendarWeekStartsOn = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.weekStartsOn ?? 1)
   const today = todayISO(calendarTimeZone)
-  // Utilisation is a near-term radar: a fixed forward window from today, independent
-  // of zoom and pan, so the per-resource overbooked flag actually fires.
-  const utilStart = today
-  const utilEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
+  // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag — a
+  // near-term, zoom/pan-INDEPENDENT "over soon" radar, so the per-resource overbooked warning fires
+  // regardless of the visible range. Kept separate from the displayed % (which follows the view).
+  const overStart = today
+  const overEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
+
+  // VISIBLE window [visStart, visEnd]: drives the DISPLAYED utilisation % (per-person, per-discipline
+  // avg, overall). The visible span is `ui.zoom * 7` calendar days anchored at the scroll left-edge
+  // day; the inclusive end is `+ (zoom*7 - 1)` — a 1-week view is the 7 inclusive days [L, L+6], not
+  // +7 (8 days). The end is CLAMPED to the last timeline day so the window never reads past `days[]`.
+  // Day-quantized via leftEdgeIdx so a scroll within a column doesn't rebuild the model.
+  const { visStart, visEnd } = useMemo(() => {
+    // Before the first scroll settles (leftEdgeIdx === -1), anchor at the focus date (today by
+    // default) — NOT days[0], which is the PAST_BUFFER_DAYS origin behind today, so the initial
+    // numbers stay sensible (anchored at/after today). Clamp the index into the day array.
+    const lastIdx = days.length - 1
+    const focusIdx = days.indexOf(ui.focusDate)
+    const rawIdx = leftEdgeIdx >= 0 ? leftEdgeIdx : focusIdx >= 0 ? focusIdx : 0
+    const startIdx = Math.min(Math.max(rawIdx, 0), Math.max(lastIdx, 0))
+    const start = days[startIdx] ?? ui.focusDate
+    // Inclusive end = start + (zoom*7 - 1), clamped to the last timeline day.
+    const endIdx = Math.min(startIdx + ui.zoom * 7 - 1, lastIdx)
+    const end = days[Math.max(endIdx, startIdx)] ?? start
+    return { visStart: start, visEnd: end }
+  }, [days, leftEdgeIdx, ui.zoom, ui.focusDate])
+
+  // Human label for the visible span, used in the utilisation titles ("over the visible N week(s)").
+  const visibleWeeksLabel = `${ui.zoom} week${ui.zoom === 1 ? '' : 's'}`
 
   const model = useMemo(
     () =>
@@ -139,14 +171,16 @@ export function SchedulerGrid() {
         data,
         geom,
         days,
-        utilStart,
-        utilEnd,
+        visStart,
+        visEnd,
+        overStart,
+        overEnd,
         ui.filters,
         disciplinesEnabled,
         placeholdersEnabled,
         externalEnabled,
       ),
-    [data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled],
+    [data, geom, days, visStart, visEnd, overStart, overEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled],
   )
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null
@@ -292,8 +326,11 @@ export function SchedulerGrid() {
   const { first, last, topPad, bottomPad } = windowFromLayout(layout, heights, scrollTop, timelineHeight)
   const visible = items.slice(first, last + 1)
 
-  // rAF-coalesced vertical scroll → recompute the window. Horizontal scroll lands here
-  // too but setScrollTop with an unchanged value is a no-op (React bails the re-render).
+  // rAF-coalesced scroll → recompute the vertical row window AND the day-quantized horizontal
+  // left edge. setScrollTop / setLeftEdgeIdx with an unchanged value is a no-op (React bails the
+  // re-render), so a horizontal scroll that stays in the same day column rebuilds NOTHING — the
+  // visible-window % only recomputes when the left-edge DAY actually changes (no per-pixel model
+  // rebuild / scroll jank).
   const onScroll = () => {
     if (scrollRaf.current) return
     scrollRaf.current = requestAnimationFrame(() => {
@@ -301,7 +338,10 @@ export function SchedulerGrid() {
       // Don't re-window mid-drag — it could unmount the dragged row and orphan the gesture.
       // Read draggingAllocationId LIVE (getState) to avoid a stale closure.
       if (useStore.getState().draggingAllocationId !== null) return
-      if (scrollRef.current) setScrollTop(scrollRef.current.scrollTop)
+      const el = scrollRef.current
+      if (!el) return
+      setScrollTop(el.scrollTop)
+      setLeftEdgeIdx(geom.indexAt(el.scrollLeft))
     })
   }
   useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
@@ -436,9 +476,11 @@ export function SchedulerGrid() {
             <span
               data-testid="utilization"
               title={
+                // The % itself is over the VISIBLE range; the overSoon red flag is the separate
+                // fixed-window "over soon" warning (next UTILIZATION_WINDOW_DAYS days).
                 overSoon
-                  ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days`
-                  : `Utilisation over the next ${UTILIZATION_WINDOW_DAYS} days`
+                  ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days — utilisation shown over the visible ${visibleWeeksLabel}`
+                  : `Utilisation over the visible ${visibleWeeksLabel}`
               }
               className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
                 overSoon ? 'font-semibold text-danger' : 'text-faint'
@@ -497,9 +539,11 @@ export function SchedulerGrid() {
             <>
               <span
                 className="text-2xs font-medium uppercase tracking-wide text-faint"
-                title={`Average utilisation over the next ${UTILIZATION_WINDOW_DAYS} days`}
+                title={`Average utilisation over the visible ${visibleWeeksLabel}`}
               >
-                Utilisation · next 2w
+                {/* The headline % follows the VISIBLE range, so the label tracks the zoom toggle
+                    (1w/2w/4w/8w) rather than naming a fixed "next 2w". */}
+                Utilisation · {ui.zoom}w
               </span>
               <span data-testid="overall-utilization" className="text-sm font-semibold">
                 {overallUtil}%

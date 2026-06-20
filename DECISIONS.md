@@ -62,10 +62,16 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   `@throws` (and what a throw *means*). Baseline audit + this standard: 2026-06-14 decisions-log.
 
 ## Scheduling & capacity
-- **Two distinct "over" signals, kept separate:** the per-day **over-marker** flags *any* work
-  on a zero-capacity day; the **utilisation %** / `overSoon` red flag is a working-day-only
-  ratio over a **fixed forward 14-day window from today** (decoupled from zoom/pan). They
-  answer different questions — don't merge them.
+- **Three distinct over/utilisation signals, kept separate:** (1) the per-day **over-marker** flags
+  *any* work on a zero-capacity day (whole timeline); (2) the **displayed utilisation %** (per-person,
+  per-discipline avg, overall — all derive from one per-row `utilization`) is a working-day-only ratio
+  over the currently **VISIBLE window** — the 1/2/4/8-week zoom span anchored at the scroll left-edge,
+  `[L, L + zoom*7 − 1]` (inclusive end, clamped to the last timeline day), recomputed **day-quantized**
+  on zoom/pan (the left-edge DAY index, not per scroll pixel — no per-pixel model rebuild); (3) the
+  `overSoon` red flag stays a working-day-only ratio over a **fixed forward 14-day window from today**
+  (`UTILIZATION_WINDOW_DAYS`), zoom/pan-independent (the second "over soon" warning). They answer
+  different questions — don't merge them. SchedulerGrid threads both windows into `buildSchedulerModel`
+  (`visStart/visEnd` for the %, `overStart/overEnd` for the flag).
 - **Blocks mode allows `hoursPerDay: 0`** (span counts, load ignored); resources still require `> 0`.
 - **Capacity advisory at allocation time is non-blocking** (warns on over-capacity / time-off
   overlap; save still allowed). One source: `lib/capacity.ts` `capacityAdvisory()`.

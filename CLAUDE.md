@@ -22,9 +22,13 @@ goes through the `useScopedData` / `scopedTables()` seam.
 ## Load-bearing invariants (don't break)
 - **Multi-tenant by Account.** Every entity carries `accountId`; `activeAccountId` is picked on
   load and **never persisted**. Route scoped reads through `useScopedData` / `scopedTables()`.
-- **Two distinct "over" signals, kept separate.** The per-day over-marker flags any work on a
-  zero-capacity day; utilisation % / `overSoon` is a working-day ratio over a fixed forward 14-day
-  window from today. Different questions — don't merge them.
+- **Three distinct over/utilisation signals, kept separate.** (1) The per-day **over-marker** flags
+  any work on a zero-capacity day (whole timeline). (2) The displayed **utilisation %** (per-person,
+  per-discipline avg, overall) is a working-day ratio over the currently **VISIBLE window** (the
+  1/2/4/8-week zoom span anchored at the scroll left-edge: `[L, L + zoom*7 - 1]`, inclusive end,
+  clamped to the timeline; recomputed day-quantized on zoom/pan, not per scroll pixel). (3) The
+  `overSoon` red flag stays a working-day ratio over a **fixed forward 14-day window from today**
+  (`UTILIZATION_WINDOW_DAYS`), zoom/pan-independent. Different questions — don't merge them.
 - **"Utilisation" is the term** everywhere on the schedule, never "Load".
 - **Activities carry a required `kind`** (`project` | `internal` | `repeatable`); only `project` has a
   projectId/phase (coherence enforced in `assertScopedRefs`, repaired on import/migrate). The
