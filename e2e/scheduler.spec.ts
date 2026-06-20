@@ -146,6 +146,59 @@ test.describe('Scheduler', () => {
     await expect(page.getByTestId('discipline-group').first()).toContainText(/avg utilisation/)
   })
 
+  test('the week-range toggle recomputes utilisation over the visible window (US-SCH-14)', async ({ page }) => {
+    await openApp(page)
+    const overall = page.getByTestId('overall-utilization')
+    const pct = async () => Number.parseInt((await overall.textContent())?.replace('%', '') ?? '', 10)
+
+    // Per-person % for a known seeded resource row (Tyler Nix). Its utilisation lives in the row
+    // header's `utilization` testid, scoped to Tyler's scheduler-row so it can't pick up another
+    // person's cell. Tyler is FRONT-LOADED in the seed (8h/day Mon–Thu of the frozen-clock week +
+    // a tentative bar) → dense week 1 that idle later weeks dilute as the span widens.
+    const tylerUtil = page.getByTestId('scheduler-row').filter({ hasText: 'Tyler Nix' }).getByTestId('utilization')
+    const tylerPct = async () => Number.parseInt((await tylerUtil.textContent())?.replace('%', '') ?? '', 10)
+
+    // Read the overall + Tyler % for a given zoom AFTER it settles: click the toggle, wait for the
+    // label to track the zoom, then poll BOTH numbers to a STABLE value (two equal reads in a row) —
+    // the visible window re-anchors via a rAF after the scroll settles, so a bare read can race that.
+    const readAtZoom = async (weeks: 1 | 2 | 4 | 8): Promise<{ overall: number; tyler: number }> => {
+      await page.getByRole('button', { name: `${weeks}w`, exact: true }).click()
+      await expect(page.getByRole('button', { name: `${weeks}w`, exact: true })).toHaveAttribute('aria-pressed', 'true')
+      // The label tracks the zoom (no longer a fixed "next 2w").
+      await expect(page.getByText(`Utilisation · ${weeks}w`)).toBeVisible()
+      await expect(tylerUtil).toBeVisible() // selector resolves to exactly Tyler's per-person cell
+      let prev = { overall: NaN, tyler: NaN }
+      await expect
+        .poll(async () => {
+          const next = { overall: await pct(), tyler: await tylerPct() }
+          const stable = next.overall === prev.overall && next.tyler === prev.tyler
+          prev = next
+          return stable
+        })
+        .toBe(true)
+      return prev
+    }
+
+    // The seed concentrates work in week 1 (early June, the frozen-clock week) and tapers off, so the
+    // utilisation read over the visible window FALLS as the span widens (idle later weeks dilute the
+    // dense first week). Monotone non-increasing because every span shares the same left edge.
+    const wk1 = await readAtZoom(1)
+    const wk2 = await readAtZoom(2)
+    const wk4 = await readAtZoom(4)
+    const wk8 = await readAtZoom(8)
+    expect(wk1.overall).toBeGreaterThan(0)
+    // Changing the toggle genuinely changes the OVERALL number to reflect the visible span.
+    expect(wk1.overall).toBeGreaterThan(wk8.overall)
+    expect(wk2.overall).toBeLessThanOrEqual(wk1.overall)
+    expect(wk4.overall).toBeLessThanOrEqual(wk2.overall)
+    expect(wk8.overall).toBeLessThanOrEqual(wk4.overall)
+    // Per-person % moves in the SAME direction for a front-loaded resource: Tyler's dense week 1
+    // reads higher at 1w than at 8w (the idle later weeks dilute it). Direction/inequality only —
+    // no flaky exact-number race for the intermediate spans.
+    expect(wk1.tyler).toBeGreaterThan(0)
+    expect(wk1.tyler).toBeGreaterThanOrEqual(wk8.tyler)
+  })
+
   test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {
     await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()

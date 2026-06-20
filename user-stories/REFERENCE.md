@@ -306,9 +306,13 @@ Mouse hover sets the active option; mouse click selects.
   **on**, so every story below runs with disciplines visible.
 - **Capacity:** a day's available hours = the resource's working hours, but **0** on a
   non-working weekday or a time-off day. A day is **over-allocated** when allocated > available.
-- **Utilisation %** (left column, "Utilisation · next 2w") is a fixed **14-day forward window from
-  today**, not the visible range; it turns **red** when the resource is over-allocated on any
-  day in that window.
+- **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
+  each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
+  the 1/2/4/8-week range anchored at the left edge of the view — so **switching the range toggle
+  recomputes it** to reflect exactly the visible span. It turns **red** when the resource trips its
+  separate **fixed forward 14-day** "over soon" radar (over-allocated on any working day in the next
+  14 days from today); that red flag stays on the fixed window regardless of zoom/pan, distinct from
+  the zoomable %.
 - **Validation:** required fields per form; an allocation/time-off range must be non-empty
   and not reversed (end ≥ start); hours must be > 0; colours are chosen from a preset
   swatch palette (always a valid 6-digit hex `#rrggbb`).

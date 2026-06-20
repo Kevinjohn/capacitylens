@@ -39,11 +39,14 @@ export const DEFAULT_RANGE_DAYS = 120
 export const PAST_BUFFER_DAYS = 28
 
 /**
- * The per-resource utilisation % is a near-term overbooking radar, not a
- * whole-timeline average: it's computed over a fixed forward window from TODAY
- * (not the 120-day range, and not the zoom level), so a person slammed this week
- * actually reads as overbooked instead of being diluted by an idle next month.
- * Per-day over-markers still flag every over-allocated day across the timeline.
+ * Window (days, forward from TODAY) for the `overSoon` red flag ONLY — the near-term, zoom/pan-
+ * INDEPENDENT "over soon" overbooking radar, so a person slammed this week reads as overbooked
+ * regardless of the visible range. This is deliberately SEPARATE from the DISPLAYED utilisation %
+ * (per-person / per-discipline avg / overall), which since the visible-window change is computed
+ * over the currently VISIBLE span (the zoom toggle's `zoom * 7` days at the scroll left edge) so
+ * "63% utilisation" answers "over the weeks I'm looking at". A third signal — the per-day
+ * over-marker — still flags every over-allocated day across the whole timeline. Three distinct
+ * over/utilisation signals, kept apart (CLAUDE.md / DECISIONS.md).
  */
 export const UTILIZATION_WINDOW_DAYS = 14
 
