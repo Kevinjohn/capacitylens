@@ -7,7 +7,13 @@ import { ClientForm } from './ClientForm'
 import type { Client } from '@floaty/shared/types/entities'
 
 export function ClientList() {
-  const clients = useScopedData().clients
+  // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/repeatable
+  // activities bucket under it; it can own real projects), NOT a user-managed client — so it is HIDDEN
+  // from this management list. It stays a REAL, persisted client everywhere it's actually used:
+  // selectable in ProjectForm's client picker, a "Filter by client" option in the scheduler, and a
+  // Clients entry in the command palette (all of which read `useScopedData().clients` directly, not
+  // this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
+  const clients = useScopedData().clients.filter((c) => !isBuiltinClient(c))
   const deleteClient = useStore((s) => s.deleteClient)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Client>()
 
@@ -22,20 +28,15 @@ export function ClientList() {
               <span className="flex items-center gap-2">
                 <ColorSwatch color={c.color} />
                 {c.name}
-                {/* The built-in Internal client is read-only — no Edit/Delete affordance (the store
-                    also rejects renaming/deleting it). A quiet "Built-in" tag explains the absence. */}
-                {isBuiltinClient(c) && <span className="text-xs text-muted">Built-in</span>}
               </span>
-              {!isBuiltinClient(c) && (
-                <span className="flex gap-2">
-                  <Button variant="ghost" onClick={() => setEditing(c)}>
-                    Edit
-                  </Button>
-                  <Button variant="danger" onClick={() => setConfirming(c)}>
-                    Delete
-                  </Button>
-                </span>
-              )}
+              <span className="flex gap-2">
+                <Button variant="ghost" onClick={() => setEditing(c)}>
+                  Edit
+                </Button>
+                <Button variant="danger" onClick={() => setConfirming(c)}>
+                  Delete
+                </Button>
+              </span>
             </li>
           ))}
         </ul>

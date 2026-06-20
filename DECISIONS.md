@@ -36,6 +36,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Schema migrated on open** (introspection-gated, idempotent); `assertSchemaCurrent` throws
   loudly at startup on any required-column drift or `optional?`-vs-`NULL` mismatch, instead of
   failing silently on a later write.
+- **"Clear local storage" wipes only `floaty/`-prefixed keys (owner, 2026-06-20).** Settings →
+  **Local data** → a danger button (`clear-local-storage`) opens the destructive `ConfirmDialog`;
+  Confirm calls `clearFloatyLocalStorage()` (`src/data/clearLocalStorage.ts` — iterates localStorage,
+  removes every `floaty/`-prefixed key: the `floaty/v3` AppData blob + ALL device prefs, leaving
+  unrelated origin keys), then `window.location.reload()`. Never a blind `localStorage.clear()`. Copy
+  adapts to mode: server mode (VITE_FLOATY_API set) says the DB is safe and the app re-loads from it;
+  local mode says this erases your only copy. A clear failure surfaces via `setNotice(…, 'error')`
+  (user-triggered, so don't swallow).
 
 ## Import — repair, don't reject
 - **Forms reject; import + server strip/repair.** Import sanitises per record (clean text,
@@ -119,7 +127,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   client with `builtin: true` (NOT a sentinel id), name "Internal", identified at runtime by the FLAG
   (so it survives import-remap). Seeded, created by `addAccount`, and ensured by `migrateV5toV6` +
   server `openDb` — all idempotent (one per account, never duplicated). **Protected:** the store throws
-  on renaming/deleting a builtin and the ClientList hides those affordances. It can own real projects.
+  on renaming/deleting a builtin. **Selectable/bindable everywhere, but HIDDEN from the Clients
+  management list (owner, 2026-06-20):** it's a behind-the-scenes data anchor, not a user-managed
+  client, so `ClientList` filters out `builtin` rows — but it stays a real, persisted client that is
+  still selectable in ProjectForm's client picker, a "Filter by client" option, and a CommandPalette
+  Clients entry (all read `useScopedData().clients` directly), and a project under Internal still
+  resolves its client label. It can own real projects.
   **Project-less internal/repeatable activities bucket under it for DISPLAY + FILTER only** — there is
   NO `activity.clientId` and `assertScopedRefs` is unchanged; the association is DERIVED in
   `schedulerModel.activityMeta` (a project-less activity's client = the account's builtin Internal id,

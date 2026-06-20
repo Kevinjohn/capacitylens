@@ -3,18 +3,31 @@ import { openApp } from './helpers'
 
 // Covers US-CLI-04 — the built-in "Internal" pseudo-client.
 test.describe('Internal client', () => {
-  test('Internal appears in the client list as a read-only built-in (no Edit/Delete)', async ({ page }) => {
+  test('Internal is HIDDEN from the Clients management list, but stays selectable + a binding target', async ({ page }) => {
     await openApp(page, 'Studio North', '/clients')
-    const internalRow = page.getByTestId('client-row').filter({ hasText: 'Internal' })
-    await expect(internalRow).toBeVisible()
-    await expect(internalRow).toContainText('Built-in')
-    // No rename/delete affordance on the built-in row…
-    await expect(internalRow.getByRole('button', { name: 'Edit' })).toHaveCount(0)
-    await expect(internalRow.getByRole('button', { name: 'Delete' })).toHaveCount(0)
-    // …while a normal client still has them.
+    // Internal is a behind-the-scenes data anchor — it does NOT appear in the management list…
+    await expect(page.getByTestId('client-row').filter({ hasText: 'Internal' })).toHaveCount(0)
+    // …while normal clients are listed with their Edit/Delete affordances.
     const acmeRow = page.getByTestId('client-row').filter({ hasText: 'Acme' })
+    await expect(acmeRow).toBeVisible()
     await expect(acmeRow.getByRole('button', { name: 'Edit' })).toBeVisible()
     await expect(acmeRow.getByRole('button', { name: 'Delete' })).toBeVisible()
+
+    // It is still SELECTABLE as a project's client in ProjectForm's client picker (name chosen
+    // WITHOUT "Internal" in it, so the client-label assertion below can't pass by accident).
+    // Navigate IN-APP (a fresh page.goto would re-show the account picker — the active account
+    // isn't persisted).
+    await page.getByRole('link', { name: 'Projects' }).click()
+    await page.getByRole('button', { name: 'Add project' }).click()
+    await page.getByLabel('Name').fill('Quarterly planning')
+    await page.getByLabel('Client').selectOption({ label: 'Internal' })
+    await page.getByRole('button', { name: 'Save' }).click()
+
+    // …and it still functions as a binding target: a project bound to Internal resolves its client
+    // label to "Internal", even though Internal isn't a row in the Clients list.
+    await expect(
+      page.getByTestId('project-row').filter({ hasText: 'Quarterly planning' }),
+    ).toContainText('· Internal')
   })
 
   test('an activity can be created under Internal with no project (internal kind)', async ({ page }) => {
