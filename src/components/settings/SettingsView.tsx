@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { validateName } from '../../lib/validation'
 import { Button, FieldError, ListPage, TextField } from '../common/ui'
+import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import type { ThemePref } from '../../lib/theme'
 import type { SchedulingMode } from '@floaty/shared/types/entities'
 
@@ -87,6 +88,8 @@ export function SettingsView() {
   const setMinimiseWeekends = useStore((s) => s.setMinimiseWeekends)
   const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
   const setPlaceholdersEnabled = useStore((s) => s.setPlaceholdersEnabled)
+  const externalEnabled = useStore((s) => s.externalEnabled)
+  const setExternalEnabled = useStore((s) => s.setExternalEnabled)
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
   const weekStartsOn: 0 | 1 = activeAccount?.weekStartsOn ?? 1
@@ -275,6 +278,24 @@ export function SettingsView() {
               label="Show placeholders"
               on={placeholdersEnabled}
               onToggle={() => setPlaceholdersEnabled(!placeholdersEnabled)}
+            />
+          </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">External</h2>
+          {/* Explainer copy (editable, shared with the Resources-tab External section — see
+              lib/externalCopy.ts). Applies to this browser; off by default. */}
+          <p className="mb-3 max-w-prose text-xs text-muted">{EXTERNAL_EXPLAINER}</p>
+          <p className="mb-3 text-xs text-muted">
+            Applies to this browser. Off by default; when off externals are hidden everywhere (the
+            schedule, the assignee picker and the Resources list) but their data is kept.
+          </p>
+          <div className="divide-y divide-line">
+            <ToggleRow
+              label="Show external resources"
+              on={externalEnabled}
+              onToggle={() => setExternalEnabled(!externalEnabled)}
             />
           </div>
         </section>

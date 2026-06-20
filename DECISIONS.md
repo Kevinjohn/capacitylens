@@ -173,10 +173,23 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **External / 3rd parties are a resource kind (`external`), not a bookable lane (owner, 2026-06-19).**
   Outsourced work: a **company name** (`name`) + optional descriptor (`role`), **assignable to any
   activity** (no project restriction), but **no hours/capacity/utilisation** — allocations carry
-  `hoursPerDay: 0` and the scheduler model skips all capacity reads for them. Own **External** tab
-  (out of Resources); single **neutral** colour (`resolveBarColor` short-circuits their bars,
-  overriding the project-colour rule) in a band **always at the schedule bottom**, disciplines on or
-  off; excluded from utilisation averages + the time-off picker. Resolves the "third-party line".
+  `hoursPerDay: 0` and the scheduler model skips all capacity reads for them. Single **neutral** colour
+  (`resolveBarColor` short-circuits their bars, overriding the project-colour rule) in a band **always
+  at the schedule bottom**, disciplines on or off; excluded from utilisation averages + the time-off
+  picker. Resolves the "third-party line".
+- **External is behind a device-global setting, default OFF (owner, 2026-06-20).** Like Placeholders:
+  a pure VIEW pref `floaty/externalEnabled` (own key, default `false`, NOT in `AppData`/export),
+  Settings → **External** → *Show external resources* (+ explainer copy, single-sourced in
+  `lib/externalCopy.ts`). External moved OUT of its old standalone `/external` tab INTO the **Resources**
+  tab — a gated **External** section after Placeholders; the `/external` route now redirects to
+  `/resources` (no nav link, no command-palette page entry). OFF (out-of-the-box) HIDES externals
+  everywhere — the schedule band (and its header doesn't render empty, since the model's
+  `rows.length > 0` filter drops the now-empty band group), the assignee picker, the command palette,
+  and the Resources-tab section — but their data is untouched and returns when on. **Single hide
+  chokepoint:** `buildSchedulerModel`'s `resourceVisible` (threaded `externalEnabled`, exactly like
+  `placeholdersEnabled`). Editing an allocation already on a hidden external still offers it in the
+  picker (no silent reassign). Export/import + `useScopedData` + shared integrity/cascade are NOT gated.
+  Any new external surface MUST gate on `externalEnabled`.
 - **Unsaved-changes guard:** the modal closes only on a backdrop press that both starts and
   ends on the backdrop; once dirty, accidental dismiss (backdrop/Escape) is refused, and a
   `beforeunload` guard covers tab-close. Dirty also tracks `aria-pressed` toggle clicks.

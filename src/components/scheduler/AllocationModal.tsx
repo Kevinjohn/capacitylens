@@ -49,6 +49,9 @@ export function AllocationModal(props: AllocationModalProps) {
   // Device-global view pref (default OFF): when off, placeholders are dropped from the assignee
   // picker (except an already-assigned one — see resourceOptions below for risk A).
   const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
+  // Device-global view pref (default OFF): when off, external / 3rd parties are dropped from the
+  // assignee picker (except an already-assigned one — same risk-A escape hatch as placeholders).
+  const externalEnabled = useStore((s) => s.externalEnabled)
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const isDays = mode === 'days'
   const isBlocks = mode === 'blocks'
@@ -144,12 +147,14 @@ export function AllocationModal(props: AllocationModalProps) {
     return Number.isNaN(d.getTime()) ? null : format(d, 'EEE d MMM yyyy')
   })()
 
-  // Placeholders are gated behind a device-global pref (default OFF). When off, drop them from the
-  // assignee picker — EXCEPT the allocation's currently-selected resource (risk A): keep a hidden
-  // placeholder in the options when it's the one already assigned, so editing shows the correct
-  // value in the <select> instead of silently reassigning the work to someone else on save.
+  // Placeholders and externals are each gated behind a device-global pref (both default OFF). When
+  // off, drop them from the assignee picker — EXCEPT the allocation's currently-selected resource
+  // (risk A): keep a hidden placeholder/external in the options when it's the one already assigned,
+  // so editing shows the correct value in the <select> instead of silently reassigning the work to
+  // someone else on save.
   const resourceOptions: Option[] = data.resources
     .filter((r) => placeholdersEnabled || r.kind !== 'placeholder' || r.id === resourceId)
+    .filter((r) => externalEnabled || !isExternalResource(r) || r.id === resourceId)
     .map((r) => ({
       value: r.id,
       label: `${resourceDisplayName(r)}${

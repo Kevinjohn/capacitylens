@@ -32,6 +32,9 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   // Device-global view pref (default OFF): when off, placeholders are not offered as jump targets.
   const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
+  // Device-global view pref (default OFF): when off, external / 3rd parties are not offered as
+  // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
+  const externalEnabled = useStore((s) => s.externalEnabled)
 
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -50,6 +53,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     data,
     disciplinesEnabled,
     placeholdersEnabled,
+    externalEnabled,
     navigate,
     goToToday,
     goToDate,
@@ -217,6 +221,7 @@ function buildItems({
   data,
   disciplinesEnabled,
   placeholdersEnabled,
+  externalEnabled,
   navigate,
   goToToday,
   goToDate,
@@ -228,6 +233,7 @@ function buildItems({
   data: ReturnType<typeof useScopedData>
   disciplinesEnabled: boolean
   placeholdersEnabled: boolean
+  externalEnabled: boolean
   navigate: ReturnType<typeof useNavigate>
   goToToday: () => void
   goToDate: (iso: string) => void
@@ -276,7 +282,8 @@ function buildItems({
   const pages: PaletteItem[] = [
     { id: 'page-schedule', label: 'Schedule', sublabel: '/', section: 'Pages', onSelect: () => { void navigate('/'); onClose() } },
     { id: 'page-resources', label: 'Resources', sublabel: '/resources', section: 'Pages', onSelect: () => { void navigate('/resources'); onClose() } },
-    { id: 'page-external', label: 'External', sublabel: '/external', section: 'Pages', onSelect: () => { void navigate('/external'); onClose() } },
+    // External / 3rd parties moved INTO the Resources tab (behind the device-global `externalEnabled`
+    // setting), so there's no standalone External page entry here anymore.
     // Disciplines page entry only when the account uses disciplines (route is guarded too).
     ...(disciplinesEnabled
       ? [{ id: 'page-disciplines', label: 'Disciplines', sublabel: '/disciplines', section: 'Pages', onSelect: () => { void navigate('/disciplines'); onClose() } } as PaletteItem]
@@ -293,10 +300,12 @@ function buildItems({
     : pages
 
   // ── Resources ──────────────────────────────────────────────────────────────
-  // Placeholders are gated behind a device-global pref (default OFF). When off, drop them as jump
-  // targets — their schedule row is hidden, so jumping to it would scroll to nothing.
+  // Placeholders and externals are each gated behind a device-global pref (both default OFF). When
+  // off, drop them as jump targets — their schedule row is hidden, so jumping to it would scroll to
+  // nothing.
   const resourceItems: PaletteItem[] = data.resources
     .filter((r) => placeholdersEnabled || r.kind !== 'placeholder')
+    .filter((r) => externalEnabled || !isExternalResource(r))
     .map((r) => ({
     id: `res-${r.id}`,
     // External / 3rd parties are jump targets too (they're schedule rows), but mark them so they

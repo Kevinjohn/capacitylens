@@ -55,6 +55,9 @@ export function SchedulerGrid() {
   // Device-global display pref (default OFF): when off, placeholder ("slot") rows are hidden from
   // the schedule (and dropped from utilisation) by buildSchedulerModel's resourceVisible filter.
   const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
+  // Device-global display pref (default OFF): when off, external / 3rd-party rows are hidden from the
+  // schedule (and their now-empty band header is dropped) by buildSchedulerModel's resourceVisible filter.
+  const externalEnabled = useStore((s) => s.externalEnabled)
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
@@ -131,8 +134,19 @@ export function SchedulerGrid() {
   const utilEnd = addDaysISO(today, UTILIZATION_WINDOW_DAYS - 1)
 
   const model = useMemo(
-    () => buildSchedulerModel(data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled, placeholdersEnabled),
-    [data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled, placeholdersEnabled],
+    () =>
+      buildSchedulerModel(
+        data,
+        geom,
+        days,
+        utilStart,
+        utilEnd,
+        ui.filters,
+        disciplinesEnabled,
+        placeholdersEnabled,
+        externalEnabled,
+      ),
+    [data, geom, days, utilStart, utilEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled],
   )
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null

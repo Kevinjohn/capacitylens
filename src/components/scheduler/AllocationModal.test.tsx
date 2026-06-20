@@ -293,6 +293,26 @@ describe('AllocationModal edit', () => {
     expect(screen.getByRole('option', { name: 'Placeholder (slot)' })).toBeInTheDocument()
   })
 
+  it('risk A: editing an allocation on a HIDDEN external still offers that external so the value is preserved', async () => {
+    // Externals default OFF too; the suite-wide beforeEach only turns placeholders on. Create an
+    // external, book it, then assert the picker keeps it as an option even with the pref OFF.
+    const ext = useStore.getState().addResource({
+      kind: 'external', name: 'Dog Eat Cog', role: 'Partner studio', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#9ca3af',
+    })
+    const alloc = useStore.getState().addAllocation({ resourceId: ext.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 0, status: 'confirmed' })
+    // External pref OFF (its default) — hidden everywhere, but an allocation already on one must not
+    // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
+    useStore.getState().setExternalEnabled(false)
+    render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
+
+    const assignee = screen.getByLabelText('Assignee')
+    expect(assignee).toHaveValue(ext.id)
+    // The external option is present (labelled "Dog Eat Cog (external)") even though externals are
+    // hidden — without it the <select> would coerce to the first option and silently reassign.
+    expect(screen.getByRole('option', { name: 'Dog Eat Cog (external)' })).toBeInTheDocument()
+  })
+
   it('reopens a placeholder→general-activity allocation with the general activity still selected', async () => {
     // A placeholder bound to p1, assigned a GENERAL (no-project) activity. On edit the
     // form must seed Project='' (general) so the general activity stays in the Activity list.

@@ -15,7 +15,7 @@ when the switch goes back on, so it never breaks a dataset that already has plac
 ## How (end-to-end)
 **Precondition:** Seeded app open (clock inside the seed window — see *Seed data* in REFERENCE.md). The seed contains one placeholder (*Senior Designer*, bound to Project Lightning), hidden by default.
 
-1. On the Schedule, note there is **no placeholder row** — only the real people (Tyler, Pam, Nike, Alex) and the External band. The placeholder's bar (Visual Design) is not drawn.
+1. On the Schedule, note there is **no placeholder row** — only the real people (Tyler, Pam, Nike, Alex). (The External band is also hidden by default — it has its own *Show external resources* pref, see US-SET-07.) The placeholder's bar (Visual Design) is not drawn.
 2. Open **Resources** (sidebar). There is **no "Placeholders" section** and **no "Add placeholder" button** — only the people list.
 3. Open **Settings** (sidebar). In the **Placeholders** section, find the **Show placeholders** switch — it's **off**.
 4. Switch it **on**.

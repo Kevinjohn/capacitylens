@@ -7,6 +7,10 @@ test.describe('Disciplines optional (account-level)', () => {
   test('turning disciplines off hides every surface; turning it back on restores them', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
 
+    // Enable External (default off) so its band is present to prove the "external still segregates
+    // in flat mode" exception below; it's an independent device-global pref.
+    await page.getByRole('switch', { name: 'Show external resources' }).click()
+
     // On by default for the seed: the nav link is present and the switch reads on.
     await expect(page.getByRole('link', { name: 'Disciplines' })).toBeVisible()
     const useDisciplines = page.getByRole('switch', { name: 'Use disciplines' })
@@ -19,9 +23,10 @@ test.describe('Disciplines optional (account-level)', () => {
     // Sidebar nav link is gone.
     await expect(page.getByRole('link', { name: 'Disciplines' })).toHaveCount(0)
 
-    // …and the collapsed icon rail (the "mobile menu") drops it too: 8 icons, no Disciplines.
+    // …and the collapsed icon rail (the "mobile menu") drops it too: 7 icons, no Disciplines
+    // (External is no longer a standalone nav link — it lives inside the Resources tab now).
     await page.getByRole('button', { name: 'Collapse menu' }).click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(7)
     await expect(page.locator('[data-testid="nav-rail-item"][title="Disciplines"]')).toHaveCount(0)
     await page.getByRole('button', { name: 'Expand menu' }).click()
 

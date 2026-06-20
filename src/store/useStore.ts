@@ -22,12 +22,14 @@ import {
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
+  readStoredExternalEnabled,
   readStoredFakeSignedIn,
   readStoredMinimiseWeekends,
   readStoredPlaceholdersEnabled,
   readStoredSidebarOpen,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
+  writeStoredExternalEnabled,
   writeStoredFakeSignedIn,
   writeStoredMinimiseWeekends,
   writeStoredPlaceholdersEnabled,
@@ -202,6 +204,13 @@ export interface StoreState {
    *  touches tenant data (existing placeholders + their allocations are preserved and reappear
    *  when re-enabled). Threaded into `buildSchedulerModel`'s `resourceVisible`. */
   placeholdersEnabled: boolean
+  /** Whether the external / 3rd-party resource feature is surfaced. EXACT analog of
+   *  `placeholdersEnabled`: device-global like `theme`, own localStorage key, NOT in AppData/export
+   *  — and defaults OFF (hidden out of the box). A pure VIEW pref: OFF hides external rows / pickers /
+   *  the Resources-tab management section everywhere but never touches tenant data (existing externals
+   *  + their allocations are preserved and reappear when re-enabled). Threaded into
+   *  `buildSchedulerModel`'s `resourceVisible`. */
+  externalEnabled: boolean
   /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
    *  the account picker so a viewer sees "log in first, then pick a company". Device-global
    *  like `theme` (own localStorage key, NOT in AppData/export), defaults OFF (signed out).
@@ -238,6 +247,8 @@ export interface StoreState {
   setMinimiseWeekends: (value: boolean) => void
   /** Toggle the placeholders-enabled preference: persist and update state. */
   setPlaceholdersEnabled: (value: boolean) => void
+  /** Toggle the external-enabled preference: persist and update state. */
+  setExternalEnabled: (value: boolean) => void
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
@@ -398,6 +409,7 @@ export const useStore = create<StoreState>()((set, get) => {
     sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
     placeholdersEnabled: readStoredPlaceholdersEnabled(),
+    externalEnabled: readStoredExternalEnabled(),
     fakeSignedIn: readStoredFakeSignedIn(),
 
     addAccount: (input) => {
@@ -512,6 +524,10 @@ export const useStore = create<StoreState>()((set, get) => {
     setPlaceholdersEnabled: (value) => {
       writeStoredPlaceholdersEnabled(value)
       set({ placeholdersEnabled: value })
+    },
+    setExternalEnabled: (value) => {
+      writeStoredExternalEnabled(value)
+      set({ externalEnabled: value })
     },
     // Plain set (NOT mutate): a device-global demo flag, never on the undo/redo stack,
     // never in AppData/export.

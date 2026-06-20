@@ -92,6 +92,13 @@ export function buildSchedulerModel(
   // pure VIEW pref: the placeholder resources and their allocations stay in the data untouched and
   // reappear when re-enabled. See displayPrefs.ts / DECISIONS.md.
   placeholdersEnabled: boolean,
+  // Device-global view pref (default OFF), the EXACT analog of `placeholdersEnabled` for external /
+  // 3rd-party resources. When false, externals are dropped by `resourceVisible` below — the same
+  // single chokepoint. Crucially that also empties the trailing external band, which the final
+  // `.filter((g) => g.rows.length > 0)` then drops, so NO empty "External / 3rd party" header
+  // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
+  // when re-enabled. See displayPrefs.ts / DECISIONS.md.
+  externalEnabled: boolean,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
@@ -165,6 +172,10 @@ export function buildSchedulerModel(
     // resource itself is untouched in the data, so this is a hide, not a delete. A placeholder's
     // allocations simply go unreferenced (the model is built resource-first via allocsByResource).
     if (!placeholdersEnabled && r.kind === 'placeholder') return false
+    // External / 3rd parties are gated behind their own device-global pref (default OFF), exactly
+    // like placeholders. Dropping the row here empties the external band; the trailing
+    // `rows.length > 0` filter then removes the band group so no empty header is drawn (risk #2).
+    if (!externalEnabled && isExternalResource(r)) return false
     if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
     // user sees — matching the command palette — as well as by its underlying role/name.
