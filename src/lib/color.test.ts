@@ -9,16 +9,16 @@ function dataWith(projectColor: string, clientColor = '#client'): AppData {
     ...emptyAppData(),
     clients: [{ id: 'c1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Acme', color: clientColor }],
     projects: [{ id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P', clientId: 'c1', color: projectColor }],
-    tasks: [{ id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T', kind: 'project', projectId: 'p1' }],
+    activities: [{ id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T', kind: 'project', projectId: 'p1' }],
     resources: [{ id: 'r1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#resource' }],
   }
 }
 
-const alloc = { id: 'a1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' as const }
+const alloc = { id: 'a1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' as const }
 
 // resolveBarColor takes id→entity maps (built once by the scheduler model); build them here.
 const maps = (d: AppData) => ({
-  tasks: new Map(d.tasks.map((t) => [t.id, t])),
+  activities: new Map(d.activities.map((t) => [t.id, t])),
   projects: new Map(d.projects.map((p) => [p.id, p])),
   clients: new Map(d.clients.map((c) => [c.id, c])),
   resources: new Map(d.resources.map((r) => [r.id, r])),

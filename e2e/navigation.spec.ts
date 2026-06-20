@@ -13,7 +13,7 @@ test.describe('Navigation & shell', () => {
       ['Disciplines', async () => void (await expect(page.getByRole('button', { name: 'Add discipline' })).toBeVisible())],
       ['Clients', async () => void (await expect(page.getByRole('button', { name: 'Add client' })).toBeVisible())],
       ['Projects', async () => void (await expect(page.getByRole('button', { name: 'Add project' })).toBeVisible())],
-      ['Tasks', async () => void (await expect(page.getByRole('button', { name: 'Add task' })).toBeVisible())],
+      ['Activities', async () => void (await expect(page.getByRole('button', { name: 'Add activity' })).toBeVisible())],
       ['Time off', async () => void (await expect(page.getByRole('button', { name: 'Add time off' })).toBeVisible())],
       ['Settings', async () => void (await expect(page.getByLabel('Company name')).toBeVisible())],
     ]

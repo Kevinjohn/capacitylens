@@ -94,7 +94,7 @@ export const AllocationBar = memo(function AllocationBar({
   // In days mode a resize preserves volume (days of work) by rescaling hours/day;
   // in hourly mode hours stay fixed and only the dates move.
   const isDays = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === 'days')
-  // Blocks are pure bookings — the bar shows the task name only, with no hours/load
+  // Blocks are pure bookings — the bar shows the activity name only, with no hours/load
   // surfaced on the label, accessible name, or popover.
   const isBlocks = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === 'blocks')
   // External / 3rd-party work carries no hours either (hoursPerDay 0); hide the load the same way
@@ -326,9 +326,9 @@ export const AllocationBar = memo(function AllocationBar({
     }
   }
 
-  // Client · Project context ahead of the task name, per the device-global display
-  // toggles. A bar without the metadata (e.g. a general task with no project) skips
-  // those parts. The popover keeps its own project/client line, so it stays task-first.
+  // Client · Project context ahead of the activity name, per the device-global display
+  // toggles. A bar without the metadata (e.g. a general activity with no project) skips
+  // those parts. The popover keeps its own project/client line, so it stays activity-first.
   const labelText = [
     barLabelPrefs.showClient ? bar.client : undefined,
     barLabelPrefs.showProject ? bar.project : undefined,

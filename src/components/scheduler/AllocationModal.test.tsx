@@ -15,9 +15,9 @@ function base(): AppData {
       { id: 'p1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' },
       { id: 'p2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other', clientId: 'c1', color: '#06b6d4' },
     ],
-    tasks: [
+    activities: [
       { id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', kind: 'project', projectId: 'p1' },
-      { id: 't2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other task', kind: 'project', projectId: 'p2' },
+      { id: 't2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other activity', kind: 'project', projectId: 'p2' },
     ],
   })
 }
@@ -28,7 +28,7 @@ beforeEach(() => {
 })
 
 describe('AllocationModal create', () => {
-  it('creates an allocation for a person after picking project + task', async () => {
+  it('creates an allocation for a person after picking project + activity', async () => {
     useStore.getState().addResource({
       kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
       workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
@@ -39,13 +39,13 @@ describe('AllocationModal create', () => {
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalled()
     const allocs = useStore.getState().data.allocations
     expect(allocs).toHaveLength(1)
-    expect(allocs[0]).toMatchObject({ resourceId, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03' })
+    expect(allocs[0]).toMatchObject({ resourceId, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-03' })
   })
 
   it('rejects an empty date or zero hours instead of saving a broken allocation', async () => {
@@ -58,7 +58,7 @@ describe('AllocationModal create', () => {
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={vi.fn()} />)
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
 
     // Clearing a date must NOT produce a NaN-geometry allocation.
     fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '' } })
@@ -89,12 +89,12 @@ describe('AllocationModal create', () => {
     expect(screen.getByRole('option', { name: 'No project (internal / repeatable)' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Acme / Other' })).not.toBeInTheDocument()
 
-    // Only the bound project's task is offered.
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    // Only the bound project's activity is offered.
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalled()
-    expect(useStore.getState().data.allocations[0]).toMatchObject({ resourceId: ph.id, taskId: 't1' })
+    expect(useStore.getState().data.allocations[0]).toMatchObject({ resourceId: ph.id, activityId: 't1' })
   })
 })
 
@@ -123,7 +123,7 @@ describe('AllocationModal days mode', () => {
     expect(screen.queryByLabelText('Hours / day')).not.toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
     fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '5' } })
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '10' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -145,7 +145,7 @@ describe('AllocationModal days mode', () => {
     render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={vi.fn()} />)
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
     fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '0' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -164,7 +164,7 @@ describe('AllocationModal days mode', () => {
     expect(screen.getByLabelText('Days of work')).toHaveValue(5) // full-time across the span
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8 })
@@ -174,7 +174,7 @@ describe('AllocationModal days mode', () => {
     enableDays()
     const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
     // 5h/day over 3 working days = 1.875 days of work — a value 2-dp rounding would distort.
-    const alloc = useStore.getState().addAllocation({ resourceId: r.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 5, status: 'confirmed' })
+    const alloc = useStore.getState().addAllocation({ resourceId: r.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 5, status: 'confirmed' })
     const user = userEvent.setup()
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
@@ -188,7 +188,7 @@ describe('AllocationModal days mode', () => {
     enableDays()
     const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
     // 4h/day over 2026-06-01..06-12 (10 working days) = 5 days of work.
-    const alloc = useStore.getState().addAllocation({ resourceId: r.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-12', hoursPerDay: 4, status: 'confirmed' })
+    const alloc = useStore.getState().addAllocation({ resourceId: r.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-12', hoursPerDay: 4, status: 'confirmed' })
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
     expect(screen.getByLabelText('Days of work')).toHaveValue(5)
@@ -212,7 +212,7 @@ describe('AllocationModal blocks mode', () => {
     expect(screen.queryByLabelText('Days of work')).not.toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '10' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -235,7 +235,7 @@ describe('AllocationModal blocks mode', () => {
     expect(screen.getByLabelText('Days over')).toHaveValue(5)
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 0 })
@@ -246,7 +246,7 @@ describe('AllocationModal edit', () => {
   it('reassigns an allocation to another resource', async () => {
     const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })
     const b = useStore.getState().addResource({ ...person('Bob'), workingDays: [1, 2, 3, 4, 5] })
-    const alloc = useStore.getState().addAllocation({ resourceId: a.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    const alloc = useStore.getState().addAllocation({ resourceId: a.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     const user = userEvent.setup()
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
@@ -261,7 +261,7 @@ describe('AllocationModal edit', () => {
     const ph = useStore.getState().addResource({
       kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a', projectId: 'p2',
     })
-    const alloc = useStore.getState().addAllocation({ resourceId: a.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    const alloc = useStore.getState().addAllocation({ resourceId: a.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     const user = userEvent.setup()
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
@@ -271,23 +271,23 @@ describe('AllocationModal edit', () => {
     expect(screen.queryByRole('option', { name: 'Acme / Lightning' })).not.toBeInTheDocument()
   })
 
-  it('reopens a placeholder→general-task allocation with the general task still selected', async () => {
-    // A placeholder bound to p1, assigned a GENERAL (no-project) task. On edit the
-    // form must seed Project='' (general) so the general task stays in the Task list.
+  it('reopens a placeholder→general-activity allocation with the general activity still selected', async () => {
+    // A placeholder bound to p1, assigned a GENERAL (no-project) activity. On edit the
+    // form must seed Project='' (general) so the general activity stays in the Activity list.
     const ph = useStore.getState().addResource({
       kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a', projectId: 'p1',
     })
-    const gen = useStore.getState().addTask({ name: 'Admin', kind: 'repeatable' })
-    const alloc = useStore.getState().addAllocation({ resourceId: ph.id, taskId: gen.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    const gen = useStore.getState().addActivity({ name: 'Admin', kind: 'repeatable' })
+    const alloc = useStore.getState().addAllocation({ resourceId: ph.id, activityId: gen.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
     expect(screen.getByLabelText('Project')).toHaveValue('') // general, not the bound 'p1'
-    expect(screen.getByLabelText('Task')).toHaveValue(gen.id)
+    expect(screen.getByLabelText('Activity')).toHaveValue(gen.id)
   })
 
   it('duplicates an allocation', async () => {
     const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })
-    const alloc = useStore.getState().addAllocation({ resourceId: a.id, taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    const alloc = useStore.getState().addAllocation({ resourceId: a.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     const user = userEvent.setup()
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
@@ -308,7 +308,7 @@ describe('AllocationModal Enter key submission', () => {
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
 
     // Pressing Enter in the Hours/day number input should submit
     await user.click(screen.getByLabelText('Hours / day'))
@@ -329,7 +329,7 @@ describe('AllocationModal Enter key submission', () => {
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
     await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Task'), 't1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
 
     // Pressing Enter in a textarea inserts a newline — it must NOT submit the form
     const noteTextarea = screen.getByLabelText('Note')
@@ -342,7 +342,7 @@ describe('AllocationModal Enter key submission', () => {
     expect(noteTextarea).toHaveValue('\n')
   })
 
-  it('pressing Enter in the new-task input calls onAddTask, not submit', async () => {
+  it('pressing Enter in the new-activity input calls onAddActivity, not submit', async () => {
     useStore.getState().addResource({
       kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
       workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
@@ -352,14 +352,14 @@ describe('AllocationModal Enter key submission', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
-    // Type a task name into the inline "add new task" input and press Enter
-    await user.click(screen.getByLabelText('New task name'))
-    await user.type(screen.getByLabelText('New task name'), 'Brand new task')
+    // Type an activity name into the inline "add new activity" input and press Enter
+    await user.click(screen.getByLabelText('New activity name'))
+    await user.type(screen.getByLabelText('New activity name'), 'Brand new activity')
     await user.keyboard('{Enter}')
 
-    // The task should have been created, modal not closed
+    // The activity should have been created, modal not closed
     expect(onClose).not.toHaveBeenCalled()
-    const tasks = useStore.getState().data.tasks
-    expect(tasks.some((t) => t.name === 'Brand new task')).toBe(true)
+    const activities = useStore.getState().data.activities
+    expect(activities.some((t) => t.name === 'Brand new activity')).toBe(true)
   })
 })

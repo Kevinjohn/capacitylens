@@ -131,7 +131,7 @@ describe('ImportExport – Import', () => {
     const dangling = serializeData({
       ...emptyAppData(),
       allocations: [
-        { id: 'a1', accountId: 'X', createdAt: 't', updatedAt: 't', resourceId: 'ghost', taskId: 'ghost', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+        { id: 'a1', accountId: 'X', createdAt: 't', updatedAt: 't', resourceId: 'ghost', activityId: 'ghost', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
       ],
     })
     const file = new File([dangling], 'dangling.json', { type: 'application/json' })

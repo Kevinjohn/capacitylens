@@ -1,5 +1,5 @@
 import { isExternalResource } from '../types/entities'
-import type { Allocation, Client, ID, Project, Resource, Task } from '../types/entities'
+import type { Allocation, Client, ID, Project, Resource, Activity } from '../types/entities'
 
 /** The single neutral grey — the bar/colour fallback AND the colour of external / 3rd-party
  *  identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
@@ -11,7 +11,7 @@ const FALLBACK = NEUTRAL_COLOR
  *  these to position bars, so colour resolution reuses them instead of re-scanning
  *  the raw arrays once per bar. */
 export interface BarColorMaps {
-  tasks: Map<ID, Task>
+  activities: Map<ID, Activity>
   projects: Map<ID, Project>
   clients: Map<ID, Client>
   resources: Map<ID, Resource>
@@ -26,8 +26,8 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   // overriding the usual project→client colouring so an outsourced bar never looks like one of
   // our own. See DECISIONS.md "external kind": single neutral colour.
   if (resource && isExternalResource(resource)) return NEUTRAL_COLOR
-  const task = maps.tasks.get(allocation.taskId)
-  const project = task?.projectId ? maps.projects.get(task.projectId) : undefined
+  const activity = maps.activities.get(allocation.activityId)
+  const project = activity?.projectId ? maps.projects.get(activity.projectId) : undefined
   if (project?.color) return project.color
 
   const client = project ? maps.clients.get(project.clientId) : undefined

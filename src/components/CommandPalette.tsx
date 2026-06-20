@@ -277,7 +277,7 @@ function buildItems({
       : []),
     { id: 'page-clients', label: 'Clients', sublabel: '/clients', section: 'Pages', onSelect: () => { void navigate('/clients'); onClose() } },
     { id: 'page-projects', label: 'Projects', sublabel: '/projects', section: 'Pages', onSelect: () => { void navigate('/projects'); onClose() } },
-    { id: 'page-tasks', label: 'Tasks', sublabel: '/tasks', section: 'Pages', onSelect: () => { void navigate('/tasks'); onClose() } },
+    { id: 'page-activities', label: 'Activities', sublabel: '/activities', section: 'Pages', onSelect: () => { void navigate('/activities'); onClose() } },
     { id: 'page-timeoff', label: 'Time off', sublabel: '/timeoff', section: 'Pages', onSelect: () => { void navigate('/timeoff'); onClose() } },
     { id: 'page-settings', label: 'Settings', sublabel: '/settings', section: 'Pages', onSelect: () => { void navigate('/settings'); onClose() } },
   ]
@@ -341,26 +341,26 @@ function buildItems({
     ? fuzzyFilter(clientItems, q, (c) => c.label).slice(0, SECTION_LIMIT)
     : clientItems.slice(0, SECTION_LIMIT)
 
-  // ── Tasks ──────────────────────────────────────────────────────────────────
-  const taskItems: PaletteItem[] = data.tasks.map((t) => {
+  // ── Activities ──────────────────────────────────────────────────────────────────
+  const activityItems: PaletteItem[] = data.activities.map((t) => {
     const project = data.projects.find((p) => p.id === t.projectId)
     return {
-      id: `task-${t.id}`,
+      id: `activity-${t.id}`,
       label: t.name,
-      // Project tasks show their project; project-less tasks show their kind so the two
+      // Project activities show their project; project-less activities show their kind so the two
       // aren't indistinguishable blank-sublabel rows.
       sublabel: t.kind === 'project' ? project?.name : t.kind === 'internal' ? 'Internal' : 'Repeatable',
-      section: 'Tasks',
+      section: 'Activities',
       onSelect: () => {
-        void navigate('/tasks')
+        void navigate('/activities')
         onClose()
       },
     }
   })
 
-  const filteredTasks = q
-    ? fuzzyFilter(taskItems, q, (t) => t.label).slice(0, SECTION_LIMIT)
-    : taskItems.slice(0, SECTION_LIMIT)
+  const filteredActivities = q
+    ? fuzzyFilter(activityItems, q, (t) => t.label).slice(0, SECTION_LIMIT)
+    : activityItems.slice(0, SECTION_LIMIT)
 
   // ── Assemble ───────────────────────────────────────────────────────────────
   // When there's a query, only include sections that have results
@@ -370,7 +370,7 @@ function buildItems({
     if (filteredResources.length) items.push(...filteredResources)
     if (filteredProjects.length) items.push(...filteredProjects)
     if (filteredClients.length) items.push(...filteredClients)
-    if (filteredTasks.length) items.push(...filteredTasks)
+    if (filteredActivities.length) items.push(...filteredActivities)
   } else {
     // No query: show Actions + Pages only
     items.push(...filteredActions)

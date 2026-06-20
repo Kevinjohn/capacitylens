@@ -77,7 +77,7 @@ export function sanitizeWrite(table: string, row: Record<string, unknown>): Reco
   return copy
 }
 
-const SCOPED_REF_TABLES: ScopedEntityKey[] = ['projects', 'phases', 'tasks', 'resources']
+const SCOPED_REF_TABLES: ScopedEntityKey[] = ['projects', 'phases', 'activities', 'resources']
 
 /**
  * Referential-integrity + date-range validation for a write. `row` is the full
@@ -97,7 +97,7 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
       return
     }
     if (table === 'allocations') {
-      assertAllocationRefs(state, accountId, row.resourceId as string, row.taskId as string)
+      assertAllocationRefs(state, accountId, row.resourceId as string, row.activityId as string)
       assertDateRange(row.startDate as string, row.endDate as string)
       return
     }

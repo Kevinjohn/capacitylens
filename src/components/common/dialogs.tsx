@@ -118,7 +118,7 @@ export function Modal({
   }
 
   // Read onClose/requestClose through refs so the focus effect can run exactly once
-  // on open — otherwise a store mutation while the dialog is open (e.g. "Add task")
+  // on open — otherwise a store mutation while the dialog is open (e.g. "Add activity")
   // mints a fresh onClose, re-fires the effect, yanks focus back to the first control,
   // and clobbers the "restore focus on close" target. (Empty deps, ref for the latest.)
   const onCloseRef = useRef(onClose)

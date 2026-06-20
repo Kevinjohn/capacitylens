@@ -61,7 +61,9 @@ describe('migrate', () => {
     expect(migrate({ schemaVersion: 2, data })).toEqual(data)
   })
 
-  it('backfills task kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable', () => {
+  it('backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable', () => {
+    // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
+    // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.
     const out = migrate({
       schemaVersion: 3,
       data: {
@@ -71,18 +73,45 @@ describe('migrate', () => {
         ],
       },
     })
-    expect(out.tasks[0]).toMatchObject({ id: 't1', kind: 'project' })
-    expect(out.tasks[1]).toMatchObject({ id: 't2', kind: 'repeatable' })
+    expect(out.activities[0]).toMatchObject({ id: 't1', kind: 'project' })
+    expect(out.activities[1]).toMatchObject({ id: 't2', kind: 'repeatable' })
   })
 
-  it('preserves an already-set task kind when backfilling (the v3→v4 guard is idempotent)', () => {
+  it('preserves an already-set activity kind when backfilling (the v3→v4 guard is idempotent)', () => {
     const out = migrate({
       schemaVersion: 3,
       data: {
         tasks: [{ id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' }],
       },
     })
-    expect(out.tasks[0]).toMatchObject({ kind: 'internal' })
+    expect(out.activities[0]).toMatchObject({ kind: 'internal' })
+  })
+
+  it('renames the legacy `tasks` table → `activities` and `taskId` → `activityId` (v4 → v5)', () => {
+    const out = migrate({
+      schemaVersion: 4,
+      data: {
+        tasks: [{ id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Wires', kind: 'project', projectId: 'p1' }],
+        allocations: [
+          { id: 'al1', accountId: 'a1', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-01-01', endDate: '2026-01-02', hoursPerDay: 8, status: 'confirmed' },
+        ],
+      },
+    })
+    // The renamed table arrives as `activities`; the old key is gone.
+    expect(out.activities).toHaveLength(1)
+    expect(out.activities[0]).toMatchObject({ id: 't1', kind: 'project' })
+    expect('tasks' in out).toBe(false)
+    // The allocation's FK is renamed; no `taskId` survives.
+    expect(out.allocations[0]).toMatchObject({ activityId: 't1' })
+    expect('taskId' in out.allocations[0]).toBe(false)
+  })
+
+  it('treats a bare (versionless) legacy `tasks` blob as pre-v5 and renames it', () => {
+    const out = migrate({
+      tasks: [{ id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' }],
+    })
+    expect(out.activities).toHaveLength(1)
+    expect('tasks' in out).toBe(false)
   })
 
   it('fills in any missing arrays so the shape is always complete', () => {
@@ -95,7 +124,7 @@ describe('migrate', () => {
       resources: [],
       projects: [],
       phases: [],
-      tasks: [],
+      activities: [],
       allocations: [],
       timeOff: [],
     })

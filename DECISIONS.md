@@ -97,13 +97,16 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **"Utilisation" is the term** everywhere on the schedule (not "Load").
 - **Filtering by client/project hides non-matching resources** by default; the
   "Show unallocated" toggle opts the visible-but-dimmed staffing view back in.
-- **Tasks have a required `kind` (project | internal | repeatable).** A `project` task carries a
+- **Activities have a required `kind` (project | internal | repeatable).** A `project` activity carries a
   projectId (+ optional phase); `internal` and `repeatable` are project-less (so are their
   allocations) — coherence is enforced at the write boundary (`assertScopedRefs`) and repaired on
-  import/migrate. "Repeatable" is the rename of the old "general" task — a reusable task across
-  projects; "internal" is the new bucket. The schedule's **task lens** ("Filter by task", grouped
+  import/migrate. "Repeatable" is the rename of the old "general" activity — a reusable activity across
+  projects; "internal" is the new bucket. The schedule's **activity lens** ("Filter by activity", grouped
   by kind) is a **standalone** view, mutually exclusive with the client/project filter (enforced in
-  `setFilters`). The Tasks page shows three sections (Internal, Repeatable, Project).
+  `setFilters`). The Activities page shows three sections (Internal, Repeatable, Project).
+  **The domain concept was renamed Task→Activity (schema v5):** `Activity`/`ActivityKind` types,
+  `Allocation.activityId`, the `activities` table/array/REST segment/route (`/activities`); legacy
+  `tasks`/`taskId` blobs migrate on load + import (`migrateV4toV5`, server `renameLegacyActivityTables`).
 - **The timeline keeps a 4-week scrollable back-buffer** (`PAST_BUFFER_DAYS`) to the left of
   the focus date — the view opens flush at the focused Monday, and scrolling left pans into
   the past instead of overscrolling (macOS turns left-edge overscroll into browser back;
@@ -111,9 +114,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Theme is device-global** — own key (`floaty/theme`), NOT in `AppData`/export. Default
   **light**; `system` follows `matchMedia`; FOUC guard in `index.html`.
 - **Utilisation display toggles are device-global** too (`floaty/utilizationPrefs`, default all-on).
-- **Bar labels carry `Client · Project` context** before the task name, behind two
+- **Bar labels carry `Client · Project` context** before the activity name, behind two
   device-global toggles (`floaty/barLabelPrefs`, Settings → Allocation bars, default both on);
-  missing metadata just skips its part. The popover keeps its own task-first layout.
+  missing metadata just skips its part. The popover keeps its own activity-first layout.
 - **Weekends minimise by default** — device-global `floaty/minimiseWeekends` (Settings →
   Schedule, default **ON**), NOT on the account / not in export. On = the Sat/Sun columns shrink
   to a rem-based sliver (`WEEKEND_COLUMN_REM`, capped at `dayWidth`, fine-zoom only) labelled a
@@ -136,17 +139,17 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   dialog** (all other buttons stay `type="button"` — the Button default). Keep new dialogs on
   this pattern.
 - **⌘K / Ctrl+K command palette** (`CommandPalette`, fuzzy via `src/lib/fuzzy.ts`, no deps):
-  jumps to people (scroll-to-lane), projects/clients (schedule filters), tasks/pages, today,
+  jumps to people (scroll-to-lane), projects/clients (schedule filters), activities/pages, today,
   or a typed ISO date. Combobox/listbox ARIA; behaviours documented in REFERENCE.md.
 - **Colours are preset swatches only** (no custom hex) → a stored colour is always a valid
   `#rrggbb`. Palette = 13 hues × 4 shades generated from HSL (`lib/palette.ts`).
 - **Resource colour derives from its discipline** — no per-resource colour control.
-- **Placeholders** bind to one project but may take *general* tasks, so the modal's Project
+- **Placeholders** bind to one project but may take *general* activities, so the modal's Project
   select stays **enabled but restricted** ("locked" = restricted, not immutable). In the
   schedule they sort after people, show an `@` avatar + diagonal hatch, and a quoted name.
 - **External / 3rd parties are a resource kind (`external`), not a bookable lane (owner, 2026-06-19).**
   Outsourced work: a **company name** (`name`) + optional descriptor (`role`), **assignable to any
-  task** (no project restriction), but **no hours/capacity/utilisation** — allocations carry
+  activity** (no project restriction), but **no hours/capacity/utilisation** — allocations carry
   `hoursPerDay: 0` and the scheduler model skips all capacity reads for them. Own **External** tab
   (out of Resources); single **neutral** colour (`resolveBarColor` short-circuits their bars,
   overriding the project-colour rule) in a band **always at the schedule bottom**, disciplines on or

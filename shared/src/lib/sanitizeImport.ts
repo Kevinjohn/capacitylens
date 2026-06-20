@@ -11,7 +11,7 @@ import { clampHoursPerDay, clampWorkingHoursPerDay, type ScopedEntityKey, type W
 const FALLBACK_COLOR = '#6366f1' // brand
 const VALID_STATUS = ['confirmed', 'tentative', 'completed'] as const
 const VALID_KIND = ['person', 'placeholder', 'external'] as const
-const VALID_TASK_KIND = ['project', 'internal', 'repeatable'] as const
+const VALID_ACTIVITY_KIND = ['project', 'internal', 'repeatable'] as const
 const VALID_EMPLOYMENT = ['permanent', 'freelancer', 'contractor'] as const
 const VALID_TIMEOFF = ['holiday', 'sick', 'unpaid', 'other'] as const
 
@@ -149,13 +149,13 @@ export function sanitizeImportedRecord(
     case 'phases':
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
-    case 'tasks':
+    case 'activities':
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       // kind is NOT NULL. Default a missing/junk value from the only signal a legacy (pre-kind)
-      // record carried: a project-bound task is 'project', a project-less one is 'repeatable'
+      // record carried: a project-bound activity is 'project', a project-less one is 'repeatable'
       // (the rename of "general"). The referential repair pass then strips any project/phase an
-      // internal/repeatable task carries, keeping kind ⇆ projectId coherent.
-      rec.kind = oneOf(rec.kind, VALID_TASK_KIND, rec.projectId !== undefined ? 'project' : 'repeatable')
+      // internal/repeatable activity carries, keeping kind ⇆ projectId coherent.
+      rec.kind = oneOf(rec.kind, VALID_ACTIVITY_KIND, rec.projectId !== undefined ? 'project' : 'repeatable')
       break
     default: {
       // Exhaustiveness check: if a new ScopedEntityKey is added to the union without

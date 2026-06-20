@@ -28,7 +28,7 @@ function makeAllocation(overrides: Partial<Allocation> = {}): Allocation {
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     resourceId: 'res-1',
-    taskId: 'task-1',
+    activityId: 'activity-1',
     startDate: '2026-06-01',
     endDate: '2026-06-07',
     hoursPerDay: 8,
@@ -44,7 +44,7 @@ function makeBar(allocation: Allocation, labelOverride?: string): BarLayout {
     width: 336,
     top: 0,
     color: '#ec4899',
-    label: labelOverride ?? 'My Task',
+    label: labelOverride ?? 'My Activity',
     external: false,
   }
 }
@@ -59,7 +59,7 @@ describe('AllocationBar rendering', () => {
 
     const el = screen.getByTestId('allocation-bar')
     expect(el).toHaveAttribute('data-status', 'confirmed')
-    expect(el).toHaveTextContent('My Task')
+    expect(el).toHaveTextContent('My Activity')
     expect(el).toHaveTextContent('8h')
   })
 
@@ -74,15 +74,15 @@ describe('AllocationBar rendering', () => {
     expect(el).toHaveTextContent('Sprint Planning')
   })
 
-  it('shows just the task when the bar carries no client/project metadata', () => {
+  it('shows just the activity when the bar carries no client/project metadata', () => {
     render(<AllocationBar bar={makeBar(makeAllocation())} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
-    // No stray "·" separator ahead of the task name.
+    // No stray "·" separator ahead of the activity name.
     const el = screen.getByTestId('allocation-bar')
-    expect(el.textContent).toMatch(/^My Task/)
+    expect(el.textContent).toMatch(/^My Activity/)
   })
 
-  it('hides hours in blocks mode, showing the task name only', () => {
+  it('hides hours in blocks mode, showing the activity name only', () => {
     const data = emptyAppData()
     data.accounts = [{ id: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Co', color: '#111', schedulingMode: 'blocks' }]
     useStore.getState().replaceAll(data)
@@ -92,7 +92,7 @@ describe('AllocationBar rendering', () => {
     render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
-    expect(el).toHaveTextContent('My Task')
+    expect(el).toHaveTextContent('My Activity')
     expect(el).not.toHaveTextContent('8h')
     // The accessible name must not announce a meaningless load either.
     expect(el.getAttribute('aria-label')).not.toMatch(/per day/)
@@ -110,9 +110,9 @@ describe('AllocationBar client/project context', () => {
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
-    expect(el).toHaveTextContent('Acme Inc. · Lightning · My Task')
+    expect(el).toHaveTextContent('Acme Inc. · Lightning · My Activity')
     // The accessible name carries the same context.
-    expect(el.getAttribute('aria-label')).toContain('Acme Inc. · Lightning · My Task')
+    expect(el.getAttribute('aria-label')).toContain('Acme Inc. · Lightning · My Activity')
   })
 
   it('omits the client when showClient is off', () => {
@@ -120,7 +120,7 @@ describe('AllocationBar client/project context', () => {
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
-    expect(el).toHaveTextContent('Lightning · My Task')
+    expect(el).toHaveTextContent('Lightning · My Activity')
     expect(el).not.toHaveTextContent('Acme Inc.')
   })
 
@@ -129,17 +129,17 @@ describe('AllocationBar client/project context', () => {
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
-    expect(el).toHaveTextContent('Acme Inc. · My Task')
+    expect(el).toHaveTextContent('Acme Inc. · My Activity')
     expect(el).not.toHaveTextContent('Lightning')
   })
 
-  it('shows only the task when both toggles are off', () => {
+  it('shows only the activity when both toggles are off', () => {
     useStore.getState().setBarLabelPref('showClient', false)
     useStore.getState().setBarLabelPref('showProject', false)
     render(<AllocationBar bar={barWithContext()} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
 
     const el = screen.getByTestId('allocation-bar')
-    expect(el.textContent).toMatch(/^My Task/)
+    expect(el.textContent).toMatch(/^My Activity/)
     expect(el).not.toHaveTextContent('Acme Inc.')
     expect(el).not.toHaveTextContent('Lightning')
   })

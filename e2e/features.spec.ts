@@ -140,7 +140,7 @@ test.describe('Feature flows', () => {
     const project = page.getByLabel('Project', { exact: true })
     // "Locked" = the bound project is preselected and the choices are restricted to it
     // (+ the general option), but the select stays ENABLED so the placeholder can still
-    // take general tasks. A non-bound project ("Brand Themes") is not offered.
+    // take general activities. A non-bound project ("Brand Themes") is not offered.
     await expect(project).toHaveValue('p-acme')
     await expect(project).toBeEnabled()
     await expect(project.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)

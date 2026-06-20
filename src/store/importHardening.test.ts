@@ -46,11 +46,11 @@ describe('importData hardening', () => {
       ...emptyAppData(),
       clients: [{ id: 'c1', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'C', color: '#111111' }],
       projects: [{ id: 'p1', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'P', clientId: 'c1', color: '#222222' }],
-      tasks: [{ id: 't1', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'T', projectId: 'p1' }],
+      activities: [{ id: 't1', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'T', projectId: 'p1' }],
       resources: [{ id: 'r1', accountId: 'X', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#333333' }],
       allocations: [
-        { id: 'ok', accountId: 'X', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
-        { id: 'bad', accountId: 'X', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 'missing', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+        { id: 'ok', accountId: 'X', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+        { id: 'bad', accountId: 'X', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 'missing', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
       ],
     } as unknown as AppData
     const summary = s().importData(incoming)
@@ -61,7 +61,7 @@ describe('importData hardening', () => {
 
   it('does not pollute Object.prototype via a crafted __proto__ payload', () => {
     const incoming = JSON.parse(
-      '{"accounts":[],"disciplines":[],"clients":[{"id":"c","accountId":"X","createdAt":"t","updatedAt":"t","name":"P","color":"#111111","__proto__":{"polluted":true}}],"projects":[],"phases":[],"tasks":[],"resources":[],"allocations":[],"timeOff":[]}',
+      '{"accounts":[],"disciplines":[],"clients":[{"id":"c","accountId":"X","createdAt":"t","updatedAt":"t","name":"P","color":"#111111","__proto__":{"polluted":true}}],"projects":[],"phases":[],"activities":[],"resources":[],"allocations":[],"timeOff":[]}',
     ) as AppData
     s().importData(incoming)
     expect(({} as Record<string, unknown>).polluted).toBeUndefined()

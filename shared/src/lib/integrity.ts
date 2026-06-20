@@ -57,23 +57,23 @@ export function validateDateRange(
 }
 
 /**
- * Placeholder rule: a placeholder is bound to one project and may only take tasks
- * from that project — EXCEPT general (no-project) tasks, which anyone (people and
- * placeholders alike) can be assigned. So the rule only bites when the task itself
+ * Placeholder rule: a placeholder is bound to one project and may only take activities
+ * from that project — EXCEPT general (no-project) activities, which anyone (people and
+ * placeholders alike) can be assigned. So the rule only bites when the activity itself
  * belongs to a project.
  */
 export function validateAllocationAssignment(
   resource: Resource,
-  taskProjectId: ID | undefined,
+  activityProjectId: ID | undefined,
 ): ValidationResult {
   const errors: string[] = []
   // Only PLACEHOLDERS are project-restricted. `person` and `external` are intentionally
-  // unrestricted (an external 3rd party can be assigned any task) — don't add a guard here.
-  if (resource.kind === 'placeholder' && taskProjectId !== undefined) {
+  // unrestricted (an external 3rd party can be assigned any activity) — don't add a guard here.
+  if (resource.kind === 'placeholder' && activityProjectId !== undefined) {
     if (!resource.projectId) {
       errors.push('This placeholder is not bound to a project yet.')
-    } else if (resource.projectId !== taskProjectId) {
-      errors.push('A placeholder can only be assigned to tasks from its bound project.')
+    } else if (resource.projectId !== activityProjectId) {
+      errors.push('A placeholder can only be assigned to activities from its bound project.')
     }
   }
   return toResult(errors)
@@ -97,33 +97,32 @@ export function deleteResourceCascade(data: AppData, resourceId: ID): AppData {
   }
 }
 
-/** Delete a task and its allocations. PURE — returns a new AppData. */
-export function deleteTaskCascade(data: AppData, taskId: ID): AppData {
+/** Delete an activity and its allocations. PURE — returns a new AppData. */
+export function deleteActivityCascade(data: AppData, activityId: ID): AppData {
   return {
     ...data,
-    tasks: data.tasks.filter((t) => t.id !== taskId),
-    allocations: data.allocations.filter((a) => a.taskId !== taskId),
+    activities: data.activities.filter((t) => t.id !== activityId),
+    allocations: data.allocations.filter((a) => a.activityId !== activityId),
   }
 }
 
-/** Deleting a phase is non-destructive to its tasks — it just ungroups them. */
+/** Deleting a phase is non-destructive to its activities — it just ungroups them. */
 export function deletePhaseCascade(data: AppData, phaseId: ID): AppData {
   return {
     ...data,
     phases: data.phases.filter((p) => p.id !== phaseId),
-    tasks: data.tasks.map((t) => (t.phaseId === phaseId ? { ...t, phaseId: undefined } : t)),
+    activities: data.activities.map((t) => (t.phaseId === phaseId ? { ...t, phaseId: undefined } : t)),
   }
 }
 
-/** Delete a project: drops its phases + tasks + those tasks' allocations, unbinds a surviving
- *  task's phase and any placeholder bound to it. PURE — returns a new AppData. */
+/** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving *  activity's phase and any placeholder bound to it. PURE — returns a new AppData. */
 export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
-  const removedTaskIds = new Set(
-    data.tasks.filter((t) => t.projectId === projectId).map((t) => t.id),
+  const removedActivityIds = new Set(
+    data.activities.filter((t) => t.projectId === projectId).map((t) => t.id),
   )
-  // Phases removed with the project. Any SURVIVING task that pointed at one of them
+  // Phases removed with the project. Any SURVIVING activity that pointed at one of them
   // (e.g. legacy/incoherent data) must have its phaseId unbound, never left dangling —
-  // mirroring the server FK's ON DELETE SET NULL on tasks.phaseId.
+  // mirroring the server FK's ON DELETE SET NULL on activities.phaseId.
   const removedPhaseIds = new Set(
     data.phases.filter((p) => p.projectId === projectId).map((p) => p.id),
   )
@@ -131,10 +130,10 @@ export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
     ...data,
     projects: data.projects.filter((p) => p.id !== projectId),
     phases: data.phases.filter((p) => p.projectId !== projectId),
-    tasks: data.tasks
+    activities: data.activities
       .filter((t) => t.projectId !== projectId)
       .map((t) => (t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined } : t)),
-    allocations: data.allocations.filter((a) => !removedTaskIds.has(a.taskId)),
+    allocations: data.allocations.filter((a) => !removedActivityIds.has(a.activityId)),
     // A placeholder bound to this project is unbound (not deleted).
     resources: data.resources.map((r) =>
       r.projectId === projectId ? { ...r, projectId: undefined } : r,
@@ -142,13 +141,13 @@ export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
   }
 }
 
-/** Delete a client and everything beneath it (projects → phases → tasks → allocations), unbinding
+/** Delete a client and everything beneath it (projects → phases → activities → allocations), unbinding
  *  surviving phases/placeholders as needed. PURE — returns a new AppData. */
 export function deleteClientCascade(data: AppData, clientId: ID): AppData {
   // Single pass: collect every id removed by this client's deletion FIRST, then filter each
   // table ONCE — rather than re-copying the whole tree per project (deleteProjectCascade × N).
   // Same cascade semantics as looping that helper: drop the client's projects + their phases +
-  // their tasks (and those tasks' allocations), unbind a surviving task's phaseId that pointed
+  // their activities (and those activities' allocations), unbind a surviving activity's phaseId that pointed
   // at a removed phase, and unbind a placeholder bound to a removed project.
   const removedProjectIds = new Set(
     data.projects.filter((p) => p.clientId === clientId).map((p) => p.id),
@@ -156,18 +155,18 @@ export function deleteClientCascade(data: AppData, clientId: ID): AppData {
   const removedPhaseIds = new Set(
     data.phases.filter((p) => removedProjectIds.has(p.projectId)).map((p) => p.id),
   )
-  const removedTaskIds = new Set(
-    data.tasks.filter((t) => t.projectId !== undefined && removedProjectIds.has(t.projectId)).map((t) => t.id),
+  const removedActivityIds = new Set(
+    data.activities.filter((t) => t.projectId !== undefined && removedProjectIds.has(t.projectId)).map((t) => t.id),
   )
   return {
     ...data,
     clients: data.clients.filter((c) => c.id !== clientId),
     projects: data.projects.filter((p) => !removedProjectIds.has(p.id)),
     phases: data.phases.filter((p) => !removedPhaseIds.has(p.id)),
-    tasks: data.tasks
-      .filter((t) => !removedTaskIds.has(t.id))
+    activities: data.activities
+      .filter((t) => !removedActivityIds.has(t.id))
       .map((t) => (t.phaseId !== undefined && removedPhaseIds.has(t.phaseId) ? { ...t, phaseId: undefined } : t)),
-    allocations: data.allocations.filter((a) => !removedTaskIds.has(a.taskId)),
+    allocations: data.allocations.filter((a) => !removedActivityIds.has(a.activityId)),
     resources: data.resources.map((r) =>
       r.projectId !== undefined && removedProjectIds.has(r.projectId) ? { ...r, projectId: undefined } : r,
     ),

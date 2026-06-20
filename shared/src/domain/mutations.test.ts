@@ -19,7 +19,7 @@ import type {
   Phase,
   Project,
   Resource,
-  Task,
+  Activity,
   TimeOff,
 } from '../types/entities'
 
@@ -34,7 +34,7 @@ const account = (id: ID, name = 'Co'): Account => ({ id, name, color: '#3b82f6',
 const client = (id: ID, accountId: ID, name = 'Acme'): Client => ({ ...meta(id, accountId), name, color: '#3b82f6' })
 const project = (id: ID, accountId: ID, clientId: ID): Project => ({ ...meta(id, accountId), name: 'Web', clientId, color: '#3b82f6' })
 const phase = (id: ID, accountId: ID, projectId: ID): Phase => ({ ...meta(id, accountId), name: 'Discovery', projectId })
-const task = (id: ID, accountId: ID, projectId: ID, phaseId?: ID): Task => ({ ...meta(id, accountId), name: 'Task', kind: 'project', projectId, phaseId })
+const activity = (id: ID, accountId: ID, projectId: ID, phaseId?: ID): Activity => ({ ...meta(id, accountId), name: 'Activity', kind: 'project', projectId, phaseId })
 const person = (id: ID, accountId: ID): Resource => ({
   ...meta(id, accountId),
   kind: 'person',
@@ -54,10 +54,10 @@ const placeholder = (id: ID, accountId: ID, projectId?: ID): Resource => ({
   kind: 'placeholder',
   projectId,
 })
-const allocation = (id: ID, accountId: ID, resourceId: ID, taskId: ID, o: Partial<Allocation> = {}): Allocation => ({
+const allocation = (id: ID, accountId: ID, resourceId: ID, activityId: ID, o: Partial<Allocation> = {}): Allocation => ({
   ...meta(id, accountId),
   resourceId,
-  taskId,
+  activityId,
   startDate: '2026-01-01',
   endDate: '2026-01-05',
   hoursPerDay: 8,
@@ -111,62 +111,62 @@ describe('assertScopedRefs', () => {
     expect(() => assertScopedRefs(base(), A1, 'projects', { name: 'Renamed' })).not.toThrow()
   })
 
-  it('throws when a task phase belongs to another account', () => {
+  it('throws when an activity phase belongs to another account', () => {
     const data = {
       ...base(),
       clients: [client('c1', A1)],
       projects: [project('p1', A1, 'c1')],
       phases: [phase('ph1', A2, 'p1')],
     }
-    expect(() => assertScopedRefs(data, A1, 'tasks', { projectId: 'p1', phaseId: 'ph1' })).toThrow(
-      'Task phase must belong to this company.',
+    expect(() => assertScopedRefs(data, A1, 'activities', { projectId: 'p1', phaseId: 'ph1' })).toThrow(
+      'Activity phase must belong to this company.',
     )
   })
 
-  it('throws when a task phase belongs to a DIFFERENT project than the task', () => {
+  it('throws when an activity phase belongs to a DIFFERENT project than the activity', () => {
     const data = {
       ...base(),
       clients: [client('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
       phases: [phase('ph1', A1, 'p1')], // a phase of p1
     }
-    // Task is bound to p2 but references p1's phase — double-bound to two projects.
-    expect(() => assertScopedRefs(data, A1, 'tasks', { projectId: 'p2', phaseId: 'ph1' })).toThrow(
-      'Task phase must belong to the task’s project.',
+    // Activity is bound to p2 but references p1's phase — double-bound to two projects.
+    expect(() => assertScopedRefs(data, A1, 'activities', { projectId: 'p2', phaseId: 'ph1' })).toThrow(
+      'Activity phase must belong to the activity’s project.',
     )
   })
 
-  it('throws when a task carries a phase but no project', () => {
+  it('throws when an activity carries a phase but no project', () => {
     const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')], phases: [phase('ph1', A1, 'p1')] }
-    expect(() => assertScopedRefs(data, A1, 'tasks', { phaseId: 'ph1' })).toThrow(
-      'A task with a phase must also belong to that phase’s project.',
+    expect(() => assertScopedRefs(data, A1, 'activities', { phaseId: 'ph1' })).toThrow(
+      'An activity with a phase must also belong to that phase’s project.',
     )
   })
 
-  it('passes when a task phase belongs to the task’s own project', () => {
+  it('passes when an activity phase belongs to the activity’s own project', () => {
     const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')], phases: [phase('ph1', A1, 'p1')] }
-    expect(() => assertScopedRefs(data, A1, 'tasks', { projectId: 'p1', phaseId: 'ph1' })).not.toThrow()
+    expect(() => assertScopedRefs(data, A1, 'activities', { projectId: 'p1', phaseId: 'ph1' })).not.toThrow()
   })
 
-  it('throws when a project task carries no project (kind coherence)', () => {
+  it('throws when a project activity carries no project (kind coherence)', () => {
     const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')] }
-    expect(() => assertScopedRefs(data, A1, 'tasks', { kind: 'project', name: 'T' })).toThrow(
-      'A project task must be assigned to a project.',
+    expect(() => assertScopedRefs(data, A1, 'activities', { kind: 'project', name: 'T' })).toThrow(
+      'A project activity must be assigned to a project.',
     )
   })
 
-  it('throws when an internal/repeatable task carries a project or phase (kind coherence)', () => {
+  it('throws when an internal/repeatable activity carries a project or phase (kind coherence)', () => {
     const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')], phases: [phase('ph1', A1, 'p1')] }
-    expect(() => assertScopedRefs(data, A1, 'tasks', { kind: 'internal', projectId: 'p1' })).toThrow(
+    expect(() => assertScopedRefs(data, A1, 'activities', { kind: 'internal', projectId: 'p1' })).toThrow(
       'cannot belong to a project',
     )
-    expect(() => assertScopedRefs(data, A1, 'tasks', { kind: 'repeatable', phaseId: 'ph1' })).toThrow(
+    expect(() => assertScopedRefs(data, A1, 'activities', { kind: 'repeatable', phaseId: 'ph1' })).toThrow(
       'cannot belong to a phase',
     )
   })
 
-  it('passes for a valid project-less internal task', () => {
-    expect(() => assertScopedRefs(base(), A1, 'tasks', { kind: 'internal', name: 'Admin' })).not.toThrow()
+  it('passes for a valid project-less internal activity', () => {
+    expect(() => assertScopedRefs(base(), A1, 'activities', { kind: 'internal', name: 'Admin' })).not.toThrow()
   })
 
   it('throws when a placeholder is bound to a project in another account', () => {
@@ -182,17 +182,17 @@ describe('assertAllocationRefs', () => {
     ...base(),
     clients: [client('c1', A1)],
     projects: [project('p1', A1, 'c1')],
-    tasks: [task('t1', A1, 'p1')],
+    activities: [activity('t1', A1, 'p1')],
     resources: [person('r1', A1)],
   })
 
-  it('passes for a real resource + task in the account', () => {
+  it('passes for a real resource + activity in the account', () => {
     expect(() => assertAllocationRefs(world(), A1, 'r1', 't1')).not.toThrow()
   })
 
-  it('throws when the resource or task is missing / cross-account', () => {
+  it('throws when the resource or activity is missing / cross-account', () => {
     expect(() => assertAllocationRefs(world(), A1, 'missing', 't1')).toThrow(
-      'Allocation must reference an existing resource and task in this company.',
+      'Allocation must reference an existing resource and activity in this company.',
     )
   })
 
@@ -201,11 +201,11 @@ describe('assertAllocationRefs', () => {
       ...base(),
       clients: [client('c1', A1)],
       projects: [project('p1', A1, 'c1'), project('p2', A1, 'c1')],
-      tasks: [task('t2', A1, 'p2')],
+      activities: [activity('t2', A1, 'p2')],
       resources: [placeholder('ph', A1, 'p1')],
     }
     expect(() => assertAllocationRefs(data, A1, 'ph', 't2')).toThrow(
-      'A placeholder can only be assigned to tasks from its bound project.',
+      'A placeholder can only be assigned to activities from its bound project.',
     )
   })
 })
@@ -241,7 +241,7 @@ describe('deleteAccountCascade', () => {
       ...base(),
       clients: [client('c1', A1), client('c2', A2)],
       projects: [project('p1', A1, 'c1')],
-      tasks: [task('t1', A1, 'p1')],
+      activities: [activity('t1', A1, 'p1')],
       resources: [person('r1', A1)],
       allocations: [allocation('al1', A1, 'r1', 't1')],
       timeOff: [timeOff('to1', A1, 'r1')],
@@ -250,7 +250,7 @@ describe('deleteAccountCascade', () => {
     expect(next.accounts.map((a) => a.id)).toEqual([A2])
     expect(next.clients).toEqual([client('c2', A2)])
     expect(next.projects).toHaveLength(0)
-    expect(next.tasks).toHaveLength(0)
+    expect(next.activities).toHaveLength(0)
     expect(next.resources).toHaveLength(0)
     expect(next.allocations).toHaveLength(0)
     expect(next.timeOff).toHaveLength(0)
@@ -262,7 +262,7 @@ describe('remapAndValidateImport', () => {
     ...emptyAppData(),
     clients: [client('src-c', 'src-acct')],
     projects: [project('src-p', 'src-acct', 'src-c')],
-    tasks: [task('src-t', 'src-acct', 'src-p')],
+    activities: [activity('src-t', 'src-acct', 'src-p')],
   })
 
   it('imports into the active account with FRESH ids and remapped foreign keys', () => {
@@ -270,7 +270,7 @@ describe('remapAndValidateImport', () => {
     expect(imported).toBe(3)
     expect(skipped).toBe(0)
     const p = data.projects[0]
-    const t = data.tasks[0]
+    const t = data.activities[0]
     expect(p.id).not.toBe('src-p') // fresh id
     expect(p.accountId).toBe(A1) // stamped active account
     expect(t.projectId).toBe(p.id) // FK rewired to the new project id
@@ -289,12 +289,12 @@ describe('remapAndValidateImport', () => {
       ...emptyAppData(),
       clients: [client('src-c', 'src-acct')],
       projects: [project('src-p', 'src-acct', 'src-c')],
-      tasks: [task('src-t', 'src-acct', 'src-p')],
+      activities: [activity('src-t', 'src-acct', 'src-p')],
       resources: [person('src-r', 'src-acct')],
       allocations: [
         allocation('ok', 'src-acct', 'src-r', 'src-t'),
         allocation('reversed', 'src-acct', 'src-r', 'src-t', { startDate: '2026-02-10', endDate: '2026-02-01' }),
-        allocation('dangling', 'src-acct', 'src-r', 'no-such-task'),
+        allocation('dangling', 'src-acct', 'src-r', 'no-such-activity'),
       ],
       timeOff: [timeOff('to-dangling', 'src-acct', 'no-such-resource')],
     }
@@ -305,7 +305,7 @@ describe('remapAndValidateImport', () => {
 
   it('drops records with a dangling REQUIRED ref and unbinds a dangling OPTIONAL ref', () => {
     // A hand-edited file: a project/phase whose required parent is absent, and a
-    // task/resource pointing at an absent optional parent. The required-FK records
+    // activity/resource pointing at an absent optional parent. The required-FK records
     // must be dropped (else they would hit the server DB's FK and fail the import);
     // the optional-FK records survive, unbound.
     const handEdited: AppData = {
@@ -313,51 +313,51 @@ describe('remapAndValidateImport', () => {
       projects: [project('p-orphan', 'src', 'ghost-client')], // dropped: client absent
       phases: [phase('ph-orphan', 'src', 'ghost-project')], // dropped: project absent
       resources: [{ ...person('r1', 'src'), disciplineId: 'ghost-disc' }], // kept, unbound
-      tasks: [task('t1', 'src', 'ghost-project', 'ghost-phase')], // kept, unbound to general
+      activities: [activity('t1', 'src', 'ghost-project', 'ghost-phase')], // kept, unbound to general
     }
     const { data, imported, skipped } = remapAndValidateImport(base(), A1, handEdited, TS)
     expect(data.projects).toHaveLength(0)
     expect(data.phases).toHaveLength(0)
     expect(data.resources).toHaveLength(1)
     expect(data.resources[0].disciplineId).toBeUndefined()
-    expect(data.tasks).toHaveLength(1)
-    expect(data.tasks[0].projectId).toBeUndefined() // unbound → project-less task
-    expect(data.tasks[0].phaseId).toBeUndefined() // a project-less task carries no phase
-    expect(data.tasks[0].kind).toBe('repeatable') // a project task that loses its project becomes repeatable
-    expect(imported).toBe(2) // resource + task
+    expect(data.activities).toHaveLength(1)
+    expect(data.activities[0].projectId).toBeUndefined() // unbound → project-less activity
+    expect(data.activities[0].phaseId).toBeUndefined() // a project-less activity carries no phase
+    expect(data.activities[0].kind).toBe('repeatable') // a project activity that loses its project becomes repeatable
+    expect(imported).toBe(2) // resource + activity
     expect(skipped).toBe(2) // project + phase
   })
 
-  it('keeps an allocation to an unbound placeholder when its task is general', () => {
+  it('keeps an allocation to an unbound placeholder when its activity is general', () => {
     // The placeholder's bound project is absent, so it unbinds. An allocation of it to
-    // a (general) task whose own project is also absent survives — a general task is
+    // a (general) activity whose own project is also absent survives — a general activity is
     // allocatable to anyone, placeholders included.
     const handEdited: AppData = {
       ...emptyAppData(),
       resources: [placeholder('ph', 'src', 'ghost-project')], // unbinds (project absent)
-      tasks: [task('t-general', 'src', 'ghost-project')], // unbinds to a general task
+      activities: [activity('t-general', 'src', 'ghost-project')], // unbinds to a general activity
       allocations: [allocation('al', 'src', 'ph', 't-general')],
     }
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
     expect(data.resources[0].projectId).toBeUndefined()
-    expect(data.tasks[0].projectId).toBeUndefined()
-    expect(data.allocations).toHaveLength(1) // unbound placeholder + general task is allowed
+    expect(data.activities[0].projectId).toBeUndefined()
+    expect(data.allocations).toHaveLength(1) // unbound placeholder + general activity is allowed
   })
 
-  it('drops an allocation to an unbound placeholder when its task is project-bound', () => {
-    // Same unbinding, but the task keeps a SURVIVING project, so the placeholder rule
-    // bites: an unbound placeholder may not take a project task → the allocation drops.
+  it('drops an allocation to an unbound placeholder when its activity is project-bound', () => {
+    // Same unbinding, but the activity keeps a SURVIVING project, so the placeholder rule
+    // bites: an unbound placeholder may not take a project activity → the allocation drops.
     const handEdited: AppData = {
       ...emptyAppData(),
       clients: [client('c', 'src')],
       projects: [project('p', 'src', 'c')], // survives → t-proj stays project-bound
-      tasks: [task('t-proj', 'src', 'p')],
+      activities: [activity('t-proj', 'src', 'p')],
       resources: [placeholder('ph', 'src', 'ghost-project')], // unbinds (project absent)
       allocations: [allocation('al', 'src', 'ph', 't-proj')],
     }
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
     expect(data.resources[0].projectId).toBeUndefined()
-    expect(data.tasks[0].projectId).toBe(data.projects[0].id) // task stays bound
+    expect(data.activities[0].projectId).toBe(data.projects[0].id) // activity stays bound
     expect(data.allocations).toHaveLength(0) // placeholder rule drops the allocation
   })
 
@@ -409,17 +409,17 @@ describe('remapAndValidateImport', () => {
     expect(c?.updatedAt).toBe(NOW)
   })
 
-  it('unbinds a task’s phase that belongs to a different project', () => {
+  it('unbinds an activity’s phase that belongs to a different project', () => {
     const handEdited: AppData = {
       ...emptyAppData(),
       clients: [client('c', 'src')],
       projects: [project('p1', 'src', 'c'), project('p2', 'src', 'c')],
       phases: [phase('ph1', 'src', 'p1')], // a phase OF p1
-      tasks: [task('t', 'src', 'p2', 'ph1')], // bound to p2 but referencing p1's phase
+      activities: [activity('t', 'src', 'p2', 'ph1')], // bound to p2 but referencing p1's phase
     }
     const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
-    const t = data.tasks.find((x) => x.accountId === A1)
-    expect(t?.projectId).toBeDefined() // task keeps its surviving project
+    const t = data.activities.find((x) => x.accountId === A1)
+    expect(t?.projectId).toBeDefined() // activity keeps its surviving project
     expect(t?.phaseId).toBeUndefined() // the incoherent phase is unbound
   })
 
@@ -442,7 +442,7 @@ describe('remapAndValidateImport', () => {
       projects: [project('p', 'src', 'c')],
       phases: [phase('ph', 'src', 'p')],
       resources: [{ ...person('r', 'src'), disciplineId: 'd', projectId: 'p' }],
-      tasks: [task('t', 'src', 'p', 'ph')],
+      activities: [activity('t', 'src', 'p', 'ph')],
       allocations: [allocation('al', 'src', 'r', 't')],
       timeOff: [timeOff('to', 'src', 'r')],
     }
@@ -459,7 +459,7 @@ describe('remapAndValidateImport', () => {
       ...emptyAppData(),
       clients: [client('c', 'src')],
       projects: [project('p', 'src', 'c')],
-      tasks: [task('t', 'src', 'p')],
+      activities: [activity('t', 'src', 'p')],
       resources: [person('r', 'src')],
       // single-digit month/day — would fail the YYYY-MM-DD range check if not normalized.
       allocations: [allocation('al', 'src', 'r', 't', { startDate: '2026-6-1', endDate: '2026-6-5' })],

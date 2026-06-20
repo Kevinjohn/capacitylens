@@ -19,7 +19,7 @@ test.describe('Allocation editor', () => {
     await expect(dialog.getByRole('heading')).toContainText('Nike Spiros')
     await expect(dialog.getByLabel('Assignee')).toHaveCount(0)
     await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await dialog.getByLabel('Task', { exact: true }).selectOption('t-wires')
+    await dialog.getByLabel('Activity', { exact: true }).selectOption('t-wires')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1)
   })
@@ -48,15 +48,15 @@ test.describe('Allocation editor', () => {
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before)
   })
 
-  test('adds a new task inline and uses it for the allocation', async ({ page }) => {
+  test('adds a new activity inline and uses it for the allocation', async ({ page }) => {
     await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
     await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await dialog.getByLabel('New task name').fill('Inline Task')
-    await dialog.getByRole('button', { name: 'Add task' }).click()
-    await expect(dialog.getByLabel('Task', { exact: true })).toHaveValue(/.+/) // a real task id is now selected
+    await dialog.getByLabel('New activity name').fill('Inline Activity')
+    await dialog.getByRole('button', { name: 'Add activity' }).click()
+    await expect(dialog.getByLabel('Activity', { exact: true })).toHaveValue(/.+/) // a real activity id is now selected
     await page.getByRole('button', { name: 'Save' }).click()
-    await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Inline Task' })).toBeVisible()
+    await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Inline Activity' })).toBeVisible()
   })
 
   test('reassigns an allocation to another resource via the dialog', async ({ page }) => {
@@ -74,7 +74,7 @@ test.describe('Allocation editor', () => {
     const project = dialog.getByLabel('Project', { exact: true })
     await expect(project).toHaveValue('p-acme') // bound project preselected
     // "Locked" = restricted to the bound project + the project-less option, but the select
-    // stays ENABLED so a placeholder can still take project-less (internal/repeatable) tasks. A
+    // stays ENABLED so a placeholder can still take project-less (internal/repeatable) activities. A
     // non-bound project ("Brand Themes") is not offered.
     await expect(project).toBeEnabled()
     await expect(project.getByRole('option', { name: 'No project (internal / repeatable)' })).toBeAttached()
@@ -85,7 +85,7 @@ test.describe('Allocation editor', () => {
     await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
     await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await dialog.getByLabel('Task', { exact: true }).selectOption('t-wires')
+    await dialog.getByLabel('Activity', { exact: true }).selectOption('t-wires')
 
     await dialog.getByLabel('Start').fill('')
     await page.getByRole('button', { name: 'Save' }).click()

@@ -2,16 +2,16 @@ import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
-import { TaskForm } from './TaskForm'
-import type { Task } from '@floaty/shared/types/entities'
+import { ActivityForm } from './ActivityForm'
+import type { Activity } from '@floaty/shared/types/entities'
 
-export function TaskList() {
+export function ActivityList() {
   const data = useScopedData()
-  const tasks = data.tasks
+  const activities = data.activities
   const projects = data.projects
   const clients = data.clients
-  const del = useStore((s) => s.deleteTask)
-  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Task>()
+  const del = useStore((s) => s.deleteActivity)
+  const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>()
 
   const projectLabel = (id: string | undefined) => {
     if (!id) return '(no project)'
@@ -23,12 +23,12 @@ export function TaskList() {
 
   // Three kinds, three tables. Internal first (the owner's ordering), then repeatable
   // (reusable across projects — the rename of "general"), then project work.
-  const internalTasks = tasks.filter((t) => t.kind === 'internal')
-  const repeatableTasks = tasks.filter((t) => t.kind === 'repeatable')
-  const projectTasks = tasks.filter((t) => t.kind === 'project')
+  const internalActivities = activities.filter((t) => t.kind === 'internal')
+  const repeatableActivities = activities.filter((t) => t.kind === 'repeatable')
+  const projectActivities = activities.filter((t) => t.kind === 'project')
 
-  const renderRow = (t: Task, showLabel: boolean) => (
-    <li key={t.id} data-testid="task-row" className="flex items-center justify-between px-3 py-2">
+  const renderRow = (t: Activity, showLabel: boolean) => (
+    <li key={t.id} data-testid="activity-row" className="flex items-center justify-between px-3 py-2">
       <span>
         <span className="font-medium">{t.name}</span>
         {showLabel && (
@@ -49,7 +49,7 @@ export function TaskList() {
     </li>
   )
 
-  const box = (rows: Task[], showLabel: boolean, empty: string, testid: string) =>
+  const box = (rows: Activity[], showLabel: boolean, empty: string, testid: string) =>
     rows.length === 0 ? (
       <EmptyState>{empty}</EmptyState>
     ) : (
@@ -59,27 +59,27 @@ export function TaskList() {
     )
 
   return (
-    <ListPage title="Tasks" addLabel="Add task" onAdd={() => setCreating(true)}>
+    <ListPage title="Activities" addLabel="Add activity" onAdd={() => setCreating(true)}>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Internal tasks</h2>
+        <h2 className="text-lg font-semibold">Internal activities</h2>
       </div>
-      {box(internalTasks, false, 'No internal tasks yet.', 'internal-tasks')}
+      {box(internalActivities, false, 'No internal activities yet.', 'internal-activities')}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Repeatable tasks</h2>
+        <h2 className="text-lg font-semibold">Repeatable activities</h2>
       </div>
-      {box(repeatableTasks, false, 'No repeatable tasks yet.', 'repeatable-tasks')}
+      {box(repeatableActivities, false, 'No repeatable activities yet.', 'repeatable-activities')}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Project tasks</h2>
+        <h2 className="text-lg font-semibold">Project activities</h2>
       </div>
-      {box(projectTasks, true, 'No project tasks yet.', 'project-tasks')}
+      {box(projectActivities, true, 'No project activities yet.', 'project-activities')}
 
-      {creating && <TaskForm onClose={() => setCreating(false)} />}
-      {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}
+      {creating && <ActivityForm onClose={() => setCreating(false)} />}
+      {editing && <ActivityForm activity={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title="Delete task?"
+          title="Delete activity?"
           message={`Delete "${confirming.name}" and any allocations of it?`}
           onConfirm={() => {
             del(confirming.id)

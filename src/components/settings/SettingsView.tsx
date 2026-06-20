@@ -264,7 +264,7 @@ export function SettingsView() {
         <section className="rounded border border-line bg-surface p-4">
           <h2 className="mb-1 text-sm font-semibold text-ink">Allocation bars</h2>
           <p className="mb-3 text-xs text-muted">
-            What each bar on the schedule shows before the task name — applies to this browser.
+            What each bar on the schedule shows before the activity name — applies to this browser.
           </p>
           <div className="divide-y divide-line">
             {BAR_LABEL_OPTIONS.map((opt) => (

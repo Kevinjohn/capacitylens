@@ -23,7 +23,7 @@ tests assert the story's acceptance criteria; some intrinsically-visual or envir
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
 are covered by **unit tests and/or the manual script** instead, and are flagged as such. Two
-stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04) are marked
+stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04) are marked
 **not runnable** until that UI returns.
 
 ---
@@ -79,13 +79,13 @@ stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04)
 | [US-PRJ-03](projects/US-PRJ-03-delete-project-cascade.md) | Delete a project (cascade) | `e2e/projects.spec.ts` + unit (`integrity.test.ts`) |
 | [US-PRJ-04](projects/US-PRJ-04-manage-phases.md) | Manage phases in a project | manual — n/a (Phase UI hidden) |
 
-## Tasks — `tasks/`
+## Activities — `activities/`
 | Story | Title | Automated coverage |
 |---|---|---|
-| [US-TSK-01](tasks/US-TSK-01-add-task.md) | Add a task (general or under a project) | `e2e/tasks.spec.ts` |
-| [US-TSK-02](tasks/US-TSK-02-task-phase.md) | Assign a task to a phase | manual — n/a (Phase UI hidden) |
-| [US-TSK-03](tasks/US-TSK-03-edit-task.md) | Edit a task | `e2e/tasks.spec.ts` |
-| [US-TSK-04](tasks/US-TSK-04-delete-task-cascade.md) | Delete a task (cascade) | `e2e/tasks.spec.ts` |
+| [US-ACT-01](activities/US-ACT-01-add-activity.md) | Add an activity (general or under a project) | `e2e/activities.spec.ts` |
+| [US-ACT-02](activities/US-ACT-02-activity-phase.md) | Assign an activity to a phase | manual — n/a (Phase UI hidden) |
+| [US-ACT-03](activities/US-ACT-03-edit-activity.md) | Edit an activity | `e2e/activities.spec.ts` |
+| [US-ACT-04](activities/US-ACT-04-delete-activity-cascade.md) | Delete an activity (cascade) | `e2e/activities.spec.ts` |
 
 ## Time off — `time-off/`
 | Story | Title | Automated coverage |
@@ -125,7 +125,7 @@ stories whose UI is currently hidden (phase management — US-TSK-02, US-PRJ-04)
 | [US-ALL-02](allocation/US-ALL-02-edit.md) | Edit an allocation | `e2e/allocation.spec.ts` |
 | [US-ALL-03](allocation/US-ALL-03-duplicate.md) | Duplicate an allocation | `e2e/allocation.spec.ts` |
 | [US-ALL-04](allocation/US-ALL-04-delete.md) | Delete an allocation | `e2e/allocation.spec.ts` |
-| [US-ALL-05](allocation/US-ALL-05-add-task-inline.md) | Add a task inline | `e2e/allocation.spec.ts` |
+| [US-ALL-05](allocation/US-ALL-05-add-activity-inline.md) | Add an activity inline | `e2e/allocation.spec.ts` |
 | [US-ALL-06](allocation/US-ALL-06-change-assignee.md) | Change assignee | `e2e/allocation.spec.ts` |
 | [US-ALL-07](allocation/US-ALL-07-placeholder-locks-project.md) | Placeholder locks the project | `e2e/allocation.spec.ts` + `e2e/features.spec.ts` |
 | [US-ALL-08](allocation/US-ALL-08-validation.md) | Rejects bad input | `e2e/allocation.spec.ts` |

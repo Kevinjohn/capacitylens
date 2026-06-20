@@ -1,9 +1,9 @@
 # US-SET-02 — Choose what allocation bars say
 
-**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/settings-bar-labels.spec.ts` → "bars show client and project before the task by default", "switches in Settings default on and strip the client, then the project, from bars"
+**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/settings-bar-labels.spec.ts` → "bars show client and project before the activity by default", "switches in Settings default on and strip the client, then the project, from bars"
 
 ## Goal
-Decide whether each bar on the schedule names its client and/or project before the task, so the helicopter view carries as much (or as little) context as the studio wants.
+Decide whether each bar on the schedule names its client and/or project before the activity, so the helicopter view carries as much (or as little) context as the studio wants.
 
 ## Why
 At a glance, "Wireframes" alone doesn't say *whose* wireframes. Prefixing the client and
@@ -24,7 +24,7 @@ theme), not shared account data.
 ## Acceptance criteria
 - The Allocation bars section appears between Calendar and Utilisation in Settings.
 - Both switches default to **on** (`aria-checked="true"`).
-- With both on, a bar's label is `Client · Project · Task` (then `· Nh` outside blocks mode).
-- Switching **Show client name** off removes only the client part; **Show project name** off removes only the project part; both off leaves just the task.
-- A task with no project shows no empty separators — missing parts are skipped.
+- With both on, a bar's label is `Client · Project · Activity` (then `· Nh` outside blocks mode).
+- Switching **Show client name** off removes only the client part; **Show project name** off removes only the project part; both off leaves just the activity.
+- An activity with no project shows no empty separators — missing parts are skipped.
 - The choice survives a reload in the same browser (device-global `floaty/barLabelPrefs`), and is **not** included in Export JSON.

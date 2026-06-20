@@ -1,10 +1,8 @@
 # Floaty — working notes for Claude
 
-Keep this file short — it loads every session.
-
-## What this is
-A local-first **Float-style agency resource scheduler** in the browser (People/Resources →
-Allocations across Clients → Projects → Tasks, multi-tenant by Account). **Deliberately small
+# What this Project is
+A  **Float-style agency resource scheduler** in the browser (People/Resources →
+Allocations across Clients → Projects → Activities, multi-tenant by Account). **Deliberately small
 (owner):** one problem — a helicopter view of who's busy/free/overworked, week granularity —
 for small agencies with rotating freelancers. Budgets/money, timesheets, hour-granularity
 workflows and mobile views are non-goals; don't propose them. This is the **original**
@@ -28,10 +26,13 @@ goes through the `useScopedData` / `scopedTables()` seam.
   zero-capacity day; utilisation % / `overSoon` is a working-day ratio over a fixed forward 14-day
   window from today. Different questions — don't merge them.
 - **"Utilisation" is the term** everywhere on the schedule, never "Load".
-- **Tasks carry a required `kind`** (`project` | `internal` | `repeatable`); only `project` has a
-  projectId/phase (coherence enforced in `assertScopedRefs`, repaired on import/migrate).
-  "Repeatable" *is* the renamed "general" task. The schedule's **task lens** ("Filter by task") is
-  a standalone view, mutually exclusive with the client/project filter (set in `setFilters`).
+- **Activities carry a required `kind`** (`project` | `internal` | `repeatable`); only `project` has a
+  projectId/phase (coherence enforced in `assertScopedRefs`, repaired on import/migrate). The
+  domain concept "Task" was renamed "Activity" (schema v5): `Activity` type, `ActivityKind`,
+  `Allocation.activityId`, the `activities` table/array; legacy `tasks`/`taskId` data is migrated
+  on load/import. "Repeatable" *is* the renamed "general" activity. The schedule's **activity lens**
+  ("Filter by activity") is a standalone view, mutually exclusive with the client/project filter
+  (set in `setFilters`).
 - **Theme is device-global** (own key `floaty/theme`, default light), NOT in `AppData`/export;
   same for utilisation display toggles (`floaty/utilizationPrefs`).
 - **Colours are preset swatches only** (no custom hex), and a resource's colour derives from its

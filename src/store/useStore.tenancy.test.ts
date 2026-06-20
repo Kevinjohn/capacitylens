@@ -13,14 +13,14 @@ const s = () => useStore.getState()
 const A = 'acct-a'
 const B = 'acct-b'
 
-// Two accounts, with a client + project + task + resource filed under B so we can
+// Two accounts, with a client + project + activity + resource filed under B so we can
 // try (and fail) to touch them while acting as A.
 function twoAccountData(): AppData {
   return makeAppData({
     accounts: [makeAccount({ id: A, name: 'Company A' }), makeAccount({ id: B, name: 'Company B' })],
     clients: [{ id: 'cB', accountId: B, name: 'B Client', color: '#111111', createdAt: 't', updatedAt: 't' }],
     projects: [{ id: 'pB', accountId: B, name: 'B Project', clientId: 'cB', color: '#222222', createdAt: 't', updatedAt: 't' }],
-    tasks: [{ id: 'tB', accountId: B, name: 'B Task', kind: 'project', projectId: 'pB', createdAt: 't', updatedAt: 't' }],
+    activities: [{ id: 'tB', accountId: B, name: 'B Activity', kind: 'project', projectId: 'pB', createdAt: 't', updatedAt: 't' }],
     resources: [
       {
         id: 'rB', accountId: B, kind: 'person', role: 'Dev', employmentType: 'permanent',
@@ -44,7 +44,7 @@ describe('ownership guard on update/delete', () => {
   it('refuses to delete a row owned by another account (no cascade either)', () => {
     expect(() => s().deleteProject('pB')).toThrow()
     expect(s().data.projects.find((p) => p.id === 'pB')).toBeDefined()
-    expect(s().data.tasks.find((t) => t.id === 'tB')).toBeDefined()
+    expect(s().data.activities.find((t) => t.id === 'tB')).toBeDefined()
   })
 
   it('treats a stale / non-existent id as a silent no-op (does not throw)', () => {
@@ -61,7 +61,7 @@ describe('ownership guard on update/delete', () => {
   it('refuses to update/delete an allocation owned by another account', () => {
     const withAlloc = twoAccountData()
     withAlloc.allocations.push({
-      id: 'aB', accountId: B, resourceId: 'rB', taskId: 'tB',
+      id: 'aB', accountId: B, resourceId: 'rB', activityId: 'tB',
       startDate: '2026-01-01', endDate: '2026-01-02', hoursPerDay: 8, status: 'confirmed',
       createdAt: 't', updatedAt: 't',
     })
@@ -79,18 +79,18 @@ describe('foreign-key refs must stay in the active account', () => {
     expect(s().data.projects.some((p) => p.name === 'X')).toBe(false)
   })
 
-  it('addTask rejects a project from another account', () => {
-    expect(() => s().addTask({ name: 'X', kind: 'project', projectId: 'pB' })).toThrow()
+  it('addActivity rejects a project from another account', () => {
+    expect(() => s().addActivity({ name: 'X', kind: 'project', projectId: 'pB' })).toThrow()
   })
 
   it('addPhase rejects a project from another account', () => {
     expect(() => s().addPhase({ name: 'X', projectId: 'pB' })).toThrow()
   })
 
-  it('addAllocation rejects a resource/task from another account', () => {
+  it('addAllocation rejects a resource/activity from another account', () => {
     expect(() =>
       s().addAllocation({
-        resourceId: 'rB', taskId: 'tB', startDate: '2026-01-01', endDate: '2026-01-02',
+        resourceId: 'rB', activityId: 'tB', startDate: '2026-01-01', endDate: '2026-01-02',
         hoursPerDay: 8, status: 'confirmed',
       }),
     ).toThrow()
@@ -107,7 +107,7 @@ describe('foreign-key refs must stay in the active account', () => {
   it('still allows valid in-account references', () => {
     const c = s().addClient({ name: 'A Client', color: '#555555' })
     const p = s().addProject({ name: 'A Project', clientId: c.id, color: '#666666' })
-    const t = s().addTask({ name: 'A Task', kind: 'project', projectId: p.id })
+    const t = s().addActivity({ name: 'An Activity', kind: 'project', projectId: p.id })
     expect(t.accountId).toBe(A)
     expect(s().data.projects.find((x) => x.id === p.id)!.clientId).toBe(c.id)
   })

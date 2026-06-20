@@ -64,13 +64,13 @@ export const projectsForClient = (data: AppData, clientId: ID) =>
 export const phasesForProject = (data: AppData, projectId: ID) =>
   data.phases.filter((p) => p.projectId === projectId)
 
-export const tasksForProject = (data: AppData, projectId: ID) =>
-  data.tasks.filter((t) => t.projectId === projectId)
+export const activitiesForProject = (data: AppData, projectId: ID) =>
+  data.activities.filter((t) => t.projectId === projectId)
 
 // Find-by-id helpers. Each returns `T | undefined` — `find` MISSES for a stale or cross-account
 // id, so callers must narrow (optional-chain / guard) before dereferencing, never assume the id
 // resolves. (The fix for a possibly-undefined result belongs at the CONSUMER, not as a throw here.)
-export const taskById = (data: AppData, id: ID) => data.tasks.find((t) => t.id === id)
+export const activityById = (data: AppData, id: ID) => data.activities.find((t) => t.id === id)
 export const projectById = (data: AppData, id: ID) => data.projects.find((p) => p.id === id)
 export const clientById = (data: AppData, id: ID) => data.clients.find((c) => c.id === id)
 export const resourceById = (data: AppData, id: ID) => data.resources.find((r) => r.id === id)

@@ -178,7 +178,7 @@
   db.exec('PRAGMA journal_mode = WAL;')   <span class="c">// concurrent reads; cp can't catch a torn write</span>
   db.exec('PRAGMA busy_timeout = 5000;')  <span class="c">// wait for a lock instead of throwing SQLITE_BUSY</span>
   db.exec(SCHEMA_SQL)                      <span class="c">// CREATE TABLE IF NOT EXISTS … (no-op on existing tables)</span>
-  migrateSchema(db)                        <span class="c">// add any missing optional columns; rebuild tasks if needed</span>
+  migrateSchema(db)                        <span class="c">// add any missing optional columns; rebuild activities if needed</span>
   assertSchemaCurrent(db)                  <span class="c">// LOUD startup throw on any required-column / NULL drift</span>
   <span class="k">if</span> (!isInitialized(db) &amp;&amp; !isEmpty(loadState(db))) markInitialized(db)  <span class="c">// backfill pre-marker DBs</span>
   db.exec('PRAGMA foreign_keys = ON;')    <span class="c">// enforced AFTER migration (table rebuilds are FK-unsafe)</span>

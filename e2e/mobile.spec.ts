@@ -85,7 +85,7 @@ test.describe('desktop', () => {
     await openApp(page)
 
     await expect(page.getByTestId('nav-rail-item')).toHaveCount(0)
-    for (const name of ['Schedule', 'Resources', 'External', 'Disciplines', 'Clients', 'Projects', 'Tasks', 'Time off', 'Settings']) {
+    for (const name of ['Schedule', 'Resources', 'External', 'Disciplines', 'Clients', 'Projects', 'Activities', 'Time off', 'Settings']) {
       const link = page.getByRole('link', { name, exact: true })
       await expect(link).toBeVisible()
       await expect(link.locator('svg')).toHaveCount(1)

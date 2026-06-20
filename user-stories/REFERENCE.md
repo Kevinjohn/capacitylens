@@ -49,7 +49,7 @@ The sidebar links, in order, route to:
 | Disciplines | `/disciplines` | Discipline list |
 | Clients | `/clients` | Client list |
 | Projects | `/projects` | Project list |
-| Tasks | `/tasks` | Task list |
+| Activities | `/activities` | Activity list |
 | Time off | `/timeoff` | Time-off list |
 | Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, allocation bars, utilisation, appearance) |
 
@@ -98,9 +98,9 @@ never appears on desktop viewports or in landscape.
 - **Clients:** Acme Inc., Globex.
 - **Projects:** Project Lightning (Acme), Brand Themes (Globex).
 - **Phases (Project Lightning):** Discovery, Build.
-- **Tasks** (every task has a **kind**): *Project* — Wireframes, Visual Design, CMS Review
+- **Activities** (every activity has a **kind**): *Project* — Wireframes, Visual Design, CMS Review
   (Lightning), Brand System (Brand Themes); *Internal* — Admin / Internal; *Repeatable* —
-  Design, Workshop. "Design" is also booked for Alex (8–10 June) to demo the task lens.
+  Design, Workshop. "Design" is also booked for Alex (8–10 June) to demo the activity lens.
 - **Allocations (June 2026):** Tyler is **over-allocated on 3–4 June** (8h + 4h > 8h).
 - **Time off:** Tyler — 10–12 June (Holiday).
 
@@ -123,13 +123,13 @@ columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` la
 `Employment`, `Bound project`, `Working hours / day`, `Working days` (Mon…Sun toggle
 buttons), `Colour (…)` (a swatch-picker trigger that opens a grid of preset colour
 swatches, each button labelled by its hex), `Start`, `End`, `Hours / day`, `Status`,
-`Note`, `Assignee`, `Project`, `Task`, `Resource`, plus `Company` + `Descriptor` (the External form).
-The **task form** has a `Task kind` radiogroup (`Project` / `Internal` / `Repeatable`); the
+`Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
+The **activity form** has an `Activity kind` radiogroup (`Project` / `Internal` / `Repeatable`); the
 `Project` field shows (and is required) only for the `Project` kind — internal/repeatable
-tasks are project-less.
-Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add task`. List pages have an add
+activities are project-less.
+Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add activity`. List pages have an add
 button per entity: `Add resource`, `Add discipline`, `Add client`, `Add project`,
-`Add task`, `Add time off`, `Add external party`. Each list row has `Edit` and `Delete`.
+`Add activity`, `Add time off`, `Add external party`. Each list row has `Edit` and `Delete`.
 
 **Delete confirmation** is a dialog titled `Delete <entity>?` with `Delete` and `Cancel`.
 Cascade dialogs say "You can undo this with ⌘Z."
@@ -140,12 +140,12 @@ draw-mode toggle `Work`/`Time off` (buttons — note "Time off" here is the *tog
 from the "Time off" *nav link*). Undo/redo are **keyboard-only** (`⌘Z` / `⌘⇧Z`) — there are no
 toolbar buttons. Filter row:
 `Search people…`, `Filter by discipline`, `Filter by client`, `Filter by project`,
-`Filter by task` (a grouped dropdown — `All tasks`, then an `Internal` optgroup with
-`Internal — All` + each internal task, then a `Repeatable` optgroup with `Repeatable — All` +
-each repeatable task; shown only when the account has internal/repeatable tasks. Project tasks
-are reached via `Filter by project`). The task lens is a **standalone** view: selecting it
+`Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
+`Internal — All` + each internal activity, then a `Repeatable` optgroup with `Repeatable — All` +
+each repeatable activity; shown only when the account has internal/repeatable activities. Project activities
+are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
 clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
-(shown only while a client/project/task filter is active, **off by default** — filtering hides
+(shown only while a client/project/activity filter is active, **off by default** — filtering hides
 resources with no matching work; ticking it brings them back visible-but-dimmed so you can see
 who's free to staff), `Clear` (only shown when a filter is active).
 
@@ -156,12 +156,12 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See *Weekend
 columns* above.
 
-**Allocation bars.** A bar's label reads `Client · Project · Task · Nh` (hours hidden in
+**Allocation bars.** A bar's label reads `Client · Project · Activity · Nh` (hours hidden in
 blocks mode; a `✓ ` prefix when completed, a trailing ` •` when it has a note). The client
 and project parts are device-global toggles in Settings → **Allocation bars** — switches
-`Show client name` and `Show project name`, both **on** by default; a bar whose task has no
+`Show client name` and `Show project name`, both **on** by default; a bar whose activity has no
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
-task-first layout regardless of these toggles.
+activity-first layout regardless of these toggles.
 
 **Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**
 (on by default). Turning it off hides disciplines across the whole app — the **Disciplines** nav
@@ -212,7 +212,7 @@ the palette does **not** open. Closing or saving the dialog re-enables the short
 Closed by **Escape**, backdrop click, or selecting an item.
 
 **Sections shown (no query):** Actions ("Go to today"), Pages (all 9 routes; 8 — no Disciplines — when the company turns disciplines off).
-**Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Tasks.
+**Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Activities.
 **Special action:** typing a valid, real calendar ISO date (`YYYY-MM-DD`, zero-padded,
 e.g. `2026-06-03`) shows "Go to date YYYY-MM-DD". Impossible dates like `2026-02-31`,
 unpadded dates like `2026-6-3`, and out-of-range months/days are rejected.
@@ -225,7 +225,7 @@ unpadded dates like `2026-6-3`, and out-of-range months/days are rejected.
 - Project item → navigate to `/` + **replace** schedule filters with `{ projectId }` (all other
   filters — search, discipline, client, hideTentative, showUnmatched — are reset to defaults).
 - Client item → navigate to `/` + **replace** schedule filters with `{ clientId }` (same reset).
-- Task item → navigate to `/tasks`.
+- Activity item → navigate to `/activities`.
 
 **Keyboard navigation:** `ArrowUp`/`ArrowDown` move the highlight; `Enter` selects; `Escape` closes.
 Mouse hover sets the active option; mouse click selects.
@@ -248,23 +248,23 @@ Mouse hover sets the active option; mouse click selects.
 
 ## Domain rules a tester should know
 
-- **A project must belong to a client. A task has a `kind`:** `project` (belongs to a project,
+- **A project must belong to a client. An activity has a `kind`:** `project` (belongs to a project,
   may carry a phase), `internal` (project-less internal work), or `repeatable` (project-less,
-  reusable across projects). Internal/repeatable tasks carry no project or phase. The Tasks page
-  shows three sections — `internal-tasks`, `repeatable-tasks`, `project-tasks` (testids).
-- **Placeholders** are bound to exactly one project and may take that project's tasks **plus any
-  project-less (internal/repeatable) task**.
+  reusable across projects). Internal/repeatable activities carry no project or phase. The Activities page
+  shows three sections — `internal-activities`, `repeatable-activities`, `project-activities` (testids).
+- **Placeholders** are bound to exactly one project and may take that project's activities **plus any
+  project-less (internal/repeatable) activity**.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
-  descriptor), managed on the **External** tab (not Resources), assignable to **any** task with **no
+  descriptor), managed on the **External** tab (not Resources), assignable to **any** activity with **no
   hours**, shown in a **neutral band at the bottom of the schedule** with **no utilisation / over-markers**.
   Their allocations carry `hoursPerDay: 0` and are a **literal start/end span** (`ignoreWeekends: true`
   — the "Include weekends" toggle is hidden, weekends count as plain calendar days); they're excluded
   from the Time-off picker.
-- **Cascade deletes:** deleting a client removes its projects → tasks → allocations;
-  deleting a project removes its phases/tasks/allocations and *unbinds* (does not delete)
-  placeholders; deleting a task removes its allocations; deleting a resource removes its
+- **Cascade deletes:** deleting a client removes its projects → activities → allocations;
+  deleting a project removes its phases/activities/allocations and *unbinds* (does not delete)
+  placeholders; deleting an activity removes its allocations; deleting a resource removes its
   allocations + time off. Deleting a **discipline** or **phase** is *non-destructive*
-  (ungroups resources / ungroups tasks). All deletes are **undoable with ⌘Z**.
+  (ungroups resources / ungroups activities). All deletes are **undoable with ⌘Z**.
 - **Disciplines are optional (account-level).** Default **on**. When a company turns them off
   (Settings → Disciplines → *Use disciplines*) disciplines are hidden everywhere and the schedule
   renders flat — see the *Disciplines (account-level)* note above. The seed companies leave it

@@ -7,7 +7,7 @@ import type { CSSProperties } from 'react'
 // here is framework-agnostic styling; the controls in ui.tsx and the toolbar import it.
 
 /** Shared control styling (sans width). Used by non-label controls (toolbar
- *  search/date/selects, inline add-task/phase inputs) so they match field height +
+ *  search/date/selects, inline add-activity/phase inputs) so they match field height +
  *  rounding instead of drifting to their own px-2 py-1. */
 export const controlBase =
   'rounded-md border bg-surface px-2.5 py-1.5 text-sm text-ink placeholder:text-faint shadow-sm transition-colors'

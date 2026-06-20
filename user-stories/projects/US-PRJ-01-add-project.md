@@ -6,7 +6,7 @@
 Add a new project under a client so it can be scheduled, filtered and allocated against — and confirm a project cannot be saved without a client.
 
 ## Why
-A project is meaningless without an owning client; that invariant keeps the whole hierarchy (client → project → task → allocation) intact. The manager creates a project once, after which it shows up wherever work is planned.
+A project is meaningless without an owning client; that invariant keeps the whole hierarchy (client → project → activity → allocation) intact. The manager creates a project once, after which it shows up wherever work is planned.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). Clients *Acme Inc.* and *Globex* exist.

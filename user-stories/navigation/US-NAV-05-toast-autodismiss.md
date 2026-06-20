@@ -15,13 +15,13 @@ the way on its own (or on demand) so the schedule stays the focus.
 ## How (end-to-end)
 **Precondition:** Seeded app open at Schedule (`/`). Click **4w** so more of the
 timeline is visible, then scroll the grid fully left if the seed bars aren't in view.
-1. Find the **Brand System** allocation bar (a *Brand Themes* task on *Pam Gonzalez*).
+1. Find the **Brand System** allocation bar (a *Brand Themes* activity on *Pam Gonzalez*).
 2. Drag it onto the **Senior Designer** row — the placeholder bound to *Project
    Lightning* (`data-resource-id="r-ph-designer"`). Its row highlights as a drop target
    mid-drag.
 3. Release. The reassignment is rejected (a Lightning-bound placeholder can't take a
-   *Brand Themes* task), and a toast appears at the bottom-centre reading
-   **"A placeholder can only be assigned to tasks from its bound project."**
+   *Brand Themes* activity), and a toast appears at the bottom-centre reading
+   **"A placeholder can only be assigned to activities from its bound project."**
 4. Leave it untouched and wait ~4 seconds — the toast fades out on its own.
 5. Trigger another toast (repeat the rejected drag) and this time click its **✕**
    ("Dismiss") button. It disappears immediately.

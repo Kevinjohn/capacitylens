@@ -63,9 +63,9 @@ The single source of truth is a normalized store, multi-tenant by **Account**
 - **Resources** — the people (or project-bound placeholders) you schedule.
 - **Clients** — group projects.
 - **Projects** — belong to a client.
-- **Phases** — optional groupings of tasks within a project.
-- **Tasks** — belong to a project (optionally a phase).
-- **Allocations** — a resource × task × date-range block with hours/day + status (the core unit).
+- **Phases** — optional groupings of activities within a project.
+- **Activities** — belong to a project (optionally a phase), or are project-less (internal / repeatable).
+- **Allocations** — a resource × activity × date-range block with hours/day + status (the core unit).
 - **Time off** — per-resource unavailable ranges.
 
 The canonical type definitions live in `shared/src/types/entities.ts`.

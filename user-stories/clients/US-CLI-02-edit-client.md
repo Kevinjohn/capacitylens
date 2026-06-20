@@ -21,5 +21,5 @@ Clients rebrand, merge or get renamed. A single edit must ripple to every projec
 - ✅ The Clients list row now reads **Acme Corp** with the new colour swatch.
 - ✅ On the Projects screen, **Project Lightning** now shows the client as **Acme Corp** in its "Client / Project" label.
 - ✅ On the **Schedule**, **Filter by client** now lists **Acme Corp** (not "Acme Inc.").
-- ✅ The rename does not alter Project Lightning's own data (its phases, tasks and allocations are unchanged).
+- ✅ The rename does not alter Project Lightning's own data (its phases, activities and allocations are unchanged).
 - ✅ Clearing **Name** to empty and clicking **Save** is rejected (required-field error, dialog stays open).

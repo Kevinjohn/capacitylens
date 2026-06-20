@@ -12,7 +12,7 @@ import type {
   Resource,
   ScopedEntity,
   ScopedEntityKey,
-  Task,
+  Activity,
   TimeOff,
 } from '../types/entities'
 
@@ -72,24 +72,24 @@ export function assertScopedRefs(
     case 'phases':
       need('projectId', data.projects, 'Phase must reference a project in this company.')
       break
-    case 'tasks': {
-      // Task.kind coherence, checked first: a 'project' task MUST carry a project; an
-      // 'internal'/'repeatable' task is project-less by definition, so it may carry NEITHER a
+    case 'activities': {
+      // Activity.kind coherence, checked first: a 'project' activity MUST carry a project; an
+      // 'internal'/'repeatable' activity is project-less by definition, so it may carry NEITHER a
       // project nor a phase. (Only enforced when kind is present — a partial patch that doesn't
       // touch kind is validated against the merged row by the store, which always has it.)
       if (present('kind')) {
         const kind = rec.kind
         if (kind === 'project') {
-          if (!present('projectId')) throw new Error('A project task must be assigned to a project.')
+          if (!present('projectId')) throw new Error('A project activity must be assigned to a project.')
         } else if (kind === 'internal' || kind === 'repeatable') {
-          if (present('projectId')) throw new Error('An internal or repeatable task cannot belong to a project.')
-          if (present('phaseId')) throw new Error('An internal or repeatable task cannot belong to a phase.')
+          if (present('projectId')) throw new Error('An internal or repeatable activity cannot belong to a project.')
+          if (present('phaseId')) throw new Error('An internal or repeatable activity cannot belong to a phase.')
         }
       }
-      need('projectId', data.projects, 'Task must reference a project in this company.')
-      // A phase belongs to exactly one project, so a task's phase must be a phase OF
-      // the task's own project — otherwise the task is silently double-bound to two
-      // projects, and deleting the phase's project orphans the task's phaseId.
+      need('projectId', data.projects, 'Activity must reference a project in this company.')
+      // A phase belongs to exactly one project, so an activity's phase must be a phase OF
+      // the activity's own project — otherwise the activity is silently double-bound to two
+      // projects, and deleting the phase's project orphans the activity's phaseId.
       if (present('phaseId')) {
         // Resolve the in-account phase ONCE: its absence is the "belong to this company"
         // failure (same check `need` would do), and its projectId feeds the coherence
@@ -97,12 +97,12 @@ export function assertScopedRefs(
         const phase = data.phases.find(
           (p) => p.id === rec.phaseId && belongsToAccount(p, accountId),
         )
-        if (!phase) throw new Error('Task phase must belong to this company.')
+        if (!phase) throw new Error('Activity phase must belong to this company.')
         if (!present('projectId')) {
-          throw new Error('A task with a phase must also belong to that phase’s project.')
+          throw new Error('An activity with a phase must also belong to that phase’s project.')
         }
         if (phase.projectId !== rec.projectId) {
-          throw new Error('Task phase must belong to the task’s project.')
+          throw new Error('Activity phase must belong to the activity’s project.')
         }
       }
       break
@@ -117,21 +117,21 @@ export function assertScopedRefs(
 }
 
 /**
- * An allocation must reference a real resource + task IN THE ACTIVE ACCOUNT, and
- * a placeholder may only take tasks from its bound project.
+ * An allocation must reference a real resource + activity IN THE ACTIVE ACCOUNT, and
+ * a placeholder may only take activities from its bound project.
  */
 export function assertAllocationRefs(
   data: AppData,
   accountId: ID,
   resourceId: ID,
-  taskId: ID,
+  activityId: ID,
 ): void {
   const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
-  const task = data.tasks.find((t) => t.id === taskId && belongsToAccount(t, accountId))
-  if (!resource || !task) {
-    throw new Error('Allocation must reference an existing resource and task in this company.')
+  const activity = data.activities.find((t) => t.id === activityId && belongsToAccount(t, accountId))
+  if (!resource || !activity) {
+    throw new Error('Allocation must reference an existing resource and activity in this company.')
   }
-  const v = validateAllocationAssignment(resource, task.projectId)
+  const v = validateAllocationAssignment(resource, activity.projectId)
   // `errors[0]` is guaranteed present: every validator sets ok=false and pushes a message in the
   // same step, so `!v.ok` always implies a non-empty `errors` array. (Documented coupling between
   // ValidationResult.ok and errors — don't split the two without revisiting this read.)
@@ -211,7 +211,7 @@ export function remapAndValidateImport(
     clientId: 'clients',
     phaseId: 'phases',
     resourceId: 'resources',
-    taskId: 'tasks',
+    activityId: 'activities',
   }
   const FK_FIELDS = Object.keys(FK_TARGET)
   const remap = (field: string, ref: unknown): unknown => {
@@ -271,13 +271,13 @@ export function remapAndValidateImport(
     if (r.projectId !== undefined && !has(projectIds, r.projectId)) r.projectId = undefined
   }
 
-  // tasks: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
-  // import bypasses it). An internal/repeatable task is project-less — strip any project/phase it
-  // carries. A project task whose project didn't survive can no longer BE a project task, so it
+  // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
+  // import bypasses it). An internal/repeatable activity is project-less — strip any project/phase it
+  // carries. A project activity whose project didn't survive can no longer BE a project activity, so it
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
-  // DIFFERENT project is unbound — a task's phase must be a phase of the task's own project.
+  // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.
   const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]))
-  for (const t of brought.tasks) {
+  for (const t of brought.activities) {
     if (t.kind === 'internal' || t.kind === 'repeatable') {
       t.projectId = undefined
       t.phaseId = undefined
@@ -295,9 +295,9 @@ export function remapAndValidateImport(
     }
   }
 
-  // allocations / time-off: resource + task are REQUIRED. Also enforce the date range
+  // allocations / time-off: resource + activity are REQUIRED. Also enforce the date range
   // and the placeholder rule, exactly as the store / server validators do. (An
-  // allocation to a now-unbound placeholder on a project task fails the placeholder
+  // allocation to a now-unbound placeholder on a project activity fails the placeholder
   // rule and is dropped here — the same outcome the store would produce.)
   // The `as unknown as <Entity>[]` casts in this block are sound: every row in `brought[*]` was
   // just produced by sanitizeImportedRecord (value-level fields coerced to their typed shape) and
@@ -305,14 +305,14 @@ export function remapAndValidateImport(
   // checks below is safe. Results are cast back to loose records afterwards so a dangling optional
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
   const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]))
-  const tasks = new Map((brought.tasks as unknown as Task[]).map((t) => [t.id, t]))
+  const activities = new Map((brought.activities as unknown as Activity[]).map((t) => [t.id, t]))
   brought.allocations = (brought.allocations as unknown as Allocation[])
     .filter((a) => {
       if (!validateDateRange(a.startDate, a.endDate).ok) return false
       const resource = resources.get(a.resourceId)
-      const task = tasks.get(a.taskId)
-      if (!resource || !task) return false
-      return validateAllocationAssignment(resource, task.projectId).ok
+      const activity = activities.get(a.activityId)
+      if (!resource || !activity) return false
+      return validateAllocationAssignment(resource, activity.projectId).ok
     })
     .map((a) => {
       // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is

@@ -137,7 +137,7 @@
     <p>Three shapes cover almost everything. The pattern for a <strong>create</strong> with full integrity:</p>
 <pre><code>addAllocation: (input) =&gt; {
   <span class="k">const</span> accountId = requireAccount()
-  assertAllocation(get().data, accountId, input.resourceId, input.taskId)   <span class="c">// shared core</span>
+  assertAllocation(get().data, accountId, input.resourceId, input.activityId)   <span class="c">// shared core</span>
   assertDateRange(input.startDate, input.endDate)                            <span class="c">// shared core</span>
   <span class="k">const</span> e: <span class="t">Allocation</span> = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay),
     id: newId(), accountId, ...stamp() }
@@ -200,7 +200,7 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
     never a <code>get</code> prefix.</p>
 <pre><code><span class="k">export const</span> <span class="f">allocationsForResource</span> = (data: <span class="t">AppData</span>, resourceId: <span class="t">ID</span>) =&gt;
   data.allocations.filter((a) =&gt; a.resourceId === resourceId)
-<span class="k">export const</span> <span class="f">taskById</span> = (data: <span class="t">AppData</span>, id: <span class="t">ID</span>) =&gt; data.tasks.find((t) =&gt; t.id === id)
+<span class="k">export const</span> <span class="f">activityById</span> = (data: <span class="t">AppData</span>, id: <span class="t">ID</span>) =&gt; data.activities.find((t) =&gt; t.id === id)
 
 <span class="c">// Canonical ordering gets its OWN comparator so the scheduler grouping and the</span>
 <span class="c">// Disciplines list always agree (sortOrder, then name as a stable tiebreak).</span>
@@ -233,7 +233,7 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
     previous synced snapshot against the new one</strong> and turns the difference into ordered ops.</p>
     <div class="filename">src/data/syncOps.ts</div>
 <pre><code><span class="k">const</span> UPSERT_ORDER = ['accounts','clients','disciplines','projects','phases',
-  'resources','tasks','allocations','timeOff'] <span class="k">as const</span>
+  'resources','activities','allocations','timeOff'] <span class="k">as const</span>
 
 <span class="c">// Exhaustiveness: a new AppData key not added here won't compile.</span>
 <span class="k">type</span> _MissingFromOrder = <span class="t">Exclude</span>&lt;keyof <span class="t">AppData</span>, <span class="t">TableKey</span>&gt;

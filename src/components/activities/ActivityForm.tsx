@@ -5,30 +5,30 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
-import type { Task, TaskKind } from '@floaty/shared/types/entities'
+import type { Activity, ActivityKind } from '@floaty/shared/types/entities'
 
-const KIND_OPTIONS: { value: TaskKind; label: string }[] = [
+const KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
   { value: 'project', label: 'Project' },
   { value: 'internal', label: 'Internal' },
   { value: 'repeatable', label: 'Repeatable' },
 ]
 
-/** Add (no `task`) or edit a task. Pick a kind first: a `project` task takes a project (and keeps
+/** Add (no `activity`) or edit an activity. Pick a kind first: a `project` activity takes a project (and keeps
  *  its phase); `internal`/`repeatable` are project-less, so the project picker is hidden and their
  *  project/phase forced empty. `onClose` fires on save or cancel. */
-export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }) {
-  const add = useStore((s) => s.addTask)
-  const update = useStore((s) => s.updateTask)
+export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
+  const add = useStore((s) => s.addActivity)
+  const update = useStore((s) => s.updateActivity)
   const data = useScopedData()
   const projects = data.projects
   const clients = data.clients
 
-  const [name, setName] = useState(task?.name ?? '')
-  const [kind, setKind] = useState<TaskKind>(task?.kind ?? 'project')
-  const [projectId, setProjectId] = useState(task?.projectId ?? '')
-  // Phase UI is hidden for now, but we keep an existing task's phase so editing a
-  // task doesn't silently ungroup it; changing the project (or kind) still clears it.
-  const [phaseId, setPhaseId] = useState(task?.phaseId ?? '')
+  const [name, setName] = useState(activity?.name ?? '')
+  const [kind, setKind] = useState<ActivityKind>(activity?.kind ?? 'project')
+  const [projectId, setProjectId] = useState(activity?.projectId ?? '')
+  // Phase UI is hidden for now, but we keep an existing activity's phase so editing an
+  // activity doesn't silently ungroup it; changing the project (or kind) still clears it.
+  const [phaseId, setPhaseId] = useState(activity?.phaseId ?? '')
   const { error, errorField, errorId, fail } = useFieldError()
 
   const projectOptions: Option[] = projects.map((p) => {
@@ -36,10 +36,10 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
     return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name }
   })
 
-  const onKindChange = (next: TaskKind) => {
+  const onKindChange = (next: ActivityKind) => {
     setKind(next)
-    // Internal/repeatable tasks are project-less — drop any project/phase the form held so a
-    // toggle can't submit an incoherent task (the store would reject it anyway).
+    // Internal/repeatable activities are project-less — drop any project/phase the form held so a
+    // toggle can't submit an incoherent activity (the store would reject it anyway).
     if (next !== 'project') {
       setProjectId('')
       setPhaseId('')
@@ -54,11 +54,11 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
   const submit = () => {
     const trimmed = validateName(name, fail)
     if (!trimmed) return
-    // A project task MUST have a project; internal/repeatable are project-less (projectId/phaseId
+    // A project activity MUST have a project; internal/repeatable are project-less (projectId/phaseId
     // undefined). Surface the project requirement as a field error rather than relying on the
     // store throw, so the invalid control is marked.
     if (kind === 'project' && !projectId) {
-      fail('project', 'A project task must be assigned to a project.')
+      fail('project', 'A project activity must be assigned to a project.')
       return
     }
     const patch = {
@@ -70,7 +70,7 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
     // Surface a store-side rejection as a form error rather than an uncaught React error — see the
     // store CRUD contract.
     try {
-      if (task) update(task.id, patch)
+      if (activity) update(activity.id, patch)
       else add(patch)
       onClose()
     } catch (e) {
@@ -80,7 +80,7 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
 
   return (
     <Modal
-      title={task ? 'Edit task' : 'Add task'}
+      title={activity ? 'Edit activity' : 'Add activity'}
       onClose={onClose}
       onSubmit={submit}
       footer={
@@ -96,7 +96,7 @@ export function TaskForm({ task, onClose }: { task?: Task; onClose: () => void }
       <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
       <div className="mb-3">
         <p className="mb-1.5 text-sm font-medium text-ink">Kind</p>
-        <div role="radiogroup" aria-label="Task kind" className="inline-flex rounded-md border border-line p-0.5">
+        <div role="radiogroup" aria-label="Activity kind" className="inline-flex rounded-md border border-line p-0.5">
           {KIND_OPTIONS.map((opt) => {
             const selected = kind === opt.value
             return (

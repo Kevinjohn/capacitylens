@@ -194,10 +194,10 @@
     FK distinction shows up directly:</p>
     <ul>
       <li><code>deleteResourceCascade</code> — removes the resource + its allocations + its time-off.</li>
-      <li><code>deleteTaskCascade</code> — removes the task + its allocations.</li>
-      <li><code>deleteProjectCascade</code> — removes the project, its phases, its tasks (and those tasks' allocations), and <em>unbinds</em> (does not delete) placeholders bound to it.</li>
+      <li><code>deleteActivityCascade</code> — removes the activity + its allocations.</li>
+      <li><code>deleteProjectCascade</code> — removes the project, its phases, its activities (and those activities' allocations), and <em>unbinds</em> (does not delete) placeholders bound to it.</li>
       <li><code>deleteClientCascade</code> — the project cascade across all the client's projects, in a single pass using <code>Set</code> membership (not N recursive calls).</li>
-      <li><code>deletePhaseCascade</code> / <code>deleteDisciplineCascade</code> — <strong>non-destructive</strong>: they ungroup (null the optional FK on) tasks / resources rather than deleting them.</li>
+      <li><code>deletePhaseCascade</code> / <code>deleteDisciplineCascade</code> — <strong>non-destructive</strong>: they ungroup (null the optional FK on) activities / resources rather than deleting them.</li>
     </ul>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
@@ -260,7 +260,7 @@
     <ol>
       <li><strong>Per-table id maps.</strong> One <code>Map&lt;sourceId, freshId&gt;</code> <em>per entity type</em>. Every incoming row gets a brand-new id (imports never trust source ids). Cross-table id collisions are safe because each FK resolves against its own table's map.</li>
       <li><strong>FK remap + value sanitise.</strong> Each row is given its fresh id, stamped with the active <code>accountId</code> and <code>now</code> timestamps, has each FK remapped through the right table's map, and is passed through <code>sanitizeImportedRecord</code> for value-level repair.</li>
-      <li><strong>Referential repair, parent-before-child.</strong> Walk the dependency tree top-down so each child sees the surviving parent set: projects (drop if <code>clientId</code> didn't survive) → phases (drop if <code>projectId</code> gone) → resources (unbind dangling optional <code>disciplineId</code>/<code>projectId</code>) → tasks (unbind dangling optional <code>projectId</code>; clear <code>phaseId</code> if its phase is gone or belongs to a different project) → allocations (drop if <code>resourceId</code> or <code>taskId</code> missing, or the date range / placeholder rule fails) → timeOff (drop if <code>resourceId</code> missing or range invalid).</li>
+      <li><strong>Referential repair, parent-before-child.</strong> Walk the dependency tree top-down so each child sees the surviving parent set: projects (drop if <code>clientId</code> didn't survive) → phases (drop if <code>projectId</code> gone) → resources (unbind dangling optional <code>disciplineId</code>/<code>projectId</code>) → activities (unbind dangling optional <code>projectId</code>; clear <code>phaseId</code> if its phase is gone or belongs to a different project) → allocations (drop if <code>resourceId</code> or <code>activityId</code> missing, or the date range / placeholder rule fails) → timeOff (drop if <code>resourceId</code> missing or range invalid).</li>
       <li><strong>Assemble.</strong> For each scoped table, keep the OTHER accounts' rows (via <code>notInAccount</code>) and append the repaired incoming rows.</li>
       <li><strong>Return counts.</strong> An honest <code>{ imported, skipped }</code> — a row that merely had an optional FK unbound still counts as imported; only dropped rows are skipped.</li>
     </ol>
@@ -293,7 +293,7 @@
     silent remap to <code>undefined</code>:</p>
 <pre><code><span class="k">const</span> FK_TARGET: <span class="t">Record</span>&lt;string, <span class="t">ScopedEntityKey</span>&gt; = {
   disciplineId: 'disciplines', projectId: 'projects', clientId: 'clients',
-  phaseId: 'phases', resourceId: 'resources', taskId: 'tasks',
+  phaseId: 'phases', resourceId: 'resources', activityId: 'activities',
 }</code></pre>
     <div class="callout do">
       <span class="label">The two exhaustiveness idioms to copy</span>

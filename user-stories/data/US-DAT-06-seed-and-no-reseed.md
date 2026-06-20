@@ -16,7 +16,7 @@ A first-time user wants something to look at, so an empty browser gets the demo 
 2. Observe the seeded demo dataset (Disciplines, Resources incl. *Tyler Nix* / *Senior Designer*, Clients *Acme Inc.* / *Globex*, etc.; Schedule bars in June 2026).
 
 **Scenario B — clearing in-app does NOT re-seed:**
-3. Delete every entity from *inside the app* (e.g. delete both clients — which cascades projects/tasks/allocations — then delete all resources, disciplines and any time off) until all lists are empty and the Schedule shows the empty state (`scheduler-empty`).
+3. Delete every entity from *inside the app* (e.g. delete both clients — which cascades projects/activities/allocations — then delete all resources, disciplines and any time off) until all lists are empty and the Schedule shows the empty state (`scheduler-empty`).
 4. Do a **full page reload**.
 5. Confirm the app comes back **empty**, not re-seeded.
 

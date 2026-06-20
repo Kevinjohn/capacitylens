@@ -29,7 +29,7 @@ test.describe('Command palette', () => {
     const palette = page.getByTestId('command-palette')
     await expect(palette.getByText('Schedule', { exact: true }).last()).toBeVisible()
     await expect(palette.getByText('Resources', { exact: true })).toBeVisible()
-    await expect(palette.getByText('Tasks', { exact: true })).toBeVisible()
+    await expect(palette.getByText('Activities', { exact: true })).toBeVisible()
 
     // Close with Escape
     await page.keyboard.press('Escape')

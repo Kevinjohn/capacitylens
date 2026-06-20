@@ -31,7 +31,7 @@ const makeAlloc = (over: Partial<Allocation> = {}): Allocation => ({
   createdAt: 't',
   updatedAt: 't',
   resourceId: 'r1',
-  taskId: 'task1',
+  activityId: 'activity1',
   startDate: '2026-06-01',
   endDate: '2026-06-05',
   hoursPerDay: 4,

@@ -13,11 +13,11 @@ A manager scanning the schedule needs to know which bookings are firm versus pen
 1. Look at the **Visual Design** bar: it has a **dashed border** and a faint **diagonal hatch** overlay, while its label text stays at full contrast.
 2. Click the **Wireframes** bar to open **Edit allocation**.
 3. Set **Status** = *Completed*, type a **Note** (e.g. `Handed off to QA`), click **Save**.
-4. The Wireframes bar now shows a **✓** before the task name and a **•** marker (note present).
+4. The Wireframes bar now shows a **✓** before the activity name and a **•** marker (note present).
 5. Hover the Wireframes bar — the detail popover shows the note text.
 
 ## Acceptance criteria
 - ✅ A **tentative** bar carries `data-status="tentative"`, a dashed border and a hatch overlay; its label remains full-contrast (no whole-bar opacity).
-- ✅ A **completed** bar carries `data-status="completed"` and shows a **✓** before the task name.
+- ✅ A **completed** bar carries `data-status="completed"` and shows a **✓** before the activity name.
 - ✅ A bar with a **note** shows a **•** marker, and the note appears in the hover/focus popover.
 - ✅ A plain **confirmed** bar with no note shows none of these (solid border, no ✓, no •) and carries `data-status="confirmed"`.

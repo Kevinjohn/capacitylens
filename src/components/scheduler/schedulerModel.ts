@@ -89,14 +89,14 @@ export function buildSchedulerModel(
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
   const clientById = new Map(data.clients.map((c) => [c.id, c]))
-  const taskById = new Map(data.tasks.map((t) => [t.id, t]))
+  const activityById = new Map(data.activities.map((t) => [t.id, t]))
   const resourceById = new Map(data.resources.map((r) => [r.id, r]))
   // Reused for every bar's colour (project → client → resource → grey fallback).
-  const colorMaps = { tasks: taskById, projects: projectById, clients: clientById, resources: resourceById }
-  const taskMeta = new Map(
-    data.tasks.map((t) => {
-      // Internal/repeatable (no-project) tasks resolve to no project/client. `kind` feeds the
-      // task lens ('Internal — All' / 'Repeatable — All') without a second task lookup.
+  const colorMaps = { activities: activityById, projects: projectById, clients: clientById, resources: resourceById }
+  const activityMeta = new Map(
+    data.activities.map((t) => {
+      // Internal/repeatable (no-project) activities resolve to no project/client. `kind` feeds the
+      // activity lens ('Internal — All' / 'Repeatable — All') without a second activity lookup.
       const project = t.projectId ? projectById.get(t.projectId) : undefined
       return [t.id, { projectId: t.projectId, clientId: project?.clientId, kind: t.kind }]
     }),
@@ -120,25 +120,25 @@ export function buildSchedulerModel(
   const projectClientActive = !!(filters.projectId || filters.clientId)
   // Does this allocation match the active project/client filter (ignoring tentative)?
   const matchesProjectClient = (a: Allocation): boolean => {
-    const meta = taskMeta.get(a.taskId)
+    const meta = activityMeta.get(a.activityId)
     if (filters.projectId && meta?.projectId !== filters.projectId) return false
     if (filters.clientId && meta?.clientId !== filters.clientId) return false
     return true
   }
-  // The task lens (standalone — mutually exclusive with project/client via setFilters): a
-  // specific internal/repeatable task, or a whole kind ('Internal — All' / 'Repeatable — All').
-  const taskFilterActive = !!(filters.taskId || filters.taskKind)
-  const matchesTask = (a: Allocation): boolean => {
-    if (filters.taskId) return a.taskId === filters.taskId
-    if (filters.taskKind) return taskMeta.get(a.taskId)?.kind === filters.taskKind
+  // The activity lens (standalone — mutually exclusive with project/client via setFilters): a
+  // specific internal/repeatable activity, or a whole kind ('Internal — All' / 'Repeatable — All').
+  const activityFilterActive = !!(filters.activityId || filters.activityKind)
+  const matchesActivity = (a: Allocation): boolean => {
+    if (filters.activityId) return a.activityId === filters.activityId
+    if (filters.activityKind) return activityMeta.get(a.activityId)?.kind === filters.activityKind
     return true
   }
   // Any "what work" filter is active — drives the dimmed / show-unmatched staffing view, which
-  // is identical whether the active lens is client/project or task.
-  const workFilterActive = projectClientActive || taskFilterActive
+  // is identical whether the active lens is client/project or activity.
+  const workFilterActive = projectClientActive || activityFilterActive
   const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === 'tentative')
   const allocVisible = (a: Allocation): boolean =>
-    matchesProjectClient(a) && matchesTask(a) && notTentativeHidden(a)
+    matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a)
   const resourceVisible = (r: Resource): boolean => {
     if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
     if (search && !`${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false
@@ -176,9 +176,9 @@ export function buildSchedulerModel(
         const resTimeOff = timeOffByResource.get(resource.id) ?? []
         // External / 3rd-party rows have NO capacity: no over-markers, no utilisation, no time-off
         // — an awareness band, not a bookable lane. We starve the capacity path rather than
-        // special-case the (dumb) lane; their task bars still render.
+        // special-case the (dumb) lane; their activity bars still render.
         const isExternal = isExternalResource(resource)
-        // A row is "dimmed" when a work filter (client/project OR the task lens) is active and
+        // A row is "dimmed" when a work filter (client/project OR the activity lens) is active and
         // this resource has NO VISIBLE work on it — we still show their full real load (so you can see
         // who's free to staff), just visually de-emphasised. Uses `allocVisible` (the
         // same predicate the bars use), so a resource whose only matching allocation is a
@@ -189,7 +189,7 @@ export function buildSchedulerModel(
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
         const bars: BarLayout[] = visibleAllocs.map((a) => {
-          const meta = taskMeta.get(a.taskId)
+          const meta = activityMeta.get(a.activityId)
           const project = meta?.projectId ? projectById.get(meta.projectId) : undefined
           const client = meta?.clientId ? clientById.get(meta.clientId) : undefined
           return {
@@ -198,7 +198,7 @@ export function buildSchedulerModel(
             width: geom.widthForDates(a.startDate, a.endDate),
             top: laneTop(laneById.get(a.id) ?? 0, laneLayout),
             color: resolveBarColor(a, colorMaps),
-            label: taskById.get(a.taskId)?.name ?? 'Task',
+            label: activityById.get(a.activityId)?.name ?? 'Activity',
             project: project?.name,
             client: client?.name,
             external: isExternal,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { disciplinesEnabledFor, resourcesByDiscipline, tasksForProject, visibleRange } from './selectors'
+import { disciplinesEnabledFor, resourcesByDiscipline, activitiesForProject, visibleRange } from './selectors'
 import { emptyFilters } from './useStore'
 import { emptyAppData } from '@floaty/shared/types/entities'
 import type { AppData } from '@floaty/shared/types/entities'
@@ -17,7 +17,7 @@ function data(): AppData {
       { id: 'r3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'C', role: 'x', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#3' },
     ],
     projects: [{ id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P', clientId: 'c1', color: '#1' }],
-    tasks: [
+    activities: [
       { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T1', kind: 'project', projectId: 'p1' },
       { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T2', kind: 'project', projectId: 'p2' },
     ],
@@ -54,9 +54,9 @@ describe('disciplinesEnabledFor', () => {
   })
 })
 
-describe('tasksForProject', () => {
-  it('filters tasks by project', () => {
-    expect(tasksForProject(data(), 'p1').map((t) => t.id)).toEqual(['t1'])
+describe('activitiesForProject', () => {
+  it('filters activities by project', () => {
+    expect(activitiesForProject(data(), 'p1').map((t) => t.id)).toEqual(['t1'])
   })
 })
 

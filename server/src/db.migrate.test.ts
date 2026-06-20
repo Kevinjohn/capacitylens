@@ -14,10 +14,12 @@ import { seed } from '@floaty/shared/data/seed'
 
 const TS = '2026-01-01T00:00:00.000Z'
 
-// The shape as it shipped BEFORE general tasks + scheduling modes: tasks.projectId was
-// NOT NULL, accounts had no schedulingMode, allocations had no ignoreWeekends. Only the
-// drifted/parent tables are created here; openDb's CREATE TABLE IF NOT EXISTS fills in
-// the rest (disciplines/phases/resources/timeOff) at the current shape.
+// The shape as it shipped BEFORE the Task→Activity rename (and before general tasks +
+// scheduling modes): the table was `tasks` (projectId NOT NULL), the allocation FK was
+// `taskId`, accounts had no schedulingMode, allocations had no ignoreWeekends. Kept verbatim
+// here on purpose — this fixture IS a legacy DB, so openDb must rename it (tasks→activities,
+// taskId→activityId) AND rebuild it. Only the drifted/parent tables are created; openDb's
+// CREATE TABLE IF NOT EXISTS fills in the rest (disciplines/phases/resources/timeOff) current.
 const OLD_SCHEMA = `
 CREATE TABLE accounts (
   id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
@@ -73,20 +75,29 @@ describe('schema migration of an existing on-disk DB', () => {
     cleanup()
     try {
       writeOldDb(path)
-      const db = openDb(path) // runs migrateSchema with FKs off, then enables them
+      const db = openDb(path) // renames tasks→activities + migrateSchema (FKs off), then enables them
 
-      // (a) The reported regression: a project-less task now inserts. Against the old shape
+      // (a0) The legacy `tasks` table + `allocations.taskId` column were renamed in place to
+      //      `activities` / `activityId` (the Task→Activity rename) — the old names are gone.
+      const tableNames = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all() as Array<{ name: string }>).map((r) => r.name)
+      expect(tableNames).toContain('activities')
+      expect(tableNames).not.toContain('tasks')
+      const allocCols = (db.prepare(`PRAGMA table_info(allocations)`).all() as Array<{ name: string }>).map((c) => c.name)
+      expect(allocCols).toContain('activityId')
+      expect(allocCols).not.toContain('taskId')
+
+      // (a) The reported regression: a project-less activity now inserts. Against the old shape
       //     this threw `NOT NULL constraint failed: tasks.projectId`. (kind is now required —
-      //     a project-less task is internal/repeatable.)
+      //     a project-less activity is internal/repeatable.)
       expect(() =>
-        insertRow(db, 'tasks', { id: 't-gen', accountId: 'a1', name: 'Admin', kind: 'repeatable', createdAt: TS, updatedAt: TS }),
+        insertRow(db, 'activities', { id: 't-gen', accountId: 'a1', name: 'Admin', kind: 'repeatable', createdAt: TS, updatedAt: TS }),
       ).not.toThrow()
-      expect(getRow(db, 'tasks', 't-gen')?.projectId).toBeUndefined()
-      expect(getRow(db, 'tasks', 't-gen')?.kind).toBe('repeatable')
+      expect(getRow(db, 'activities', 't-gen')?.projectId).toBeUndefined()
+      expect(getRow(db, 'activities', 't-gen')?.kind).toBe('repeatable')
 
-      // (b) The existing project-bound task survived the table rebuild intact, with its kind
-      //     backfilled from projectId presence (the v4 task-kind migration).
-      expect(loadState(db).tasks.find((t) => t.id === 't1')).toMatchObject({
+      // (b) The existing project-bound activity survived the rename + rebuild intact, with its
+      //     kind backfilled from projectId presence (the v4 activity-kind migration).
+      expect(loadState(db).activities.find((t) => t.id === 't1')).toMatchObject({
         projectId: 'p1',
         name: 'Existing task',
         kind: 'project',
@@ -104,7 +115,7 @@ describe('schema migration of an existing on-disk DB', () => {
         workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#555', createdAt: TS, updatedAt: TS,
       })
       insertRow(db, 'allocations', {
-        id: 'al1', accountId: 'a1', resourceId: 'r1', taskId: 't1', startDate: '2026-01-01',
+        id: 'al1', accountId: 'a1', resourceId: 'r1', activityId: 't1', startDate: '2026-01-01',
         endDate: '2026-01-03', hoursPerDay: 8, status: 'confirmed', ignoreWeekends: true, createdAt: TS, updatedAt: TS,
       })
       expect(getRow(db, 'allocations', 'al1')?.ignoreWeekends).toBe(true)

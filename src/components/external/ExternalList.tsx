@@ -9,7 +9,7 @@ import type { Resource } from '@floaty/shared/types/entities'
 /**
  * The External / 3rd-party tab: outsourcing partners you assign work to but don't track the hours
  * of. They live on their OWN tab (deliberately out of the Resources tab), are assignable to any
- * task, and render in a neutral band at the bottom of the schedule with no capacity/utilisation.
+ * activity, and render in a neutral band at the bottom of the schedule with no capacity/utilisation.
  * Delete reuses the store's resource cascade (drops the party's allocations), so it's undoable.
  */
 export function ExternalList() {

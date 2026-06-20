@@ -8,7 +8,7 @@ export { isEmpty }
 import { TABLES, SCHEMA_SQL, CREATE_ORDER, SCOPED_ORDER } from './tables'
 import { tx } from './txn'
 import { toRow, fromRow, type Row } from './rowCodec'
-import { migrateSchema, assertSchemaCurrent } from './schema'
+import { migrateSchema, assertSchemaCurrent, renameLegacyActivityTables } from './schema'
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
 // domain-core's job (see validate.ts). These helpers only map between SQL rows and the
@@ -47,6 +47,11 @@ export function openDb(path: string): Db {
   // Wait up to 5s for a held lock instead of throwing SQLITE_BUSY immediately — two server
   // processes on the same FLOATY_DB file (or a WAL checkpoint) contend rather than error.
   db.exec('PRAGMA busy_timeout = 5000;')
+  // Legacy domain rename (Task→Activity, schema v5): bring an old DB's `tasks` table and
+  // `allocations.taskId` column to `activities` / `activityId` BEFORE SCHEMA_SQL — otherwise
+  // its `CREATE TABLE IF NOT EXISTS activities` would create a fresh empty table and orphan the
+  // legacy rows. A no-op on any fresh / current / already-migrated DB. FKs are still OFF here.
+  renameLegacyActivityTables(db)
   // A fresh file gets the current shape here; an existing file keeps its tables (IF
   // NOT EXISTS) and is brought up to shape by migrateSchema. Both run with foreign
   // keys still OFF (node:sqlite's default) so a table rebuild can drop/rename safely;

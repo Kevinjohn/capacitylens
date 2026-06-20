@@ -6,7 +6,7 @@
 Reassign an existing allocation to a different resource from the edit dialog, moving its bar to that resource's row.
 
 ## Why
-Work gets handed over — someone goes on leave, a freelancer takes a task, or a placeholder is filled by a real hire. The manager needs to reassign a booking without recreating it, preserving its dates, hours, status and note.
+Work gets handed over — someone goes on leave, a freelancer takes an activity, or a placeholder is filled by a real hire. The manager needs to reassign a booking without recreating it, preserving its dates, hours, status and note.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a *Brand System* bar on the **Nike Spiros** row.
@@ -16,6 +16,6 @@ Work gets handed over — someone goes on leave, a freelancer takes a task, or a
 
 ## Acceptance criteria
 - ✅ After Save, the **Brand System** bar no longer appears on the **Nike Spiros** row and now appears on the **Alex Rivera** row (`data-resource-id="r-alex"`).
-- ✅ The bar keeps its task, dates, hours/day, status and note — only the resource changed.
+- ✅ The bar keeps its activity, dates, hours/day, status and note — only the resource changed.
 - ✅ Pressing **⌘Z** moves the bar back to **Nike Spiros**.
-- ✅ Selecting a placeholder as the new Assignee locks Project to its bound project and clears Task — you must pick one of that project's tasks before Save (see US-ALL-07).
+- ✅ Selecting a placeholder as the new Assignee locks Project to its bound project and clears Activity — you must pick one of that project's activities before Save (see US-ALL-07).

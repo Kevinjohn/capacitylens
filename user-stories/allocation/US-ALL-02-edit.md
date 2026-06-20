@@ -10,7 +10,7 @@ Plans change constantly — a booking stretches, drops to part-time, becomes ten
 
 ## How (end-to-end)
 **Precondition:** Seeded app open at **Schedule** (`/`); set zoom to **4w** and **Jump to date** → `2026-06-01`. The seed has a *Wireframes* bar on **Tyler Nix**.
-1. Click the **Wireframes** bar. The **Edit allocation** dialog opens, pre-filled with the bar's current Assignee, Project, Task, dates, Hours / day, Status and Note.
+1. Click the **Wireframes** bar. The **Edit allocation** dialog opens, pre-filled with the bar's current Assignee, Project, Activity, dates, Hours / day, Status and Note.
 2. Change **Hours / day** from its current value to `4`.
 3. Change **End** to one day later.
 4. Change **Status** to *Tentative*.

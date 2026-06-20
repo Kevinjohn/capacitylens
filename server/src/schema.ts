@@ -21,11 +21,45 @@ const hasColumn = (db: Db, table: string, column: string): boolean =>
 const isNotNull = (db: Db, table: string, column: string): boolean =>
   columns(db, table).some((c) => c.name === column && c.notnull === 1)
 
+/** True when a table physically exists in this DB (vs. PRAGMA table_info, which returns an
+ *  empty column list for BOTH a missing table and a zero-column one — we need to tell them apart
+ *  for the legacy rename below). */
+const tableExists = (db: Db, table: string): boolean =>
+  (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`).all(table) as unknown[]).length > 0
+
+/**
+ * Legacy rename: the domain concept "Task" was renamed "Activity" (schema v5), so an on-disk DB
+ * written by an OLDER server still has a `tasks` table and an `allocations.taskId` FK column.
+ * Rename them in place to `activities` / `activityId` BEFORE openDb runs `CREATE TABLE IF NOT
+ * EXISTS activities` (which would otherwise leave the old `tasks` table orphaned and create a
+ * fresh, EMPTY `activities` — silently abandoning the user's rows). A pure structural rename:
+ * no rows or values change, and the kind strings are untouched.
+ *
+ * IDEMPOTENT + introspection-gated: it acts ONLY when the legacy shape is present (`tasks` table
+ * exists AND `activities` does not / `allocations.taskId` exists AND `activityId` does not), so a
+ * fresh, current, or already-migrated DB falls straight through with no transaction. Runs with
+ * foreign keys OFF (openDb enables them afterwards) so renaming a referenced table is safe.
+ *
+ * MUST run before SCHEMA_SQL — otherwise the IF-NOT-EXISTS create of `activities` wins the race
+ * and the rename's guard (`activities` absent) never fires, abandoning the legacy rows.
+ */
+export function renameLegacyActivityTables(db: Db): void {
+  // Rename the table only when the old one exists and the new one hasn't been created yet.
+  if (tableExists(db, 'tasks') && !tableExists(db, 'activities')) {
+    db.exec('ALTER TABLE tasks RENAME TO activities')
+  }
+  // Rename the allocations FK column independently (an old DB has it; renaming a column doesn't
+  // touch the referenced table). Guarded so a half-migrated or current DB is a no-op.
+  if (tableExists(db, 'allocations') && hasColumn(db, 'allocations', 'taskId') && !hasColumn(db, 'allocations', 'activityId')) {
+    db.exec('ALTER TABLE allocations RENAME COLUMN taskId TO activityId')
+  }
+}
+
 /**
  * Bring an existing DB's tables up to the current shape in place. node:sqlite never
  * re-runs CREATE TABLE on an existing table, so a file written by an older schema
  * would otherwise keep the old columns/constraints and break (e.g. seeding a general
- * task hit `NOT NULL constraint failed: tasks.projectId`).
+ * activity hit `NOT NULL constraint failed: activities.projectId`).
  *
  * INTROSPECTION-GATED and idempotent: it inspects the live shape (PRAGMA table_info) and
  * acts only when something is missing, so a fresh / current / :memory: DB falls straight
@@ -34,8 +68,8 @@ const isNotNull = (db: Db, table: string, column: string): boolean =>
  * between the client schema and the server DB (the old version-gated pass froze after the
  * first migration and would skip later additions). SQLite can't ALTER-ADD a NOT NULL
  * column to existing rows, so a REQUIRED addition still needs an explicit step (like the
- * tasks rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
- * tasks rebuild's drop/rename is safe.
+ * activities rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
+ * activities rebuild's drop/rename is safe.
  */
 export function migrateSchema(db: Db): void {
   // Every additive optional column the current spec has that an older table lacks.
@@ -45,39 +79,39 @@ export function migrateSchema(db: Db): void {
       if (col.optional && !hasColumn(db, table, col.name)) additions.push([table, col.name])
     }
   }
-  // tasks needs a rebuild when an OLD-shape constraint is still present: projectId was once
-  // NOT NULL (before general, no-project tasks), and `kind` is a required column added in v4
+  // activities needs a rebuild when an OLD-shape constraint is still present: projectId was once
+  // NOT NULL (before general, no-project activities), and `kind` is a required column added in v4
   // that SQLite can't ALTER-ADD as NOT NULL to a table with rows. Either condition → rebuild
   // to the current shape (nullable projectId, kind backfilled from projectId presence).
-  const needsTasksRebuild = isNotNull(db, 'tasks', 'projectId') || !hasColumn(db, 'tasks', 'kind')
-  if (additions.length === 0 && !needsTasksRebuild) return // already current — nothing to do
+  const needsActivitiesRebuild = isNotNull(db, 'activities', 'projectId') || !hasColumn(db, 'activities', 'kind')
+  if (additions.length === 0 && !needsActivitiesRebuild) return // already current — nothing to do
 
   tx(db, () => {
     // Optional columns are nullable TEXT (json columns are TEXT too), so a plain ADD
     // COLUMN is safe: existing rows get NULL, which fromRow omits on read.
     for (const [table, name] of additions) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} TEXT`)
-    // SQLite can't relax a NOT NULL in place, so rebuild tasks when the old constraint
+    // SQLite can't relax a NOT NULL in place, so rebuild activities when the old constraint
     // is still there. Skipped entirely on a current-shape DB.
-    if (needsTasksRebuild) rebuildTasksTable(db)
+    if (needsActivitiesRebuild) rebuildActivitiesTable(db)
   })
 }
 
-/** 12-step table rebuild (per the SQLite docs) to bring `tasks` to the current shape —
+/** 12-step table rebuild (per the SQLite docs) to bring `activities` to the current shape —
  *  nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
- *  other tables hold against tasks(id). The target DDL mirrors the `tasks` block in SCHEMA_SQL.
- *  `kind` is BACKFILLED from the only signal an old row carried: a project-bound task is
+ *  other tables hold against activities(id). The target DDL mirrors the `activities` block in SCHEMA_SQL.
+ *  `kind` is BACKFILLED from the only signal an old row carried: a project-bound activity is
  *  'project', a project-less one 'repeatable' (matching the client-side v3→v4 migrate). A row
  *  reaching here never already has a `kind` column (the rebuild trigger requires it missing or
  *  the old projectId NOT NULL constraint), so recomputing can't clobber an explicit value.
  *
- *  ASSUMPTION (true today, verified): `tasks` has NO indexes, triggers, or extra constraints
+ *  ASSUMPTION (true today, verified): `activities` has NO indexes, triggers, or extra constraints
  *  beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
- *  if one is ever added to `tasks`, this rebuild must be updated to recreate it AFTER the rename —
+ *  if one is ever added to `activities`, this rebuild must be updated to recreate it AFTER the rename —
  *  otherwise a migration would quietly lose it. (If that risk grows, gate with a PRAGMA index_list
  *  check that throws on anything unexpected.) */
-function rebuildTasksTable(db: Db): void {
+function rebuildActivitiesTable(db: Db): void {
   db.exec(`
-    CREATE TABLE tasks_new (
+    CREATE TABLE activities_new (
       id TEXT PRIMARY KEY,
       accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
@@ -86,18 +120,18 @@ function rebuildTasksTable(db: Db): void {
       phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,
       createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
     );
-    INSERT INTO tasks_new (id, accountId, name, kind, projectId, phaseId, createdAt, updatedAt)
+    INSERT INTO activities_new (id, accountId, name, kind, projectId, phaseId, createdAt, updatedAt)
       SELECT id, accountId, name,
         CASE WHEN projectId IS NOT NULL THEN 'project' ELSE 'repeatable' END,
-        projectId, phaseId, createdAt, updatedAt FROM tasks;
-    DROP TABLE tasks;
-    ALTER TABLE tasks_new RENAME TO tasks;
+        projectId, phaseId, createdAt, updatedAt FROM activities;
+    DROP TABLE activities;
+    ALTER TABLE activities_new RENAME TO activities;
   `)
   // FK checks are deferred (enforcement is OFF here); surface any reference the
   // rebuild left dangling instead of committing a corrupt schema.
   const violations = db.prepare('PRAGMA foreign_key_check').all()
   if (violations.length > 0) {
-    throw new Error(`tasks table rebuild left ${violations.length} foreign-key violation(s)`)
+    throw new Error(`activities table rebuild left ${violations.length} foreign-key violation(s)`)
   }
 }
 
@@ -110,7 +144,7 @@ function rebuildTasksTable(db: Db): void {
  *  (1) MISSING COLUMN. migrateSchema auto-adds missing OPTIONAL columns, but SQLite can't
  *      ALTER-ADD a NOT NULL column to a table that already has rows, so a future REQUIRED column
  *      added to an existing on-disk DB can't be migrated automatically — it needs an explicit
- *      rebuild step (the way tasks.projectId got one). Otherwise the drift is SILENT: a missing
+ *      rebuild step (the way activities.projectId got one). Otherwise the drift is SILENT: a missing
  *      required column doesn't even throw on read (fromRow yields undefined) and only surfaces as
  *      a cryptic "no column named X" on the first write that names it.
  *
@@ -148,7 +182,7 @@ export function assertSchemaCurrent(db: Db): void {
     problems.push(
       `missing column(s): ${missing.join(', ')} — migrateSchema auto-adds optional columns, but a ` +
         `new REQUIRED (NOT NULL) column needs an explicit migration step (a table rebuild, like ` +
-        `rebuildTasksTable) before this DB can open`,
+        `rebuildActivitiesTable) before this DB can open`,
     )
   }
   if (mismatched.length > 0) {
