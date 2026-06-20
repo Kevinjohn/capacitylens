@@ -5,6 +5,25 @@ All notable changes to Floaty are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
+## [0.7.0] — 2026-06-20
+
+See who's doing what kind of work, across every project.
+
+### Added
+- **Task kinds — Project, Internal, and Repeatable.** Every task now has a kind. *Project* tasks
+  belong to a project (as before); *Internal* tasks are your own non-client work (admin, internal
+  reviews); and *Repeatable* tasks are reusable across many projects (Design, Workshop, Meeting).
+  The Tasks page groups them into three sections, and the Add/Edit task form lets you pick the kind —
+  a project is required only for *Project* tasks.
+- **Filter the schedule by task.** A new **Filter by task** dropdown gives you a "task view" of the
+  schedule — see all of a repeatable or internal task's work (e.g. *all design*, *all internal time*)
+  across every project at once. It's a standalone lens: picking a task clears the client/project
+  filter and vice-versa, so you're always looking through exactly one.
+
+### Changed
+- **"General tasks" are now "Repeatable tasks".** Existing project-less tasks become *Repeatable* on
+  upgrade — your data migrates in place. Reclassify any that are really *Internal* via the task form.
+
 ## [0.6.0] — 2026-06-19
 
 Track outsourced work without managing it.
