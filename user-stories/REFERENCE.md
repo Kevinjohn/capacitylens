@@ -55,7 +55,7 @@ The sidebar links, in order, route to:
 | Projects | `/projects` | Project list |
 | Activities | `/activities` | Activity list |
 | Time off | `/timeoff` | Time-off list |
-| Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, allocation bars, utilisation, appearance) |
+| Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, allocation bars, utilisation, appearance, local data) |
 
 That's **eight** sections by default — **seven** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). External / 3rd
@@ -107,8 +107,9 @@ never appears on desktop viewports or in landscape.
     externals are behind the device-global **Show external resources** pref (Settings → External,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
-- **Clients:** **Internal** (built-in, one per account — read-only, shown as **Built-in**, no Edit/
-  Delete), Acme Inc., Globex.
+- **Clients:** Acme Inc., Globex. (**Internal** is the built-in, one per account — it is **HIDDEN
+  from the Clients management list**, but still selectable as a project's client and a "Filter by
+  client" option; see the Internal-client appendix below.)
 - **Projects:** Project Lightning (Acme), Brand Themes (Globex).
 - **Phases (Project Lightning):** Discovery, Build.
 - **Activities** (every activity has a **kind**): *Project* — Wireframes, Visual Design, CMS Review
@@ -200,6 +201,16 @@ the schedule then renders **flat** (no `discipline-group` bands). It's stored on
 (`disciplinesEnabled`, syncs + exports), so it applies to everyone on that company; the discipline
 data itself is kept and reappears if switched back on. Both seed companies leave it on.
 
+**Clear local storage (Settings → Local data).** A destructive maintenance action in a danger-styled
+**Local data** section near the bottom of Settings: a `Clear local storage` button
+(`data-testid="clear-local-storage"`). Clicking it opens the standard confirm dialog (title
+`Clear local storage?`, danger `Clear local storage` confirm + `Cancel`) whose copy depends on the
+backend — in **server mode** (`VITE_FLOATY_API` set) it says your data lives in the database and is
+safe, the app will reload and re-load it from there; in **local mode** it says this is your only copy
+so it erases your local data. Both say it clears Floaty data + settings in **THIS browser** and
+**cannot be undone**. Confirm removes every `floaty/`-prefixed localStorage key (the data blob + all
+device prefs — unrelated origin keys are left alone) and reloads the page. **Cancel is a no-op.**
+
 **Build stamp + feedback link (Settings, flag-gated).** When the build sets
 `VITE_FLOATY_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
@@ -276,6 +287,7 @@ Mouse hover sets the active option; mouse click selects.
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `intro-continue` (the post-login "What Floaty is" page's Continue button; shown once per device),
+`clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
 `build-stamp` (Settings footer; only rendered when the build sets
 `VITE_FLOATY_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_FLOATY_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
@@ -292,11 +304,16 @@ Mouse hover sets the active option; mouse click selects.
   reusable across projects). Internal/repeatable activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `repeatable-activities`, `project-activities` (testids).
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
-  **Internal** (read-only: no Edit/Delete; the store rejects renaming/deleting it). It is a real client
-  — it can own real projects — AND a project-less internal/repeatable activity is **bucketed under it
-  for display + filtering** (its bars/labels read "Internal", and **Filter by client → Internal** shows
-  BOTH the project-less activities AND any activities under Internal-owned projects). No `clientId` is
-  stored on the activity; the association is derived in the view-model.
+  **Internal** (the store rejects renaming/deleting it). It is a behind-the-scenes data anchor, so it
+  is **HIDDEN from the Clients management list** (`/clients` shows no Internal row) — but it stays a
+  real, persisted client that is **still selectable and bindable everywhere it's used:** in the
+  **project form's Client `<select>`** (a project can be created under Internal), as a **Filter by
+  client → Internal** option, and as a **Clients** entry in the command palette; a project bound to
+  Internal still shows "· Internal" as its client in the Projects list. It can own real projects, AND a
+  project-less internal/repeatable activity is **bucketed under it for display + filtering** (its
+  bars/labels read "Internal", and **Filter by client → Internal** shows BOTH the project-less
+  activities AND any activities under Internal-owned projects). No `clientId` is stored on the
+  activity; the association is derived in the view-model.
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus any
   project-less (internal/repeatable) activity**. They are **hidden by default** behind the
   device-global **Show placeholders** pref (Settings → Placeholders, `floaty/placeholdersEnabled`,

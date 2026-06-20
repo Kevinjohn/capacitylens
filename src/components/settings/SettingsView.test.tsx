@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SettingsView } from './SettingsView'
 import { AuthContext } from '../../auth/authContext'
@@ -186,6 +186,74 @@ describe('SettingsView — Schedule (minimise weekends)', () => {
     await user.click(sw)
     expect(useStore.getState().minimiseWeekends).toBe(true)
     expect(sw).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
+describe('SettingsView — Clear local storage', () => {
+  // The action calls window.location.reload(); jsdom's reload is non-configurable, so we replace
+  // the whole location with a stub carrying a spy (restored after each test).
+  const realLocation = window.location
+  let reload: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    reload = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...realLocation, reload },
+    })
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+    localStorage.clear()
+  })
+
+  it('shows a destructive Clear local storage button that opens a confirm modal', async () => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+
+    const button = screen.getByTestId('clear-local-storage')
+    expect(button).toHaveTextContent('Clear local storage')
+    // No modal until clicked.
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.click(button)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent(/Clear local storage\?/i)
+    expect(dialog).toHaveTextContent(/cannot be undone/i)
+  })
+
+  it('Cancel is a no-op — it neither clears storage nor reloads', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('floaty/v3', '{"keep":true}')
+    localStorage.setItem('floaty/theme', 'dark')
+    render(<SettingsView />)
+
+    await user.click(screen.getByTestId('clear-local-storage'))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(localStorage.getItem('floaty/v3')).toBe('{"keep":true}')
+    expect(localStorage.getItem('floaty/theme')).toBe('dark')
+    expect(reload).not.toHaveBeenCalled()
+  })
+
+  it('Confirm clears every floaty/ key and reloads', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('floaty/v3', '{"data":1}')
+    localStorage.setItem('floaty/theme', 'dark')
+    localStorage.setItem('unrelated', 'leave-me') // a sibling tool's key must survive
+    render(<SettingsView />)
+
+    await user.click(screen.getByTestId('clear-local-storage'))
+    // Scope to the dialog — the section button and the modal's confirm share the label.
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear local storage' }))
+
+    expect(localStorage.getItem('floaty/v3')).toBeNull()
+    expect(localStorage.getItem('floaty/theme')).toBeNull()
+    expect(localStorage.getItem('unrelated')).toBe('leave-me')
+    expect(reload).toHaveBeenCalledTimes(1)
   })
 })
 
