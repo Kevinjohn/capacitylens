@@ -87,6 +87,12 @@ Open product questions to revisit with the owner. Don't silently resolve these �
 - **Capacity advisory stays non-blocking.** Over-capacity / time-off overlaps warn at allocation
   time but never block the save (`lib/capacity.ts` `capacityAdvisory()`). Confirm owners want the
   soft warning, or do some want a hard stop on overbooking?
+- **Per-WEEK aggregate over-capacity band?** The over-capacity red background is per-DAY only
+  (`allocated > available` per day → a red day cell). A *week* reads red only because it CONTAINS
+  red days. Should an entire week with aggregate over-allocation (week-sum allocated > week-sum
+  available — e.g. light Mon–Thu but a crushing Friday averaging out to over) get a distinct red
+  WEEK band, separate from per-day over? Currently a week reads red via its over-days only. (Owner
+  to decide; no per-week aggregate signal exists today.)
 - **Undo/redo affordance.** Undo/redo is keyboard-only (⌘Z / ⌘⇧Z); the toolbar buttons are hidden
   on purpose pending a clearer affordance. Do owners want visible buttons, or is keyboard enough?
 - **Shared server dataset for the demo — DONE (cutover executed 2026-06-16).** The demo now

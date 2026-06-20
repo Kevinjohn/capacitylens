@@ -88,7 +88,8 @@ export function buildSchedulerModel(
   //   warning that must stay separate from the zoomable %. Don't widen it to the visible window.
   //
   // The per-day over-marker (dayStates.over) is a THIRD, distinct signal and is unchanged — it
-  // flags ANY work on a zero-capacity day across the whole `days` timeline.
+  // flags any day where allocated > available (the over / red-background signal) across the whole
+  // `days` timeline (so it also catches a zero-capacity day carrying any work).
   visStart: ISODate,
   visEnd: ISODate,
   overStart: ISODate,

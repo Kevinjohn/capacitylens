@@ -33,6 +33,11 @@
   --color-brand-soft-ink: var(--c-brand-soft-ink);
   --color-danger-soft: var(--c-danger-soft);
   --color-danger-soft-ink: var(--c-danger-soft-ink);
+  /* Over-capacity day CELL fill. Far stronger than `danger-soft` (a button tint): the
+     over-marker cell carries NO text — allocation bars paint their own opaque WCAG-tuned
+     fills on top — so this can be a saturated red that reads CLEARLY as red at a glance in
+     both themes without any AA constraint on it. */
+  --color-danger-cell: var(--c-danger-cell);
   --color-warn: var(--c-warn);
   --color-ok: var(--c-ok);
 
@@ -64,6 +69,7 @@
   --c-danger: #e11d48;
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 13%, white);
   --c-danger-soft-ink: #be123c; /* a step darker than --c-danger to clear AA on the tint */
+  --c-danger-cell: color-mix(in oklab, var(--c-danger) 50%, white); /* clear rose-red → ~rgb(251,158,161); empty cell, no AA bound */
   --c-warn: #d97706;
   --c-ok: #059669;
   color-scheme: light;
@@ -86,6 +92,7 @@
   --c-danger: #fb7185;
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 22%, #0e1016);
   --c-danger-soft-ink: #fda4af;
+  --c-danger-cell: color-mix(in oklab, var(--c-danger) 60%, #0e1016); /* unmistakable dark red → ~rgb(147,73,86); empty cell, no AA bound */
   --c-warn: #fbbf24;
   --c-ok: #34d399;
   color-scheme: dark;

@@ -161,9 +161,10 @@ export function capacityAdvisory(
 }
 
 /** Over-allocated on a working day inside the window — the near-term "overbooked"
- *  radar. Unlike the per-day over-marker (which flags ANY allocation on a
- *  zero-capacity day), this ignores weekend/time-off days so an ordinary
- *  allocation spanning them doesn't read as overbooked. */
+ *  radar. Unlike the per-day over-marker (which flags any day where allocated >
+ *  available — the over / red-background signal, so it also catches a zero-capacity
+ *  day with any work), this ignores weekend/time-off days so an ordinary allocation
+ *  spanning them doesn't read as overbooked. */
 export function overAllocatedInWindow(
   resource: Resource,
   allocations: Allocation[],

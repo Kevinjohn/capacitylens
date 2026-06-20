@@ -413,14 +413,15 @@ export function SchedulerGrid() {
           }`}
           style={{ width: LAYOUT.leftColWidth }}
         >
-          {/* Text equivalent of the colour-only capacity cues (over-marker, time-off tint). The
-              per-day over-marker is otherwise colour/shape-only and unannounced (WCAG 1.1.1/1.3.1),
-              so count the zero-capacity days that carry scheduled work and surface them here. */}
+          {/* Text equivalent of the colour-only capacity cues (over-marker red background, time-off
+              tint). The per-day over-marker is otherwise colour/shape-only and unannounced (WCAG
+              1.1.1/1.3.1), so count the over-capacity days (allocated > available) and surface them
+              here — the non-colour pair to the red background. */}
           <span className="sr-only">
             {overSoon ? 'Overbooked in the next two weeks. ' : ''}
             {(() => {
               const overDays = dayStates.filter((d) => d.over).length
-              return overDays ? `Scheduled on ${overDays} zero-capacity day${overDays > 1 ? 's' : ''}. ` : ''
+              return overDays ? `Over capacity on ${overDays} day${overDays > 1 ? 's' : ''}. ` : ''
             })()}
             {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
             {bars.length} allocation{bars.length === 1 ? '' : 's'}.
