@@ -8,7 +8,7 @@ import type {
   Project,
   Resource,
   ScopedEntityKey,
-  Task,
+  Activity,
   TimeOff,
 } from '@floaty/shared/types/entities'
 
@@ -52,7 +52,7 @@ declare const _checkDisciplines: CheckColumns<Discipline, typeof COLS_discipline
 declare const _checkProjects: CheckColumns<Project, typeof COLS_projects>
 declare const _checkPhases: CheckColumns<Phase, typeof COLS_phases>
 declare const _checkResources: CheckColumns<Resource, typeof COLS_resources>
-declare const _checkTasks: CheckColumns<Task, typeof COLS_tasks>
+declare const _checkActivities: CheckColumns<Activity, typeof COLS_activities>
 declare const _checkAllocations: CheckColumns<Allocation, typeof COLS_allocations>
 declare const _checkTimeOff: CheckColumns<TimeOff, typeof COLS_timeOff>
 /* eslint-enable @typescript-eslint/no-unused-vars */
@@ -119,7 +119,7 @@ const COLS_resources = [
   ...META,
 ] as const satisfies ColumnSpec[]
 
-const COLS_tasks = [
+const COLS_activities = [
   { name: 'id' },
   { name: 'accountId' },
   { name: 'name' },
@@ -133,7 +133,7 @@ const COLS_allocations = [
   { name: 'id' },
   { name: 'accountId' },
   { name: 'resourceId' },
-  { name: 'taskId' },
+  { name: 'activityId' },
   { name: 'startDate' },
   { name: 'endDate' },
   { name: 'hoursPerDay' },
@@ -181,9 +181,9 @@ export const TABLES: Record<string, TableSpec> = {
     key: 'resources',
     columns: COLS_resources,
   },
-  tasks: {
-    key: 'tasks',
-    columns: COLS_tasks,
+  activities: {
+    key: 'activities',
+    columns: COLS_activities,
   },
   allocations: {
     key: 'allocations',
@@ -205,7 +205,7 @@ export const CREATE_ORDER = [
   'projects',
   'phases',
   'resources',
-  'tasks',
+  'activities',
   'allocations',
   'timeOff',
 ] as const
@@ -224,7 +224,7 @@ export const SCOPED_ORDER: ScopedEntityKey[] = [
   'projects',
   'phases',
   'resources',
-  'tasks',
+  'activities',
   'allocations',
   'timeOff',
 ]
@@ -238,9 +238,9 @@ void _scopedOrderComplete
 
 // DDL. Foreign keys mirror src/lib/integrity.ts cascade rules exactly:
 //   resource → allocations/timeOff : CASCADE        (deleteResourceCascade)
-//   task     → allocations          : CASCADE        (deleteTaskCascade)
-//   phase    → tasks.phaseId         : SET NULL       (deletePhaseCascade: unbind)
-//   project  → phases/tasks          : CASCADE        (deleteProjectCascade)
+//   activity     → allocations          : CASCADE        (deleteActivityCascade)
+//   phase    → activities.phaseId         : SET NULL       (deletePhaseCascade: unbind)
+//   project  → phases/activities          : CASCADE        (deleteProjectCascade)
 //   project  → resources.projectId   : SET NULL       (placeholder unbind)
 //   client   → projects              : CASCADE        (deleteClientCascade)
 //   discipline → resources.disciplineId : SET NULL    (deleteDisciplineCascade: ungroup)
@@ -297,7 +297,7 @@ CREATE TABLE IF NOT EXISTS resources (
   color TEXT NOT NULL,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS tasks (
+CREATE TABLE IF NOT EXISTS activities (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -310,7 +310,7 @@ CREATE TABLE IF NOT EXISTS allocations (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   resourceId TEXT NOT NULL REFERENCES resources(id) ON DELETE CASCADE,
-  taskId TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  activityId TEXT NOT NULL REFERENCES activities(id) ON DELETE CASCADE,
   startDate TEXT NOT NULL, endDate TEXT NOT NULL, hoursPerDay REAL NOT NULL,
   status TEXT NOT NULL, note TEXT, ignoreWeekends TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL

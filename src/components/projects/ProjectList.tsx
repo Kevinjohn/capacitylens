@@ -45,7 +45,7 @@ export function ProjectList() {
       {confirming && (
         <ConfirmDialog
           title="Delete project?"
-          message={`Delete "${confirming.name}" with its phases, tasks and allocations? Placeholders bound to it will be unbound. You can undo this with ⌘Z.`}
+          message={`Delete "${confirming.name}" with its phases, activities and allocations? Placeholders bound to it will be unbound. You can undo this with ⌘Z.`}
           onConfirm={() => {
             del(confirming.id)
             setConfirming(null)

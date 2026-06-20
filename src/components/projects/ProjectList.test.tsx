@@ -67,7 +67,7 @@ describe('ProjectList', () => {
     const dialog = screen.getByRole('dialog', { name: 'Delete project?' })
     expect(dialog).toBeInTheDocument()
     expect(dialog).toHaveTextContent(/Delete "Doomed Project"/)
-    expect(dialog).toHaveTextContent(/phases, tasks and allocations/)
+    expect(dialog).toHaveTextContent(/phases, activities and allocations/)
   })
 
   it('cancels deletion and keeps the project', async () => {
@@ -91,7 +91,7 @@ describe('ProjectList', () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
-    useStore.getState().addTask({ name: 'Task 1', kind: 'project', projectId: project.id })
+    useStore.getState().addActivity({ name: 'Activity 1', kind: 'project', projectId: project.id })
 
     render(<ProjectList />)
 
@@ -102,7 +102,7 @@ describe('ProjectList', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(useStore.getState().data.projects).toHaveLength(0)
-    expect(useStore.getState().data.tasks).toHaveLength(0)
+    expect(useStore.getState().data.activities).toHaveLength(0)
     expect(screen.queryByText('Doomed Project')).not.toBeInTheDocument()
     expect(screen.getByText('No projects yet.')).toBeInTheDocument()
   })

@@ -69,13 +69,13 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('allocations', { startDate: 'nope' }).startDate).toBe('nope')
   })
 
-  it('leaves clean names and refs alone, backfilling task kind from projectId', () => {
-    const out = sanitizeImportedRecord('tasks', { name: 'Build', projectId: 'p1' })
+  it('leaves clean names and refs alone, backfilling activity kind from projectId', () => {
+    const out = sanitizeImportedRecord('activities', { name: 'Build', projectId: 'p1' })
     expect(out).toEqual({ name: 'Build', kind: 'project', projectId: 'p1' })
   })
 
   it('strips emoji / control junk from text fields but keeps refs', () => {
-    const out = sanitizeImportedRecord('tasks', { name: `Build ${String.fromCodePoint(0x1f389)} it`, projectId: 'p1' })
+    const out = sanitizeImportedRecord('activities', { name: `Build ${String.fromCodePoint(0x1f389)} it`, projectId: 'p1' })
     expect(out).toEqual({ name: 'Build it', kind: 'project', projectId: 'p1' })
 
     const res = sanitizeImportedRecord('resources', {

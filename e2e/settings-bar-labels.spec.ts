@@ -3,10 +3,10 @@ import { openApp } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
-// Covers US-SET-02. The bar label reads Client · Project · Task; the two parts are
+// Covers US-SET-02. The bar label reads Client · Project · Activity; the two parts are
 // device-global Settings toggles (Allocation bars section), both on by default.
 test.describe('Allocation bar labels', () => {
-  test('bars show client and project before the task by default', async ({ page }) => {
+  test('bars show client and project before the activity by default', async ({ page }) => {
     await openApp(page, 'Studio North')
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })
     await expect(bar).toContainText('Acme Inc. · Project Lightning · Wireframes')
@@ -27,7 +27,7 @@ test.describe('Allocation bar labels', () => {
     await expect(bar).toContainText('Project Lightning · Wireframes')
     await expect(bar).not.toContainText('Acme Inc.')
 
-    // Project off too → just the task name.
+    // Project off too → just the activity name.
     await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByRole('switch', { name: 'Show project name' }).click()
     await page.getByRole('link', { name: 'Schedule' }).click()

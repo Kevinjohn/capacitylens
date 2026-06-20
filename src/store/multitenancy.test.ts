@@ -201,14 +201,14 @@ describe('importData (account-scoped)', () => {
           color: '#777777',
         },
       ],
-      tasks: [{ id: 'old-t1', accountId: 'foreign', createdAt: 't', updatedAt: 't', name: 'Build', kind: 'project', projectId: 'old-p1' }],
+      activities: [{ id: 'old-t1', accountId: 'foreign', createdAt: 't', updatedAt: 't', name: 'Build', kind: 'project', projectId: 'old-p1' }],
       allocations: [
         // valid
-        { id: 'ok', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', taskId: 'old-t1', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+        { id: 'ok', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', activityId: 'old-t1', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
         // reversed range — dropped
-        { id: 'rev', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', taskId: 'old-t1', startDate: '2026-06-05', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' },
-        // dangling task — dropped
-        { id: 'dangle', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', taskId: 'missing', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+        { id: 'rev', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', activityId: 'old-t1', startDate: '2026-06-05', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' },
+        // dangling activity — dropped
+        { id: 'dangle', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', activityId: 'missing', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
       ],
       timeOff: [
         // valid
@@ -225,7 +225,7 @@ describe('importData (account-scoped)', () => {
     // and still pointing at real imported entities.
     expect(a1Allocs).toHaveLength(1)
     expect(a1TimeOff).toHaveLength(1)
-    expect(s().data.tasks.some((t) => t.id === a1Allocs[0].taskId)).toBe(true)
+    expect(s().data.activities.some((t) => t.id === a1Allocs[0].activityId)).toBe(true)
     expect(s().data.resources.some((r) => r.id === a1Allocs[0].resourceId)).toBe(true)
   })
 })

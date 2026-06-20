@@ -17,9 +17,9 @@ function dataset(): AppData {
     clients: [{ id: 'c1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Acme', color: '#222' }],
     projects: [{ id: 'p1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#ec4899' }],
     phases: [],
-    tasks: [{ id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', kind: 'project', projectId: 'p1' }],
+    activities: [{ id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', kind: 'project', projectId: 'p1' }],
     allocations: [
-      { id: 'a1', accountId: ACC, createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a1', accountId: ACC, createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
     ],
     timeOff: [],
   })
@@ -63,7 +63,7 @@ describe('SchedulerGrid', () => {
   it('marks over-allocated days and shows a utilization figure', () => {
     // Tyler has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({
-      resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 4, status: 'confirmed',
+      resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 4, status: 'confirmed',
     })
     render(<SchedulerGrid />)
     expect(screen.getAllByTestId('over-marker').length).toBeGreaterThan(0)
@@ -74,7 +74,7 @@ describe('SchedulerGrid', () => {
 describe('SchedulerGrid filters', () => {
   it('hides tentative allocations when "hide tentative" is on', () => {
     useStore.getState().addAllocation({
-      resourceId: 'r1', taskId: 't1', startDate: '2026-06-10', endDate: '2026-06-11', hoursPerDay: 2, status: 'tentative',
+      resourceId: 'r1', activityId: 't1', startDate: '2026-06-10', endDate: '2026-06-11', hoursPerDay: 2, status: 'tentative',
     })
     const view = render(<SchedulerGrid />)
     expect(screen.getAllByTestId('allocation-bar')).toHaveLength(2)

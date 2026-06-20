@@ -32,7 +32,7 @@ export function seed(): AppData {
       { id: 'r-nike', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Nike Spiros', role: 'Web Developer', disciplineId: 'd-dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#10b981' },
       { id: 'r-alex', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Alex Rivera', role: 'Front End (freelance)', disciplineId: 'd-dev', employmentType: 'freelancer', workingHoursPerDay: 8, workingDays: [1, 2, 3], color: '#0ea5e9' },
       { id: 'r-ph-designer', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'placeholder', role: 'Senior Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a855f7', projectId: 'p-acme' },
-      // External / 3rd-party partner studio: assignable to tasks but has NO capacity/utilisation —
+      // External / 3rd-party partner studio: assignable to activities but has NO capacity/utilisation —
       // renders neutral in its own band at the bottom of the schedule (see ResourceKind). Its
       // working hours/days are unused silent defaults.
       { id: 'r-ext-dogeatcog', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'external', name: 'Dog Eat Cog', role: 'Partner studio', ...externalCapacityDefaults(), color: NEUTRAL_COLOR },
@@ -52,14 +52,14 @@ export function seed(): AppData {
       { id: 'ph-disc', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Discovery', projectId: 'p-acme' },
       { id: 'ph-build', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Build', projectId: 'p-acme' },
     ],
-    tasks: [
+    activities: [
       { id: 't-wires', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Wireframes', kind: 'project', projectId: 'p-acme', phaseId: 'ph-disc' },
       { id: 't-visual', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Visual Design', kind: 'project', projectId: 'p-acme', phaseId: 'ph-build' },
       { id: 't-cms', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'CMS Review', kind: 'project', projectId: 'p-acme' },
       { id: 't-brand', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Brand System', kind: 'project', projectId: 'p-brand' },
-      // Internal (no-project) task — internal work, allocatable to anyone.
+      // Internal (no-project) activity — internal work, allocatable to anyone.
       { id: 't-admin', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Admin / Internal', kind: 'internal' },
-      // Repeatable (no-project) tasks — reusable across any project; the schedule's task lens
+      // Repeatable (no-project) activities — reusable across any project; the schedule's activity lens
       // groups them so you can see "all design" / "all workshops" regardless of project.
       { id: 't-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Design', kind: 'repeatable' },
       { id: 't-workshop', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Workshop', kind: 'repeatable' },
@@ -67,18 +67,18 @@ export function seed(): AppData {
     ],
     allocations: [
       // Tyler: two overlapping bars on 06-03/06-04 -> stacks + over-allocated (8 + 4 > 8).
-      { id: 'a-tyler-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-tyler', taskId: 't-wires', startDate: '2026-06-01', endDate: '2026-06-04', hoursPerDay: 8, status: 'confirmed' },
-      { id: 'a-tyler-2', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-tyler', taskId: 't-visual', startDate: '2026-06-03', endDate: '2026-06-08', hoursPerDay: 4, status: 'tentative' },
-      { id: 'a-nike-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-nike', taskId: 't-cms', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
-      { id: 'a-alex-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', taskId: 't-cms', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
-      { id: 'a-ph-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ph-designer', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-tyler-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-tyler', activityId: 't-wires', startDate: '2026-06-01', endDate: '2026-06-04', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-tyler-2', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-tyler', activityId: 't-visual', startDate: '2026-06-03', endDate: '2026-06-08', hoursPerDay: 4, status: 'tentative' },
+      { id: 'a-nike-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-nike', activityId: 't-cms', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-alex-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', activityId: 't-cms', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-ph-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ph-designer', activityId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
       // External partner studio booked on Acme's visual design — a span only, no hours (hoursPerDay 0).
-      { id: 'a-ext-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ext-dogeatcog', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-09', hoursPerDay: 0, status: 'confirmed', ignoreWeekends: true },
-      { id: 'a-pam-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-pam', taskId: 't-brand', startDate: '2026-06-01', endDate: '2026-06-09', hoursPerDay: 6, status: 'confirmed' },
-      // A repeatable task ("Design") booked across a project boundary — demonstrates the
-      // schedule's task lens ("all design work", regardless of project/client).
-      { id: 'a-alex-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', taskId: 't-design', startDate: '2026-06-08', endDate: '2026-06-10', hoursPerDay: 8, status: 'confirmed' },
-      { id: 'a-jo-1', accountId: LOFT, createdAt: TS, updatedAt: TS, resourceId: 'r-jo', taskId: 't-loft-screens', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-ext-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ext-dogeatcog', activityId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-09', hoursPerDay: 0, status: 'confirmed', ignoreWeekends: true },
+      { id: 'a-pam-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-pam', activityId: 't-brand', startDate: '2026-06-01', endDate: '2026-06-09', hoursPerDay: 6, status: 'confirmed' },
+      // A repeatable activity ("Design") booked across a project boundary — demonstrates the
+      // schedule's activity lens ("all design work", regardless of project/client).
+      { id: 'a-alex-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', activityId: 't-design', startDate: '2026-06-08', endDate: '2026-06-10', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-jo-1', accountId: LOFT, createdAt: TS, updatedAt: TS, resourceId: 'r-jo', activityId: 't-loft-screens', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
     ],
     timeOff: [
       { id: 'to-tyler', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-tyler', startDate: '2026-06-10', endDate: '2026-06-12', type: 'holiday', note: 'Long weekend' },

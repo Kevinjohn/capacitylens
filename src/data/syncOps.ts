@@ -15,7 +15,7 @@ const UPSERT_ORDER = [
   'projects',
   'phases',
   'resources',
-  'tasks',
+  'activities',
   'allocations',
   'timeOff',
 ] as const

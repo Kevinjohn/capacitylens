@@ -118,18 +118,18 @@ describe('SchedulerToolbar Clear filter button', () => {
   })
 })
 
-describe('SchedulerToolbar Tasks filter (standalone lens)', () => {
-  // Seed one internal + one repeatable task so the Tasks dropdown renders (it covers only the
-  // project-less kinds; project tasks are reached via the Projects dropdown).
-  const seedLensTasks = () => ({
-    internal: useStore.getState().addTask({ name: 'Admin', kind: 'internal' }),
-    repeatable: useStore.getState().addTask({ name: 'Design', kind: 'repeatable' }),
+describe('SchedulerToolbar Activities filter (standalone lens)', () => {
+  // Seed one internal + one repeatable activity so the Activities dropdown renders (it covers only the
+  // project-less kinds; project activities are reached via the Projects dropdown).
+  const seedLensActivities = () => ({
+    internal: useStore.getState().addActivity({ name: 'Admin', kind: 'internal' }),
+    repeatable: useStore.getState().addActivity({ name: 'Design', kind: 'repeatable' }),
   })
 
-  it('renders the Tasks dropdown with grouped Internal / Repeatable options', () => {
-    seedLensTasks()
+  it('renders the Activities dropdown with grouped Internal / Repeatable options', () => {
+    seedLensActivities()
     render(<SchedulerToolbar />)
-    const select = screen.getByLabelText('Filter by task')
+    const select = screen.getByLabelText('Filter by activity')
     expect(select).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Internal — All' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Repeatable — All' })).toBeInTheDocument()
@@ -137,49 +137,49 @@ describe('SchedulerToolbar Tasks filter (standalone lens)', () => {
     expect(screen.getByRole('option', { name: 'Design' })).toBeInTheDocument()
   })
 
-  it('is absent when the account has no project-less tasks', () => {
+  it('is absent when the account has no project-less activities', () => {
     render(<SchedulerToolbar />)
-    expect(screen.queryByLabelText('Filter by task')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Filter by activity')).not.toBeInTheDocument()
   })
 
-  it('selecting a specific task sets taskId and clears the client/project lens', async () => {
+  it('selecting a specific activity sets activityId and clears the client/project lens', async () => {
     const user = userEvent.setup()
-    const { repeatable } = seedLensTasks()
+    const { repeatable } = seedLensActivities()
     useStore.getState().setFilters({ projectId: 'p1' }) // an active project lens
     render(<SchedulerToolbar />)
 
-    await user.selectOptions(screen.getByLabelText('Filter by task'), repeatable.id)
+    await user.selectOptions(screen.getByLabelText('Filter by activity'), repeatable.id)
 
-    expect(useStore.getState().ui.filters.taskId).toBe(repeatable.id)
-    expect(useStore.getState().ui.filters.taskKind).toBeNull()
+    expect(useStore.getState().ui.filters.activityId).toBe(repeatable.id)
+    expect(useStore.getState().ui.filters.activityKind).toBeNull()
     expect(useStore.getState().ui.filters.projectId).toBeNull() // standalone lens cleared it
   })
 
-  it('selecting "Internal — All" sets taskKind and clears the client/project lens', async () => {
+  it('selecting "Internal — All" sets activityKind and clears the client/project lens', async () => {
     const user = userEvent.setup()
-    seedLensTasks()
+    seedLensActivities()
     useStore.getState().setFilters({ clientId: 'c1' })
     render(<SchedulerToolbar />)
 
-    await user.selectOptions(screen.getByLabelText('Filter by task'), 'kind:internal')
+    await user.selectOptions(screen.getByLabelText('Filter by activity'), 'kind:internal')
 
-    expect(useStore.getState().ui.filters.taskKind).toBe('internal')
-    expect(useStore.getState().ui.filters.taskId).toBeNull()
+    expect(useStore.getState().ui.filters.activityKind).toBe('internal')
+    expect(useStore.getState().ui.filters.activityId).toBeNull()
     expect(useStore.getState().ui.filters.clientId).toBeNull()
   })
 
-  it('selecting a project clears an active task lens (mutual exclusion both ways)', async () => {
+  it('selecting a project clears an active activity lens (mutual exclusion both ways)', async () => {
     const user = userEvent.setup()
-    const { repeatable } = seedLensTasks()
+    const { repeatable } = seedLensActivities()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
-    useStore.getState().setFilters({ taskId: repeatable.id })
+    useStore.getState().setFilters({ activityId: repeatable.id })
     render(<SchedulerToolbar />)
 
     await user.selectOptions(screen.getByLabelText('Filter by project'), project.id)
 
     expect(useStore.getState().ui.filters.projectId).toBe(project.id)
-    expect(useStore.getState().ui.filters.taskId).toBeNull()
-    expect(useStore.getState().ui.filters.taskKind).toBeNull()
+    expect(useStore.getState().ui.filters.activityId).toBeNull()
+    expect(useStore.getState().ui.filters.activityKind).toBeNull()
   })
 })

@@ -147,8 +147,8 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
         <tr><td><code>Client</code></td><td>Yes</td><td>Groups projects.</td></tr>
         <tr><td><code>Project</code></td><td>Yes</td><td><strong>Required</strong> <code>clientId</code>.</td></tr>
         <tr><td><code>Phase</code></td><td>Yes</td><td><strong>Required</strong> <code>projectId</code>.</td></tr>
-        <tr><td><code>Task</code></td><td>Yes</td><td><em>Optional</em> <code>projectId</code> (a general task) + optional <code>phaseId</code>.</td></tr>
-        <tr><td><code>Allocation</code></td><td>Yes</td><td>The core unit: <strong>required</strong> <code>resourceId</code> + <code>taskId</code>, a date range, hours/day, status.</td></tr>
+        <tr><td><code>Activity</code></td><td>Yes</td><td><em>Optional</em> <code>projectId</code> (a general activity) + optional <code>phaseId</code>.</td></tr>
+        <tr><td><code>Allocation</code></td><td>Yes</td><td>The core unit: <strong>required</strong> <code>resourceId</code> + <code>activityId</code>, a date range, hours/day, status.</td></tr>
         <tr><td><code>TimeOff</code></td><td>Yes</td><td><strong>Required</strong> <code>resourceId</code>, a date range, a type.</td></tr>
       </tbody>
     </table>
@@ -158,12 +158,12 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
     <p>Two derived constructs make the "loop over every scoped table" pattern safe and DRY:</p>
     <div class="filename">shared/src/types/entities.ts (the scoped-table seam)</div>
 <pre><code><span class="k">export type</span> <span class="t">ScopedEntityKey</span> = 'disciplines' | 'resources' | 'clients' | 'projects'
-  | 'phases' | 'tasks' | 'allocations' | 'timeOff'
+  | 'phases' | 'activities' | 'allocations' | 'timeOff'
 
 <span class="c">// The single runtime source of "all scoped tables". Cascade, scope-to-account,</span>
 <span class="c">// and import all derive their loops from this — add an entity here and they extend.</span>
 <span class="k">export const</span> SCOPED_KEYS: <span class="t">ScopedEntityKey</span>[] = ['disciplines','resources','clients',
-  'projects','phases','tasks','allocations','timeOff']
+  'projects','phases','activities','allocations','timeOff']
 
 <span class="c">// A uniform ScopedEntity[] view of AppData's scoped tables — isolates into ONE named</span>
 <span class="c">// seam the single cast TS can't infer through a heterogeneous-union index.</span>

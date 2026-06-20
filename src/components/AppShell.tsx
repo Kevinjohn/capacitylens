@@ -20,7 +20,7 @@ const LINKS: [string, string, IconName][] = [
   ['/disciplines', 'Disciplines', 'tag'],
   ['/clients', 'Clients', 'briefcase'],
   ['/projects', 'Projects', 'folder'],
-  ['/tasks', 'Tasks', 'clipboard-check'],
+  ['/activities', 'Activities', 'clipboard-check'],
   ['/timeoff', 'Time off', 'sun'],
   ['/settings', 'Settings', 'sliders'],
 ]

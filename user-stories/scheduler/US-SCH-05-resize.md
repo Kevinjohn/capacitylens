@@ -6,7 +6,7 @@
 Lengthen or shorten an allocation by dragging the grip handle at its start or end edge; the bar can never shrink below one day.
 
 ## Why
-Estimates change once work is underway — a two-day task becomes four. Dragging the end grip to extend (or the start grip to pull the beginning in) is the direct way to re-scope without opening a form. The one-day floor stops a careless drag from collapsing an allocation into nothing.
+Estimates change once work is underway — a two-day activity becomes four. Dragging the end grip to extend (or the start grip to pull the beginning in) is the direct way to re-scope without opening a form. The one-day floor stops a careless drag from collapsing an allocation into nothing.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open at **Schedule** (`/`). Set zoom to **4w** and **Jump to date** → `2026-06-01`.

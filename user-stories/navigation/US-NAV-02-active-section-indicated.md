@@ -16,7 +16,7 @@ editing and make a change on the wrong screen. The active link is styled distinc
    (the other links are plain with a hover background only).
 2. Click **Clients**. The **Clients** link now takes the active styling.
 3. Confirm **Schedule** has dropped back to the plain (inactive) style.
-4. Click **Tasks**. The active styling moves to **Tasks**; **Clients** reverts to plain.
+4. Click **Activities**. The active styling moves to **Activities**; **Clients** reverts to plain.
 5. At each step, scan the whole sidebar: only one link is in the active state.
 
 ## Acceptance criteria

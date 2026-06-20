@@ -76,7 +76,7 @@ describe('startBackups', () => {
   it('the interval timer keeps snapshotting until stop()', async () => {
     const dir = tempDir()
     const db = openDb(':memory:')
-    // 0.0005 min = 30ms — the injected tiny interval from the task spec.
+    // 0.0005 min = 30ms — the injected tiny interval from the activity spec.
     const backups = startBackups(db, { dir, intervalMin: 0.0005, keep: 48 }, () => {}, tickingClock())
     await vi.waitFor(() => expect(snapshots(dir).length).toBeGreaterThanOrEqual(3), { timeout: 5000 })
     backups.stop()

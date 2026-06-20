@@ -35,28 +35,28 @@ describe('store CRUD', () => {
     expect(updated.updatedAt >= r.updatedAt).toBe(true)
   })
 
-  it('cascades client deletion through projects, tasks and allocations', () => {
+  it('cascades client deletion through projects, activities and allocations', () => {
     const client = s().addClient({ name: 'Acme', color: '#1' })
     const project = s().addProject({ name: 'P', clientId: client.id, color: '#2' })
-    const task = s().addTask({ name: 'T', kind: 'project', projectId: project.id })
+    const activity = s().addActivity({ name: 'T', kind: 'project', projectId: project.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    s().addAllocation({ resourceId: r.id, taskId: task.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    s().addAllocation({ resourceId: r.id, activityId: activity.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     expect(s().data.allocations).toHaveLength(1)
 
     s().deleteClient(client.id)
     const d = s().data
     expect(d.clients).toHaveLength(0)
     expect(d.projects).toHaveLength(0)
-    expect(d.tasks).toHaveLength(0)
+    expect(d.activities).toHaveLength(0)
     expect(d.allocations).toHaveLength(0)
     expect(d.resources).toHaveLength(1) // resources are not deleted
   })
 
-  it('rejects assigning a placeholder to a task outside its bound project', () => {
+  it('rejects assigning a placeholder to an activity outside its bound project', () => {
     const client = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: client.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: client.id, color: '#3' })
-    const taskP2 = s().addTask({ name: 'T2', kind: 'project', projectId: p2.id })
+    const activityP2 = s().addActivity({ name: 'T2', kind: 'project', projectId: p2.id })
     const ph = s().addResource({
       kind: 'placeholder',
       role: 'Designer',
@@ -67,7 +67,7 @@ describe('store CRUD', () => {
       projectId: p1.id,
     })
     expect(() =>
-      s().addAllocation({ resourceId: ph.id, taskId: taskP2.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' }),
+      s().addAllocation({ resourceId: ph.id, activityId: activityP2.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' }),
     ).toThrow()
     expect(s().data.allocations).toHaveLength(0)
   })

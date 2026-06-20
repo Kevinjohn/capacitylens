@@ -12,7 +12,7 @@ Import replaces everything, so feeding it a random JSON or a non-Floaty file mus
 **Precondition:** Seeded app open. Prepare a file that is **not** recognisable Floaty data. Use one of:
 - a plain-text/garbage file (e.g. contents `hello world`, which isn't even valid JSON), or
 - a JSON object with none of Floaty's entity keys, e.g. `{ "hello": "world" }`.
-  (Note: a file like `{ "resources": [] }` *would* be accepted — the guard recognises any of `resources`, `disciplines`, `clients`, `projects`, `phases`, `tasks`, `allocations`, `timeOff` as an array — so the test file must contain none of those keys as arrays.)
+  (Note: a file like `{ "resources": [] }` *would* be accepted — the guard recognises any of `resources`, `disciplines`, `clients`, `projects`, `phases`, `activities`, `allocations`, `timeOff` as an array — so the test file must contain none of those keys as arrays.)
 1. Note the current data (e.g. Clients shows *Acme Inc.* and *Globex*; the Schedule has the seed bars).
 2. In the sidebar **Data** section, click **Import JSON** and choose the non-Floaty file.
 3. Observe the result — no confirmation dialog appears; instead a notice toast is shown.

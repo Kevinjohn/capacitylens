@@ -40,7 +40,7 @@ export function ClientList() {
       {confirming && (
         <ConfirmDialog
           title="Delete client?"
-          message={`Delete "${confirming.name}" and all of its projects, phases, tasks and allocations? You can undo this with ⌘Z.`}
+          message={`Delete "${confirming.name}" and all of its projects, phases, activities and allocations? You can undo this with ⌘Z.`}
           onConfirm={() => {
             deleteClient(confirming.id)
             setConfirming(null)

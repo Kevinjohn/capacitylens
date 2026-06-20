@@ -11,9 +11,9 @@ import {
   FIXTURE_PHASE,
   FIXTURE_RESOURCE,
   FIXTURE_RESOURCE_EXTERNAL,
-  FIXTURE_TASK,
-  FIXTURE_TASK_INTERNAL,
-  FIXTURE_TASK_REPEATABLE,
+  FIXTURE_ACTIVITY,
+  FIXTURE_ACTIVITY_INTERNAL,
+  FIXTURE_ACTIVITY_REPEATABLE,
   FIXTURE_ALLOCATION,
   FIXTURE_TIMEOFF,
 } from '@floaty/shared/data/fixtures'
@@ -33,7 +33,7 @@ function freshApp(allowReset = true): { app: FastifyInstance } {
 const account = (id: string) => ({ id, name: 'Studio', color: '#3b82f6', ...meta() })
 const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
 const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
-const task = (id: string, accountId: string, projectId: string, phaseId?: string) => ({ id, accountId, name: 'Task', kind: 'project', projectId, phaseId, ...meta() })
+const activity = (id: string, accountId: string, projectId: string, phaseId?: string) => ({ id, accountId, name: 'Activity', kind: 'project', projectId, phaseId, ...meta() })
 const person = (id: string, accountId: string) => ({
   id,
   accountId,
@@ -46,11 +46,11 @@ const person = (id: string, accountId: string) => ({
   ...meta(),
 })
 const placeholder = (id: string, accountId: string, projectId?: string) => ({ ...person(id, accountId), kind: 'placeholder', projectId })
-const allocation = (id: string, accountId: string, resourceId: string, taskId: string, o: Record<string, unknown> = {}) =>
+const allocation = (id: string, accountId: string, resourceId: string, activityId: string, o: Record<string, unknown> = {}) =>
   // Object.assign (rather than `{ ...base, ...o }`) so overriding well-known keys via
   // `o` doesn't trip TS2783 on the literal's explicit startDate/endDate/etc.
   Object.assign(
-    { id, accountId, resourceId, taskId, startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', ...meta() },
+    { id, accountId, resourceId, activityId, startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', ...meta() },
     o,
   )
 
@@ -77,12 +77,12 @@ const batch = (app: FastifyInstance, ops: unknown[]) =>
   call(app, { method: 'POST', url: '/api/batch', payload: body({ ops }) })
 const state = async (app: FastifyInstance) => (await call(app, { method: 'GET', url: '/api/state' })).json()
 
-/** Seed a minimal account → client → project → task → person chain. */
+/** Seed a minimal account → client → project → activity → person chain. */
 async function scaffold(app: FastifyInstance) {
   await post(app, 'accounts', account('a1'))
   await post(app, 'clients', client('c1', 'a1'))
   await post(app, 'projects', project('p1', 'a1', 'c1'))
-  await post(app, 'tasks', task('t1', 'a1', 'p1'))
+  await post(app, 'activities', activity('t1', 'a1', 'p1'))
   await post(app, 'resources', person('r1', 'a1'))
 }
 
@@ -105,7 +105,7 @@ describe('CRUD round-trip', () => {
     expect(s.accounts).toHaveLength(1)
     expect(s.clients).toHaveLength(1)
     expect(s.projects).toHaveLength(1)
-    expect(s.tasks).toHaveLength(1)
+    expect(s.activities).toHaveLength(1)
     expect(s.resources).toHaveLength(1)
     expect(s.allocations).toHaveLength(1)
     // Round-trips exactly: workingDays json + omitted optionals survive.
@@ -234,7 +234,7 @@ describe('CRUD round-trip', () => {
 })
 
 describe('cascade deletes (DB foreign keys mirror the store cascades)', () => {
-  it('deleting a client cascades to projects, tasks and allocations but not resources', async () => {
+  it('deleting a client cascades to projects, activities and allocations but not resources', async () => {
     const { app } = freshApp()
     await scaffold(app)
     await post(app, 'allocations', allocation('al1', 'a1', 'r1', 't1'))
@@ -242,7 +242,7 @@ describe('cascade deletes (DB foreign keys mirror the store cascades)', () => {
     const s = await state(app)
     expect(s.clients).toHaveLength(0)
     expect(s.projects).toHaveLength(0)
-    expect(s.tasks).toHaveLength(0)
+    expect(s.activities).toHaveLength(0)
     expect(s.allocations).toHaveLength(0)
     expect(s.resources).toHaveLength(1) // resource survives
   })
@@ -267,7 +267,7 @@ describe('batch sync (/api/batch — transactional, ordered)', () => {
     await post(app, 'clients', client('c1', 'a1'))
     await post(app, 'clients', client('c2', 'a1'))
     await post(app, 'projects', project('p1', 'a1', 'c1')) // p1 under c1
-    await post(app, 'tasks', task('t1', 'a1', 'p1'))
+    await post(app, 'activities', activity('t1', 'a1', 'p1'))
     // One batch: move p1 to c2 (upsert), then delete c1. Upserts-before-deletes inside a
     // single tx means p1's new clientId lands BEFORE c1's ON DELETE CASCADE runs — so p1
     // and its descendant t1 survive (the bug this fix closes would cascade-delete them).
@@ -280,7 +280,7 @@ describe('batch sync (/api/batch — transactional, ordered)', () => {
     expect(s.clients.map((c: { id: string }) => c.id)).toEqual(['c2'])
     expect(s.projects).toHaveLength(1)
     expect(s.projects[0].clientId).toBe('c2') // reparented, not cascade-deleted
-    expect(s.tasks).toHaveLength(1) // descendant preserved
+    expect(s.activities).toHaveLength(1) // descendant preserved
   })
 
   it('rolls the WHOLE batch back if any op fails (atomic)', async () => {
@@ -343,14 +343,14 @@ describe('validation (shared domain-core) rejects bad writes with 400', () => {
     const { app } = freshApp()
     await scaffold(app)
     await post(app, 'projects', project('p2', 'a1', 'c1'))
-    await post(app, 'tasks', task('t2', 'a1', 'p2'))
+    await post(app, 'activities', activity('t2', 'a1', 'p2'))
     await post(app, 'resources', placeholder('ph', 'a1', 'p1')) // bound to p1
     const res = await post(app, 'allocations', allocation('al', 'a1', 'ph', 't2')) // t2 is in p2
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toMatch(/placeholder/i)
   })
 
-  it('rejects an allocation referencing a missing resource/task', async () => {
+  it('rejects an allocation referencing a missing resource/activity', async () => {
     const { app } = freshApp()
     await scaffold(app)
     const res = await post(app, 'allocations', allocation('al', 'a1', 'ghost', 't1'))
@@ -368,10 +368,10 @@ describe('import', () => {
       projects: [project('src-p', accountId, 'src-c')],
       phases: [],
       resources: [person('src-r', accountId)],
-      tasks: [task('src-t', accountId, 'src-p')],
+      activities: [activity('src-t', accountId, 'src-p')],
       allocations: [
         allocation('src-al', accountId, 'src-r', 'src-t'),
-        allocation('bad', accountId, 'src-r', 'no-task'), // dropped: dangling task
+        allocation('bad', accountId, 'src-r', 'no-activity'), // dropped: dangling activity
       ],
       timeOff: [],
     },
@@ -383,13 +383,13 @@ describe('import', () => {
     const res = await call(app, { method: 'POST', url: '/api/import', payload: { accountId: 'a1', data: exportFile('whatever') } })
     expect(res.statusCode).toBe(200)
     const out = res.json()
-    expect(out.imported).toBe(5) // client, project, resource, task, 1 valid allocation
+    expect(out.imported).toBe(5) // client, project, resource, activity, 1 valid allocation
     expect(out.skipped).toBe(1) // the dangling allocation
     const s = await state(app)
     const proj = s.projects[0]
     expect(proj.id).not.toBe('src-p')
     expect(proj.accountId).toBe('a1')
-    expect(s.tasks[0].projectId).toBe(proj.id) // FK rewired to the new project id
+    expect(s.activities[0].projectId).toBe(proj.id) // FK rewired to the new project id
     expect(s.allocations).toHaveLength(1)
   })
 
@@ -397,7 +397,7 @@ describe('import', () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
     // A hand-edited file: a project/phase whose required parent is absent (must be
-    // dropped before SQLite's FKs reject the whole import), and a task/resource whose
+    // dropped before SQLite's FKs reject the whole import), and an activity/resource whose
     // OPTIONAL parent is absent (must survive, unbound to general / no discipline).
     const file = {
       schemaVersion: 3,
@@ -408,7 +408,7 @@ describe('import', () => {
         projects: [project('dp', 'x', 'ghost-client')], // dropped: missing client
         phases: [{ id: 'dph', accountId: 'x', name: 'P', projectId: 'ghost-project', ...meta() }], // dropped
         resources: [{ ...person('dr', 'x'), disciplineId: 'ghost-disc' }], // kept, discipline unbound
-        tasks: [task('dt', 'x', 'ghost-project')], // kept, unbound to a general task
+        activities: [activity('dt', 'x', 'ghost-project')], // kept, unbound to a general activity
         allocations: [],
         timeOff: [],
       },
@@ -419,8 +419,8 @@ describe('import', () => {
     const s = await state(app)
     expect(s.projects).toHaveLength(0)
     expect(s.phases).toHaveLength(0)
-    expect(s.tasks).toHaveLength(1)
-    expect(s.tasks[0].projectId).toBeUndefined() // unbound → general task
+    expect(s.activities).toHaveLength(1)
+    expect(s.activities[0].projectId).toBeUndefined() // unbound → general activity
     expect(s.resources).toHaveLength(1)
     expect(s.resources[0].disciplineId).toBeUndefined() // unbound discipline
   })
@@ -775,28 +775,28 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     expect((await state(app)).resources[0]).toEqual(FIXTURE_RESOURCE_EXTERNAL)
   })
 
-  it('task: every field round-trips (including optional projectId/phaseId)', async () => {
+  it('activity: every field round-trips (including optional projectId/phaseId)', async () => {
     const { app } = freshApp()
     await seedFixtureDeps(app)
-    expect((await post(app, 'tasks', FIXTURE_TASK)).statusCode).toBe(201)
-    expect((await state(app)).tasks[0]).toEqual(FIXTURE_TASK)
+    expect((await post(app, 'activities', FIXTURE_ACTIVITY)).statusCode).toBe(201)
+    expect((await state(app)).activities[0]).toEqual(FIXTURE_ACTIVITY)
   })
 
-  it('internal + repeatable tasks round-trip with kind and no projectId/phaseId', async () => {
+  it('internal + repeatable activities round-trip with kind and no projectId/phaseId', async () => {
     const { app } = freshApp()
     await seedFixtureDeps(app)
-    expect((await post(app, 'tasks', FIXTURE_TASK_INTERNAL)).statusCode).toBe(201)
-    expect((await post(app, 'tasks', FIXTURE_TASK_REPEATABLE)).statusCode).toBe(201)
-    const tasks = (await state(app)).tasks
-    expect(tasks).toContainEqual(FIXTURE_TASK_INTERNAL)
-    expect(tasks).toContainEqual(FIXTURE_TASK_REPEATABLE)
+    expect((await post(app, 'activities', FIXTURE_ACTIVITY_INTERNAL)).statusCode).toBe(201)
+    expect((await post(app, 'activities', FIXTURE_ACTIVITY_REPEATABLE)).statusCode).toBe(201)
+    const activities = (await state(app)).activities
+    expect(activities).toContainEqual(FIXTURE_ACTIVITY_INTERNAL)
+    expect(activities).toContainEqual(FIXTURE_ACTIVITY_REPEATABLE)
   })
 
   it('allocation: every field round-trips (including optional note + json ignoreWeekends + hoursPerDay 0)', async () => {
     const { app } = freshApp()
     await seedFixtureDeps(app)
     await post(app, 'resources', FIXTURE_RESOURCE)
-    await post(app, 'tasks', FIXTURE_TASK)
+    await post(app, 'activities', FIXTURE_ACTIVITY)
     expect((await post(app, 'allocations', FIXTURE_ALLOCATION)).statusCode).toBe(201)
     expect((await state(app)).allocations[0]).toEqual(FIXTURE_ALLOCATION)
   })

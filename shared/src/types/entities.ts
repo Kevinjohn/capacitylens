@@ -20,7 +20,7 @@ export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1]
  * What a resource row represents:
  * - `person`      — a real team member with capacity (the default).
  * - `placeholder` — an unfilled role/"slot", bound to one project (see `projectId`).
- * - `external`    — an outsourced 3rd-party company. Can be assigned tasks, but has NO
+ * - `external`    — an outsourced 3rd-party company. Can be assigned activities, but has NO
  *   hours/capacity/utilisation and is EXCLUDED from all capacity math; it renders in its own
  *   band at the bottom of the schedule. Reuses `name` (company name, required by the form) +
  *   `role` (optional descriptor); its `workingHoursPerDay`/`workingDays` are unused silent
@@ -30,14 +30,14 @@ export type ResourceKind = 'person' | 'placeholder' | 'external'
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
 /**
- * What a task IS — the axis the schedule's "task view" filters on. Three kinds:
+ * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
  * - `project`    — belongs to one project (carries `projectId`, optionally a `phaseId`).
  * - `internal`   — project-less internal work (Admin, internal review/meeting).
- * - `repeatable` — project-less reusable task used across many projects (Design, Workshop).
+ * - `repeatable` — project-less reusable activity used across many projects (Design, Workshop).
  * Coherence (enforced in assertScopedRefs, repaired on import): `project` HAS a `projectId`;
  * `internal`/`repeatable` have NEITHER `projectId` nor `phaseId`.
  */
-export type TaskKind = 'project' | 'internal' | 'repeatable'
+export type ActivityKind = 'project' | 'internal' | 'repeatable'
 
 /** Fields every persisted entity carries — cheap now, impossible to backfill later. */
 export interface Entity {
@@ -108,20 +108,20 @@ export interface Phase extends ScopedEntity {
   projectId: ID
 }
 
-export interface Task extends ScopedEntity {
+export interface Activity extends ScopedEntity {
   name: string
-  /** What this task is: project work, internal, or a reusable (repeatable) task. The
-   *  discriminant the schedule's task lens filters on. See {@link TaskKind}. */
-  kind: TaskKind
-  /** Set ONLY for `kind: 'project'` — the project this task belongs to. Internal and
-   *  repeatable tasks are project-less (and so are their allocations). */
+  /** What this activity is: project work, internal, or a reusable (repeatable) activity. The
+   *  discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
+  kind: ActivityKind
+  /** Set ONLY for `kind: 'project'` — the project this activity belongs to. Internal and
+   *  repeatable activities are project-less (and so are their allocations). */
   projectId?: ID
   phaseId?: ID
 }
 
 export interface Allocation extends ScopedEntity {
   resourceId: ID
-  taskId: ID
+  activityId: ID
   startDate: ISODate // inclusive
   endDate: ISODate // inclusive
   hoursPerDay: number
@@ -149,7 +149,7 @@ export interface AppData {
   clients: Client[]
   projects: Project[]
   phases: Phase[]
-  tasks: Task[]
+  activities: Activity[]
   allocations: Allocation[]
   timeOff: TimeOff[]
 }
@@ -161,7 +161,7 @@ export type ScopedEntityKey =
   | 'clients'
   | 'projects'
   | 'phases'
-  | 'tasks'
+  | 'activities'
   | 'allocations'
   | 'timeOff'
 
@@ -171,7 +171,7 @@ export const SCOPED_KEYS: ScopedEntityKey[] = [
   'clients',
   'projects',
   'phases',
-  'tasks',
+  'activities',
   'allocations',
   'timeOff',
 ]
@@ -227,8 +227,10 @@ export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'w
   return { employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5] }
 }
 
-/** Bump when the persisted shape changes; drives data/migrate.ts. (v4 added Task.kind.) */
-export const SCHEMA_VERSION = 4
+/** Bump when the persisted shape changes; drives data/migrate.ts. (v4 added Activity.kind;
+ *  v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
+ *  `Allocation.taskId` → `activityId`.) */
+export const SCHEMA_VERSION = 5
 
 export interface PersistedState {
   schemaVersion: number
@@ -244,7 +246,7 @@ export function emptyAppData(): AppData {
     clients: [],
     projects: [],
     phases: [],
-    tasks: [],
+    activities: [],
     allocations: [],
     timeOff: [],
   }

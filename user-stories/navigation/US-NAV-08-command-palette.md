@@ -37,7 +37,7 @@ couple of keystrokes navigate faster than any menu when you already know what yo
 - ✅ Selecting a **Person** navigates to `/`, clears filters, and scrolls that resource's row into view.
 - ✅ Selecting a **Project** navigates to `/` and sets the project filter.
 - ✅ Selecting a **Client** navigates to `/` and sets the client filter.
-- ✅ Selecting a **Task** navigates to `/tasks`.
+- ✅ Selecting an **Activity** navigates to `/activities`.
 - ✅ Selecting a **Page** navigates to that route.
 - ✅ **ArrowUp/ArrowDown** move the highlight; **Enter** selects; mouse hover also sets the active item.
 - ✅ The palette has no serious/critical WCAG 2.1 AA colour-contrast violations (axe test).

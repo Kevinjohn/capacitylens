@@ -37,8 +37,8 @@ test.describe('Clients', () => {
     await expect(page.getByTestId('client-row').filter({ hasText: 'Acme Worldwide' })).toBeVisible()
 
     // Project labels use "Client / Project".
-    await page.getByRole('link', { name: 'Tasks' }).click()
-    await page.getByRole('button', { name: 'Add task' }).click()
+    await page.getByRole('link', { name: 'Activities' }).click()
+    await page.getByRole('button', { name: 'Add activity' }).click()
     await expect(page.getByLabel('Project').getByRole('option', { name: /Acme Worldwide \/ Project Lightning/ })).toBeAttached()
   })
 

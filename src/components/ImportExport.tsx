@@ -17,7 +17,7 @@ const SUMMARY: [keyof AppData, string][] = [
   ['clients', 'clients'],
   ['projects', 'projects'],
   ['phases', 'phases'],
-  ['tasks', 'tasks'],
+  ['activities', 'activities'],
   ['allocations', 'allocations'],
   ['timeOff', 'time-off entries'],
 ]

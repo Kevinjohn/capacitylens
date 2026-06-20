@@ -3,7 +3,7 @@ import { openApp } from './helpers'
 
 const EMPTY_FLOATY = JSON.stringify({
   schemaVersion: 2,
-  data: { disciplines: [], resources: [], clients: [], projects: [], phases: [], tasks: [], allocations: [], timeOff: [] },
+  data: { disciplines: [], resources: [], clients: [], projects: [], phases: [], activities: [], allocations: [], timeOff: [] },
 })
 
 // A real (non-empty) import: one resource. Importing nothing is now refused (it would
@@ -15,7 +15,7 @@ const NONEMPTY_FLOATY = JSON.stringify({
     clients: [],
     projects: [],
     phases: [],
-    tasks: [],
+    activities: [],
     allocations: [],
     timeOff: [],
     resources: [

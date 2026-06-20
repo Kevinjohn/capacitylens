@@ -15,7 +15,7 @@ const ExternalList = lazy(() => import('./components/external/ExternalList').the
 const DisciplineList = lazy(() => import('./components/disciplines/DisciplineList').then((m) => ({ default: m.DisciplineList })))
 const ClientList = lazy(() => import('./components/clients/ClientList').then((m) => ({ default: m.ClientList })))
 const ProjectList = lazy(() => import('./components/projects/ProjectList').then((m) => ({ default: m.ProjectList })))
-const TaskList = lazy(() => import('./components/tasks/TaskList').then((m) => ({ default: m.TaskList })))
+const ActivityList = lazy(() => import('./components/activities/ActivityList').then((m) => ({ default: m.ActivityList })))
 const TimeOffList = lazy(() => import('./components/timeoff/TimeOffList').then((m) => ({ default: m.TimeOffList })))
 const SettingsView = lazy(() => import('./components/settings/SettingsView').then((m) => ({ default: m.SettingsView })))
 
@@ -40,7 +40,7 @@ export const router = createBrowserRouter([
       { path: 'disciplines', element: <DisciplineRoute /> },
       { path: 'clients', element: <ClientList /> },
       { path: 'projects', element: <ProjectList /> },
-      { path: 'tasks', element: <TaskList /> },
+      { path: 'activities', element: <ActivityList /> },
       { path: 'timeoff', element: <TimeOffList /> },
       { path: 'settings', element: <SettingsView /> },
     ],

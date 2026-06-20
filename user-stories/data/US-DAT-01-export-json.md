@@ -17,6 +17,6 @@ Floaty is local-first by default — everything lives in this browser's `localSt
 ## Acceptance criteria
 - ✅ Clicking **Export JSON** triggers a download named exactly **`floaty-data.json`** of MIME type `application/json`.
 - ✅ The file's top level is a wrapper object `{ "schemaVersion": <number>, "data": { … } }` — not a bare entity array.
-- ✅ The `data` object holds the current entities under the keys `resources`, `disciplines`, `clients`, `projects`, `phases`, `tasks`, `allocations`, `timeOff` (each an array).
+- ✅ The `data` object holds the current entities under the keys `resources`, `disciplines`, `clients`, `projects`, `phases`, `activities`, `allocations`, `timeOff` (each an array).
 - ✅ For the seeded dataset, `data.resources` includes the seed people/placeholder (e.g. `r-tyler`, `r-nike`, `r-alex`, `r-ph-designer`) and `data.timeOff` includes Tyler's 10–12 June holiday — i.e. the file reflects the live state, not an empty template.
 - ✅ Keep this downloaded file — it is the input for US-DAT-02 (Import) and US-DAT-03 (Undo import).

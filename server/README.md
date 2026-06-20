@@ -56,7 +56,7 @@ VITE_FLOATY_API=http://localhost:8787 npm run dev
 | POST | `/api/test/reset` | Wipe (+ optional reseed). Gated by `FLOATY_ALLOW_RESET=1`. |
 
 `:entity` is an `AppData` key: `accounts`, `clients`, `disciplines`, `projects`,
-`phases`, `resources`, `tasks`, `allocations`, `timeOff`.
+`phases`, `resources`, `activities`, `allocations`, `timeOff`.
 
 ## Validation
 

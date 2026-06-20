@@ -44,7 +44,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const addAllocation = useStore((s) => s.addAllocation)
   const updateAllocation = useStore((s) => s.updateAllocation)
   const deleteAllocation = useStore((s) => s.deleteAllocation)
-  const addTask = useStore((s) => s.addTask)
+  const addActivity = useStore((s) => s.addActivity)
   const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId))
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const isDays = mode === 'days'
@@ -54,17 +54,17 @@ export function AllocationModal(props: AllocationModalProps) {
   const create = 'create' in props ? props.create : undefined
   const editing = editId ? data.allocations.find((a) => a.id === editId) : undefined
 
-  const initialTask = editing ? data.tasks.find((t) => t.id === editing.taskId) : undefined
+  const initialActivity = editing ? data.activities.find((t) => t.id === editing.activityId) : undefined
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? ''
   const initialResource = data.resources.find((r) => r.id === initialResourceId)
   const initialLocked = initialResource?.kind === 'placeholder' ? initialResource.projectId : undefined
 
   const [resourceId, setResourceId] = useState(initialResourceId)
-  // When editing, the existing task's project wins (undefined → '' = general), so a
-  // placeholder→general allocation reopens with the Task select correctly populated.
+  // When editing, the existing activity's project wins (undefined → '' = general), so a
+  // placeholder→general allocation reopens with the Activity select correctly populated.
   // `initialLocked` is only the CREATE-time default for a placeholder's bound project.
-  const [projectId, setProjectId] = useState(editing ? (initialTask?.projectId ?? '') : (initialLocked ?? ''))
-  const [taskId, setTaskId] = useState(editing?.taskId ?? '')
+  const [projectId, setProjectId] = useState(editing ? (initialActivity?.projectId ?? '') : (initialLocked ?? ''))
+  const [activityId, setActivityId] = useState(editing?.activityId ?? '')
   const [startDate, setStartDate] = useState<ISODate>(editing?.startDate ?? create?.startDate ?? todayISO(calendarTimeZone))
   const [endDate, setEndDate] = useState<ISODate>(editing?.endDate ?? create?.endDate ?? todayISO(calendarTimeZone))
   const [hoursPerDay, setHoursPerDay] = useState(editing?.hoursPerDay ?? initialResource?.workingHoursPerDay ?? 8)
@@ -91,7 +91,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [daysOfWork, setDaysOfWork] = useState(
     editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,
   )
-  const [newTaskName, setNewTaskName] = useState('')
+  const [newActivityName, setNewActivityName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [errorField, setErrorField] = useState<string | null>(null)
   const errorId = useId()
@@ -145,8 +145,8 @@ export function AllocationModal(props: AllocationModalProps) {
     value: r.id,
     label: `${r.name ?? r.role}${r.kind === 'placeholder' ? ' (slot)' : r.kind === 'external' ? ' (external)' : ''}`,
   }))
-  // "No project" lets you pick project-less tasks (internal + repeatable). A placeholder is
-  // offered only its bound project plus this option (it can take project-less tasks too).
+  // "No project" lets you pick project-less activities (internal + repeatable). A placeholder is
+  // offered only its bound project plus this option (it can take project-less activities too).
   const projectOptions: Option[] = [
     { value: '', label: 'No project (internal / repeatable)' },
     ...data.projects
@@ -156,7 +156,7 @@ export function AllocationModal(props: AllocationModalProps) {
         return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name }
       }),
   ]
-  const taskOptions: Option[] = data.tasks
+  const activityOptions: Option[] = data.activities
     .filter((t) => (projectId ? t.projectId === projectId : !t.projectId))
     .map((t) => ({ value: t.id, label: t.name }))
 
@@ -166,26 +166,26 @@ export function AllocationModal(props: AllocationModalProps) {
     if (r?.kind === 'placeholder' && r.projectId) {
       // A placeholder forces its bound project; reset downstream selections.
       setProjectId(r.projectId)
-      setTaskId('')
+      setActivityId('')
     }
   }
   const onProjectChange = (v: string) => {
     setProjectId(v)
-    setTaskId('')
+    setActivityId('')
   }
-  const onAddTask = () => {
-    // No project selected → create a project-less, repeatable task; otherwise a project task
+  const onAddActivity = () => {
+    // No project selected → create a project-less, repeatable activity; otherwise a project activity
     // bound to the chosen project. Was a silent no-op on a blank name — give feedback.
-    const cleanTaskName = validateText(newTaskName, fail, {
-      field: 'newtask',
-      requiredMessage: 'Enter a name for the new task.',
+    const cleanActivityName = validateText(newActivityName, fail, {
+      field: 'newactivity',
+      requiredMessage: 'Enter a name for the new activity.',
     })
-    if (cleanTaskName === null) return
-    const task = projectId
-      ? addTask({ name: cleanTaskName, kind: 'project', projectId })
-      : addTask({ name: cleanTaskName, kind: 'repeatable' })
-    setTaskId(task.id)
-    setNewTaskName('')
+    if (cleanActivityName === null) return
+    const activity = projectId
+      ? addActivity({ name: cleanActivityName, kind: 'project', projectId })
+      : addActivity({ name: cleanActivityName, kind: 'repeatable' })
+    setActivityId(activity.id)
+    setNewActivityName('')
   }
 
   const submit = () => {
@@ -193,8 +193,8 @@ export function AllocationModal(props: AllocationModalProps) {
       fail('resource', 'Choose a resource.')
       return
     }
-    if (!taskId) {
-      fail('task', 'Choose (or add) a task.')
+    if (!activityId) {
+      fail('activity', 'Choose (or add) an activity.')
       return
     }
     if (isExternal) {
@@ -240,18 +240,18 @@ export function AllocationModal(props: AllocationModalProps) {
     }
     const cleanNote = validateText(note, fail, { field: 'note', required: false, multiline: true })
     if (cleanNote === null) return
-    const task = data.tasks.find((t) => t.id === taskId)
-    if (selectedResource && task) {
-      const check = validateAllocationAssignment(selectedResource, task.projectId)
+    const activity = data.activities.find((t) => t.id === activityId)
+    if (selectedResource && activity) {
+      const check = validateAllocationAssignment(selectedResource, activity.projectId)
       if (!check.ok) {
-        fail('task', check.errors[0])
+        fail('activity', check.errors[0])
         return
       }
     }
     // Both modes persist the same shape; days mode just feeds the DERIVED end/hours.
     // Externals have no working week — weekends are plain calendar days for them, so a span is
     // literal (ignoreWeekends: true) and the toggle is hidden below.
-    const fields = { taskId, startDate, endDate: effEndDate, hoursPerDay: effHoursPerDay, status, note: cleanNote ? cleanNote : undefined, ignoreWeekends: isExternal ? true : ignoreWeekends }
+    const fields = { activityId, startDate, endDate: effEndDate, hoursPerDay: effHoursPerDay, status, note: cleanNote ? cleanNote : undefined, ignoreWeekends: isExternal ? true : ignoreWeekends }
     try {
       if (editing) updateAllocation(editing.id, { resourceId, ...fields })
       else addAllocation({ resourceId, ...fields })
@@ -271,7 +271,7 @@ export function AllocationModal(props: AllocationModalProps) {
     try {
       addAllocation({
         resourceId: editing.resourceId,
-        taskId: editing.taskId,
+        activityId: editing.activityId,
         startDate: editing.startDate,
         endDate: editing.endDate,
         hoursPerDay: editing.hoursPerDay,
@@ -350,20 +350,20 @@ export function AllocationModal(props: AllocationModalProps) {
         onChange={onProjectChange}
         options={projectOptions}
       />
-      <SelectField label="Task" value={taskId} onChange={setTaskId} options={taskOptions} placeholder="— Select task —" required invalid={errorField === 'task'} describedById={errorId} />
+      <SelectField label="Activity" value={activityId} onChange={setActivityId} options={activityOptions} placeholder="— Select activity —" required invalid={errorField === 'activity'} describedById={errorId} />
       <div className="flex gap-2">
         <input
           className={inputClass}
-          value={newTaskName}
+          value={newActivityName}
           maxLength={MAX_NAME_LENGTH}
-          placeholder={projectId ? '…or add a new task' : '…or add a new repeatable task'}
-          aria-label="New task name"
-          aria-invalid={errorField === 'newtask' || undefined}
-          onChange={(e) => setNewTaskName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddTask() } }}
+          placeholder={projectId ? '…or add a new activity' : '…or add a new repeatable activity'}
+          aria-label="New activity name"
+          aria-invalid={errorField === 'newactivity' || undefined}
+          onChange={(e) => setNewActivityName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddActivity() } }}
         />
-        <Button variant="ghost" onClick={onAddTask}>
-          Add task
+        <Button variant="ghost" onClick={onAddActivity}>
+          Add activity
         </Button>
       </div>
 

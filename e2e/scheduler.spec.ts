@@ -39,7 +39,7 @@ test.describe('Scheduler', () => {
 
     await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible()
     await page.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await page.getByLabel('Task', { exact: true }).selectOption('t-wires')
+    await page.getByLabel('Activity', { exact: true }).selectOption('t-wires')
     await page.getByRole('button', { name: 'Save' }).click()
 
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1)

@@ -46,70 +46,70 @@ describe('store CRUD covers every entity', () => {
     expect(s().data.projects).toHaveLength(0)
   })
 
-  it('phases: add / update / delete (tasks survive)', () => {
+  it('phases: add / update / delete (activities survive)', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const ph = s().addPhase({ name: 'Discovery', projectId: p.id })
-    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id, phaseId: ph.id })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id, phaseId: ph.id })
     s().updatePhase(ph.id, { name: 'Disco' })
     expect(s().data.phases[0].name).toBe('Disco')
     s().deletePhase(ph.id)
     expect(s().data.phases).toHaveLength(0)
-    expect(s().data.tasks.find((x) => x.id === t.id)!.phaseId).toBeUndefined()
+    expect(s().data.activities.find((x) => x.id === t.id)!.phaseId).toBeUndefined()
   })
 
-  it('tasks: add / update / delete', () => {
+  it('activities: add / update / delete', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
-    s().updateTask(t.id, { name: 'T2' })
-    expect(s().data.tasks[0].name).toBe('T2')
-    s().deleteTask(t.id)
-    expect(s().data.tasks).toHaveLength(0)
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
+    s().updateActivity(t.id, { name: 'T2' })
+    expect(s().data.activities[0].name).toBe('T2')
+    s().deleteActivity(t.id)
+    expect(s().data.activities).toHaveLength(0)
   })
 
-  it('tasks: a general (no-project) task can be added without a projectId', () => {
-    const t = s().addTask({ name: 'Admin', kind: 'repeatable' })
+  it('activities: a general (no-project) activity can be added without a projectId', () => {
+    const t = s().addActivity({ name: 'Admin', kind: 'repeatable' })
     expect(t.projectId).toBeUndefined()
-    expect(s().data.tasks[0].projectId).toBeUndefined()
-    expect(s().data.tasks[0].name).toBe('Admin')
+    expect(s().data.activities[0].projectId).toBeUndefined()
+    expect(s().data.activities[0].name).toBe('Admin')
   })
 
-  it('tasks: a project task converts to repeatable by clearing its project + kind together', () => {
+  it('activities: a project activity converts to repeatable by clearing its project + kind together', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
-    s().updateTask(t.id, { kind: 'repeatable', projectId: undefined })
-    expect(s().data.tasks[0].kind).toBe('repeatable')
-    expect(s().data.tasks[0].projectId).toBeUndefined()
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
+    s().updateActivity(t.id, { kind: 'repeatable', projectId: undefined })
+    expect(s().data.activities[0].kind).toBe('repeatable')
+    expect(s().data.activities[0].projectId).toBeUndefined()
   })
 
-  it('tasks: kind ⇆ projectId coherence is enforced — clearing a project task’s project alone throws', () => {
+  it('activities: kind ⇆ projectId coherence is enforced — clearing a project activity’s project alone throws', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     // Leaving kind='project' while removing the project is incoherent — rejected at the store boundary.
-    expect(() => s().updateTask(t.id, { projectId: undefined })).toThrow(/project task must be assigned/i)
-    // And an internal/repeatable task may not carry a project.
-    expect(() => s().addTask({ name: 'X', kind: 'internal', projectId: p.id })).toThrow(/cannot belong to a project/i)
+    expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(/project activity must be assigned/i)
+    // And an internal/repeatable activity may not carry a project.
+    expect(() => s().addActivity({ name: 'X', kind: 'internal', projectId: p.id })).toThrow(/cannot belong to a project/i)
   })
 
-  it('updateTask validates the MERGED row, not the raw patch (partial phase/project patches)', () => {
+  it('updateActivity validates the MERGED row, not the raw patch (partial phase/project patches)', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
     const ph1 = s().addPhase({ name: 'Disco', projectId: p1.id }) // a phase OF p1
-    const t = s().addTask({ name: 'T', kind: 'project', projectId: p1.id, phaseId: ph1.id })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p1.id, phaseId: ph1.id })
 
     // A phaseId-ONLY patch (re-setting the same phase) must NOT be wrongly rejected: the
-    // merged row still carries projectId from the existing task, so coherence holds.
-    expect(() => s().updateTask(t.id, { phaseId: ph1.id })).not.toThrow()
+    // merged row still carries projectId from the existing activity, so coherence holds.
+    expect(() => s().updateActivity(t.id, { phaseId: ph1.id })).not.toThrow()
 
     // A projectId-ONLY patch that would leave a STALE cross-project phaseId IS rejected
     // (merged row: projectId=p2 but phaseId=ph1-of-p1) instead of silently persisting an
-    // incoherent task the server would later 400 on sync.
-    expect(() => s().updateTask(t.id, { projectId: p2.id })).toThrow(/phase/i)
-    expect(s().data.tasks[0].projectId).toBe(p1.id) // unchanged — the bad patch didn't land
+    // incoherent activity the server would later 400 on sync.
+    expect(() => s().updateActivity(t.id, { projectId: p2.id })).toThrow(/phase/i)
+    expect(s().data.activities[0].projectId).toBe(p1.id) // unchanged — the bad patch didn't land
   })
 
   it('resources: add / update / delete', () => {
@@ -123,9 +123,9 @@ describe('store CRUD covers every entity', () => {
   it('allocations: add / update / delete', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    const a = s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     s().updateAllocation(a.id, { hoursPerDay: 4, status: 'tentative' })
     expect(s().data.allocations[0]).toMatchObject({ hoursPerDay: 4, status: 'tentative' })
     s().deleteAllocation(a.id)
@@ -172,19 +172,19 @@ describe('allocation integrity at the store boundary', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
-    const t1 = s().addTask({ name: 'T1', kind: 'project', projectId: p1.id })
-    const t2 = s().addTask({ name: 'T2', kind: 'project', projectId: p2.id })
+    const t1 = s().addActivity({ name: 'T1', kind: 'project', projectId: p1.id })
+    const t2 = s().addActivity({ name: 'T2', kind: 'project', projectId: p2.id })
     const ph = s().addResource({
       kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#1', projectId: p1.id,
     })
-    const a = s().addAllocation({ resourceId: ph.id, taskId: t1.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
-    expect(() => s().updateAllocation(a.id, { taskId: t2.id })).toThrow()
-    expect(s().data.allocations.find((x) => x.id === a.id)!.taskId).toBe(t1.id)
+    const a = s().addAllocation({ resourceId: ph.id, activityId: t1.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    expect(() => s().updateAllocation(a.id, { activityId: t2.id })).toThrow()
+    expect(s().data.allocations.find((x) => x.id === a.id)!.activityId).toBe(t1.id)
   })
 
-  it('addAllocation rejects dangling resource/task references', () => {
+  it('addAllocation rejects dangling resource/activity references', () => {
     expect(() =>
-      s().addAllocation({ resourceId: 'nope', taskId: 'nope', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' }),
+      s().addAllocation({ resourceId: 'nope', activityId: 'nope', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' }),
     ).toThrow()
     expect(s().data.allocations).toHaveLength(0)
   })
@@ -194,21 +194,21 @@ describe('date-range + reference guards at the store boundary', () => {
   const seedAlloc = () => {
     const c = s().addClient({ name: 'Acme', color: '#111111' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#222222' })
-    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     return { r, t }
   }
 
   it('addAllocation rejects an empty or reversed date range', () => {
     const { r, t } = seedAlloc()
-    expect(() => s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '', endDate: '', hoursPerDay: 8, status: 'confirmed' })).toThrow()
-    expect(() => s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-05', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' })).toThrow()
+    expect(() => s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '', endDate: '', hoursPerDay: 8, status: 'confirmed' })).toThrow()
+    expect(() => s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-05', endDate: '2026-06-01', hoursPerDay: 8, status: 'confirmed' })).toThrow()
     expect(s().data.allocations).toHaveLength(0)
   })
 
   it('clamps allocation hoursPerDay to a real working day (<= 24) on add and update', () => {
     const { r, t } = seedAlloc()
-    const a = s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 200, status: 'confirmed' })
+    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 200, status: 'confirmed' })
     expect(a.hoursPerDay).toBe(24) // inflated value clamped on add
     s().updateAllocation(a.id, { hoursPerDay: 99 })
     expect(s().data.allocations[0].hoursPerDay).toBe(24) // and on update (e.g. a drag-resize rescale)
@@ -216,7 +216,7 @@ describe('date-range + reference guards at the store boundary', () => {
 
   it('updateAllocation allows a note/status-only patch (validates the effective range, not the patch)', () => {
     const { r, t } = seedAlloc()
-    const a = s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
     expect(() => s().updateAllocation(a.id, { status: 'tentative' })).not.toThrow()
     expect(s().data.allocations[0].status).toBe('tentative')
     // …but a patch that would reverse the range is rejected.

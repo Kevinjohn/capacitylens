@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { openApp } from './helpers'
 
 // External / 3rd-party resources: managed on their own tab (out of Resources), assignable to any
-// task with NO hours, and shown in a neutral band at the bottom of the schedule with no
+// activity with NO hours, and shown in a neutral band at the bottom of the schedule with no
 // utilisation / over-markers. "Dog Eat Cog" is seeded in Studio North (see seed.ts).
 test.describe('External / 3rd parties', () => {
   test('adds an external party on its own tab; it does NOT appear on the Resources tab', async ({ page }) => {
@@ -41,7 +41,7 @@ test.describe('External / 3rd parties', () => {
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Dog Eat Cog' }).getByTestId('utilization')).toHaveCount(0)
   })
 
-  test('assigns a task from the row "+": the modal has no Hours field and saves a span-only bar', async ({ page }) => {
+  test('assigns an activity from the row "+": the modal has no Hours field and saves a span-only bar', async ({ page }) => {
     await openApp(page, 'Studio North')
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
@@ -56,7 +56,7 @@ test.describe('External / 3rd parties', () => {
     await expect(dialog.getByLabel('Start Date')).toBeVisible()
 
     await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await dialog.getByLabel('Task', { exact: true }).selectOption('t-wires') // Wireframes
+    await dialog.getByLabel('Activity', { exact: true }).selectOption('t-wires') // Wireframes
     await page.getByRole('button', { name: 'Save' }).click()
 
     const newBar = page.locator('[data-resource-id="r-ext-dogeatcog"]').getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })

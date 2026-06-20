@@ -20,6 +20,6 @@ Projects get renamed, move between clients (a brand handed to a different accoun
 ## Acceptance criteria
 - ✅ The Projects list row now reads **Project Thunder** and its "Client / Project" label shows *Globex*.
 - ✅ On the **Schedule**, the allocation bars that belonged to this project now render in the **new project colour**.
-- ✅ The project's tasks and allocations are preserved through the edit — only name, client and colour changed.
+- ✅ The project's activities and allocations are preserved through the edit — only name, client and colour changed.
 - ✅ Clearing **Name** to empty and clicking **Save** is rejected (required-field error, dialog stays open).
 - ✅ Removing the **Client** entirely and clicking **Save** is rejected with **"A project must belong to a client."**

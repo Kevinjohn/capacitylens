@@ -3,7 +3,7 @@
 // future app-level tests. Pure data, no behaviour.
 import { externalCapacityDefaults } from '../types/entities'
 import { NEUTRAL_COLOR } from '../lib/color'
-import type { Account, Allocation, Client, Discipline, Phase, Project, Resource, Task, TimeOff } from '../types/entities'
+import type { Account, Allocation, Client, Discipline, Phase, Project, Resource, Activity, TimeOff } from '../types/entities'
 
 const TS1 = '2026-01-01T00:00:00.000Z'
 const TS2 = '2026-06-01T12:00:00.000Z'
@@ -89,10 +89,10 @@ export const FIXTURE_RESOURCE_EXTERNAL: Resource = {
   updatedAt: TS2,
 }
 
-export const FIXTURE_TASK: Task = {
+export const FIXTURE_ACTIVITY: Activity = {
   id: 'fix-t1',
   accountId: 'fix-a1',
-  name: 'Fixture Task',
+  name: 'Fixture Activity',
   kind: 'project',
   projectId: 'fix-p1',
   phaseId: 'fix-ph1',
@@ -101,21 +101,21 @@ export const FIXTURE_TASK: Task = {
 }
 
 /** The internal & repeatable kinds: project-less by definition, so they OMIT projectId /
- *  phaseId entirely (not null — absent). Prove all three TaskKind values round-trip through
+ *  phaseId entirely (not null — absent). Prove all three ActivityKind values round-trip through
  *  the server with the optional FK columns left NULL. */
-export const FIXTURE_TASK_INTERNAL: Task = {
+export const FIXTURE_ACTIVITY_INTERNAL: Activity = {
   id: 'fix-t2',
   accountId: 'fix-a1',
-  name: 'Fixture Internal Task',
+  name: 'Fixture Internal Activity',
   kind: 'internal',
   createdAt: TS1,
   updatedAt: TS2,
 }
 
-export const FIXTURE_TASK_REPEATABLE: Task = {
+export const FIXTURE_ACTIVITY_REPEATABLE: Activity = {
   id: 'fix-t3',
   accountId: 'fix-a1',
-  name: 'Fixture Repeatable Task',
+  name: 'Fixture Repeatable Activity',
   kind: 'repeatable',
   createdAt: TS1,
   updatedAt: TS2,
@@ -125,7 +125,7 @@ export const FIXTURE_ALLOCATION: Allocation = {
   id: 'fix-al1',
   accountId: 'fix-a1',
   resourceId: 'fix-r1',
-  taskId: 'fix-t1',
+  activityId: 'fix-t1',
   startDate: '2026-02-01',
   endDate: '2026-02-28',
   hoursPerDay: 0,

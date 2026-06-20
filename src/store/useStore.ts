@@ -8,7 +8,7 @@ import {
   deletePhaseCascade,
   deleteProjectCascade,
   deleteResourceCascade,
-  deleteTaskCascade,
+  deleteActivityCascade,
 } from '@floaty/shared/lib/integrity'
 import {
   assertAllocationRefs,
@@ -49,7 +49,7 @@ import type {
   Project,
   Resource,
   ScopedEntityKey,
-  Task,
+  Activity,
   TimeOff,
   Weekday,
 } from '@floaty/shared/types/entities'
@@ -79,15 +79,15 @@ export interface Filters {
   disciplineId: ID | null
   clientId: ID | null
   projectId: ID | null
-  /** Task lens: a specific internal/repeatable task. Mutually exclusive with the
-   *  client/project lens and with `taskKind` (enforced in setFilters). */
-  taskId: ID | null
-  /** Task lens: ALL tasks of a kind ('Internal — All' / 'Repeatable — All'). Mutually
-   *  exclusive with the client/project lens and with `taskId`. */
-  taskKind: 'internal' | 'repeatable' | null
+  /** Activity lens: a specific internal/repeatable activity. Mutually exclusive with the
+   *  client/project lens and with `activityKind` (enforced in setFilters). */
+  activityId: ID | null
+  /** Activity lens: ALL activities of a kind ('Internal — All' / 'Repeatable — All'). Mutually
+   *  exclusive with the client/project lens and with `activityId`. */
+  activityKind: 'internal' | 'repeatable' | null
   search: string
   hideTentative: boolean
-  /** When a client/project/task filter is active, ALSO show resources with no work on it
+  /** When a client/project/activity filter is active, ALSO show resources with no work on it
    *  (dimmed) so you can see who's free to staff. Off (the default) = filtering
    *  hides them, leaving only the matching resources' rows. */
   showUnmatched: boolean
@@ -97,8 +97,8 @@ export const emptyFilters = (): Filters => ({
   disciplineId: null,
   clientId: null,
   projectId: null,
-  taskId: null,
-  taskKind: null,
+  activityId: null,
+  activityKind: null,
   search: '',
   hideTentative: false,
   showUnmatched: false,
@@ -109,8 +109,8 @@ export function hasActiveFilters(f: Filters): boolean {
     !!f.disciplineId ||
     !!f.clientId ||
     !!f.projectId ||
-    !!f.taskId ||
-    !!f.taskKind ||
+    !!f.activityId ||
+    !!f.activityKind ||
     f.search.trim() !== '' ||
     f.hideTentative
   )
@@ -175,7 +175,7 @@ export interface StoreState {
   /** Utilisation display toggles. Device-global like `theme`, persisted to their
    *  own localStorage key — not part of account data. */
   utilizationPrefs: UtilizationPrefs
-  /** Allocation-bar label toggles (client/project context before the task name).
+  /** Allocation-bar label toggles (client/project context before the activity name).
    *  Device-global like `utilizationPrefs`, own localStorage key. */
   barLabelPrefs: BarLabelPrefs
   /** Sidebar open (labels) vs collapsed (icon rail). Device-global like `theme`,
@@ -228,7 +228,7 @@ export interface StoreState {
   undo: () => void
   redo: () => void
 
-  // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / tasks /
+  // --- Scoped entity CRUD (disciplines / resources / clients / projects / phases / activities /
   // allocations / time off). CONTRACT — identical for every add*/update*/delete* below, and
   // invisible in the signatures, so it lives here:
   //  • Runs against the ACTIVE account and is undoable (⌘Z).
@@ -260,9 +260,9 @@ export interface StoreState {
   updatePhase: (id: ID, patch: Patch<Phase>) => void
   deletePhase: (id: ID) => void
 
-  addTask: (input: Draft<Task>) => Task
-  updateTask: (id: ID, patch: Patch<Task>) => void
-  deleteTask: (id: ID) => void
+  addActivity: (input: Draft<Activity>) => Activity
+  updateActivity: (id: ID, patch: Patch<Activity>) => void
+  deleteActivity: (id: ID) => void
 
   addAllocation: (input: Draft<Allocation>) => Allocation
   updateAllocation: (id: ID, patch: Patch<Allocation>) => void
@@ -603,31 +603,31 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => deletePhaseCascade(d, id))
     },
 
-    addTask: (input) => {
+    addActivity: (input) => {
       const accountId = requireAccount()
-      assertScopedRefs(get().data, accountId, 'tasks', input)
-      const e: Task = { ...input, id: newId(), accountId, ...stamp() }
-      mutate((d) => ({ ...d, tasks: [...d.tasks, e] }))
+      assertScopedRefs(get().data, accountId, 'activities', input)
+      const e: Activity = { ...input, id: newId(), accountId, ...stamp() }
+      mutate((d) => ({ ...d, activities: [...d.activities, e] }))
       return e
     },
-    updateTask: (id, patch) => {
-      const existing = findOwned(get().data, 'tasks', id)
+    updateActivity: (id, patch) => {
+      const existing = findOwned(get().data, 'activities', id)
       if (!existing) return
       // Validate the MERGED row (like updateAllocation), not the raw patch: a partial patch
-      // touching only projectId OR only phaseId must still be checked for task↔phase coherence
+      // touching only projectId OR only phaseId must still be checked for activity↔phase coherence
       // against the row's OTHER field — else a phaseId-only patch is wrongly rejected, or a
       // projectId-only patch silently leaves a stale cross-project phaseId the server rejects.
-      assertScopedRefs(get().data, existing.accountId, 'tasks', { ...existing, ...patch })
-      mutate((d) => ({ ...d, tasks: updateById(d.tasks, id, patch) }))
+      assertScopedRefs(get().data, existing.accountId, 'activities', { ...existing, ...patch })
+      mutate((d) => ({ ...d, activities: updateById(d.activities, id, patch) }))
     },
-    deleteTask: (id) => {
-      if (!findOwned(get().data, 'tasks', id)) return
-      mutate((d) => deleteTaskCascade(d, id))
+    deleteActivity: (id) => {
+      if (!findOwned(get().data, 'activities', id)) return
+      mutate((d) => deleteActivityCascade(d, id))
     },
 
     addAllocation: (input) => {
       const accountId = requireAccount()
-      assertAllocation(get().data, accountId, input.resourceId, input.taskId)
+      assertAllocation(get().data, accountId, input.resourceId, input.activityId)
       assertDateRange(input.startDate, input.endDate)
       const e: Allocation = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay), id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
@@ -636,12 +636,12 @@ export const useStore = create<StoreState>()((set, get) => {
     updateAllocation: (id, patch) => {
       const existing = findOwned(get().data, 'allocations', id)
       if (!existing) return // stale id (e.g. drag committed after an undo) → no-op
-      if (patch.resourceId !== undefined || patch.taskId !== undefined) {
+      if (patch.resourceId !== undefined || patch.activityId !== undefined) {
         assertAllocation(
           get().data,
           existing.accountId,
           patch.resourceId ?? existing.resourceId,
-          patch.taskId ?? existing.taskId,
+          patch.activityId ?? existing.activityId,
         )
       }
       // Validate the EFFECTIVE range (merged with the existing row), so a
@@ -710,17 +710,17 @@ export const useStore = create<StoreState>()((set, get) => {
     setFilters: (patch) =>
       set((s) => {
         const next: Filters = { ...s.ui.filters, ...patch }
-        // Standalone-lens rule, enforced in ONE tamper-proof place: client/project and the task
-        // lens (taskId/taskKind) are mutually-exclusive "what work" views. Setting one to a real
+        // Standalone-lens rule, enforced in ONE tamper-proof place: client/project and the activity
+        // lens (activityId/activityKind) are mutually-exclusive "what work" views. Setting one to a real
         // value clears the other (search, discipline and the toggles stay independent). Keyed on
         // a truthy value in the PATCH so clearing a filter to null never wipes the opposite lens.
-        if (patch.taskId || patch.taskKind) {
+        if (patch.activityId || patch.activityKind) {
           next.clientId = null
           next.projectId = null
         }
         if (patch.clientId || patch.projectId) {
-          next.taskId = null
-          next.taskKind = null
+          next.activityId = null
+          next.activityKind = null
         }
         return { ui: { ...s.ui, filters: next } }
       }),

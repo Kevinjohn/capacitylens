@@ -9,7 +9,7 @@ and hear what the bar is when it's focused.
 ## Why
 Drag-and-drop is mouse-first. A keyboard-only or screen-reader user still needs to
 schedule and adjust work. Each bar is a focusable control with arrow-key equivalents
-of the drag gestures, and its accessible name announces the task, hours, status and
+of the drag gestures, and its accessible name announces the activity, hours, status and
 dates plus the available shortcuts — so the timeline is fully operable without pointing.
 
 ## How (end-to-end)
@@ -20,7 +20,7 @@ stays on screen.
 1. Press **Tab** repeatedly until the **Wireframes** allocation bar is focused
    (it shows a visible focus ring).
 2. With the bar focused, read its accessible name (screen reader, or DevTools
-   accessibility pane): it announces task, `Nh per day`, status, and `start to end`
+   accessibility pane): it announces activity, `Nh per day`, status, and `start to end`
    dates, including "Enter to edit; arrow keys to move, Shift+arrow to resize."
 3. Press **Enter** — the allocation editor (Edit allocation modal) opens. Press
    **Escape** to close it and return focus to the bar.
@@ -34,7 +34,7 @@ stays on screen.
 - ✅ **Enter** (or **Space**) opens the allocation editor for that bar.
 - ✅ **→ / ←** move the bar one day later / earlier.
 - ✅ **Shift+→ / Shift+←** resize the bar's end out / in by one day.
-- ✅ The bar's `aria-label` announces task, hours/day, status and start→end dates, and
+- ✅ The bar's `aria-label` announces activity, hours/day, status and start→end dates, and
   names the shortcuts ("Enter to edit; arrow keys to move, Shift+arrow to resize.").
 - ✅ A keyboard resize that would invert the range (end before start) is ignored — the
   bar stays put rather than producing an invalid allocation.

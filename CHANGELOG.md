@@ -5,6 +5,11 @@ All notable changes to Floaty are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
+## [Unreleased]
+
+### Changed
+- Renamed the domain concept **Task → Activity** throughout the UI, routes, types, API fields, and database. Existing local data and JSON exports/imports are migrated automatically (schema v5; server tables renamed in place).
+
 ## [0.7.0] — 2026-06-20
 
 See who's doing what kind of work, across every project.

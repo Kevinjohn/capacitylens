@@ -34,7 +34,7 @@ const makeBar = (): BarLayout => ({
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
     resourceId: 'r1',
-    taskId: 't1',
+    activityId: 't1',
     startDate: '2026-06-01',
     endDate: '2026-06-02',
     hoursPerDay: 8,
@@ -44,7 +44,7 @@ const makeBar = (): BarLayout => ({
   width: 96,
   top: 6,
   color: '#2563eb',
-  label: 'My Task',
+  label: 'My Activity',
   external: false,
 })
 

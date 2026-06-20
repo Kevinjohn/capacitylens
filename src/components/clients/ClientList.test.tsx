@@ -12,7 +12,7 @@ describe('ClientList delete flow', () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     const project = useStore.getState().addProject({ name: 'P', clientId: client.id, color: '#222' })
-    useStore.getState().addTask({ name: 'T', kind: 'project', projectId: project.id })
+    useStore.getState().addActivity({ name: 'T', kind: 'project', projectId: project.id })
     render(<ClientList />)
 
     expect(screen.getByText('Acme')).toBeInTheDocument()
@@ -32,7 +32,7 @@ describe('ClientList delete flow', () => {
 
     expect(useStore.getState().data.clients).toHaveLength(0)
     expect(useStore.getState().data.projects).toHaveLength(0)
-    expect(useStore.getState().data.tasks).toHaveLength(0)
+    expect(useStore.getState().data.activities).toHaveLength(0)
     expect(screen.queryByText('Acme')).not.toBeInTheDocument()
   })
 })

@@ -5,7 +5,7 @@ import {
   deletePhaseCascade,
   deleteProjectCascade,
   deleteResourceCascade,
-  deleteTaskCascade,
+  deleteActivityCascade,
   isTemporary,
   validateAllocationAssignment,
   validateDateRange,
@@ -36,7 +36,7 @@ const person = (over: Partial<Resource> = {}): Resource => ({
   ...over,
 })
 
-// A small connected dataset: client c1 -> project p1 -> phase ph -> tasks; allocations; a bound placeholder.
+// A small connected dataset: client c1 -> project p1 -> phase ph -> activities; allocations; a bound placeholder.
 function sampleData(): AppData {
   return {
     ...emptyAppData(),
@@ -44,14 +44,14 @@ function sampleData(): AppData {
     clients: [{ id: 'c1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Acme', color: '#111' }],
     projects: [{ id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#222' }],
     phases: [{ id: 'phase1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Discovery', projectId: 'p1' }],
-    tasks: [
+    activities: [
       { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Wires', kind: 'project', projectId: 'p1', phaseId: 'phase1' },
       { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Visual', kind: 'project', projectId: 'p1' },
     ],
     resources: [person({ id: 'r1', disciplineId: 'd1' }), placeholder({ id: 'ph1', projectId: 'p1', disciplineId: 'd1' })],
     allocations: [
-      { id: 'a1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
-      { id: 'a2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'ph1', taskId: 't2', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'ph1', activityId: 't2', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
     ],
     timeOff: [{ id: 'to1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' }],
   }
@@ -99,11 +99,11 @@ describe('validateDateRange', () => {
 })
 
 describe('placeholder binding', () => {
-  it('a person can be assigned any project task', () => {
+  it('a person can be assigned any project activity', () => {
     expect(validateAllocationAssignment(person(), 'anything').ok).toBe(true)
   })
 
-  it('a placeholder can only be assigned tasks from its bound project', () => {
+  it('a placeholder can only be assigned activities from its bound project', () => {
     const ph = placeholder({ projectId: 'p1' })
     expect(validateAllocationAssignment(ph, 'p1').ok).toBe(true)
     expect(validateAllocationAssignment(ph, 'p2').ok).toBe(false)
@@ -116,9 +116,9 @@ describe('placeholder binding', () => {
     expect(validateAllocationAssignment(person(), 'p1').ok).toBe(true)
   })
 
-  it('a general (no-project) task can be assigned to anyone — people and placeholders', () => {
+  it('a general (no-project) activity can be assigned to anyone — people and placeholders', () => {
     expect(validateAllocationAssignment(person(), undefined).ok).toBe(true)
-    // The project restriction does not bite when the task has no project.
+    // The project restriction does not bite when the activity has no project.
     expect(validateAllocationAssignment(placeholder({ projectId: 'p1' }), undefined).ok).toBe(true)
     expect(validateAllocationAssignment(placeholder({ projectId: undefined }), undefined).ok).toBe(true)
   })
@@ -132,39 +132,39 @@ describe('cascade deletes', () => {
     expect(next.timeOff).toHaveLength(0)
   })
 
-  it('deleteTaskCascade removes the task and its allocations', () => {
-    const next = deleteTaskCascade(sampleData(), 't1')
-    expect(next.tasks.map((t) => t.id)).toEqual(['t2'])
+  it('deleteActivityCascade removes the activity and its allocations', () => {
+    const next = deleteActivityCascade(sampleData(), 't1')
+    expect(next.activities.map((t) => t.id)).toEqual(['t2'])
     expect(next.allocations.map((a) => a.id)).toEqual(['a2'])
   })
 
-  it('deletePhaseCascade ungroups tasks but keeps them', () => {
+  it('deletePhaseCascade ungroups activities but keeps them', () => {
     const next = deletePhaseCascade(sampleData(), 'phase1')
     expect(next.phases).toHaveLength(0)
-    expect(next.tasks.find((t) => t.id === 't1')!.phaseId).toBeUndefined()
-    expect(next.tasks).toHaveLength(2)
+    expect(next.activities.find((t) => t.id === 't1')!.phaseId).toBeUndefined()
+    expect(next.activities).toHaveLength(2)
   })
 
-  it('deleteProjectCascade removes project, phases, tasks, their allocations, and unbinds placeholders', () => {
+  it('deleteProjectCascade removes project, phases, activities, their allocations, and unbinds placeholders', () => {
     const next = deleteProjectCascade(sampleData(), 'p1')
     expect(next.projects).toHaveLength(0)
     expect(next.phases).toHaveLength(0)
-    expect(next.tasks).toHaveLength(0)
-    expect(next.allocations).toHaveLength(0) // both allocations referenced p1 tasks
+    expect(next.activities).toHaveLength(0)
+    expect(next.allocations).toHaveLength(0) // both allocations referenced p1 activities
     expect(next.resources.find((r) => r.id === 'ph1')!.projectId).toBeUndefined()
     expect(next.resources).toHaveLength(2) // resources are NOT deleted
   })
 
-  it('deleteProjectCascade leaves general (no-project) tasks and their allocations intact', () => {
+  it('deleteProjectCascade leaves general (no-project) activities and their allocations intact', () => {
     const data = sampleData()
-    data.tasks.push({ id: 't3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'repeatable' })
-    data.allocations.push({ id: 'a3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't3', startDate: '2026-06-05', endDate: '2026-06-06', hoursPerDay: 8, status: 'confirmed' })
+    data.activities.push({ id: 't3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'repeatable' })
+    data.allocations.push({ id: 'a3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't3', startDate: '2026-06-05', endDate: '2026-06-06', hoursPerDay: 8, status: 'confirmed' })
     const next = deleteProjectCascade(data, 'p1')
-    expect(next.tasks.map((t) => t.id)).toEqual(['t3'])
+    expect(next.activities.map((t) => t.id)).toEqual(['t3'])
     expect(next.allocations.map((a) => a.id)).toEqual(['a3'])
   })
 
-  it('deleteProjectCascade unbinds a surviving task’s phaseId that pointed at a deleted phase', () => {
+  it('deleteProjectCascade unbinds a surviving activity’s phaseId that pointed at a deleted phase', () => {
     // t-keep belongs to p2 but (incoherently) references phase ph-p1, which belongs to p1.
     // Deleting p1 removes ph-p1; t-keep must SURVIVE with its phaseId unbound — never a
     // dangling reference (mirrors the server FK's ON DELETE SET NULL).
@@ -176,10 +176,10 @@ describe('cascade deletes', () => {
         { id: 'p2', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'P2', clientId: 'c1', color: '#2' },
       ],
       phases: [{ id: 'ph-p1', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Ph', projectId: 'p1' }],
-      tasks: [{ id: 't-keep', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Keep', kind: 'project', projectId: 'p2', phaseId: 'ph-p1' }],
+      activities: [{ id: 't-keep', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Keep', kind: 'project', projectId: 'p2', phaseId: 'ph-p1' }],
     }
     const next = deleteProjectCascade(data, 'p1')
-    const keep = next.tasks.find((t) => t.id === 't-keep')
+    const keep = next.activities.find((t) => t.id === 't-keep')
     expect(keep).toBeDefined() // survives — it belongs to p2
     expect(keep!.phaseId).toBeUndefined() // dangling phase reference unbound
     expect(next.phases).toHaveLength(0) // p1's phase removed
@@ -189,7 +189,7 @@ describe('cascade deletes', () => {
     const next = deleteClientCascade(sampleData(), 'c1')
     expect(next.clients).toHaveLength(0)
     expect(next.projects).toHaveLength(0)
-    expect(next.tasks).toHaveLength(0)
+    expect(next.activities).toHaveLength(0)
     expect(next.allocations).toHaveLength(0)
     expect(next.resources.find((r) => r.id === 'ph1')!.projectId).toBeUndefined()
   })
