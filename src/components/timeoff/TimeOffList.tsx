@@ -2,20 +2,28 @@ import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
-import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
+import { TIME_OFF_TYPE_LABELS, resourceDisplayName } from '../../lib/metadata'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '@floaty/shared/types/entities'
 
 export function TimeOffList() {
   const data = useScopedData()
-  const timeOff = data.timeOff
   const resources = data.resources
+  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
   const del = useStore((s) => s.deleteTimeOff)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>()
 
+  // Placeholders are gated behind a device-global pref (default OFF). When off, HIDE time-off whose
+  // resource is a placeholder — a pure view filter: the entries stay in the store (export/import and
+  // the schedule are untouched), they're just not rendered while placeholders are hidden everywhere
+  // else. An empty result here still falls through to the existing empty-state below.
+  const timeOff = placeholdersEnabled
+    ? data.timeOff
+    : data.timeOff.filter((t) => resources.find((r) => r.id === t.resourceId)?.kind !== 'placeholder')
+
   const resourceName = (id: string) => {
     const r = resources.find((x) => x.id === id)
-    return r ? (r.name ?? r.role) : '(unknown)'
+    return r ? resourceDisplayName(r) : '(unknown)'
   }
 
   return (

@@ -4,7 +4,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { todayISO } from '@floaty/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
 import { Button, DateField, FieldError, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
-import { TIME_OFF_TYPE_OPTIONS } from '../../lib/metadata'
+import { TIME_OFF_TYPE_OPTIONS, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource } from '@floaty/shared/types/entities'
 import type { ISODate, TimeOff, TimeOffType } from '@floaty/shared/types/entities'
 
@@ -20,6 +20,7 @@ export function TimeOffForm({
 }) {
   const add = useStore((s) => s.addTimeOff)
   const update = useStore((s) => s.updateTimeOff)
+  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const resources = useScopedData().resources
 
@@ -37,9 +38,14 @@ export function TimeOffForm({
   }
 
   // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
+  // Placeholders are gated behind a device-global pref (default OFF); when off, drop them too —
+  // EXCEPT the entry's currently-selected resource (risk A): keep a hidden placeholder in the
+  // options when it's the one already assigned, so editing shows the correct value in the <select>
+  // instead of silently reassigning the time off to someone else on save.
   const resourceOptions: Option[] = resources
     .filter((r) => !isExternalResource(r))
-    .map((r) => ({ value: r.id, label: r.name ?? r.role }))
+    .filter((r) => placeholdersEnabled || r.kind !== 'placeholder' || r.id === resourceId)
+    .map((r) => ({ value: r.id, label: resourceDisplayName(r) }))
 
   const submit = () => {
     // Reject an empty pick AND a resource that isn't a valid time-off target: externals have no

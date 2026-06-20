@@ -91,7 +91,10 @@ never appears on desktop viewports or in landscape.
   - *Pam Gonzalez* — PR & Brand, Copywriting, permanent, 8h, Mon–Fri.
   - *Nike Spiros* — Web Developer, Development, permanent, 8h, Mon–Fri.
   - *Alex Rivera* — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
-  - *Senior Designer* — a **placeholder** (no name), Design, **bound to Project Lightning**.
+  - *Senior Designer* — a **placeholder** (no name), Design, **bound to Project Lightning**. Shown
+    as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
+    are behind the device-global **Show placeholders** pref (Settings → Placeholders, default **off**);
+    enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - *Dog Eat Cog* — an **external / 3rd party** (`r-ext-dogeatcog`): a company, no discipline/
     capacity, booked on Visual Design (Project Lightning) as a span only. Renders in the schedule's
     bottom band.
@@ -156,6 +159,21 @@ It's a **device-global** display pref (own `localStorage` key `floaty/minimiseWe
 account and NOT in export) — like the theme and bar-label toggles. On → narrow Sat/Sun columns
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See *Weekend
 columns* above.
+
+**Placeholders (device-global, default OFF).** Settings → **Placeholders** has a single switch
+**Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
+It's a **device-global** display pref (own `localStorage` key `floaty/placeholdersEnabled`, NOT on
+the account and NOT in export). **Off** (the out-of-the-box state) → every placeholder is hidden:
+no row in the schedule (and no contribution to utilisation), no entry in the assignee picker or
+command palette, and the Resources page hides its *Placeholders* section + *Add placeholder* button.
+The **Time off** views honour it too: the Time-off list hides any time-off entry whose resource is a
+placeholder, and the Time-off form's Resource picker omits placeholders.
+The placeholder DATA is untouched — flipping the switch on brings the rows back (and the hidden
+time-off entries reappear). **On** → a placeholder shows the literal name **"Placeholder"** with a
+**"?"** avatar (its role/discipline is the secondary text); the assignee picker labels it
+**"Placeholder (slot)"**, and the Time-off list/picker show it as **"Placeholder"**. Editing an
+allocation **or a time-off entry** that already targets a placeholder keeps that placeholder
+selectable in the picker even while the pref is off, so editing never silently reassigns the work.
 
 **Allocation bars.** A bar's label reads `Client · Project · Activity · Nh` (hours hidden in
 blocks mode; a `✓ ` prefix when completed, a trailing ` •` when it has a note). The client
@@ -260,7 +278,9 @@ Mouse hover sets the active option; mouse click selects.
   BOTH the project-less activities AND any activities under Internal-owned projects). No `clientId` is
   stored on the activity; the association is derived in the view-model.
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus any
-  project-less (internal/repeatable) activity**.
+  project-less (internal/repeatable) activity**. They are **hidden by default** behind the
+  device-global **Show placeholders** pref (Settings → Placeholders, `floaty/placeholdersEnabled`,
+  default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), managed on the **External** tab (not Resources), assignable to **any** activity with **no
   hours**, shown in a **neutral band at the bottom of the schedule** with **no utilisation / over-markers**.

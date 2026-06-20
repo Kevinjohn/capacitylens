@@ -20,8 +20,12 @@ test.describe('Resources', () => {
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Dana Lee' })).toBeVisible()
   })
 
-  test('adds a placeholder bound to a project and shows its name in quotes on the schedule', async ({ page }) => {
-    await openApp(page, 'Studio North', '/resources')
+  test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
+    await openApp(page, 'Studio North', '/settings')
+    // Placeholders are hidden by default (device-global pref) — turn them on so the management
+    // section + "Add placeholder" button appear on the Resources page.
+    await page.getByRole('switch', { name: 'Show placeholders' }).click()
+    await page.getByRole('link', { name: 'Resources' }).click()
     await page.getByRole('button', { name: 'Add placeholder' }).click()
 
     await page.getByLabel('Role').fill('Junior Dev')
@@ -29,12 +33,16 @@ test.describe('Resources', () => {
     await page.getByRole('button', { name: 'Save' }).click()
 
     await page.getByRole('link', { name: 'Schedule' }).click()
-    // Placeholders are marked by quoting the name in the schedule view (no "slot" pill).
-    await expect(page.getByTestId('scheduler-row').filter({ hasText: '“Junior Dev”' })).toBeVisible()
+    // A placeholder shows as the literal name "Placeholder" in the schedule view; its role
+    // ("Junior Dev") is the secondary text below.
+    const row = page.getByTestId('scheduler-row').filter({ hasText: 'Placeholder' }).filter({ hasText: 'Junior Dev' })
+    await expect(row).toBeVisible()
   })
 
   test('rejects a placeholder with no bound project', async ({ page }) => {
-    await openApp(page, 'Studio North', '/resources')
+    await openApp(page, 'Studio North', '/settings')
+    await page.getByRole('switch', { name: 'Show placeholders' }).click()
+    await page.getByRole('link', { name: 'Resources' }).click()
     await page.getByRole('button', { name: 'Add placeholder' }).click()
     await page.getByLabel('Role').fill('Unbound slot')
     await page.getByRole('button', { name: 'Save' }).click()

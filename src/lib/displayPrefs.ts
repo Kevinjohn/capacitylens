@@ -209,3 +209,23 @@ export function readStoredFakeSignedIn(): boolean {
 export function writeStoredFakeSignedIn(on: boolean): void {
   writeBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, on)
 }
+
+// "Placeholders": whether the placeholder ("slot") resource feature is surfaced at all.
+// Device-global like the prefs above (own key, on/off string, NOT account data) and DEFAULTS OFF —
+// the feature is hidden out of the box. This is a pure VIEW pref: turning it off HIDES placeholder
+// rows / pickers / management UI everywhere, but NEVER touches tenant data (existing placeholder
+// resources and their allocations are preserved untouched and reappear when re-enabled). See
+// DECISIONS.md and the schedulerModel `resourceVisible` filter.
+
+const PLACEHOLDERS_ENABLED_STORAGE_KEY = 'floaty/placeholdersEnabled'
+
+/** The saved "placeholders enabled" choice; defaults to FALSE (hidden) when unset, unrecognised,
+ *  or when storage is unavailable. */
+export function readStoredPlaceholdersEnabled(): boolean {
+  return readBoolPref(PLACEHOLDERS_ENABLED_STORAGE_KEY, false)
+}
+
+/** Persist the "placeholders enabled" choice. Best-effort, like the prefs above. */
+export function writeStoredPlaceholdersEnabled(on: boolean): void {
+  writeBoolPref(PLACEHOLDERS_ENABLED_STORAGE_KEY, on)
+}

@@ -22,7 +22,7 @@ import {
 } from '../common/ui'
 import { inputClass } from '../common/controls'
 import { capacityAdvisory } from '../../lib/capacity'
-import { ALLOCATION_STATUS_OPTIONS } from '../../lib/metadata'
+import { ALLOCATION_STATUS_OPTIONS, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource } from '@floaty/shared/types/entities'
 import type { AllocationStatus, ISODate } from '@floaty/shared/types/entities'
 
@@ -46,6 +46,9 @@ export function AllocationModal(props: AllocationModalProps) {
   const deleteAllocation = useStore((s) => s.deleteAllocation)
   const addActivity = useStore((s) => s.addActivity)
   const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId))
+  // Device-global view pref (default OFF): when off, placeholders are dropped from the assignee
+  // picker (except an already-assigned one — see resourceOptions below for risk A).
+  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const isDays = mode === 'days'
   const isBlocks = mode === 'blocks'
@@ -141,10 +144,18 @@ export function AllocationModal(props: AllocationModalProps) {
     return Number.isNaN(d.getTime()) ? null : format(d, 'EEE d MMM yyyy')
   })()
 
-  const resourceOptions: Option[] = data.resources.map((r) => ({
-    value: r.id,
-    label: `${r.name ?? r.role}${r.kind === 'placeholder' ? ' (slot)' : r.kind === 'external' ? ' (external)' : ''}`,
-  }))
+  // Placeholders are gated behind a device-global pref (default OFF). When off, drop them from the
+  // assignee picker — EXCEPT the allocation's currently-selected resource (risk A): keep a hidden
+  // placeholder in the options when it's the one already assigned, so editing shows the correct
+  // value in the <select> instead of silently reassigning the work to someone else on save.
+  const resourceOptions: Option[] = data.resources
+    .filter((r) => placeholdersEnabled || r.kind !== 'placeholder' || r.id === resourceId)
+    .map((r) => ({
+      value: r.id,
+      label: `${resourceDisplayName(r)}${
+        r.kind === 'placeholder' ? ' (slot)' : r.kind === 'external' ? ' (external)' : ''
+      }`,
+    }))
   // "No project" lets you pick project-less activities (internal + repeatable). A placeholder is
   // offered only its bound project plus this option (it can take project-less activities too).
   const projectOptions: Option[] = [
@@ -287,7 +298,7 @@ export function AllocationModal(props: AllocationModalProps) {
 
   // In create mode the assignee is already chosen (the user clicked the + next to
   // their row), so we drop the Assignee select and name them in the title instead.
-  const createName = create ? (initialResource?.name ?? initialResource?.role ?? 'resource') : undefined
+  const createName = create ? (initialResource ? resourceDisplayName(initialResource) : 'resource') : undefined
 
   // Non-blocking capacity advisory (DECISIONS.md: "advisory at allocation time"). The drag-move
   // path shows this as a post-commit toast; surface it HERE too — on the create/edit surface that

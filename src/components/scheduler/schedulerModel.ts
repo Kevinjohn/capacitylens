@@ -1,7 +1,7 @@
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
 import { capacityForWindow, dayCapacity } from '../../lib/capacity'
 import { resolveBarColor } from '@floaty/shared/lib/color'
-import { TIME_OFF_TYPE_LABELS } from '../../lib/metadata'
+import { TIME_OFF_TYPE_LABELS, resourceDisplayName } from '../../lib/metadata'
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
 import { isCapacityTracked, isExternalResource } from '@floaty/shared/types/entities'
 import { internalClientFor } from '@floaty/shared/data/internalClient'
@@ -86,6 +86,12 @@ export function buildSchedulerModel(
   // synthetic group holding every resource (no discipline bands), and the discipline
   // filter is ignored. SchedulerGrid skips the group-header row for the flat group.
   disciplinesEnabled: boolean,
+  // Device-global view pref (default OFF). When false, placeholder ("slot") resources are dropped
+  // by `resourceVisible` below — this ONE filter removes the lane, its bars/day-states, AND its
+  // contribution to per-discipline + overall utilisation (both derive from this model). It is a
+  // pure VIEW pref: the placeholder resources and their allocations stay in the data untouched and
+  // reappear when re-enabled. See displayPrefs.ts / DECISIONS.md.
+  placeholdersEnabled: boolean,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
@@ -154,8 +160,15 @@ export function buildSchedulerModel(
   const allocVisible = (a: Allocation): boolean =>
     matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a)
   const resourceVisible = (r: Resource): boolean => {
+    // Placeholders are gated behind a device-global pref (default OFF). Dropping the row here is the
+    // single chokepoint that also removes its bars, day-states, and utilisation contribution — the
+    // resource itself is untouched in the data, so this is a hide, not a delete. A placeholder's
+    // allocations simply go unreferenced (the model is built resource-first via allocsByResource).
+    if (!placeholdersEnabled && r.kind === 'placeholder') return false
     if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false
-    if (search && !`${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false
+    // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
+    // user sees — matching the command palette — as well as by its underlying role/name.
+    if (search && !`${resourceDisplayName(r)} ${r.name ?? ''} ${r.role}`.toLowerCase().includes(search)) return false
     return true
   }
 

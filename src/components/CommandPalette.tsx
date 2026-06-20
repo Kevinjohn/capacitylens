@@ -4,6 +4,7 @@ import { useStore, emptyFilters } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
 import { useScopedData } from '../store/useScopedData'
 import { fuzzyFilter } from '../lib/fuzzy'
+import { resourceDisplayName } from '../lib/metadata'
 import { isValidISODate } from '@floaty/shared/lib/integrity'
 import { isExternalResource } from '@floaty/shared/types/entities'
 import type { Filters } from '../store/useStore'
@@ -29,6 +30,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const data = useScopedData()
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
+  // Device-global view pref (default OFF): when off, placeholders are not offered as jump targets.
+  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
 
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -46,6 +49,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     query,
     data,
     disciplinesEnabled,
+    placeholdersEnabled,
     navigate,
     goToToday,
     goToDate,
@@ -212,6 +216,7 @@ function buildItems({
   query,
   data,
   disciplinesEnabled,
+  placeholdersEnabled,
   navigate,
   goToToday,
   goToDate,
@@ -222,6 +227,7 @@ function buildItems({
   query: string
   data: ReturnType<typeof useScopedData>
   disciplinesEnabled: boolean
+  placeholdersEnabled: boolean
   navigate: ReturnType<typeof useNavigate>
   goToToday: () => void
   goToDate: (iso: string) => void
@@ -287,12 +293,17 @@ function buildItems({
     : pages
 
   // ── Resources ──────────────────────────────────────────────────────────────
-  const resourceItems: PaletteItem[] = data.resources.map((r) => ({
+  // Placeholders are gated behind a device-global pref (default OFF). When off, drop them as jump
+  // targets — their schedule row is hidden, so jumping to it would scroll to nothing.
+  const resourceItems: PaletteItem[] = data.resources
+    .filter((r) => placeholdersEnabled || r.kind !== 'placeholder')
+    .map((r) => ({
     id: `res-${r.id}`,
     // External / 3rd parties are jump targets too (they're schedule rows), but mark them so they
     // don't read as one of our own people in the list — mirrors the assignee dropdown's " (external)".
-    label: `${r.name ?? r.role}${isExternalResource(r) ? ' (external)' : ''}`,
-    sublabel: r.name ? r.role : undefined,
+    // A placeholder reads as the literal "Placeholder" with its role as secondary text.
+    label: `${resourceDisplayName(r)}${isExternalResource(r) ? ' (external)' : ''}`,
+    sublabel: r.kind === 'placeholder' ? r.role : r.name ? r.role : undefined,
     section: 'People',
     onSelect: () => {
       void navigate('/')
