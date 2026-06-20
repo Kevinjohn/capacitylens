@@ -80,9 +80,27 @@ describe('ResourceLane rendering', () => {
     expect(screen.getByTestId('unavailable-day')).toBeInTheDocument()
   })
 
-  it('renders an over-marker for the over day', () => {
+  it('renders an over-marker (red background) for the over day', () => {
     renderLane()
-    expect(screen.getByTestId('over-marker')).toBeInTheDocument()
+    const marker = screen.getByTestId('over-marker')
+    expect(marker).toBeInTheDocument()
+    // The user-facing point: a CLEAR, saturated red background, not a faint tint. Lock the
+    // dedicated `danger-cell` token class so a regression back to the subtle `bg-danger/12`
+    // alpha or the pale `danger-soft` button tint reds the gate.
+    expect(marker).toHaveClass('bg-danger-cell')
+  })
+
+  // The render-layer boundary mirroring the pure-fn boundary: a day that is at-or-under
+  // capacity carries `over: false`, so NO over-marker / red background renders for it.
+  it('does NOT render an over-marker when no day is over (at-or-under capacity)', () => {
+    renderLane({
+      dayStates: [
+        { unavailable: false, over: false },
+        { unavailable: false, over: false },
+        { unavailable: false, over: false },
+      ],
+    })
+    expect(screen.queryByTestId('over-marker')).not.toBeInTheDocument()
   })
 
   it('renders a timeoff-block for the time off entry', () => {

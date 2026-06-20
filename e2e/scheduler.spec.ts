@@ -13,7 +13,31 @@ test.describe('Scheduler', () => {
     await expect(page.getByText('Tyler Nix')).toBeVisible()
     await expect(page.getByTestId('discipline-group').filter({ hasText: 'Design' })).toBeVisible()
     // Seed over-allocates Tyler on 3-4 June; weekends/time off are unavailable.
-    await expect(page.getByTestId('over-marker').first()).toBeVisible()
+    const overMarker = page.getByTestId('over-marker').first()
+    await expect(overMarker).toBeVisible()
+    // The over-capacity day reads as a CLEAR, saturated red background (the dedicated
+    // `danger-cell` token), not a faint blush. Resolve the computed fill to true sRGB bytes
+    // by painting it onto a canvas and reading the pixel back — robust whether the engine
+    // serialises the `color-mix(in oklab,…)` result as `rgb(…)`, `oklab(…)`, or `color(…)`.
+    const rgba = await overMarker.evaluate((el) => {
+      const bg = getComputedStyle(el).backgroundColor
+      const c = document.createElement('canvas')
+      c.width = c.height = 1
+      const ctx = c.getContext('2d')!
+      // Opaque base so a (regressed) translucent fill blends toward white, not black —
+      // a near-invisible alpha tint then reads as a near-white pixel and FAILS the gate.
+      ctx.fillStyle = '#fff'
+      ctx.fillRect(0, 0, 1, 1)
+      ctx.fillStyle = bg
+      ctx.fillRect(0, 0, 1, 1)
+      const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data
+      return { r, g, b, a }
+    })
+    // Opaque fill (the old /12 alpha would composite away above; the cell itself is solid).
+    expect(rgba.a).toBe(255)
+    // Real saturation: R must lead the other channels by a wide margin. Light `danger-cell`
+    // is ~rgb(251,158,161) → R − max(G,B) ≈ 90; a blush like rgb(255,230,230) (≈25) FAILS.
+    expect(rgba.r - Math.max(rgba.g, rgba.b)).toBeGreaterThan(60)
     await expect(page.getByTestId('unavailable-day').first()).toBeVisible()
     await expect(page.getByTestId('utilization').first()).toBeVisible()
   })

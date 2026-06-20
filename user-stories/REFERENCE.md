@@ -305,7 +305,10 @@ Mouse hover sets the active option; mouse click selects.
   renders flat — see the *Disciplines (account-level)* note above. The seed companies leave it
   **on**, so every story below runs with disciplines visible.
 - **Capacity:** a day's available hours = the resource's working hours, but **0** on a
-  non-working weekday or a time-off day. A day is **over-allocated** when allocated > available.
+  non-working weekday or a time-off day. A day is **over-allocated** when allocated > available
+  (STRICTLY greater — exactly at capacity is NOT over). An over-allocated day renders with a
+  **clear red background** (`data-testid="over-marker"`, `title="Overbooked"`) plus a solid red
+  top band, in both light and dark themes.
 - **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
   the 1/2/4/8-week range anchored at the left edge of the view — so **switching the range toggle

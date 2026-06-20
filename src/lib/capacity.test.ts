@@ -107,6 +107,20 @@ describe('dayCapacity over-allocation', () => {
     const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 8 })]
     expect(dayCapacity(r, '2026-06-01', allocs, []).over).toBe(false)
   })
+
+  // The acceptance boundary: "over" is STRICTLY allocated > available. Exactly AT capacity
+  // (8 vs 8) is NOT over (no red); one hour over (9 vs 8) IS over (red). Lock both ends.
+  it('is NOT over when EXACTLY at capacity (8 vs 8) — the strict boundary, not red', () => {
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 8 })]
+    const cap = dayCapacity(r, '2026-06-01', allocs, [])
+    expect(cap).toMatchObject({ allocated: 8, available: 8, over: false })
+  })
+
+  it('IS over when just one hour over capacity (9 vs 8)', () => {
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 9 })]
+    const cap = dayCapacity(r, '2026-06-01', allocs, [])
+    expect(cap).toMatchObject({ allocated: 9, available: 8, over: true })
+  })
 })
 
 describe('utilization', () => {

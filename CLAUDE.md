@@ -23,7 +23,9 @@ goes through the `useScopedData` / `scopedTables()` seam.
 - **Multi-tenant by Account.** Every entity carries `accountId`; `activeAccountId` is picked on
   load and **never persisted**. Route scoped reads through `useScopedData` / `scopedTables()`.
 - **Three distinct over/utilisation signals, kept separate.** (1) The per-day **over-marker** flags
-  any work on a zero-capacity day (whole timeline). (2) The displayed **utilisation %** (per-person,
+  any day where `allocated > available` (the over / red-background signal — STRICTLY greater, so
+  at-capacity is NOT over; it also catches a zero-capacity day with any work), whole timeline; it
+  renders as a clear, saturated red background (`bg-danger-cell` — empty cell, no text, so no AA bound) per over-day. (2) The displayed **utilisation %** (per-person,
   per-discipline avg, overall) is a working-day ratio over the currently **VISIBLE window** (the
   1/2/4/8-week zoom span anchored at the scroll left-edge: `[L, L + zoom*7 - 1]`, inclusive end,
   clamped to the timeline; recomputed day-quantized on zoom/pan, not per scroll pixel). (3) The

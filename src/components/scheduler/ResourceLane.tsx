@@ -170,15 +170,22 @@ export const ResourceLane = memo(function ResourceLane({
           ) : null,
         )}
 
-      {/* over-allocation markers (any zoom, only on over days): a full-height tint
-          plus a solid top band so overbooked days read at a glance, not a hairline */}
+      {/* over-allocation markers (any zoom, only on over days — `over` = allocated > available,
+          STRICTLY greater; at-or-under capacity is NOT marked): a clear, unmistakable RED
+          BACKGROUND so an over-capacity day reads as red at a glance, plus a solid top band for a
+          non-colour-alone shape cue. Uses the dedicated `danger-cell` token — a strongly saturated
+          red, FAR stronger than the `danger-soft` button tint. This cell carries NO text: the
+          allocation bars layered on top (later in DOM order) paint their own opaque, WCAG-tuned
+          fills, so the saturated red here has no text-contrast (AA) constraint on it and @axe-core
+          stays green even at full strength. The band stays the full `danger` to keep the over edge
+          crisp over the fill. */}
       {days.map((d, i) =>
         dayStates[i]?.over ? (
           <div
             key={`o-${d}`}
             data-testid="over-marker"
             title="Overbooked"
-            className="pointer-events-none absolute top-0 h-full border-t-[3px] border-danger bg-danger/12"
+            className="pointer-events-none absolute top-0 h-full border-t-[3px] border-danger bg-danger-cell"
             style={{ left: geom.x(i), width: geom.widthOf(i) }}
           />
         ) : null,
