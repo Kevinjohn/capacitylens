@@ -68,6 +68,13 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   drill on the droplet (P4.2). See `docs/production-plan.md` Phase 2.
 
 ## Genuinely open
+- **Built-in "Internal" client — shipped as a REAL builtin client; the virtual-only option was
+  rejected (2026-06-20).** Internal is a persisted `Client` with `builtin: true` (one per account),
+  so it can OWN real projects — the owner's stated requirement. A lighter **virtual-only** sentinel
+  (no row; a fixed pseudo-id surfaced only in the client filter/labels) was considered and rejected:
+  a virtual client can't own projects and would need special-casing at every client surface. If the
+  owner later decides Internal should NEVER own projects, the virtual approach is reopenable — but it
+  trades the "owns projects" capability away. (See DECISIONS.md; `shared/src/data/internalClient.ts`.)
 - **From the Cohesion Labs sheet import (2026-06-11)** — real customer data, full detail in
   `_input/COHESION-DEMO-NOTES.md`:
   - Their sheet books an external partner studio (Dog Eat Cog) as a *bookable* row with real

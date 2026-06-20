@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import { emptyAppData, isEmpty } from '@floaty/shared/types/entities'
+import { buildInternalClient } from '@floaty/shared/data/internalClient'
 import type { AppData } from '@floaty/shared/types/entities'
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
@@ -66,8 +67,38 @@ export function openDb(path: string): Db {
   // before the marker existed), so /api/meta doesn't mistake it for a fresh DB and seed
   // a second copy on top of it.
   if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db)
+  // Built-in "Internal" client per account (schema v6): mirror the shared migrate (migrateV5toV6)
+  // so a server-loaded dataset written by an older server, or seeded externally, also gets exactly
+  // one builtin Internal client per account. Idempotent — only inserts where one is missing. Runs
+  // BEFORE foreign keys are enabled (the insert references accounts(id), already present).
+  ensureInternalClients(db)
   db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
   return db
+}
+
+/**
+ * Ensure EVERY account in the DB has exactly one built-in Internal client (`builtin: true`).
+ * IDEMPOTENT: a single LEFT-JOIN query finds accounts with no builtin client and inserts one each,
+ * so it never creates a duplicate and is safe on every open (fresh / seeded / already-migrated). The
+ * server mirror of the shared `migrateV5toV6`; identifies the Internal client by the FLAG, not an id.
+ *
+ * Stays SQL (set-based, runs inside the DB) rather than calling the shared TS helper, but the CANONICAL
+ * definition of "the account's builtin Internal" lives in shared `internalClientFor` /
+ * `ensureInternalClients` — the `builtin = 'true'` predicate below is its SQL transcription, and the
+ * inserted row is built by the shared `buildInternalClient` factory so the row shape can't drift.
+ */
+function ensureInternalClients(db: Db): void {
+  const accountsMissing = db
+    .prepare(
+      `SELECT a.id AS id FROM accounts a
+       WHERE NOT EXISTS (SELECT 1 FROM clients c WHERE c.accountId = a.id AND c.builtin = 'true')`,
+    )
+    .all() as Array<{ id: string }>
+  if (accountsMissing.length === 0) return
+  const now = new Date().toISOString()
+  tx(db, () => {
+    for (const { id } of accountsMissing) insertRowRaw(db, 'clients', buildInternalClient(id, now) as unknown as Row)
+  })
 }
 
 const placeholders = (n: number) => Array.from({ length: n }, () => '?').join(', ')

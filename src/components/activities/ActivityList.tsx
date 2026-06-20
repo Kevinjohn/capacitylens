@@ -13,10 +13,12 @@ export function ActivityList() {
   const del = useStore((s) => s.deleteActivity)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>()
 
+  // A project-less activity (internal/repeatable) is bucketed under the account's built-in
+  // Internal client for display — so its label reads "Internal", not "(no project)".
   const projectLabel = (id: string | undefined) => {
-    if (!id) return '(no project)'
+    if (!id) return 'Internal'
     const p = projects.find((x) => x.id === id)
-    if (!p) return '(no project)'
+    if (!p) return 'Internal'
     const c = clients.find((x) => x.id === p.clientId)
     return c ? `${c.name} / ${p.name}` : p.name
   }

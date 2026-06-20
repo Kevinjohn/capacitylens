@@ -95,7 +95,8 @@ never appears on desktop viewports or in landscape.
   - *Dog Eat Cog* — an **external / 3rd party** (`r-ext-dogeatcog`): a company, no discipline/
     capacity, booked on Visual Design (Project Lightning) as a span only. Renders in the schedule's
     bottom band.
-- **Clients:** Acme Inc., Globex.
+- **Clients:** **Internal** (built-in, one per account — read-only, shown as **Built-in**, no Edit/
+  Delete), Acme Inc., Globex.
 - **Projects:** Project Lightning (Acme), Brand Themes (Globex).
 - **Phases (Project Lightning):** Discovery, Build.
 - **Activities** (every activity has a **kind**): *Project* — Wireframes, Visual Design, CMS Review
@@ -252,6 +253,12 @@ Mouse hover sets the active option; mouse click selects.
   may carry a phase), `internal` (project-less internal work), or `repeatable` (project-less,
   reusable across projects). Internal/repeatable activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `repeatable-activities`, `project-activities` (testids).
+- **The built-in "Internal" client.** Every account has exactly one **built-in** client named
+  **Internal** (read-only: no Edit/Delete; the store rejects renaming/deleting it). It is a real client
+  — it can own real projects — AND a project-less internal/repeatable activity is **bucketed under it
+  for display + filtering** (its bars/labels read "Internal", and **Filter by client → Internal** shows
+  BOTH the project-less activities AND any activities under Internal-owned projects). No `clientId` is
+  stored on the activity; the association is derived in the view-model.
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus any
   project-less (internal/repeatable) activity**.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional

@@ -1,6 +1,7 @@
 import { newId } from '../lib/id'
 import { validateAllocationAssignment, validateDateRange } from '../lib/integrity'
 import { sanitizeImportedRecord } from '../lib/sanitizeImport'
+import { buildInternalClient, internalClientFor, INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from '../data/internalClient'
 import { belongsToAccount, notInAccount } from './tenancy'
 import { isExternalResource, SCOPED_KEYS, scopedTables } from '../types/entities'
 import type {
@@ -254,6 +255,35 @@ export function remapAndValidateImport(
   const idSet = (rows: Array<Record<string, unknown>>) => new Set(rows.map((r) => r.id as string))
   const has = (set: Set<string>, v: unknown): boolean => typeof v === 'string' && set.has(v)
 
+  // Built-in "Internal" client: every account must have EXACTLY ONE (seed / addAccount / migrate
+  // guarantee it). Import REPLACES the account's whole slice (the kept-existing rows are filtered out
+  // below), so we can't just keep the pre-existing Internal — it would be wiped. Normalise the
+  // imported builtins to AT MOST one here, then `ensureInternalClients` (a post-step, after counting)
+  // synthesises one if the file carried none — so an auto-added Internal is never counted toward
+  // `imported`. The normalisation:
+  //   • keep the FIRST imported builtin (re-stamping its name/colour to the reserved pair so a
+  //     hand-edited file can't smuggle a junk "Internal"), and remap every OTHER imported builtin's
+  //     id to that kept one (so anything they owned re-points at the single Internal).
+  const remappedBuiltinId = new Map<string, string>()
+  let keptInternalId: string | undefined
+  brought.clients = brought.clients.filter((c) => {
+    if (c.builtin !== true) return true
+    if (keptInternalId === undefined) {
+      keptInternalId = c.id as string
+      c.name = INTERNAL_CLIENT_NAME
+      c.color = INTERNAL_CLIENT_COLOR
+      return true // this row becomes the account's single Internal
+    }
+    remappedBuiltinId.set(c.id as string, keptInternalId) // a duplicate builtin → fold into the kept one
+    return false
+  })
+  // Re-point any FK that pointed at a folded-away imported builtin client at the single kept Internal
+  // (projects.clientId is the only client FK). Done before the required-FK drop so the project keeps a
+  // valid client and survives.
+  const rewireBuiltin = (v: unknown): unknown =>
+    typeof v === 'string' && remappedBuiltinId.has(v) ? remappedBuiltinId.get(v) : v
+  for (const p of brought.projects) p.clientId = rewireBuiltin(p.clientId)
+
   const clientIds = idSet(brought.clients)
   const disciplineIds = idSet(brought.disciplines)
 
@@ -329,14 +359,35 @@ export function remapAndValidateImport(
   const next: AppData = { ...data }
   const srcKept = scopedTables(data)
   const dst = scopedTables(next)
+  // Count only NON-builtin clients toward `imported`: the built-in Internal is infrastructure (every
+  // account has exactly one regardless of the file), so a kept/folded/synthesised Internal must never
+  // inflate "imported N". This also fixes the over-report when a pre-v6 FULL export was given a builtin
+  // by migrate (run before this import) — that auto-added row reaches here as a kept builtin, and must
+  // still not count. The matching `totalIncoming` below excludes incoming builtins for the same reason.
+  const countable = (key: ScopedEntityKey, rows: ReadonlyArray<Record<string, unknown>>): number =>
+    key === 'clients' ? rows.filter((c) => c.builtin !== true).length : rows.length
   let imported = 0
   for (const key of SCOPED_KEYS) {
     const kept = srcKept[key].filter(notInAccount(accountId))
     dst[key] = [...kept, ...(brought[key] as unknown as ScopedEntity[])]
-    imported += brought[key].length
+    imported += countable(key, brought[key])
   }
-  // Everything that didn't land — a dropped parent, child, allocation or time-off —
-  // counts as skipped (records merely unbound from a dangling optional FK still land).
-  const totalIncoming = SCOPED_KEYS.reduce((n, key) => n + ((incoming[key] as unknown[])?.length ?? 0), 0)
-  return { data: next, imported, skipped: totalIncoming - imported }
+  // Post-step (AFTER counting): guarantee the ACTIVE account ends with exactly one built-in Internal.
+  // Import only replaces the active account's slice, so scope the ensure to it (every OTHER account
+  // keeps its own Internal untouched — and import must not mint Internals for accounts it didn't
+  // touch). Idempotent — a no-op when the kept-first path above already left a builtin for this
+  // account; it only synthesises one when the file carried none. Counting is already done, so a
+  // synthesised Internal is never counted. This is `ensureInternalClients` (the canonical "exactly one
+  // Internal per account" algorithm) narrowed to a single account.
+  const result = internalClientFor(next.clients, accountId)
+    ? next
+    : { ...next, clients: [...next.clients, buildInternalClient(accountId, now)] }
+  // Everything that didn't land — a dropped parent, child, allocation or time-off — counts as skipped
+  // (records merely unbound from a dangling optional FK still land). Incoming builtins are excluded
+  // from BOTH sides so the auto-added Internal never shows up as imported or skipped.
+  const totalIncoming = SCOPED_KEYS.reduce(
+    (n, key) => n + countable(key, (incoming[key] as unknown as Array<Record<string, unknown>> | undefined) ?? []),
+    0,
+  )
+  return { data: result, imported, skipped: totalIncoming - imported }
 }

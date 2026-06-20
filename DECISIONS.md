@@ -107,6 +107,17 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   **The domain concept was renamed Task→Activity (schema v5):** `Activity`/`ActivityKind` types,
   `Allocation.activityId`, the `activities` table/array/REST segment/route (`/activities`); legacy
   `tasks`/`taskId` blobs migrate on load + import (`migrateV4toV5`, server `renameLegacyActivityTables`).
+- **The built-in "Internal" client is a REAL `Client`, one per account (schema v6).** A persisted
+  client with `builtin: true` (NOT a sentinel id), name "Internal", identified at runtime by the FLAG
+  (so it survives import-remap). Seeded, created by `addAccount`, and ensured by `migrateV5toV6` +
+  server `openDb` — all idempotent (one per account, never duplicated). **Protected:** the store throws
+  on renaming/deleting a builtin and the ClientList hides those affordances. It can own real projects.
+  **Project-less internal/repeatable activities bucket under it for DISPLAY + FILTER only** — there is
+  NO `activity.clientId` and `assertScopedRefs` is unchanged; the association is DERIVED in
+  `schedulerModel.activityMeta` (a project-less activity's client = the account's builtin Internal id,
+  never persisted), so `matchesProjectClient` makes Filter-by-Internal return BOTH project-less work and
+  Internal-owned-project work. Import normalises to exactly one builtin per account. Helper:
+  `shared/src/data/internalClient.ts`.
 - **The timeline keeps a 4-week scrollable back-buffer** (`PAST_BUFFER_DAYS`) to the left of
   the focus date — the view opens flush at the focused Monday, and scrolling left pans into
   the past instead of overscrolling (macOS turns left-edge overscroll into browser back;

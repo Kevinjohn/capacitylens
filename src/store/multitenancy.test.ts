@@ -126,9 +126,11 @@ describe('importData (account-scoped)', () => {
     }
     s().importData(incoming)
 
-    // a1's old client replaced by the imported one, re-stamped to a1.
+    // a1's old client replaced by the imported one, re-stamped to a1. Import also guarantees the
+    // account keeps exactly one built-in Internal client (synthesised here — the file carried none).
     const a1Clients = s().data.clients.filter((c) => c.accountId === 'a1')
-    expect(a1Clients.map((c) => c.name)).toEqual(['Imported'])
+    expect(a1Clients.filter((c) => !c.builtin).map((c) => c.name)).toEqual(['Imported'])
+    expect(a1Clients.filter((c) => c.builtin)).toHaveLength(1)
     expect(a1Clients[0].accountId).toBe('a1')
     // a2 untouched; accounts list untouched.
     expect(s().data.clients.some((c) => c.id === 'c2')).toBe(true)
@@ -170,7 +172,8 @@ describe('importData (account-scoped)', () => {
       ...emptyAppData(),
       clients: [{ id: 'imp', accountId: 'X', createdAt: 't', updatedAt: 't', name: 'Imported', color: '#9' }],
     })
-    expect(s().data.clients.filter((c) => c.accountId === 'a1').map((c) => c.name)).toEqual(['Imported'])
+    // The imported (non-builtin) client landed (alongside the guaranteed Internal client).
+    expect(s().data.clients.filter((c) => c.accountId === 'a1' && !c.builtin).map((c) => c.name)).toEqual(['Imported'])
     s().undo()
     expect(s().data.clients.filter((c) => c.accountId === 'a1').map((c) => c.id)).toEqual(['c1'])
   })

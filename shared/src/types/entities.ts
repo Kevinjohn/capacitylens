@@ -95,6 +95,12 @@ export interface Resource extends ScopedEntity {
 export interface Client extends ScopedEntity {
   name: string
   color: string
+  /** True ONLY for the built-in "Internal" pseudo-client — exactly one per account, created by
+   *  seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
+   *  internal/repeatable activity buckets under it for display + filtering. Absent/false = a normal,
+   *  user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
+   *  import-remap). See shared/src/data/internalClient.ts. */
+  builtin?: boolean
 }
 
 export interface Project extends ScopedEntity {
@@ -229,8 +235,9 @@ export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'w
 
 /** Bump when the persisted shape changes; drives data/migrate.ts. (v4 added Activity.kind;
  *  v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
- *  `Allocation.taskId` → `activityId`.) */
-export const SCHEMA_VERSION = 5
+ *  `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
+ *  with `builtin: true` — the "Internal" pseudo-client.) */
+export const SCHEMA_VERSION = 6
 
 export interface PersistedState {
   schemaVersion: number

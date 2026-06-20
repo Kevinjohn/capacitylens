@@ -142,6 +142,18 @@ export function sanitizeImportedRecord(
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
     case 'clients':
+      rec.color = safeColor(rec.color)
+      cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
+      // `builtin` is an OPTIONAL boolean (true only for the Internal pseudo-client). This is
+      // DEFENSIVE NORMALISATION for a hand-edited / legacy file: drop anything that isn't strictly
+      // `true` so junk (a string, 0, or an explicit `false`) can't persist — its absence reads back
+      // as a normal client, and the round-trip omits the column rather than writing a NULL. (The code
+      // itself never writes `false`; absent and false mean the same thing.) The import path
+      // (remapAndValidateImport) does NOT remove imported builtins — it normalises them to exactly
+      // one per account (keeps the FIRST, re-stamping its name/colour, and folds any duplicates into
+      // it). This sanitiser still runs per-record there, so a kept builtin's flag survives untouched.
+      if (rec.builtin !== true) delete rec.builtin
+      break
     case 'projects':
       rec.color = safeColor(rec.color)
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL

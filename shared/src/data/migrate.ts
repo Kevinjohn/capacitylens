@@ -1,4 +1,5 @@
 import { emptyAppData, SCOPED_KEYS } from '../types/entities'
+import { buildInternalClient } from './internalClient'
 import type { AppData } from '../types/entities'
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
@@ -136,6 +137,38 @@ function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
   return next
 }
 
+// v5 → v6: ensure EVERY account carries exactly one built-in "Internal" client (`builtin: true`).
+// A real, persisted Client (not a sentinel) so it can own projects and bucket project-less
+// activities. IDEMPOTENT: an account that already has a `builtin` client is left alone, so this is
+// safe to run repeatedly and on already-migrated / seeded data — a duplicate is never created, and a
+// blob that already satisfies the invariant round-trips deep-equal (no client added → no change).
+// Detection is by the FLAG, not an id (so it survives import-remap). Runs AFTER the v4→v5 rename, so
+// the tables are at their current names; `accounts`/`clients` may be absent on a partial blob — we
+// no-op then (an account-less import slice has nothing to attach an Internal client to).
+//
+// This is the typed `ensureInternalClients` algorithm (see internalClient.ts) re-expressed for the
+// RAW, untyped migration blob: a versioned migration runs on a pre-typed `Record<string, unknown>`
+// and must stay deterministic (no live clock — a fixed timestamp), so it can't call the typed helper
+// directly. The row SHAPE + the "match builtin by flag + accountId" predicate are kept in lockstep by
+// using the shared `buildInternalClient` factory for the row literal.
+function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(data.accounts) || data.accounts.length === 0) return data
+  const clients = Array.isArray(data.clients) ? [...data.clients] : []
+  const hasBuiltin = (accountId: unknown): boolean =>
+    clients.some((c) => !!c && typeof c === 'object' && (c as Record<string, unknown>).builtin === true && (c as Record<string, unknown>).accountId === accountId)
+  // Migrated rows are newly created here; a fixed timestamp keeps the migration deterministic.
+  const now = '2026-01-01T00:00:00.000Z'
+  let added = false
+  for (const account of data.accounts) {
+    if (!account || typeof account !== 'object') continue
+    const accountId = (account as Record<string, unknown>).id
+    if (typeof accountId !== 'string' || hasBuiltin(accountId)) continue
+    clients.push(buildInternalClient(accountId, now))
+    added = true
+  }
+  return added ? { ...data, clients } : data
+}
+
 export function migrate(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') return emptyAppData()
   const obj = raw as Record<string, unknown>
@@ -152,6 +185,9 @@ export function migrate(raw: unknown): AppData {
   }
   if (data && typeof data === 'object' && version < 5) {
     data = migrateV4toV5(data)
+  }
+  if (data && typeof data === 'object' && version < 6) {
+    data = migrateV5toV6(data)
   }
 
   return normalize(data as Partial<AppData> | undefined)
