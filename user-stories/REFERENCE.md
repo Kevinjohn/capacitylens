@@ -44,8 +44,7 @@ The sidebar links, in order, route to:
 | Link label | Route | Screen |
 |---|---|---|
 | Schedule | `/` | Timeline scheduler |
-| Resources | `/resources` | Resource list |
-| External | `/external` | External / 3rd-party list |
+| Resources | `/resources` | Resource list (incl. the **External** section when enabled) |
 | Disciplines | `/disciplines` | Discipline list |
 | Clients | `/clients` | Client list |
 | Projects | `/projects` | Project list |
@@ -53,8 +52,11 @@ The sidebar links, in order, route to:
 | Time off | `/timeoff` | Time-off list |
 | Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, allocation bars, utilisation, appearance) |
 
-That's **nine** sections by default — **eight** when the company turns disciplines off (the
-**Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). Each link
+That's **eight** sections by default — **seven** when the company turns disciplines off (the
+**Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). External / 3rd
+parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
+(see *External / 3rd parties* under Domain rules); the old `/external` URL still resolves but
+**redirects to `/resources`** so saved bookmarks don't 404. Each link
 carries a small decorative icon (`aria-hidden`; the accessible name stays the label text). The
 **Data** section (**Export JSON** / **Import JSON**) sits below the nav links. The company block —
 the active company name plus a **Switch company** control (which returns to the account picker) —
@@ -66,7 +68,7 @@ both the open menu and the collapsed rail, so the nav icons don't shift when the
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
 The toggle sits at the same left inset as the nav icons, so the toggle + icon column keep their
 x-position when collapsing — only the labels and the "Floaty" wordmark come and go. Rail icons
-(`data-testid="nav-rail-item"`, one per **visible** section — so 8 when disciplines are off —
+(`data-testid="nav-rail-item"`, one per **visible** section — so 8 with disciplines on, 7 when disciplines are off —
 `title` = the section label, plus an instant hover tooltip) are **not** navigation — tapping any
 of them just re-opens the menu; they're hidden from assistive tech (the labelled toggle is the
 single accessible control). Collapsing hides
@@ -96,8 +98,10 @@ never appears on desktop viewports or in landscape.
     are behind the device-global **Show placeholders** pref (Settings → Placeholders, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - *Dog Eat Cog* — an **external / 3rd party** (`r-ext-dogeatcog`): a company, no discipline/
-    capacity, booked on Visual Design (Project Lightning) as a span only. Renders in the schedule's
-    bottom band.
+    capacity, booked on Visual Design (Project Lightning) as a span only. **Hidden by default** —
+    externals are behind the device-global **Show external resources** pref (Settings → External,
+    default **off**); enable it to see this row in the schedule's bottom band, the **External** section
+    of the Resources tab, and the assignee picker.
 - **Clients:** **Internal** (built-in, one per account — read-only, shown as **Built-in**, no Edit/
   Delete), Acme Inc., Globex.
 - **Projects:** Project Lightning (Acme), Brand Themes (Globex).
@@ -230,7 +234,7 @@ a notice appears ("You have unsaved changes — use Cancel or Save to close this
 the palette does **not** open. Closing or saving the dialog re-enables the shortcut.
 Closed by **Escape**, backdrop click, or selecting an item.
 
-**Sections shown (no query):** Actions ("Go to today"), Pages (all 9 routes; 8 — no Disciplines — when the company turns disciplines off).
+**Sections shown (no query):** Actions ("Go to today"), Pages (all 8 routes; 7 — no Disciplines — when the company turns disciplines off).
 **Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Activities.
 **Special action:** typing a valid, real calendar ISO date (`YYYY-MM-DD`, zero-padded,
 e.g. `2026-06-03`) shows "Go to date YYYY-MM-DD". Impossible dates like `2026-02-31`,
@@ -282,11 +286,15 @@ Mouse hover sets the active option; mouse click selects.
   device-global **Show placeholders** pref (Settings → Placeholders, `floaty/placeholdersEnabled`,
   default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
-  descriptor), managed on the **External** tab (not Resources), assignable to **any** activity with **no
-  hours**, shown in a **neutral band at the bottom of the schedule** with **no utilisation / over-markers**.
-  Their allocations carry `hoursPerDay: 0` and are a **literal start/end span** (`ignoreWeekends: true`
-  — the "Include weekends" toggle is hidden, weekends count as plain calendar days); they're excluded
-  from the Time-off picker.
+  descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
+  of the schedule** with **no utilisation / over-markers**. Their allocations carry `hoursPerDay: 0`
+  and are a **literal start/end span** (`ignoreWeekends: true` — the "Include weekends" toggle is
+  hidden, weekends count as plain calendar days); they're excluded from the Time-off picker. They are
+  **hidden by default** behind the device-global **Show external resources** pref (Settings → External,
+  `floaty/externalEnabled`, default off); when on, an **External** section appears under the **Resources**
+  tab (with explainer copy + an `Add external party` button) and the band appears on the schedule. When
+  off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
+  their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
 - **Cascade deletes:** deleting a client removes its projects → activities → allocations;
   deleting a project removes its phases/activities/allocations and *unbinds* (does not delete)
   placeholders; deleting an activity removes its allocations; deleting a resource removes its

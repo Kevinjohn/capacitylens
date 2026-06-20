@@ -42,10 +42,11 @@ function dataset(): AppData {
   }
 }
 
-// Tests default placeholdersEnabled=true so existing assertions (which predate the device-global
-// hide pref) keep seeing placeholder rows; the OFF behaviour is covered by its own block below.
-const build = (filters = emptyFilters(), disciplinesEnabled = true, placeholdersEnabled = true) =>
-  buildSchedulerModel(dataset(), geom, days, start, end, filters, disciplinesEnabled, placeholdersEnabled)
+// Tests default placeholdersEnabled / externalEnabled = true so existing assertions (which predate
+// the device-global hide prefs) keep seeing placeholder + external rows; the OFF behaviour is
+// covered by dedicated blocks below.
+const build = (filters = emptyFilters(), disciplinesEnabled = true, placeholdersEnabled = true, externalEnabled = true) =>
+  buildSchedulerModel(dataset(), geom, days, start, end, filters, disciplinesEnabled, placeholdersEnabled, externalEnabled)
 const allBars = (model: GroupModel[]) => model.flatMap((g) => g.rows).flatMap((r) => r.bars)
 const barIds = (model: GroupModel[]) => allBars(model).map((b) => b.allocation.id).sort()
 
@@ -78,7 +79,7 @@ describe('buildSchedulerModel', () => {
       { id: 'ph', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'placeholder', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#9' },
       ...d.resources, // r1 (person, Design), r2 (person, Dev)
     ]
-    const model = buildSchedulerModel(d, geom, days, start, end, emptyFilters(), true, true)
+    const model = buildSchedulerModel(d, geom, days, start, end, emptyFilters(), true, true, true)
     const design = model.find((g) => g.title === 'Design')!
     expect(design.rows.map((r) => r.resource.id)).toEqual(['r1', 'ph'])
   })
@@ -96,7 +97,7 @@ describe('buildSchedulerModel', () => {
   }
 
   it('placeholdersEnabled OFF hides placeholder rows + their bars across the model', () => {
-    const off = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, false)
+    const off = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, false, true)
     const ids = off.flatMap((g) => g.rows).map((r) => r.resource.id)
     expect(ids).not.toContain('ph')
     // The placeholder's allocation is unreferenced, not errored — no bar for it anywhere.
@@ -104,7 +105,7 @@ describe('buildSchedulerModel', () => {
   })
 
   it('placeholdersEnabled ON shows the placeholder row with its bar', () => {
-    const on = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, true)
+    const on = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, true, true)
     const ids = on.flatMap((g) => g.rows).map((r) => r.resource.id)
     expect(ids).toContain('ph')
     expect(allBars(on).map((b) => b.allocation.id)).toContain('a-ph')
@@ -114,8 +115,8 @@ describe('buildSchedulerModel', () => {
     // Per-discipline utilisation is the mean of row.utilization over group.rows (SchedulerGrid).
     // The Design discipline holds r1 (a person) and ph (a placeholder); a hidden placeholder is
     // simply absent from group.rows, so its load can't leak into the discipline average.
-    const off = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, false)
-    const on = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, true)
+    const off = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, false, true)
+    const on = buildSchedulerModel(withPlaceholder(), geom, days, start, end, emptyFilters(), true, true, true)
     const avg = (rows: { utilization: number }[]) => rows.reduce((s, r) => s + r.utilization, 0) / rows.length
     const designOff = off.find((g) => g.title === 'Design')!
     const designOn = on.find((g) => g.title === 'Design')!
@@ -138,7 +139,7 @@ describe('buildSchedulerModel', () => {
     // `days` spans the full week (6/1–6/7), but the utilisation window is just 6/3–6/4.
     // Over that window r1 has only a2 (4h × 2 working days) / (8h × 2) = 0.5,
     // proving the headline % is no longer averaged across the whole timeline.
-    const model = buildSchedulerModel(dataset(), geom, days, '2026-06-03', '2026-06-04', emptyFilters(), true, true)
+    const model = buildSchedulerModel(dataset(), geom, days, '2026-06-03', '2026-06-04', emptyFilters(), true, true, true)
     const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!
     expect(r1.utilization).toBeCloseTo(0.5)
     // The visible model (bars/day-states) still covers the full `days` range.
@@ -149,7 +150,7 @@ describe('buildSchedulerModel', () => {
     const d = dataset()
     // Stack a second 8h allocation on r1's 6/1–6/2 (8 + 8 > 8 available -> over).
     d.allocations.push({ id: 'a4', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
-    const rows = buildSchedulerModel(d, geom, days, start, end, emptyFilters(), true, true).flatMap((g) => g.rows)
+    const rows = buildSchedulerModel(d, geom, days, start, end, emptyFilters(), true, true, true).flatMap((g) => g.rows)
     expect(rows.find((r) => r.resource.id === 'r1')!.overSoon).toBe(true)
     expect(rows.find((r) => r.resource.id === 'r2')!.overSoon).toBe(false) // 8h == 8h available, not over
   })
@@ -173,7 +174,7 @@ describe('buildSchedulerModel', () => {
     return d
   }
   const buildLens = (filters = emptyFilters()) =>
-    buildSchedulerModel(withLensActivities(), geom, days, start, end, filters, true, true)
+    buildSchedulerModel(withLensActivities(), geom, days, start, end, filters, true, true, true)
 
   it('activity lens: a specific activity id limits bars to that activity', () => {
     // Default (showUnmatched off): non-matching rows collapse out and matching rows show ONLY
@@ -272,8 +273,8 @@ describe('buildSchedulerModel', () => {
 })
 
 describe('external / 3rd-party band', () => {
-  const buildExt = (filters = emptyFilters(), disciplinesEnabled = true) =>
-    buildSchedulerModel(withExternal(), geom, days, start, end, filters, disciplinesEnabled, true)
+  const buildExt = (filters = emptyFilters(), disciplinesEnabled = true, externalEnabled = true) =>
+    buildSchedulerModel(withExternal(), geom, days, start, end, filters, disciplinesEnabled, true, externalEnabled)
 
   it('renders external resources in a neutral band that is ALWAYS last', () => {
     const model = buildExt()
@@ -306,6 +307,33 @@ describe('external / 3rd-party band', () => {
     expect(model[1].key).toBe('external')
     expect(model[1].rows.map((r) => r.resource.id)).toEqual(['ext1'])
   })
+
+  it('externalEnabled OFF hides external rows + their bars across the model', () => {
+    const off = buildExt(emptyFilters(), true, false)
+    const ids = off.flatMap((g) => g.rows).map((r) => r.resource.id)
+    expect(ids).not.toContain('ext1')
+    // The external's allocation is unreferenced, not errored — no bar for it anywhere.
+    expect(off.flatMap((g) => g.rows).flatMap((r) => r.bars).map((b) => b.allocation.id)).not.toContain('aext')
+  })
+
+  it('externalEnabled OFF drops the (now-empty) External band header entirely (risk #2)', () => {
+    // The trailing external band must NOT render as an empty header when externals are hidden — the
+    // model's `rows.length > 0` filter drops the whole group, so no 'external' key survives.
+    const off = buildExt(emptyFilters(), true, false)
+    expect(off.map((g) => g.key)).not.toContain('external')
+    // And with disciplines off too, only the flat people group remains (no empty external band).
+    const offFlat = buildExt(emptyFilters(), false, false)
+    expect(offFlat.map((g) => g.key)).not.toContain('external')
+    expect(offFlat).toHaveLength(1)
+  })
+
+  it('externalEnabled ON shows the external row with its bar', () => {
+    const on = buildExt(emptyFilters(), true, true)
+    expect(on.map((g) => g.key)).toContain('external')
+    const ext = on.at(-1)!.rows[0]
+    expect(ext.resource.id).toBe('ext1')
+    expect(ext.bars.map((b) => b.allocation.id)).toEqual(['aext'])
+  })
 })
 
 // dataset() + a built-in Internal client that owns a real project (pInt), plus a project-less
@@ -328,7 +356,7 @@ function withInternal(): AppData {
 describe('built-in Internal client bucketing + filter', () => {
   const internalId = 'c-internal'
   const buildInternal = (filters = emptyFilters()) =>
-    buildSchedulerModel(withInternal(), geom, days, start, end, filters, true, true)
+    buildSchedulerModel(withInternal(), geom, days, start, end, filters, true, true, true)
   const internalBarIds = (m: GroupModel[]) =>
     m.flatMap((g) => g.rows).flatMap((r) => r.bars).map((b) => b.allocation.id).sort()
 

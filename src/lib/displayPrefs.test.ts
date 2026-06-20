@@ -9,6 +9,8 @@ import {
   writeStoredFakeSignedIn,
   readStoredPlaceholdersEnabled,
   writeStoredPlaceholdersEnabled,
+  readStoredExternalEnabled,
+  writeStoredExternalEnabled,
 } from './displayPrefs'
 
 describe('sidebar preference', () => {
@@ -102,5 +104,27 @@ describe('placeholders-enabled (device-global view) preference', () => {
   it('treats an unrecognised stored value as the default (hidden)', () => {
     localStorage.setItem('floaty/placeholdersEnabled', 'sometimes')
     expect(readStoredPlaceholdersEnabled()).toBe(false)
+  })
+})
+
+describe('external-enabled (device-global view) preference', () => {
+  beforeEach(() => {
+    localStorage.removeItem('floaty/externalEnabled')
+  })
+
+  it('defaults to FALSE (hidden) when the user has never chosen', () => {
+    expect(readStoredExternalEnabled()).toBe(false)
+  })
+
+  it('round-trips an explicit on/off choice', () => {
+    writeStoredExternalEnabled(true)
+    expect(readStoredExternalEnabled()).toBe(true)
+    writeStoredExternalEnabled(false)
+    expect(readStoredExternalEnabled()).toBe(false)
+  })
+
+  it('treats an unrecognised stored value as the default (hidden)', () => {
+    localStorage.setItem('floaty/externalEnabled', 'sometimes')
+    expect(readStoredExternalEnabled()).toBe(false)
   })
 })

@@ -6,6 +6,9 @@ import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
 import { resourceDisplayName } from '../../lib/metadata'
 import { ResourceForm } from './ResourceForm'
+import { ExternalForm } from '../external/ExternalForm'
+import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
+import { isExternalResource } from '@floaty/shared/types/entities'
 import type { Resource, ResourceKind } from '@floaty/shared/types/entities'
 
 export function ResourceList() {
@@ -17,17 +20,24 @@ export function ResourceList() {
   // Placeholders section and its "Add placeholder" affordance don't render. Existing placeholder
   // resources stay in the data untouched — they simply aren't shown until the pref is turned on.
   const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
+  // Device-global view pref (default OFF), EXACT analog of placeholdersEnabled. When off the External
+  // section (rows + "Add external party" affordance) doesn't render; existing externals stay in the
+  // data untouched and reappear when re-enabled (Settings → External).
+  const externalEnabled = useStore((s) => s.externalEnabled)
   const del = useStore((s) => s.deleteResource)
   const { editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>()
+  // External rows get their OWN create/edit/confirm state + the trimmed ExternalForm (no capacity
+  // fields), kept separate from the person/placeholder triple above so the two modals never collide.
+  const ext = useCrudListState<Resource>()
   // People and placeholders each have their own add button; remember which kind is
   // being created so the right modal opens.
   const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null)
 
-  // External / 3rd parties are intentionally absent from this tab — they live on their own
-  // /external tab. They're neither 'person' nor 'placeholder', so these filters already exclude
-  // them; don't add a third section here.
+  // Resources, placeholders, and externals all live on THIS tab now. Externals (the External section
+  // below) are gated behind the device-global `externalEnabled` pref; people/placeholders split by kind.
   const people = resources.filter((r) => r.kind === 'person')
   const placeholders = resources.filter((r) => r.kind === 'placeholder')
+  const externals = resources.filter(isExternalResource)
 
   const disciplineName = (id?: string) => disciplines.find((d) => d.id === id)?.name ?? '—'
   // A resource's colour follows its discipline (resources no longer pick their own);
@@ -83,6 +93,45 @@ export function ResourceList() {
         </>
       )}
 
+      {/* External / 3rd parties moved INTO this tab (from the old standalone /external page) behind the
+          device-global `externalEnabled` pref (default off, Settings → External). When off, the whole
+          section is hidden; existing external data is preserved untouched and returns when re-enabled. */}
+      {externalEnabled && (
+        <section aria-labelledby="external-heading">
+          <div className="mb-2 mt-8 flex items-center justify-between">
+            <h2 id="external-heading" className="text-lg font-semibold">
+              External
+            </h2>
+            <Button onClick={() => ext.setCreating(true)}>Add external party</Button>
+          </div>
+          {/* Explainer copy (editable, shared with Settings → External — see lib/externalCopy.ts). */}
+          <p className="mb-4 max-w-prose text-sm text-muted">{EXTERNAL_EXPLAINER}</p>
+          {externals.length === 0 ? (
+            <EmptyState>No external parties yet.</EmptyState>
+          ) : (
+            <ul className="divide-y divide-line rounded border border-line bg-surface">
+              {externals.map((r) => (
+                <li key={r.id} data-testid="external-row" className="flex items-center justify-between px-3 py-2">
+                  <span className="flex flex-wrap items-center gap-2">
+                    <ColorSwatch color={r.color} />
+                    <span className="font-medium">{r.name ?? r.role}</span>
+                    {r.name && r.role && <span className="text-sm text-muted">· {r.role}</span>}
+                  </span>
+                  <span className="flex gap-2">
+                    <Button variant="ghost" onClick={() => ext.setEditing(r)}>
+                      Edit
+                    </Button>
+                    <Button variant="danger" onClick={() => ext.setConfirming(r)}>
+                      Delete
+                    </Button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+
       {creatingKind && <ResourceForm kind={creatingKind} onClose={() => setCreatingKind(null)} />}
       {editing && <ResourceForm resource={editing} onClose={() => setEditing(null)} />}
       {confirming && (
@@ -94,6 +143,21 @@ export function ResourceList() {
             setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}
+        />
+      )}
+
+      {/* External create/edit reuse the trimmed ExternalForm; delete reuses the resource cascade. */}
+      {ext.creating && <ExternalForm onClose={() => ext.setCreating(false)} />}
+      {ext.editing && <ExternalForm resource={ext.editing} onClose={() => ext.setEditing(null)} />}
+      {ext.confirming && (
+        <ConfirmDialog
+          title="Delete external party?"
+          message={`Delete "${ext.confirming.name ?? ext.confirming.role}" and all of its allocations? You can undo this with ⌘Z.`}
+          onConfirm={() => {
+            del(ext.confirming!.id)
+            ext.setConfirming(null)
+          }}
+          onCancel={() => ext.setConfirming(null)}
         />
       )}
     </ListPage>

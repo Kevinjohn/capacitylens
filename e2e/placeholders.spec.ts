@@ -8,7 +8,8 @@ import { openApp } from './helpers'
 test.describe('Placeholders (device-global pref, default off)', () => {
   test('hidden by default: the seeded placeholder is absent from the schedule and Resources list', async ({ page }) => {
     await openApp(page)
-    // No placeholder lane on the schedule (real people + the External band only).
+    // No placeholder lane on the schedule (real people only — both Placeholders AND External are
+    // device-global prefs that default OFF, so neither band shows out of the box).
     await expect(page.locator('[data-resource-id="r-ph-designer"]')).toHaveCount(0)
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Placeholder' })).toHaveCount(0)
 

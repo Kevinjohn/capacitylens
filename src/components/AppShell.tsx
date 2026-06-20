@@ -16,7 +16,9 @@ import { RotateHint } from './RotateHint'
 const LINKS: [string, string, IconName][] = [
   ['/', 'Schedule', 'calendar'],
   ['/resources', 'Resources', 'people'],
-  ['/external', 'External', 'building'],
+  // External / 3rd parties moved INTO the Resources tab behind a device-global setting
+  // (`floaty/externalEnabled`, default off — Settings → External). They no longer have their
+  // own nav link; the old /external route redirects to /resources for saved bookmarks.
   ['/disciplines', 'Disciplines', 'tag'],
   ['/clients', 'Clients', 'briefcase'],
   ['/projects', 'Projects', 'folder'],
