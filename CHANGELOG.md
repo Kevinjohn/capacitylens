@@ -7,8 +7,40 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-06-20
+
+Clearer capacity at a glance, and a tidier home for non-client work.
+
+### Added
+- **A built-in "Internal" home for non-client work.** Activities that don't belong to a
+  client project (internal admin, reusable activities) now group under a built-in
+  **Internal** client on the schedule and in filters — so you can book project-less work
+  without inventing a fake client. Internal is a behind-the-scenes anchor: it's selectable
+  when you assign work and you can file projects under it, but it doesn't clutter your
+  Clients list.
+- **Over-capacity days turn red.** Any day where someone is booked beyond their capacity
+  (strictly over — exactly at capacity is fine) now gets a clear red background, so overload
+  jumps out at a glance.
+- **A short "What Floaty is" welcome.** A minimal post-login page frames Floaty as a
+  resourcing tool — who's busy, who's free — not a project manager. (Placeholder copy for now.)
+- **Clear local storage (Settings).** A new destructive action wipes Floaty's browser-stored
+  data and preferences after a confirmation — handy for resetting a device. On the hosted
+  site your data lives in the database and reloads from there.
+
 ### Changed
-- Renamed the domain concept **Task → Activity** throughout the UI, routes, types, API fields, and database. Existing local data and JSON exports/imports are migrated automatically (schema v5; server tables renamed in place).
+- **"Tasks" are now "Activities"** throughout the UI, routes, types, API fields, and database.
+  Existing local data and JSON exports/imports migrate automatically (in-place schema
+  migration; server tables renamed in place).
+- **Utilisation % now follows the weeks you're viewing.** The per-person and overall
+  utilisation figures are computed over the visible window and recalculate when you switch the
+  1/2/4/8-week range, so the number always matches what's on screen. (The "overbooked soon"
+  red flag still watches a fixed forward window.)
+- **Placeholders are now opt-in.** Unfilled-slot placeholders are off by default and enabled in
+  Settings; when on they show with a "?" avatar and a "Placeholder" name. Existing placeholder
+  data is hidden, not lost, when off.
+- **External / 3rd parties moved into the Resources tab** and are opt-in (off by default,
+  enabled in Settings), with a short explainer of what External is and isn't. The old
+  `/external` page redirects to Resources.
 
 ## [0.7.0] — 2026-06-20
 
