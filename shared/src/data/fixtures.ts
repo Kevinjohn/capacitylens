@@ -93,8 +93,30 @@ export const FIXTURE_TASK: Task = {
   id: 'fix-t1',
   accountId: 'fix-a1',
   name: 'Fixture Task',
+  kind: 'project',
   projectId: 'fix-p1',
   phaseId: 'fix-ph1',
+  createdAt: TS1,
+  updatedAt: TS2,
+}
+
+/** The internal & repeatable kinds: project-less by definition, so they OMIT projectId /
+ *  phaseId entirely (not null — absent). Prove all three TaskKind values round-trip through
+ *  the server with the optional FK columns left NULL. */
+export const FIXTURE_TASK_INTERNAL: Task = {
+  id: 'fix-t2',
+  accountId: 'fix-a1',
+  name: 'Fixture Internal Task',
+  kind: 'internal',
+  createdAt: TS1,
+  updatedAt: TS2,
+}
+
+export const FIXTURE_TASK_REPEATABLE: Task = {
+  id: 'fix-t3',
+  accountId: 'fix-a1',
+  name: 'Fixture Repeatable Task',
+  kind: 'repeatable',
   createdAt: TS1,
   updatedAt: TS2,
 }

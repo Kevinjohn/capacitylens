@@ -12,6 +12,8 @@ import {
   FIXTURE_RESOURCE,
   FIXTURE_RESOURCE_EXTERNAL,
   FIXTURE_TASK,
+  FIXTURE_TASK_INTERNAL,
+  FIXTURE_TASK_REPEATABLE,
   FIXTURE_ALLOCATION,
   FIXTURE_TIMEOFF,
 } from '@floaty/shared/data/fixtures'
@@ -31,7 +33,7 @@ function freshApp(allowReset = true): { app: FastifyInstance } {
 const account = (id: string) => ({ id, name: 'Studio', color: '#3b82f6', ...meta() })
 const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
 const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
-const task = (id: string, accountId: string, projectId: string, phaseId?: string) => ({ id, accountId, name: 'Task', projectId, phaseId, ...meta() })
+const task = (id: string, accountId: string, projectId: string, phaseId?: string) => ({ id, accountId, name: 'Task', kind: 'project', projectId, phaseId, ...meta() })
 const person = (id: string, accountId: string) => ({
   id,
   accountId,
@@ -778,6 +780,16 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app)
     expect((await post(app, 'tasks', FIXTURE_TASK)).statusCode).toBe(201)
     expect((await state(app)).tasks[0]).toEqual(FIXTURE_TASK)
+  })
+
+  it('internal + repeatable tasks round-trip with kind and no projectId/phaseId', async () => {
+    const { app } = freshApp()
+    await seedFixtureDeps(app)
+    expect((await post(app, 'tasks', FIXTURE_TASK_INTERNAL)).statusCode).toBe(201)
+    expect((await post(app, 'tasks', FIXTURE_TASK_REPEATABLE)).statusCode).toBe(201)
+    const tasks = (await state(app)).tasks
+    expect(tasks).toContainEqual(FIXTURE_TASK_INTERNAL)
+    expect(tasks).toContainEqual(FIXTURE_TASK_REPEATABLE)
   })
 
   it('allocation: every field round-trips (including optional note + json ignoreWeekends + hoursPerDay 0)', async () => {

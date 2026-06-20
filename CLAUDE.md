@@ -28,6 +28,10 @@ goes through the `useScopedData` / `scopedTables()` seam.
   zero-capacity day; utilisation % / `overSoon` is a working-day ratio over a fixed forward 14-day
   window from today. Different questions — don't merge them.
 - **"Utilisation" is the term** everywhere on the schedule, never "Load".
+- **Tasks carry a required `kind`** (`project` | `internal` | `repeatable`); only `project` has a
+  projectId/phase (coherence enforced in `assertScopedRefs`, repaired on import/migrate).
+  "Repeatable" *is* the renamed "general" task. The schedule's **task lens** ("Filter by task") is
+  a standalone view, mutually exclusive with the client/project filter (set in `setFilters`).
 - **Theme is device-global** (own key `floaty/theme`, default light), NOT in `AppData`/export;
   same for utilisation display toggles (`floaty/utilizationPrefs`).
 - **Colours are preset swatches only** (no custom hex), and a resource's colour derives from its

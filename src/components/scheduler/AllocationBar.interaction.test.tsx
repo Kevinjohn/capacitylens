@@ -18,7 +18,7 @@ function seedAllocation(): Allocation {
   const s = useStore.getState()
   const c = s.addClient({ name: 'Acme', color: '#1' })
   const p = s.addProject({ name: 'P', clientId: c.id, color: '#2' })
-  const t = s.addTask({ name: 'Wires', projectId: p.id })
+  const t = s.addTask({ name: 'Wires', kind: 'project', projectId: p.id })
   const r = s.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
   return s.addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
 }
@@ -98,7 +98,7 @@ describe('AllocationBar interactions', () => {
     const c = st.addClient({ name: 'Acme', color: '#1' })
     const p1 = st.addProject({ name: 'P1', clientId: c.id, color: '#2' })
     const p2 = st.addProject({ name: 'P2', clientId: c.id, color: '#3' })
-    const t1 = st.addTask({ name: 'Wires', projectId: p1.id })
+    const t1 = st.addTask({ name: 'Wires', kind: 'project', projectId: p1.id })
     const person = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
     // A placeholder bound to p2 cannot take a p1 task — dropping onto it must be rejected.
     const slot = st.addResource({ kind: 'placeholder', role: 'Slot', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4', projectId: p2.id })
@@ -132,7 +132,7 @@ describe('AllocationBar interactions', () => {
     const st = useStore.getState()
     const c = st.addClient({ name: 'Acme', color: '#1' })
     const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = st.addTask({ name: 'Wires', projectId: p.id })
+    const t = st.addTask({ name: 'Wires', kind: 'project', projectId: p.id })
     const r1 = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
     const r2 = st.addResource({ kind: 'person', name: 'Sam', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' })
     const a = st.addAllocation({ resourceId: r1.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
@@ -248,7 +248,7 @@ describe('AllocationBar interactions', () => {
     const st = useStore.getState()
     const c = st.addClient({ name: 'Acme', color: '#1' })
     const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = st.addTask({ name: 'Wires', projectId: p.id })
+    const t = st.addTask({ name: 'Wires', kind: 'project', projectId: p.id })
     // Source works EVERY day (not weekend-aware); target works Mon–Fri (weekend-aware).
     const src = st.addResource({ kind: 'person', name: 'Sev', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [0, 1, 2, 3, 4, 5, 6], color: '#3' })
     const dst = st.addResource({ kind: 'person', name: 'Wk', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' })
@@ -283,7 +283,7 @@ describe('AllocationBar interactions', () => {
     const st = useStore.getState()
     const c = st.addClient({ name: 'Acme', color: '#1' })
     const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = st.addTask({ name: 'Wires', projectId: p.id })
+    const t = st.addTask({ name: 'Wires', kind: 'project', projectId: p.id })
     const r = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
     // Mon–Fri allocation 06-01..06-05 (5 working days) → a 5-calendar-day-wide bar.
     const a = st.addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })

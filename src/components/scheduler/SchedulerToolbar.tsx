@@ -23,6 +23,10 @@ export function SchedulerToolbar() {
   const disciplines = data.disciplines
   const clients = data.clients
   const projects = data.projects
+  // The task lens covers only the project-LESS kinds — project tasks are reached via the
+  // Projects dropdown above.
+  const internalTasks = data.tasks.filter((t) => t.kind === 'internal')
+  const repeatableTasks = data.tasks.filter((t) => t.kind === 'repeatable')
 
   const activeAccountId = useStore((s) => s.activeAccountId)
   // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
@@ -189,12 +193,50 @@ export function SchedulerToolbar() {
             </option>
           ))}
         </select>
+        {(internalTasks.length > 0 || repeatableTasks.length > 0) && (
+          <select
+            aria-label="Filter by task"
+            className={`${controlBase} ${selectChevronClass}`}
+            style={selectChevronStyle}
+            // Encoded value: '' = all, 'kind:internal'/'kind:repeatable' = a whole group,
+            // otherwise a specific task id. A taskKind selection wins over a stale taskId.
+            value={filters.taskKind ? `kind:${filters.taskKind}` : (filters.taskId ?? '')}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === 'kind:internal') setFilters({ taskKind: 'internal', taskId: null })
+              else if (v === 'kind:repeatable') setFilters({ taskKind: 'repeatable', taskId: null })
+              else setFilters({ taskId: v || null, taskKind: null })
+            }}
+          >
+            <option value="">All tasks</option>
+            {internalTasks.length > 0 && (
+              <optgroup label="Internal">
+                <option value="kind:internal">Internal — All</option>
+                {internalTasks.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {repeatableTasks.length > 0 && (
+              <optgroup label="Repeatable">
+                <option value="kind:repeatable">Repeatable — All</option>
+                {repeatableTasks.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        )}
         <label className="flex items-center gap-1.5 text-muted">
           <input type="checkbox" checked={filters.hideTentative} onChange={(e) => setFilters({ hideTentative: e.target.checked })} />
           Hide tentative
         </label>
-        {(filters.projectId || filters.clientId) && (
-          <label className="flex items-center gap-1.5 text-muted" title="Show resources with no work on this project (dimmed) so you can staff them">
+        {(filters.projectId || filters.clientId || filters.taskId || filters.taskKind) && (
+          <label className="flex items-center gap-1.5 text-muted" title="Show resources with no work on this filter (dimmed) so you can staff them">
             <input type="checkbox" checked={filters.showUnmatched} onChange={(e) => setFilters({ showUnmatched: e.target.checked })} />
             Show unallocated
           </label>

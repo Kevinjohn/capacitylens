@@ -45,8 +45,8 @@ function sampleData(): AppData {
     projects: [{ id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Lightning', clientId: 'c1', color: '#222' }],
     phases: [{ id: 'phase1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Discovery', projectId: 'p1' }],
     tasks: [
-      { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Wires', projectId: 'p1', phaseId: 'phase1' },
-      { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Visual', projectId: 'p1' },
+      { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Wires', kind: 'project', projectId: 'p1', phaseId: 'phase1' },
+      { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Visual', kind: 'project', projectId: 'p1' },
     ],
     resources: [person({ id: 'r1', disciplineId: 'd1' }), placeholder({ id: 'ph1', projectId: 'p1', disciplineId: 'd1' })],
     allocations: [
@@ -157,7 +157,7 @@ describe('cascade deletes', () => {
 
   it('deleteProjectCascade leaves general (no-project) tasks and their allocations intact', () => {
     const data = sampleData()
-    data.tasks.push({ id: 't3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin' })
+    data.tasks.push({ id: 't3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'repeatable' })
     data.allocations.push({ id: 'a3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't3', startDate: '2026-06-05', endDate: '2026-06-06', hoursPerDay: 8, status: 'confirmed' })
     const next = deleteProjectCascade(data, 'p1')
     expect(next.tasks.map((t) => t.id)).toEqual(['t3'])
@@ -176,7 +176,7 @@ describe('cascade deletes', () => {
         { id: 'p2', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'P2', clientId: 'c1', color: '#2' },
       ],
       phases: [{ id: 'ph-p1', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Ph', projectId: 'p1' }],
-      tasks: [{ id: 't-keep', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Keep', projectId: 'p2', phaseId: 'ph-p1' }],
+      tasks: [{ id: 't-keep', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Keep', kind: 'project', projectId: 'p2', phaseId: 'ph-p1' }],
     }
     const next = deleteProjectCascade(data, 'p1')
     const keep = next.tasks.find((t) => t.id === 't-keep')

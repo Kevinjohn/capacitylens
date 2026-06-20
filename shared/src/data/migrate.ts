@@ -82,6 +82,21 @@ function migrateV1toV2(data: Record<string, unknown>): Record<string, unknown> {
   return { ...data, resources }
 }
 
+// v3 → v4: tasks gained a required `kind` discriminant (project | internal | repeatable).
+// Backfill it from the only signal a pre-v4 task carried: a project-bound task is 'project';
+// a project-less ("general") task becomes 'repeatable' — the rename of "general". 'internal'
+// is a genuinely new bucket, set explicitly via the UI afterwards, never inferred here.
+function migrateV3toV4(data: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(data.tasks)) return data
+  const tasks = data.tasks.map((t) => {
+    if (!t || typeof t !== 'object') return t
+    const rec = t as Record<string, unknown>
+    if (rec.kind !== undefined) return rec // already v4 (or hand-set) — leave it
+    return { ...rec, kind: rec.projectId !== undefined && rec.projectId !== null ? 'project' : 'repeatable' }
+  })
+  return { ...data, tasks }
+}
+
 export function migrate(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') return emptyAppData()
   const obj = raw as Record<string, unknown>
@@ -92,6 +107,9 @@ export function migrate(raw: unknown): AppData {
 
   if (data && typeof data === 'object' && version < 2) {
     data = migrateV1toV2(data)
+  }
+  if (data && typeof data === 'object' && version < 4) {
+    data = migrateV3toV4(data)
   }
 
   return normalize(data as Partial<AppData> | undefined)

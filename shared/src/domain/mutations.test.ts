@@ -34,7 +34,7 @@ const account = (id: ID, name = 'Co'): Account => ({ id, name, color: '#3b82f6',
 const client = (id: ID, accountId: ID, name = 'Acme'): Client => ({ ...meta(id, accountId), name, color: '#3b82f6' })
 const project = (id: ID, accountId: ID, clientId: ID): Project => ({ ...meta(id, accountId), name: 'Web', clientId, color: '#3b82f6' })
 const phase = (id: ID, accountId: ID, projectId: ID): Phase => ({ ...meta(id, accountId), name: 'Discovery', projectId })
-const task = (id: ID, accountId: ID, projectId: ID, phaseId?: ID): Task => ({ ...meta(id, accountId), name: 'Task', projectId, phaseId })
+const task = (id: ID, accountId: ID, projectId: ID, phaseId?: ID): Task => ({ ...meta(id, accountId), name: 'Task', kind: 'project', projectId, phaseId })
 const person = (id: ID, accountId: ID): Resource => ({
   ...meta(id, accountId),
   kind: 'person',
@@ -146,6 +146,27 @@ describe('assertScopedRefs', () => {
   it('passes when a task phase belongs to the task’s own project', () => {
     const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')], phases: [phase('ph1', A1, 'p1')] }
     expect(() => assertScopedRefs(data, A1, 'tasks', { projectId: 'p1', phaseId: 'ph1' })).not.toThrow()
+  })
+
+  it('throws when a project task carries no project (kind coherence)', () => {
+    const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')] }
+    expect(() => assertScopedRefs(data, A1, 'tasks', { kind: 'project', name: 'T' })).toThrow(
+      'A project task must be assigned to a project.',
+    )
+  })
+
+  it('throws when an internal/repeatable task carries a project or phase (kind coherence)', () => {
+    const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')], phases: [phase('ph1', A1, 'p1')] }
+    expect(() => assertScopedRefs(data, A1, 'tasks', { kind: 'internal', projectId: 'p1' })).toThrow(
+      'cannot belong to a project',
+    )
+    expect(() => assertScopedRefs(data, A1, 'tasks', { kind: 'repeatable', phaseId: 'ph1' })).toThrow(
+      'cannot belong to a phase',
+    )
+  })
+
+  it('passes for a valid project-less internal task', () => {
+    expect(() => assertScopedRefs(base(), A1, 'tasks', { kind: 'internal', name: 'Admin' })).not.toThrow()
   })
 
   it('throws when a placeholder is bound to a project in another account', () => {
@@ -300,8 +321,9 @@ describe('remapAndValidateImport', () => {
     expect(data.resources).toHaveLength(1)
     expect(data.resources[0].disciplineId).toBeUndefined()
     expect(data.tasks).toHaveLength(1)
-    expect(data.tasks[0].projectId).toBeUndefined() // unbound → general task
-    expect(data.tasks[0].phaseId).toBeUndefined() // a general task carries no phase
+    expect(data.tasks[0].projectId).toBeUndefined() // unbound → project-less task
+    expect(data.tasks[0].phaseId).toBeUndefined() // a project-less task carries no phase
+    expect(data.tasks[0].kind).toBe('repeatable') // a project task that loses its project becomes repeatable
     expect(imported).toBe(2) // resource + task
     expect(skipped).toBe(2) // project + phase
   })

@@ -18,7 +18,7 @@ const alloc = (resourceId: string, taskId: string): Allocation => ({
   startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 0, status: 'confirmed',
 })
 const project = (id: string, color: string): Project => ({ id, accountId: 'acct', createdAt: TS, updatedAt: TS, name: id, clientId: 'c', color })
-const task = (id: string, projectId?: string): Task => ({ id, accountId: 'acct', createdAt: TS, updatedAt: TS, name: id, projectId })
+const task = (id: string, projectId?: string): Task => ({ id, accountId: 'acct', createdAt: TS, updatedAt: TS, name: id, kind: 'project', projectId })
 const resource = (id: string, kind: Resource['kind']): Resource => ({
   id, accountId: 'acct', createdAt: TS, updatedAt: TS, kind, role: 'R',
   employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#123456',

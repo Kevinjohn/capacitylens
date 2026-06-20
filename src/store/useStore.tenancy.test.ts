@@ -20,7 +20,7 @@ function twoAccountData(): AppData {
     accounts: [makeAccount({ id: A, name: 'Company A' }), makeAccount({ id: B, name: 'Company B' })],
     clients: [{ id: 'cB', accountId: B, name: 'B Client', color: '#111111', createdAt: 't', updatedAt: 't' }],
     projects: [{ id: 'pB', accountId: B, name: 'B Project', clientId: 'cB', color: '#222222', createdAt: 't', updatedAt: 't' }],
-    tasks: [{ id: 'tB', accountId: B, name: 'B Task', projectId: 'pB', createdAt: 't', updatedAt: 't' }],
+    tasks: [{ id: 'tB', accountId: B, name: 'B Task', kind: 'project', projectId: 'pB', createdAt: 't', updatedAt: 't' }],
     resources: [
       {
         id: 'rB', accountId: B, kind: 'person', role: 'Dev', employmentType: 'permanent',
@@ -80,7 +80,7 @@ describe('foreign-key refs must stay in the active account', () => {
   })
 
   it('addTask rejects a project from another account', () => {
-    expect(() => s().addTask({ name: 'X', projectId: 'pB' })).toThrow()
+    expect(() => s().addTask({ name: 'X', kind: 'project', projectId: 'pB' })).toThrow()
   })
 
   it('addPhase rejects a project from another account', () => {
@@ -107,7 +107,7 @@ describe('foreign-key refs must stay in the active account', () => {
   it('still allows valid in-account references', () => {
     const c = s().addClient({ name: 'A Client', color: '#555555' })
     const p = s().addProject({ name: 'A Project', clientId: c.id, color: '#666666' })
-    const t = s().addTask({ name: 'A Task', projectId: p.id })
+    const t = s().addTask({ name: 'A Task', kind: 'project', projectId: p.id })
     expect(t.accountId).toBe(A)
     expect(s().data.projects.find((x) => x.id === p.id)!.clientId).toBe(c.id)
   })

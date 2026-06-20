@@ -145,10 +145,10 @@ export function AllocationModal(props: AllocationModalProps) {
     value: r.id,
     label: `${r.name ?? r.role}${r.kind === 'placeholder' ? ' (slot)' : r.kind === 'external' ? ' (external)' : ''}`,
   }))
-  // "No project" lets you pick general (no-project) tasks. A placeholder is offered
-  // only its bound project plus the general option (it can take general tasks too).
+  // "No project" lets you pick project-less tasks (internal + repeatable). A placeholder is
+  // offered only its bound project plus this option (it can take project-less tasks too).
   const projectOptions: Option[] = [
-    { value: '', label: 'No project (general)' },
+    { value: '', label: 'No project (internal / repeatable)' },
     ...data.projects
       .filter((p) => (lockedProjectId ? p.id === lockedProjectId : true))
       .map((p) => {
@@ -174,14 +174,16 @@ export function AllocationModal(props: AllocationModalProps) {
     setTaskId('')
   }
   const onAddTask = () => {
-    // No project selected → create a general (no-project) task; otherwise bind it
-    // to the chosen project. Was a silent no-op on a blank name — give feedback.
+    // No project selected → create a project-less, repeatable task; otherwise a project task
+    // bound to the chosen project. Was a silent no-op on a blank name — give feedback.
     const cleanTaskName = validateText(newTaskName, fail, {
       field: 'newtask',
       requiredMessage: 'Enter a name for the new task.',
     })
     if (cleanTaskName === null) return
-    const task = addTask({ name: cleanTaskName, projectId: projectId || undefined })
+    const task = projectId
+      ? addTask({ name: cleanTaskName, kind: 'project', projectId })
+      : addTask({ name: cleanTaskName, kind: 'repeatable' })
     setTaskId(task.id)
     setNewTaskName('')
   }
@@ -354,7 +356,7 @@ export function AllocationModal(props: AllocationModalProps) {
           className={inputClass}
           value={newTaskName}
           maxLength={MAX_NAME_LENGTH}
-          placeholder={projectId ? '…or add a new task' : '…or add a new general task'}
+          placeholder={projectId ? '…or add a new task' : '…or add a new repeatable task'}
           aria-label="New task name"
           aria-invalid={errorField === 'newtask' || undefined}
           onChange={(e) => setNewTaskName(e.target.value)}

@@ -26,8 +26,8 @@ function dataset(): AppData {
       { id: 'p2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P2', clientId: 'c1', color: '#3' },
     ],
     tasks: [
-      { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T1', projectId: 'p1' },
-      { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T2', projectId: 'p2' },
+      { id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T1', kind: 'project', projectId: 'p1' },
+      { id: 't2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T2', kind: 'project', projectId: 'p2' },
     ],
     resources: [
       { id: 'r1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Designer Dana', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' },
@@ -111,6 +111,58 @@ describe('buildSchedulerModel', () => {
 
   it('project filter limits bars to that project (resources still listed)', () => {
     expect(barIds(build({ ...emptyFilters(), projectId: 'p2' }))).toEqual(['a2', 'a3'])
+  })
+
+  // dataset() + project-less tasks (one internal, one repeatable) with an allocation each, so the
+  // task lens has something to filter. r1 picks up an internal bar, r2 a repeatable one.
+  function withLensTasks(): AppData {
+    const d = dataset()
+    d.tasks.push(
+      { id: 't-int', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' },
+      { id: 't-rep', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Design', kind: 'repeatable' },
+    )
+    d.allocations.push(
+      { id: 'a-int', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', taskId: 't-int', startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-rep', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r2', taskId: 't-rep', startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
+    )
+    return d
+  }
+  const buildLens = (filters = emptyFilters()) =>
+    buildSchedulerModel(withLensTasks(), geom, days, start, end, filters, true)
+
+  it('task lens: a specific task id limits bars to that task', () => {
+    // Default (showUnmatched off): non-matching rows collapse out and matching rows show ONLY
+    // their matching bars. (With showUnmatched on, dimmed rows show full real load by design.)
+    const bars = buildLens({ ...emptyFilters(), taskId: 't-rep' })
+      .flatMap((g) => g.rows)
+      .flatMap((r) => r.bars)
+      .map((b) => b.allocation.id)
+      .sort()
+    expect(bars).toEqual(['a-rep'])
+  })
+
+  it('task lens: "Repeatable — All" (taskKind) shows only repeatable-task allocations', () => {
+    const bars = buildLens({ ...emptyFilters(), taskKind: 'repeatable' })
+      .flatMap((g) => g.rows)
+      .flatMap((r) => r.bars)
+      .map((b) => b.allocation.id)
+      .sort()
+    expect(bars).toEqual(['a-rep'])
+  })
+
+  it('task lens: "Internal — All" (taskKind) shows only internal-task allocations', () => {
+    const bars = buildLens({ ...emptyFilters(), taskKind: 'internal' })
+      .flatMap((g) => g.rows)
+      .flatMap((r) => r.bars)
+      .map((b) => b.allocation.id)
+      .sort()
+    expect(bars).toEqual(['a-int'])
+  })
+
+  it('task lens: dims (and by default hides) rows with no work on the filtered task', () => {
+    // taskKind 'repeatable' matches only r2's a-rep. By default (showUnmatched off) r1 collapses out.
+    const rows = buildLens({ ...emptyFilters(), taskKind: 'repeatable' }).flatMap((g) => g.rows)
+    expect(rows.map((r) => r.resource.id)).toEqual(['r2'])
   })
 
   it('dims (not hides) a resource with no work on the active project when showUnmatched is opted in', () => {

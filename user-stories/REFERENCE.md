@@ -98,7 +98,9 @@ never appears on desktop viewports or in landscape.
 - **Clients:** Acme Inc., Globex.
 - **Projects:** Project Lightning (Acme), Brand Themes (Globex).
 - **Phases (Project Lightning):** Discovery, Build.
-- **Tasks:** Wireframes, Visual Design, CMS Review (Lightning); Brand System (Brand Themes).
+- **Tasks** (every task has a **kind**): *Project* — Wireframes, Visual Design, CMS Review
+  (Lightning), Brand System (Brand Themes); *Internal* — Admin / Internal; *Repeatable* —
+  Design, Workshop. "Design" is also booked for Alex (8–10 June) to demo the task lens.
 - **Allocations (June 2026):** Tyler is **over-allocated on 3–4 June** (8h + 4h > 8h).
 - **Time off:** Tyler — 10–12 June (Holiday).
 
@@ -122,6 +124,9 @@ columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` la
 buttons), `Colour (…)` (a swatch-picker trigger that opens a grid of preset colour
 swatches, each button labelled by its hex), `Start`, `End`, `Hours / day`, `Status`,
 `Note`, `Assignee`, `Project`, `Task`, `Resource`, plus `Company` + `Descriptor` (the External form).
+The **task form** has a `Task kind` radiogroup (`Project` / `Internal` / `Repeatable`); the
+`Project` field shows (and is required) only for the `Project` kind — internal/repeatable
+tasks are project-less.
 Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add task`. List pages have an add
 button per entity: `Add resource`, `Add discipline`, `Add client`, `Add project`,
 `Add task`, `Add time off`, `Add external party`. Each list row has `Edit` and `Delete`.
@@ -135,10 +140,14 @@ draw-mode toggle `Work`/`Time off` (buttons — note "Time off" here is the *tog
 from the "Time off" *nav link*). Undo/redo are **keyboard-only** (`⌘Z` / `⌘⇧Z`) — there are no
 toolbar buttons. Filter row:
 `Search people…`, `Filter by discipline`, `Filter by client`, `Filter by project`,
-`Hide tentative` checkbox, `Show unallocated` (shown only while a project/client filter is
-active, **off by default** — filtering hides resources with no matching work; ticking it
-brings them back visible-but-dimmed so you can see who's free to staff), `Clear` (only shown
-when a filter is active).
+`Filter by task` (a grouped dropdown — `All tasks`, then an `Internal` optgroup with
+`Internal — All` + each internal task, then a `Repeatable` optgroup with `Repeatable — All` +
+each repeatable task; shown only when the account has internal/repeatable tasks. Project tasks
+are reached via `Filter by project`). The task lens is a **standalone** view: selecting it
+clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
+(shown only while a client/project/task filter is active, **off by default** — filtering hides
+resources with no matching work; ticking it brings them back visible-but-dimmed so you can see
+who's free to staff), `Clear` (only shown when a filter is active).
 
 **Schedule display (minimise weekends).** Settings → **Schedule** has a single switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
@@ -239,8 +248,12 @@ Mouse hover sets the active option; mouse click selects.
 
 ## Domain rules a tester should know
 
-- **A project must belong to a client; a task may be general (no project) or belong to a project.**
-- **Placeholders** are bound to exactly one project and may take that project's tasks **plus general (no-project) tasks**.
+- **A project must belong to a client. A task has a `kind`:** `project` (belongs to a project,
+  may carry a phase), `internal` (project-less internal work), or `repeatable` (project-less,
+  reusable across projects). Internal/repeatable tasks carry no project or phase. The Tasks page
+  shows three sections — `internal-tasks`, `repeatable-tasks`, `project-tasks` (testids).
+- **Placeholders** are bound to exactly one project and may take that project's tasks **plus any
+  project-less (internal/repeatable) task**.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), managed on the **External** tab (not Resources), assignable to **any** task with **no
   hours**, shown in a **neutral band at the bottom of the schedule** with **no utilisation / over-markers**.

@@ -123,6 +123,7 @@ const COLS_tasks = [
   { name: 'id' },
   { name: 'accountId' },
   { name: 'name' },
+  { name: 'kind' },
   { name: 'projectId', optional: true },
   { name: 'phaseId', optional: true },
   ...META,
@@ -300,6 +301,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
+  kind TEXT NOT NULL,
   projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
   phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL

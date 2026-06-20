@@ -73,11 +73,11 @@ test.describe('Allocation editor', () => {
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
     const project = dialog.getByLabel('Project', { exact: true })
     await expect(project).toHaveValue('p-acme') // bound project preselected
-    // "Locked" = restricted to the bound project + the general option, but the select
-    // stays ENABLED so a placeholder can still take general tasks. A non-bound project
-    // ("Brand Themes") is not offered.
+    // "Locked" = restricted to the bound project + the project-less option, but the select
+    // stays ENABLED so a placeholder can still take project-less (internal/repeatable) tasks. A
+    // non-bound project ("Brand Themes") is not offered.
     await expect(project).toBeEnabled()
-    await expect(project.getByRole('option', { name: 'No project (general)' })).toBeAttached()
+    await expect(project.getByRole('option', { name: 'No project (internal / repeatable)' })).toBeAttached()
     await expect(project.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
   })
 

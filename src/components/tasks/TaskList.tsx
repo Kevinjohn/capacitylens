@@ -14,17 +14,18 @@ export function TaskList() {
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Task>()
 
   const projectLabel = (id: string | undefined) => {
-    if (!id) return 'General'
+    if (!id) return '(no project)'
     const p = projects.find((x) => x.id === id)
     if (!p) return '(no project)'
     const c = clients.find((x) => x.id === p.clientId)
     return c ? `${c.name} / ${p.name}` : p.name
   }
 
-  // General tasks (no project) stand apart from client work, so they get their own
-  // table up top — mirrors the people/placeholders split on the Resources page.
-  const generalTasks = tasks.filter((t) => !t.projectId)
-  const clientTasks = tasks.filter((t) => t.projectId)
+  // Three kinds, three tables. Internal first (the owner's ordering), then repeatable
+  // (reusable across projects — the rename of "general"), then project work.
+  const internalTasks = tasks.filter((t) => t.kind === 'internal')
+  const repeatableTasks = tasks.filter((t) => t.kind === 'repeatable')
+  const projectTasks = tasks.filter((t) => t.kind === 'project')
 
   const renderRow = (t: Task, showLabel: boolean) => (
     <li key={t.id} data-testid="task-row" className="flex items-center justify-between px-3 py-2">
@@ -60,14 +61,19 @@ export function TaskList() {
   return (
     <ListPage title="Tasks" addLabel="Add task" onAdd={() => setCreating(true)}>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">General tasks</h2>
+        <h2 className="text-lg font-semibold">Internal tasks</h2>
       </div>
-      {box(generalTasks, false, 'No general tasks yet.', 'general-tasks')}
+      {box(internalTasks, false, 'No internal tasks yet.', 'internal-tasks')}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Client tasks</h2>
+        <h2 className="text-lg font-semibold">Repeatable tasks</h2>
       </div>
-      {box(clientTasks, true, 'No client tasks yet.', 'client-tasks')}
+      {box(repeatableTasks, false, 'No repeatable tasks yet.', 'repeatable-tasks')}
+
+      <div className="mb-4 mt-8 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Project tasks</h2>
+      </div>
+      {box(projectTasks, true, 'No project tasks yet.', 'project-tasks')}
 
       {creating && <TaskForm onClose={() => setCreating(false)} />}
       {editing && <TaskForm task={editing} onClose={() => setEditing(null)} />}

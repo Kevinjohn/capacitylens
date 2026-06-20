@@ -61,6 +61,30 @@ describe('migrate', () => {
     expect(migrate({ schemaVersion: 2, data })).toEqual(data)
   })
 
+  it('backfills task kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable', () => {
+    const out = migrate({
+      schemaVersion: 3,
+      data: {
+        tasks: [
+          { id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Wires', projectId: 'p1' },
+          { id: 't2', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Admin' },
+        ],
+      },
+    })
+    expect(out.tasks[0]).toMatchObject({ id: 't1', kind: 'project' })
+    expect(out.tasks[1]).toMatchObject({ id: 't2', kind: 'repeatable' })
+  })
+
+  it('preserves an already-set task kind when backfilling (the v3→v4 guard is idempotent)', () => {
+    const out = migrate({
+      schemaVersion: 3,
+      data: {
+        tasks: [{ id: 't1', accountId: 'a1', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' }],
+      },
+    })
+    expect(out.tasks[0]).toMatchObject({ kind: 'internal' })
+  })
+
   it('fills in any missing arrays so the shape is always complete', () => {
     const out = migrate({
       schemaVersion: 1,

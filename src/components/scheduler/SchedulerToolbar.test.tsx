@@ -117,3 +117,69 @@ describe('SchedulerToolbar Clear filter button', () => {
     expect(box.value).toBe('') // stale text gone from the box too
   })
 })
+
+describe('SchedulerToolbar Tasks filter (standalone lens)', () => {
+  // Seed one internal + one repeatable task so the Tasks dropdown renders (it covers only the
+  // project-less kinds; project tasks are reached via the Projects dropdown).
+  const seedLensTasks = () => ({
+    internal: useStore.getState().addTask({ name: 'Admin', kind: 'internal' }),
+    repeatable: useStore.getState().addTask({ name: 'Design', kind: 'repeatable' }),
+  })
+
+  it('renders the Tasks dropdown with grouped Internal / Repeatable options', () => {
+    seedLensTasks()
+    render(<SchedulerToolbar />)
+    const select = screen.getByLabelText('Filter by task')
+    expect(select).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Internal — All' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Repeatable — All' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Design' })).toBeInTheDocument()
+  })
+
+  it('is absent when the account has no project-less tasks', () => {
+    render(<SchedulerToolbar />)
+    expect(screen.queryByLabelText('Filter by task')).not.toBeInTheDocument()
+  })
+
+  it('selecting a specific task sets taskId and clears the client/project lens', async () => {
+    const user = userEvent.setup()
+    const { repeatable } = seedLensTasks()
+    useStore.getState().setFilters({ projectId: 'p1' }) // an active project lens
+    render(<SchedulerToolbar />)
+
+    await user.selectOptions(screen.getByLabelText('Filter by task'), repeatable.id)
+
+    expect(useStore.getState().ui.filters.taskId).toBe(repeatable.id)
+    expect(useStore.getState().ui.filters.taskKind).toBeNull()
+    expect(useStore.getState().ui.filters.projectId).toBeNull() // standalone lens cleared it
+  })
+
+  it('selecting "Internal — All" sets taskKind and clears the client/project lens', async () => {
+    const user = userEvent.setup()
+    seedLensTasks()
+    useStore.getState().setFilters({ clientId: 'c1' })
+    render(<SchedulerToolbar />)
+
+    await user.selectOptions(screen.getByLabelText('Filter by task'), 'kind:internal')
+
+    expect(useStore.getState().ui.filters.taskKind).toBe('internal')
+    expect(useStore.getState().ui.filters.taskId).toBeNull()
+    expect(useStore.getState().ui.filters.clientId).toBeNull()
+  })
+
+  it('selecting a project clears an active task lens (mutual exclusion both ways)', async () => {
+    const user = userEvent.setup()
+    const { repeatable } = seedLensTasks()
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
+    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
+    useStore.getState().setFilters({ taskId: repeatable.id })
+    render(<SchedulerToolbar />)
+
+    await user.selectOptions(screen.getByLabelText('Filter by project'), project.id)
+
+    expect(useStore.getState().ui.filters.projectId).toBe(project.id)
+    expect(useStore.getState().ui.filters.taskId).toBeNull()
+    expect(useStore.getState().ui.filters.taskKind).toBeNull()
+  })
+})

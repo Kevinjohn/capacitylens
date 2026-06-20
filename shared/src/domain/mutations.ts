@@ -73,6 +73,19 @@ export function assertScopedRefs(
       need('projectId', data.projects, 'Phase must reference a project in this company.')
       break
     case 'tasks': {
+      // Task.kind coherence, checked first: a 'project' task MUST carry a project; an
+      // 'internal'/'repeatable' task is project-less by definition, so it may carry NEITHER a
+      // project nor a phase. (Only enforced when kind is present — a partial patch that doesn't
+      // touch kind is validated against the merged row by the store, which always has it.)
+      if (present('kind')) {
+        const kind = rec.kind
+        if (kind === 'project') {
+          if (!present('projectId')) throw new Error('A project task must be assigned to a project.')
+        } else if (kind === 'internal' || kind === 'repeatable') {
+          if (present('projectId')) throw new Error('An internal or repeatable task cannot belong to a project.')
+          if (present('phaseId')) throw new Error('An internal or repeatable task cannot belong to a phase.')
+        }
+      }
       need('projectId', data.projects, 'Task must reference a project in this company.')
       // A phase belongs to exactly one project, so a task's phase must be a phase OF
       // the task's own project — otherwise the task is silently double-bound to two
@@ -258,15 +271,23 @@ export function remapAndValidateImport(
     if (r.projectId !== undefined && !has(projectIds, r.projectId)) r.projectId = undefined
   }
 
-  // tasks: projectId / phaseId are OPTIONAL. A dangling project unbinds the task to a
-  // general (no-project) task; a general task carries no phase, so drop its phase too.
-  // A phase that survived but belongs to a DIFFERENT project is also unbound — a task's
-  // phase must be a phase of the task's own project.
+  // tasks: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
+  // import bypasses it). An internal/repeatable task is project-less — strip any project/phase it
+  // carries. A project task whose project didn't survive can no longer BE a project task, so it
+  // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
+  // DIFFERENT project is unbound — a task's phase must be a phase of the task's own project.
   const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]))
   for (const t of brought.tasks) {
+    if (t.kind === 'internal' || t.kind === 'repeatable') {
+      t.projectId = undefined
+      t.phaseId = undefined
+      continue
+    }
     if (t.projectId !== undefined && !has(projectIds, t.projectId)) t.projectId = undefined
-    if (t.projectId === undefined) t.phaseId = undefined
-    else if (
+    if (t.projectId === undefined) {
+      t.phaseId = undefined
+      t.kind = 'repeatable'
+    } else if (
       t.phaseId !== undefined &&
       (!has(phaseIds, t.phaseId) || phaseProject.get(t.phaseId as string) !== t.projectId)
     ) {

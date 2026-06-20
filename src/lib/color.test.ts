@@ -9,7 +9,7 @@ function dataWith(projectColor: string, clientColor = '#client'): AppData {
     ...emptyAppData(),
     clients: [{ id: 'c1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Acme', color: clientColor }],
     projects: [{ id: 'p1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P', clientId: 'c1', color: projectColor }],
-    tasks: [{ id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T', projectId: 'p1' }],
+    tasks: [{ id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T', kind: 'project', projectId: 'p1' }],
     resources: [{ id: 'r1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#resource' }],
   }
 }

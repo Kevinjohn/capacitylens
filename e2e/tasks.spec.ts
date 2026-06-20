@@ -3,26 +3,35 @@ import { openApp } from './helpers'
 
 // Covers US-TSK-01..04.
 test.describe('Tasks', () => {
-  test('adds a general (no-project) task and a project-bound task', async ({ page }) => {
+  test('adds an internal, a repeatable, and a project task into their three sections', async ({ page }) => {
     await openApp(page, 'Studio North', '/tasks')
 
-    // A task with no project saves as a general task — it lands in the "General tasks"
-    // section (which carries no per-row project label), not the client section.
+    // Internal kind → project picker hidden, lands in the "Internal tasks" section.
     await page.getByRole('button', { name: 'Add task' }).click()
     await page.getByLabel('Name').fill('Internal sync')
+    await page.getByRole('radio', { name: 'Internal' }).click()
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
-      page.getByTestId('general-tasks').getByTestId('task-row').filter({ hasText: 'Internal sync' }),
+      page.getByTestId('internal-tasks').getByTestId('task-row').filter({ hasText: 'Internal sync' }),
     ).toBeVisible()
 
-    // A task can still be bound to a project — it lands in the client section, labelled
-    // with its client / project.
+    // Repeatable kind → reusable across projects, lands in the "Repeatable tasks" section.
+    await page.getByRole('button', { name: 'Add task' }).click()
+    await page.getByLabel('Name').fill('Discovery workshop')
+    await page.getByRole('radio', { name: 'Repeatable' }).click()
+    await page.getByRole('button', { name: 'Save' }).click()
+    await expect(
+      page.getByTestId('repeatable-tasks').getByTestId('task-row').filter({ hasText: 'Discovery workshop' }),
+    ).toBeVisible()
+
+    // Project kind (the default) → bound to a project, lands in the "Project tasks" section,
+    // labelled with its client / project.
     await page.getByRole('button', { name: 'Add task' }).click()
     await page.getByLabel('Name').fill('Spec review')
     await page.getByLabel('Project').selectOption('p-acme')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
-      page.getByTestId('client-tasks').getByTestId('task-row').filter({ hasText: 'Spec review' }),
+      page.getByTestId('project-tasks').getByTestId('task-row').filter({ hasText: 'Spec review' }),
     ).toContainText('Acme')
   })
 

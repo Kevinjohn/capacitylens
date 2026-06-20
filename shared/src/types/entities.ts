@@ -29,6 +29,15 @@ export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1]
 export type ResourceKind = 'person' | 'placeholder' | 'external'
 export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
+/**
+ * What a task IS — the axis the schedule's "task view" filters on. Three kinds:
+ * - `project`    — belongs to one project (carries `projectId`, optionally a `phaseId`).
+ * - `internal`   — project-less internal work (Admin, internal review/meeting).
+ * - `repeatable` — project-less reusable task used across many projects (Design, Workshop).
+ * Coherence (enforced in assertScopedRefs, repaired on import): `project` HAS a `projectId`;
+ * `internal`/`repeatable` have NEITHER `projectId` nor `phaseId`.
+ */
+export type TaskKind = 'project' | 'internal' | 'repeatable'
 
 /** Fields every persisted entity carries — cheap now, impossible to backfill later. */
 export interface Entity {
@@ -101,8 +110,11 @@ export interface Phase extends ScopedEntity {
 
 export interface Task extends ScopedEntity {
   name: string
-  /** Optional: a task may belong to a project, or be a general (no-project)
-   *  reusable task (e.g. "Admin", "Internal review") allocated freely. */
+  /** What this task is: project work, internal, or a reusable (repeatable) task. The
+   *  discriminant the schedule's task lens filters on. See {@link TaskKind}. */
+  kind: TaskKind
+  /** Set ONLY for `kind: 'project'` — the project this task belongs to. Internal and
+   *  repeatable tasks are project-less (and so are their allocations). */
   projectId?: ID
   phaseId?: ID
 }
@@ -215,8 +227,8 @@ export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'w
   return { employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5] }
 }
 
-/** Bump when the persisted shape changes; drives data/migrate.ts. */
-export const SCHEMA_VERSION = 3
+/** Bump when the persisted shape changes; drives data/migrate.ts. (v4 added Task.kind.) */
+export const SCHEMA_VERSION = 4
 
 export interface PersistedState {
   schemaVersion: number

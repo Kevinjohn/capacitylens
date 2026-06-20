@@ -38,7 +38,7 @@ describe('store CRUD', () => {
   it('cascades client deletion through projects, tasks and allocations', () => {
     const client = s().addClient({ name: 'Acme', color: '#1' })
     const project = s().addProject({ name: 'P', clientId: client.id, color: '#2' })
-    const task = s().addTask({ name: 'T', projectId: project.id })
+    const task = s().addTask({ name: 'T', kind: 'project', projectId: project.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     s().addAllocation({ resourceId: r.id, taskId: task.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     expect(s().data.allocations).toHaveLength(1)
@@ -56,7 +56,7 @@ describe('store CRUD', () => {
     const client = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: client.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: client.id, color: '#3' })
-    const taskP2 = s().addTask({ name: 'T2', projectId: p2.id })
+    const taskP2 = s().addTask({ name: 'T2', kind: 'project', projectId: p2.id })
     const ph = s().addResource({
       kind: 'placeholder',
       role: 'Designer',

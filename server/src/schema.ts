@@ -45,8 +45,11 @@ export function migrateSchema(db: Db): void {
       if (col.optional && !hasColumn(db, table, col.name)) additions.push([table, col.name])
     }
   }
-  // tasks.projectId went from required to optional (general, no-project tasks).
-  const needsTasksRebuild = isNotNull(db, 'tasks', 'projectId')
+  // tasks needs a rebuild when an OLD-shape constraint is still present: projectId was once
+  // NOT NULL (before general, no-project tasks), and `kind` is a required column added in v4
+  // that SQLite can't ALTER-ADD as NOT NULL to a table with rows. Either condition → rebuild
+  // to the current shape (nullable projectId, kind backfilled from projectId presence).
+  const needsTasksRebuild = isNotNull(db, 'tasks', 'projectId') || !hasColumn(db, 'tasks', 'kind')
   if (additions.length === 0 && !needsTasksRebuild) return // already current — nothing to do
 
   tx(db, () => {
@@ -59,9 +62,13 @@ export function migrateSchema(db: Db): void {
   })
 }
 
-/** 12-step table rebuild (per the SQLite docs) to make tasks.projectId nullable
- *  while preserving rows + the foreign keys other tables hold against tasks(id).
- *  The target DDL mirrors the `tasks` block in SCHEMA_SQL.
+/** 12-step table rebuild (per the SQLite docs) to bring `tasks` to the current shape —
+ *  nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
+ *  other tables hold against tasks(id). The target DDL mirrors the `tasks` block in SCHEMA_SQL.
+ *  `kind` is BACKFILLED from the only signal an old row carried: a project-bound task is
+ *  'project', a project-less one 'repeatable' (matching the client-side v3→v4 migrate). A row
+ *  reaching here never already has a `kind` column (the rebuild trigger requires it missing or
+ *  the old projectId NOT NULL constraint), so recomputing can't clobber an explicit value.
  *
  *  ASSUMPTION (true today, verified): `tasks` has NO indexes, triggers, or extra constraints
  *  beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
@@ -74,12 +81,15 @@ function rebuildTasksTable(db: Db): void {
       id TEXT PRIMARY KEY,
       accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
+      kind TEXT NOT NULL,
       projectId TEXT REFERENCES projects(id) ON DELETE CASCADE,
       phaseId TEXT REFERENCES phases(id) ON DELETE SET NULL,
       createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
     );
-    INSERT INTO tasks_new (id, accountId, name, projectId, phaseId, createdAt, updatedAt)
-      SELECT id, accountId, name, projectId, phaseId, createdAt, updatedAt FROM tasks;
+    INSERT INTO tasks_new (id, accountId, name, kind, projectId, phaseId, createdAt, updatedAt)
+      SELECT id, accountId, name,
+        CASE WHEN projectId IS NOT NULL THEN 'project' ELSE 'repeatable' END,
+        projectId, phaseId, createdAt, updatedAt FROM tasks;
     DROP TABLE tasks;
     ALTER TABLE tasks_new RENAME TO tasks;
   `)

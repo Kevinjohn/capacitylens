@@ -347,7 +347,9 @@ function buildItems({
     return {
       id: `task-${t.id}`,
       label: t.name,
-      sublabel: project?.name,
+      // Project tasks show their project; project-less tasks show their kind so the two
+      // aren't indistinguishable blank-sublabel rows.
+      sublabel: t.kind === 'project' ? project?.name : t.kind === 'internal' ? 'Internal' : 'Repeatable',
       section: 'Tasks',
       onSelect: () => {
         void navigate('/tasks')

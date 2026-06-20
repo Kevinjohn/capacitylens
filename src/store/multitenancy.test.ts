@@ -201,7 +201,7 @@ describe('importData (account-scoped)', () => {
           color: '#777777',
         },
       ],
-      tasks: [{ id: 'old-t1', accountId: 'foreign', createdAt: 't', updatedAt: 't', name: 'Build', projectId: 'old-p1' }],
+      tasks: [{ id: 'old-t1', accountId: 'foreign', createdAt: 't', updatedAt: 't', name: 'Build', kind: 'project', projectId: 'old-p1' }],
       allocations: [
         // valid
         { id: 'ok', accountId: 'foreign', createdAt: 't', updatedAt: 't', resourceId: 'old-r1', taskId: 'old-t1', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },

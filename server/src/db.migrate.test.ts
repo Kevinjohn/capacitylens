@@ -75,17 +75,21 @@ describe('schema migration of an existing on-disk DB', () => {
       writeOldDb(path)
       const db = openDb(path) // runs migrateSchema with FKs off, then enables them
 
-      // (a) The reported regression: a general (no-project) task now inserts. Against
-      //     the old shape this threw `NOT NULL constraint failed: tasks.projectId`.
+      // (a) The reported regression: a project-less task now inserts. Against the old shape
+      //     this threw `NOT NULL constraint failed: tasks.projectId`. (kind is now required —
+      //     a project-less task is internal/repeatable.)
       expect(() =>
-        insertRow(db, 'tasks', { id: 't-gen', accountId: 'a1', name: 'Admin', createdAt: TS, updatedAt: TS }),
+        insertRow(db, 'tasks', { id: 't-gen', accountId: 'a1', name: 'Admin', kind: 'repeatable', createdAt: TS, updatedAt: TS }),
       ).not.toThrow()
       expect(getRow(db, 'tasks', 't-gen')?.projectId).toBeUndefined()
+      expect(getRow(db, 'tasks', 't-gen')?.kind).toBe('repeatable')
 
-      // (b) The existing project-bound task survived the table rebuild intact.
+      // (b) The existing project-bound task survived the table rebuild intact, with its kind
+      //     backfilled from projectId presence (the v4 task-kind migration).
       expect(loadState(db).tasks.find((t) => t.id === 't1')).toMatchObject({
         projectId: 'p1',
         name: 'Existing task',
+        kind: 'project',
       })
 
       // (c) accounts.schedulingMode persists (column added by migration).

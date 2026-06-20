@@ -22,7 +22,7 @@ const data: AppData = {
     { id: 'p2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'P2', clientId: 'c1', color: '#3' },
   ],
   phases: [{ id: 'ph1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Disc', projectId: 'p1' }],
-  tasks: [{ id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T1', projectId: 'p1' }],
+  tasks: [{ id: 't1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'T1', kind: 'project', projectId: 'p1' }],
   resources: [
     { id: 'r1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'A', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1], color: '#4' },
   ],

@@ -50,7 +50,7 @@ describe('store CRUD covers every entity', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const ph = s().addPhase({ name: 'Discovery', projectId: p.id })
-    const t = s().addTask({ name: 'T', projectId: p.id, phaseId: ph.id })
+    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id, phaseId: ph.id })
     s().updatePhase(ph.id, { name: 'Disco' })
     expect(s().data.phases[0].name).toBe('Disco')
     s().deletePhase(ph.id)
@@ -61,7 +61,7 @@ describe('store CRUD covers every entity', () => {
   it('tasks: add / update / delete', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = s().addTask({ name: 'T', projectId: p.id })
+    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
     s().updateTask(t.id, { name: 'T2' })
     expect(s().data.tasks[0].name).toBe('T2')
     s().deleteTask(t.id)
@@ -69,18 +69,29 @@ describe('store CRUD covers every entity', () => {
   })
 
   it('tasks: a general (no-project) task can be added without a projectId', () => {
-    const t = s().addTask({ name: 'Admin' })
+    const t = s().addTask({ name: 'Admin', kind: 'repeatable' })
     expect(t.projectId).toBeUndefined()
     expect(s().data.tasks[0].projectId).toBeUndefined()
     expect(s().data.tasks[0].name).toBe('Admin')
   })
 
-  it('tasks: a project-bound task can be converted to general by clearing projectId', () => {
+  it('tasks: a project task converts to repeatable by clearing its project + kind together', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = s().addTask({ name: 'T', projectId: p.id })
-    s().updateTask(t.id, { projectId: undefined })
+    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
+    s().updateTask(t.id, { kind: 'repeatable', projectId: undefined })
+    expect(s().data.tasks[0].kind).toBe('repeatable')
     expect(s().data.tasks[0].projectId).toBeUndefined()
+  })
+
+  it('tasks: kind ⇆ projectId coherence is enforced — clearing a project task’s project alone throws', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
+    // Leaving kind='project' while removing the project is incoherent — rejected at the store boundary.
+    expect(() => s().updateTask(t.id, { projectId: undefined })).toThrow(/project task must be assigned/i)
+    // And an internal/repeatable task may not carry a project.
+    expect(() => s().addTask({ name: 'X', kind: 'internal', projectId: p.id })).toThrow(/cannot belong to a project/i)
   })
 
   it('updateTask validates the MERGED row, not the raw patch (partial phase/project patches)', () => {
@@ -88,7 +99,7 @@ describe('store CRUD covers every entity', () => {
     const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
     const ph1 = s().addPhase({ name: 'Disco', projectId: p1.id }) // a phase OF p1
-    const t = s().addTask({ name: 'T', projectId: p1.id, phaseId: ph1.id })
+    const t = s().addTask({ name: 'T', kind: 'project', projectId: p1.id, phaseId: ph1.id })
 
     // A phaseId-ONLY patch (re-setting the same phase) must NOT be wrongly rejected: the
     // merged row still carries projectId from the existing task, so coherence holds.
@@ -112,7 +123,7 @@ describe('store CRUD covers every entity', () => {
   it('allocations: add / update / delete', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
-    const t = s().addTask({ name: 'T', projectId: p.id })
+    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     const a = s().addAllocation({ resourceId: r.id, taskId: t.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     s().updateAllocation(a.id, { hoursPerDay: 4, status: 'tentative' })
@@ -161,8 +172,8 @@ describe('allocation integrity at the store boundary', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: c.id, color: '#2' })
     const p2 = s().addProject({ name: 'P2', clientId: c.id, color: '#3' })
-    const t1 = s().addTask({ name: 'T1', projectId: p1.id })
-    const t2 = s().addTask({ name: 'T2', projectId: p2.id })
+    const t1 = s().addTask({ name: 'T1', kind: 'project', projectId: p1.id })
+    const t2 = s().addTask({ name: 'T2', kind: 'project', projectId: p2.id })
     const ph = s().addResource({
       kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#1', projectId: p1.id,
     })
@@ -183,7 +194,7 @@ describe('date-range + reference guards at the store boundary', () => {
   const seedAlloc = () => {
     const c = s().addClient({ name: 'Acme', color: '#111111' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#222222' })
-    const t = s().addTask({ name: 'T', projectId: p.id })
+    const t = s().addTask({ name: 'T', kind: 'project', projectId: p.id })
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     return { r, t }
   }

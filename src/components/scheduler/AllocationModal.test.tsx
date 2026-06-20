@@ -16,8 +16,8 @@ function base(): AppData {
       { id: 'p2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other', clientId: 'c1', color: '#06b6d4' },
     ],
     tasks: [
-      { id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', projectId: 'p1' },
-      { id: 't2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other task', projectId: 'p2' },
+      { id: 't1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Wireframes', kind: 'project', projectId: 'p1' },
+      { id: 't2', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Other task', kind: 'project', projectId: 'p2' },
     ],
   })
 }
@@ -85,8 +85,8 @@ describe('AllocationModal create', () => {
 
     const projectSelect = screen.getByLabelText('Project')
     expect(projectSelect).toHaveValue('p1')
-    // Bound project + general are offered; another project (p2 / "Other") is not.
-    expect(screen.getByRole('option', { name: 'No project (general)' })).toBeInTheDocument()
+    // Bound project + the project-less option are offered; another project (p2 / "Other") is not.
+    expect(screen.getByRole('option', { name: 'No project (internal / repeatable)' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Acme / Other' })).not.toBeInTheDocument()
 
     // Only the bound project's task is offered.
@@ -277,7 +277,7 @@ describe('AllocationModal edit', () => {
     const ph = useStore.getState().addResource({
       kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a', projectId: 'p1',
     })
-    const gen = useStore.getState().addTask({ name: 'Admin' })
+    const gen = useStore.getState().addTask({ name: 'Admin', kind: 'repeatable' })
     const alloc = useStore.getState().addAllocation({ resourceId: ph.id, taskId: gen.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 

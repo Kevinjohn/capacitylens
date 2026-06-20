@@ -79,9 +79,15 @@ export interface Filters {
   disciplineId: ID | null
   clientId: ID | null
   projectId: ID | null
+  /** Task lens: a specific internal/repeatable task. Mutually exclusive with the
+   *  client/project lens and with `taskKind` (enforced in setFilters). */
+  taskId: ID | null
+  /** Task lens: ALL tasks of a kind ('Internal — All' / 'Repeatable — All'). Mutually
+   *  exclusive with the client/project lens and with `taskId`. */
+  taskKind: 'internal' | 'repeatable' | null
   search: string
   hideTentative: boolean
-  /** When a project/client filter is active, ALSO show resources with no work on it
+  /** When a client/project/task filter is active, ALSO show resources with no work on it
    *  (dimmed) so you can see who's free to staff. Off (the default) = filtering
    *  hides them, leaving only the matching resources' rows. */
   showUnmatched: boolean
@@ -91,13 +97,23 @@ export const emptyFilters = (): Filters => ({
   disciplineId: null,
   clientId: null,
   projectId: null,
+  taskId: null,
+  taskKind: null,
   search: '',
   hideTentative: false,
   showUnmatched: false,
 })
 
 export function hasActiveFilters(f: Filters): boolean {
-  return !!f.disciplineId || !!f.clientId || !!f.projectId || f.search.trim() !== '' || f.hideTentative
+  return (
+    !!f.disciplineId ||
+    !!f.clientId ||
+    !!f.projectId ||
+    !!f.taskId ||
+    !!f.taskKind ||
+    f.search.trim() !== '' ||
+    f.hideTentative
+  )
 }
 
 /** What a draw-on-a-lane gesture creates. */
@@ -691,7 +707,23 @@ export const useStore = create<StoreState>()((set, get) => {
       })),
     setDrawMode: (mode) => set((s) => ({ ui: { ...s.ui, drawMode: mode } })),
     selectAllocation: (id) => set((s) => ({ ui: { ...s.ui, selectedAllocationId: id } })),
-    setFilters: (patch) => set((s) => ({ ui: { ...s.ui, filters: { ...s.ui.filters, ...patch } } })),
+    setFilters: (patch) =>
+      set((s) => {
+        const next: Filters = { ...s.ui.filters, ...patch }
+        // Standalone-lens rule, enforced in ONE tamper-proof place: client/project and the task
+        // lens (taskId/taskKind) are mutually-exclusive "what work" views. Setting one to a real
+        // value clears the other (search, discipline and the toggles stay independent). Keyed on
+        // a truthy value in the PATCH so clearing a filter to null never wipes the opposite lens.
+        if (patch.taskId || patch.taskKind) {
+          next.clientId = null
+          next.projectId = null
+        }
+        if (patch.clientId || patch.projectId) {
+          next.taskId = null
+          next.taskKind = null
+        }
+        return { ui: { ...s.ui, filters: next } }
+      }),
     clearFilters: () => set((s) => ({ ui: { ...s.ui, filters: emptyFilters() } })),
     toggleGroup: (key) =>
       set((s) => ({

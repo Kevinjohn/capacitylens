@@ -53,13 +53,17 @@ export function seed(): AppData {
       { id: 'ph-build', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Build', projectId: 'p-acme' },
     ],
     tasks: [
-      { id: 't-wires', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Wireframes', projectId: 'p-acme', phaseId: 'ph-disc' },
-      { id: 't-visual', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Visual Design', projectId: 'p-acme', phaseId: 'ph-build' },
-      { id: 't-cms', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'CMS Review', projectId: 'p-acme' },
-      { id: 't-brand', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Brand System', projectId: 'p-brand' },
-      // General (no-project) task — allocatable to anyone, demonstrates decoupling.
-      { id: 't-admin', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Admin / Internal' },
-      { id: 't-loft-screens', accountId: LOFT, createdAt: TS, updatedAt: TS, name: 'App Screens', projectId: 'p-loft-app' },
+      { id: 't-wires', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Wireframes', kind: 'project', projectId: 'p-acme', phaseId: 'ph-disc' },
+      { id: 't-visual', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Visual Design', kind: 'project', projectId: 'p-acme', phaseId: 'ph-build' },
+      { id: 't-cms', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'CMS Review', kind: 'project', projectId: 'p-acme' },
+      { id: 't-brand', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Brand System', kind: 'project', projectId: 'p-brand' },
+      // Internal (no-project) task — internal work, allocatable to anyone.
+      { id: 't-admin', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Admin / Internal', kind: 'internal' },
+      // Repeatable (no-project) tasks — reusable across any project; the schedule's task lens
+      // groups them so you can see "all design" / "all workshops" regardless of project.
+      { id: 't-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Design', kind: 'repeatable' },
+      { id: 't-workshop', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Workshop', kind: 'repeatable' },
+      { id: 't-loft-screens', accountId: LOFT, createdAt: TS, updatedAt: TS, name: 'App Screens', kind: 'project', projectId: 'p-loft-app' },
     ],
     allocations: [
       // Tyler: two overlapping bars on 06-03/06-04 -> stacks + over-allocated (8 + 4 > 8).
@@ -71,6 +75,9 @@ export function seed(): AppData {
       // External partner studio booked on Acme's visual design — a span only, no hours (hoursPerDay 0).
       { id: 'a-ext-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ext-dogeatcog', taskId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-09', hoursPerDay: 0, status: 'confirmed', ignoreWeekends: true },
       { id: 'a-pam-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-pam', taskId: 't-brand', startDate: '2026-06-01', endDate: '2026-06-09', hoursPerDay: 6, status: 'confirmed' },
+      // A repeatable task ("Design") booked across a project boundary — demonstrates the
+      // schedule's task lens ("all design work", regardless of project/client).
+      { id: 'a-alex-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', taskId: 't-design', startDate: '2026-06-08', endDate: '2026-06-10', hoursPerDay: 8, status: 'confirmed' },
       { id: 'a-jo-1', accountId: LOFT, createdAt: TS, updatedAt: TS, resourceId: 'r-jo', taskId: 't-loft-screens', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
     ],
     timeOff: [

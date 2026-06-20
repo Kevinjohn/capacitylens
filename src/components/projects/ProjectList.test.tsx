@@ -91,7 +91,7 @@ describe('ProjectList', () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
-    useStore.getState().addTask({ name: 'Task 1', projectId: project.id })
+    useStore.getState().addTask({ name: 'Task 1', kind: 'project', projectId: project.id })
 
     render(<ProjectList />)
 

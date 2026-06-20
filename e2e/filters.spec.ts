@@ -61,4 +61,25 @@ test.describe('Filters', () => {
     await expect(page.getByTestId('scheduler-empty')).toBeVisible()
     await expect(page.getByTestId('scheduler-empty')).toContainText(/match the current filters/i)
   })
+
+  test('filters the schedule to a repeatable task (the task lens)', async ({ page }) => {
+    await openApp(page)
+    // Seed books "Design" (a repeatable task) for Alex across 8-10 June.
+    await page.getByLabel('Filter by task').selectOption('kind:repeatable')
+    await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Design' })).toBeVisible()
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(1)
+  })
+
+  test('the task lens is mutually exclusive with the client / project lens', async ({ page }) => {
+    await openApp(page)
+    // Activate a project lens, then switch to the task lens — the project dropdown resets.
+    await page.getByLabel('Filter by project').selectOption('p-brand')
+    await expect(page.getByLabel('Filter by project')).toHaveValue('p-brand')
+    await page.getByLabel('Filter by task').selectOption('kind:repeatable')
+    await expect(page.getByLabel('Filter by project')).toHaveValue('')
+
+    // And back the other way: choosing a project clears the task lens.
+    await page.getByLabel('Filter by project').selectOption('p-brand')
+    await expect(page.getByLabel('Filter by task')).toHaveValue('')
+  })
 })

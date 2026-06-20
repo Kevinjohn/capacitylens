@@ -97,6 +97,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **"Utilisation" is the term** everywhere on the schedule (not "Load").
 - **Filtering by client/project hides non-matching resources** by default; the
   "Show unallocated" toggle opts the visible-but-dimmed staffing view back in.
+- **Tasks have a required `kind` (project | internal | repeatable).** A `project` task carries a
+  projectId (+ optional phase); `internal` and `repeatable` are project-less (so are their
+  allocations) — coherence is enforced at the write boundary (`assertScopedRefs`) and repaired on
+  import/migrate. "Repeatable" is the rename of the old "general" task — a reusable task across
+  projects; "internal" is the new bucket. The schedule's **task lens** ("Filter by task", grouped
+  by kind) is a **standalone** view, mutually exclusive with the client/project filter (enforced in
+  `setFilters`). The Tasks page shows three sections (Internal, Repeatable, Project).
 - **The timeline keeps a 4-week scrollable back-buffer** (`PAST_BUFFER_DAYS`) to the left of
   the focus date — the view opens flush at the focused Monday, and scrolling left pans into
   the past instead of overscrolling (macOS turns left-edge overscroll into browser back;
