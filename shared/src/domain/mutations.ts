@@ -118,14 +118,17 @@ export function assertScopedRefs(
 }
 
 /**
- * An allocation must reference a real resource + activity IN THE ACTIVE ACCOUNT, and
- * a placeholder may only take activities from its bound project.
+ * An allocation must reference a real resource + activity IN THE ACTIVE ACCOUNT, a
+ * placeholder may only take activities from its bound project, and an external /
+ * 3rd-party resource (which has no capacity) may only carry a zero load. Pass
+ * `hoursPerDay` to enforce the last rule; omit it for a refs-only check.
  */
 export function assertAllocationRefs(
   data: AppData,
   accountId: ID,
   resourceId: ID,
   activityId: ID,
+  hoursPerDay?: number,
 ): void {
   const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
   const activity = data.activities.find((t) => t.id === activityId && belongsToAccount(t, accountId))
@@ -137,6 +140,14 @@ export function assertAllocationRefs(
   // same step, so `!v.ok` always implies a non-empty `errors` array. (Documented coupling between
   // ValidationResult.ok and errors — don't split the two without revisiting this read.)
   if (!v.ok) throw new Error(v.errors[0])
+  // External / 3rd parties have NO capacity: their allocations carry no load (hoursPerDay 0). The
+  // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only — enforce it at the
+  // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
+  // resource (the scheduler hides it, so it would persist invisibly). Import coerces the same value
+  // to 0 instead of dropping the booking, which is still valid. Only checked when a load is supplied.
+  if (hoursPerDay !== undefined && hoursPerDay !== 0 && isExternalResource(resource)) {
+    throw new Error('An external / 3rd-party resource’s allocation can’t carry hours.')
+  }
 }
 
 /** No allocation or time-off may persist an empty, malformed, or reversed range. */
@@ -146,10 +157,20 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
   if (!v.ok) throw new Error(v.errors[0])
 }
 
-/** Time off references a resource exactly as an allocation does. */
+/**
+ * Time off references a resource in the active account, exactly as an allocation does —
+ * and that resource must be capacity-tracked. An external / 3rd party has no capacity, so
+ * time off is meaningless for it (the scheduler hides external time-off entirely): the form
+ * omits externals from the picker AND rejects a crafted pick, so enforce the SAME rule here
+ * so a direct store / API write can't persist an invisible orphan.
+ */
 export function assertResourceExists(data: AppData, accountId: ID, resourceId: ID): void {
-  if (!data.resources.some((r) => r.id === resourceId && belongsToAccount(r, accountId))) {
+  const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
+  if (!resource) {
     throw new Error('Time off must reference an existing resource in this company.')
+  }
+  if (isExternalResource(resource)) {
+    throw new Error('Time off can’t be recorded for an external / 3rd-party resource.')
   }
 }
 
@@ -352,9 +373,13 @@ export function remapAndValidateImport(
       const resource = resources.get(a.resourceId)
       return resource && isExternalResource(resource) && a.hoursPerDay !== 0 ? { ...a, hoursPerDay: 0 } : a
     }) as unknown as Array<Record<string, unknown>>
-  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).filter(
-    (t) => resources.has(t.resourceId) && validateDateRange(t.startDate, t.endDate).ok,
-  ) as unknown as Array<Record<string, unknown>>
+  brought.timeOff = (brought.timeOff as unknown as TimeOff[]).filter((t) => {
+    // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
+    // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
+    // same rule here keeps import from landing an invisible orphan a hand-edited file could carry.
+    const resource = resources.get(t.resourceId)
+    return resource !== undefined && !isExternalResource(resource) && validateDateRange(t.startDate, t.endDate).ok
+  }) as unknown as Array<Record<string, unknown>>
 
   const next: AppData = { ...data }
   const srcKept = scopedTables(data)

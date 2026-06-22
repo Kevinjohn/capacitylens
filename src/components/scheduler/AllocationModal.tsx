@@ -23,7 +23,7 @@ import {
 import { inputClass } from '../common/controls'
 import { capacityAdvisory } from '../../lib/capacity'
 import { ALLOCATION_STATUS_OPTIONS, resourceDisplayName } from '../../lib/metadata'
-import { isExternalResource } from '@floaty/shared/types/entities'
+import { isExternalResource, MAX_HOURS_PER_DAY } from '@floaty/shared/types/entities'
 import type { AllocationStatus, ISODate } from '@floaty/shared/types/entities'
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
@@ -240,6 +240,14 @@ export function AllocationModal(props: AllocationModalProps) {
         fail('daysOfWork', 'Days of work must be greater than 0.')
         return
       }
+      // The store clamps an allocation to MAX_HOURS_PER_DAY, so a work volume that derives MORE than
+      // that would be silently truncated on save — the typed "days of work" lost. Reject instead so
+      // what the preview shows ("…h/day") is exactly what saves. (effHoursPerDay is finite here: the
+      // daysOfWork > 0 check above already rejects a NaN, and daysOver is clamped >= 1.)
+      if (effHoursPerDay > MAX_HOURS_PER_DAY) {
+        fail('daysOfWork', `That’s more than ${MAX_HOURS_PER_DAY}h a day. Increase “Days over” or reduce “Days of work”.`)
+        return
+      }
     } else {
       if (!startDate || !endDate) {
         fail('dates', 'Start and end dates are required.')
@@ -251,6 +259,12 @@ export function AllocationModal(props: AllocationModalProps) {
       }
       if (!(hoursPerDay > 0)) {
         fail('hours', 'Hours per day must be greater than 0.')
+        return
+      }
+      // Same anti-silent-clamp guard as days mode: the field caps at MAX_HOURS_PER_DAY on blur, but
+      // an Enter-submit without a blur can still carry a larger value the store would quietly clamp.
+      if (hoursPerDay > MAX_HOURS_PER_DAY) {
+        fail('hours', `Hours per day can’t exceed ${MAX_HOURS_PER_DAY}.`)
         return
       }
     }

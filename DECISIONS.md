@@ -83,6 +83,11 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   different questions — don't merge them. SchedulerGrid threads both windows into `buildSchedulerModel`
   (`visStart/visEnd` for the %, `overStart/overEnd` for the flag).
 - **Blocks mode allows `hoursPerDay: 0`** (span counts, load ignored); resources still require `> 0`.
+- **An allocation's hours/day is capped at `MAX_HOURS_PER_DAY` (24); the forms REJECT, not silently clamp.**
+  `clampHoursPerDay` bounds it to `[0, 24]` at every write path (store + import + server). But the
+  AllocationModal now rejects a days-mode work volume (Days-of-work over Days-over) — or an hourly value —
+  that would *derive* `> 24h/day`, so the previewed "…h/day" always equals what saves. (Before, an over-24
+  derive clamped silently and the entered Days-of-work was lost.)
 - **Capacity advisory at allocation time is non-blocking** (warns on over-capacity / time-off
   overlap; save still allowed). One source: `lib/capacity.ts` `capacityAdvisory()`.
 - **Calendar is account-level** (like `schedulingMode`): `timezone` (IANA, default GMT) and
@@ -126,8 +131,10 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **The built-in "Internal" client is a REAL `Client`, one per account (schema v6).** A persisted
   client with `builtin: true` (NOT a sentinel id), name "Internal", identified at runtime by the FLAG
   (so it survives import-remap). Seeded, created by `addAccount`, and ensured by `migrateV5toV6` +
-  server `openDb` — all idempotent (one per account, never duplicated). **Protected:** the store throws
-  on renaming/deleting a builtin. **Selectable/bindable everywhere, but HIDDEN from the Clients
+  server `openDb` — all idempotent (one per account, never duplicated). **Protected, on every write path:**
+  the store throws on renaming/deleting a builtin AND strips `builtin` from public client CRUD, and the
+  SERVER (`validateWrite`) rejects a direct API write that would add a SECOND builtin to an account — so the
+  one-per-account singleton holds even for a crafted request, not just the UI. **Selectable/bindable everywhere, but HIDDEN from the Clients
   management list (owner, 2026-06-20):** it's a behind-the-scenes data anchor, not a user-managed
   client, so `ClientList` filters out `builtin` rows — but it stays a real, persisted client that is
   still selectable in ProjectForm's client picker, a "Filter by client" option, and a CommandPalette
@@ -197,7 +204,10 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   `hoursPerDay: 0` and the scheduler model skips all capacity reads for them. Single **neutral** colour
   (`resolveBarColor` short-circuits their bars, overriding the project-colour rule) in a band **always
   at the schedule bottom**, disciplines on or off; excluded from utilisation averages + the time-off
-  picker. Resolves the "third-party line".
+  picker. Resolves the "third-party line". **Enforced at the write boundary, not just the UI:** the shared
+  domain core (store + server) rejects a non-zero load on an external allocation (`assertAllocationRefs`)
+  and any time off for an external (`assertResourceExists`); import drops external time off and coerces
+  external allocation load to 0 — so bad external data can't persist invisibly via a direct/crafted write.
 - **External is behind a device-global setting, default OFF (owner, 2026-06-20).** Like Placeholders:
   a pure VIEW pref `floaty/externalEnabled` (own key, default `false`, NOT in `AppData`/export),
   Settings → **External** → *Show external resources* (+ explainer copy, single-sourced in

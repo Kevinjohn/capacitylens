@@ -356,6 +356,61 @@ describe('validation (shared domain-core) rejects bad writes with 400', () => {
     const res = await post(app, 'allocations', allocation('al', 'a1', 'ghost', 't1'))
     expect(res.statusCode).toBe(400)
   })
+
+  it('rejects a non-zero allocation load on an external / 3rd-party resource (no capacity)', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    await post(app, 'resources', { ...person('ext', 'a1'), kind: 'external' })
+    const res = await post(app, 'allocations', allocation('al', 'a1', 'ext', 't1', { hoursPerDay: 8 }))
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/external/i)
+  })
+
+  it('accepts a zero-load allocation on an external resource (the form forces 0)', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    await post(app, 'resources', { ...person('ext', 'a1'), kind: 'external' })
+    const res = await post(app, 'allocations', allocation('al', 'a1', 'ext', 't1', { hoursPerDay: 0 }))
+    expect(res.statusCode).toBe(201)
+  })
+
+  it('rejects time off on an external / 3rd-party resource (no capacity)', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    await post(app, 'resources', { ...person('ext', 'a1'), kind: 'external' })
+    const res = await post(app, 'timeOff', {
+      id: 'to1', accountId: 'a1', resourceId: 'ext', startDate: '2026-01-01', endDate: '2026-01-03', type: 'holiday', ...meta(),
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/external/i)
+  })
+})
+
+describe('built-in Internal client is a per-account singleton on direct writes', () => {
+  it('rejects a SECOND builtin client for an account (internalClientFor is first-match)', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    expect((await post(app, 'clients', { ...client('c-int', 'a1'), builtin: true })).statusCode).toBe(201)
+    const dup = await post(app, 'clients', { ...client('c-int2', 'a1'), builtin: true })
+    expect(dup.statusCode).toBe(400)
+    expect(dup.json().error).toMatch(/built-in|Internal/i)
+  })
+
+  it('allows updating the SAME builtin client (matching id)', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    await post(app, 'clients', { ...client('c-int', 'a1'), builtin: true })
+    const res = await put(app, 'clients', 'c-int', { ...client('c-int', 'a1'), builtin: true })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('allows a builtin in EACH account independently', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    await post(app, 'accounts', account('a2'))
+    expect((await post(app, 'clients', { ...client('c-int-1', 'a1'), builtin: true })).statusCode).toBe(201)
+    expect((await post(app, 'clients', { ...client('c-int-2', 'a2'), builtin: true })).statusCode).toBe(201)
+  })
 })
 
 describe('import', () => {

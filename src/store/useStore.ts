@@ -706,7 +706,7 @@ export const useStore = create<StoreState>()((set, get) => {
 
     addAllocation: (input) => {
       const accountId = requireAccount()
-      assertAllocation(get().data, accountId, input.resourceId, input.activityId)
+      assertAllocation(get().data, accountId, input.resourceId, input.activityId, input.hoursPerDay)
       assertDateRange(input.startDate, input.endDate)
       const e: Allocation = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay), id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
@@ -715,12 +715,16 @@ export const useStore = create<StoreState>()((set, get) => {
     updateAllocation: (id, patch) => {
       const existing = findOwned(get().data, 'allocations', id)
       if (!existing) return // stale id (e.g. drag committed after an undo) → no-op
-      if (patch.resourceId !== undefined || patch.activityId !== undefined) {
+      // Re-validate refs when the resource, activity, OR load changes. Including hoursPerDay closes
+      // the gap where a hours-only patch onto an EXTERNAL resource would slip a non-zero load past
+      // the capacity-free rule (assertAllocation enforces external → 0 when the load is supplied).
+      if (patch.resourceId !== undefined || patch.activityId !== undefined || patch.hoursPerDay !== undefined) {
         assertAllocation(
           get().data,
           existing.accountId,
           patch.resourceId ?? existing.resourceId,
           patch.activityId ?? existing.activityId,
+          patch.hoursPerDay ?? existing.hoursPerDay,
         )
       }
       // Validate the EFFECTIVE range (merged with the existing row), so a

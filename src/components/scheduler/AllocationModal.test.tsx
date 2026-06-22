@@ -158,6 +158,24 @@ describe('AllocationModal days mode', () => {
     expect(useStore.getState().data.allocations).toHaveLength(0)
   })
 
+  it('rejects a work volume that would derive more than 24h/day (no silent clamp)', async () => {
+    // 5 days of work crammed into a 1-day span = 40h/day, which the store would clamp to 24 —
+    // silently discarding the entered volume. The modal must reject so preview === saved.
+    enableDays()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={vi.fn()} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '5' } })
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '1' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/more than 24h a day/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
+
   it('honours the drawn span when creating (days over = the dragged-out length)', async () => {
     enableDays()
     const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })

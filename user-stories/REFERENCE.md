@@ -304,7 +304,8 @@ Mouse hover sets the active option; mouse click selects.
   reusable across projects). Internal/repeatable activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `repeatable-activities`, `project-activities` (testids).
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
-  **Internal** (the store rejects renaming/deleting it). It is a behind-the-scenes data anchor, so it
+  **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
+  that would create a *second* Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it
   is **HIDDEN from the Clients management list** (`/clients` shows no Internal row) — but it stays a
   real, persisted client that is **still selectable and bindable everywhere it's used:** in the
   **project form's Client `<select>`** (a project can be created under Internal), as a **Filter by
@@ -322,7 +323,9 @@ Mouse hover sets the active option; mouse click selects.
   descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
   of the schedule** with **no utilisation / over-markers**. Their allocations carry `hoursPerDay: 0`
   and are a **literal start/end span** (`ignoreWeekends: true` — the "Include weekends" toggle is
-  hidden, weekends count as plain calendar days); they're excluded from the Time-off picker. They are
+  hidden, weekends count as plain calendar days); they're excluded from the Time-off picker, and the
+  write boundary rejects time off OR a non-zero load for an external on *any* path (a direct/crafted
+  write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
   **hidden by default** behind the device-global **Show external resources** pref (Settings → External,
   `floaty/externalEnabled`, default off); when on, an **External** section appears under the **Resources**
   tab (with explainer copy + an `Add external party` button) and the band appears on the schedule. When
@@ -342,6 +345,11 @@ Mouse hover sets the active option; mouse click selects.
   (STRICTLY greater — exactly at capacity is NOT over). An over-allocated day renders with a
   **clear red background** (`data-testid="over-marker"`, `title="Overbooked"`) plus a solid red
   top band, in both light and dark themes.
+- **An allocation can't exceed 24h/day, and the form says so instead of silently trimming it.** In
+  **days mode**, a *Days of work* spread over too few *Days over* (e.g. 5 days of work in a 1-day span =
+  40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
+  rather than saved as a quietly-clamped 24h; **hourly mode** likewise rejects a *Hours / day* above 24.
+  The previewed "…h/day" hint always equals what saves.
 - **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
   the 1/2/4/8-week range anchored at the left edge of the view — so **switching the range toggle

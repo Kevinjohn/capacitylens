@@ -54,6 +54,10 @@ const placeholder = (id: ID, accountId: ID, projectId?: ID): Resource => ({
   kind: 'placeholder',
   projectId,
 })
+const external = (id: ID, accountId: ID): Resource => ({
+  ...person(id, accountId),
+  kind: 'external',
+})
 const allocation = (id: ID, accountId: ID, resourceId: ID, activityId: ID, o: Partial<Allocation> = {}): Allocation => ({
   ...meta(id, accountId),
   resourceId,
@@ -208,6 +212,21 @@ describe('assertAllocationRefs', () => {
       'A placeholder can only be assigned to activities from its bound project.',
     )
   })
+
+  it('rejects a non-zero load on an external / 3rd-party resource (no capacity)', () => {
+    const data: AppData = { ...world(), resources: [external('ext', A1)] }
+    expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 8)).toThrow('can’t carry hours')
+  })
+
+  it('allows a zero load on an external resource, and skips the load rule when none is supplied', () => {
+    const data: AppData = { ...world(), resources: [external('ext', A1)] }
+    expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 0)).not.toThrow()
+    expect(() => assertAllocationRefs(data, A1, 'ext', 't1')).not.toThrow()
+  })
+
+  it('allows a non-zero load on a normal resource', () => {
+    expect(() => assertAllocationRefs(world(), A1, 'r1', 't1', 8)).not.toThrow()
+  })
 })
 
 describe('assertDateRange', () => {
@@ -231,6 +250,12 @@ describe('assertResourceExists', () => {
     const data = { ...base(), resources: [person('r1', A2)] }
     expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
       'Time off must reference an existing resource in this company.',
+    )
+  })
+  it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
+    const data = { ...base(), resources: [external('ext', A1)] }
+    expect(() => assertResourceExists(data, A1, 'ext')).toThrow(
+      'Time off can’t be recorded for an external / 3rd-party resource.',
     )
   })
 })
@@ -303,6 +328,25 @@ describe('remapAndValidateImport', () => {
     const { data, skipped } = remapAndValidateImport(base(), A1, bad, TS)
     expect(data.allocations).toHaveLength(1) // only the valid one survives
     expect(skipped).toBe(3) // 2 bad allocations + 1 dangling time-off
+  })
+
+  it('coerces an external resource’s allocation load to 0 and drops external time-off', () => {
+    // A hand-edited file: an external resource carries a non-zero allocation load (impossible via the
+    // form) and a time-off entry (meaningless — externals have no capacity). Import keeps the booking
+    // but zeroes its load, and drops the time-off entirely (the same rule the write boundary rejects).
+    const handEdited: AppData = {
+      ...emptyAppData(),
+      clients: [client('src-c', 'src-acct')],
+      projects: [project('src-p', 'src-acct', 'src-c')],
+      activities: [activity('src-t', 'src-acct', 'src-p')],
+      resources: [external('src-ext', 'src-acct')],
+      allocations: [allocation('al-ext', 'src-acct', 'src-ext', 'src-t', { hoursPerDay: 8 })],
+      timeOff: [timeOff('to-ext', 'src-acct', 'src-ext')],
+    }
+    const { data } = remapAndValidateImport(base(), A1, handEdited, TS)
+    expect(data.allocations).toHaveLength(1)
+    expect(data.allocations[0].hoursPerDay).toBe(0) // load coerced — capacity-free resource
+    expect(data.timeOff).toHaveLength(0) // external time-off dropped
   })
 
   it('drops records with a dangling REQUIRED ref and unbinds a dangling OPTIONAL ref', () => {
