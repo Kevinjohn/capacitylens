@@ -201,6 +201,39 @@ describe('AllocationBar interactions', () => {
       expect(after.hoursPerDay).toBe(6)
     })
 
+    it('surfaces a non-blocking notice when a shrink-resize clamps the work volume at the cap', () => {
+      enableDays()
+      const st = useStore.getState()
+      const c = st.addClient({ name: 'Acme', color: '#1' })
+      const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+      const t = st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id })
+      const r = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+      // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h of work. Shrinking to 1 working
+      // day would need 48h/day — clamped to 24, so half the volume is lost (the user must be told).
+      const a = st.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 24, status: 'confirmed' })
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+
+      // Shift+ArrowLeft resizes the END edge inward by a day → span 2 → 1 working day.
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowLeft', shiftKey: true })
+      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+      expect(after.endDate).toBe('2026-06-01') // collapsed to a single day
+      expect(after.hoursPerDay).toBe(24) // clamped at the cap
+      expect(useStore.getState().notice?.message).toMatch(/capped at 24h\/day/i)
+    })
+
+    it('does NOT show the cap notice on a normal in-range resize', () => {
+      enableDays()
+      const a = seedAllocation() // 8h over 3 days; growing to 4 days → 6h/day, well under the cap
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      // No baseline needed: resetStoreWithAccount (beforeEach) already clears any leaked notice,
+      // so this proves the resize itself doesn't RAISE a cap notice — order-independently.
+
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
+      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+      expect(after.hoursPerDay).toBe(6) // rescaled, in range
+      expect(useStore.getState().notice?.message ?? '').not.toMatch(/capped/i)
+    })
+
     it('hourly mode keeps hours/day fixed on resize (regression guard)', () => {
       // No enableDays() — the default account is hourly.
       const a = seedAllocation()

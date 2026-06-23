@@ -10,9 +10,9 @@ import { parseDate } from '@floaty/shared/lib/dateMath'
 import { schedulingModeFor } from '../../store/selectors'
 import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
 import { LAYOUT } from './layout'
-import { computeGesture, reconcileReassignedHours, snappedBarGeometry, volumePreservingHours } from './allocationDrag'
+import { computeGesture, reconcileReassignedHours, snappedBarGeometry, volumePreservingHoursClamped } from './allocationDrag'
 import type { ColumnGeometry } from './columnGeometry'
-import { isCapacityTracked } from '@floaty/shared/types/entities'
+import { isCapacityTracked, MAX_HOURS_PER_DAY } from '@floaty/shared/types/entities'
 import type { ID } from '@floaty/shared/types/entities'
 import type { BarLayout } from './schedulerModel'
 
@@ -224,7 +224,7 @@ export const AllocationBar = memo(function AllocationBar({
       }
 
       const effResourceId = reassignTo ?? resourceId
-      const { dates, hours } = computeFor(effResourceId)
+      const { dates, hours, clamped } = computeFor(effResourceId)
       // On a REASSIGN, reconcile the load with the TARGET's kind: an external carries no hours (0),
       // and a real resource must carry > 0 — otherwise dragging a 0-hour external booking onto a
       // person would persist an illegal 0-hour allocation (the modal rejects it, and it under-counts
@@ -255,7 +255,15 @@ export const AllocationBar = memo(function AllocationBar({
           if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
           if (bits.length) advisory = ` — now ${bits.join(' and ')}`
         }
-        setNotice(`${reassignTo ? 'Allocation reassigned' : 'Allocation moved'}${advisory}. Press ⌘Z to undo.`)
+        // A volume-preserving (days-mode) resize that shrank the span past the cap truncates
+        // work: the derived hours/day exceeded MAX_HOURS_PER_DAY and were clamped, so the bar
+        // now shows the capped figure with no other signal of the loss. Surface it on the SAME
+        // post-commit toast the modal mirrors. A clamp can only arise on a resize (computeGesture
+        // rescales only when mode !== 'move'), and reconcile only changes hours on a reassign,
+        // which only happens on a move — so on any clamped path reconciledHours === hours; the
+        // `clamped` flag alone is the signal.
+        const cap = clamped ? ` Work volume was capped at ${MAX_HOURS_PER_DAY}h/day.` : ''
+        setNotice(`${reassignTo ? 'Allocation reassigned' : 'Allocation moved'}${advisory}.${cap} Press ⌘Z to undo.`)
       } catch (e) {
         // Reassignment rejected (e.g. a placeholder bound to another project): keep the
         // allocation on its source resource and apply just the date move, recomputed against
@@ -319,13 +327,15 @@ export const AllocationBar = memo(function AllocationBar({
     const current = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
     const next = applyGesture(mode, current, delta, opts)
     if (next.endDate < next.startDate) return
-    // Match the pointer path: a days-mode resize rescales hours to preserve volume.
-    const hoursPatch =
-      isDays && mode !== 'move'
-        ? { hoursPerDay: volumePreservingHours(current, next, opts, bar.allocation.hoursPerDay) }
-        : null
+    // Match the pointer path: a days-mode resize rescales hours to preserve volume, and a
+    // resize that shrinks the span past the cap clamps the derived hours/day (truncating work).
+    const rescale = isDays && mode !== 'move' ? volumePreservingHoursClamped(current, next, opts, bar.allocation.hoursPerDay) : null
+    const hoursPatch = rescale ? { hoursPerDay: rescale.hours } : null
     try {
       updateAllocation(bar.allocation.id, { ...next, ...hoursPatch })
+      // Surface a clamp the same non-blocking way the pointer commit does — the bar would
+      // otherwise just show the capped figure with no hint the volume was truncated.
+      if (rescale?.clamped) setNotice(`Work volume was capped at ${MAX_HOURS_PER_DAY}h/day. Press ⌘Z to undo.`)
     } catch (e) {
       // Integrity rejected the keyboard move/resize (e.g. into an illegal slot). Surface it the
       // same way the pointer-drag commit path does (onCommit above) — a silent no-op left the bar

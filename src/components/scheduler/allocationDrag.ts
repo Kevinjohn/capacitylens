@@ -21,27 +21,32 @@ export function reconcileReassignedHours(current: number, target: Resource): num
 
 /** Days-mode resize keeps the VOLUME (days of work) fixed while the span changes, so
  *  hours/day scales inversely with the span: new × newSpan = old × oldSpan.
- *  workingHoursPerDay cancels out, so it isn't needed here. Returns the original hours
- *  when the span can't shrink to zero (guards divide-by-zero), clamped to a real day. */
-export function volumePreservingHours(
+ *  workingHoursPerDay cancels out, so it isn't needed here. Returns the clamped hours
+ *  AND whether the clamp actually bit, so a gesture commit can surface the lost volume
+ *  (the cap truncates work — the bar would otherwise silently show the clamped 24h).
+ *  `clamped` is true ONLY when the raw derived hours exceeded MAX_HOURS_PER_DAY; a
+ *  normal in-range resize, a move, and the divide-by-zero guard all report false. */
+export function volumePreservingHoursClamped(
   prev: DateRange,
   next: DateRange,
   opts: GestureOpts,
   hoursPerDay: number,
-): number {
+): { hours: number; clamped: boolean } {
   const oldSpan = spanDays(prev.startDate, prev.endDate, opts)
   const newSpan = spanDays(next.startDate, next.endDate, opts)
   const raw = newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
   // Clamp to a real working day — collapsing the span (e.g. a resize dragged past the
   // opposite edge → 1-day span) would otherwise inflate hours/day without bound.
-  return Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY))
+  return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY }
 }
 
 /** Resolve a gesture (move / resize) into the new date range and hours/day to commit.
  *  The dates come from applyGesture (weekend-aware via opts); in DAYS mode a resize
  *  rescales hours/day to hold the work volume constant, while a move — or an unchanged
  *  span (deltaDays === 0) — keeps the original hours. Mirrors the pointer-commit math so
- *  the source and reassign-target both go through one place. */
+ *  the source and reassign-target both go through one place. `clamped` reports whether a
+ *  volume-preserving resize hit the 24h cap (truncating work volume), so the commit can
+ *  surface it; it's false for a move and any non-rescaling path. */
 export function computeGesture(
   mode: DragMode,
   current: DateRange,
@@ -49,13 +54,13 @@ export function computeGesture(
   opts: GestureOpts,
   hoursPerDay: number,
   isDays: boolean,
-): { dates: DateRange; hours: number } {
+): { dates: DateRange; hours: number; clamped: boolean } {
   const dates = deltaDays !== 0 ? applyGesture(mode, current, deltaDays, opts) : current
-  const hours =
-    isDays && mode !== 'move' && deltaDays !== 0
-      ? volumePreservingHours(current, dates, opts, hoursPerDay)
-      : hoursPerDay
-  return { dates, hours }
+  if (isDays && mode !== 'move' && deltaDays !== 0) {
+    const { hours, clamped } = volumePreservingHoursClamped(current, dates, opts, hoursPerDay)
+    return { dates, hours, clamped }
+  }
+  return { dates, hours: hoursPerDay, clamped: false }
 }
 
 /** Pixel geometry for the live drag preview: snap the dates the SAME way the commit will

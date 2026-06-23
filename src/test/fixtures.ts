@@ -53,4 +53,8 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
 export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void {
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId })] }))
   useStore.getState().setActiveAccount(accountId)
+  // replaceAll swaps only `data` — the singleton store's transient `notice` survives, so a prior
+  // test's toast would leak into the next. Clear it here so every spec starts notice-free and
+  // tests that assert on `notice` are order-independent (no per-test baseline needed).
+  useStore.getState().setNotice(null)
 }

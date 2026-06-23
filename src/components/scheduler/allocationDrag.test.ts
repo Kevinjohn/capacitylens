@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { volumePreservingHours, computeGesture, snappedBarGeometry, reconcileReassignedHours } from './allocationDrag'
+import { volumePreservingHoursClamped, computeGesture, snappedBarGeometry, reconcileReassignedHours } from './allocationDrag'
 import { buildColumnGeometry } from './columnGeometry'
 import { eachDayISO } from '@floaty/shared/lib/dateMath'
 import type { DateRange } from '../../lib/gestureMath'
@@ -13,20 +13,45 @@ import type { Resource } from '@floaty/shared/types/entities'
 const IGNORE = { ignoreWeekends: true } // not weekend-aware → spans are plain calendar days
 const range = (startDate: string, endDate: string): DateRange => ({ startDate, endDate })
 
-describe('volumePreservingHours', () => {
+describe('volumePreservingHoursClamped', () => {
+  // The .hours field on its own (what the old volumePreservingHours wrapper returned): rescale,
+  // clamp, and the divide-by-zero guard.
   it('rescales hours inversely with the span (volume held constant)', () => {
     // span 4 days → span 2 days doubles hours/day: 6 × 4 / 2 = 12
-    expect(volumePreservingHours(range('2026-06-01', '2026-06-04'), range('2026-06-01', '2026-06-02'), IGNORE, 6)).toBe(12)
+    expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-04'), range('2026-06-01', '2026-06-02'), IGNORE, 6).hours).toBe(12)
   })
 
   it('clamps the result to MAX_HOURS_PER_DAY (24)', () => {
     // span 25 → span 1 would be 6 × 25 = 150 h/day; clamped to a real working day
-    expect(volumePreservingHours(range('2026-06-01', '2026-06-25'), range('2026-06-01', '2026-06-01'), IGNORE, 6)).toBe(24)
+    expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-25'), range('2026-06-01', '2026-06-01'), IGNORE, 6).hours).toBe(24)
   })
 
   it('returns the original hours when the new span is zero (divide-by-zero guard)', () => {
     // endDate one day before startDate → daysInclusive = 0 → guard returns hoursPerDay unchanged
-    expect(volumePreservingHours(range('2026-06-01', '2026-06-04'), range('2026-06-02', '2026-06-01'), IGNORE, 6)).toBe(6)
+    expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-04'), range('2026-06-02', '2026-06-01'), IGNORE, 6).hours).toBe(6)
+  })
+
+  // The clamp flag is what lets a gesture commit surface the lost work volume — it must be
+  // true ONLY when the raw derived hours actually exceeded the cap (a truncation), never on
+  // a normal in-range resize or the divide-by-zero guard. This is the test that fails without
+  // the surfacing change being wired through.
+  it('flags clamped=true when the raw derived hours exceed MAX_HOURS_PER_DAY (24)', () => {
+    // span 25 → span 1 would be 6 × 25 = 150 h/day; clamped to 24, and the flag bites
+    expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-25'), range('2026-06-01', '2026-06-01'), IGNORE, 6)).toEqual({ hours: 24, clamped: true })
+  })
+
+  it('reports clamped=false for an in-range resize (no truncation)', () => {
+    // span 4 → span 2 doubles to 12h/day, well under the cap
+    expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-04'), range('2026-06-01', '2026-06-02'), IGNORE, 6)).toEqual({ hours: 12, clamped: false })
+  })
+
+  it('reports clamped=false at exactly the cap (24 is allowed, only > caps)', () => {
+    // span 4 → span 1 quadruples 6 → 24, landing exactly on the cap: no truncation
+    expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-04'), range('2026-06-01', '2026-06-01'), IGNORE, 6)).toEqual({ hours: 24, clamped: false })
+  })
+
+  it('reports clamped=false through the divide-by-zero guard (original hours, no clamp)', () => {
+    expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-04'), range('2026-06-02', '2026-06-01'), IGNORE, 6)).toEqual({ hours: 6, clamped: false })
   })
 })
 
@@ -47,14 +72,27 @@ describe('computeGesture', () => {
 
   it('rescales hours for a days-mode resize that changes the span', () => {
     // resize-end -2 → end 06-02, span 4 → 2, hours 6 → 12
-    const { dates, hours } = computeGesture('resize-end', current, -2, IGNORE, 6, true)
+    const { dates, hours, clamped } = computeGesture('resize-end', current, -2, IGNORE, 6, true)
     expect(dates).toEqual(range('2026-06-01', '2026-06-02'))
     expect(hours).toBe(12)
+    expect(clamped).toBe(false) // in range, no truncation
   })
 
   it('does NOT rescale hours when not in days mode (hourly/blocks)', () => {
-    const { hours } = computeGesture('resize-end', current, -2, IGNORE, 6, false)
+    const { hours, clamped } = computeGesture('resize-end', current, -2, IGNORE, 6, false)
     expect(hours).toBe(6)
+    expect(clamped).toBe(false)
+  })
+
+  it('flags clamped on a days-mode resize that drives hours past the cap', () => {
+    // span 4 → span 1 (resize-end -3) quadruples 12 → 48; clamped to 24, flag set
+    const { hours, clamped } = computeGesture('resize-end', current, -3, IGNORE, 12, true)
+    expect(hours).toBe(24)
+    expect(clamped).toBe(true)
+  })
+
+  it('never flags clamped for a move (only a volume-preserving resize can clamp)', () => {
+    expect(computeGesture('move', current, 2, IGNORE, 24, true).clamped).toBe(false)
   })
 })
 
