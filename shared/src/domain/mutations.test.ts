@@ -192,11 +192,11 @@ describe('assertAllocationRefs', () => {
   })
 
   it('passes for a real resource + activity in the account', () => {
-    expect(() => assertAllocationRefs(world(), A1, 'r1', 't1')).not.toThrow()
+    expect(() => assertAllocationRefs(world(), A1, 'r1', 't1', 8)).not.toThrow()
   })
 
   it('throws when the resource or activity is missing / cross-account', () => {
-    expect(() => assertAllocationRefs(world(), A1, 'missing', 't1')).toThrow(
+    expect(() => assertAllocationRefs(world(), A1, 'missing', 't1', 8)).toThrow(
       'Allocation must reference an existing resource and activity in this company.',
     )
   })
@@ -209,7 +209,7 @@ describe('assertAllocationRefs', () => {
       activities: [activity('t2', A1, 'p2')],
       resources: [placeholder('ph', A1, 'p1')],
     }
-    expect(() => assertAllocationRefs(data, A1, 'ph', 't2')).toThrow(
+    expect(() => assertAllocationRefs(data, A1, 'ph', 't2', 8)).toThrow(
       'A placeholder can only be assigned to activities from its bound project.',
     )
   })
@@ -219,10 +219,9 @@ describe('assertAllocationRefs', () => {
     expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 8)).toThrow('can’t carry hours')
   })
 
-  it('allows a zero load on an external resource, and skips the load rule when none is supplied', () => {
+  it('allows a zero load on an external resource (the external rule is always enforced)', () => {
     const data: AppData = { ...world(), resources: [external('ext', A1)] }
     expect(() => assertAllocationRefs(data, A1, 'ext', 't1', 0)).not.toThrow()
-    expect(() => assertAllocationRefs(data, A1, 'ext', 't1')).not.toThrow()
   })
 
   it('allows a non-zero load on a normal resource', () => {

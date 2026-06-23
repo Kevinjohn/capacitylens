@@ -120,15 +120,18 @@ export function assertScopedRefs(
 /**
  * An allocation must reference a real resource + activity IN THE ACTIVE ACCOUNT, a
  * placeholder may only take activities from its bound project, and an external /
- * 3rd-party resource (which has no capacity) may only carry a zero load. Pass
- * `hoursPerDay` to enforce the last rule; omit it for a refs-only check.
+ * 3rd-party resource (which has no capacity) may only carry a zero load. `hoursPerDay`
+ * is REQUIRED — every allocation write knows its load, and making the parameter
+ * mandatory forces the compiler to surface it so the capacity-free rule below can never
+ * be silently skipped by a future caller (the old optional arg made that invariant
+ * opt-in per call site).
  */
 export function assertAllocationRefs(
   data: AppData,
   accountId: ID,
   resourceId: ID,
   activityId: ID,
-  hoursPerDay?: number,
+  hoursPerDay: number,
 ): void {
   const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
   const activity = data.activities.find((t) => t.id === activityId && belongsToAccount(t, accountId))
@@ -144,8 +147,9 @@ export function assertAllocationRefs(
   // form forces 0 and a drag-reassign reconciles to 0, but those are UI-only — enforce it at the
   // write boundary too so a direct store / API write can't land a phantom load on a capacity-free
   // resource (the scheduler hides it, so it would persist invisibly). Import coerces the same value
-  // to 0 instead of dropping the booking, which is still valid. Only checked when a load is supplied.
-  if (hoursPerDay !== undefined && hoursPerDay !== 0 && isExternalResource(resource)) {
+  // to 0 instead of dropping the booking, which is still valid. Always checked: `hoursPerDay` is a
+  // required parameter, so no caller can opt out of the rule.
+  if (hoursPerDay !== 0 && isExternalResource(resource)) {
     throw new Error('An external / 3rd-party resource’s allocation can’t carry hours.')
   }
 }
