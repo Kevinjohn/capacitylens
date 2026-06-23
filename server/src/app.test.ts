@@ -384,6 +384,45 @@ describe('validation (shared domain-core) rejects bad writes with 400', () => {
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toMatch(/external/i)
   })
+
+  // Flipping a resource to external while it still owns loaded work / time-off would orphan those
+  // dependents (the scheduler hides external capacity + time-off). The server rejects the flip on
+  // BOTH the full-row PUT and the partial PATCH merge — same shared assert as the store.
+  it('rejects PATCH setting kind:external on a resource that has a loaded allocation', async () => {
+    const { app } = freshApp()
+    await scaffold(app) // r1 is a person
+    await post(app, 'allocations', allocation('al', 'a1', 'r1', 't1', { hoursPerDay: 8 }))
+    const res = await patch(app, 'resources', 'r1', { kind: 'external' })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/work and time off/i)
+  })
+
+  it('rejects PUT setting kind:external on a resource that has time off', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    await post(app, 'timeOff', {
+      id: 'to1', accountId: 'a1', resourceId: 'r1', startDate: '2026-01-01', endDate: '2026-01-03', type: 'holiday', ...meta(),
+    })
+    const res = await put(app, 'resources', 'r1', { ...person('r1', 'a1'), kind: 'external' })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/work and time off/i)
+  })
+
+  it('accepts flipping a resource to external when it has NO disallowed dependents (zero-load allocation is fine)', async () => {
+    const { app } = freshApp()
+    await scaffold(app)
+    // A zero-load allocation is already valid for an external, so it must NOT block the flip.
+    await post(app, 'allocations', allocation('al', 'a1', 'r1', 't1', { hoursPerDay: 0 }))
+    expect((await patch(app, 'resources', 'r1', { kind: 'external' })).statusCode).toBe(200)
+    expect((await state(app)).resources.find((r: { id: string }) => r.id === 'r1').kind).toBe('external')
+  })
+
+  it('accepts creating an external resource with no dependents, and editing its name', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    expect((await post(app, 'resources', { ...person('ext', 'a1'), kind: 'external' })).statusCode).toBe(201)
+    expect((await patch(app, 'resources', 'ext', { role: 'Overflow' })).statusCode).toBe(200)
+  })
 })
 
 describe('built-in Internal client is a per-account singleton on direct writes', () => {

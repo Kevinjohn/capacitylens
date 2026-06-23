@@ -3,6 +3,7 @@ import {
   assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
+  assertResourceKindAllowsDependents,
   assertScopedRefs,
   deleteAccountCascade,
   findOwned,
@@ -257,6 +258,68 @@ describe('assertResourceExists', () => {
     expect(() => assertResourceExists(data, A1, 'ext')).toThrow(
       'Time off can’t be recorded for an external / 3rd-party resource.',
     )
+  })
+})
+
+describe('assertResourceKindAllowsDependents', () => {
+  const reject = /reassign or remove this resource’s work and time off/i
+
+  it('is a no-op when the merged kind is not external', () => {
+    const data: AppData = {
+      ...base(),
+      resources: [person('r1', A1)],
+      activities: [activity('t1', A1, 'p1')],
+      allocations: [allocation('al', A1, 'r1', 't1', { hoursPerDay: 8 })],
+      timeOff: [timeOff('to', A1, 'r1')],
+    }
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'person')).not.toThrow()
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'placeholder')).not.toThrow()
+  })
+
+  it('rejects making external a resource that still owns a loaded allocation', () => {
+    const data: AppData = {
+      ...base(),
+      resources: [person('r1', A1)],
+      allocations: [allocation('al', A1, 'r1', 't1', { hoursPerDay: 8 })],
+    }
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).toThrow(reject)
+  })
+
+  it('rejects making external a resource that still owns time off', () => {
+    const data: AppData = {
+      ...base(),
+      resources: [person('r1', A1)],
+      timeOff: [timeOff('to', A1, 'r1')],
+    }
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).toThrow(reject)
+  })
+
+  it('allows making external a resource whose only allocation carries a zero load (already valid for an external)', () => {
+    const data: AppData = {
+      ...base(),
+      resources: [person('r1', A1)],
+      allocations: [allocation('al', A1, 'r1', 't1', { hoursPerDay: 0 })],
+    }
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow()
+  })
+
+  it('allows making external a resource with no dependents', () => {
+    const data: AppData = { ...base(), resources: [person('r1', A1)] }
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow()
+  })
+
+  it('only considers THIS resource’s dependents in THIS account', () => {
+    // Another resource's loaded allocation + a same-id dependent in a different account must NOT block.
+    const data: AppData = {
+      ...base(),
+      resources: [person('r1', A1), person('other', A1)],
+      allocations: [
+        allocation('al', A1, 'other', 't1', { hoursPerDay: 8 }), // belongs to a DIFFERENT resource
+        allocation('al2', A2, 'r1', 't1', { hoursPerDay: 8 }), // same resource id, DIFFERENT account
+      ],
+      timeOff: [timeOff('to', A2, 'r1')], // same resource id, DIFFERENT account
+    }
+    expect(() => assertResourceKindAllowsDependents(data, A1, 'r1', 'external')).not.toThrow()
   })
 })
 
