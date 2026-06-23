@@ -393,22 +393,25 @@ export function remapAndValidateImport(
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
   const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]))
   const activities = new Map((brought.activities as unknown as Activity[]).map((t) => [t.id, t]))
-  brought.allocations = (brought.allocations as unknown as Allocation[])
-    .filter((a) => {
-      if (!validateDateRange(a.startDate, a.endDate).ok) return false
+  // Single pass: resolve the owning resource ONCE per allocation and use it for BOTH the keep/drop
+  // decision (date range + resource/activity existence + placeholder rule) AND the external-load
+  // coercion below, so the two can never diverge.
+  brought.allocations = (brought.allocations as unknown as Allocation[]).reduce<Allocation[]>(
+    (kept, a) => {
+      if (!validateDateRange(a.startDate, a.endDate).ok) return kept
       const resource = resources.get(a.resourceId)
       const activity = activities.get(a.activityId)
-      if (!resource || !activity) return false
-      return validateAllocationAssignment(resource, activity.projectId).ok
-    })
-    .map((a) => {
+      if (!resource || !activity) return kept
+      if (!validateAllocationAssignment(resource, activity.projectId).ok) return kept
       // An external resource's allocations carry NO load (the form forces hoursPerDay 0). Import is
       // the one write path that bypasses the form, and sanitizeImportedRecord is per-record so it
       // can't see the owning resource's kind — coerce it here, where the whole resource set is in
       // scope, so a hand-edited/legacy file can't land a non-zero load on a capacity-free resource.
-      const resource = resources.get(a.resourceId)
-      return resource && isExternalResource(resource) && a.hoursPerDay !== 0 ? { ...a, hoursPerDay: 0 } : a
-    }) as unknown as Array<Record<string, unknown>>
+      kept.push(isExternalResource(resource) && a.hoursPerDay !== 0 ? { ...a, hoursPerDay: 0 } : a)
+      return kept
+    },
+    [],
+  ) as unknown as Array<Record<string, unknown>>
   brought.timeOff = (brought.timeOff as unknown as TimeOff[]).filter((t) => {
     // Drop time off on an external / 3rd-party resource: they have no capacity, so the store / server
     // reject it at the write boundary (assertResourceExists) and the scheduler hides it. Applying the
