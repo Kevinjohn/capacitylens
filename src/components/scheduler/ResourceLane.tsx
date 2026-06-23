@@ -256,7 +256,9 @@ export const ResourceLane = memo(function ResourceLane({
           key={b.id}
           data-testid="timeoff-block"
           title={b.note ?? b.label}
-          className="pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted"
+          // `scheduler-timeoff-block` is the semantic hook the time-off draw-mode CSS glows
+          // (index.css), keyed by class — NOT by `data-testid` (which stays test-only selection).
+          className="scheduler-timeoff-block pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted"
           style={{
             left: b.x,
             width: b.width,

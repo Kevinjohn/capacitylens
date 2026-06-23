@@ -407,7 +407,9 @@ export const AllocationBar = memo(function AllocationBar({
             nudge(mode, e.key === 'ArrowRight' ? 1 : -1)
           }
         }}
-        className={`group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}
+        // `scheduler-bar` is the semantic hook the time-off draw-mode CSS recedes (index.css);
+        // it styles by this class, NOT by `data-testid` (which stays test-only selection).
+        className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}
         style={{
           left: insetLeft,
           width: insetWidth,
@@ -457,7 +459,9 @@ export const AllocationBar = memo(function AllocationBar({
           <div
             data-testid="allocation-popover"
             aria-hidden
-            className="pointer-events-none fixed z-[60] w-60 rounded-lg bg-elevated p-3 text-xs text-ink shadow-pop ring-1 ring-line"
+            // `scheduler-alloc-popover` is the semantic hook the time-off draw-mode net hides
+            // (index.css `:has()` rule), keyed by class — not by `data-testid` (test-only).
+            className="scheduler-alloc-popover pointer-events-none fixed z-[60] w-60 rounded-lg bg-elevated p-3 text-xs text-ink shadow-pop ring-1 ring-line"
             style={{ left: pop.left, top: pop.top }}
           >
             <div className="mb-1 flex items-center gap-2">

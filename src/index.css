@@ -206,7 +206,7 @@ input[type="radio"] {
    stable ref across the toggle (see BarsLayer's TSDoc). Amber (the `warn` token) reads as
    "out / away", distinct from brand (indigo) and over (red). This is a first-pass treatment;
    the visual is expected to be refined later. */
-[data-draw-mode="timeoff"] [data-testid="allocation-bar"] {
+[data-draw-mode="timeoff"] .scheduler-bar {
   opacity: 0.2;
   /* Drop the discipline colour to a flat neutral so backgrounded work reads as inert filler,
      not a faded tint of its real colour. The `--color-muted` token keeps it theme-aware (light
@@ -217,7 +217,7 @@ input[type="radio"] {
     background-color 0.15s ease;
 }
 
-[data-draw-mode="timeoff"] [data-testid="timeoff-block"] {
+[data-draw-mode="timeoff"] .scheduler-timeoff-block {
   /* Lift above the work bars, which paint later in DOM order, so the glow isn't behind
      the (now-dimmed) bars. */
   z-index: 3;
@@ -239,8 +239,10 @@ input[type="radio"] {
    toggle blurs/leaves the bar first (clearing a pre-existing one). But the popover is portaled to
    <body>, OUTSIDE the inert layer, so should one ever linger at the instant of toggle, inert can't
    suppress it — hide it here. `:has()` lets a body-level rule key off the grid's draw mode without
-   re-subscribing every bar to the store. */
-body:has([data-testid="scheduler-grid"][data-draw-mode="timeoff"]) [data-testid="allocation-popover"] {
+   re-subscribing every bar to the store. The mode is keyed off `data-draw-mode` (the real state
+   attribute, set only on the grid container) and the popover off its `.scheduler-alloc-popover`
+   class — production visuals never hang off a `data-testid`. */
+body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   display: none;
 }
 
