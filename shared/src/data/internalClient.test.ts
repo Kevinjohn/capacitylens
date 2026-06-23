@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest'
 import { migrate } from './migrate'
 import { seed } from './seed'
 import { serializeData, parseData } from './transfer'
-import { ensureInternalClients, internalClientFor, buildInternalClient, INTERNAL_CLIENT_NAME } from './internalClient'
+import { ensureInternalClients, internalClientFor, buildInternalClient, wouldAddSecondBuiltin, INTERNAL_CLIENT_NAME } from './internalClient'
 import { emptyAppData } from '../types/entities'
+import type { Client } from '../types/entities'
 
 const TS = '2026-01-01T00:00:00.000Z'
 
@@ -74,5 +75,21 @@ describe('built-in Internal client', () => {
     const c = buildInternalClient('a9', TS)
     expect(c).toMatchObject({ accountId: 'a9', name: INTERNAL_CLIENT_NAME, builtin: true })
     expect(c.id).toBeTruthy()
+  })
+
+  // wouldAddSecondBuiltin is the server-reject predicate (validate.ts). These cases pin it to the
+  // exact inline check it replaced: `internalClientFor(...) && existing.id !== id` — including the
+  // account-scoping that lets each account keep its own builtin.
+  it('wouldAddSecondBuiltin: reproduces the server reject check byte-for-byte', () => {
+    const existing: Client = { id: 'c-int', accountId: 'a1', createdAt: TS, updatedAt: TS, name: 'Internal', color: '#9c3ace', builtin: true }
+    const clients = [existing]
+    // No builtin yet for this account → first builtin is allowed.
+    expect(wouldAddSecondBuiltin([], 'a1', 'c-int')).toBe(false)
+    // A DIFFERENT id against an account that already has one → would be a second → reject.
+    expect(wouldAddSecondBuiltin(clients, 'a1', 'c-int2')).toBe(true)
+    // The SAME id (updating the existing builtin) → not a second → allowed.
+    expect(wouldAddSecondBuiltin(clients, 'a1', 'c-int')).toBe(false)
+    // A different ACCOUNT that has no builtin → allowed (per-account scoping).
+    expect(wouldAddSecondBuiltin(clients, 'a2', 'c-int-2')).toBe(false)
   })
 })

@@ -6,7 +6,7 @@ import {
   assertScopedRefs,
 } from '@floaty/shared/domain/mutations'
 import { sanitizeImportedRecord, sanitizeAccount } from '@floaty/shared/lib/sanitizeImport'
-import { internalClientFor } from '@floaty/shared/data/internalClient'
+import { wouldAddSecondBuiltin } from '@floaty/shared/data/internalClient'
 import { isHexColor } from '@floaty/shared/lib/color'
 import { cleanText } from '@floaty/shared/lib/strings'
 import { SCHEDULING_MODES, SCOPED_KEYS } from '@floaty/shared/types/entities'
@@ -87,20 +87,16 @@ const SCOPED_REF_TABLES: ScopedEntityKey[] = ['projects', 'phases', 'activities'
  * violation so the route can map it to 400 rather than leaking it as a 500.
  */
 export function validateWrite(state: AppData, table: string, row: Record<string, unknown>): void {
-  // A client carries no outbound FK, but the built-in Internal client is a SINGLETON: exactly one
-  // per account. The web store strips `builtin` from public client CRUD so it can never mint a
-  // second; the server is the integrity boundary for DIRECT API writes, which CAN set
-  // `builtin: true`. Reject a write that would add a SECOND builtin to an account —
-  // `internalClientFor` is first-match, so a duplicate would shadow data under an arbitrary
-  // Internal, and the client list hides the built-in so the duplicate would never surface to be
-  // cleaned up. Updating the SAME builtin (matching id) is fine. (Thrown directly, outside the
-  // try below, so it isn't redundantly re-tagged — it's already a ValidationError → 400.)
+  // A client carries no outbound FK, but the built-in Internal client is a SINGLETON: exactly one per
+  // account. This is the SERVER-REJECT enforcement point (3) of the single-Internal invariant — the
+  // direct API is the integrity boundary and the only write path that CAN set `builtin: true`. The
+  // other two points (store strip = public CRUD; import fold = bulk replace can't reject) are
+  // documented beside `wouldAddSecondBuiltin` in shared/src/data/internalClient.ts. Updating the SAME
+  // builtin (matching id) is fine. (Thrown directly, outside the try below, so it isn't redundantly
+  // re-tagged — it's already a ValidationError → 400.)
   if (table === 'clients') {
-    if (row.builtin === true) {
-      const existing = internalClientFor(state.clients, row.accountId as string)
-      if (existing && existing.id !== row.id) {
-        throw new ValidationError('This company already has its built-in Internal client.')
-      }
+    if (row.builtin === true && wouldAddSecondBuiltin(state.clients, row.accountId as string, row.id as string)) {
+      throw new ValidationError('This company already has its built-in Internal client.')
     }
     return
   }
