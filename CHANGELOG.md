@@ -7,6 +7,26 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.8.1] — 2026-06-23
+
+Clearer time-off planning, and tighter guards on bad data.
+
+### Added
+- **Time-off draw mode now shows you the landscape.** When you switch the schedule toggle to
+  **Time off**, booked allocations recede and existing time-off blocks glow amber — so you can
+  see who's already away at a glance before drawing a new absence. (The toggle previously only
+  changed its own pressed state.)
+
+### Fixed
+- **Days-mode work volume is never silently trimmed.** When you enter an allocation as "days of
+  work" over a span, a volume that would exceed a real working day now asks you to spread it over
+  more days, instead of quietly capping it at 24h/day and losing the rest.
+- **External / 3rd-party resources stay capacity-free everywhere.** They can no longer be given
+  working hours or time off through import or the API — matching what the forms already enforced —
+  so bad data can't slip in and then render invisibly on the schedule.
+- **The built-in "Internal" client stays a single per-account anchor**, even on direct API writes,
+  so it can't be accidentally duplicated.
+
 ## [0.8.0] — 2026-06-20
 
 Clearer capacity at a glance, and a tidier home for non-client work.
