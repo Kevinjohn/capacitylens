@@ -520,6 +520,11 @@ export function SchedulerGrid() {
          page — on macOS that overscroll is the browser's back-swipe, which nukes the app. */
       className="relative flex h-full flex-col overflow-auto overscroll-x-contain"
       data-testid="scheduler-grid"
+      /* Signals the active draw mode to CSS: in "timeoff" mode the stylesheet fades the
+         work bars back and makes booked time-off glow, so the toolbar toggle gives an
+         immediate, whole-grid response (it otherwise read as a dead button). One
+         attribute toggle — the memoised lanes/bars don't re-render. */
+      data-draw-mode={ui.drawMode}
       role="grid"
       aria-label="Resource schedule"
       aria-rowcount={items.length + 1}

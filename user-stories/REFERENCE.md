@@ -151,8 +151,13 @@ Cascade dialogs say "You can undo this with ⌘Z."
 **Scheduler toolbar.** Zoom buttons `1w`/`2w`/`4w`/`6w`/`8w` (the active one has
 `aria-pressed="true"`); `‹ Prev`, `Today`, `Next ›`; a `Jump to date` date input; a
 draw-mode toggle `Work`/`Time off` (buttons — note "Time off" here is the *toggle*, distinct
-from the "Time off" *nav link*). Undo/redo are **keyboard-only** (`⌘Z` / `⌘⇧Z`) — there are no
-toolbar buttons. Filter row:
+from the "Time off" *nav link*). **In `Time off` mode the grid signals the mode whole-view:
+work allocation bars recede to a flat grey (`#999`) at 20% opacity AND go fully *inert* (not
+clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks glow
+amber — so a lane draw books time off without the bars intercepting the gesture (a draw started
+over an existing allocation falls through to the lane). The grid carries
+`data-draw-mode="work"|"timeoff"`; nothing about the underlying data changes.** Undo/redo are
+**keyboard-only** (`⌘Z` / `⌘⇧Z`) — there are no toolbar buttons. Filter row:
 `Search people…`, `Filter by discipline`, `Filter by client`, `Filter by project`,
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then a `Repeatable` optgroup with `Repeatable — All` +
