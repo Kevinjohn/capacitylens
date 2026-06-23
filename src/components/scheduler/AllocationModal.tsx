@@ -88,11 +88,12 @@ export function AllocationModal(props: AllocationModalProps) {
   const initialDaysOver = seedEnd ? Math.max(1, spanDays(initialStart, seedEnd, initialDaysOpts)) : 1
   // These two hold a NaN while the user has the field empty or part-typed: NumberField.onChange
   // emits NaN for empty/garbage input and only clamps to a real number on blur. We deliberately
-  // do NOT guard the NaN here — it's contained by THREE downstream guards so a transient NaN can
-  // never reach the store: (1) endDateForSpan clamps the span to [1, MAX_SPAN_DAYS] (a NaN
-  // collapses to a valid 1-day span, never an Invalid Date into format()); (2) the submit reject
-  // `!(daysOfWork > 0)` fails for NaN (NaN > 0 is false), blocking save with a field error; and
-  // (3) hoursPerDayFor is therefore never reached with a NaN daysOfWork on the save path.
+  // do NOT guard the NaN here — it's contained by downstream guards so a transient NaN can never
+  // reach the store: (1) endDateForSpan clamps the span to [1, MAX_SPAN_DAYS] (a NaN collapses to a
+  // valid 1-day span, never an Invalid Date into format()); and (2) the submit-path load guard
+  // requires effHoursPerDay to be finite AND in (0, MAX_HOURS_PER_DAY], which rejects both a NaN
+  // daysOfWork (NaN fails > 0) AND a NaN daysOver (hoursPerDayFor(daysOfWork, NaN, …) returns NaN,
+  // and NaN fails Number.isFinite) — so a part-typed "Days over" can't slip a 0-hour save through.
   const [daysOver, setDaysOver] = useState(initialDaysOver)
   const [daysOfWork, setDaysOfWork] = useState(
     editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,
@@ -240,14 +241,6 @@ export function AllocationModal(props: AllocationModalProps) {
         fail('daysOfWork', 'Days of work must be greater than 0.')
         return
       }
-      // The store clamps an allocation to MAX_HOURS_PER_DAY, so a work volume that derives MORE than
-      // that would be silently truncated on save — the typed "days of work" lost. Reject instead so
-      // what the preview shows ("…h/day") is exactly what saves. (effHoursPerDay is finite here: the
-      // daysOfWork > 0 check above already rejects a NaN, and daysOver is clamped >= 1.)
-      if (effHoursPerDay > MAX_HOURS_PER_DAY) {
-        fail('daysOfWork', `That’s more than ${MAX_HOURS_PER_DAY}h a day. Increase “Days over” or reduce “Days of work”.`)
-        return
-      }
     } else {
       if (!startDate || !endDate) {
         fail('dates', 'Start and end dates are required.')
@@ -261,12 +254,21 @@ export function AllocationModal(props: AllocationModalProps) {
         fail('hours', 'Hours per day must be greater than 0.')
         return
       }
-      // Same anti-silent-clamp guard as days mode: the field caps at MAX_HOURS_PER_DAY on blur, but
-      // an Enter-submit without a blur can still carry a larger value the store would quietly clamp.
-      if (hoursPerDay > MAX_HOURS_PER_DAY) {
+    }
+    // Single anti-silent-clamp guard for every load-carrying mode (days + hourly; external is a
+    // 0-load span and blocks derive a safe block load, so both are excluded). The store clamps an
+    // allocation's load into [0, MAX_HOURS_PER_DAY] AND collapses a non-finite value to 0 — so a
+    // derived load that's NaN (a part-typed "Days over" → hoursPerDayFor returns NaN) or above the
+    // cap (an Enter-submit before the field's on-blur clamp) would SILENTLY save the wrong volume.
+    // Require a finite load in (0, MAX_HOURS_PER_DAY] instead, so the preview ("…h/day") is exactly
+    // what saves, failing to the field the user can act on in each mode.
+    if (!isExternal && !isBlocks && !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)) {
+      if (isDays) {
+        fail('daysOfWork', `That’s more than ${MAX_HOURS_PER_DAY}h a day. Increase “Days over” or reduce “Days of work”.`)
+      } else {
         fail('hours', `Hours per day can’t exceed ${MAX_HOURS_PER_DAY}.`)
-        return
       }
+      return
     }
     const cleanNote = validateText(note, fail, { field: 'note', required: false, multiline: true })
     if (cleanNote === null) return
@@ -448,7 +450,7 @@ export function AllocationModal(props: AllocationModalProps) {
             </div>
           </div>
 
-          <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={24} required invalid={errorField === 'hours'} describedById={errorId} />
+          <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={MAX_HOURS_PER_DAY} required invalid={errorField === 'hours'} describedById={errorId} />
         </>
       )}
       <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
