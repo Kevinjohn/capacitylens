@@ -7,6 +7,34 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-06-23
+
+Correctness and integrity hardening from a deep code review, plus a smoother
+Time-off draw mode.
+
+### Fixed
+- **Days-mode allocations never silently lose work.** Entering an allocation by
+  "days of work" with the "Days over" field left blank no longer saves a silent
+  0-hour allocation — it asks you to complete the field. And dragging or
+  keyboard-resizing a days-mode allocation small enough to exceed a real working
+  day now tells you the work volume was capped instead of quietly truncating it.
+- **External / 3rd-party resources stay capacity-free, everywhere.** You can no
+  longer turn a resource that already has work or time off into an external one
+  (which would silently hide that work on the schedule). And editing an
+  allocation or time-off entry that points at an external resource is now rejected
+  consistently — the local-first app and the server agree instead of one accepting
+  what the other rejects.
+
+### Changed
+- **Switching Time-off draw mode is smoother.** Toggling the schedule's draw mode
+  no longer re-renders every allocation bar.
+- **Write-boundary integrity hardening (internal).** A batch of code-review
+  cleanups with no user-facing behaviour change: the "external resources carry no
+  load" rule is now enforced unconditionally at the type level; import resolves
+  each record once; draw-mode styling keys off semantic classes rather than test
+  ids; and the built-in Internal client's single-instance contract is documented
+  across the three write paths that enforce it.
+
 ## [0.8.1] — 2026-06-23
 
 Clearer time-off planning, and tighter guards on bad data.
