@@ -71,6 +71,14 @@ export function openDb(path: string): Db {
   // so a server-loaded dataset written by an older server, or seeded externally, also gets exactly
   // one builtin Internal client per account. Idempotent — only inserts where one is missing. Runs
   // BEFORE foreign keys are enabled (the insert references accounts(id), already present).
+  //
+  // This is a BOOT-TIME BACKFILL, NOT the runtime path. A LIVE account created through the API gets
+  // its Internal from the CLIENT — the web store's addAccount mints account+Internal atomically and
+  // syncs them as separate entity writes (account before client). The server must NOT auto-mint on
+  // account-create: the client's own Internal would then be a second builtin and validateWrite's
+  // wouldAddSecondBuiltin would reject it, breaking sync. See shared ensureInternalClients' ownership
+  // contract. So an account POSTed via the API without a paired Internal write stays Internal-less
+  // until the next open backfills it — an unsupported/degraded path the web app never takes.
   ensureInternalClients(db)
   db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
   return db
