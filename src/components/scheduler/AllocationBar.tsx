@@ -85,14 +85,18 @@ export const AllocationBar = memo(function AllocationBar({
   const updateAllocation = useStore((s) => s.updateAllocation)
   const setNotice = useStore((s) => s.setNotice)
   const setDraggingAllocation = useStore((s) => s.setDraggingAllocation)
-  // In "Time off" draw mode the work bars recede (dimmed in index.css) and go fully inert:
-  // a gesture on a lane should book time off — never grab/drag the bar underneath — and the
-  // backgrounded bars shouldn't be tab-stops or fire their hover popover. `inert` covers all
-  // of that (pointer + focus + AT) in one flag, and pointer events fall through to the lane,
-  // so you can even draw time off across an existing allocation. Re-subscribing every bar to
-  // the mode costs one re-render on toggle (a rare, deliberate action) — the memo still guards
-  // the hot path (a sibling's per-move drag).
-  const inertInTimeOff = useStore((s) => s.ui.drawMode === 'timeoff')
+  // NB: the bar does NOT subscribe to the draw mode. In "Time off" mode the work bars must go
+  // fully inert — not tab-stops, no hover popover, pointer events falling THROUGH to the lane so
+  // you can draw time off across an existing allocation — but that `inert` is set ONCE on the
+  // per-lane bars layer (ResourceLane's `<div inert>`), so toggling the mode is a single DOM write.
+  // Subscribing here would re-render every mounted bar on every toggle; the layer-level inert gives
+  // the same semantics for free. That toggle re-renders the bars layer but NOT this bar — primarily
+  // because ResourceLane's props are stable, so its memo bails and BarsLayer re-renders alone,
+  // handing this bar the same prop instances it already had. (This component being memoised AND
+  // BarsLayer's props being stable is defense-in-depth that keeps the bail holding even if a future
+  // change forced ResourceLane to re-render across a toggle — see BarsLayer's TSDoc.)
+  // (The dim/glow re-skin is a separate, CSS-only flip driven by `data-draw-mode` on the grid — see
+  // index.css.)
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const resourceId = bar.allocation.resourceId
@@ -375,7 +379,6 @@ export const AllocationBar = memo(function AllocationBar({
         data-testid="allocation-bar"
         data-alloc-id={bar.allocation.id}
         data-status={bar.allocation.status}
-        inert={inertInTimeOff || undefined}
         role="button"
         tabIndex={0}
         aria-label={`${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
@@ -444,9 +447,12 @@ export const AllocationBar = memo(function AllocationBar({
 
       {pop &&
         !dragging &&
-        // Don't let a popover that was open at toggle-time linger once the bar goes inert —
-        // inert suppresses the mouseleave that would normally clear it.
-        !inertInTimeOff &&
+        // No `inert` guard here: the bar layer goes inert in time-off mode, which BLOCKS the
+        // mouseenter/focus that opens a popover — so a NEW one can't appear while inert. The only
+        // residual case is a popover already open at the instant of toggle; that's unreachable in
+        // practice (any path to the Time-off toggle blurs/leaves the bar first, firing hidePopover),
+        // and the portaled popover sits OUTSIDE the inert layer, so a CSS net in index.css
+        // (`[data-draw-mode] :has` rule) hides it defensively without re-subscribing every bar.
         createPortal(
           <div
             data-testid="allocation-popover"

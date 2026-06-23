@@ -243,16 +243,22 @@ export function SchedulerGrid() {
   const handleEdit = useCallback((allocationId: ID) => setModal({ kind: 'edit', allocationId }), [])
   const handleDraw = useCallback(
     (resourceId: ID, startDate: ISODate, endDate: ISODate) => {
-      // Time off is meaningless for externals (no capacity) — a draw on their lane is a no-op rather
-      // than opening a time-off form seeded with a resource the picker itself excludes. Read kind
-      // LIVE (getState) so this stays off the callback's deps and ResourceLane's memo holds.
-      if (ui.drawMode === 'timeoff') {
+      // Read the draw mode LIVE (getState) when the gesture FIRES, not via a closure over
+      // ui.drawMode. That's load-bearing: closing over ui.drawMode would give handleDraw a fresh
+      // reference on every toggle, which `onDraw` hands to every ResourceLane — failing their
+      // React.memo and re-rendering every lane (and its bars) on a mode toggle. The mode that
+      // matters is the one live at pointerup, which is exactly what getState() returns here, so
+      // an EMPTY dep array keeps this callback referentially stable across a toggle. Time off is
+      // meaningless for externals (no capacity), so a draw on their lane is a no-op rather than
+      // opening a time-off form seeded with a resource the picker itself excludes.
+      const drawMode = useStore.getState().ui.drawMode
+      if (drawMode === 'timeoff') {
         const r = useStore.getState().data.resources.find((x) => x.id === resourceId)
         if (r && isExternalResource(r)) return
       }
-      setModal({ kind: ui.drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate })
+      setModal({ kind: drawMode === 'timeoff' ? 'timeoff' : 'create', resourceId, startDate, endDate })
     },
-    [ui.drawMode],
+    [],
   )
 
   // The date currently at the left edge of the viewport — what the "+" quick-create
@@ -522,8 +528,16 @@ export function SchedulerGrid() {
       data-testid="scheduler-grid"
       /* Signals the active draw mode to CSS: in "timeoff" mode the stylesheet fades the
          work bars back and makes booked time-off glow, so the toolbar toggle gives an
-         immediate, whole-grid response (it otherwise read as a dead button). One
-         attribute toggle — the memoised lanes/bars don't re-render. */
+         immediate, whole-grid response (it otherwise read as a dead button). This VISUAL
+         re-skin is a single attribute toggle — purely a CSS reflow, no React re-render of any
+         lane or bar. A toggle DOES re-render THIS grid (it subscribes to `s.ui`), but every prop
+         it passes each ResourceLane is held stable across a toggle (the model/geom props don't
+         depend on drawMode, and `onDraw`/`onEdit` are memoised below to NOT close over it), so the
+         memoised lanes — and their bars — bail. (The parallel `inert` BEHAVIOUR — bars
+         non-interactive + off the tab/a11y tree — is set on each lane's bars layer, not here; see
+         ResourceLane's BarsLayer. That layer DOES re-render on toggle — it's the one component that
+         subscribes to the mode — but it's a single thin DOM write that hands its bars unchanged
+         refs, so the memoised bars bail too.) */
       data-draw-mode={ui.drawMode}
       role="grid"
       aria-label="Resource schedule"
