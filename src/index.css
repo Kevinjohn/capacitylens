@@ -203,9 +203,10 @@ input[type="radio"] {
    (red). This is a first-pass treatment; the visual is expected to be refined later. */
 [data-draw-mode="timeoff"] [data-testid="allocation-bar"] {
   opacity: 0.2;
-  /* Drop the discipline colour to a flat grey so backgrounded work reads as inert filler,
-     not a faded tint of its real colour. !important beats the bar's inline background-color. */
-  background-color: #999 !important;
+  /* Drop the discipline colour to a flat neutral so backgrounded work reads as inert filler,
+     not a faded tint of its real colour. The `--color-muted` token keeps it theme-aware (light
+     vs dark). !important beats the bar's inline background-color. */
+  background-color: var(--color-muted) !important;
   transition:
     opacity 0.15s ease,
     background-color 0.15s ease;
@@ -217,7 +218,8 @@ input[type="radio"] {
   z-index: 3;
   color: var(--color-ink);
   /* !important: the block sets its hatch gradient via an inline `style`, which an
-     un-flagged rule can't beat. */
+     un-flagged rule can't beat. The solid amber fill intentionally REPLACES the block's
+     diagonal-hatch texture in draw mode, so the glow reads cleanly without the hatch fighting it. */
   background: color-mix(in oklab, var(--color-warn) 34%, var(--color-surface)) !important;
   box-shadow:
     0 0 0 1.5px var(--color-warn),
