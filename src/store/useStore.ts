@@ -715,18 +715,20 @@ export const useStore = create<StoreState>()((set, get) => {
     updateAllocation: (id, patch) => {
       const existing = findOwned(get().data, 'allocations', id)
       if (!existing) return // stale id (e.g. drag committed after an undo) → no-op
-      // Re-validate refs when the resource, activity, OR load changes. Including hoursPerDay closes
-      // the gap where a hours-only patch onto an EXTERNAL resource would slip a non-zero load past
-      // the capacity-free rule (assertAllocation enforces external → 0 when the load is supplied).
-      if (patch.resourceId !== undefined || patch.activityId !== undefined || patch.hoursPerDay !== undefined) {
-        assertAllocation(
-          get().data,
-          existing.accountId,
-          patch.resourceId ?? existing.resourceId,
-          patch.activityId ?? existing.activityId,
-          patch.hoursPerDay ?? existing.hoursPerDay,
-        )
-      }
+      // Always re-validate the EFFECTIVE MERGED row (patch ?? existing), not just when one of the
+      // ref/load fields is in the patch. The server re-runs assertAllocationRefs on the full merged
+      // row on EVERY write (PATCH/PUT merge {...existing, ...patch}), so a note/status/date-only edit
+      // of an allocation whose resource is now EXTERNAL with a non-zero load (legacy pre-v0.8.1 data,
+      // or after a resource kind-flip) would 400 on the server while succeeding here — diverging local
+      // and synced state. Matching the merged-row check makes the store reject exactly what the server
+      // rejects. It's a pure read — a note-only patch on a valid (non-external) row still passes.
+      assertAllocation(
+        get().data,
+        existing.accountId,
+        patch.resourceId ?? existing.resourceId,
+        patch.activityId ?? existing.activityId,
+        patch.hoursPerDay ?? existing.hoursPerDay,
+      )
       // Validate the EFFECTIVE range (merged with the existing row), so a
       // note/status/reassign-only patch isn't rejected for omitting dates.
       assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
@@ -750,7 +752,13 @@ export const useStore = create<StoreState>()((set, get) => {
     updateTimeOff: (id, patch) => {
       const existing = findOwned(get().data, 'timeOff', id)
       if (!existing) return
-      if (patch.resourceId !== undefined) assertResourceExists(get().data, existing.accountId, patch.resourceId)
+      // Always re-validate the EFFECTIVE MERGED resource (patch ?? existing), not just when the patch
+      // touches resourceId. The server re-runs assertResourceExists on the full merged row on EVERY
+      // write, so a type/date/note-only edit of time-off on a now-EXTERNAL resource (legacy data, or
+      // after a resource kind-flip) would 400 on the server while succeeding here — diverging local and
+      // synced state. Matching the merged-row check makes the store reject exactly what the server does.
+      // It's a pure read — a date-only patch on a valid (non-external) resource still passes.
+      assertResourceExists(get().data, existing.accountId, patch.resourceId ?? existing.resourceId)
       assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
       mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }))
     },

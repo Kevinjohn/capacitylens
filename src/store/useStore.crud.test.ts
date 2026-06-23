@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
 import { emptyAppData } from '@floaty/shared/types/entities'
-import { resetStoreWithAccount } from '../test/fixtures'
+import type { Allocation, AppData, Resource, TimeOff } from '@floaty/shared/types/entities'
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../test/fixtures'
 
 const s = () => useStore.getState()
 
@@ -271,5 +272,102 @@ describe('date-range + reference guards at the store boundary', () => {
     const summary = s().importData(emptyAppData())
     expect(summary.imported).toBe(0)
     expect(s().data.clients.map((c) => c.name)).toEqual(['Keep']) // untouched
+  })
+})
+
+// The store re-validates the EFFECTIVE MERGED row on every update*, exactly as the SQLite server's
+// validateWrite re-validates the full {...existing, ...patch} row on every write. A note/status/
+// date-only edit of a row whose resource is EXTERNAL with a non-zero load / any external time-off
+// (legacy pre-v0.8.1 data, or after a resource kind-flip) must therefore be REJECTED by the store too
+// — otherwise it succeeds locally and 400s on the server, diverging local and synced state. The
+// invalid states below can't be CREATED through add* (they'd be rejected), so they're built directly
+// via replaceAll to mimic legacy/kind-flipped data already in the store.
+describe('update* re-validates the merged row so the store + server agree', () => {
+  const TS = '2026-05-01T00:00:00.000Z'
+
+  const externalResource = (id: string): Resource => ({
+    id,
+    accountId: DEFAULT_ACCOUNT_ID,
+    createdAt: TS,
+    updatedAt: TS,
+    kind: 'external',
+    name: 'Outsource Co',
+    role: 'Overflow',
+    employmentType: 'permanent',
+    workingHoursPerDay: 8,
+    workingDays: [1, 2, 3, 4, 5],
+    color: '#333333',
+  })
+
+  it('a normal-resource note/date-only updateAllocation + updateTimeOff still succeed (no false reject)', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
+    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    const a = s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+    // A note/date-only patch on a VALID (non-external) allocation must NOT be rejected even though
+    // the merged-row check now runs unconditionally — assertAllocationRefs is pure & idempotent.
+    expect(() => s().updateAllocation(a.id, { note: 'ping' })).not.toThrow()
+    expect(() => s().updateAllocation(a.id, { startDate: '2026-06-02' })).not.toThrow()
+    expect(s().data.allocations[0].note).toBe('ping')
+    expect(s().data.allocations[0].startDate).toBe('2026-06-02')
+
+    const to = s().addTimeOff({ resourceId: r.id, startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' })
+    expect(() => s().updateTimeOff(to.id, { type: 'sick' })).not.toThrow()
+    expect(() => s().updateTimeOff(to.id, { startDate: '2026-06-09' })).not.toThrow()
+    expect(s().data.timeOff[0].type).toBe('sick')
+  })
+
+  it('a note-only updateAllocation on an external resource carrying a non-zero load now THROWS (matches the server)', () => {
+    const ext = externalResource('ext-1')
+    const alloc: Allocation = {
+      id: 'alloc-1',
+      accountId: DEFAULT_ACCOUNT_ID,
+      createdAt: TS,
+      updatedAt: TS,
+      resourceId: ext.id,
+      activityId: 'act-1',
+      startDate: '2026-06-01',
+      endDate: '2026-06-03',
+      // Legacy / kind-flip data: an external resource with a non-zero load — invalid under the
+      // v0.8.1 capacity-free rule. The form/store could never CREATE this; it predates the rule.
+      hoursPerDay: 8,
+      status: 'confirmed',
+    }
+    const data: AppData = makeAppData({
+      resources: [ext],
+      activities: [{ id: 'act-1', accountId: DEFAULT_ACCOUNT_ID, createdAt: TS, updatedAt: TS, name: 'Repeatable', kind: 'repeatable' }],
+      allocations: [alloc],
+    })
+    s().replaceAll(data)
+    s().setActiveAccount(DEFAULT_ACCOUNT_ID)
+
+    // A note-only patch touches none of resourceId/activityId/hoursPerDay, yet the merged row still
+    // references an external resource with a non-zero load — the server 400s, so the store must too.
+    expect(() => s().updateAllocation(alloc.id, { note: 'just a note' })).toThrow(/external.*can.t carry hours/i)
+    // Atomic failure: the bad patch did NOT land (the producer threw before `set`).
+    expect(s().data.allocations[0].note).toBeUndefined()
+  })
+
+  it('a date-only updateTimeOff on an external resource now THROWS (matches the server)', () => {
+    const ext = externalResource('ext-2')
+    const timeOff: TimeOff = {
+      id: 'to-1',
+      accountId: DEFAULT_ACCOUNT_ID,
+      createdAt: TS,
+      updatedAt: TS,
+      resourceId: ext.id,
+      startDate: '2026-06-10',
+      endDate: '2026-06-12',
+      type: 'holiday',
+    }
+    const data: AppData = makeAppData({ resources: [ext], timeOff: [timeOff] })
+    s().replaceAll(data)
+    s().setActiveAccount(DEFAULT_ACCOUNT_ID)
+
+    // A date-only patch doesn't touch resourceId, yet time-off on an external resource is meaningless
+    // (no capacity) — the server rejects it on every write, so the store now matches.
+    expect(() => s().updateTimeOff(timeOff.id, { startDate: '2026-06-11' })).toThrow(/external.*3rd-party/i)
+    expect(s().data.timeOff[0].startDate).toBe('2026-06-10') // unchanged — atomic failure
   })
 })

@@ -267,11 +267,20 @@ export const AllocationBar = memo(function AllocationBar({
       } catch (e) {
         // Reassignment rejected (e.g. a placeholder bound to another project): keep the
         // allocation on its source resource and apply just the date move, recomputed against
-        // the SOURCE working week (the target's no longer applies).
+        // the SOURCE working week (the target's no longer applies). The store now re-validates
+        // the merged row, so this source-only write can ITSELF throw on a genuinely-invalid row
+        // (e.g. a cross-project placeholder). Guard it so the throw can't escape the gesture
+        // handler — leave the bar where it was and surface it the same non-blocking way as the
+        // primary failure below, rather than letting an uncaught error crash the drag.
         if (deltaDays !== 0) {
-          const src = computeFor(resourceId)
-          const srcPatch = src.hours !== bar.allocation.hoursPerDay ? { hoursPerDay: src.hours } : null
-          updateAllocation(bar.allocation.id, { ...src.dates, ...srcPatch })
+          try {
+            const src = computeFor(resourceId)
+            const srcPatch = src.hours !== bar.allocation.hoursPerDay ? { hoursPerDay: src.hours } : null
+            updateAllocation(bar.allocation.id, { ...src.dates, ...srcPatch })
+          } catch {
+            setNotice('Could not move this allocation.', 'error')
+            return
+          }
         }
         setNotice(e instanceof Error ? e.message : 'That allocation could not be moved there.', 'error')
       }
