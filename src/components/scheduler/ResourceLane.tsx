@@ -1,5 +1,6 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { addDaysISO, weekdayOf } from '@floaty/shared/lib/dateMath'
+import { useStore } from '../../store/useStore'
 import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
 import { Icon } from '../common/Icon'
 import { AllocationBar } from './AllocationBar'
@@ -10,6 +11,52 @@ import type { ID, ISODate } from '@floaty/shared/types/entities'
 
 /** Min pointer travel to treat a lane gesture as a draw (vs a bare click). */
 const DRAW_THRESHOLD_PX = 4
+
+/**
+ * The lane's allocation bars, wrapped in ONE transparent layer that carries the time-off-mode
+ * `inert`. This is the single place the draw mode is read on the render path: in "Time off" mode
+ * the work bars must go fully inert (not tab-stops, no hover popover, pointer events falling
+ * THROUGH to the lane so you can draw time off across an existing allocation), and `inert` on this
+ * one wrapper makes EVERY descendant bar inert in a single DOM write. The layer is split out from
+ * ResourceLane so a mode toggle re-renders ONLY it — not the lane's markers / time-off blocks /
+ * separators (which must stay interactive + keep glowing), and not the bars.
+ *
+ * On a toggle the bars bail PRIMARILY because ResourceLane itself doesn't re-render: SchedulerGrid's
+ * `onDraw`/`onEdit` are referentially stable, so the lane's props don't change, so its React.memo
+ * bails and only BarsLayer (the sole drawMode subscriber) re-renders — handing each AllocationBar the
+ * same props instance it already had. Belt-and-braces, every prop this layer passes down
+ * (`bar`, `geom`, `indexAtClientX`, `onEdit`) is ALSO a referentially-STABLE value, so the bail would
+ * still hold if some future change made a lane prop unstable and forced ResourceLane to re-render:
+ * `bars`/`geom`/`onEdit` are model-derived props unchanged by a toggle, and `indexAtClientX` is
+ * `indexAt`, memoised (useCallback) so it survives a lane re-render. Hand a fresh inline
+ * closure/array/object down here and that defense-in-depth is gone.
+ * `absolute inset-0` makes the layer exactly cover the lane, so the bars' absolute coordinates are
+ * unchanged; with no background it's transparent to pointers, so an empty-space draw still reaches
+ * the lane underneath.
+ *
+ * The bars must stay OUTSIDE this wrapper's inert-ness in WORK mode — inert is unset then, so the
+ * layer is a no-op pass-through (byte-identical interaction to having the bars as direct children).
+ */
+const BarsLayer = memo(function BarsLayer({
+  bars,
+  geom,
+  indexAtClientX,
+  onEdit,
+}: {
+  bars: BarLayout[]
+  geom: ColumnGeometry
+  indexAtClientX: (clientX: number) => number
+  onEdit: (allocationId: ID) => void
+}) {
+  const inertInTimeOff = useStore((s) => s.ui.drawMode === 'timeoff')
+  return (
+    <div className="absolute inset-0" inert={inertInTimeOff || undefined}>
+      {bars.map((bar) => (
+        <AllocationBar key={bar.allocation.id} bar={bar} geom={geom} indexAtClientX={indexAtClientX} onEdit={onEdit} />
+      ))}
+    </div>
+  )
+})
 
 // Memoised so a sibling lane's draw gesture (per-pointermove setDraw) and grid-level
 // UI re-renders (e.g. opening a modal) don't re-render every lane + its bars. Its
@@ -56,17 +103,29 @@ export const ResourceLane = memo(function ResourceLane({
   const teardownRef = useRef<(() => void) | null>(null)
   useEffect(() => () => teardownRef.current?.(), [])
 
-  const indexAt = (clientX: number): number => {
-    const rect = laneRef.current?.getBoundingClientRect()
-    if (!rect) return 0
-    // geom.indexAt is the exact inverse of the column layout AND clamps to [0, days.length-1]:
-    // a pointerup can land outside the lane (the gesture is tracked on the document, so the
-    // pointer may release past either edge), and bounding the untrusted coord here means
-    // addDaysISO(origin, idx) always gets a valid offset inside the visible window — a drop
-    // past the edge snaps to the first/last day, never an off-window date. This is the SINGLE
-    // pointer→day inverse, shared with the bars' drag math (passed to AllocationBar below).
-    return geom.indexAt(clientX - rect.left)
-  }
+  // Wrapped in useCallback (keyed on geom) so the identity is STABLE across a re-render that
+  // isn't a real geometry change. `indexAt` is handed down (as `indexAtClientX`) to BarsLayer →
+  // every AllocationBar; a fresh inline closure each render would fail their React.memo whenever
+  // ResourceLane re-renders. This is defense-in-depth, not the reason the draw-mode toggle is
+  // render-free: a toggle doesn't re-render ResourceLane at all (its props are stable, so its memo
+  // bails), so indexAt isn't recreated either way. It matters only if some future change makes a
+  // lane prop unstable across a toggle and forces ResourceLane to re-render. Keyed on geom alone:
+  // laneRef is a stable ref, and geom is the only value the math reads, so the identity changes
+  // only when the columns genuinely change.
+  const indexAt = useCallback(
+    (clientX: number): number => {
+      const rect = laneRef.current?.getBoundingClientRect()
+      if (!rect) return 0
+      // geom.indexAt is the exact inverse of the column layout AND clamps to [0, days.length-1]:
+      // a pointerup can land outside the lane (the gesture is tracked on the document, so the
+      // pointer may release past either edge), and bounding the untrusted coord here means
+      // addDaysISO(origin, idx) always gets a valid offset inside the visible window — a drop
+      // past the edge snaps to the first/last day, never an off-window date. This is the SINGLE
+      // pointer→day inverse, shared with the bars' drag math (passed to AllocationBar below).
+      return geom.indexAt(clientX - rect.left)
+    },
+    [geom],
+  )
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return
@@ -239,9 +298,7 @@ export const ResourceLane = memo(function ResourceLane({
         />
       )}
 
-      {bars.map((bar) => (
-        <AllocationBar key={bar.allocation.id} bar={bar} geom={geom} indexAtClientX={indexAt} onEdit={onEdit} />
-      ))}
+      <BarsLayer bars={bars} geom={geom} indexAtClientX={indexAt} onEdit={onEdit} />
 
       {/* today line */}
       {todayX !== null && (

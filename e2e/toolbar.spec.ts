@@ -56,6 +56,25 @@ test.describe('Toolbar', () => {
     await timeoff.click()
     await expect(timeoff).toHaveAttribute('aria-pressed', 'true')
     await expect(work).toHaveAttribute('aria-pressed', 'false')
+
+    // The work bars go inert via a SINGLE ancestor layer (ResourceLane's BarsLayer), not a
+    // per-bar attribute — so the bar carries no `inert` of its own, but its nearest [inert]
+    // ancestor makes it non-interactive, off the tab order, and removed from the a11y tree.
+    // Prove the semantics hold THROUGH the ancestor: every bar is matched by `[inert] <bar>`,
+    // and an attempt to focus one is refused (inert subtrees can't take focus).
+    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    const bar = page.getByTestId('allocation-bar').first()
+    await expect(bar).toBeVisible()
+    // The bar lives under an [inert] ancestor (the BarsLayer); no bar is outside one.
+    await expect(page.locator('[inert] [data-testid="allocation-bar"]').first()).toBeVisible()
+    await expect(page.locator('[data-testid="allocation-bar"]:not([inert] *)')).toHaveCount(0)
+    // Inert ⇒ unfocusable: a focus() attempt leaves activeElement off the bar.
+    expect(await bar.evaluate((el) => { el.focus(); return document.activeElement === el })).toBe(false)
+
+    // Toggling back to Work clears the ancestor inert — the bar is interactive (focusable) again.
+    await work.click()
+    await expect(page.locator('[inert] [data-testid="allocation-bar"]')).toHaveCount(0)
+    expect(await bar.evaluate((el) => { el.focus(); return document.activeElement === el })).toBe(true)
   })
 
   // The Undo/Redo toolbar buttons are intentionally hidden for now (undo/redo lives on

@@ -197,10 +197,15 @@ input[type="radio"] {
 /* "Time off" draw mode. When the toolbar's Time-off toggle is on, recede the work
    allocations and make every already-booked time-off block glow — so a manager sees at
    a glance whose absences exist before drawing a new one. (The toggle alone changed only
-   its own pressed state, which read as a dead button.) Driven by `data-draw-mode` on the
-   grid container, so it's a single attribute flip — no re-render of the memoised lanes/bars.
-   Amber (the `warn` token) reads as "out / away", distinct from brand (indigo) and over
-   (red). This is a first-pass treatment; the visual is expected to be refined later. */
+   its own pressed state, which read as a dead button.) This VISUAL re-skin is driven by
+   `data-draw-mode` on the grid container, so it's a single attribute flip — a pure CSS reflow,
+   zero React re-render of the memoised lanes/bars. The parallel `inert` BEHAVIOUR (bars
+   non-interactive, off the tab order + a11y tree) is one DOM write on each lane's thin bars layer
+   (ResourceLane → BarsLayer): that layer is the SOLE subscriber to the mode, so it alone re-renders
+   on toggle — the lanes and their AllocationBars bail because every prop they receive stays a
+   stable ref across the toggle (see BarsLayer's TSDoc). Amber (the `warn` token) reads as
+   "out / away", distinct from brand (indigo) and over (red). This is a first-pass treatment;
+   the visual is expected to be refined later. */
 [data-draw-mode="timeoff"] [data-testid="allocation-bar"] {
   opacity: 0.2;
   /* Drop the discipline colour to a flat neutral so backgrounded work reads as inert filler,
@@ -227,6 +232,16 @@ input[type="radio"] {
   transition:
     background 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+/* Defensive net for the hover popover in time-off mode. The bars-layer `inert` already BLOCKS the
+   mouseenter/focus that opens a popover, so a new one can't appear; and any path to the Time-off
+   toggle blurs/leaves the bar first (clearing a pre-existing one). But the popover is portaled to
+   <body>, OUTSIDE the inert layer, so should one ever linger at the instant of toggle, inert can't
+   suppress it — hide it here. `:has()` lets a body-level rule key off the grid's draw mode without
+   re-subscribing every bar to the store. */
+body:has([data-testid="scheduler-grid"][data-draw-mode="timeoff"]) [data-testid="allocation-popover"] {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
