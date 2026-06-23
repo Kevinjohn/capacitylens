@@ -78,6 +78,17 @@ export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID):
  * already-migrated data (it never creates a duplicate). Returns a NEW AppData when it added any
  * client, or the SAME reference when nothing changed (so a no-op migration round-trips deep-equal).
  *
+ * OWNERSHIP CONTRACT — this is a BACKFILL, not a live-create trigger. A NEWLY created account gets
+ * its Internal from the CLIENT, not from this function: the web store's `addAccount` mints the
+ * account AND its Internal atomically (one per account holds the instant the tenant exists), and in
+ * server mode the two reach the server as separate entity writes that establish the floor through
+ * the normal sync path. The server deliberately does NOT auto-mint on a `POST /api/accounts` — that
+ * would make the client's own Internal write a SECOND builtin and `wouldAddSecondBuiltin` would
+ * reject it, breaking sync. So run this only at boot/load/import to fix up seeded, migrated, or
+ * legacy data that predates the per-account Internal (the server mirrors it in db.ts's
+ * `ensureInternalClients`, also boot-only; import folds the same step into remapAndValidateImport).
+ * It is NOT a per-account-insert hook.
+ *
  * @param now timestamp stamped on any newly-created Internal client.
  */
 export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData {

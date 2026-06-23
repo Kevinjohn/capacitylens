@@ -377,6 +377,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
     app.get('/api/meta', () => ({ hasData: isInitialized(db) }))
 
+    // A bare account write (entity === 'accounts') deliberately does NOT auto-mint that account's
+    // built-in Internal client. Runtime Internal creation is the CLIENT's job: the web store's
+    // addAccount mints the account AND its Internal atomically, and they reach here as TWO separate
+    // entity writes (a /api/batch whose ordered ops put the account before the client — see
+    // syncOps.UPSERT_ORDER). If the server minted one here too, that client-sent Internal would be a
+    // SECOND builtin and validateWrite would reject it (wouldAddSecondBuiltin), breaking sync. So the
+    // floor is established by the client's own write, not here; openDb's ensureInternalClients is a
+    // BOOT-TIME backfill for seeded/migrated/legacy data, NOT a per-insert trigger. A direct-API
+    // account POST that does not ALSO write an Internal is an unsupported/degraded path the web app
+    // never takes (that account has no Internal until the next server restart backfills it).
     app.post('/api/:entity', (req, reply) => {
       const { entity } = req.params as { entity: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
