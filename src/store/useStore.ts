@@ -621,6 +621,8 @@ export const useStore = create<StoreState>()((set, get) => {
     },
 
     addClient: (input) => {
+      // STORE-STRIP enforcement point (1) of the single-Internal invariant — see the canonical doc in
+      // shared/src/data/internalClient.ts (the other two points are import fold + server reject).
       // `builtin` is excluded from Draft<Client> at the type level (only seed/addAccount/migrate may
       // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
       // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
@@ -639,7 +641,8 @@ export const useStore = create<StoreState>()((set, get) => {
       // hides the affordance). Surface, don't swallow — see DEFENSIVE-CODING.md.
       if (isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be renamed.')
       // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
-      // untyped/cast patch can't PROMOTE a normal client to a second builtin (same invariant as above).
+      // untyped/cast patch can't PROMOTE a normal client to a second builtin (same invariant as above —
+      // store-strip enforcement point (1); canonical doc in shared/src/data/internalClient.ts).
       const safePatch: Record<string, unknown> = { ...patch }
       delete safePatch.builtin
       mutate((d) => ({ ...d, clients: updateById(d.clients, id, safePatch as Patch<Client>) }))

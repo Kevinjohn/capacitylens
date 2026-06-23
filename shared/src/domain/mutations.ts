@@ -317,9 +317,12 @@ export function remapAndValidateImport(
   const has = (set: Set<string>, v: unknown): boolean => typeof v === 'string' && set.has(v)
 
   // Built-in "Internal" client: every account must have EXACTLY ONE (seed / addAccount / migrate
-  // guarantee it). Import REPLACES the account's whole slice (the kept-existing rows are filtered out
-  // below), so we can't just keep the pre-existing Internal — it would be wiped. Normalise the
-  // imported builtins to AT MOST one here, then `ensureInternalClients` (a post-step, after counting)
+  // guarantee it). This is the IMPORT-FOLD enforcement point (2) of the single-Internal invariant —
+  // see the canonical doc in ../data/internalClient.ts (the other two points are store strip + server
+  // reject). Import REPLACES the account's whole slice (the kept-existing rows are filtered out
+  // below), so we can't just keep the pre-existing Internal — it would be wiped, and a bulk replace
+  // can't reject. Normalise the imported builtins to AT MOST one here (keep-first + fold-the-rest),
+  // then `ensureInternalClients` (a post-step, after counting)
   // synthesises one if the file carried none — so an auto-added Internal is never counted toward
   // `imported`. The normalisation:
   //   • keep the FIRST imported builtin (re-stamping its name/colour to the reserved pair so a
