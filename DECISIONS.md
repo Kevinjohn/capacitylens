@@ -156,6 +156,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Bar labels carry `Client · Project` context** before the activity name, behind two
   device-global toggles (`floaty/barLabelPrefs`, Settings → Allocation bars, default both on);
   missing metadata just skips its part. The popover keeps its own activity-first layout.
+- **Time-off draw mode recedes work, spotlights absence (owner, 2026-06-23).** While the toolbar's
+  `Time off` draw toggle is active, the grid signals the mode whole-view: work allocation bars drop to a
+  flat grey (`#999`) at 20% opacity AND go fully **`inert`** (the HTML attribute — no click/drag/hover-
+  popover, removed from the tab order + a11y tree), and existing time-off blocks glow amber. Pointer
+  events fall through the inert bars to the lane, so a draw books time off even **over** an existing
+  allocation. Driven by `data-draw-mode` on the grid container — one attribute flip → CSS in `index.css`,
+  so the memoised lanes/bars don't re-render for the visual; each bar reads the mode from the store to set
+  `inert` (one re-render per toggle, a rare deliberate action — the memo still guards the drag hot path).
+  Purely visual + interaction state — **no data changes**; switching back to `Work` restores everything.
 - **Weekends minimise by default** — device-global `floaty/minimiseWeekends` (Settings →
   Schedule, default **ON**), NOT on the account / not in export. On = the Sat/Sun columns shrink
   to a rem-based sliver (`WEEKEND_COLUMN_REM`, capped at `dayWidth`, fine-zoom only) labelled a

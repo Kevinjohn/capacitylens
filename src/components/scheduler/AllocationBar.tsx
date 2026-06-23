@@ -85,6 +85,14 @@ export const AllocationBar = memo(function AllocationBar({
   const updateAllocation = useStore((s) => s.updateAllocation)
   const setNotice = useStore((s) => s.setNotice)
   const setDraggingAllocation = useStore((s) => s.setDraggingAllocation)
+  // In "Time off" draw mode the work bars recede (dimmed in index.css) and go fully inert:
+  // a gesture on a lane should book time off — never grab/drag the bar underneath — and the
+  // backgrounded bars shouldn't be tab-stops or fire their hover popover. `inert` covers all
+  // of that (pointer + focus + AT) in one flag, and pointer events fall through to the lane,
+  // so you can even draw time off across an existing allocation. Re-subscribing every bar to
+  // the mode costs one re-render on toggle (a rare, deliberate action) — the memo still guards
+  // the hot path (a sibling's per-move drag).
+  const inertInTimeOff = useStore((s) => s.ui.drawMode === 'timeoff')
   const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const resourceId = bar.allocation.resourceId
@@ -348,6 +356,7 @@ export const AllocationBar = memo(function AllocationBar({
         data-testid="allocation-bar"
         data-alloc-id={bar.allocation.id}
         data-status={bar.allocation.status}
+        inert={inertInTimeOff || undefined}
         role="button"
         tabIndex={0}
         aria-label={`${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
@@ -416,6 +425,9 @@ export const AllocationBar = memo(function AllocationBar({
 
       {pop &&
         !dragging &&
+        // Don't let a popover that was open at toggle-time linger once the bar goes inert —
+        // inert suppresses the mouseleave that would normally clear it.
+        !inertInTimeOff &&
         createPortal(
           <div
             data-testid="allocation-popover"

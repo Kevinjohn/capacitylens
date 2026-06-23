@@ -194,6 +194,39 @@ input[type="radio"] {
   );
 }
 
+/* "Time off" draw mode. When the toolbar's Time-off toggle is on, recede the work
+   allocations and make every already-booked time-off block glow — so a manager sees at
+   a glance whose absences exist before drawing a new one. (The toggle alone changed only
+   its own pressed state, which read as a dead button.) Driven by `data-draw-mode` on the
+   grid container, so it's a single attribute flip — no re-render of the memoised lanes/bars.
+   Amber (the `warn` token) reads as "out / away", distinct from brand (indigo) and over
+   (red). This is a first-pass treatment; the visual is expected to be refined later. */
+[data-draw-mode="timeoff"] [data-testid="allocation-bar"] {
+  opacity: 0.2;
+  /* Drop the discipline colour to a flat grey so backgrounded work reads as inert filler,
+     not a faded tint of its real colour. !important beats the bar's inline background-color. */
+  background-color: #999 !important;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease;
+}
+
+[data-draw-mode="timeoff"] [data-testid="timeoff-block"] {
+  /* Lift above the work bars, which paint later in DOM order, so the glow isn't behind
+     the (now-dimmed) bars. */
+  z-index: 3;
+  color: var(--color-ink);
+  /* !important: the block sets its hatch gradient via an inline `style`, which an
+     un-flagged rule can't beat. */
+  background: color-mix(in oklab, var(--color-warn) 34%, var(--color-surface)) !important;
+  box-shadow:
+    0 0 0 1.5px var(--color-warn),
+    0 0 14px 2px color-mix(in oklab, var(--color-warn) 55%, transparent);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

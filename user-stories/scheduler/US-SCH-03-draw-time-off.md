@@ -19,3 +19,4 @@ Holidays, sick days and other absences are part of capacity, and the manager wan
 - ✅ With the toggle on **Time off**, drawing on a lane opens the **"Add time off"** dialog (not "New allocation").
 - ✅ The form's **Resource** field is preselected to the row you drew on (`r-nike`).
 - ✅ Saving closes the form. (In **Work** mode the same gesture would open "New allocation" instead — see US-SCH-02.)
+- ✅ While Time off mode is active the lane's work bars are dimmed grey + **inert**, so a draw started *over* an existing allocation still books time off (the bar doesn't grab the gesture). See US-TBR-05 for the full mode treatment.
