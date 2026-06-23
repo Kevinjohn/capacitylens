@@ -150,6 +150,42 @@ export function assertAllocationRefs(
   }
 }
 
+/**
+ * A resource may only BE external if it carries no disallowed dependents. The v0.8.1 rule
+ * ("an external / 3rd-party resource has no capacity, so no loaded allocation and no time off")
+ * is enforced at the allocation/time-off write boundary by assertAllocationRefs /
+ * assertResourceExists — but a resource's `kind` can be flipped to external AFTER it already owns
+ * those dependents, which nothing re-validates: the scheduler then HIDES the now-external capacity
+ * and time-off, recreating the invisible-orphan state v0.8.1 closed.
+ *
+ * The store and server are the integrity boundary, so we REJECT the flip rather than silently
+ * zeroing hours / dropping time-off (surprising data loss as a side effect of a name/colour-style
+ * edit). The owner must reassign or remove the work + time off FIRST. Symmetric with
+ * assertAllocationRefs / assertResourceExists, which reject the inverse write. Only fires on the
+ * external case (a person/placeholder write is unaffected). `mergedKind` is the kind the resource
+ * WILL have after the write (`patch.kind ?? existing.kind` in the store, the merged row's kind on
+ * the server); when it's not external this is a pure no-op. Import keeps RECONCILING instead
+ * (remapAndValidateImport coerces the load to 0 and drops the time-off) — a bulk file is a
+ * different contract from an interactive edit, so don't route it here.
+ */
+export function assertResourceKindAllowsDependents(
+  data: AppData,
+  accountId: ID,
+  resourceId: ID,
+  mergedKind: unknown,
+): void {
+  if (!isExternalResource({ kind: mergedKind as Resource['kind'] })) return
+  const owns = (e: Allocation | TimeOff) => e.resourceId === resourceId && belongsToAccount(e, accountId)
+  // A loaded allocation OR any time-off both vanish from the scheduler once the resource is external.
+  // hoursPerDay !== 0 mirrors assertAllocationRefs' "externals carry no load" rule (a zero-load
+  // allocation is allowed on an external, so it doesn't block the flip).
+  const hasLoadedAllocation = data.allocations.some((a) => owns(a) && a.hoursPerDay !== 0)
+  const hasTimeOff = data.timeOff.some((t) => owns(t))
+  if (hasLoadedAllocation || hasTimeOff) {
+    throw new Error('Reassign or remove this resource’s work and time off before making it external.')
+  }
+}
+
 /** No allocation or time-off may persist an empty, malformed, or reversed range. */
 export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
   const v = validateDateRange(startDate, endDate)

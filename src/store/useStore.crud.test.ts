@@ -371,3 +371,49 @@ describe('update* re-validates the merged row so the store + server agree', () =
     expect(s().data.timeOff[0].startDate).toBe('2026-06-10') // unchanged — atomic failure
   })
 })
+
+// Flipping a resource's kind to 'external' AFTER it already owns loaded work / time-off would orphan
+// those dependents (the scheduler hides external capacity + time-off) — recreating the invisible-orphan
+// state v0.8.1 closed at the allocation/time-off write boundary. updateResource must REJECT the flip
+// (reassign/remove first), throw-before-mutate, exactly as the server's validateWrite does.
+describe('updateResource rejects a kind-flip-to-external that would orphan dependents', () => {
+  it('flipping a person with a loaded allocation to external THROWS and does not mutate', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
+    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    s().addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+
+    expect(() => s().updateResource(r.id, { kind: 'external' })).toThrow(/work and time off before making it external/i)
+    expect(s().data.resources[0].kind).toBe('person') // atomic failure — the flip did NOT land
+  })
+
+  it('flipping a person with time off to external THROWS', () => {
+    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    s().addTimeOff({ resourceId: r.id, startDate: '2026-06-10', endDate: '2026-06-11', type: 'holiday' })
+
+    expect(() => s().updateResource(r.id, { kind: 'external' })).toThrow(/work and time off before making it external/i)
+    expect(s().data.resources[0].kind).toBe('person')
+  })
+
+  it('flipping a person with NO dependents (or only a zero-load allocation) to external SUCCEEDS', () => {
+    const c = s().addClient({ name: 'Acme', color: '#1' })
+    const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
+    const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
+    const free = s().addResource({ ...personDraft, name: 'Free', workingDays: [1, 2, 3, 4, 5] })
+    expect(() => s().updateResource(free.id, { kind: 'external' })).not.toThrow()
+    expect(s().data.resources.find((r) => r.id === free.id)?.kind).toBe('external')
+
+    // A zero-load allocation is already valid for an external, so it must NOT block the flip.
+    const z = s().addResource({ ...personDraft, name: 'Zero', workingDays: [1, 2, 3, 4, 5] })
+    s().addAllocation({ resourceId: z.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-03', hoursPerDay: 0, status: 'confirmed' })
+    expect(() => s().updateResource(z.id, { kind: 'external' })).not.toThrow()
+    expect(s().data.resources.find((r) => r.id === z.id)?.kind).toBe('external')
+  })
+
+  it('editing an external resource’s OTHER fields (name) with no dependents still SUCCEEDS', () => {
+    const ext = s().addResource({ ...personDraft, name: 'Outsource', kind: 'external', workingDays: [1, 2, 3, 4, 5] })
+    expect(() => s().updateResource(ext.id, { name: 'Outsource Co' })).not.toThrow()
+    expect(s().data.resources.find((r) => r.id === ext.id)?.name).toBe('Outsource Co')
+  })
+})

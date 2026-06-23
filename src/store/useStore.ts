@@ -14,6 +14,7 @@ import {
   assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
+  assertResourceKindAllowsDependents,
   assertScopedRefs,
   deleteAccountCascade,
   findOwned as findOwnedIn,
@@ -602,6 +603,11 @@ export const useStore = create<StoreState>()((set, get) => {
       const existing = findOwned(get().data, 'resources', id)
       if (!existing) return
       assertScopedRefs(get().data, existing.accountId, 'resources', patch)
+      // Flipping a resource to external while it still owns loaded work / time-off would orphan those
+      // dependents (the scheduler hides external capacity + time-off). Reject the flip on the MERGED
+      // kind, throw-before-mutate so the failure is atomic. A no-op when the resource isn't becoming
+      // external. Mirrors the server's validateWrite resources branch — same shared assert, no drift.
+      assertResourceKindAllowsDependents(get().data, existing.accountId, id, patch.kind ?? existing.kind)
       if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays)
       const safePatch =
         patch.workingHoursPerDay !== undefined

@@ -2,6 +2,7 @@ import {
   assertAllocationRefs,
   assertDateRange,
   assertResourceExists,
+  assertResourceKindAllowsDependents,
   assertScopedRefs,
 } from '@floaty/shared/domain/mutations'
 import { sanitizeImportedRecord, sanitizeAccount } from '@floaty/shared/lib/sanitizeImport'
@@ -112,6 +113,14 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
     const accountId = row.accountId as string
     if (SCOPED_REF_TABLES.includes(table as ScopedEntityKey)) {
       assertScopedRefs(state, accountId, table as ScopedEntityKey, row)
+      // `row` is the full merged entity (PUT carries the whole row; PATCH merges {...existing, ...body}),
+      // so `row.kind` is the kind the resource WILL have. Reject a flip-to-external that would orphan
+      // existing loaded work / time-off — `state` is loaded BEFORE the write, so it still holds those
+      // dependents. Same shared assert the store's updateResource calls, so the two can't drift. A no-op
+      // for non-resource tables and for any write that doesn't make the resource external.
+      if (table === 'resources') {
+        assertResourceKindAllowsDependents(state, accountId, row.id as string, row.kind)
+      }
       return
     }
     if (table === 'allocations') {
