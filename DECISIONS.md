@@ -158,7 +158,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   missing metadata just skips its part. The popover keeps its own activity-first layout.
 - **Time-off draw mode recedes work, spotlights absence (owner, 2026-06-23).** While the toolbar's
   `Time off` draw toggle is active, the grid signals the mode whole-view: work allocation bars drop to a
-  flat grey (`#999`) at 20% opacity AND go fully **`inert`** (the HTML attribute — no click/drag/hover-
+  flat neutral (the theme-aware `var(--color-muted)` token, which adapts to light/dark) at 20% opacity AND go fully **`inert`** (the HTML attribute — no click/drag/hover-
   popover, removed from the tab order + a11y tree), and existing time-off blocks glow amber. Pointer
   events fall through the inert bars to the lane, so a draw books time off even **over** an existing
   allocation. Driven by `data-draw-mode` on the grid container — one attribute flip → CSS in `index.css`,

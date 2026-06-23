@@ -152,7 +152,7 @@ Cascade dialogs say "You can undo this with ⌘Z."
 `aria-pressed="true"`); `‹ Prev`, `Today`, `Next ›`; a `Jump to date` date input; a
 draw-mode toggle `Work`/`Time off` (buttons — note "Time off" here is the *toggle*, distinct
 from the "Time off" *nav link*). **In `Time off` mode the grid signals the mode whole-view:
-work allocation bars recede to a flat grey (`#999`) at 20% opacity AND go fully *inert* (not
+work allocation bars recede to a flat neutral (the theme-aware `var(--color-muted)` token, which adapts to light/dark) at 20% opacity AND go fully *inert* (not
 clickable/draggable, no hover popover, not tab-reachable), while existing time-off blocks glow
 amber — so a lane draw books time off without the bars intercepting the gesture (a draw started
 over an existing allocation falls through to the lane). The grid carries
