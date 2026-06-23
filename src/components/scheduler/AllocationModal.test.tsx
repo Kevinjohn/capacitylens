@@ -79,6 +79,29 @@ describe('AllocationModal create', () => {
     expect(useStore.getState().data.allocations).toHaveLength(0)
   })
 
+  it('rejects hours/day above the 24h cap submitted via Enter (no silent clamp)', async () => {
+    // The field caps at MAX_HOURS_PER_DAY on blur, but an Enter-submit without a blur can still
+    // carry a larger value the store would quietly clamp. The submit-path guard must reject it.
+    useStore.getState().addResource({
+      kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
+    })
+    const resourceId = useStore.getState().data.resources[0].id
+    const onClose = vi.fn()
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    const hours = screen.getByLabelText('Hours / day')
+    fireEvent.change(hours, { target: { value: '40' } })
+    fireEvent.submit(hours.closest('form')!) // Enter-submit, no blur clamp
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(/can’t exceed 24/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
+
   it('restricts a placeholder to its bound project (plus general), defaulting to it', async () => {
     const ph = useStore.getState().addResource({
       kind: 'placeholder', role: 'Senior Designer', employmentType: 'permanent',
@@ -174,6 +197,35 @@ describe('AllocationModal days mode', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent(/more than 24h a day/i)
     expect(useStore.getState().data.allocations).toHaveLength(0)
+  })
+
+  it('rejects an EMPTY "Days over" submitted via Enter (no blur) instead of saving a 0-hour allocation', async () => {
+    // The NaN hole: a valid "Days of work" but a "Days over" left empty/part-typed emits NaN
+    // (NumberField only clamps to min on blur). hoursPerDayFor(daysOfWork, NaN, whpd) is NaN, the
+    // store's clampHoursPerDay(NaN) → 0, so a SILENT 0-hour allocation would save. Submitting via
+    // Enter directly from the field skips the blur-clamp, exercising exactly that path. The load
+    // guard must reject (NaN fails Number.isFinite) and persist nothing.
+    enableDays()
+    const r = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const onClose = vi.fn()
+    const addAllocation = vi.spyOn(useStore.getState(), 'addAllocation')
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={onClose} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '5' } })
+    // Empty the "Days over" field — emits NaN — then submit the form directly (Enter from a
+    // single number input), which skips the field's on-blur clamp.
+    const daysOver = screen.getByLabelText('Days over')
+    fireEvent.change(daysOver, { target: { value: '' } })
+    fireEvent.submit(daysOver.closest('form')!)
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(addAllocation).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(/more than 24h a day/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
+    addAllocation.mockRestore()
   })
 
   it('honours the drawn span when creating (days over = the dragged-out length)', async () => {
