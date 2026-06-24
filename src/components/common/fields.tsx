@@ -3,11 +3,16 @@ import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@floaty/shared/lib/strings'
 import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from '../../lib/palette'
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
 // be exported without tripping react-refresh/only-export-components on this file.
-import { inputClass, selectChevronClass, selectChevronStyle } from './controls'
+import { controlBase, inputClass, selectChevronClass, selectChevronStyle } from './controls'
+import { Input } from '../ui/input'
+import { Textarea } from '../ui/textarea'
 import type { Weekday } from '@floaty/shared/types/entities'
 
-// Form fields slice of the shared kit (re-exported from ./ui). Colours come from
-// semantic tokens (see index.css), so everything adapts to dark mode automatically.
+// Form fields slice of the shared kit (re-exported from ./ui). The text/number/date
+// fields and the textarea are built on shadcn's Input/Textarea (../ui); the SelectField
+// stays a NATIVE <select> on purpose (32 e2e selectOption() calls + user.selectOptions
+// depend on it). Colours come from semantic tokens (see index.css), so everything adapts
+// to dark mode automatically.
 
 const labelClass = 'mb-1 block text-xs font-medium text-muted'
 
@@ -15,7 +20,20 @@ const labelClass = 'mb-1 block text-xs font-medium text-muted'
 //   required (at rest) → a thin red left-edge accent — a quiet marker.
 //   invalid (failed Save) → a full danger border + ring — the field you missed pops.
 // invalid wins when both apply, so a required field that fails shows the error state.
-function controlClass(invalid?: boolean, required?: boolean) {
+// These are the floaty ACCENTS only; the shared `controlBase` (controls.ts) supplies the
+// bg-surface/text-ink/placeholder/px-2.5 py-1.5/shadow-sm field look (the SAME base the
+// native SelectField uses, so the migrated shadcn fields sit flush beside it), and twMerge
+// lets controlBase + these accents win over the shadcn Input/Textarea base where they
+// overlap (incl. dark mode — the base no longer carries bg-transparent/dark:bg-input/30).
+function fieldAccent(invalid?: boolean, required?: boolean) {
+  if (invalid) return 'border-danger ring-1 ring-danger'
+  if (required) return 'border-l-2 border-l-danger/60'
+  return ''
+}
+
+// The native <select> isn't a shadcn primitive (kept native by design), so it keeps
+// floaty's own full inputClass base plus the accent — unchanged from before.
+function selectClass(invalid?: boolean, required?: boolean) {
   if (invalid) return `${inputClass} border-danger ring-1 ring-danger`
   if (required) return `${inputClass} border-l-2 border-l-danger/60`
   return inputClass
@@ -69,8 +87,12 @@ export function TextField({
   return (
     <label className="block">
       <FieldLabel label={label} required={required} />
-      <input
-        className={controlClass(invalid, required)}
+      <Input
+        // Reuse floaty's shared controlBase (the SAME field look the native SelectField
+        // carries) so this shadcn-backed input matches it exactly — bg-surface in BOTH
+        // themes, text-ink, placeholder:text-faint, px-2.5 py-1.5, shadow-sm — instead of
+        // shadcn's bg-transparent/text-base. The accent (required/invalid) layers on top.
+        className={`${controlBase} ${fieldAccent(invalid, required)}`}
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
@@ -109,8 +131,9 @@ export function TextAreaField({
   return (
     <label className="block">
       <span className={labelClass}>{label}</span>
-      <textarea
-        className={controlClass(invalid)}
+      <Textarea
+        // Shared controlBase (matches the native SelectField + the other fields); see TextField.
+        className={`${controlBase} ${fieldAccent(invalid)}`}
         rows={2}
         value={value}
         maxLength={maxLength}
@@ -150,9 +173,10 @@ export function NumberField({
   return (
     <label className="block">
       <FieldLabel label={label} required={required} />
-      <input
+      <Input
         type="number"
-        className={controlClass(invalid, required)}
+        // Shared controlBase (matches the native SelectField + the other fields); see TextField.
+        className={`${controlBase} ${fieldAccent(invalid, required)}`}
         value={value}
         min={min}
         max={max}
@@ -199,9 +223,10 @@ export function DateField({
   return (
     <label className="block">
       <FieldLabel label={label} required={required} />
-      <input
+      <Input
         type="date"
-        className={controlClass(invalid, required)}
+        // Shared controlBase (matches the native SelectField + the other fields); see TextField.
+        className={`${controlBase} ${fieldAccent(invalid, required)}`}
         value={value}
         aria-label={label}
         aria-required={required || undefined}
@@ -243,7 +268,7 @@ export function SelectField({
     <label className="block">
       <FieldLabel label={label} required={required} />
       <select
-        className={`${controlClass(invalid, required)} ${selectChevronClass} disabled:opacity-60`}
+        className={`${selectClass(invalid, required)} ${selectChevronClass} disabled:opacity-60`}
         style={selectChevronStyle}
         value={value}
         disabled={disabled}
@@ -327,7 +352,7 @@ export function ColorField({
           aria-label={`${label} (${colorName(value)})`}
           aria-invalid={invalid || undefined}
           aria-describedby={invalid ? describedById : undefined}
-          className={`${controlClass(invalid)} ${selectChevronClass} flex items-center gap-2 text-left`}
+          className={`${selectClass(invalid)} ${selectChevronClass} flex items-center gap-2 text-left`}
           style={selectChevronStyle}
         >
           <span
@@ -387,9 +412,14 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
     onChange(value.includes(day) ? value.filter((d) => d !== day) : [...value, day])
   }
   return (
+    // A real <fieldset>/<legend> groups the day toggles. Each day is a plain <button>
+    // (NOT a Radix ToggleGroup): the Weekday[] model (0–6, Sun=0) is the source of truth
+    // and aria-pressed reflects it directly. Plain buttons keep every chip individually
+    // Tab-reachable — a roving-tabindex toolbar would put only ONE of the seven in the tab
+    // order, regressing keyboard reach for no gain (floaty drives the model, not Radix).
     <fieldset className="block">
       <legend className={labelClass}>{label}</legend>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-2">
         {WEEKDAYS.map(({ day, label: dl }) => {
           const on = value.includes(day)
           return (

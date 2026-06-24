@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useStore } from '../../store/useStore'
+import { Button as ShadButton } from '../ui/button'
 
 // Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
 // from semantic tokens (see index.css), so everything adapts to dark mode automatically.
@@ -32,12 +33,19 @@ function restoreFocus(prev: HTMLElement | null) {
   }
 }
 
-const buttonClasses: Record<ButtonVariant, string> = {
-  // Pastel, not saturated: soft tint + per-theme coloured ink (the *-soft / *-soft-ink
-  // token pairs keep AA in both themes). Hover deepens the tint a notch.
-  primary: 'bg-brand-soft text-brand-soft-ink hover:bg-brand/25 shadow-sm',
-  ghost: 'border bg-surface text-ink hover:bg-canvas',
-  danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger/25 shadow-sm',
+// Floaty's three button NAMES mapped onto shadcn's button aesthetic (Button base in
+// ../ui/button) via a plain Record lookup (floaty's original idiom — no second same-named
+// cva). The colours bind to floaty's own --c-* brand/danger tokens (the bg-brand* /
+// bg-danger* utilities) rather than shadcn's slate --primary, so the indigo brand identity
+// holds. `primary` is a solid brand fill: brand-strong is tuned so white ink clears WCAG AA
+// in light AND dark (see index.css). `danger` is the destructive read: floaty's AA-safe
+// SOFT red pairing (bg-danger-soft + danger-soft-ink), which clears AA in BOTH themes —
+// solid bg-danger + white would only read ~2.7:1 against the light-coral dark token. `ghost`
+// is the quiet outline.
+const VARIANT_CLASS: Record<ButtonVariant, string> = {
+  primary: 'bg-brand-strong text-white hover:bg-brand-strong/90 shadow-xs',
+  ghost: 'border bg-surface text-ink hover:bg-canvas shadow-xs',
+  danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger-soft/80 shadow-xs',
 }
 
 export function Button({
@@ -66,7 +74,12 @@ export function Button({
   testId?: string
 }) {
   return (
-    <button
+    // shadcn Button base supplies the layout/focus-ring/disabled scaffold (size="sm" keeps
+    // floaty's compact footer height); we override its variant colours with floaty's brand
+    // tokens via className. The floaty prop API (ariaLabel/describedById/testId) is mapped
+    // onto the native aria-/data- attributes the base forwards.
+    <ShadButton
+      size="sm"
       type={type}
       onClick={onClick}
       disabled={disabled}
@@ -74,10 +87,10 @@ export function Button({
       aria-label={ariaLabel}
       aria-describedby={describedById}
       data-testid={testId}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition disabled:pointer-events-none disabled:opacity-50 ${buttonClasses[variant]}`}
+      className={VARIANT_CLASS[variant]}
     >
       {children}
-    </button>
+    </ShadButton>
   )
 }
 

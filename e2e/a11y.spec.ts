@@ -74,3 +74,22 @@ test('a resource form modal has no serious or critical violations', async ({ pag
   const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
   expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
 })
+
+// A ConfirmDialog in DARK mode specifically: its `danger` confirm button is the only place the
+// danger button variant shows, and dark is where a solid bg-danger + white ink fails WCAG AA
+// (the dark --c-danger is a light coral, ~2.7:1). The variant uses floaty's AA-safe SOFT red
+// pairing (bg-danger-soft + danger-soft-ink) instead; this scan locks that in so the button
+// can't silently regress to the failing solid fill.
+test('a confirm dialog (dark) danger button has no serious or critical violations', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
+  await openApp(page, 'Studio North', '/clients')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Delete' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Delete client?' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Delete' })).toBeVisible() // the danger-variant confirm button
+  await page.waitForTimeout(350) // let the entrance animation settle (mid-fade colours read as false low-contrast)
+  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+})

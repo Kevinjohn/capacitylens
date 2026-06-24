@@ -2,6 +2,20 @@
 
 Open product questions to revisit with the owner. Don't silently resolve these — flag them.
 
+## Open — shadcn/ui adoption (exploratory branch, raised 2026-06-24)
+- **SelectField → Radix Select: proceed, or keep native?** The owner chose to replace all four
+  opinionated customs, including **native select → Radix Select**. Phase 4 migrated Button + every
+  other field (TextField/TextArea/Number/Date → shadcn Input/Textarea; WeekdayPicker → shadcn
+  ToggleGroup) cleanly, **but kept `SelectField` a native `<select>`** (reskinned only). Reason:
+  Radix Select is a button + portalled listbox (no native change event), so it CANNOT pass the
+  existing tests verbatim — `ui.test.tsx` (`user.selectOptions`) and ~32 e2e `selectOption()` calls
+  across 12 specs hard-require a native `<select>`. Converting collides with the branch's hard
+  invariant ("`ui.test.tsx` passes verbatim; never edit tests to fit Radix"). **Owner to decide:**
+  (a) proceed with Radix Select and accept updating those test *interactions* (open trigger → click
+  option; keep the behavioural assertions) + the 32 e2e calls (Phase-9-style), or (b) keep the
+  native `<select>` (more robust mobile/keyboard, zero churn, but one of the four named swaps not
+  done). Until decided, the native select ships. (Raised by the autonomous shadcn-adoption loop, P4.)
+
 ## Parked (owner-confirmed, build much later)
 - **Freelancer / contractor / external-supplier differentiation.** The "Temp" pill is
   **hidden for now** (component `TemporaryTag` kept but rendered nowhere; employment type is
