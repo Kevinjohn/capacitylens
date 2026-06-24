@@ -135,8 +135,10 @@ columns. Turn the pref off and weekends return to full width with `Sat`/`Sun` la
 
 **Forms (modals).** Fields are labelled: `Name`, `Role`, `Type`, `Discipline`,
 `Employment`, `Bound project`, `Working hours / day`, `Working days` (Mon…Sun toggle
-buttons), `Colour (…)` (a swatch-picker trigger that opens a grid of preset colour
-swatches, each button labelled by its hex), `Start`, `End`, `Hours / day`, `Status`,
+buttons), `Colour (…)` (a swatch-picker trigger — its name carries the current colour, e.g.
+`Colour (Blue dark)` for a known swatch, else the raw hex — that opens a grid of preset
+colour swatches, each button labelled by a human-readable name like `Blue dark` /
+`Red bright`, not a hex), `Start`, `End`, `Hours / day`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
 The **activity form** has an `Activity kind` radiogroup (`Project` / `Internal` / `Repeatable`); the
 `Project` field shows (and is required) only for the `Project` kind — internal/repeatable
