@@ -151,8 +151,10 @@ describe('CommandPalette', () => {
     renderPalette()
 
     const options = screen.getAllByTestId('command-palette-option')
-    // Hover the second option
-    fireEvent.mouseEnter(options[1])
+    // Hover the second option. cmdk activates on its native onPointerMove (not mouseEnter), so the
+    // interaction fires pointerMove — the assertion (hovering a row makes it the active option) is
+    // unchanged.
+    fireEvent.pointerMove(options[1])
 
     expect(options[0]).toHaveAttribute('aria-selected', 'false')
     expect(options[1]).toHaveAttribute('aria-selected', 'true')
@@ -182,9 +184,10 @@ describe('CommandPalette', () => {
     const tylerOption = options.find((o) => o.textContent?.includes('Tyler Nix'))
     expect(tylerOption).toBeTruthy()
 
-    // Click it — should call jumpToResource (store action)
+    // Click it — should call jumpToResource (store action). cmdk's onSelect fires on click (and
+    // Enter), so the pointer pick is a click; the assertion (selecting the row runs its action) holds.
     act(() => {
-      fireEvent.mouseDown(tylerOption!)
+      fireEvent.click(tylerOption!)
     })
 
     // The scrollToResource state should be set in the store
@@ -211,7 +214,7 @@ describe('CommandPalette', () => {
     expect(projectOption).toBeTruthy()
 
     act(() => {
-      fireEvent.mouseDown(projectOption!)
+      fireEvent.click(projectOption!)
     })
 
     // The filters should be updated
@@ -258,7 +261,7 @@ describe('CommandPalette', () => {
     expect(projectOption).toBeTruthy()
 
     act(() => {
-      fireEvent.mouseDown(projectOption!)
+      fireEvent.click(projectOption!)
     })
 
     // Filters must deep-equal { ...emptyFilters(), projectId } — no stale fields survive
@@ -294,7 +297,7 @@ describe('CommandPalette', () => {
     expect(clientOption).toBeTruthy()
 
     act(() => {
-      fireEvent.mouseDown(clientOption!)
+      fireEvent.click(clientOption!)
     })
 
     // Filters must deep-equal { ...emptyFilters(), clientId } — no stale fields survive

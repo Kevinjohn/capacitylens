@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useMemo, useRef, useState, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, emptyFilters } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
@@ -7,6 +7,13 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { resourceDisplayName } from '../lib/metadata'
 import { isValidISODate } from '@floaty/shared/lib/integrity'
 import { isExternalResource } from '@floaty/shared/types/entities'
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandGroup,
+  CommandItem,
+} from './ui/command'
 import type { Filters } from '../store/useStore'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,61 +44,50 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const externalEnabled = useStore((s) => s.externalEnabled)
 
   const [query, setQuery] = useState('')
-  const [activeIndex, setActiveIndex] = useState(0)
+  // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
+  // know which row is active so we can drive the input's `aria-activedescendant` (see below); cmdk
+  // routes its own pointer/keyboard moves through onValueChange back into this state.
+  const [activeValue, setActiveValue] = useState('')
+
+  // Refs into cmdk's input + list so we can repair `aria-activedescendant` (below).
   const inputRef = useRef<HTMLInputElement>(null)
-  const listRef = useRef<HTMLUListElement>(null)
-  const listboxId = useId()
+  const listRef = useRef<HTMLDivElement>(null)
 
-  // Focus the input when the palette opens
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
+  // Build the full item list (kept verbatim — floaty's own fuzzyFilter drives results, not cmdk's
+  // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
+  // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
+  // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
+  const items: PaletteItem[] = useMemo(
+    () =>
+      buildItems({
+        query,
+        data,
+        disciplinesEnabled,
+        placeholdersEnabled,
+        externalEnabled,
+        navigate,
+        goToToday,
+        goToDate,
+        jumpToResource,
+        setFilters,
+        onClose,
+      }),
+    [
+      query,
+      data,
+      disciplinesEnabled,
+      placeholdersEnabled,
+      externalEnabled,
+      navigate,
+      goToToday,
+      goToDate,
+      jumpToResource,
+      setFilters,
+      onClose,
+    ],
+  )
 
-  // Build the full item list
-  const items: PaletteItem[] = buildItems({
-    query,
-    data,
-    disciplinesEnabled,
-    placeholdersEnabled,
-    externalEnabled,
-    navigate,
-    goToToday,
-    goToDate,
-    jumpToResource,
-    setFilters,
-    onClose,
-  })
-
-  // Clamp activeIndex to the current list length (derived, no effect needed).
-  const clampedIndex = items.length > 0 ? Math.min(activeIndex, items.length - 1) : 0
-
-  const activeId = items[clampedIndex] ? `cp-option-${items[clampedIndex].id}` : undefined
-
-  // Keyboard navigation
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      setActiveIndex((i) => Math.min(i + 1, items.length - 1))
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      setActiveIndex((i) => Math.max(i - 1, 0))
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      if (items[clampedIndex]) items[clampedIndex].onSelect()
-    } else if (e.key === 'Escape') {
-      e.preventDefault()
-      onClose()
-    }
-  }
-
-  // Scroll active option into view (guarded: jsdom does not implement scrollIntoView)
-  useEffect(() => {
-    if (!listRef.current) return
-    const el = listRef.current.querySelector<HTMLElement>('[aria-selected="true"]')
-    if (el && typeof el.scrollIntoView === 'function') el.scrollIntoView({ block: 'nearest' })
-  }, [clampedIndex])
-
-  // Group items by section for rendering
+  // Group items by section for rendering (one CommandGroup per section).
   const sections: { title: string; items: PaletteItem[] }[] = []
   for (const item of items) {
     let sec = sections.find((s) => s.title === item.section)
@@ -102,8 +98,32 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     sec.items.push(item)
   }
 
-  // Flat index into `items` (for aria-activedescendant tracking)
-  let globalIdx = 0
+  // Repair the combobox's `aria-activedescendant`. cmdk hardcodes it from its OWN `selectedItemId`,
+  // which it fails to populate on the controlled-`value` path (the value-change handler short-circuits
+  // once a controlled value is present) — so the input names no active descendant, breaking the
+  // combobox SR pattern. cmdk's element ids are its internal `useId`s (we can't pass our own — its
+  // `id` wins over props), so we read the active option's real id straight off the DOM and write it
+  // onto the input ourselves. cmdk marks exactly ONE option `aria-selected="true"` (the active row),
+  // so we match that single option by its selected state — no need to also cross-check `data-value`
+  // against our controlled `activeValue` (redundant, and it breaks the auto-selected first row whose
+  // value our state hasn't caught up to yet). This runs in a layout effect AFTER cmdk's render
+  // commits; React won't clobber it on cmdk's next render because cmdk keeps emitting the same `null`
+  // (null → null is a no-op diff), so our value survives until the active row actually changes.
+  useLayoutEffect(() => {
+    const input = inputRef.current
+    const list = listRef.current
+    if (!input || !list) return
+    const activeOpt = list.querySelector<HTMLElement>('[cmdk-item=""][aria-selected="true"]')
+    const activeId = activeOpt?.id ?? null
+    if (activeId) {
+      input.setAttribute('aria-activedescendant', activeId)
+      // The listbox carries the same attribute; keep the two in sync for the full combobox pattern.
+      list.setAttribute('aria-activedescendant', activeId)
+    } else {
+      input.removeAttribute('aria-activedescendant')
+      list.removeAttribute('aria-activedescendant')
+    }
+  })
 
   return (
     // Backdrop — click outside to close
@@ -120,93 +140,82 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         className="flex h-fit max-h-[60vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-elevated shadow-pop ring-1 ring-line animate-[floaty-pop_0.14s_ease-out]"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Search input */}
-        <div className="flex items-center gap-3 border-b px-4 py-3">
-          {/* Magnifying glass icon */}
-          <svg
-            className="h-4 w-4 shrink-0 text-faint"
-            viewBox="0 0 16 16"
-            fill="none"
-            aria-hidden="true"
-          >
-            <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
-            <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-          <input
-            ref={inputRef}
-            type="text"
-            role="combobox"
-            aria-expanded={items.length > 0}
-            aria-controls={listboxId}
-            aria-activedescendant={activeId}
-            aria-autocomplete="list"
-            aria-label="Search pages, people, projects…"
-            placeholder="Search pages, people, projects…"
-            className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-faint focus:outline-none"
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setActiveIndex(0)
-            }}
-            onKeyDown={onKeyDown}
-            data-testid="command-palette-input"
-            autoComplete="off"
-            spellCheck={false}
-          />
-          <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">esc</kbd>
-        </div>
-
-        {/* Results */}
-        <ul
-          id={listboxId}
-          ref={listRef}
-          role="listbox"
-          aria-label="Command palette results"
-          className="overflow-y-auto py-1"
+        <Command
+          shouldFilter={false}
+          loop={false}
+          value={activeValue}
+          onValueChange={setActiveValue}
+          // cmdk doesn't close on Escape itself — wire it here (the keydown fires before cmdk's
+          // own arrow/enter switch). Mirror the prior hand-rolled handler's Escape→onClose.
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault()
+              onClose()
+            }
+          }}
         >
-          {items.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-faint" role="option" aria-selected={false}>
-              No results for "{query}"
-            </li>
-          )}
-          {sections.map((section) => (
-            <li key={section.title} role="presentation">
-              <div className="px-3 pb-1 pt-3 text-2xs font-semibold uppercase tracking-wide text-faint">
-                {section.title}
-              </div>
-              <ul role="presentation">
-                {section.items.map((item) => {
-                  const idx = globalIdx++
-                  const isActive = idx === clampedIndex
-                  return (
-                    <li
-                      key={item.id}
-                      id={`cp-option-${item.id}`}
-                      role="option"
-                      aria-selected={isActive}
-                      data-testid="command-palette-option"
-                      className={`flex cursor-pointer items-center gap-3 px-4 py-2 text-sm transition-colors ${
-                        isActive ? 'bg-brand-soft text-ink' : 'text-ink hover:bg-canvas'
-                      }`}
-                      onMouseEnter={() => setActiveIndex(idx)}
-                      onMouseDown={(e) => {
-                        e.preventDefault() // don't blur the input
-                        item.onSelect()
-                      }}
-                    >
-                      <span className="flex-1 truncate">{item.label}</span>
-                      {item.sublabel && (
-                        /* Use text-muted on active background (brand-soft) — text-faint fails AA at 4.08:1.
-                           text-muted clears 4.5:1 on the brand-soft tint in both light and dark. */
-                        <span className={`shrink-0 truncate text-xs ${isActive ? 'text-muted' : 'text-faint'}`}>{item.sublabel}</span>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </li>
-          ))}
-        </ul>
+          {/* Search input row */}
+          <div className="flex items-center gap-3 border-b px-4 py-3">
+            {/* Magnifying glass icon */}
+            <svg
+              className="h-4 w-4 shrink-0 text-faint"
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden="true"
+            >
+              <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <CommandInput
+              ref={inputRef}
+              autoFocus
+              aria-label="Search pages, people, projects…"
+              placeholder="Search pages, people, projects…"
+              value={query}
+              onValueChange={setQuery}
+              data-testid="command-palette-input"
+            />
+            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">esc</kbd>
+          </div>
+
+          {/* Results — cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}
+          <CommandList ref={listRef} label="Command palette results">
+            {/* No-results: manual conditional (deterministic with shouldFilter=false) rather than
+                cmdk's CommandEmpty, which keys off its internal filtered-count. */}
+            {items.length === 0 && (
+              <div className="px-4 py-6 text-center text-sm text-faint">No results for "{query}"</div>
+            )}
+            {sections.map((section) => (
+              <CommandGroup key={section.title} heading={section.title}>
+                {section.items.map((item) => (
+                  <CommandItem
+                    key={item.id}
+                    // Unique value per item so identical labels don't collide in cmdk's selection.
+                    value={item.id}
+                    // SINGLE selection path: cmdk's onSelect already fires for BOTH a click and Enter.
+                    // The earlier extra onMouseDown handler ran onSelect a second time (preventDefault on
+                    // mousedown does NOT cancel the following click) — a double-fire masked only by the
+                    // synchronous unmount. Hover-activation is likewise cmdk-native (onPointerMove →
+                    // onValueChange → setActiveValue), so no manual onMouseEnter either.
+                    onSelect={() => item.onSelect()}
+                    data-testid="command-palette-option"
+                  >
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {item.sublabel && (
+                      /* text-muted on the active brand-soft tint (text-faint fails AA at 4.08:1);
+                         text-muted clears 4.5:1 on brand-soft in both light and dark. */
+                      <span
+                        className={`shrink-0 truncate text-xs ${item.id === activeValue ? 'text-muted' : 'text-faint'}`}
+                      >
+                        {item.sublabel}
+                      </span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
       </div>
     </div>
   )
