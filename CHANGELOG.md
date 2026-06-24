@@ -7,6 +7,26 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.9.1] — 2026-06-24
+
+Weekends stop counting against capacity unless you opt an allocation into them.
+
+### Fixed
+- **A weekend a booking merely spans no longer reads as "over capacity".** An
+  allocation that runs across a Saturday/Sunday (or any of a resource's non-working
+  days) used to paint those days red, as if the person were overbooked. The work
+  lands on working days, so the weekend now just shows as unavailable — not red.
+  Ticking **"Include weekends as working days"** on an allocation still counts its
+  weekend work (and flags it red against a weekday-only person's zero weekend
+  capacity), and work scheduled on a **time-off / holiday** day is still flagged as
+  the real conflict it is. The allocation editor's "over capacity on N days"
+  advisory now agrees with what the schedule shows.
+
+### Changed
+- **Faster over-capacity repaint (internal).** The per-day over-marker no longer
+  re-derives a date's weekday once per allocation, keeping timeline zoom/pan smooth
+  for heavily-booked resources. No behaviour change.
+
 ## [0.9.0] — 2026-06-23
 
 Correctness and integrity hardening from a deep code review, plus a smoother
