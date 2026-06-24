@@ -2,19 +2,20 @@
 
 Open product questions to revisit with the owner. Don't silently resolve these — flag them.
 
-## Open — shadcn/ui adoption (exploratory branch, raised 2026-06-24)
-- **SelectField → Radix Select: proceed, or keep native?** The owner chose to replace all four
-  opinionated customs, including **native select → Radix Select**. Phase 4 migrated Button + every
-  other field (TextField/TextArea/Number/Date → shadcn Input/Textarea; WeekdayPicker → shadcn
-  ToggleGroup) cleanly, **but kept `SelectField` a native `<select>`** (reskinned only). Reason:
-  Radix Select is a button + portalled listbox (no native change event), so it CANNOT pass the
-  existing tests verbatim — `ui.test.tsx` (`user.selectOptions`) and ~32 e2e `selectOption()` calls
-  across 12 specs hard-require a native `<select>`. Converting collides with the branch's hard
-  invariant ("`ui.test.tsx` passes verbatim; never edit tests to fit Radix"). **Owner to decide:**
-  (a) proceed with Radix Select and accept updating those test *interactions* (open trigger → click
-  option; keep the behavioural assertions) + the 32 e2e calls (Phase-9-style), or (b) keep the
-  native `<select>` (more robust mobile/keyboard, zero churn, but one of the four named swaps not
-  done). Until decided, the native select ships. (Raised by the autonomous shadcn-adoption loop, P4.)
+## Resolved (owner-confirmed, 2026-06-24) — shadcn/ui adoption trade-offs
+- **SelectField stays a native `<select>`; WeekdayPicker stays plain `<button aria-pressed>` chips.**
+  Both deferrals from the shadcn adoption were accepted by the owner as-is — "both acceptable
+  trade-offs" (Owner, 2026-06-24). So two of the four named "opinionated custom" replacements landed
+  differently than the maximal plan: Toast→Sonner, icons→lucide, and command-palette→cmdk all
+  shipped, but **native select → Radix Select did NOT** — Radix Select (a button + portalled
+  listbox, no native change event) can't pass the existing tests verbatim (`ui.test.tsx`
+  `user.selectOptions` + ~32 e2e `selectOption()` across 12 specs hard-require a native `<select>`),
+  and the branch's hard invariant is "`ui.test.tsx` passes verbatim; never edit tests to fit Radix";
+  the native select is also more robust on mobile/keyboard. **WeekdayPicker** kept its plain
+  Tab-reachable `<button aria-pressed>` chips because shadcn ToggleGroup was a net-negative keyboard
+  regression (roving tabindex + nested `role="toolbar"`, with floaty owning the `Weekday[]` model).
+  No further work; if Radix Select is ever wanted, it's a deliberate test-interaction update
+  (open trigger → click option, keeping the behavioural assertions) + the 32 e2e calls.
 
 ## Parked (owner-confirmed, build much later)
 - **Freelancer / contractor / external-supplier differentiation.** The "Temp" pill is
