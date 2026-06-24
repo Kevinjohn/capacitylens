@@ -10,7 +10,7 @@
 //   ./dialogs   Button, Modal, ConfirmDialog, ListPage, EmptyState
 //   ./fields    TextField, TextAreaField, NumberField, DateField, SelectField, Option,
 //               ColorField, WeekdayPicker, RequiredLegend
-//   ./feedback  Callout, FieldError, Toast
+//   ./feedback  Callout, FieldError  (transient toasts moved to Sonner — see AppShell)
 //   ./badges    TemporaryTag, ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
 
 export * from './dialogs'

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { render, screen, act, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AppShell } from './AppShell'
 import { useStore } from '../store/useStore'
@@ -14,6 +14,9 @@ beforeEach(() => {
   useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount()] }))
   useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
   useStore.getState().clearFilters()
+  // Clear any leftover transient notice so a prior test's Sonner toast can't bleed in (the
+  // toast layer is module-global; the store notice is the source of truth the bridge reads).
+  useStore.getState().setNotice(null)
   // Reset hydrated state to false before each test
   useStore.getState().setHydrated(false)
 })
@@ -222,7 +225,7 @@ describe('AppShell undo/redo keyboard', () => {
 })
 
 describe('AppShell command palette dirty-form guard', () => {
-  it('Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette', () => {
+  it('Ctrl+K with dirtyForm=true shows the unsaved-changes notice and does NOT open the palette', async () => {
     useStore.getState().setHydrated(true)
     renderAppShell()
 
@@ -235,9 +238,10 @@ describe('AppShell command palette dirty-form guard', () => {
 
     // Palette must NOT render
     expect(screen.queryByTestId('command-palette')).not.toBeInTheDocument()
-    // Notice must show the exact message
+    // Notice must show the exact message. It's surfaced via a Sonner toast now (bridged from
+    // the store `notice`), which portals in asynchronously — so await it.
     expect(
-      screen.getByText('You have unsaved changes — use Cancel or Save to close this dialog.'),
+      await screen.findByText('You have unsaved changes — use Cancel or Save to close this dialog.'),
     ).toBeInTheDocument()
   })
 
@@ -257,22 +261,142 @@ describe('AppShell command palette dirty-form guard', () => {
 })
 
 describe('AppShell transient notice', () => {
-  it('renders a toast for a store notice and clears it on dismiss', () => {
+  // The store `notice`/`setNotice` API is unchanged; AppShell now bridges it to a Sonner
+  // toast (the hand-rolled Toast was retired in shadcn Phase 5). Sonner portals the toast in
+  // asynchronously inside a polite live region (<section aria-label="Notifications…"
+  // aria-live="polite">), each toast a `li[data-sonner-toast]` with an aria-label="Close
+  // toast" button — so these assertions match Sonner's DOM, while the behavioural intent
+  // (info appears + auto-dismisses, error persists + is dismissible, store stays in sync)
+  // is preserved.
+  it('renders a Sonner toast for an info store notice and clears it on dismiss', async () => {
     renderAppShell()
     expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument()
 
     act(() => {
       useStore.getState().setNotice('That allocation could not be moved there.')
     })
-    // An info notice renders as a POLITE status toast (role="status"); only error notices are
-    // assertive (role="alert"). (Query by text — a loading spinner also carries role="status".)
-    const toast = screen.getByText(/could not be moved/).closest('[role="status"]')
-    expect(toast).not.toBeNull()
+    // Sonner portals the toast in asynchronously; wait for it, then confirm it's a real Sonner
+    // toast living in the polite live region (not, say, a loading spinner's status node).
+    const message = await screen.findByText(/could not be moved/)
+    expect(message.closest('[data-sonner-toast]')).not.toBeNull()
+    expect(message.closest('[aria-live="polite"]')).not.toBeNull()
 
+    // Dismiss via Sonner's close button (aria-label "Close toast"); the bridge's onDismiss
+    // calls setNotice(null), so the store clears in lock-step with the toast leaving.
     act(() => {
-      screen.getByRole('button', { name: 'Dismiss' }).click()
+      screen.getByRole('button', { name: 'Close toast' }).click()
     })
-    expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument()
+    await waitFor(() => expect(useStore.getState().notice).toBeNull())
+    await waitFor(() => expect(screen.queryByText(/could not be moved/)).not.toBeInTheDocument())
+  })
+
+  it('keeps an ERROR notice on screen past the 4s info window (no auto-dismiss), unlike info', async () => {
+    // Drive Sonner's auto-close timer with FAKE timers so we can genuinely advance past the
+    // 4000ms info window deterministically (a real 4s wait is too slow + flaky). `findBy*`
+    // polls on real timers, so we never use it here — we pump Sonner's mount + dismiss timers
+    // with advanceTimersByTimeAsync and read synchronously. Restored in finally so the other
+    // async tests in this file keep their real-timer behaviour.
+    vi.useFakeTimers()
+    try {
+      renderAppShell()
+
+      // BASELINE — an INFO notice MUST auto-dismiss once the 4000ms window elapses. Prove the
+      // window actually closes (so the error assertion below isn't vacuously true).
+      act(() => {
+        useStore.getState().setNotice('Info that should auto-dismiss.')
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50) // let Sonner mount/portal the toast
+      })
+      expect(screen.getByText(/auto-dismiss/)).toBeInTheDocument()
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500) // past the 4000ms info window + exit animation
+      })
+      expect(screen.queryByText(/auto-dismiss/)).not.toBeInTheDocument()
+      expect(useStore.getState().notice).toBeNull() // bridge cleared the store in lock-step
+
+      // ERROR — created with duration: Infinity, so the SAME 4500ms advance must NOT dismiss it.
+      act(() => {
+        useStore.getState().setNotice('That allocation could not be moved.', 'error')
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50)
+      })
+      const message = screen.getByText(/could not be moved/)
+      expect(message.closest('[data-sonner-toast]')).not.toBeNull()
+      // Tagged for the danger affordance (index.css `.toast-error`) so it reads as an error.
+      expect(message.closest('[data-sonner-toast]')).toHaveClass('toast-error')
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500) // well past where an info toast would have gone
+      })
+      expect(screen.getByText(/could not be moved/)).toBeInTheDocument()
+      expect(useStore.getState().notice?.tone).toBe('error')
+
+      // It is still dismissible, and dismissal clears the store in lock-step.
+      act(() => {
+        screen.getByRole('button', { name: 'Close toast' }).click()
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500) // exit animation → removal + onDismiss
+      })
+      expect(useStore.getState().notice).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('rapidly replacing notice A with B leaves B intact (no stale-clear race)', async () => {
+    // REGRESSION for the Phase-5 stale-clear race: rapidly swapping notice A→B (e.g. two drags
+    // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
+    // replaces A's toast it runs cleanup `toast.dismiss(idA)`, and Sonner fires A's `onDismiss`
+    // even for a *programmatic* dismiss — so without the `=== thisNotice` identity guard A's
+    // `clear()` would call setNotice(null) and erase B. (Verified: with the guard removed the
+    // store reads `notice === undefined` here instead of B.) Fake timers let us pump Sonner's
+    // deferred-dismiss + exit-animation rAFs for A deterministically while staying WELL under the
+    // 4000ms auto-dismiss window, so B never auto-closes — we isolate the swap race, not the timer.
+    vi.useFakeTimers()
+    try {
+      renderAppShell()
+
+      // A mounts first (its bridge effect runs, Sonner portals toast A) — the swap must dismiss a
+      // *real* live toast for the race to exist at all.
+      act(() => {
+        useStore.getState().setNotice('First notice')
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50) // let Sonner mount/portal toast A
+      })
+      expect(screen.getByText('First notice')).toBeInTheDocument()
+
+      // The back-to-back second notice REPLACES A — this is what tears A's toast down and fires
+      // A's deferred onDismiss (the thing that, unguarded, would wipe B).
+      act(() => {
+        useStore.getState().setNotice('Second notice')
+      })
+      // Pump A's deferred dismiss rAF, THEN its exit-animation removal, in two steps — Sonner
+      // chains those across rAF/flush boundaries, so a single big advance can leave A's node
+      // mid-animation. Total here (~250ms post-swap) stays well under the 4000ms auto-dismiss,
+      // so B never auto-closes.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50) // A's deferred onDismiss fires (the race trigger)
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200) // A's exit animation completes → node removed
+      })
+
+      // CORE ASSERTION — the store still holds B (A's deferred clear was identity-guarded out; an
+      // unguarded bridge leaves this undefined). Read synchronously: `findBy*` polls on real timers
+      // and would hang under fake timers, so we never use it here.
+      expect(useStore.getState().notice?.message).toBe('Second notice')
+      // B is on screen as a real Sonner toast; A's toast has left the DOM (its 300ms dismiss +
+      // exit completed), proving A's teardown removed only A, not B.
+      const message = screen.getByText('Second notice')
+      expect(message.closest('[data-sonner-toast]')).not.toBeNull()
+      expect(screen.queryByText('First notice')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

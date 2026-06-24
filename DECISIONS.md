@@ -56,7 +56,8 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 ## Error handling & comments (open-source posture)
 - **Surface, never swallow** — the standard is **[`DEFENSIVE-CODING.md`](DEFENSIVE-CODING.md)**
   (read it whole). A `catch` only re-throws with more context, routes the error to a visible
-  surface (`FieldError` / `Toast` / `setNotice` / typed `LoadError` / a 503), or degrades to a
+  surface (`FieldError` / a `Sonner toast` (driven by `setNotice` — the hand-rolled `Toast` is
+  retired) / typed `LoadError` / a 503), or degrades to a
   documented default for **non-tenant device prefs only** (theme/util toggles/sidebar/rotate hint).
   No `catch {}` on a data path; no generic message replacing a specific one.
 - **Two-tier model:** validators return a value / call `fail(field, msg)` and never throw; the

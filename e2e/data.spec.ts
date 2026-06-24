@@ -67,8 +67,10 @@ test.describe('Data import/export', () => {
     await openApp(page)
     await importFile(page, 'random.json', JSON.stringify({ hello: 'world' }))
 
-    // Surfaces the SPECIFIC reason from parseData (a JSON object with no Floaty keys), not a generic catch-all.
-    await expect(page.getByRole('alert')).toContainText(/not Floaty data/i)
+    // Surfaces the SPECIFIC reason from parseData (a JSON object with no Floaty keys), not a generic
+    // catch-all. Shown via a Sonner error toast now (was the hand-rolled Toast's role="alert");
+    // assert on the message text, which is Sonner-DOM-agnostic.
+    await expect(page.getByText(/not Floaty data/i)).toBeVisible()
     await expect(page.getByText('Tyler Nix')).toBeVisible() // data preserved, no dialog, no wipe
   })
 
@@ -77,8 +79,9 @@ test.describe('Data import/export', () => {
     await importFile(page, 'empty.json', EMPTY_FLOATY)
 
     // No confirmation dialog, an error notice naming the specific reason (a Floaty-shaped but
-    // empty file → would silently wipe the account), and the seeded data is preserved.
-    await expect(page.getByRole('alert')).toContainText(/no Floaty records/i)
+    // empty file → would silently wipe the account), and the seeded data is preserved. The notice
+    // is a Sonner error toast now; assert on its message text (Sonner-DOM-agnostic).
+    await expect(page.getByText(/no Floaty records/i)).toBeVisible()
     await expect(page.getByRole('dialog', { name: 'Import data?' })).toHaveCount(0)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })
