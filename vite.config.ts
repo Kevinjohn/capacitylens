@@ -7,7 +7,10 @@ import { fileURLToPath } from 'node:url'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: { '@floaty/shared': fileURLToPath(new URL('./shared/src', import.meta.url)) },
+    alias: {
+      '@floaty/shared': fileURLToPath(new URL('./shared/src', import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
   },
   // Bind IPv4 loopback explicitly. Node 17+ resolves `localhost` to `::1` (IPv6)
   // first, so the default Vite host would listen on `::1` only and any browser/tool
