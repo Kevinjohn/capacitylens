@@ -16,6 +16,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path alias (shadcn @/* → src/*). No baseUrl: it's deprecated in TS 6 (TS5101);
+       under moduleResolution "bundler", `paths` resolves relative to this config. */
+    "paths": { "@/*": ["./src/*"] },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,
