@@ -1,10 +1,36 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { useStore } from '../../store/useStore'
 
 // Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
 // from semantic tokens (see index.css), so everything adapts to dark mode automatically.
 
 type ButtonVariant = 'primary' | 'ghost' | 'danger'
+
+// The set of natively-focusable controls inside the dialog — shared by the manual Tab-trap
+// (window keydown) and the initial-focus fallback (onOpenAutoFocus) so the two can't drift.
+// The Tab-trap additionally drops disabled elements at runtime; initial focus uses the
+// `:not([disabled])` variant below so it never lands on a disabled control (which would
+// silently drop focus to <body>).
+const FOCUSABLE_SELECTOR =
+  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+
+/** Restore focus to `prev` (the element that had focus before the dialog opened) on close.
+ *  But .focus() on a node that's been detached from the DOM is a silent no-op that drops
+ *  focus to <body>, stranding keyboard/SR users (WCAG 2.4.3) — an action like delete can
+ *  unmount the row/button that opened the dialog. So fall back to the <main> landmark (made
+ *  programmatically focusable) to keep focus in the content. */
+function restoreFocus(prev: HTMLElement | null) {
+  if (prev?.isConnected) {
+    prev.focus?.()
+  } else {
+    const main = document.querySelector<HTMLElement>('main')
+    if (main) {
+      main.tabIndex = -1
+      main.focus()
+    }
+  }
+}
 
 const buttonClasses: Record<ButtonVariant, string> = {
   // Pastel, not saturated: soft tint + per-theme coloured ink (the *-soft / *-soft-ink
@@ -76,9 +102,18 @@ export function Modal({
    *  not savable form data — guarding them only makes aborting harder. */
   guardDirty?: boolean
 }) {
+  // Radix Dialog supplies the accessible shell — role="dialog", the <h2> title wired via
+  // aria-labelledby (DialogTitle), and the dismiss/focus scaffold. It runs in NON-modal mode
+  // (`modal={false}`): the modal variant aria-hides ALL sibling subtrees (aria-hidden's
+  // hideOthers), which would hide the page BEHIND the dialog from the a11y tree — but floaty
+  // shows hints like RotateHint OVER content that must stay readable (mobile.spec relies on
+  // the sign-in heading staying findable). So we keep floaty's own light-touch modal
+  // semantics: a plain backdrop div (rendered INLINE, no Portal, so it's container.firstChild
+  // and the panel's parentElement) and the manual Tab-trap below. Floaty's dismiss/restore
+  // behaviours — which stock Radix does NOT reproduce — are layered on top; Radix's competing
+  // paths are neutralised (see each handler).
   const panelRef = useRef<HTMLDivElement>(null)
   const downOnBackdropRef = useRef(false)
-  const titleId = useId()
   const setNotice = useStore((s) => s.setNotice)
   const setDirtyForm = useStore((s) => s.setDirtyForm)
 
@@ -122,33 +157,31 @@ export function Modal({
     onClose()
   }
 
-  // Read onClose/requestClose through refs so the focus effect can run exactly once
-  // on open — otherwise a store mutation while the dialog is open (e.g. "Add activity")
-  // mints a fresh onClose, re-fires the effect, yanks focus back to the first control,
-  // and clobbers the "restore focus on close" target. (Empty deps, ref for the latest.)
-  const onCloseRef = useRef(onClose)
+  // Read requestClose through a ref so the Escape listener can bind exactly once on open —
+  // otherwise a store mutation while the dialog is open (e.g. "Add activity") mints a fresh
+  // onClose, re-fires the effect, and the latest guard state would be missed. (Empty deps,
+  // ref for the latest.)
   const requestCloseRef = useRef(requestClose)
   useEffect(() => {
-    onCloseRef.current = onClose
     requestCloseRef.current = requestClose
   })
 
-  // Accessible dialog: trap Tab, focus the first control on open, restore on close.
+  // A WINDOW keydown listener owns two things stock Radix can't do here:
+  //  • Escape → requestClose. NOT Radix's onEscapeKeyDown (a document-level handler the tests
+  //    can't reach: they fire fireEvent.keyDown(window, …)). Radix's own Escape is neutralised
+  //    on the Content (onEscapeKeyDown preventDefault) so there's a single dismiss path.
+  //  • Tab focus-trap. Radix's FocusScope trap is OFF in non-modal mode (DialogContentNonModal
+  //    sets trapFocus=false), so floaty keeps its own wrap — bound once, reading the latest
+  //    via panelRef. (Empty deps; the trigger ref keeps the guard state current.)
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    const node = panelRef.current
-    const focusables = () =>
-      node
-        ? Array.from(
-            node.querySelectorAll<HTMLElement>(
-              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-            ),
-          ).filter((el) => !el.hasAttribute('disabled'))
+    const focusables = () => {
+      const node = panelRef.current
+      return node
+        ? Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+            (el) => !el.hasAttribute('disabled'),
+          )
         : []
-    // Honour an explicit data-autofocus target (e.g. a confirm field) over the first
-    // focusable in the DOM, which is often a leading button.
-    ;(node?.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0] ?? node)?.focus()
-
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         requestCloseRef.current()
@@ -168,57 +201,91 @@ export function Modal({
       }
     }
     window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      // Restore focus to the trigger — but ONLY if it's still in the DOM. An action like delete can
-      // unmount the element that opened the dialog (a row/button), and .focus() on a detached node
-      // is a silent no-op that drops focus to <body>, stranding keyboard/SR users (WCAG 2.4.3). Fall
-      // back to the <main> landmark (made programmatically focusable) so focus stays in the content.
-      if (previouslyFocused?.isConnected) {
-        previouslyFocused.focus?.()
-      } else {
-        const main = document.querySelector<HTMLElement>('main')
-        if (main) {
-          main.tabIndex = -1
-          main.focus()
-        }
-      }
-    }
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Capture the trigger before Radix's FocusScope moves focus, then restore to it on UNMOUNT
+  // (the effect cleanup) — Radix has no Trigger here, and onCloseAutoFocus fires only on a
+  // controlled open→closed transition, NOT on the hard unmount callers actually use
+  // ({isOpen && <Modal/>}). So the restore lives here, exactly as floaty did pre-Radix.
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    // Restore synchronously, exactly once, here in the cleanup — callers use
+    // {isOpen && <Modal/>} (a hard unmount), which does NOT fire onCloseAutoFocus. This is the
+    // ONLY focus-restore path; onCloseAutoFocus deliberately does nothing but preventDefault
+    // (so Radix's FocusScope can't fire a SECOND, delayed restore that would steal focus the
+    // app moved after close).
+    return () => restoreFocus(previouslyFocused)
   }, [])
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-[floaty-fade_0.15s_ease-out]"
-      // Close only when the press both STARTS and ENDS on the backdrop — a drag that
-      // begins inside an input and releases over the backdrop must not dismiss (and
-      // mouseup, not mousedown, so a stray 3px press can't nuke an in-progress form).
-      onMouseDown={(e) => {
-        downOnBackdropRef.current = e.target === e.currentTarget
-      }}
-      onMouseUp={(e) => {
-        if (downOnBackdropRef.current && e.target === e.currentTarget) requestClose()
-        downOnBackdropRef.current = false
-      }}
-    >
+    // Controlled + always-open while mounted (callers gate with {isOpen && <Modal/>}).
+    // modal={false}: see the shell note above. onOpenChange only fires if some path slips
+    // past the neutralised Radix dismissals; route it through the same guard so it can never
+    // bypass the dirty check.
+    <DialogPrimitive.Root open modal={false} onOpenChange={(next) => { if (!next) requestCloseRef.current() }}>
+      {/* Plain backdrop div (not DialogPrimitive.Overlay — that renders null in non-modal
+          mode). Rendered INLINE (no Portal) so it's container.firstChild and the panel's
+          parentElement — the contract ColorField + the tests rely on. */}
       <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[floaty-pop_0.16s_ease-out]"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-[floaty-fade_0.15s_ease-out]"
+        // Close only when the press both STARTS and ENDS on the backdrop — a drag that
+        // begins inside an input and releases over the backdrop must not dismiss (and
+        // mouseup, not mousedown, so a stray 3px press can't nuke an in-progress form).
+        onMouseDown={(e) => {
+          downOnBackdropRef.current = e.target === e.currentTarget
+        }}
+        onMouseUp={(e) => {
+          if (downOnBackdropRef.current && e.target === e.currentTarget) requestClose()
+          downOnBackdropRef.current = false
+        }}
       >
-        <header className="border-b px-4 py-3">
-          <h2 id={titleId} className="text-base font-semibold">
-            {title}
-          </h2>
-        </header>
-        <form noValidate onSubmit={(e) => { e.preventDefault(); onSubmit?.() }}>
-          <div className="space-y-3 p-4">{children}</div>
-          {footer && <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">{footer}</footer>}
-        </form>
+        <DialogPrimitive.Content
+          ref={panelRef}
+          // Radix's Content under modal={false} emits role="dialog" WITHOUT aria-modal, so we
+          // pass it back through (Content forwards unknown props) to restore the screen-reader
+          // modality signal floaty's pre-Radix panel carried.
+          aria-modal="true"
+          // No visible description chrome — silence Radix's "missing Description" warning.
+          aria-describedby={undefined}
+          // Floaty owns Escape (the window listener above) and the backdrop press (the backdrop
+          // handlers), so neutralise Radix's competing dismissals — one dismiss path each,
+          // routed through requestClose's dirty guard.
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          // Honour an explicit data-autofocus target (e.g. a confirm field) over the fallback:
+          // the first focusable. The fallback must skip DISABLED controls (same as the Tab-trap)
+          // — focusing a disabled element is a silent no-op that drops focus to <body>.
+          onOpenAutoFocus={(e) => {
+            e.preventDefault()
+            const node = panelRef.current
+            const first = node
+              ? Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).find(
+                  (el) => !el.hasAttribute('disabled'),
+                )
+              : undefined
+            ;(node?.querySelector<HTMLElement>('[data-autofocus]') ?? first ?? node)?.focus()
+          }}
+          // ONLY preventDefault here — no restore body. The real focus-restore runs synchronously,
+          // exactly once, in the unmount-effect cleanup above (callers use {isOpen && <Modal/>}).
+          // On a hard unmount Radix's FocusScope ALSO fires this onCloseAutoFocus a tick later
+          // (via setTimeout(0)); if it restored too, that delayed second move could steal focus
+          // the app intentionally placed after close. Suppressing FocusScope's auto-restore here
+          // leaves the synchronous cleanup as the single focus move.
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[floaty-pop_0.16s_ease-out]"
+        >
+          <header className="border-b px-4 py-3">
+            <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
+          </header>
+          <form noValidate onSubmit={(e) => { e.preventDefault(); onSubmit?.() }}>
+            <div className="space-y-3 p-4">{children}</div>
+            {footer && <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">{footer}</footer>}
+          </form>
+        </DialogPrimitive.Content>
       </div>
-    </div>
+    </DialogPrimitive.Root>
   )
 }
 
