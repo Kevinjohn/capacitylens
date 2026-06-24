@@ -216,6 +216,10 @@ export function AppShell() {
             sidebar collapses — only the labels and the "Floaty" wordmark come and go, the
             icon column never shifts. */}
         <div className="mb-2 flex items-center gap-1">
+          {/* Native `title` hover/focus label, matching the collapsed rail's existing approach
+              below. (Tooltip-ifying AppShell's icon-only buttons via ui/tooltip.tsx is a deferred
+              consistency pass — it needs cross-engine hover/focus/touch tests and should convert the
+              rail labels together, so the toggle and the rail share ONE mechanism.) */}
           <button
             type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}

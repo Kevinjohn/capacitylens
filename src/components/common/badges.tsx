@@ -1,6 +1,7 @@
 import { isTemporary } from '@floaty/shared/lib/integrity'
 import { ensureBarColors } from '@floaty/shared/lib/color'
 import type { Resource } from '@floaty/shared/types/entities'
+import { Badge } from '../ui/badge'
 
 // Colour, avatar & resource-badge slice of the shared kit (re-exported from ./ui).
 // Colours come from semantic tokens (see index.css), so everything adapts to dark mode.
@@ -11,10 +12,15 @@ import type { Resource } from '@floaty/shared/types/entities'
 // this stays so re-introducing a (redesigned) marker is a one-line change per call site.
 export function TemporaryTag({ resource }: { resource: Resource }) {
   if (!isTemporary(resource)) return null
+  // Reshaped onto the shadcn Badge `warn` variant (Phase 8) — its tokens (border-warn/40 +
+  // bg-warn/10 + text-ink) are floaty's amber chip, the SAME treatment this carried before, so
+  // the look is unchanged. Safe to reshape: this tag is currently rendered nowhere (parked; see
+  // the note above). The extra-compact sizing (text-[9px], uppercase) is kept via className so the
+  // pill stays the small marker it was when re-introduced.
   return (
-    <span className="rounded-sm border border-warn/40 bg-warn/10 px-1 text-[9px] leading-[13px] font-semibold uppercase text-ink">
+    <Badge variant="warn" className="rounded-sm px-1 py-0 text-[9px] leading-[13px] font-semibold uppercase">
       Temp
-    </span>
+    </Badge>
   )
 }
 
