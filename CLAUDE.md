@@ -51,7 +51,8 @@ goes through the `useScopedData` / `scopedTables()` seam.
   (`looksLikeFloaty`) before migrate so it can't wipe data; import is confirmed + undoable, with
   caps on file size + record count.
 - **Surface, never swallow.** A `catch` exists only to re-throw with more context, route the error
-  to a visible surface (`FieldError`/`Toast`/`setNotice`/typed `LoadError`/503), or degrade to a
+  to a visible surface (`FieldError`/a `Sonner toast` driven by `setNotice` (the hand-rolled
+  `Toast` is retired)/typed `LoadError`/503), or degrade to a
   documented default for *non-tenant device prefs only*. No `catch {}` on a data path; never wrap a
   pure function, a hot render path, or the store's deliberate integrity throws (that hides
   corruption — the anti-goal). Full standard in **`DEFENSIVE-CODING.md`** — follow it on every change.

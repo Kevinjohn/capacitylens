@@ -1,5 +1,6 @@
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, type CSSProperties } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
+import { Toaster, toast } from 'sonner'
 import { useStore } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
 import { useDemoAuthActive } from '../lib/fakeAuth'
@@ -9,7 +10,6 @@ import { FakeSignIn } from './FakeSignIn'
 import { IntroPage } from './IntroPage'
 import { StorageRecovery } from './StorageRecovery'
 import { ConnectionError } from './ConnectionError'
-import { Toast } from './common/ui'
 import { CommandPalette } from './CommandPalette'
 import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
@@ -35,6 +35,11 @@ export function AppShell() {
   const connectionError = useStore((s) => s.connectionError)
   const notice = useStore((s) => s.notice)
   const setNotice = useStore((s) => s.setNotice)
+  // Drives Sonner's theme (see the <Toaster> below). An explicit light|dark pref is passed
+  // through as the concrete scheme; a 'system' pref is delegated to Sonner ('system'), which
+  // subscribes to prefers-color-scheme itself and so stays live when the OS flips (this shell
+  // wouldn't re-render on that, which is why we don't resolve 'system' here).
+  const themePref = useStore((s) => s.theme)
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
   const accounts = useStore((s) => s.data.accounts)
@@ -71,14 +76,35 @@ export function AppShell() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload)
   }, [dirtyForm])
 
-  // Auto-dismiss info notices after a few seconds; ERROR notices persist until the
-  // user dismisses them (an error toast that vanishes before it's read is useless).
+  // Bridge the store's `notice` → a Sonner toast. The store API (setNotice/notice) is the
+  // single source of truth (used at ~47 sites); this effect is the only thing that turns it
+  // into UI. Info toasts auto-dismiss after 4s (Sonner's `duration` owns the timer — no
+  // hand-rolled setTimeout); error toasts persist until dismissed (an error that vanishes
+  // before it's read is useless). Either way, dismissal/auto-close calls `clear()` so the
+  // store stays in sync with what's on screen.
+  //
+  // Teardown: the cleanup `toast.dismiss(id)` removes this toast whenever `notice` changes or
+  // clears, so a new notice REPLACES the old one — never a duplicate/stale toast.
+  //
+  // Identity-guarded clear: Sonner runs `onDismiss` on a *programmatic* `toast.dismiss(id)`
+  // too — so the cleanup above would fire this toast's `clear` even when we replaced notice A
+  // with a newer notice B. Guarding on `=== thisNotice` makes a toast clear the store ONLY
+  // while the store still holds the exact notice that toast represents; a back-to-back A→B
+  // swap leaves B intact (setNotice mints a fresh object per call, so `===` identity is exact).
   useEffect(() => {
-    if (!notice || notice.tone === 'error') return
-    const t = setTimeout(() => setNotice(null), 4000)
-    return () => clearTimeout(t)
+    if (!notice) return
+    const thisNotice = notice
+    const clear = () => {
+      if (useStore.getState().notice === thisNotice) setNotice(null)
+    }
+    const id =
+      thisNotice.tone === 'error'
+        ? toast.error(thisNotice.message, { duration: Infinity, onDismiss: clear })
+        : toast(thisNotice.message, { duration: 4000, onDismiss: clear, onAutoClose: clear })
+    return () => {
+      toast.dismiss(id)
+    }
   }, [notice, setNotice])
-
 
   // Global keyboard shortcuts. ⌘K/Ctrl+K opens the command palette (checked FIRST,
   // before the input bail-out so the palette can open from anywhere — including while
@@ -307,7 +333,37 @@ export function AppShell() {
           loader
         )}
       </main>
-      {notice && <Toast message={notice.message} tone={notice.tone} onDismiss={() => setNotice(null)} />}
+      {/* Sonner toaster — bottom-centre (matches the retired Toast's `bottom-4`). `theme`: an
+          explicit light|dark pref is passed through concrete; a 'system' pref delegates to Sonner
+          ('system'), which subscribes to prefers-color-scheme itself so an OS flip re-themes the
+          toasts live (this shell doesn't re-render on that). Explicit prefs still track floaty's
+          [data-theme] dark mode through the --normal-* vars below. `closeButton` gives every toast
+          a dismiss control (aria-label "Close toast"); the store `notice` is the source of truth,
+          the effect above feeds it.
+
+          NOT `richColors`: its light-mode error palette (red #e60000 on pink #fff0f0) is 4.34:1,
+          just under WCAG AA (the a11y gate is hard, not advisory). Instead we paint every toast
+          on floaty's already-AA-validated elevated/ink/line tokens (the old hand-rolled Toast was
+          likewise one neutral surface for both tones). Wired through Sonner's --normal-* CSS vars
+          so it tracks [data-theme] for free.
+
+          Error distinction is restored WITHOUT richColors: the `toast-error` class (styled in
+          index.css off floaty's --color-danger) gives error toasts a danger left-accent + ring +
+          icon tint over the same AA-safe neutral surface, so an error reads as an error at a
+          glance in both themes. */}
+      <Toaster
+        theme={themePref === 'system' ? 'system' : themePref}
+        position="bottom-center"
+        closeButton
+        toastOptions={{ classNames: { error: 'toast-error' } }}
+        style={
+          {
+            '--normal-bg': 'var(--color-elevated)',
+            '--normal-text': 'var(--color-ink)',
+            '--normal-border': 'var(--color-line)',
+          } as CSSProperties
+        }
+      />
       {paletteOpen && !dirtyForm && <CommandPalette onClose={() => setPaletteOpen(false)} />}
       <RotateHint />
     </div>

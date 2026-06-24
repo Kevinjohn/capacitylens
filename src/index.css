@@ -345,6 +345,28 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   display: none;
 }
 
+/* Error-toast distinction (Sonner). richColors is deliberately OFF — its light-mode error
+   palette fails WCAG AA (see AppShell's <Toaster>) — so every toast paints on the neutral,
+   already-AA-validated --color-elevated/ink/line surface. To keep an error reading as an error
+   at a glance (the migration had briefly flattened error → info), the bridge tags error toasts
+   with `toast-error` (Sonner's `classNames.error`), and this rule layers a danger affordance
+   over that neutral surface: a saturated --color-danger left accent + a 1px danger ring, plus a
+   matching tint on Sonner's built-in error icon. The text stays --color-ink on --color-elevated,
+   so AA holds in BOTH themes (--color-danger flips per [data-theme]); the colour is an ADDED
+   signal, never the sole carrier of meaning, and never the text/background contrast pair. */
+[data-sonner-toast].toast-error {
+  /* Saturated danger edge on the leading side + a hairline danger ring around the whole toast.
+     box-shadow (not border) so it doesn't shift Sonner's layout/close-button geometry. */
+  box-shadow:
+    inset 4px 0 0 0 var(--color-danger),
+    0 0 0 1px var(--color-danger);
+}
+
+[data-sonner-toast].toast-error [data-icon] {
+  /* Tint Sonner's built-in error glyph to the danger token (it ships a neutral currentColor). */
+  color: var(--color-danger);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
