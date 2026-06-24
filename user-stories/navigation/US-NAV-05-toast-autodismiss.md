@@ -20,16 +20,24 @@ timeline is visible, then scroll the grid fully left if the seed bars aren't in 
    Lightning* (`data-resource-id="r-ph-designer"`). Its row highlights as a drop target
    mid-drag.
 3. Release. The reassignment is rejected (a Lightning-bound placeholder can't take a
-   *Brand Themes* activity), and a toast appears at the bottom-centre reading
+   *Brand Themes* activity), and a dismissible notice appears at the bottom-centre reading
    **"A placeholder can only be assigned to activities from its bound project."**
-4. Leave it untouched and wait ~4 seconds — the toast fades out on its own.
-5. Trigger another toast (repeat the rejected drag) and this time click its **✕**
-   ("Dismiss") button. It disappears immediately.
+4. This is an error notice, so it stays put rather than timing out — the reason remains
+   readable until you act on it. Click its **✕** (aria-label "Close toast") and it
+   disappears immediately.
+5. To see auto-dismiss, trigger an *info* notice instead: drag a bar to a legal slot (or
+   import a dataset — see the variant below). That confirmation toast clears itself after
+   roughly 4 seconds without any interaction.
 
 ## Acceptance criteria
-- ✅ The rejected drag produces a toast (`role="alert"`) with the reason message.
-- ✅ Left alone, the toast auto-dismisses after roughly 4 seconds.
-- ✅ Clicking the toast's **✕** (aria-label "Dismiss") removes it immediately.
-- ✅ The toast does not block the page — the schedule behind it stays interactive.
-- ✅ (Variant) Importing a dataset likewise surfaces a transient toast that
-  auto-dismisses the same way.
+- ✅ The rejected drag produces a dismissible notice (a toast in the bottom-centre live
+  region) surfacing the reason message. (Toasts surface through a single
+  `aria-live="polite"` region — they carry no per-toast `role`, and notably no
+  per-tone `role="alert"`; assert by visible text, not by role.)
+- ✅ Being an error notice, the rejected-drag toast stays until dismissed; clicking its
+  **✕** (aria-label "Close toast") removes it immediately.
+- ✅ An *info* toast (a confirmation, e.g. a legal move or an import) auto-dismisses on its
+  own after roughly 4 seconds.
+- ✅ No toast blocks the page — the schedule behind it stays interactive.
+- ✅ (Variant) Importing a dataset surfaces a transient info toast that auto-dismisses the
+  same way.
