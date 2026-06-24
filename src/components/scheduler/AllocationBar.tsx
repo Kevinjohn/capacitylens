@@ -253,7 +253,7 @@ export const AllocationBar = memo(function AllocationBar({
         if (resource && isCapacityTracked(resource)) {
           const others = data.allocations.filter((a) => a.resourceId === effResourceId && a.id !== bar.allocation.id)
           const overTimeOff = data.timeOff.filter((t) => t.resourceId === effResourceId)
-          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, reconciledHours)
+          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, reconciledHours, bar.allocation.ignoreWeekends)
           const bits: string[] = []
           if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
           if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)

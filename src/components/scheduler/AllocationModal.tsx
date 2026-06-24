@@ -330,7 +330,7 @@ export function AllocationModal(props: AllocationModalProps) {
     if (!selectedResource || !startDate || !effEndDate) return null
     const others = data.allocations.filter((a) => a.resourceId === resourceId && a.id !== editId)
     const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId)
-    const { overDays, timeOffDays } = capacityAdvisory(selectedResource, others, resourceTimeOff, startDate, effEndDate, effHoursPerDay)
+    const { overDays, timeOffDays } = capacityAdvisory(selectedResource, others, resourceTimeOff, startDate, effEndDate, effHoursPerDay, ignoreWeekends)
     const bits: string[] = []
     if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
     if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)

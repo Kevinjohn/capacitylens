@@ -71,8 +71,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 
 ## Scheduling & capacity
 - **Three distinct over/utilisation signals, kept separate:** (1) the per-day **over-marker** flags
-  *any* day where `allocated > available` (STRICTLY greater — at-capacity is NOT over; this also
-  catches a zero-capacity day carrying work) across the whole timeline, rendered as a clear red
+  *any* day where `allocated > available` (STRICTLY greater — at-capacity is NOT over) across the
+  whole timeline. `allocated` is **weekend-aware** (`isWeekendAware`): a normal allocation does no
+  work on the resource's non-working weekdays, so a weekend a bar merely **spans** is NOT over (it
+  keeps only the grey "unavailable" tint) — the zero-capacity days that DO read as over are a
+  **time-off** day a working allocation covers (a real conflict) and a weekend an allocation opts
+  into via `ignoreWeekends`. Rendered as a clear red
   background (`bg-danger-cell`, a strongly saturated red — the cell is EMPTY so no text-contrast/AA constraint binds it, unlike the `danger-soft` BUTTON tint) per over-day; (2) the **displayed utilisation %** (per-person,
   per-discipline avg, overall — all derive from one per-row `utilization`) is a working-day-only ratio
   over the currently **VISIBLE window** — the 1/2/4/8-week zoom span anchored at the scroll left-edge,

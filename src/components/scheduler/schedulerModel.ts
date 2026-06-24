@@ -87,9 +87,11 @@ export function buildSchedulerModel(
   //   (UTILIZATION_WINDOW_DAYS), independent of zoom/pan — the second, zoom-independent "over soon"
   //   warning that must stay separate from the zoomable %. Don't widen it to the visible window.
   //
-  // The per-day over-marker (dayStates.over) is a THIRD, distinct signal and is unchanged — it
-  // flags any day where allocated > available (the over / red-background signal) across the whole
-  // `days` timeline (so it also catches a zero-capacity day carrying any work).
+  // The per-day over-marker (dayStates.over) is a THIRD, distinct signal — it flags any day where
+  // allocated > available (the over / red-background signal) across the whole `days` timeline. Its
+  // `allocated` is weekend-aware (a bar merely spanning Sat/Sun does no weekend work), so the only
+  // zero-capacity days it catches are a TIME-OFF day a working allocation covers and a weekend an
+  // allocation opts into via `ignoreWeekends`.
   visStart: ISODate,
   visEnd: ISODate,
   overStart: ISODate,
@@ -276,9 +278,10 @@ export function buildSchedulerModel(
         // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
         // deliberately separate signals (see the param doc above). Both ignore zero-capacity days
         // (weekends / time off) so an allocation that merely spans them doesn't inflate the % past
-        // 100% or trip the flag — distinct again from the per-day over-marker (dayStates.over),
-        // which DOES flag any zero-capacity day. External rows are skipped entirely: utilisation 0,
-        // never overbooked. `utilization` reuses the pure capacity helper (its own [start,end] ratio).
+        // 100% or trip the flag — like the per-day over-marker (dayStates.over), whose weekend-aware
+        // `allocated` likewise leaves a merely-spanned weekend un-flagged (it still flags a time-off
+        // day a working allocation covers, and an `ignoreWeekends` weekend). External rows are skipped
+        // entirely: utilisation 0, never overbooked. `utilization` reuses the pure capacity helper.
         const utilization = isExternal ? 0 : utilizationOf(resource, allAllocs, resTimeOff, visStart, visEnd)
         let overSoon = false
         if (!isExternal) {

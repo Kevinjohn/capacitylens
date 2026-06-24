@@ -347,9 +347,13 @@ Mouse hover sets the active option; mouse click selects.
   **on**, so every story below runs with disciplines visible.
 - **Capacity:** a day's available hours = the resource's working hours, but **0** on a
   non-working weekday or a time-off day. A day is **over-allocated** when allocated > available
-  (STRICTLY greater — exactly at capacity is NOT over). An over-allocated day renders with a
-  **clear red background** (`data-testid="over-marker"`, `title="Overbooked"`) plus a solid red
-  top band, in both light and dark themes.
+  (STRICTLY greater — exactly at capacity is NOT over). Allocated hours are **weekend-aware**: a
+  normal allocation does no work on the resource's non-working weekdays, so a weekend a bar merely
+  **spans** is NOT over (it keeps only the grey unavailable tint). The zero-capacity days that DO
+  read as over are a **time-off** day a working allocation covers, and a weekend an allocation opts
+  into via **"Include weekends as working days"** (`ignoreWeekends`). An over-allocated day renders
+  with a **clear red background** (`data-testid="over-marker"`, `title="Overbooked"`) plus a solid
+  red top band, in both light and dark themes.
 - **An allocation can't exceed 24h/day, and the form says so instead of silently trimming it.** In
   **days mode**, a *Days of work* spread over too few *Days over* (e.g. 5 days of work in a 1-day span =
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")

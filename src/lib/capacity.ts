@@ -1,10 +1,13 @@
-import { eachDayISO, isWithin, weekdayOf } from '@floaty/shared/lib/dateMath'
+import { allocationWorksOnDay, eachDayISO, isWithin, isWorkingWeekday } from '@floaty/shared/lib/dateMath'
 import type { Allocation, ID, ISODate, Resource, TimeOff } from '@floaty/shared/types/entities'
 
 // Capacity reflects real availability: a resource has 0 available hours on a
 // non-working weekday or a time-off day, otherwise their workingHoursPerDay.
-// A day is over-allocated when allocated hours exceed available hours (which
-// includes any allocation landing on a zero-capacity day).
+// A day is over-allocated when allocated hours exceed available hours. A normal
+// (weekend-aware) allocation does NO work on the resource's non-working weekdays —
+// a bar that merely SPANS Sat/Sun is not over there — so the only zero-capacity
+// days that read as over are (a) a TIME-OFF day a working allocation covers (a real
+// conflict) and (b) a weekend an allocation opts into via `ignoreWeekends`.
 //
 // PRECONDITION: every `workingHoursPerDay` / `hoursPerDay` reaching this module is a finite,
 // non-negative number — guaranteed at every write boundary by integrity.ts (clampHoursPerDay /
@@ -23,7 +26,7 @@ function devAssertFinite(label: string, n: number): void {
 }
 
 export function isWorkingDay(resource: Resource, date: ISODate): boolean {
-  return resource.workingDays.includes(weekdayOf(date))
+  return isWorkingWeekday(date, resource.workingDays)
 }
 
 export function isOnTimeOff(resourceId: ID, date: ISODate, timeOff: TimeOff[]): boolean {
@@ -46,19 +49,31 @@ export function availableHoursOnDay(
   return resource.workingHoursPerDay
 }
 
-/** Sum of allocated hours for `resourceId` on `date` across every overlapping allocation.
+/** Sum of allocated hours for `resource` on `date` across every overlapping allocation.
+ *  A weekend-aware allocation (the default for a partial working week) does NO work on the
+ *  resource's non-working weekdays, so a bar that merely SPANS Sat/Sun contributes 0 there —
+ *  matching how the same `isWeekendAware` rule governs the bar's duration and drag. An allocation
+ *  that opts into weekends (`ignoreWeekends`), or a resource with a full/empty working week, places
+ *  its hours on every calendar day in `[startDate, endDate]`. Time-off days are working weekdays,
+ *  so they still count (work on a holiday stays a real over-capacity conflict).
  *  @remarks Assumes each `hoursPerDay` is finite (see the top-of-file precondition) — a NaN would
  *    poison the sum and make every over/utilisation comparison read as "never over". */
 export function allocatedHoursOnDay(
-  resourceId: ID,
+  resource: Resource,
   date: ISODate,
   allocations: Allocation[],
 ): number {
+  // Derive the working-weekday flag ONCE per day: it's invariant across the loop, only the
+  // allocation's `ignoreWeekends` varies (and isWeekendAware is parse-free), so this keeps the
+  // render-time over-marker hot path off a per-allocation parseISO.
+  const dayIsWorking = isWorkingDay(resource, date)
   let sum = 0
   for (const a of allocations) {
-    if (a.resourceId === resourceId && isWithin(date, a.startDate, a.endDate)) {
-      sum += a.hoursPerDay
-    }
+    if (a.resourceId !== resource.id || !isWithin(date, a.startDate, a.endDate)) continue
+    // Weekend-aware allocations do no work on the resource's non-working weekdays — a bar that
+    // merely SPANS Sat/Sun must not read as over. ignoreWeekends / a full working week opts in.
+    if (!allocationWorksOnDay(resource.workingDays, a.ignoreWeekends, dayIsWorking)) continue
+    sum += a.hoursPerDay
   }
   devAssertFinite('allocated hours sum', sum)
   return sum
@@ -80,7 +95,7 @@ export function dayCapacity(
   timeOff: TimeOff[],
 ): DayCapacity {
   const available = availableHoursOnDay(resource, date, timeOff)
-  const allocated = allocatedHoursOnDay(resource.id, date, allocations)
+  const allocated = allocatedHoursOnDay(resource, date, allocations)
   return { date, allocated, available, over: allocated > available }
 }
 
@@ -116,16 +131,21 @@ export function utilization(
 }
 
 export interface CapacityAdvisory {
-  overDays: number // working days in the window where existing + proposed hours exceed availability
+  overDays: number // days the proposed allocation works where existing + proposed hours exceed availability
   timeOffDays: number // days in the window the resource is on time off
 }
 
-/** Non-blocking advisory for a PROPOSED allocation of `hoursPerDay` over [start, end]:
- *  how many working days it would push the resource over capacity, and how many fall on
- *  time off. `otherAllocations` is the resource's existing load to count against (caller
- *  excludes the allocation being edited). Shared by the modal and the drag-commit path so
- *  the rule lives in one place. Buckets the other allocations' hours by day ONCE (clamped
- *  to the window) so it's O(window + load), not O(windowDays × allocations). */
+/** Non-blocking advisory for a PROPOSED allocation of `hoursPerDay` over [start, end] (with the
+ *  proposal's own `ignoreWeekends`): how many days it would push the resource over capacity, and how
+ *  many fall on time off. `otherAllocations` is the resource's existing load to count against (caller
+ *  excludes the allocation being edited). Shared by the modal and the drag-commit path so the rule
+ *  lives in one place. Mirrors the per-day over-marker (`allocatedHoursOnDay`): it counts a day only
+ *  when the proposed allocation actually WORKS it (so a weekend-aware bar merely spanning Sat/Sun
+ *  isn't "over"), and an `ignoreWeekends` weekend — 0 capacity — reads as over exactly like the red
+ *  cell does. Time off stays its OWN category, never folded into overDays (a holiday a working
+ *  allocation covers is surfaced as "on time off for N days", not "over"), which is the one place the
+ *  advisory deliberately diverges from the marker. Buckets the other allocations' hours by day ONCE
+ *  (each only on the days IT works), so it's O(window + load), not O(windowDays × allocations). */
 export function capacityAdvisory(
   resource: Resource,
   otherAllocations: Allocation[],
@@ -133,6 +153,7 @@ export function capacityAdvisory(
   start: ISODate,
   end: ISODate,
   hoursPerDay: number,
+  ignoreWeekends: boolean | undefined,
 ): CapacityAdvisory {
   const days = eachDayISO(start, end)
   if (days.length === 0) return { overDays: 0, timeOffDays: 0 }
@@ -141,7 +162,11 @@ export function capacityAdvisory(
   for (const a of otherAllocations) {
     const from = a.startDate > start ? a.startDate : start
     const to = a.endDate < end ? a.endDate : end
-    for (const d of eachDayISO(from, to)) allocatedByDay.set(d, (allocatedByDay.get(d) ?? 0) + a.hoursPerDay)
+    for (const d of eachDayISO(from, to)) {
+      // Count each existing allocation only on the days IT works, matching the over-marker's load.
+      if (!allocationWorksOnDay(resource.workingDays, a.ignoreWeekends, isWorkingDay(resource, d))) continue
+      allocatedByDay.set(d, (allocatedByDay.get(d) ?? 0) + a.hoursPerDay)
+    }
   }
   let overDays = 0
   let timeOffDays = 0
@@ -150,21 +175,25 @@ export function capacityAdvisory(
     // would otherwise re-run isWorkingDay (and isOnTimeOff) a second time on this hot path.
     const working = isWorkingDay(resource, day)
     const onTimeOff = working && isOnTimeOff(resource.id, day, timeOff)
-    // Only count time off on days the resource would actually have worked — a holiday on a
-    // non-working weekend costs no capacity (matches overDays below, which skips zero-capacity days).
-    if (onTimeOff) timeOffDays++
-    // Mirrors availableHoursOnDay: weekend / time off → 0, else the working-hours/day.
-    const available = working && !onTimeOff ? resource.workingHoursPerDay : 0
-    if (available > 0 && (allocatedByDay.get(day) ?? 0) + hoursPerDay > available) overDays++
+    // Time off is its own category (counted, surfaced separately) and never folded into overDays —
+    // a holiday only costs capacity on a day the resource would have worked, and it reads as "on
+    // time off", not "over". `continue` so it can't also be tallied as over below.
+    if (onTimeOff) { timeOffDays++; continue }
+    // The proposal does no work on a day it doesn't cover (a weekend-aware bar over Sat/Sun) — skip.
+    if (!allocationWorksOnDay(resource.workingDays, ignoreWeekends, working)) continue
+    // Mirrors availableHoursOnDay: a non-working weekday the proposal opts into (ignoreWeekends) has
+    // 0 capacity, so any proposed hours there read as over — exactly like the per-day over-marker.
+    const available = working ? resource.workingHoursPerDay : 0
+    if ((allocatedByDay.get(day) ?? 0) + hoursPerDay > available) overDays++
   }
   return { overDays, timeOffDays }
 }
 
 /** Over-allocated on a working day inside the window — the near-term "overbooked"
- *  radar. Unlike the per-day over-marker (which flags any day where allocated >
- *  available — the over / red-background signal, so it also catches a zero-capacity
- *  day with any work), this ignores weekend/time-off days so an ordinary allocation
- *  spanning them doesn't read as overbooked. */
+ *  radar. Unlike the per-day over-marker (which also flags a TIME-OFF day a working
+ *  allocation covers, and a weekend an allocation opts into via `ignoreWeekends`), this
+ *  skips every zero-capacity day, so neither a holiday nor an ordinary allocation merely
+ *  spanning a weekend reads as overbooked. */
 export function overAllocatedInWindow(
   resource: Resource,
   allocations: Allocation[],

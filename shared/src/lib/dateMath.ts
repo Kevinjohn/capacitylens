@@ -140,6 +140,21 @@ export function isWeekendAware(
   return !ignoreWeekends && !!workingDays && workingDays.length > 0 && workingDays.length < 7
 }
 
+/** Does an allocation place work on a given day? A weekend-aware allocation works ONLY the resource's
+ *  working weekdays — a bar that merely SPANS a non-working day does no work there — while an
+ *  allocation that opts into weekends (`ignoreWeekends`), or a resource with a full/empty working
+ *  week, works every calendar day. The single per-day companion to `isWeekendAware`, shared by the
+ *  over-marker (`allocatedHoursOnDay`) and its advisory mirror (`capacityAdvisory`) so the two can't
+ *  disagree on which days an allocation works. `dayIsWorkingWeekday` is `isWorkingWeekday(date,
+ *  workingDays)`, passed in so the caller derives the weekday ONCE per day, not once per allocation. */
+export function allocationWorksOnDay(
+  workingDays: Weekday[] | undefined,
+  ignoreWeekends: boolean | undefined,
+  dayIsWorkingWeekday: boolean,
+): boolean {
+  return !isWeekendAware(workingDays, ignoreWeekends) || dayIsWorkingWeekday
+}
+
 /** Count the working days within the inclusive range [start, end], given which
  *  weekdays are working. Returns 0 for a reversed/empty range. */
 export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Weekday[]): number {
