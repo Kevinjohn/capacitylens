@@ -6,6 +6,7 @@ import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from '../../lib/pale
 import { controlBase, inputClass, selectChevronClass, selectChevronStyle } from './controls'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
+import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
 import type { Weekday } from '@floaty/shared/types/entities'
 
 // Form fields slice of the shared kit (re-exported from ./ui). The text/number/date
@@ -332,67 +333,105 @@ export function ColorField({
   return (
     <div className="block">
       <span className={labelClass}>{label}</span>
-      <div
-        ref={ref}
-        className="relative"
-        // Escape anywhere within the control (trigger or a focused swatch) closes the popup
-        // and is consumed so it doesn't bubble up to the Modal's Escape-to-close.
-        onKeyDown={(e) => {
-          if (e.key === 'Escape' && open) {
-            e.stopPropagation()
-            setOpen(false)
-          }
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-haspopup="true"
-          aria-expanded={open}
-          aria-label={`${label} (${colorName(value)})`}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid ? describedById : undefined}
-          className={`${selectClass(invalid)} ${selectChevronClass} flex items-center gap-2 text-left`}
-          style={selectChevronStyle}
+      {/* Radix Popover supplies ONLY the shell + anchored positioning (Phase 8 reskin). Floaty's
+          own dismiss collaboration is kept verbatim as the SINGLE dismiss path — the capture-phase
+          mousedown above and the Escape onKeyDown below. Radix's competing dismissals are
+          neutralised on the Content (onInteractOutside / onPointerDownOutside / onEscapeKeyDown →
+          preventDefault) so it can never double-close or change ordering, and Radix's auto-focus is
+          suppressed so opening doesn't yank focus off the trigger. `open` (floaty's state) drives
+          Popover.Root; onOpenChange only mirrors a Radix-initiated close (none, since all of them
+          are neutralised) back into floaty's state as a backstop. */}
+      <Popover open={open} onOpenChange={setOpen}>
+        <div
+          ref={ref}
+          // Escape anywhere within the control (trigger or a focused swatch) closes the popup
+          // and is consumed so it doesn't bubble up to the Modal's Escape-to-close.
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && open) {
+              e.stopPropagation()
+              setOpen(false)
+            }
+          }}
         >
-          <span
-            className="h-4 w-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
-            style={{ backgroundColor: value }}
-          />
-        </button>
-        {open && (
-          <div
-            role="group"
-            aria-label={`${label} swatches`}
-            // Opens upward (bottom-full): the colour field is the last field in every
-            // form, and the Modal's overflow-y-auto would clip a downward popup.
-            className="absolute bottom-full left-0 z-10 mb-1 grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line"
-            style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
-          >
-            {SWATCHES.map((hex, i) => {
-              const selected = hex.toLowerCase() === value.toLowerCase()
-              return (
-                <button
-                  key={hex}
-                  type="button"
-                  aria-label={swatchLabel(i)}
-                  // aria-pressed both conveys selection and lets the Modal's dirty-guard
-                  // register the pick as an edit (a plain button click fires no change).
-                  aria-pressed={selected}
-                  onClick={() => {
-                    onChange(hex)
-                    setOpen(false)
-                  }}
-                  className={`h-6 w-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110 ${
-                    selected ? 'outline outline-2 outline-offset-1 outline-brand-strong' : ''
-                  }`}
-                  style={{ backgroundColor: hex }}
-                />
-              )
-            })}
-          </div>
-        )}
-      </div>
+          <PopoverAnchor asChild>
+            <button
+              type="button"
+              onClick={() => setOpen((o) => !o)}
+              aria-haspopup="true"
+              aria-expanded={open}
+              aria-label={`${label} (${colorName(value)})`}
+              aria-invalid={invalid || undefined}
+              aria-describedby={invalid ? describedById : undefined}
+              className={`${selectClass(invalid)} ${selectChevronClass} flex items-center gap-2 text-left`}
+              style={selectChevronStyle}
+            >
+              <span
+                className="h-4 w-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
+                style={{ backgroundColor: value }}
+              />
+            </button>
+          </PopoverAnchor>
+          {open && (
+            // portal={false} renders Content WITHOUT a Portal so the panel stays inside this
+            // control's DOM subtree (and so inside the enclosing [role="dialog"]) — the capture-phase
+            // listener walks up to that dialog to classify a backdrop press, which a portalled popup
+            // would escape. side="top" + avoidCollisions={false} reproduces the old bottom-full/left-0
+            // placement deterministically: the colour field is the last field in every form and the
+            // Modal's overflow-y-auto would clip a downward popup, so the popup must ALWAYS open
+            // upward — without avoidCollisions={false} Radix would flip it down when room is tight,
+            // re-introducing exactly that clipping. forceMount-free: Radix only renders Content while
+            // Root is open, and floaty's `open` already gates it, so mount/unmount tracks the popup
+            // exactly as before.
+            <PopoverContent
+              portal={false}
+              role="group"
+              aria-label={`${label} swatches`}
+              side="top"
+              align="start"
+              sideOffset={4}
+              avoidCollisions={false}
+              // Floaty's panel look (bg-elevated/ring-line/shadow-pop), NOT shadcn's bg-popover, so
+              // the swatch grid keeps its exact prior surface + the grid layout is unchanged. The
+              // floaty-pop motion matches CommandPalette/Modal (tw-animate-css isn't installed, so
+              // shadcn's animate-in classes would be inert no-ops here).
+              className="grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line animate-[floaty-pop_0.14s_ease-out]"
+              style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
+              // Floaty owns dismissal (the capture-phase mousedown + the Escape onKeyDown above), so
+              // neutralise every Radix dismiss path — one dismiss path, unchanged ordering.
+              onInteractOutside={(e) => e.preventDefault()}
+              onPointerDownOutside={(e) => e.preventDefault()}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+              // Don't let Radix's FocusScope move focus on open/close — the trigger keeps focus on
+              // open (matching the old hand-rolled popup, which never auto-focused the grid), so the
+              // "Escape while a swatch is focused" + outside-click tests behave exactly as before.
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              onCloseAutoFocus={(e) => e.preventDefault()}
+            >
+              {SWATCHES.map((hex, i) => {
+                const selected = hex.toLowerCase() === value.toLowerCase()
+                return (
+                  <button
+                    key={hex}
+                    type="button"
+                    aria-label={swatchLabel(i)}
+                    // aria-pressed both conveys selection and lets the Modal's dirty-guard
+                    // register the pick as an edit (a plain button click fires no change).
+                    aria-pressed={selected}
+                    onClick={() => {
+                      onChange(hex)
+                      setOpen(false)
+                    }}
+                    className={`h-6 w-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110 ${
+                      selected ? 'outline outline-2 outline-offset-1 outline-brand-strong' : ''
+                    }`}
+                    style={{ backgroundColor: hex }}
+                  />
+                )
+              })}
+            </PopoverContent>
+          )}
+        </div>
+      </Popover>
     </div>
   )
 }

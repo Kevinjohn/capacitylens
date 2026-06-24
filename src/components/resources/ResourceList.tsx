@@ -4,6 +4,7 @@ import { disciplinesEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { Separator } from '../ui/separator'
 import { resourceDisplayName } from '../../lib/metadata'
 import { ResourceForm } from './ResourceForm'
 import { ExternalForm } from '../external/ExternalForm'
@@ -85,6 +86,10 @@ export function ResourceList() {
           placeholder" affordance are hidden; existing placeholder data is preserved untouched. */}
       {placeholdersEnabled && (
         <>
+          {/* Decorative rule closing off the People section before Placeholders (Phase 8) — a
+              shadcn Separator in place of the bare mt-8 gap. decorative (no a11y role) so it
+              adds a visual divider without a spurious separator in the accessibility tree. */}
+          <Separator className="mt-8" />
           <div className="mb-4 mt-8 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Placeholders</h2>
             <Button onClick={() => setCreatingKind('placeholder')}>Add placeholder</Button>
@@ -98,6 +103,9 @@ export function ResourceList() {
           section is hidden; existing external data is preserved untouched and returns when re-enabled. */}
       {externalEnabled && (
         <section aria-labelledby="external-heading">
+          {/* Decorative rule before the External section (Phase 8) — see the People→Placeholders
+              Separator above. */}
+          <Separator className="mt-8" />
           <div className="mb-2 mt-8 flex items-center justify-between">
             <h2 id="external-heading" className="text-lg font-semibold">
               External
