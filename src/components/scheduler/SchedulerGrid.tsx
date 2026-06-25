@@ -481,7 +481,10 @@ export function SchedulerGrid() {
               }}
               aria-label={`Add allocation for ${resourceDisplayName(resource)}`}
               title="Add allocation"
-              className="flex w-11 flex-1 items-center justify-center text-muted transition hover:bg-canvas hover:text-ink"
+              // Hover tints brand-soft (the AA-validated Add/Save pastel pair), not the old
+              // hover:bg-canvas — canvas is the page background, so on a bg-surface row that hover
+              // was near-invisible. "+" is the create affordance, so it reads as the brand action.
+              className="flex w-11 flex-1 items-center justify-center text-muted transition hover:bg-brand-soft hover:text-brand-soft-ink"
             >
               <Icon name="plus" size={15} />
             </button>
