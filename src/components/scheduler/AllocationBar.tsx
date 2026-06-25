@@ -409,7 +409,7 @@ export const AllocationBar = memo(function AllocationBar({
         }}
         // `scheduler-bar` is the semantic hook the time-off draw-mode CSS recedes (index.css);
         // it styles by this class, NOT by `data-testid` (which stays test-only selection).
-        className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/10 transition-shadow hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg' : ''}`}
+        className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg ring-black/10' : ''}`}
         style={{
           left: insetLeft,
           width: insetWidth,
