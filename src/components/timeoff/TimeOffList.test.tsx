@@ -90,23 +90,37 @@ describe('TimeOffList', () => {
     // Modal should be gone
     expect(screen.queryByRole('dialog', { name: 'Add time off' })).not.toBeInTheDocument()
 
-    // Time-off row should be present with resource name and dates
+    // Time-off row should be present with the resource name, the terse start date and a day count
+    // (2026-07-01 is a Wednesday; 01→05 July is five inclusive days). The end date isn't shown.
     const row = screen.getByTestId('timeoff-row')
     expect(row).toHaveTextContent('Alice')
-    expect(row).toHaveTextContent('2026-07-01')
-    expect(row).toHaveTextContent('2026-07-05')
+    expect(row).toHaveTextContent('Wed 1st Jul')
+    expect(row).toHaveTextContent('5 days')
+    expect(row).not.toHaveTextContent('2026-07-01') // the raw ISO string is no longer shown
 
     expect(useStore.getState().data.timeOff).toHaveLength(1)
     expect(useStore.getState().data.timeOff[0].resourceId).toBe(resource.id)
   })
 
-  it('shows the human label for the time-off type, not the raw lowercase enum', () => {
+  it('keeps the row spare — start date and day count only, never the end date, type or note', () => {
     const resource = useStore.getState().addResource(resourceDraft)
-    useStore.getState().addTimeOff({ resourceId: resource.id, startDate: '2026-08-01', endDate: '2026-08-05', type: 'holiday' })
+    useStore.getState().addTimeOff({
+      resourceId: resource.id,
+      startDate: '2026-08-01', // Saturday
+      endDate: '2026-08-05', // five inclusive days
+      type: 'holiday',
+      note: 'Visiting family',
+    })
     render(<TimeOffList />)
     const row = screen.getByTestId('timeoff-row')
-    expect(row).toHaveTextContent('Holiday') // label from metadata, matching the timeline
-    expect(row).not.toHaveTextContent('holiday') // not the raw enum value
+    // Shown: who, the terse start date, and how many days.
+    expect(row).toHaveTextContent('Sat 1st Aug')
+    expect(row).toHaveTextContent('5 days')
+    // Intentionally omitted from this view (still stored; the type still shows on the timeline block).
+    expect(row).not.toHaveTextContent('5th Aug') // the end date (Wed 5th Aug) isn't surfaced
+    expect(row).not.toHaveTextContent('Holiday')
+    expect(row).not.toHaveTextContent('holiday')
+    expect(row).not.toHaveTextContent('Visiting family')
   })
 
   it('confirms before deleting and removes the entry on confirm', async () => {

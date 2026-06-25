@@ -1,6 +1,6 @@
 # US-TOF-02 — Edit a time-off entry
 
-**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "edits a time-off entry and reflects the new type"
+**Area:** Time off · **Persona:** Studio manager · **Linked E2E:** `e2e/timeoff.spec.ts` → "edits a time-off entry and the list reflects the change"
 
 ## Goal
 Change an existing time-off entry's type and/or dates, and have the list row and the timeline block update to match.
@@ -10,7 +10,7 @@ Plans move. A holiday gets shortened, or what was logged as a holiday turns out 
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed already has **Tyler Nix** off **10–12 June (Holiday)**.
-1. On the **Tyler Nix · 2026-06-10 → 2026-06-12 · Holiday** row, click the **Edit** (pencil) icon. The "Edit time off" dialog opens.
+1. On the **Tyler Nix** row (reading *Wed 10th Jun · 3 days*), click the **Edit** (pencil) icon. The "Edit time off" dialog opens.
 2. Confirm the dialog is pre-filled: **Resource** = *Tyler Nix*, **Start** = `2026-06-10`, **End** = `2026-06-12`, **Type** = *Holiday*.
 3. Change **Type** = *Sick* and shorten the range to **End** = `2026-06-11`.
 4. Click **Save**. The dialog closes.
@@ -18,7 +18,7 @@ Plans move. A holiday gets shortened, or what was logged as a holiday turns out 
 
 ## Acceptance criteria
 - ✅ The dialog is titled **Edit time off** and pre-fills every field from the existing entry (resource, start, end, type, note).
-- ✅ After Save, Tyler's `timeoff-row` updates to `Tyler Nix · 2026-06-10 → 2026-06-11 · Sick`.
+- ✅ After Save, Tyler's `timeoff-row` updates to **Tyler Nix · Wed 10th Jun · 2 days** — the start date is unchanged, and shortening the end shows as a smaller day count (3 → 2). The new *Sick* type is stored and shows on the timeline block + when you re-open the editor — it is not shown in the list row (see US-TOF-04).
 - ✅ On the Schedule (Jump to date → 2026-06-01, zoom **1w**), Tyler's `timeoff-block` now spans 10–11 June (one day shorter) and carries the new type label; 12 June is no longer covered.
 - ✅ Editing back (or pressing **⌘Z**) returns the entry to its prior state — the edit is reversible.
 - ✅ The same validation as creating applies: a reversed range (End before Start) keeps the dialog open with "End date cannot be before the start date."

@@ -19,7 +19,7 @@ People take holidays, get sick and book unpaid days. The manager records that on
 7. Go to **Schedule** (`/`), use **Jump to date** → `2026-06-01`, and set the zoom to **1w** so individual day columns are wide enough to render the per-day tint and the block label.
 
 ## Acceptance criteria
-- ✅ After Save, the dialog closes and a `timeoff-row` for **Nike Spiros** appears in the Time off list, reading `Nike Spiros · 2026-06-17 → 2026-06-19 · Holiday` (plus the note if entered).
+- ✅ After Save, the dialog closes and a `timeoff-row` for **Nike Spiros** appears in the Time off list, reading **Nike Spiros · Wed 17th Jun · 3 days**. (The list is deliberately terse — the end date, the type and any note are stored and shown on the timeline block, not in this row; see US-TOF-04.)
 - ✅ On the Schedule (Jump to date → 2026-06-01, zoom **1w**), Nike's lane shows a labelled `timeoff-block` over 17–19 June carrying the type label (the block label renders once a column is wide enough — use 1w).
 - ✅ Those days read as unavailable: each covered day in Nike's lane is greyed (`data-testid="unavailable-day"`), reflecting 0 available hours.
 - ✅ Saving with **no Resource** selected keeps the dialog open and is rejected with the inline error "Choose a resource." (`aria-invalid` on the Resource field).

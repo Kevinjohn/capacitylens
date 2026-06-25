@@ -3,7 +3,8 @@ import { placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
-import { TIME_OFF_TYPE_LABELS, resourceDisplayName } from '../../lib/metadata'
+import { resourceDisplayName } from '../../lib/metadata'
+import { formatShortDate, formatDayCount } from '../../lib/dateDisplay'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '@floaty/shared/types/entities'
 
@@ -43,10 +44,12 @@ export function TimeOffList() {
             <li key={t.id} data-testid="timeoff-row" className="flex items-center justify-between px-3 py-2">
               <span>
                 <span className="font-medium">{resourceName(t.resourceId)}</span>
+                {/* Deliberately spare: the start date (terse) and how many days. The end date, type
+                    and note are stored (and surfaced on the schedule's time-off block) but left off
+                    this list — it's a "who's away, from when, for how long" scan, not a detail view. */}
                 <span className="text-sm text-muted">
                   {' '}
-                  · {t.startDate} → {t.endDate} · {TIME_OFF_TYPE_LABELS[t.type] ?? t.type}
-                  {t.note ? ` · ${t.note}` : ''}
+                  · {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
                 </span>
               </span>
               <span className="flex gap-2">
