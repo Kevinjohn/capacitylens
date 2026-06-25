@@ -67,7 +67,7 @@ test.describe('Allocation editor', () => {
   })
 
   test('snaps the project to a placeholder bound project when chosen', async ({ page }) => {
-    // Placeholders are hidden by default (device-global pref) — turn them on in Settings first so
+    // Placeholders are hidden by default (per-account pref) — turn them on in Settings first so
     // the seeded placeholder's lane (and its "+" button) appears in the schedule.
     await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByRole('switch', { name: 'Show placeholders' }).click()

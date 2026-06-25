@@ -44,7 +44,7 @@ export const TIME_OFF_TYPE_LABELS: Record<TimeOffType, string> = {
  *  is shown as SECONDARY text by the callers, so we deliberately do NOT fold the role in here or
  *  invent per-slot numbering. One source so the schedule lane, the assignee picker, the command
  *  palette and the Resources list can't drift on what a placeholder is called. The placeholder
- *  feature is gated behind the device-global `floaty/placeholdersEnabled` pref (default off). */
+ *  feature is gated behind the per-account `placeholdersEnabled` setting on the Account (default off). */
 export function placeholderDisplayName(): string {
   return 'Placeholder'
 }

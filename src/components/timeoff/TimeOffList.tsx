@@ -1,4 +1,5 @@
 import { useStore } from '../../store/useStore'
+import { placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
@@ -9,11 +10,11 @@ import type { TimeOff } from '@floaty/shared/types/entities'
 export function TimeOffList() {
   const data = useScopedData()
   const resources = data.resources
-  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
   const del = useStore((s) => s.deleteTimeOff)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<TimeOff>()
 
-  // Placeholders are gated behind a device-global pref (default OFF). When off, HIDE time-off whose
+  // Placeholders are gated behind a per-account pref (default OFF). When off, HIDE time-off whose
   // resource is a placeholder — a pure view filter: the entries stay in the store (export/import and
   // the schedule are untouched), they're just not rendered while placeholders are hidden everywhere
   // else. An empty result here still falls through to the existing empty-state below.

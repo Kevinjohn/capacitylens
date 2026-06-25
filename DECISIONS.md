@@ -106,6 +106,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   the Settings discipline-utilisation toggle) and renders the schedule FLAT (one all-resources
   group, no bands) — the discipline data is preserved and returns when re-enabled. Any new
   discipline surface MUST gate on `disciplinesEnabledFor(data, activeAccountId)`.
+- **New companies start with a fixed per-account default set (owner, 2026-06-25).** `addAccount`
+  seeds the four per-account settings — `schedulingMode: 'days'`, `disciplinesEnabled: false`,
+  `placeholdersEnabled: false`, `externalEnabled: false` — so a brand-new company opens with
+  disciplines OFF, day-granularity scheduling, and placeholders/external HIDDEN. Caller input still
+  overrides each; existing/seed/imported accounts (no field) are unchanged (absent reads per each
+  pref's documented default — disciplines absent = on, placeholders/external absent = off).
 
 ## UI & product
 - **Deliberately small (owner, 2026-06-11).** Floaty solves ONE problem — a helicopter view of
@@ -217,16 +223,22 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   schedule they sort after people and show a **`?`** avatar + diagonal hatch, named the literal
   **"Placeholder"** (role/discipline as secondary text — name interpreted literally per the
   acceptance; revisit if the owner wants numbering/the role).
-- **Placeholders are behind a device-global setting, default OFF (owner, 2026-06-20).** Pure VIEW
-  pref `floaty/placeholdersEnabled` (own key, default `false`, NOT in `AppData`/export — like
-  theme/minimiseWeekends), Settings → **Placeholders** → *Show placeholders*. OFF (out-of-the-box)
-  HIDES placeholders everywhere — the schedule row (so also their bars + utilisation contribution),
-  the assignee picker, the command palette, and ResourceList's Placeholders section/Add button —
-  but their data is untouched and returns when re-enabled (a dataset with placeholders hides, never
-  errors). **Single hide chokepoint:** `buildSchedulerModel`'s `resourceVisible` (one filter does
-  rows + bars + utilisation). Export/import + `useScopedData` + shared integrity/cascade are NOT
-  gated. Editing an allocation already on a hidden placeholder still offers that placeholder in the
-  picker (no silent reassign). Any new placeholder surface MUST gate on `placeholdersEnabled`.
+- **Placeholders are behind a per-account setting, default OFF (owner, 2026-06-25).** Pure VIEW
+  pref `placeholdersEnabled` on the **Account** (absent = `false` — note: NOT `?? true` like
+  `disciplinesEnabled`), read via `placeholdersEnabledFor(data, activeAccountId)` and toggled in
+  Settings → **Placeholders** → *Show placeholders* via `updateAccount`, mirroring
+  `disciplinesEnabled` end-to-end (shared `Account` type, `sanitizeImport`, fixtures, server
+  `tables.ts` column + CREATE-TABLE spec; carried in export like any account field). OFF
+  (out-of-the-box) HIDES placeholders everywhere — the schedule row (so also their bars +
+  utilisation contribution), the assignee picker, the command palette, and ResourceList's
+  Placeholders section/Add button — but their data is untouched and returns when re-enabled (a
+  dataset with placeholders hides, never errors). **Single hide chokepoint:**
+  `buildSchedulerModel`'s `resourceVisible` (one filter does rows + bars + utilisation; it keeps its
+  boolean param, fed from the per-account selector at the SchedulerGrid call site). Editing an
+  allocation already on a hidden placeholder still offers that placeholder in the picker (no silent
+  reassign). Any new placeholder surface MUST gate on `placeholdersEnabledFor(data, activeAccountId)`.
+  New companies default it OFF (`addAccount` sets the full per-account default set — see *New
+  companies start with a fixed per-account default set*).
 - **External / 3rd parties are a resource kind (`external`), not a bookable lane (owner, 2026-06-19).**
   Outsourced work: a **company name** (`name`) + optional descriptor (`role`), **assignable to any
   activity** (no project restriction), but **no hours/capacity/utilisation** — allocations carry
@@ -237,19 +249,22 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   domain core (store + server) rejects a non-zero load on an external allocation (`assertAllocationRefs`)
   and any time off for an external (`assertResourceExists`); import drops external time off and coerces
   external allocation load to 0 — so bad external data can't persist invisibly via a direct/crafted write.
-- **External is behind a device-global setting, default OFF (owner, 2026-06-20).** Like Placeholders:
-  a pure VIEW pref `floaty/externalEnabled` (own key, default `false`, NOT in `AppData`/export),
-  Settings → **External** → *Show external resources* (+ explainer copy, single-sourced in
-  `lib/externalCopy.ts`). External moved OUT of its old standalone `/external` tab INTO the **Resources**
-  tab — a gated **External** section after Placeholders; the `/external` route now redirects to
-  `/resources` (no nav link, no command-palette page entry). OFF (out-of-the-box) HIDES externals
-  everywhere — the schedule band (and its header doesn't render empty, since the model's
+- **External is behind a per-account setting, default OFF (owner, 2026-06-25).** Like Placeholders:
+  a pure VIEW pref `externalEnabled` on the **Account** (absent = `false`, NOT `?? true`), read via
+  `externalEnabledFor(data, activeAccountId)` and toggled in Settings → **External** → *Show
+  external resources* via `updateAccount` (+ explainer copy, single-sourced in `lib/externalCopy.ts`),
+  mirroring `disciplinesEnabled` end-to-end (type, sanitize, fixtures, server column + CREATE-TABLE
+  spec; carried in export like any account field). External moved OUT of its old standalone `/external`
+  tab INTO the **Resources** tab — a gated **External** section after Placeholders; the `/external`
+  route now redirects to `/resources` (no nav link, no command-palette page entry). OFF (out-of-the-box)
+  HIDES externals everywhere — the schedule band (and its header doesn't render empty, since the model's
   `rows.length > 0` filter drops the now-empty band group), the assignee picker, the command palette,
   and the Resources-tab section — but their data is untouched and returns when on. **Single hide
-  chokepoint:** `buildSchedulerModel`'s `resourceVisible` (threaded `externalEnabled`, exactly like
-  `placeholdersEnabled`). Editing an allocation already on a hidden external still offers it in the
-  picker (no silent reassign). Export/import + `useScopedData` + shared integrity/cascade are NOT gated.
-  Any new external surface MUST gate on `externalEnabled`.
+  chokepoint:** `buildSchedulerModel`'s `resourceVisible` (keeps its boolean `externalEnabled` param,
+  fed from the per-account selector at the SchedulerGrid call site, exactly like `placeholdersEnabled`).
+  Editing an allocation already on a hidden external still offers it in the picker (no silent reassign).
+  Any new external surface MUST gate on `externalEnabledFor(data, activeAccountId)`. New companies
+  default it OFF (the full per-account default set in `addAccount`).
 - **Unsaved-changes guard:** the modal closes only on a backdrop press that both starts and
   ends on the backdrop; once dirty, accidental dismiss (backdrop/Escape) is refused, and a
   `beforeunload` guard covers tab-close. Dirty also tracks `aria-pressed` toggle clicks.

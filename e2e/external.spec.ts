@@ -1,8 +1,8 @@
 import { test, expect } from '@playwright/test'
 import { openApp } from './helpers'
 
-// Covers US-SET-07. External / 3rd parties are a device-global view pref (own localStorage key
-// `floaty/externalEnabled`), DEFAULT OFF — hidden everywhere out of the box, but their data is
+// Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
+// active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
 // untouched and returns when the switch goes on. They moved from a standalone /external tab INTO a
 // gated **External** section under the Resources tab. The seed has one external party
 // (r-ext-dogeatcog, "Dog Eat Cog", booked on Visual Design) so the toggle is demonstrable.
@@ -17,7 +17,7 @@ async function enableExternal(page: import('@playwright/test').Page): Promise<vo
   await expect(toggle).toHaveAttribute('aria-checked', 'true')
 }
 
-test.describe('External / 3rd parties (device-global pref, default off)', () => {
+test.describe('External / 3rd parties (per-account pref, default off)', () => {
   test('hidden by default: the seeded external is absent from the schedule and the Resources tab', async ({ page }) => {
     await openApp(page)
     // No External band on the schedule, no external lane.
@@ -67,7 +67,7 @@ test.describe('External / 3rd parties (device-global pref, default off)', () => 
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Dog Eat Cog' }).getByTestId('utilization')).toHaveCount(0)
   })
 
-  test('the choice survives a reload (device-global pref)', async ({ page }) => {
+  test('the choice survives a reload (per-account pref)', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
     await page.getByRole('switch', { name: 'Show external resources' }).click() // → on
     await page.reload()

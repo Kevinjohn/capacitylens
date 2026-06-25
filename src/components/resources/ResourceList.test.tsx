@@ -3,15 +3,15 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResourceList } from './ResourceList'
 import { useStore } from '../../store/useStore'
-import { WORKDAYS, resetStoreWithAccount } from '../../test/fixtures'
+import { WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from '../../test/fixtures'
 
 beforeEach(() => {
   resetStoreWithAccount()
   useStore.getState().clearFilters()
-  // Placeholders are gated behind a device-global pref that defaults OFF. Most tests here exercise
+  // Placeholders are gated behind a per-account pref that defaults OFF. Most tests here exercise
   // the placeholder management section, so enable it for the suite; the default-OFF hide behaviour
   // has its own dedicated test below.
-  useStore.getState().setPlaceholdersEnabled(true)
+  setPlaceholdersEnabled(true)
 })
 
 // Shared resource shape helpers
@@ -105,7 +105,7 @@ describe('ResourceList display', () => {
       projectId: project.id,
     })
     // Turn the feature off — the placeholder data still exists, it's just hidden.
-    useStore.getState().setPlaceholdersEnabled(false)
+    setPlaceholdersEnabled(false)
     render(<ResourceList />)
     // The person still renders; the placeholder section/heading/row do not.
     expect(screen.getByText('Alice')).toBeInTheDocument()

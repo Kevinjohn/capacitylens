@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { disciplinesEnabledFor } from '../../store/selectors'
+import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
@@ -17,14 +17,14 @@ export function ResourceList() {
   const resources = data.resources
   const disciplines = data.disciplines
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
-  // Device-global view pref (default OFF). When off the placeholder feature is hidden, so the
+  // Per-account view pref (default OFF). When off the placeholder feature is hidden, so the
   // Placeholders section and its "Add placeholder" affordance don't render. Existing placeholder
   // resources stay in the data untouched — they simply aren't shown until the pref is turned on.
-  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
-  // Device-global view pref (default OFF), EXACT analog of placeholdersEnabled. When off the External
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
+  // Per-account view pref (default OFF), EXACT analog of placeholdersEnabled. When off the External
   // section (rows + "Add external party" affordance) doesn't render; existing externals stay in the
   // data untouched and reappear when re-enabled (Settings → External).
-  const externalEnabled = useStore((s) => s.externalEnabled)
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
   const del = useStore((s) => s.deleteResource)
   const { editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>()
   // External rows get their OWN create/edit/confirm state + the trimmed ExternalForm (no capacity
@@ -35,7 +35,7 @@ export function ResourceList() {
   const [creatingKind, setCreatingKind] = useState<ResourceKind | null>(null)
 
   // Resources, placeholders, and externals all live on THIS tab now. Externals (the External section
-  // below) are gated behind the device-global `externalEnabled` pref; people/placeholders split by kind.
+  // below) are gated behind the per-account `externalEnabled` pref; people/placeholders split by kind.
   const people = resources.filter((r) => r.kind === 'person')
   const placeholders = resources.filter((r) => r.kind === 'placeholder')
   const externals = resources.filter(isExternalResource)
@@ -94,7 +94,7 @@ export function ResourceList() {
         action: { label: 'Add your first resource', onClick: () => setCreatingKind('person') },
       })}
 
-      {/* The whole placeholder feature is behind the device-global `placeholdersEnabled` pref
+      {/* The whole placeholder feature is behind the per-account `placeholdersEnabled` pref
           (default off, Settings → Placeholders). When off, the management section + "Add
           placeholder" affordance are hidden; existing placeholder data is preserved untouched. */}
       {placeholdersEnabled && (
@@ -112,7 +112,7 @@ export function ResourceList() {
       )}
 
       {/* External / 3rd parties moved INTO this tab (from the old standalone /external page) behind the
-          device-global `externalEnabled` pref (default off, Settings → External). When off, the whole
+          per-account `externalEnabled` pref (default off, Settings → External). When off, the whole
           section is hidden; existing external data is preserved untouched and returns when re-enabled. */}
       {externalEnabled && (
         <section aria-labelledby="external-heading">

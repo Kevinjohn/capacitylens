@@ -35,7 +35,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <SchedulerView /> },
       { path: 'resources', element: <ResourceList /> },
-      // External / 3rd parties moved into the Resources tab (behind the device-global
+      // External / 3rd parties moved into the Resources tab (behind the per-account
       // `externalEnabled` setting). Keep the old path so saved bookmarks don't 404 — redirect
       // it to /resources rather than leaving a dangling lazy chunk.
       { path: 'external', element: <Navigate to="/resources" replace /> },

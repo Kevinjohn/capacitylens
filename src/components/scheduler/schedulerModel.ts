@@ -101,18 +101,18 @@ export function buildSchedulerModel(
   // synthetic group holding every resource (no discipline bands), and the discipline
   // filter is ignored. SchedulerGrid skips the group-header row for the flat group.
   disciplinesEnabled: boolean,
-  // Device-global view pref (default OFF). When false, placeholder ("slot") resources are dropped
+  // Per-account view pref (default OFF). When false, placeholder ("slot") resources are dropped
   // by `resourceVisible` below — this ONE filter removes the lane, its bars/day-states, AND its
   // contribution to per-discipline + overall utilisation (both derive from this model). It is a
   // pure VIEW pref: the placeholder resources and their allocations stay in the data untouched and
-  // reappear when re-enabled. See displayPrefs.ts / DECISIONS.md.
+  // reappear when re-enabled. See selectors.ts / DECISIONS.md.
   placeholdersEnabled: boolean,
-  // Device-global view pref (default OFF), the EXACT analog of `placeholdersEnabled` for external /
+  // Per-account view pref (default OFF), the EXACT analog of `placeholdersEnabled` for external /
   // 3rd-party resources. When false, externals are dropped by `resourceVisible` below — the same
   // single chokepoint. Crucially that also empties the trailing external band, which the final
   // `.filter((g) => g.rows.length > 0)` then drops, so NO empty "External / 3rd party" header
   // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
-  // when re-enabled. See displayPrefs.ts / DECISIONS.md.
+  // when re-enabled. See selectors.ts / DECISIONS.md.
   externalEnabled: boolean,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
@@ -182,12 +182,12 @@ export function buildSchedulerModel(
   const allocVisible = (a: Allocation): boolean =>
     matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a)
   const resourceVisible = (r: Resource): boolean => {
-    // Placeholders are gated behind a device-global pref (default OFF). Dropping the row here is the
+    // Placeholders are gated behind a per-account pref (default OFF). Dropping the row here is the
     // single chokepoint that also removes its bars, day-states, and utilisation contribution — the
     // resource itself is untouched in the data, so this is a hide, not a delete. A placeholder's
     // allocations simply go unreferenced (the model is built resource-first via allocsByResource).
     if (!placeholdersEnabled && r.kind === 'placeholder') return false
-    // External / 3rd parties are gated behind their own device-global pref (default OFF), exactly
+    // External / 3rd parties are gated behind their own per-account pref (default OFF), exactly
     // like placeholders. Dropping the row here empties the external band; the trailing
     // `rows.length > 0` filter then removes the band group so no empty header is drawn (risk #2).
     if (!externalEnabled && isExternalResource(r)) return false

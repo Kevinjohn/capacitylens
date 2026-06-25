@@ -91,15 +91,15 @@ export function SettingsView() {
   const setBarLabelPref = useStore((s) => s.setBarLabelPref)
   const minimiseWeekends = useStore((s) => s.minimiseWeekends)
   const setMinimiseWeekends = useStore((s) => s.setMinimiseWeekends)
-  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
-  const setPlaceholdersEnabled = useStore((s) => s.setPlaceholdersEnabled)
-  const externalEnabled = useStore((s) => s.externalEnabled)
-  const setExternalEnabled = useStore((s) => s.setExternalEnabled)
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
   const weekStartsOn: 0 | 1 = activeAccount?.weekStartsOn ?? 1
   const timezone: string = activeAccount?.timezone ?? 'Etc/GMT'
   const disciplinesEnabled: boolean = activeAccount?.disciplinesEnabled ?? true
+  // Per-account view prefs (default OFF — absent reads as hidden), mirroring disciplinesEnabled
+  // above. activeAccount is guaranteed non-null past the `if (!activeAccount) return null` below.
+  const placeholdersEnabled: boolean = activeAccount?.placeholdersEnabled ?? false
+  const externalEnabled: boolean = activeAccount?.externalEnabled ?? false
   const allZones = supportedTimeZones()
   const tzOptions = allZones.includes(timezone) ? allZones : [timezone, ...allZones]
 
@@ -272,14 +272,14 @@ export function SettingsView() {
           <h2 className="mb-1 text-sm font-semibold text-ink">Placeholders</h2>
           <p className="mb-3 text-xs text-muted">
             Placeholders are unfilled "slots" you can pencil in before a person is assigned —
-            applies to this browser. Off by default; when off they're hidden everywhere (the
+            set per company. Off by default; when off they're hidden everywhere (the
             schedule, the assignee picker and the Resources list) but their data is kept.
           </p>
           <div className="divide-y divide-line">
             <ToggleRow
               label="Show placeholders"
               on={placeholdersEnabled}
-              onToggle={() => setPlaceholdersEnabled(!placeholdersEnabled)}
+              onToggle={() => updateAccount(activeAccount.id, { placeholdersEnabled: !placeholdersEnabled })}
             />
           </div>
         </section>
@@ -287,17 +287,17 @@ export function SettingsView() {
         <section className="rounded border border-line bg-surface p-4">
           <h2 className="mb-1 text-sm font-semibold text-ink">External</h2>
           {/* Explainer copy (editable, shared with the Resources-tab External section — see
-              lib/externalCopy.ts). Applies to this browser; off by default. */}
+              lib/externalCopy.ts). Set per company; off by default. */}
           <p className="mb-3 max-w-prose text-xs text-muted">{EXTERNAL_EXPLAINER}</p>
           <p className="mb-3 text-xs text-muted">
-            Applies to this browser. Off by default; when off externals are hidden everywhere (the
+            Set per company. Off by default; when off externals are hidden everywhere (the
             schedule, the assignee picker and the Resources list) but their data is kept.
           </p>
           <div className="divide-y divide-line">
             <ToggleRow
               label="Show external resources"
               on={externalEnabled}
-              onToggle={() => setExternalEnabled(!externalEnabled)}
+              onToggle={() => updateAccount(activeAccount.id, { externalEnabled: !externalEnabled })}
             />
           </div>
         </section>

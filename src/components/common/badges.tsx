@@ -30,8 +30,8 @@ export function ColorSwatch({ color }: { color: string }) {
 
 // Symbol shown on placeholder ("slot") avatars in place of initials — a question mark, reading as
 // "an as-yet-unfilled slot". Kept as a constant so it's a one-line change when we revisit the
-// treatment. (The placeholder feature itself is gated behind the device-global
-// `floaty/placeholdersEnabled` pref, default off — see displayPrefs.ts / DECISIONS.md.)
+// treatment. (The placeholder feature itself is gated behind the per-account
+// `placeholdersEnabled` setting on the Account, default off — see selectors.ts / DECISIONS.md.)
 // The placeholder DISPLAY NAME ("Placeholder") lives in src/lib/metadata.ts (a non-component
 // module) — react-refresh forbids a non-component function export from this file.
 export const PLACEHOLDER_AVATAR_SYMBOL = '?'

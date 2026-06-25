@@ -8,7 +8,7 @@ test.describe('Disciplines optional (account-level)', () => {
     await openApp(page, 'Studio North', '/settings')
 
     // Enable External (default off) so its band is present to prove the "external still segregates
-    // in flat mode" exception below; it's an independent device-global pref.
+    // in flat mode" exception below; it's an independent per-account pref.
     await page.getByRole('switch', { name: 'Show external resources' }).click()
 
     // On by default for the seed: the nav link is present and the switch reads on.

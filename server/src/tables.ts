@@ -67,6 +67,8 @@ const COLS_accounts = [
   { name: 'timezone', optional: true },
   { name: 'weekStartsOn', json: true, optional: true },
   { name: 'disciplinesEnabled', json: true, optional: true },
+  { name: 'placeholdersEnabled', json: true, optional: true },
+  { name: 'externalEnabled', json: true, optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -261,6 +263,7 @@ CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
   schedulingMode TEXT, timezone TEXT, weekStartsOn TEXT, disciplinesEnabled TEXT,
+  placeholdersEnabled TEXT, externalEnabled TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS clients (

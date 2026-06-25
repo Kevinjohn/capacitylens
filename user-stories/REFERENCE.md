@@ -100,11 +100,11 @@ never appears on desktop viewports or in landscape.
   - *Alex Rivera* — Front End (freelance), Development, **freelancer**, 8h, **Mon–Wed only**.
   - *Senior Designer* — a **placeholder** (no name), Design, **bound to Project Lightning**. Shown
     as the literal name **"Placeholder"** with a **"?"** avatar. **Hidden by default** — placeholders
-    are behind the device-global **Show placeholders** pref (Settings → Placeholders, default **off**);
+    are behind the per-account **Show placeholders** pref (Settings → Placeholders, default **off**);
     enable it to see this row in the schedule, the Resources list, and the assignee picker.
   - *Dog Eat Cog* — an **external / 3rd party** (`r-ext-dogeatcog`): a company, no discipline/
     capacity, booked on Visual Design (Project Lightning) as a span only. **Hidden by default** —
-    externals are behind the device-global **Show external resources** pref (Settings → External,
+    externals are behind the per-account **Show external resources** pref (Settings → External,
     default **off**); enable it to see this row in the schedule's bottom band, the **External** section
     of the Resources tab, and the assignee picker.
 - **Clients:** Acme Inc., Globex. (**Internal** is the built-in, one per account — it is **HIDDEN
@@ -179,10 +179,10 @@ account and NOT in export) — like the theme and bar-label toggles. On → narr
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See *Weekend
 columns* above.
 
-**Placeholders (device-global, default OFF).** Settings → **Placeholders** has a single switch
+**Placeholders (per-account, default OFF).** Settings → **Placeholders** has a single switch
 **Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
-It's a **device-global** display pref (own `localStorage` key `floaty/placeholdersEnabled`, NOT on
-the account and NOT in export). **Off** (the out-of-the-box state) → every placeholder is hidden:
+It's a **per-account** setting (`placeholdersEnabled` on the Account, absent = off, toggled via
+`updateAccount` — mirroring `disciplinesEnabled`; carried in export like other account settings). **Off** (the out-of-the-box state) → every placeholder is hidden:
 no row in the schedule (and no contribution to utilisation), no entry in the assignee picker or
 command palette, and the Resources page hides its *Placeholders* section + *Add placeholder* button.
 The **Time off** views honour it too: the Time-off list hides any time-off entry whose resource is a
@@ -326,8 +326,8 @@ Mouse hover sets the active option; mouse click selects.
   activity; the association is derived in the view-model.
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus any
   project-less (internal/repeatable) activity**. They are **hidden by default** behind the
-  device-global **Show placeholders** pref (Settings → Placeholders, `floaty/placeholdersEnabled`,
-  default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
+  per-account **Show placeholders** pref (Settings → Placeholders, `placeholdersEnabled` on the
+  Account, default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional
   descriptor), assignable to **any** activity with **no hours**, shown in a **neutral band at the bottom
   of the schedule** with **no utilisation / over-markers**. Their allocations carry `hoursPerDay: 0`
@@ -335,8 +335,8 @@ Mouse hover sets the active option; mouse click selects.
   hidden, weekends count as plain calendar days); they're excluded from the Time-off picker, and the
   write boundary rejects time off OR a non-zero load for an external on *any* path (a direct/crafted
   write is rejected; an import is repaired — external time off dropped, external load coerced to 0). They are
-  **hidden by default** behind the device-global **Show external resources** pref (Settings → External,
-  `floaty/externalEnabled`, default off); when on, an **External** section appears under the **Resources**
+  **hidden by default** behind the per-account **Show external resources** pref (Settings → External,
+  `externalEnabled` on the Account, default off); when on, an **External** section appears under the **Resources**
   tab (with explainer copy + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.

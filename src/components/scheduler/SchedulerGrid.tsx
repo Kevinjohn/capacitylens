@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useNavigate } from 'react-router-dom'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
-import { disciplinesEnabledFor, visibleRange } from '../../store/selectors'
+import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, EmptyState } from '../common/ui'
@@ -54,12 +54,12 @@ export function SchedulerGrid() {
   const utilizationPrefs = useStore((s) => s.utilizationPrefs)
   // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
   const minimiseWeekends = useStore((s) => s.minimiseWeekends)
-  // Device-global display pref (default OFF): when off, placeholder ("slot") rows are hidden from
+  // Per-account display pref (default OFF): when off, placeholder ("slot") rows are hidden from
   // the schedule (and dropped from utilisation) by buildSchedulerModel's resourceVisible filter.
-  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
-  // Device-global display pref (default OFF): when off, external / 3rd-party rows are hidden from the
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
+  // Per-account display pref (default OFF): when off, external / 3rd-party rows are hidden from the
   // schedule (and their now-empty band header is dropped) by buildSchedulerModel's resourceVisible filter.
-  const externalEnabled = useStore((s) => s.externalEnabled)
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
   // Account-level: when disciplines are off, the schedule renders flat (no discipline
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { TimeOffList } from './TimeOffList'
 import { TimeOffForm } from './TimeOffForm'
 import { useStore } from '../../store/useStore'
-import { WORKDAYS, resetStoreWithAccount } from '../../test/fixtures'
+import { WORKDAYS, resetStoreWithAccount, setPlaceholdersEnabled } from '../../test/fixtures'
 
 const resourceDraft = {
   kind: 'person' as const,
@@ -32,7 +32,7 @@ beforeEach(() => {
   useStore.getState().clearFilters()
   // The placeholder-hiding behaviour is the system under test in some cases; default the device
   // pref ON here so the pre-existing tests are unaffected, and flip it OFF in the dedicated tests.
-  useStore.getState().setPlaceholdersEnabled(true)
+  setPlaceholdersEnabled(true)
 })
 
 describe('TimeOffList', () => {
@@ -143,7 +143,7 @@ describe('TimeOffList', () => {
   })
 
   it('shows a placeholder time-off entry (named "Placeholder") when placeholders are ON', () => {
-    useStore.getState().setPlaceholdersEnabled(true)
+    setPlaceholdersEnabled(true)
     const ph = useStore.getState().addResource(placeholderDraft)
     useStore.getState().addTimeOff({ resourceId: ph.id, startDate: '2026-09-01', endDate: '2026-09-05', type: 'holiday' })
     render(<TimeOffList />)
@@ -154,12 +154,12 @@ describe('TimeOffList', () => {
   })
 
   it('HIDES a placeholder time-off entry when placeholders are OFF (data stays intact)', () => {
-    useStore.getState().setPlaceholdersEnabled(true)
+    setPlaceholdersEnabled(true)
     const ph = useStore.getState().addResource(placeholderDraft)
     useStore.getState().addTimeOff({ resourceId: ph.id, startDate: '2026-09-01', endDate: '2026-09-05', type: 'holiday' })
 
     // Turn placeholders OFF — the entry must disappear from the rendered list…
-    useStore.getState().setPlaceholdersEnabled(false)
+    setPlaceholdersEnabled(false)
     render(<TimeOffList />)
     expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument()
     // …falling through to the empty-state, not an error.
@@ -169,13 +169,13 @@ describe('TimeOffList', () => {
   })
 
   it('still shows a non-placeholder entry when a placeholder entry is hidden (OFF)', () => {
-    useStore.getState().setPlaceholdersEnabled(true)
+    setPlaceholdersEnabled(true)
     const alice = useStore.getState().addResource(resourceDraft)
     const ph = useStore.getState().addResource(placeholderDraft)
     useStore.getState().addTimeOff({ resourceId: alice.id, startDate: '2026-09-01', endDate: '2026-09-05', type: 'holiday' })
     useStore.getState().addTimeOff({ resourceId: ph.id, startDate: '2026-09-10', endDate: '2026-09-12', type: 'sick' })
 
-    useStore.getState().setPlaceholdersEnabled(false)
+    setPlaceholdersEnabled(false)
     render(<TimeOffList />)
 
     const rows = screen.getAllByTestId('timeoff-row')
@@ -187,7 +187,7 @@ describe('TimeOffList', () => {
 
 describe('TimeOffForm resource picker (placeholder gating)', () => {
   it('EXCLUDES placeholders from the picker when the pref is OFF', () => {
-    useStore.getState().setPlaceholdersEnabled(false)
+    setPlaceholdersEnabled(false)
     useStore.getState().addResource(resourceDraft) // a person, should appear
     useStore.getState().addResource(placeholderDraft) // a placeholder, should be omitted
     render(<TimeOffForm onClose={() => {}} />)
@@ -198,14 +198,14 @@ describe('TimeOffForm resource picker (placeholder gating)', () => {
   })
 
   it('risk A: editing a time-off entry already ON a hidden placeholder still offers that placeholder', () => {
-    useStore.getState().setPlaceholdersEnabled(true)
+    setPlaceholdersEnabled(true)
     const ph = useStore.getState().addResource(placeholderDraft)
     const entry = useStore.getState().addTimeOff({ resourceId: ph.id, startDate: '2026-09-01', endDate: '2026-09-05', type: 'holiday' })
 
     // Hide placeholders, then edit the existing placeholder entry. The picker must keep the
     // currently-selected (hidden) placeholder so the value shows and the entry can't silently
     // reassign on save.
-    useStore.getState().setPlaceholdersEnabled(false)
+    setPlaceholdersEnabled(false)
     render(<TimeOffForm timeOff={entry} onClose={() => {}} />)
 
     const select = screen.getByLabelText('Resource')

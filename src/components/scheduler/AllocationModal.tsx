@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { parseDate, todayISO } from '@floaty/shared/lib/dateMath'
 import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, MAX_SPAN_DAYS, spanDays } from '@floaty/shared/lib/schedulingDays'
-import { schedulingModeFor } from '../../store/selectors'
+import { externalEnabledFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
 import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
 import { validateText } from '../../lib/validation'
 import { MAX_NAME_LENGTH } from '@floaty/shared/lib/strings'
@@ -46,12 +46,12 @@ export function AllocationModal(props: AllocationModalProps) {
   const deleteAllocation = useStore((s) => s.deleteAllocation)
   const addActivity = useStore((s) => s.addActivity)
   const mode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId))
-  // Device-global view pref (default OFF): when off, placeholders are dropped from the assignee
+  // Per-account view pref (default OFF): when off, placeholders are dropped from the assignee
   // picker (except an already-assigned one — see resourceOptions below for risk A).
-  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
-  // Device-global view pref (default OFF): when off, external / 3rd parties are dropped from the
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
+  // Per-account view pref (default OFF): when off, external / 3rd parties are dropped from the
   // assignee picker (except an already-assigned one — same risk-A escape hatch as placeholders).
-  const externalEnabled = useStore((s) => s.externalEnabled)
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const isDays = mode === 'days'
   const isBlocks = mode === 'blocks'
@@ -148,7 +148,7 @@ export function AllocationModal(props: AllocationModalProps) {
     return Number.isNaN(d.getTime()) ? null : format(d, 'EEE d MMM yyyy')
   })()
 
-  // Placeholders and externals are each gated behind a device-global pref (both default OFF). When
+  // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
   // off, drop them from the assignee picker — EXCEPT the allocation's currently-selected resource
   // (risk A): keep a hidden placeholder/external in the options when it's the one already assigned,
   // so editing shows the correct value in the <select> instead of silently reassigning the work to

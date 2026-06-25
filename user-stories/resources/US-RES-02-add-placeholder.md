@@ -12,7 +12,7 @@ designer on Project Lightning". A placeholder reserves that slot on the schedule
 its allocations attached to a single project until a real resource takes over.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open. Placeholders are hidden by default (device-global pref — see
+**Precondition:** Seeded app open. Placeholders are hidden by default (per-account pref — see
 US-SET-06), so first open **Settings**, turn **Show placeholders** on, then click **Resources** in
 the sidebar (the **Placeholders** section and its **Add placeholder** button only appear when the
 pref is on).

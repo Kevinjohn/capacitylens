@@ -1,6 +1,6 @@
 // The single prefix every key this app writes to localStorage shares — the AppData blob
 // (`floaty/v3`, see storageAdapter.ts) AND every device-global preference (theme, sidebar,
-// placeholdersEnabled, externalEnabled, …, see lib/displayPrefs.ts). Clearing by this prefix
+// minimiseWeekends, …, see lib/displayPrefs.ts). Clearing by this prefix
 // wipes Floaty's own state WITHOUT touching unrelated origin keys (a shared origin could carry
 // keys from other tools), which a blind `localStorage.clear()` would destroy.
 export const FLOATY_KEY_PREFIX = 'floaty/'

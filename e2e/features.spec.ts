@@ -122,7 +122,7 @@ test.describe('Feature flows', () => {
 
   test('drawing on a placeholder locks the modal to its bound project', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
-    // Placeholders are hidden by default (device-global pref) — enable them so the lane renders.
+    // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
     await page.getByRole('switch', { name: 'Show placeholders' }).click()
     await page.getByRole('link', { name: 'Schedule' }).click()
     await page.getByRole('button', { name: '4w', exact: true }).click()

@@ -1,15 +1,15 @@
 import { test, expect } from '@playwright/test'
 import { openApp } from './helpers'
 
-// Covers US-SET-06. Placeholders are a device-global view pref (own localStorage key
-// `floaty/placeholdersEnabled`), DEFAULT OFF — hidden everywhere out of the box, but their data is
+// Covers US-SET-06. Placeholders are a PER-ACCOUNT view pref (`placeholdersEnabled` on the active
+// Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
 // untouched and returns when the switch goes on. The seed has one placeholder (r-ph-designer,
 // role "Senior Designer", bound to Project Lightning) so the toggle is demonstrable.
-test.describe('Placeholders (device-global pref, default off)', () => {
+test.describe('Placeholders (per-account pref, default off)', () => {
   test('hidden by default: the seeded placeholder is absent from the schedule and Resources list', async ({ page }) => {
     await openApp(page)
     // No placeholder lane on the schedule (real people only — both Placeholders AND External are
-    // device-global prefs that default OFF, so neither band shows out of the box).
+    // per-account prefs that default OFF, so neither band shows out of the box).
     await expect(page.locator('[data-resource-id="r-ph-designer"]')).toHaveCount(0)
     await expect(page.getByTestId('scheduler-row').filter({ hasText: 'Placeholder' })).toHaveCount(0)
 
@@ -47,7 +47,7 @@ test.describe('Placeholders (device-global pref, default off)', () => {
     await expect(header.getByText('?', { exact: true })).toBeVisible() // question-mark avatar
   })
 
-  test('the choice survives a reload (device-global pref)', async ({ page }) => {
+  test('the choice survives a reload (per-account pref)', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
     await page.getByRole('switch', { name: 'Show placeholders' }).click() // → on
     await page.reload()

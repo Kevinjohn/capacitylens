@@ -20,6 +20,21 @@ export const schedulingModeFor = (data: AppData, activeAccountId: ID | null): Sc
 export const disciplinesEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
   data.accounts.find((a) => a.id === activeAccountId)?.disciplinesEnabled ?? true
 
+/** Whether the active company shows placeholder ("slot") rows. Absent on the account reads as
+ *  FALSE (hidden) — the documented default-off behaviour. NOTE the `?? false` (contrast
+ *  disciplinesEnabledFor's `?? true`): a new/seed/imported account with no field stays hidden.
+ *  Single source so every placeholder surface (schedule, assignee picker, Resources + Time off
+ *  lists, command palette) gates on the same per-account value. */
+export const placeholdersEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.placeholdersEnabled ?? false
+
+/** Whether the active company shows external / 3rd-party rows. Absent on the account reads as
+ *  FALSE (hidden) — the documented default-off behaviour (`?? false`, like placeholdersEnabledFor,
+ *  NOT disciplinesEnabledFor's `?? true`). Single source so every external surface gates on the
+ *  same per-account value. */
+export const externalEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.externalEnabled ?? false
+
 /** The active account's calendar config — timezone and week-start day.
  *  Absent fields fall back to the defaults (Etc/GMT, Monday). */
 export const calendarFor = (data: AppData, activeAccountId: ID | null): CalendarConfig => {

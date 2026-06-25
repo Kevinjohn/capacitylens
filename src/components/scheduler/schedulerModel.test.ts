@@ -43,7 +43,7 @@ function dataset(): AppData {
 }
 
 // Tests default placeholdersEnabled / externalEnabled = true so existing assertions (which predate
-// the device-global hide prefs) keep seeing placeholder + external rows; the OFF behaviour is
+// the per-account hide prefs) keep seeing placeholder + external rows; the OFF behaviour is
 // covered by dedicated blocks below.
 // Default both windows to the full [start, end] week so existing assertions keep their numbers; the
 // visible-window vs fixed-window split is exercised by dedicated blocks (visStart/visEnd ≠ overStart/overEnd).
@@ -86,7 +86,7 @@ describe('buildSchedulerModel', () => {
     expect(design.rows.map((r) => r.resource.id)).toEqual(['r1', 'ph'])
   })
 
-  // dataset() + a placeholder in Design with an overbooking allocation, to prove the device-global
+  // dataset() + a placeholder in Design with an overbooking allocation, to prove the per-account
   // placeholdersEnabled flag hides the row AND drops its load from utilisation when off.
   function withPlaceholder(): AppData {
     const d = dataset()

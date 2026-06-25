@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { AllocationModal } from './AllocationModal'
 import { useStore } from '../../store/useStore'
 import type { AppData } from '@floaty/shared/types/entities'
-import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
+import { DEFAULT_ACCOUNT_ID, makeAppData, setExternalEnabled, setPlaceholdersEnabled } from '../../test/fixtures'
 
 const ACC = DEFAULT_ACCOUNT_ID
 
@@ -25,11 +25,11 @@ function base(): AppData {
 beforeEach(() => {
   useStore.getState().replaceAll(base())
   useStore.getState().setActiveAccount(ACC)
-  // Placeholders default OFF (device-global pref). Several tests reassign to / from a placeholder
+  // Placeholders default OFF (per-account pref). Several tests reassign to / from a placeholder
   // via the Assignee picker, which only offers placeholders when the pref is on — enable it for
   // the suite. The risk-A case (editing an allocation already ON a placeholder while the pref is
   // OFF still shows that placeholder) has its own dedicated test below.
-  useStore.getState().setPlaceholdersEnabled(true)
+  setPlaceholdersEnabled(true)
 })
 
 describe('AllocationModal create', () => {
@@ -353,7 +353,7 @@ describe('AllocationModal edit', () => {
     const alloc = useStore.getState().addAllocation({ resourceId: ph.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     // Turn placeholders OFF — they're hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) placeholder.
-    useStore.getState().setPlaceholdersEnabled(false)
+    setPlaceholdersEnabled(false)
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
     const assignee = screen.getByLabelText('Assignee')
@@ -373,7 +373,7 @@ describe('AllocationModal edit', () => {
     const alloc = useStore.getState().addAllocation({ resourceId: ext.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 0, status: 'confirmed' })
     // External pref OFF (its default) — hidden everywhere, but an allocation already on one must not
     // silently reassign when edited: the picker keeps the currently-selected (hidden) external.
-    useStore.getState().setExternalEnabled(false)
+    setExternalEnabled(false)
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
     const assignee = screen.getByLabelText('Assignee')

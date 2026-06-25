@@ -103,6 +103,16 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   if (rec.disciplinesEnabled !== undefined && typeof rec.disciplinesEnabled !== 'boolean') {
     delete rec.disciplinesEnabled
   }
+  // Drop a non-boolean placeholdersEnabled rather than persist junk; its absence reads
+  // back as the default (false — hidden) on the client.
+  if (rec.placeholdersEnabled !== undefined && typeof rec.placeholdersEnabled !== 'boolean') {
+    delete rec.placeholdersEnabled
+  }
+  // Drop a non-boolean externalEnabled rather than persist junk; its absence reads
+  // back as the default (false — hidden) on the client.
+  if (rec.externalEnabled !== undefined && typeof rec.externalEnabled !== 'boolean') {
+    delete rec.externalEnabled
+  }
   return rec
 }
 

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, emptyFilters } from '../store/useStore'
-import { disciplinesEnabledFor } from '../store/selectors'
+import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../store/selectors'
 import { useScopedData } from '../store/useScopedData'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { resourceDisplayName } from '../lib/metadata'
@@ -38,11 +38,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const data = useScopedData()
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
-  // Device-global view pref (default OFF): when off, placeholders are not offered as jump targets.
-  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
-  // Device-global view pref (default OFF): when off, external / 3rd parties are not offered as
+  // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
+  // Per-account view pref (default OFF): when off, external / 3rd parties are not offered as
   // jump targets — their schedule row is hidden, so jumping to it would scroll to nothing.
-  const externalEnabled = useStore((s) => s.externalEnabled)
+  const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
 
   const [query, setQuery] = useState('')
   // cmdk owns highlight/selection by item `value` (we pass each item's id). Controlling it lets us
@@ -292,7 +292,7 @@ function buildItems({
   const pages: PaletteItem[] = [
     { id: 'page-schedule', label: 'Schedule', sublabel: '/', section: 'Pages', onSelect: () => { void navigate('/'); onClose() } },
     { id: 'page-resources', label: 'Resources', sublabel: '/resources', section: 'Pages', onSelect: () => { void navigate('/resources'); onClose() } },
-    // External / 3rd parties moved INTO the Resources tab (behind the device-global `externalEnabled`
+    // External / 3rd parties moved INTO the Resources tab (behind the per-account `externalEnabled`
     // setting), so there's no standalone External page entry here anymore.
     // Disciplines page entry only when the account uses disciplines (route is guarded too).
     ...(disciplinesEnabled
@@ -310,7 +310,7 @@ function buildItems({
     : pages
 
   // ── Resources ──────────────────────────────────────────────────────────────
-  // Placeholders and externals are each gated behind a device-global pref (both default OFF). When
+  // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
   // off, drop them as jump targets — their schedule row is hidden, so jumping to it would scroll to
   // nothing.
   const resourceItems: PaletteItem[] = data.resources

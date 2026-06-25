@@ -60,6 +60,15 @@ export interface Account extends Entity {
    *  When false, disciplines are hidden across the whole UI (nav, resource form,
    *  schedule grouping + filter, lists, command palette) — the data is preserved. */
   disciplinesEnabled?: boolean
+  /** Whether this company surfaces placeholder ("slot") resources. Absent = false
+   *  (hidden out of the box — NOT `?? true` like disciplinesEnabled) so new companies start
+   *  with placeholders OFF. When false, placeholders are hidden across the UI; the data is
+   *  preserved and returns when re-enabled. */
+  placeholdersEnabled?: boolean
+  /** Whether this company surfaces external / 3rd-party resources. Absent = false (hidden out
+   *  of the box, like placeholdersEnabled) so new companies start with external OFF. When false,
+   *  external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
+  externalEnabled?: boolean
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */

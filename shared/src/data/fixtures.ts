@@ -16,6 +16,10 @@ export const FIXTURE_ACCOUNT: Account = {
   timezone: 'Europe/London',
   weekStartsOn: 0,
   disciplinesEnabled: false,
+  // Both true (the NON-default — absent reads as false/hidden) so the server round-trip test
+  // proves the new optional boolean columns persist a PRESENT value, not just absence.
+  placeholdersEnabled: true,
+  externalEnabled: true,
   createdAt: TS1,
   updatedAt: TS2,
 }

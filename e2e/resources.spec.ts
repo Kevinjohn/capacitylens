@@ -22,7 +22,7 @@ test.describe('Resources', () => {
 
   test('adds a placeholder bound to a project and shows it as "Placeholder" on the schedule', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
-    // Placeholders are hidden by default (device-global pref) — turn them on so the management
+    // Placeholders are hidden by default (per-account pref) — turn them on so the management
     // section + "Add placeholder" button appear on the Resources page.
     await page.getByRole('switch', { name: 'Show placeholders' }).click()
     await page.getByRole('link', { name: 'Resources' }).click()

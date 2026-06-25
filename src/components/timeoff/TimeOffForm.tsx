@@ -1,5 +1,6 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { todayISO } from '@floaty/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
@@ -20,7 +21,7 @@ export function TimeOffForm({
 }) {
   const add = useStore((s) => s.addTimeOff)
   const update = useStore((s) => s.updateTimeOff)
-  const placeholdersEnabled = useStore((s) => s.placeholdersEnabled)
+  const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const resources = useScopedData().resources
 
@@ -38,7 +39,7 @@ export function TimeOffForm({
   }
 
   // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
-  // Placeholders are gated behind a device-global pref (default OFF); when off, drop them too —
+  // Placeholders are gated behind a per-account pref (default OFF); when off, drop them too —
   // EXCEPT the entry's currently-selected resource (risk A): keep a hidden placeholder in the
   // options when it's the one already assigned, so editing shows the correct value in the <select>
   // instead of silently reassigning the time off to someone else on save.

@@ -272,6 +272,47 @@ describe('schema migration of an existing on-disk DB', () => {
     }
   })
 
+  it('accounts.placeholdersEnabled and accounts.externalEnabled are added by migration', () => {
+    // An old accounts table without the two new optional view-pref columns.
+    const path = join(tmpdir(), `floaty-migrate-flags-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* fine */ }
+      }
+    }
+    cleanup()
+    try {
+      const old = new DatabaseSync(path)
+      old.exec(`
+        CREATE TABLE accounts (
+          id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
+          schedulingMode TEXT, timezone TEXT, weekStartsOn TEXT, disciplinesEnabled TEXT,
+          createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+        );
+      `)
+      old.exec(`INSERT INTO accounts (id,name,color,createdAt,updatedAt) VALUES ('a1','Studio','#111','${TS}','${TS}');`)
+      old.close()
+
+      const db = openDb(path)
+      // After migration, both new optional columns exist and round-trip a present boolean.
+      insertRow(db, 'accounts', {
+        id: 'a2', name: 'New Studio', color: '#222',
+        placeholdersEnabled: true, externalEnabled: true,
+        createdAt: TS, updatedAt: TS,
+      })
+      const row = getRow(db, 'accounts', 'a2')
+      expect(row?.placeholdersEnabled).toBe(true)
+      expect(row?.externalEnabled).toBe(true)
+      // The old row (without the new fields) reads back without them (absent → default false client-side).
+      const old2 = getRow(db, 'accounts', 'a1')
+      expect(old2?.placeholdersEnabled).toBeUndefined()
+      expect(old2?.externalEnabled).toBeUndefined()
+      db.close()
+    } finally {
+      cleanup()
+    }
+  })
+
   it('throws a nullability-mismatch error when a column is present but NULL/NOT NULL disagrees with the spec', () => {
     // accounts.schedulingMode is OPTIONAL in the spec (nullable), but here the on-disk column
     // exists as NOT NULL. It's present, so migrateSchema won't touch it and the missing-column

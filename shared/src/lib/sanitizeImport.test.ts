@@ -130,4 +130,26 @@ describe('sanitizeAccount', () => {
     expect(sanitizeAccount({ disciplinesEnabled: false }).disciplinesEnabled).toBe(false)
     expect(sanitizeAccount({ disciplinesEnabled: true }).disciplinesEnabled).toBe(true)
   })
+
+  it('strips a non-boolean placeholdersEnabled', () => {
+    expect(sanitizeAccount({ placeholdersEnabled: 'yes' }).placeholdersEnabled).toBeUndefined()
+    expect(sanitizeAccount({ placeholdersEnabled: 1 }).placeholdersEnabled).toBeUndefined()
+    expect(sanitizeAccount({ placeholdersEnabled: null }).placeholdersEnabled).toBeUndefined()
+  })
+
+  it('keeps a boolean placeholdersEnabled', () => {
+    expect(sanitizeAccount({ placeholdersEnabled: false }).placeholdersEnabled).toBe(false)
+    expect(sanitizeAccount({ placeholdersEnabled: true }).placeholdersEnabled).toBe(true)
+  })
+
+  it('strips a non-boolean externalEnabled', () => {
+    expect(sanitizeAccount({ externalEnabled: 'yes' }).externalEnabled).toBeUndefined()
+    expect(sanitizeAccount({ externalEnabled: 1 }).externalEnabled).toBeUndefined()
+    expect(sanitizeAccount({ externalEnabled: null }).externalEnabled).toBeUndefined()
+  })
+
+  it('keeps a boolean externalEnabled', () => {
+    expect(sanitizeAccount({ externalEnabled: false }).externalEnabled).toBe(false)
+    expect(sanitizeAccount({ externalEnabled: true }).externalEnabled).toBe(true)
+  })
 })

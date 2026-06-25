@@ -23,19 +23,15 @@ import {
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
-  readStoredExternalEnabled,
   readStoredFakeSignedIn,
   readStoredIntroSeen,
   readStoredMinimiseWeekends,
-  readStoredPlaceholdersEnabled,
   readStoredSidebarOpen,
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
-  writeStoredExternalEnabled,
   writeStoredFakeSignedIn,
   writeStoredIntroSeen,
   writeStoredMinimiseWeekends,
-  writeStoredPlaceholdersEnabled,
   writeStoredSidebarOpen,
   writeStoredUtilizationPrefs,
   type BarLabelPrefs,
@@ -201,19 +197,6 @@ export interface StoreState {
   /** Shrink the weekend (Sat/Sun) columns on the schedule to a sliver. Device-global like
    *  `theme`, own localStorage key, NOT in AppData/export — and defaults ON. */
   minimiseWeekends: boolean
-  /** Whether the placeholder ("slot") resource feature is surfaced. Device-global like `theme`,
-   *  own localStorage key, NOT in AppData/export — and defaults OFF (hidden out of the box).
-   *  A pure VIEW pref: OFF hides placeholder rows / pickers / management UI everywhere but never
-   *  touches tenant data (existing placeholders + their allocations are preserved and reappear
-   *  when re-enabled). Threaded into `buildSchedulerModel`'s `resourceVisible`. */
-  placeholdersEnabled: boolean
-  /** Whether the external / 3rd-party resource feature is surfaced. EXACT analog of
-   *  `placeholdersEnabled`: device-global like `theme`, own localStorage key, NOT in AppData/export
-   *  — and defaults OFF (hidden out of the box). A pure VIEW pref: OFF hides external rows / pickers /
-   *  the Resources-tab management section everywhere but never touches tenant data (existing externals
-   *  + their allocations are preserved and reappear when re-enabled). Threaded into
-   *  `buildSchedulerModel`'s `resourceVisible`. */
-  externalEnabled: boolean
   /** COSMETIC demo "fake sign-in" state — gates a Google-style demo sign-in screen BEFORE
    *  the account picker so a viewer sees "log in first, then pick a company". Device-global
    *  like `theme` (own localStorage key, NOT in AppData/export), defaults OFF (signed out).
@@ -253,10 +236,6 @@ export interface StoreState {
   setSidebarOpen: (open: boolean) => void
   /** Toggle the minimise-weekends preference: persist and update state. */
   setMinimiseWeekends: (value: boolean) => void
-  /** Toggle the placeholders-enabled preference: persist and update state. */
-  setPlaceholdersEnabled: (value: boolean) => void
-  /** Toggle the external-enabled preference: persist and update state. */
-  setExternalEnabled: (value: boolean) => void
   /** Set the cosmetic fake-sign-in state: persist and update state. */
   setFakeSignedIn: (value: boolean) => void
   /** Mark the post-login intro page as seen on this device: persist and update state. */
@@ -418,14 +397,26 @@ export const useStore = create<StoreState>()((set, get) => {
     barLabelPrefs: readStoredBarLabelPrefs(),
     sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
     minimiseWeekends: readStoredMinimiseWeekends(),
-    placeholdersEnabled: readStoredPlaceholdersEnabled(),
-    externalEnabled: readStoredExternalEnabled(),
     fakeSignedIn: readStoredFakeSignedIn(),
     introSeen: readStoredIntroSeen(),
 
     addAccount: (input) => {
       const ts = stamp()
-      const e: Account = { ...input, id: newId(), ...ts }
+      // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
+      // scheduling with disciplines OFF and the placeholder + external features hidden. `...input`
+      // comes LAST so a caller (or an import path) can still override any of them; existing/seed
+      // accounts that never pass through addAccount keep their absent-field defaults (read via the
+      // selectors). placeholdersEnabled/externalEnabled were device-global prefs and are now
+      // per-account, mirroring disciplinesEnabled.
+      const e: Account = {
+        schedulingMode: 'days',
+        disciplinesEnabled: false,
+        placeholdersEnabled: false,
+        externalEnabled: false,
+        ...input,
+        id: newId(),
+        ...ts,
+      }
       // Every new account gets its built-in "Internal" client (one per account; see
       // internalClient.ts). Created atomically with the account so the one-per-account invariant
       // holds the instant the tenant exists — matching seed() and the v5→v6 migrate.
@@ -531,14 +522,6 @@ export const useStore = create<StoreState>()((set, get) => {
     setMinimiseWeekends: (value) => {
       writeStoredMinimiseWeekends(value)
       set({ minimiseWeekends: value })
-    },
-    setPlaceholdersEnabled: (value) => {
-      writeStoredPlaceholdersEnabled(value)
-      set({ placeholdersEnabled: value })
-    },
-    setExternalEnabled: (value) => {
-      writeStoredExternalEnabled(value)
-      set({ externalEnabled: value })
     },
     // Plain set (NOT mutate): a device-global demo flag, never on the undo/redo stack,
     // never in AppData/export.
