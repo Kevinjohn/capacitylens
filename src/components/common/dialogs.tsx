@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import * as DialogPrimitive from '@radix-ui/react-dialog'
+// Radix Dialog via the `radix-ui` umbrella (same idiom as src/components/ui/*), which
+// re-exports @radix-ui/react-dialog at the identical version — one Radix import surface.
+import { Dialog as DialogPrimitive } from 'radix-ui'
 import { useStore } from '../../store/useStore'
 import { Button as ShadButton } from '../ui/button'
 
