@@ -205,6 +205,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   drifts off-screen with the horizontal scroll. Its CTA (**Go to Resources** when there are genuinely no
   resources, **Clear filters** when a filter hides everyone) is ALSO the keyboard-focusable element that
   keeps the scrollable grid axe-clean when empty (`scrollable-region-focusable`).
+- **List-row actions are icon-only; create buttons carry a leading `+` (owner, 2026-06-25).** The
+  shared `common/dialogs` shells own this: row Edit/Delete are the icon-only `EditButton` (pencil,
+  ghost) / `DeleteButton` (trash, danger), and every create affordance is an `AddButton` (`+` +
+  label) — the scheduler's per-row "Add allocation" already followed it. The Icon glyph is ALWAYS
+  decorative (`aria-hidden`); the accessible NAME lives on the button (label text for Add,
+  `aria-label`+`title` for Edit/Delete, default "Edit"/"Delete"), so `getByRole('button', {name})`
+  stays stable across the text→icon swap. Dialog footer / confirmation CTAs (Save/Cancel/Duplicate,
+  the ConfirmDialog + AllocationModal-footer Delete, "Create company") KEEP their text — only
+  list-row actions go icon-only. Build new list pages on these shells, not bare `<Button>Edit</Button>`.
 - **Undo/redo has visible toolbar buttons + the global ⌘Z / ⌘⇧Z shortcut.** The schedule
   toolbar carries Undo/Redo icon buttons (`undo-button` / `redo-button`, disabled when the
   history stack is empty); the keyboard shortcut stays global in `AppShell`.

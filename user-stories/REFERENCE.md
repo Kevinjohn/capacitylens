@@ -143,11 +143,17 @@ colour swatches, each button labelled by a human-readable name like `Blue dark` 
 The **activity form** has an `Activity kind` radiogroup (`Project` / `Internal` / `Repeatable`); the
 `Project` field shows (and is required) only for the `Project` kind — internal/repeatable
 activities are project-less.
-Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add activity`. List pages have an add
-button per entity: `Add resource`, `Add discipline`, `Add client`, `Add project`,
-`Add activity`, `Add time off`, `Add external party`. Each list row has `Edit` and `Delete`.
+Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add activity`. The **create / "Add"**
+affordances carry a leading **`+`** glyph before the label (decorative, `aria-hidden`; the
+accessible name stays the label text). List pages have an add button per entity: `Add resource`,
+`Add discipline`, `Add client`, `Add project`, `Add activity`, `Add time off`,
+`Add external party` (plus the company picker's `New company`). Each list row has an **icon-only**
+`Edit` (pencil) and `Delete` (trash) button — the glyph is decorative and the button's
+`aria-label`/`title` carry the name (`Edit` / `Delete`, or `Delete <name>` on the company picker),
+so `getByRole('button', { name: 'Edit' | 'Delete' })` still matches.
 
-**Delete confirmation** is a dialog titled `Delete <entity>?` with `Delete` and `Cancel`.
+**Delete confirmation** is a dialog titled `Delete <entity>?` with `Delete` and `Cancel` (these
+dialog/footer action buttons keep their text — only the list-row actions are icon-only).
 Cascade dialogs say "You can undo this with ⌘Z."
 
 **Scheduler toolbar.** Zoom buttons `1w`/`2w`/`4w`/`6w`/`8w` (the active one has

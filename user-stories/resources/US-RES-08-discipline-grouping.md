@@ -13,7 +13,7 @@ legible; an unassigned resource still has a home in a catch-all bucket.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
-1. On the **Pam Gonzalez** row, click **Edit**. (Seeded discipline: *Copywriting*.)
+1. On the **Pam Gonzalez** row, click the **Edit** (pencil) icon. (Seeded discipline: *Copywriting*.)
 2. Change **Discipline** = *Design*. Click **Save**.
 3. Go to **Schedule**: Pam now appears under the **Design** discipline group header.
 4. Edit **Pam Gonzalez** again, set **Discipline** = *— None —*, and Save.

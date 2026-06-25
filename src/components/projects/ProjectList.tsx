@@ -1,7 +1,7 @@
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
-import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
 import type { Project } from '@floaty/shared/types/entities'
 
@@ -20,7 +20,7 @@ export function ProjectList() {
         <EmptyState
           icon="folder"
           description="Projects belong to a client and hold the activities you schedule."
-          action={{ label: 'Add your first project', onClick: () => setCreating(true) }}
+          action={{ label: 'Add your first project', onClick: () => setCreating(true), icon: 'plus' }}
         >
           No projects yet.
         </EmptyState>
@@ -34,12 +34,8 @@ export function ProjectList() {
                 <span className="text-sm text-muted">· {clientName(p.clientId)}</span>
               </span>
               <span className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEditing(p)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => setConfirming(p)}>
-                  Delete
-                </Button>
+                <EditButton onClick={() => setEditing(p)} />
+                <DeleteButton onClick={() => setConfirming(p)} />
               </span>
             </li>
           ))}

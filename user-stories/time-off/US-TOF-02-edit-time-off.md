@@ -10,7 +10,7 @@ Plans move. A holiday gets shortened, or what was logged as a holiday turns out 
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed already has **Tyler Nix** off **10–12 June (Holiday)**.
-1. On the **Tyler Nix · 2026-06-10 → 2026-06-12 · Holiday** row, click **Edit**. The "Edit time off" dialog opens.
+1. On the **Tyler Nix · 2026-06-10 → 2026-06-12 · Holiday** row, click the **Edit** (pencil) icon. The "Edit time off" dialog opens.
 2. Confirm the dialog is pre-filled: **Resource** = *Tyler Nix*, **Start** = `2026-06-10`, **End** = `2026-06-12`, **Type** = *Holiday*.
 3. Change **Type** = *Sick* and shorten the range to **End** = `2026-06-11`.
 4. Click **Save**. The dialog closes.

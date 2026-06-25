@@ -3,7 +3,7 @@ import { useStore } from '../../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
-import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { Separator } from '../ui/separator'
 import { resourceDisplayName } from '../../lib/metadata'
 import { ResourceForm } from './ResourceForm'
@@ -60,12 +60,8 @@ export function ResourceList() {
         </span>
       </span>
       <span className="flex gap-2">
-        <Button variant="ghost" onClick={() => setEditing(r)}>
-          Edit
-        </Button>
-        <Button variant="danger" onClick={() => setConfirming(r)}>
-          Delete
-        </Button>
+        <EditButton onClick={() => setEditing(r)} />
+        <DeleteButton onClick={() => setConfirming(r)} />
       </span>
     </li>
   )
@@ -76,7 +72,7 @@ export function ResourceList() {
   const box = (
     rows: Resource[],
     empty: string,
-    enrich?: { icon: 'people'; description: string; action: { label: string; onClick: () => void } },
+    enrich?: { icon: 'people'; description: string; action: { label: string; onClick: () => void; icon?: 'plus' } },
   ) =>
     rows.length === 0 ? (
       <EmptyState icon={enrich?.icon} description={enrich?.description} action={enrich?.action}>
@@ -91,7 +87,7 @@ export function ResourceList() {
       {box(people, 'No resources yet.', {
         icon: 'people',
         description: 'Resources are the people you schedule work for.',
-        action: { label: 'Add your first resource', onClick: () => setCreatingKind('person') },
+        action: { label: 'Add your first resource', onClick: () => setCreatingKind('person'), icon: 'plus' },
       })}
 
       {/* The whole placeholder feature is behind the per-account `placeholdersEnabled` pref
@@ -105,7 +101,7 @@ export function ResourceList() {
           <Separator className="mt-8" />
           <div className="mb-4 mt-8 flex items-center justify-between">
             <h2 className="text-lg font-semibold">Placeholders</h2>
-            <Button onClick={() => setCreatingKind('placeholder')}>Add placeholder</Button>
+            <AddButton label="Add placeholder" onClick={() => setCreatingKind('placeholder')} />
           </div>
           {box(placeholders, 'No placeholders yet.')}
         </>
@@ -123,7 +119,7 @@ export function ResourceList() {
             <h2 id="external-heading" className="text-lg font-semibold">
               External
             </h2>
-            <Button onClick={() => ext.setCreating(true)}>Add external party</Button>
+            <AddButton label="Add external party" onClick={() => ext.setCreating(true)} />
           </div>
           {/* Explainer copy (editable, shared with Settings → External — see lib/externalCopy.ts). */}
           <p className="mb-4 max-w-prose text-sm text-muted">{EXTERNAL_EXPLAINER}</p>
@@ -131,7 +127,7 @@ export function ResourceList() {
             <EmptyState
               icon="people"
               description="External parties are third-party suppliers you book without tracking their capacity."
-              action={{ label: 'Add an external party', onClick: () => ext.setCreating(true) }}
+              action={{ label: 'Add an external party', onClick: () => ext.setCreating(true), icon: 'plus' }}
             >
               No external parties yet.
             </EmptyState>
@@ -145,12 +141,8 @@ export function ResourceList() {
                     {r.name && r.role && <span className="text-sm text-muted">· {r.role}</span>}
                   </span>
                   <span className="flex gap-2">
-                    <Button variant="ghost" onClick={() => ext.setEditing(r)}>
-                      Edit
-                    </Button>
-                    <Button variant="danger" onClick={() => ext.setConfirming(r)}>
-                      Delete
-                    </Button>
+                    <EditButton onClick={() => ext.setEditing(r)} />
+                    <DeleteButton onClick={() => ext.setConfirming(r)} />
                   </span>
                 </li>
               ))}

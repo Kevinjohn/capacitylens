@@ -14,7 +14,7 @@ them, so nobody plans work into a day the person never works.
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Resources** in the sidebar. The seed already has
 **Alex Rivera** (freelancer) set to **Mon–Wed only**.
-1. On the **Alex Rivera** row, click **Edit**. The "Edit resource" dialog opens.
+1. On the **Alex Rivera** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens.
 2. In **Working days**, confirm Mon, Tue, Wed are pressed (`aria-pressed="true"`) and
    Thu, Fri, Sat, Sun are off.
 3. Click **Save** (no change needed — this is the verified state).

@@ -10,7 +10,7 @@ Reorganising the team should never cost you people. Deleting a discipline is int
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). *Design* groups *Tyler Nix* and the *Senior Designer* placeholder.
-1. On the **Design** row, click **Delete**. The "Delete discipline?" confirmation dialog opens.
+1. On the **Design** row, click the **Delete** (trash) icon. The "Delete discipline?" confirmation dialog opens.
 2. Read the dialog: it states that the discipline's resources will be **ungrouped (moved to "No discipline"), not deleted**.
 3. Click **Delete** to confirm. The dialog closes.
 4. Click **Schedule** in the sidebar (`/`); use **Jump to date** → `2026-06-01` to see the seed bars.

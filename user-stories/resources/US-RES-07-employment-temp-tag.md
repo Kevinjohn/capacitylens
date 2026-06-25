@@ -15,7 +15,7 @@ pill is hidden rather than half-designed.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
-1. On the **Tyler Nix** row (permanent), click **Edit**.
+1. On the **Tyler Nix** row (permanent), click the **Edit** (pencil) icon.
 2. Observe the **Employment** select (Permanent / Freelancer / Contractor) — change it to
    *Freelancer* and Save.
 3. Observe Tyler's list row: it looks unchanged — **no tag appears**.

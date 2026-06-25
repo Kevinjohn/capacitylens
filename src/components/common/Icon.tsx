@@ -16,11 +16,13 @@ import {
   ClipboardCheck,
   Folder,
   PanelLeft,
+  Pencil,
   Plus,
   Redo2,
   SlidersHorizontal,
   Sun,
   Tag,
+  Trash2,
   Undo2,
   Users,
   X,
@@ -36,6 +38,10 @@ export type IconName =
   | 'chevron-down'
   | 'check'
   | 'plus'
+  // Row-action glyphs for the management lists (Edit/Delete buttons go icon-only — the
+  // button's aria-label carries the accessible name, see EditButton/DeleteButton in ./dialogs).
+  | 'edit'
+  | 'delete'
   // Sidebar navigation icons (one per section — see AppShell LINKS) plus the rail toggle.
   | 'calendar'
   | 'people'
@@ -56,6 +62,8 @@ const ICONS: Record<IconName, LucideIcon> = {
   'chevron-down': ChevronDown,
   check: Check,
   plus: Plus,
+  edit: Pencil,
+  delete: Trash2,
   calendar: Calendar,
   people: Users,
   tag: Tag,

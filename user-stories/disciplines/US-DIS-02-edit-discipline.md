@@ -10,7 +10,7 @@ Studios rename and re-colour their categories as the business evolves (a "Develo
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Disciplines** in the sidebar (`/disciplines`). The *Development* discipline (order 1) exists.
-1. On the **Development** row, click **Edit**. The dialog opens pre-filled with that discipline's values.
+1. On the **Development** row, click the **Edit** (pencil) icon. The dialog opens pre-filled with that discipline's values.
 2. Change **Name** = `Engineering`.
 3. Change the **Colour** by opening it and picking a different swatch.
 4. Click **Save**. The dialog closes.

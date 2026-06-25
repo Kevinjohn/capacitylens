@@ -11,7 +11,7 @@ When a piece of work is dropped, the manager wants the activity and everything s
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Activities** in the sidebar (`/activities`). The activity *Wireframes* (`t-wires`) belongs to *Project Lightning* and has allocation bars in June 2026.
 1. First, open the **Schedule** (`/`) and **Jump to date** → `2026-06-01` to confirm the *Wireframes* bars are visible.
-2. Go to **Activities**. On the **Wireframes** row, click **Delete**. The "Delete activity?" confirmation dialog opens.
+2. Go to **Activities**. On the **Wireframes** row, click the **Delete** (trash) icon. The "Delete activity?" confirmation dialog opens.
 3. Confirm by clicking **Delete**. The dialog closes.
 4. Return to the **Schedule** (`/`, **Jump to date** → `2026-06-01`) to inspect.
 5. Press **⌘Z** (Undo) to reverse the deletion.

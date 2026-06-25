@@ -1,7 +1,7 @@
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
-import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { byDisciplineOrder } from '../../store/selectors'
 import { DisciplineForm } from './DisciplineForm'
@@ -20,7 +20,7 @@ export function DisciplineList() {
         <EmptyState
           icon="tag"
           description="Disciplines group your people and give them a colour on the schedule."
-          action={{ label: 'Add your first discipline', onClick: () => setCreating(true) }}
+          action={{ label: 'Add your first discipline', onClick: () => setCreating(true), icon: 'plus' }}
         >
           No disciplines yet.
         </EmptyState>
@@ -33,12 +33,8 @@ export function DisciplineList() {
                 {d.name}
               </span>
               <span className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEditing(d)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => setConfirming(d)}>
-                  Delete
-                </Button>
+                <EditButton onClick={() => setEditing(d)} />
+                <DeleteButton onClick={() => setConfirming(d)} />
               </span>
             </li>
           ))}

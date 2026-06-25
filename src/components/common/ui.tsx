@@ -7,7 +7,8 @@
 // split only to keep each file editable; the public surface here is unchanged. Colours
 // come from semantic tokens (see index.css), so everything adapts to dark mode.
 //
-//   ./dialogs           Button, Modal, ConfirmDialog, ListPage, EmptyState
+//   ./dialogs           Button, AddButton, EditButton, DeleteButton, Modal, ConfirmDialog,
+//                       ListPage, EmptyState
 //   ./fields            TextField, TextAreaField, NumberField, DateField, SelectField, Option,
 //                       ColorField, WeekdayPicker, RequiredLegend
 //   ./feedback          Callout, FieldError  (transient toasts moved to Sonner — see AppShell)

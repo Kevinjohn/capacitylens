@@ -16,7 +16,7 @@ Phases stage a project's work, but not every activity belongs to one — so the 
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Activities** in the sidebar (`/activities`). The activity *Wireframes* belongs to *Project Lightning* (phases *Discovery*, *Build*). *Brand Themes* has no phases.
-1. On the **Wireframes** row, click **Edit**. The dialog opens with **Project** = *Project Lightning*.
+1. On the **Wireframes** row, click the **Edit** (pencil) icon. The dialog opens with **Project** = *Project Lightning*.
 2. Open the **Phase** picker and note the available options.
 3. Select **Phase** = *Discovery*. (Leaving it as "— No phase —" would also be valid — the phase is optional.)
 4. Now change **Project** to *Brand Themes* and re-open the **Phase** picker.

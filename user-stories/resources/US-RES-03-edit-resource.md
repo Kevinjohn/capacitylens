@@ -13,7 +13,7 @@ there's no second place to keep in sync.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
-1. On the **Nike Spiros** row, click **Edit**. The "Edit resource" dialog opens, pre-filled
+1. On the **Nike Spiros** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens, pre-filled
    with the current values (Role *Web Developer*, Discipline *Development*, 8h, Mon–Fri).
 2. Change **Role** = `Lead Developer`.
 3. Change **Discipline** = *Design*.

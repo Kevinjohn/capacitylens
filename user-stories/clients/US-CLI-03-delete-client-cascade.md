@@ -10,7 +10,7 @@ When an account ends, the manager wants a clean sweep of that client's work in o
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Clients** in the sidebar (`/clients`). *Acme Inc.* owns **Project Lightning**, which has activities (*Wireframes*, *Visual Design*, *CMS Review*) and allocations, and the **Senior Designer** placeholder (`r-ph-designer`) is bound to Project Lightning.
-1. On the **Acme Inc.** row, click **Delete**. The "Delete client?" confirmation dialog opens.
+1. On the **Acme Inc.** row, click the **Delete** (trash) icon. The "Delete client?" confirmation dialog opens.
 2. Read the dialog: it warns the action cascades and is undoable — "You can undo this with ⌘Z."
 3. Click **Delete** to confirm. The dialog closes.
 4. Visit **Projects**, **Activities**, and **Resources**, and the **Schedule** (`/`, **Jump to date** → `2026-06-01`) to inspect the result.

@@ -10,10 +10,10 @@ A booked holiday gets cancelled. The manager deletes the entry so the schedule f
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Time off** in the sidebar (`/timeoff`). The seed has **Tyler Nix** off **10–12 June (Holiday)**.
-1. On the **Tyler Nix · 2026-06-10 → 2026-06-12 · Holiday** row, click **Delete**. The "Delete time off?" confirmation dialog opens.
+1. On the **Tyler Nix · 2026-06-10 → 2026-06-12 · Holiday** row, click the **Delete** (trash) icon. The "Delete time off?" confirmation dialog opens.
 2. Read the dialog message: "Remove this time-off entry?".
 3. Click **Cancel** — the dialog closes and the row is unchanged (proves Cancel is safe).
-4. Click **Delete** on the row again, then click **Delete** in the dialog to confirm. The dialog closes.
+4. Click the **Delete** (trash) icon on the row again, then click **Delete** in the dialog to confirm. The dialog closes.
 5. Go to **Schedule** (`/`), **Jump to date** → `2026-06-01`, zoom **1w**, to confirm the block is gone.
 6. Press **⌘Z** (Undo) to restore the entry.
 

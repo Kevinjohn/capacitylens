@@ -102,6 +102,75 @@ export function Button({
   )
 }
 
+// ─── Row / create action buttons ────────────────────────────────────────────
+// The management lists share three tiny button shells so the iconography stays uniform:
+//  • AddButton    — a create affordance with a leading "+" glyph (e.g. "+ Add client").
+//  • EditButton   — an icon-only pencil; the label is the accessible name + hover title.
+//  • DeleteButton — an icon-only trash, in the danger variant.
+// The glyph is always decorative (aria-hidden, via Icon); the accessible NAME comes from the
+// label text (AddButton) or the aria-label (Edit/Delete), so existing
+// getByRole('button', { name: … }) selectors are unaffected by the text→icon swap.
+
+/** A create button with a leading "+" before the label. The label stays the accessible name
+ *  (the plus is decorative), so `getByRole('button', { name: 'Add …' })` is unchanged. Variant
+ *  defaults to the solid primary fill; pass `ghost` for inline/secondary add affordances. */
+export function AddButton({
+  label,
+  onClick,
+  variant = 'primary',
+  testId,
+}: {
+  label: string
+  onClick: () => void
+  variant?: ButtonVariant
+  testId?: string
+}) {
+  return (
+    <Button variant={variant} onClick={onClick} testId={testId}>
+      <Icon name="plus" />
+      {label}
+    </Button>
+  )
+}
+
+/** Icon-only Edit button for a list row. `label` is BOTH the accessible name and the hover
+ *  tooltip — it defaults to "Edit" so per-row selectors keep matching; pass a contextual label
+ *  (e.g. "Edit Acme") where rows need to disambiguate. */
+export function EditButton({
+  label = 'Edit',
+  onClick,
+  testId,
+}: {
+  label?: string
+  onClick: () => void
+  testId?: string
+}) {
+  return (
+    <Button variant="ghost" ariaLabel={label} title={label} onClick={onClick} testId={testId}>
+      <Icon name="edit" />
+    </Button>
+  )
+}
+
+/** Icon-only Delete button for a list row — the danger-variant twin of EditButton. `label`
+ *  defaults to "Delete" (so per-row selectors keep matching); pass a contextual label where
+ *  rows need to disambiguate (e.g. "Delete Studio North" on the company picker). */
+export function DeleteButton({
+  label = 'Delete',
+  onClick,
+  testId,
+}: {
+  label?: string
+  onClick: () => void
+  testId?: string
+}) {
+  return (
+    <Button variant="danger" ariaLabel={label} title={label} onClick={onClick} testId={testId}>
+      <Icon name="delete" />
+    </Button>
+  )
+}
+
 export function Modal({
   title,
   onClose,
@@ -358,7 +427,7 @@ export function ListPage({
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{title}</h1>
-        {onAdd && <Button onClick={onAdd}>{addLabel ?? 'Add'}</Button>}
+        {onAdd && <AddButton label={addLabel ?? 'Add'} onClick={onAdd} />}
       </div>
       {children}
     </div>
@@ -368,7 +437,9 @@ export function ListPage({
 /** Empty-list placeholder. `children` stays the primary, load-bearing message (call sites +
  *  their getByText assertions depend on it); `icon`/`description`/`action` are optional polish.
  *  The action renders a single CTA — give it a label distinct from the page's top "Add X" button
- *  so the two don't collide as duplicate accessible names. */
+ *  so the two don't collide as duplicate accessible names. An action may carry its own leading
+ *  `icon` (e.g. `plus` for the "Add your first X" create CTAs); navigation actions like
+ *  "Clear filters" leave it unset so they render label-only. */
 export function EmptyState({
   children,
   icon,
@@ -378,7 +449,7 @@ export function EmptyState({
   children: ReactNode
   icon?: IconName
   description?: ReactNode
-  action?: { label: string; onClick: () => void }
+  action?: { label: string; onClick: () => void; icon?: IconName }
 }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-4 py-12 text-center">
@@ -391,7 +462,12 @@ export function EmptyState({
         <p className="text-sm font-medium text-ink">{children}</p>
         {description && <p className="mx-auto max-w-xs text-sm text-muted">{description}</p>}
       </div>
-      {action && <Button onClick={action.onClick}>{action.label}</Button>}
+      {action && (
+        <Button onClick={action.onClick}>
+          {action.icon && <Icon name={action.icon} />}
+          {action.label}
+        </Button>
+      )}
     </div>
   )
 }

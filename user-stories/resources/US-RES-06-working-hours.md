@@ -12,7 +12,7 @@ be zero or blank.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Resources** in the sidebar.
-1. On the **Tyler Nix** row, click **Edit**. The "Edit resource" dialog opens (8h).
+1. On the **Tyler Nix** row, click the **Edit** (pencil) icon. The "Edit resource" dialog opens (8h).
 2. Change **Working hours / day** = `6`.
 3. Click **Save**. The dialog closes.
 

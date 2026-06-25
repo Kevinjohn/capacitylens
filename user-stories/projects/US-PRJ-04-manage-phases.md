@@ -16,7 +16,7 @@ Phases (Discovery, Build…) are how a single project's work is staged. They liv
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** has phases *Discovery* and *Build*. The activity *Wireframes* belongs to Project Lightning.
-1. On the **Project Lightning** row, click **Edit**. The dialog opens and shows its phases *Discovery* and *Build*.
+1. On the **Project Lightning** row, click the **Edit** (pencil) icon. The dialog opens and shows its phases *Discovery* and *Build*.
 2. Add a new phase named `Launch`. **Save** the dialog.
 3. Go to **Activities**, **Edit** *Wireframes*, ensure its **Project** is *Project Lightning*, open the **Phase** picker, set **Phase** = *Discovery*, and **Save**.
 4. Re-open **Project Lightning** in **Projects**, and remove the **Discovery** phase. **Save**.

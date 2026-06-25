@@ -4,7 +4,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
 import { validateHex, validateName } from '../../lib/validation'
-import { Avatar, Button, ColorField, FieldError, TextField } from '../common/ui'
+import { AddButton, Avatar, Button, ColorField, DeleteButton, FieldError, TextField } from '../common/ui'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { Account } from '@floaty/shared/types/entities'
@@ -95,9 +95,7 @@ export function AccountPicker() {
                 <Avatar name={a.name} color={a.color} />
                 <span className="font-medium">{a.name}</span>
               </button>
-              <Button variant="ghost" ariaLabel={`Delete ${a.name}`} onClick={() => setConfirming(a)}>
-                Delete
-              </Button>
+              <DeleteButton label={`Delete ${a.name}`} onClick={() => setConfirming(a)} />
             </li>
           ))}
           {accounts.length === 0 && !creating && (
@@ -128,7 +126,7 @@ export function AccountPicker() {
           </form>
         ) : (
           <div className="mt-4">
-            <Button onClick={() => setCreating(true)}>New company</Button>
+            <AddButton label="New company" onClick={() => setCreating(true)} />
           </div>
         )}
 

@@ -2,7 +2,7 @@ import { useStore } from '../../store/useStore'
 import { placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
-import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { TIME_OFF_TYPE_LABELS, resourceDisplayName } from '../../lib/metadata'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '@floaty/shared/types/entities'
@@ -33,7 +33,7 @@ export function TimeOffList() {
         <EmptyState
           icon="calendar"
           description="Book holidays and other time away so the schedule shows real availability."
-          action={{ label: 'Book time off', onClick: () => setCreating(true) }}
+          action={{ label: 'Book time off', onClick: () => setCreating(true), icon: 'plus' }}
         >
           No time off booked.
         </EmptyState>
@@ -50,12 +50,8 @@ export function TimeOffList() {
                 </span>
               </span>
               <span className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEditing(t)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => setConfirming(t)}>
-                  Delete
-                </Button>
+                <EditButton onClick={() => setEditing(t)} />
+                <DeleteButton onClick={() => setConfirming(t)} />
               </span>
             </li>
           ))}

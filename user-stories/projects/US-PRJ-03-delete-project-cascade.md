@@ -10,7 +10,7 @@ When a project is cancelled, the manager wants it and all its scheduled work gon
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** has phases (*Discovery*, *Build*), activities (*Wireframes*, *Visual Design*, *CMS Review*) and allocations; the **Senior Designer** placeholder (`r-ph-designer`) is bound to it.
-1. On the **Project Lightning** row, click **Delete**. The "Delete project?" confirmation dialog opens.
+1. On the **Project Lightning** row, click the **Delete** (trash) icon. The "Delete project?" confirmation dialog opens.
 2. Read the dialog: it warns the delete cascades and is undoable — "You can undo this with ⌘Z."
 3. Click **Delete** to confirm. The dialog closes.
 4. Visit **Activities**, **Resources**, and the **Schedule** (`/`, **Jump to date** → `2026-06-01`) to inspect the result.

@@ -11,11 +11,11 @@ its time off — with a clear warning and a one-step undo.
 so the seed bars and time off are in view. **Tyler Nix** has both allocations
 (over-allocated on 3–4 June) and time off (10–12 June, Holiday).
 1. Note that Tyler's row shows allocation bars and a hatched time-off block in early June.
-2. Go to **Resources**; on the **Tyler Nix** row click **Delete**.
+2. Go to **Resources**; on the **Tyler Nix** row click the **Delete** (trash) icon.
 3. A dialog titled **"Delete resource?"** appears, warning that Tyler's allocations and time
    off will go too and stating "You can undo this with ⌘Z."
 4. Click **Cancel** first — the dialog closes and Tyler is still present (nothing deleted).
-5. Click **Delete** on the Tyler row again, then click **Delete** to confirm.
+5. Click the **Delete** (trash) icon on the Tyler row again, then click **Delete** to confirm.
 6. Go back to **Schedule** (Jump to `2026-06-01` if needed) and observe Tyler is gone.
 7. Undo the delete — either press **⌘Z** or click the toolbar **Undo** button.
 

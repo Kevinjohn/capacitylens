@@ -9,6 +9,7 @@ import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
 import { validateText } from '../../lib/validation'
 import { MAX_NAME_LENGTH } from '@floaty/shared/lib/strings'
 import {
+  AddButton,
   Button,
   Callout,
   DateField,
@@ -394,9 +395,7 @@ export function AllocationModal(props: AllocationModalProps) {
           onChange={(e) => setNewActivityName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddActivity() } }}
         />
-        <Button variant="ghost" onClick={onAddActivity}>
-          Add activity
-        </Button>
+        <AddButton label="Add activity" variant="ghost" onClick={onAddActivity} />
       </div>
 
       {isExternal ? (

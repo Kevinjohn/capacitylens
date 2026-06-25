@@ -10,7 +10,7 @@ Projects get renamed, move between clients (a brand handed to a different accoun
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** belongs to *Acme Inc.* and has allocations in June 2026.
-1. On the **Project Lightning** row, click **Edit**. The dialog opens pre-filled.
+1. On the **Project Lightning** row, click the **Edit** (pencil) icon. The dialog opens pre-filled.
 2. Change **Name** = `Project Thunder`.
 3. Change **Client** = *Globex*.
 4. Change the **Colour** by opening it and picking a different swatch.

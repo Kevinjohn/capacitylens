@@ -1,7 +1,7 @@
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
-import { Button, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ActivityForm } from './ActivityForm'
 import type { Activity } from '@floaty/shared/types/entities'
 
@@ -41,12 +41,8 @@ export function ActivityList() {
         )}
       </span>
       <span className="flex gap-2">
-        <Button variant="ghost" onClick={() => setEditing(t)}>
-          Edit
-        </Button>
-        <Button variant="danger" onClick={() => setConfirming(t)}>
-          Delete
-        </Button>
+        <EditButton onClick={() => setEditing(t)} />
+        <DeleteButton onClick={() => setConfirming(t)} />
       </span>
     </li>
   )
@@ -60,7 +56,7 @@ export function ActivityList() {
     showLabel: boolean,
     empty: string,
     testid: string,
-    enrich?: { description: string; action: { label: string; onClick: () => void } },
+    enrich?: { description: string; action: { label: string; onClick: () => void; icon?: 'plus' } },
   ) =>
     rows.length === 0 ? (
       <EmptyState
@@ -83,7 +79,7 @@ export function ActivityList() {
       </div>
       {box(internalActivities, false, 'No internal activities yet.', 'internal-activities', {
         description: 'Activities are the work you allocate — project, internal or repeatable.',
-        action: { label: 'Add your first activity', onClick: () => setCreating(true) },
+        action: { label: 'Add your first activity', onClick: () => setCreating(true), icon: 'plus' },
       })}
 
       <div className="mb-4 mt-8 flex items-center justify-between">

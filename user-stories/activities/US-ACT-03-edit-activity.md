@@ -10,7 +10,7 @@ Work gets re-scoped: an activity is renamed or moved to another project. Those e
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Activities** in the sidebar (`/activities`). The activity *CMS Review* belongs to *Project Lightning*.
-1. On the **CMS Review** row, click **Edit**. The dialog opens pre-filled.
+1. On the **CMS Review** row, click the **Edit** (pencil) icon. The dialog opens pre-filled.
 2. Change **Name** = `CMS Build`.
 3. Change **Project** = *Brand Themes*.
 4. Click **Save**. The dialog closes.

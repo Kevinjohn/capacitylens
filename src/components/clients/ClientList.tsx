@@ -2,7 +2,7 @@ import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { isBuiltinClient } from '@floaty/shared/data/internalClient'
-import { Button, ColorSwatch, ConfirmDialog, EmptyState, ListPage } from '../common/ui'
+import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
 import type { Client } from '@floaty/shared/types/entities'
 
@@ -23,7 +23,7 @@ export function ClientList() {
         <EmptyState
           icon="briefcase"
           description="Clients are the companies your team does work for."
-          action={{ label: 'Add your first client', onClick: () => setCreating(true) }}
+          action={{ label: 'Add your first client', onClick: () => setCreating(true), icon: 'plus' }}
         >
           No clients yet.
         </EmptyState>
@@ -36,12 +36,8 @@ export function ClientList() {
                 {c.name}
               </span>
               <span className="flex gap-2">
-                <Button variant="ghost" onClick={() => setEditing(c)}>
-                  Edit
-                </Button>
-                <Button variant="danger" onClick={() => setConfirming(c)}>
-                  Delete
-                </Button>
+                <EditButton onClick={() => setEditing(c)} />
+                <DeleteButton onClick={() => setConfirming(c)} />
               </span>
             </li>
           ))}
