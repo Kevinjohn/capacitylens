@@ -14,6 +14,7 @@ import { ResourceLane } from './ResourceLane'
 import { AllocationModal } from './AllocationModal'
 import { TimeOffForm } from '../timeoff/TimeOffForm'
 import { buildColumnGeometry } from './columnGeometry'
+import { weekStartSnapTarget } from './weekSnap'
 import { buildSchedulerModel } from './schedulerModel'
 import { buildLayout, windowFromLayout } from './virtualWindow'
 import type { GroupModel, RowModel } from './schedulerModel'
@@ -395,9 +396,10 @@ export function SchedulerGrid() {
         snapTimer.current = window.setTimeout(() => {
           const node = scrollRef.current
           if (!node || useStore.getState().draggingAllocationId !== null) return // respect the drag-freeze
-          const weekStart = startOfWeekISO(days[geom.indexAt(node.scrollLeft)] ?? days[0], calendarWeekStartsOn)
-          const target = geom.xForDateInGeom(weekStart)
-          if (Math.abs(target - node.scrollLeft) > 0.5) node.scrollLeft = target
+          // Pure floor-to-week-start (with the ≤0.5px convergence guard) lives in weekSnap.ts so it's
+          // unit-testable without a measured DOM. null = already aligned → no write, no re-arm loop.
+          const target = weekStartSnapTarget(geom, days, node.scrollLeft, calendarWeekStartsOn)
+          if (target !== null) node.scrollLeft = target
         }, WEEK_SNAP_IDLE_MS)
       }
     })

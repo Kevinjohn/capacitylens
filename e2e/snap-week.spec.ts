@@ -22,16 +22,20 @@ async function probe(page: import('@playwright/test').Page) {
       return (spans[spans.length - 1]?.textContent || '').trim()
     }
     let leftWeekday = ''
+    let leftDate = '' // full leftmost cell text, e.g. "1Mon" — its leading number is the DATE
     let weekdayWidth = 0
     for (const c of cells) {
       const r = (c as HTMLElement).getBoundingClientRect()
       const label = weekdayLabel(c)
       // First cell whose right edge clears the sticky column → the visible left edge.
-      if (!leftWeekday && r.right > laneLeft + 1) leftWeekday = label
+      if (!leftWeekday && r.right > laneLeft + 1) {
+        leftWeekday = label
+        leftDate = (c.textContent || '').trim()
+      }
       // Any weekday (3-letter label, NOT the narrowed "S" weekend) gives a representative width.
       if (!weekdayWidth && label.length === 3) weekdayWidth = r.width
     }
-    return { leftWeekday, weekdayWidth }
+    return { leftWeekday, leftDate, weekdayWidth }
   })
 }
 
@@ -80,6 +84,54 @@ test.describe('Snap to week start', () => {
 
     // The floor-snap has pulled the left edge back to this week's Monday.
     expect((await probe(page)).leftWeekday).toBe('Mon')
+  })
+
+  test('the snap FLOORS to the current week (not NEAREST), even past the half-week', async ({ page }) => {
+    await openApp(page) // snap on by default
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+
+    // Pre-condition: the left edge opens flush on this week's Monday. Frozen clock 2026-06-03 (Wed),
+    // week origin Monday 2026-06-01 → the leading day NUMBER here is "1". Capture it so we can prove
+    // the snap returns to the SAME Monday date, not a different one.
+    const before = await probe(page)
+    expect(before.leftWeekday).toBe('Mon')
+    const mondayDate = before.leftDate // "1Mon"
+
+    // Nudge 4.5 weekday columns forward → the left edge lands on a Fri (Jun 5), which is PAST the
+    // half-week. A NEAREST implementation would round FORWARD to next Monday (Jun 8 → "8Mon"); a
+    // correct FLOOR pulls BACK to this week's Monday (Jun 1 → "1Mon"). This is the distinguishing
+    // case the old ~2.5-column (Wed) test couldn't make, since there floor == nearest.
+    await nudge(page, 4.5)
+    await page.waitForTimeout(300) // > WEEK_SNAP_IDLE_MS (120ms) + a frame, so the idle snap fires
+
+    const after = await probe(page)
+    expect(after.leftWeekday).toBe('Mon')
+    // The decisive assertion: SAME Monday date (floored back), not next Monday (rounded forward).
+    expect(after.leftDate).toBe(mondayDate)
+  })
+
+  test('with a Sunday week-start, the free-scroll snap floors to Sunday (not a hardcoded Monday)', async ({ page }) => {
+    // Switch the account week-start to Sunday, then open the schedule. With the snap ON, a free nudge
+    // must floor onto a SUNDAY — guarding against a hardcoded-Monday floor. weekStartsOn is account
+    // data; the snap pref is device-global (default ON), so we only flip the calendar radio here.
+    await openApp(page, 'Studio North', '/settings')
+    await page.getByRole('radio', { name: 'Sunday' }).click()
+    await expect(page.getByRole('radio', { name: 'Sunday' })).toHaveAttribute('aria-checked', 'true')
+    // Turn "Minimise weekends" OFF too: with it on, a week-start Sunday is a (collapsed) weekend
+    // labelled "S", which is indistinguishable from a Saturday and makes the nudge column-width
+    // probe unreliable. Off → the Sunday reads a full "Sun" and every column is the same width.
+    await page.getByRole('switch', { name: 'Minimise weekends' }).click()
+
+    await page.getByRole('link', { name: 'Schedule' }).click()
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+
+    // The left edge now opens flush on a Sunday (the week start), not a Monday.
+    await expect.poll(async () => (await probe(page)).leftWeekday).toBe('Sun')
+
+    // Nudge ~2.5 columns off the Sunday, let the idle settle, and confirm it floors back to Sunday.
+    await nudge(page, 2.5)
+    await page.waitForTimeout(300) // > WEEK_SNAP_IDLE_MS
+    expect((await probe(page)).leftWeekday).toBe('Sun')
   })
 
   test('with the setting OFF, the nudge sticks (and so proves the nudge moves off Monday)', async ({ page }) => {
