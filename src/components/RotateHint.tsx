@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button, Modal } from './common/dialogs'
+import { Button, Modal } from './common/ui'
 
 // One-time-per-session nudge for portrait phones: the schedule is a wide
 // week-at-a-glance grid, so landscape is the orientation the app is built for.
