@@ -13,6 +13,7 @@ import { ConnectionError } from './ConnectionError'
 import { CommandPalette } from './CommandPalette'
 import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
+import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { cn } from '@/lib/utils'
 
 const LINKS: [string, string, IconName][] = [
@@ -217,20 +218,30 @@ export function AppShell() {
             sidebar collapses — only the labels and the "Floaty" wordmark come and go, the
             icon column never shifts. */}
         <div className="mb-2 flex items-center gap-1">
-          {/* Native `title` hover/focus label, matching the collapsed rail's existing approach
-              below. (Tooltip-ifying AppShell's icon-only buttons via ui/tooltip.tsx is a deferred
-              consistency pass — it needs cross-engine hover/focus/touch tests and should convert the
-              rail labels together, so the toggle and the rail share ONE mechanism.) */}
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            aria-expanded={sidebarOpen}
-            aria-label={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
-            title={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
-            className="flex items-center rounded-md px-2 py-1.5 text-muted hover:bg-canvas hover:text-ink"
-          >
-            <Icon name="panel-left" />
-          </button>
+          {/* Tooltips consistency pass (DONE): this FOCUSABLE toggle uses the shadcn Radix
+              Tooltip (ui/tooltip.tsx) — instant (delayDuration 0), restyled to floaty's
+              elevated-surface tokens — so its hover/focus label is the same mechanism the rest of
+              the shell aims for and there's no native `title` left here. The button keeps its own
+              aria-label as the accessible name (the tooltip is supplementary, never the sole name);
+              because the toggle is focusable, Radix surfaces the label on BOTH hover and keyboard
+              focus. The collapsed rail below is a DELIBERATE exception (see there): its buttons are
+              aria-hidden + non-focusable mouse-only decorations, so they keep the hand-rolled visual
+              hover span — the correct pattern for an out-of-a11y-tree element — and likewise carry no
+              native `title`. */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                aria-expanded={sidebarOpen}
+                aria-label={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+                className="flex items-center rounded-md px-2 py-1.5 text-muted hover:bg-canvas hover:text-ink"
+              >
+                <Icon name="panel-left" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{sidebarOpen ? 'Collapse menu' : 'Expand menu'}</TooltipContent>
+          </Tooltip>
           {sidebarOpen && <div className="text-xl font-bold text-brand">Floaty</div>}
         </div>
         {sidebarOpen ? (
@@ -294,8 +305,22 @@ export function AppShell() {
              They're hidden from the accessibility tree (aria-hidden + tabIndex -1) —
              keyboard and screen-reader users get the single labelled toggle above.
              Filtered through `navLinks`, so a discipline-disabled account drops the tag
-             icon here too. Each icon carries an instant hover tooltip (the rail is
-             otherwise unlabelled; the native `title` is slow and absent on touch). */
+             icon here too.
+
+             Tooltips consistency pass (DONE) — rail decision = KEEP the hand-rolled visual
+             hover span, deliberately NOT the shadcn Radix Tooltip. Radix's TooltipTrigger is
+             built around a trigger that lives IN the a11y tree and is focusable; these buttons
+             are the opposite by design (aria-hidden + tabIndex -1, mouse-only — a mouse-only rail
+             supports no focus interaction to anchor a Radix tooltip to). A plain absolutely-
+             positioned span shown on `group-hover/rail` is the correct, well-understood pattern
+             for labelling an out-of-a11y-tree decorative element, with no risk of Radix fighting
+             aria-hidden or forcing focusability. So the shell ends up with TWO label mechanisms
+             on purpose: the focusable toggle above on the Radix Tooltip, this mouse-only rail on
+             a visual span — but NO native `title` anywhere on AppShell's icon buttons (the slow,
+             touch-absent default we were standardising away). The span reuses the SAME
+             elevated/ink/line/shadow-pop tokens as ui/tooltip.tsx, so the two look identical.
+             `data-label` carries the section label as the e2e selector hook (it replaced the old
+             `title`, which the mobile/disciplines specs keyed on). */
           <ul className="flex flex-col gap-1">
             {navLinks.map(([to, label, icon]) => (
               <li key={to} className="group/rail relative">
@@ -303,7 +328,7 @@ export function AppShell() {
                   type="button"
                   tabIndex={-1}
                   aria-hidden="true"
-                  title={label}
+                  data-label={label}
                   data-testid="nav-rail-item"
                   onClick={() => setSidebarOpen(true)}
                   /* h-8 matches an expanded nav row's height (text-sm line + py-1.5), so the

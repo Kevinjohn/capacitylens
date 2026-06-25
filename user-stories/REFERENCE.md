@@ -74,7 +74,7 @@ both the open menu and the collapsed rail, so the nav icons don't shift when the
 The toggle sits at the same left inset as the nav icons, so the toggle + icon column keep their
 x-position when collapsing — only the labels and the "Floaty" wordmark come and go. Rail icons
 (`data-testid="nav-rail-item"`, one per **visible** section — so 8 with disciplines on, 7 when disciplines are off —
-`title` = the section label, plus an instant hover tooltip) are **not** navigation — tapping any
+`data-label` = the section label; each shows an instant visual hover label to the right) are **not** navigation — tapping any
 of them just re-opens the menu; they're hidden from assistive tech (the labelled toggle is the
 single accessible control). Collapsing hides
 the company block and the Data section until re-opened. The choice is device-global
