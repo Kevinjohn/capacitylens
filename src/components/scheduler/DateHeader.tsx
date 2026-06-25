@@ -103,7 +103,7 @@ export const DateHeader = memo(function DateHeader({
               <div
                 key={d}
                 className={`flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? 'border-l border-line' : ''} ${
-                  isToday ? 'bg-brand-soft font-semibold text-ink' : weekend ? 'bg-canvas text-muted' : 'text-muted'
+                  isToday ? 'bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]' : weekend ? 'bg-weekend text-muted' : 'text-muted'
                 }`}
                 style={{ width: geom.widthOf(i) }}
               >

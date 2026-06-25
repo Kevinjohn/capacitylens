@@ -223,7 +223,7 @@ export const ResourceLane = memo(function ResourceLane({
             <div
               key={`u-${d}`}
               data-testid="unavailable-day"
-              className="absolute top-0 h-full bg-canvas"
+              className="absolute top-0 h-full bg-weekend"
               style={{ left: geom.x(i), width: geom.widthOf(i) }}
             />
           ) : null,
@@ -304,7 +304,7 @@ export const ResourceLane = memo(function ResourceLane({
 
       {/* today line */}
       {todayX !== null && (
-        <div data-testid="today-line" className="pointer-events-none absolute inset-y-0 z-[2] w-px bg-brand/70" style={{ left: todayX }} />
+        <div data-testid="today-line" className="pointer-events-none absolute inset-y-0 z-[2] w-0.5 bg-brand" style={{ left: todayX }} />
       )}
     </div>
   )
