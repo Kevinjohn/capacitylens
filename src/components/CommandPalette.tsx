@@ -15,6 +15,7 @@ import {
   CommandItem,
 } from './ui/command'
 import type { Filters } from '../store/useStore'
+import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -205,7 +206,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                       /* text-muted on the active brand-soft tint (text-faint fails AA at 4.08:1);
                          text-muted clears 4.5:1 on brand-soft in both light and dark. */
                       <span
-                        className={`shrink-0 truncate text-xs ${item.id === activeValue ? 'text-muted' : 'text-faint'}`}
+                        className={cn('shrink-0 truncate text-xs', item.id === activeValue ? 'text-muted' : 'text-faint')}
                       >
                         {item.sublabel}
                       </span>

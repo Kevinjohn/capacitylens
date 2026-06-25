@@ -8,6 +8,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
+import { cn } from '@/lib/utils'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import type { ThemePref } from '../../lib/theme'
 import type { SchedulingMode } from '@floaty/shared/types/entities'
@@ -62,12 +63,13 @@ function ToggleRow({ label, on, onToggle }: { label: string; on: boolean; onTogg
         aria-checked={on}
         aria-label={label}
         onClick={onToggle}
-        className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-brand' : 'bg-line'}`}
+        className={cn('relative h-5 w-9 shrink-0 rounded-full transition', on ? 'bg-brand' : 'bg-line')}
       >
         <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-all ${
-            on ? 'left-[18px]' : 'left-0.5'
-          }`}
+          className={cn(
+            'absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-all',
+            on ? 'left-[18px]' : 'left-0.5',
+          )}
         />
       </button>
     </div>

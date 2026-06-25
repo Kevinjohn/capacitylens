@@ -7,6 +7,7 @@ import { controlBase, inputClass, selectChevronClass, selectChevronStyle } from 
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
+import { cn } from '@/lib/utils'
 import type { Weekday } from '@floaty/shared/types/entities'
 
 // Form fields slice of the shared kit (re-exported from ./ui). The text/number/date
@@ -93,7 +94,7 @@ export function TextField({
         // carries) so this shadcn-backed input matches it exactly — bg-surface in BOTH
         // themes, text-ink, placeholder:text-faint, px-2.5 py-1.5, shadow-sm — instead of
         // shadcn's bg-transparent/text-base. The accent (required/invalid) layers on top.
-        className={`${controlBase} ${fieldAccent(invalid, required)}`}
+        className={cn(controlBase, fieldAccent(invalid, required))}
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
@@ -134,7 +135,7 @@ export function TextAreaField({
       <span className={labelClass}>{label}</span>
       <Textarea
         // Shared controlBase (matches the native SelectField + the other fields); see TextField.
-        className={`${controlBase} ${fieldAccent(invalid)}`}
+        className={cn(controlBase, fieldAccent(invalid))}
         rows={2}
         value={value}
         maxLength={maxLength}
@@ -177,7 +178,7 @@ export function NumberField({
       <Input
         type="number"
         // Shared controlBase (matches the native SelectField + the other fields); see TextField.
-        className={`${controlBase} ${fieldAccent(invalid, required)}`}
+        className={cn(controlBase, fieldAccent(invalid, required))}
         value={value}
         min={min}
         max={max}
@@ -227,7 +228,7 @@ export function DateField({
       <Input
         type="date"
         // Shared controlBase (matches the native SelectField + the other fields); see TextField.
-        className={`${controlBase} ${fieldAccent(invalid, required)}`}
+        className={cn(controlBase, fieldAccent(invalid, required))}
         value={value}
         aria-label={label}
         aria-required={required || undefined}
@@ -269,7 +270,7 @@ export function SelectField({
     <label className="block">
       <FieldLabel label={label} required={required} />
       <select
-        className={`${selectClass(invalid, required)} ${selectChevronClass} disabled:opacity-60`}
+        className={cn(selectClass(invalid, required), selectChevronClass, 'disabled:opacity-60')}
         style={selectChevronStyle}
         value={value}
         disabled={disabled}
@@ -362,7 +363,7 @@ export function ColorField({
               aria-label={`${label} (${colorName(value)})`}
               aria-invalid={invalid || undefined}
               aria-describedby={invalid ? describedById : undefined}
-              className={`${selectClass(invalid)} ${selectChevronClass} flex items-center gap-2 text-left`}
+              className={cn(selectClass(invalid), selectChevronClass, 'flex items-center gap-2 text-left')}
               style={selectChevronStyle}
             >
               <span
@@ -468,9 +469,10 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
               aria-label={dl}
               aria-pressed={on}
               onClick={() => toggle(day)}
-              className={`w-12 rounded-md border px-2 py-1 text-center text-xs font-medium transition ${
-                on ? 'border-brand bg-brand-strong text-white' : 'bg-surface text-muted hover:bg-canvas'
-              }`}
+              className={cn(
+                'w-12 rounded-md border px-2 py-1 text-center text-xs font-medium transition',
+                on ? 'border-brand bg-brand-strong text-white' : 'bg-surface text-muted hover:bg-canvas',
+              )}
             >
               {dl}
             </button>
