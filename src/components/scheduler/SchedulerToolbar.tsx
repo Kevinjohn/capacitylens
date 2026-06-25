@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { disciplinesEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
@@ -6,6 +6,50 @@ import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
 import { Button } from '../common/ui'
 import { controlBase, selectChevronClass, selectChevronStyle } from '../common/controls'
 import { Icon } from '../common/Icon'
+import { cn } from '../../lib/utils'
+
+/**
+ * The toolbar's two pill toggle groups (Weeks-visible + Draw-mode) carried byte-identical
+ * `role="group"` + `aria-pressed` markup — kept here as one local helper so they can't drift.
+ * Deliberately the toolbar's aria-pressed toggle idiom, NOT SegmentedControl's radiogroup one
+ * (the over/draw toolbar reads as toggle buttons; the dirty-guard convention also keys off
+ * `aria-pressed`). Local + unexported: it has exactly these two call sites.
+ */
+type ToolbarToggleOption<T> = { value: T; label: ReactNode; title?: string }
+
+function ToolbarToggleGroup<T extends string | number>({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  className,
+}: {
+  value: T
+  onChange: (value: T) => void
+  options: ToolbarToggleOption<T>[]
+  ariaLabel: string
+  className?: string
+}) {
+  return (
+    <div className={cn('flex overflow-hidden rounded-md border border-line', className)} role="group" aria-label={ariaLabel}>
+      {options.map((opt) => {
+        const active = value === opt.value
+        return (
+          <button
+            key={String(opt.value)}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(opt.value)}
+            title={opt.title}
+            className={cn('px-2.5 py-1 text-sm transition', active ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-canvas')}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
 export function SchedulerToolbar() {
   const zoom = useStore((s) => s.ui.zoom)
@@ -111,34 +155,26 @@ export function SchedulerToolbar() {
           title="Jump to date"
           className={controlBase}
         />
-        <div className="ml-2 flex overflow-hidden rounded-md border border-line" role="group" aria-label="Weeks visible">
-          {ZOOM_LEVELS.map((w) => (
-            <button
-              key={w}
-              type="button"
-              aria-pressed={zoom === w}
-              onClick={() => setZoom(w)}
-              title={`${w} week${w > 1 ? 's' : ''} visible`}
-              className={`px-2.5 py-1 text-sm transition ${zoom === w ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-canvas'}`}
-            >
-              {w}w
-            </button>
-          ))}
-        </div>
-        <div className="flex overflow-hidden rounded-md border border-line" role="group" aria-label="Draw mode">
-          {(['work', 'timeoff'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={drawMode === m}
-              onClick={() => setDrawMode(m)}
-              title={m === 'work' ? 'Draw allocations' : 'Draw time off'}
-              className={`px-2.5 py-1 text-sm transition ${drawMode === m ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-canvas'}`}
-            >
-              {m === 'work' ? 'Work' : 'Time off'}
-            </button>
-          ))}
-        </div>
+        <ToolbarToggleGroup
+          className="ml-2"
+          ariaLabel="Weeks visible"
+          value={zoom}
+          onChange={setZoom}
+          options={ZOOM_LEVELS.map((w) => ({
+            value: w,
+            label: `${w}w`,
+            title: `${w} week${w > 1 ? 's' : ''} visible`,
+          }))}
+        />
+        <ToolbarToggleGroup
+          ariaLabel="Draw mode"
+          value={drawMode}
+          onChange={setDrawMode}
+          options={[
+            { value: 'work', label: 'Work', title: 'Draw allocations' },
+            { value: 'timeoff', label: 'Time off', title: 'Draw time off' },
+          ]}
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-sm">
