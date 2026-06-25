@@ -7,13 +7,15 @@
 // split only to keep each file editable; the public surface here is unchanged. Colours
 // come from semantic tokens (see index.css), so everything adapts to dark mode.
 //
-//   ./dialogs   Button, Modal, ConfirmDialog, ListPage, EmptyState
-//   ./fields    TextField, TextAreaField, NumberField, DateField, SelectField, Option,
-//               ColorField, WeekdayPicker, RequiredLegend
-//   ./feedback  Callout, FieldError  (transient toasts moved to Sonner — see AppShell)
-//   ./badges    TemporaryTag, ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
+//   ./dialogs           Button, Modal, ConfirmDialog, ListPage, EmptyState
+//   ./fields            TextField, TextAreaField, NumberField, DateField, SelectField, Option,
+//                       ColorField, WeekdayPicker, RequiredLegend
+//   ./feedback          Callout, FieldError  (transient toasts moved to Sonner — see AppShell)
+//   ./badges            TemporaryTag, ColorSwatch, PLACEHOLDER_AVATAR_SYMBOL, Avatar
+//   ./SegmentedControl  SegmentedControl, SegmentedOption  (the pill radio-group chooser)
 
 export * from './dialogs'
 export * from './fields'
 export * from './feedback'
 export * from './badges'
+export * from './SegmentedControl'
