@@ -20,7 +20,13 @@ export function ClientList() {
   return (
     <ListPage title="Clients" addLabel="Add client" onAdd={() => setCreating(true)}>
       {clients.length === 0 ? (
-        <EmptyState>No clients yet.</EmptyState>
+        <EmptyState
+          icon="briefcase"
+          description="Clients are the companies your team does work for."
+          action={{ label: 'Add your first client', onClick: () => setCreating(true) }}
+        >
+          No clients yet.
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
           {clients.map((c) => (

@@ -5,6 +5,7 @@ import { Dialog as DialogPrimitive } from 'radix-ui'
 import { useStore } from '../../store/useStore'
 import { cn } from '@/lib/utils'
 import { Button as ShadButton } from '../ui/button'
+import { Icon, type IconName } from './Icon'
 
 // Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
 // from semantic tokens (see index.css), so everything adapts to dark mode automatically.
@@ -364,10 +365,33 @@ export function ListPage({
   )
 }
 
-export function EmptyState({ children }: { children: ReactNode }) {
+/** Empty-list placeholder. `children` stays the primary, load-bearing message (call sites +
+ *  their getByText assertions depend on it); `icon`/`description`/`action` are optional polish.
+ *  The action renders a single CTA — give it a label distinct from the page's top "Add X" button
+ *  so the two don't collide as duplicate accessible names. */
+export function EmptyState({
+  children,
+  icon,
+  description,
+  action,
+}: {
+  children: ReactNode
+  icon?: IconName
+  description?: ReactNode
+  action?: { label: string; onClick: () => void }
+}) {
   return (
-    <div className="rounded-lg border border-dashed bg-surface px-4 py-10 text-center text-sm text-muted">
-      {children}
+    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-4 py-12 text-center">
+      {icon && (
+        <span className="flex size-11 items-center justify-center rounded-full bg-canvas text-muted">
+          <Icon name={icon} size={20} />
+        </span>
+      )}
+      <div className="space-y-1">
+        <p className="text-sm font-medium text-ink">{children}</p>
+        {description && <p className="mx-auto max-w-xs text-sm text-muted">{description}</p>}
+      </div>
+      {action && <Button onClick={action.onClick}>{action.label}</Button>}
     </div>
   )
 }

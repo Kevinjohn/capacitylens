@@ -51,9 +51,25 @@ export function ActivityList() {
     </li>
   )
 
-  const box = (rows: Activity[], showLabel: boolean, empty: string, testid: string) =>
+  // Three kind-sections share this box, each always rendered. To avoid three identical CTAs
+  // (and the duplicate accessible-name that creates) when the account is wholly empty, the
+  // icon/description/CTA are attached to ONE section only (Internal, the first) via `enrich`;
+  // the other two keep just their bare message. `empty` stays the load-bearing children.
+  const box = (
+    rows: Activity[],
+    showLabel: boolean,
+    empty: string,
+    testid: string,
+    enrich?: { description: string; action: { label: string; onClick: () => void } },
+  ) =>
     rows.length === 0 ? (
-      <EmptyState>{empty}</EmptyState>
+      <EmptyState
+        icon={enrich ? 'clipboard-check' : undefined}
+        description={enrich?.description}
+        action={enrich?.action}
+      >
+        {empty}
+      </EmptyState>
     ) : (
       <ul data-testid={testid} className="divide-y divide-line rounded border border-line bg-surface">
         {rows.map((t) => renderRow(t, showLabel))}
@@ -65,7 +81,10 @@ export function ActivityList() {
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Internal activities</h2>
       </div>
-      {box(internalActivities, false, 'No internal activities yet.', 'internal-activities')}
+      {box(internalActivities, false, 'No internal activities yet.', 'internal-activities', {
+        description: 'Activities are the work you allocate — project, internal or repeatable.',
+        action: { label: 'Add your first activity', onClick: () => setCreating(true) },
+      })}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Repeatable activities</h2>

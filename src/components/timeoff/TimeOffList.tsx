@@ -29,7 +29,13 @@ export function TimeOffList() {
   return (
     <ListPage title="Time off" addLabel="Add time off" onAdd={() => setCreating(true)}>
       {timeOff.length === 0 ? (
-        <EmptyState>No time off booked.</EmptyState>
+        <EmptyState
+          icon="calendar"
+          description="Book holidays and other time away so the schedule shows real availability."
+          action={{ label: 'Book time off', onClick: () => setCreating(true) }}
+        >
+          No time off booked.
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
           {timeOff.map((t) => (
