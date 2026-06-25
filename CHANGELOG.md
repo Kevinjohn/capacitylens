@@ -7,6 +7,20 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-06-25
+
+New companies start lean, and the view settings that were once browser-wide now belong to each company.
+
+### Changed
+- **Placeholders and External are per-company.** They used to be a single switch shared across
+  every company on the browser; now each company has its own, toggled in **Settings** (like
+  Disciplines). Turning them on in one company no longer turns them on everywhere. Both stay
+  **off by default**, and toggling only hides or shows — your placeholder and external data is
+  untouched. As a result these settings now travel with **Export JSON**.
+- **New companies open minimal.** A brand-new company now starts with **Disciplines off**,
+  **scheduling set to Days**, and **Placeholders and External hidden**, so you opt into each
+  feature as you need it. Existing companies keep their current settings.
+
 ## [0.9.1] — 2026-06-24
 
 Weekends stop counting against capacity unless you opt an allocation into them.

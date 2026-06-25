@@ -15,7 +15,7 @@ command palette (jump to a person, project, client, page, or date), **⌘Z** und
 Each company account sets its own calendar in Settings (timezone, default GMT; week
 start, default Monday) and can turn disciplines on or off for the whole team.
 
-See **[CHANGELOG.md](CHANGELOG.md)** for release notes (currently **v0.9.1**).
+See **[CHANGELOG.md](CHANGELOG.md)** for release notes (currently **v0.10.0**).
 
 ## Run it
 
