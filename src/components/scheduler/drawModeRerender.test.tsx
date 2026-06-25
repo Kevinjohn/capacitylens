@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { memo } from 'react'
 import { act, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import type { AppData } from '@floaty/shared/types/entities'
 import { useStore } from '../../store/useStore'
 import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
@@ -63,7 +64,8 @@ describe('draw-mode toggle does not re-render allocation bars', () => {
   it('toggling to Time off re-renders only the BarsLayer (inert) — the bars bail', async () => {
     // The grid mounts the real SchedulerGrid → ResourceLane → BarsLayer; only the leaf bar is mocked.
     const { SchedulerGrid } = await import('./SchedulerGrid')
-    render(<SchedulerGrid />)
+    // SchedulerGrid now calls useNavigate (the empty-state CTA), so it must render inside a Router.
+    render(<SchedulerGrid />, { wrapper: MemoryRouter })
 
     // Sanity: the two bars rendered once on mount (this is the baseline to hold across the toggle).
     expect(screen.getAllByTestId('allocation-bar')).toHaveLength(2)

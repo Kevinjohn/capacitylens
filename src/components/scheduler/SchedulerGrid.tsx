@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, todayISO } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
-import { Avatar } from '../common/ui'
+import { Avatar, EmptyState } from '../common/ui'
 import { resourceDisplayName } from '../../lib/metadata'
 import { Icon } from '../common/Icon'
 import { LAYOUT } from './layout'
@@ -45,6 +46,7 @@ type ModalState =
  * effect (keyed on `dragging`) catches the window up to whatever scrolling happened while frozen.
  */
 export function SchedulerGrid() {
+  const navigate = useNavigate()
   const data = useScopedData()
   const ui = useStore((s) => s.ui)
   // Utilisation display toggles (Settings → Utilisation). Each gates one of the three
@@ -62,6 +64,7 @@ export function SchedulerGrid() {
   // bands) and the discipline filter is ignored (see buildSchedulerModel + items below).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   const toggleGroup = useStore((s) => s.toggleGroup)
+  const clearFilters = useStore((s) => s.clearFilters)
   const [modal, setModal] = useState<ModalState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const didScroll = useRef(false)
@@ -584,26 +587,40 @@ export function SchedulerGrid() {
       </div>
 
       {model.length === 0 && (
-        <div role="row" className="flex min-h-0 flex-1">
-          <div
-            role="rowheader"
-            data-testid="scheduler-empty"
-            className="sticky left-0 z-10 flex shrink-0 flex-col gap-2 border-r border-line bg-surface px-3 py-5 text-sm text-muted"
-            style={{ width: LAYOUT.leftColWidth }}
-          >
+        // Empty body, below the still-rendered toolbar + date header, centring the shared EmptyState
+        // (the same icon/heading/subtext/CTA pattern the entity lists use). The grid scrolls
+        // horizontally (its header is min-w-max), so this must be sticky left-0 + bounded to the
+        // measured viewport width (timelineWidth) or the centred card drifts off-screen with the
+        // scroll — and it must be a DIRECT child of the overflow-auto grid for sticky to pin (nested
+        // inside the wide row it did not). role=grid > row > gridcell keeps the a11y tree valid.
+        <div
+          role="row"
+          data-testid="scheduler-empty"
+          className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
+          style={{ width: timelineWidth || LAYOUT.leftColWidth }}
+        >
+          <div role="gridcell" className="flex items-center justify-center">
             {filtersActive ? (
-              <span>No resources match the current filters.</span>
+              // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
+              // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
+              // empty — without a focusable child, axe flags scrollable-region-focusable.
+              <EmptyState
+                icon="sliders"
+                description="Try a different search, or clear the filters to bring everyone back into view."
+                action={{ label: 'Clear filters', onClick: () => clearFilters() }}
+              >
+                No resources match the current filters.
+              </EmptyState>
             ) : (
-              <>
-                <span className="font-medium text-ink">No resources yet</span>
-                <span>
-                  Add people on the <span className="font-medium text-ink">Resources</span> page.
-                </span>
-                <span>Then click or drag on a row to schedule work.</span>
-              </>
+              <EmptyState
+                icon="people"
+                description="Add people on the Resources page, then click or drag on a row to schedule their work."
+                action={{ label: 'Go to Resources', onClick: () => void navigate('/resources') }}
+              >
+                No resources yet
+              </EmptyState>
             )}
           </div>
-          <div className="flex-1 bg-canvas/30" aria-hidden />
         </div>
       )}
 

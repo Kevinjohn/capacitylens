@@ -93,3 +93,29 @@ test('a confirm dialog (dark) danger button has no serious or critical violation
   const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
   expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
 })
+
+// The EMPTY schedule renders the shared EmptyState inside a sticky role="row" > role="gridcell" — a
+// new ARIA shape axe has never sampled (grid > row > gridcell must stay valid with no resources). A
+// search that matches nobody is the simplest way to reach it; this locks in the structure + the
+// card's contrast in both themes so the empty state can't silently regress.
+test('the empty schedule has no serious or critical violations', async ({ page }) => {
+  await openApp(page)
+  await page.getByLabel('Search people').fill('zzznobody')
+  await expect(page.getByTestId('scheduler-empty')).toBeVisible()
+  await page.waitForTimeout(200)
+  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+})
+
+test('the empty schedule (dark) has no serious or critical violations', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
+  await openApp(page)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.getByLabel('Search people').fill('zzznobody')
+  await expect(page.getByTestId('scheduler-empty')).toBeVisible()
+  await page.waitForTimeout(200)
+  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+})
