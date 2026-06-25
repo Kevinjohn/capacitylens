@@ -32,3 +32,18 @@ coverage/
 
 # Design/competitor reference scraps — not app assets
 /_input/
+
+# Build artifacts (incremental TS, local SQLite DB + WAL/SHM)
+*.tsbuildinfo
+*.db
+*.db-wal
+*.db-shm
+
+# Agent/loop scratch — never ship these in a clone (P0.2)
+*-state.json
+.claude/
+floaty-copy.md
+shadcn-branch-plan.md
+CapacityLens.md
+loop-workflow.md
+flow-review.md
