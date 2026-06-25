@@ -29,6 +29,11 @@
   /* Lighter still: the per-day hairlines inside scheduler lanes. A step below the
      Monday week line in BOTH themes (line-soft collapses to full line in dark). */
   --color-line-faint: var(--c-line-faint);
+  /* Recessed non-working-day band (weekends + unavailable days) — a calm COOL tint,
+     deliberately distinct from the page canvas, the over-cell red, and the time-off amber,
+     so a non-working day never reads as an alert. Shared by the lane tint AND the date-header
+     weekend cell, so Sat/Sun reads as one continuous band header-to-lane. */
+  --color-weekend: var(--c-weekend);
   --color-ink: var(--c-ink);
   --color-muted: var(--c-muted);
   --color-faint: var(--c-faint);
@@ -67,6 +72,7 @@
   --c-line: #e6e8ee;
   --c-line-soft: #eef0f5;
   --c-line-faint: #ebedf2; /* nudged darker from #eff1f6 so intra-week day hairlines register at fine zoom; still lighter than --c-line so the Monday week line stays dominant */
+  --c-weekend: color-mix(in oklab, var(--c-ink) 8%, var(--c-surface)); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
   --c-ink: #1c2230;
   --c-muted: #5b6472;
   --c-faint: #6b7280; /* darkened from #98a1b1 to clear WCAG AA (~4.5:1) for small text */
@@ -118,6 +124,7 @@
   --c-line: #2a2f3c;
   --c-line-soft: var(--c-line); /* no lightening in dark — only light mode read heavy */
   --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
+  --c-weekend: color-mix(in oklab, var(--c-ink) 7%, var(--c-surface)); /* ink is near-white in dark, so this lightens the surface into the surface↔elevated range — a clearly non-working band that carries NO card affordances (shadow/border/radius), so it never reads as an elevated/popover surface despite the similar luminance */
   --c-ink: #e7eaf0;
   --c-muted: #a3acbd;
   --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
