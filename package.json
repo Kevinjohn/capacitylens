@@ -2,6 +2,7 @@
   "name": "capacitylens",
   "private": true,
   "version": "0.10.2",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "engines": {
     "node": ">=24"
