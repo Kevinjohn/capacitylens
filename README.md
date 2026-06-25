@@ -1,12 +1,12 @@
-# Floaty (working title)
+# CapacityLens (working title)
 
-A local-first resource scheduler — a Float-style planner that runs in the browser.
+A local-first resource scheduler — an agency resource & capacity planner that runs in the browser.
 By default there's no backend and no login: your data lives in `localStorage` and
 never leaves the device. An **optional** SQLite-backed API can be switched on (see
 below) when you want a shared, server-persisted dataset — the app talks to it
 through the same persistence seam, so nothing else changes.
 
-**Deliberately small.** Floaty replaces the resourcing spreadsheet: a helicopter view of
+**Deliberately small.** CapacityLens replaces the resourcing spreadsheet: a helicopter view of
 who's busy, who's free, who's overworked — week by week, for small agencies with a few
 staff and rotating freelancers. It is intentionally **not** feature-rich: no budgets,
 no timesheets, no hour-level tracking. One tool, one problem, done well. Day-to-day
@@ -43,12 +43,12 @@ for navigation. Vitest + Testing Library for unit/component tests, Playwright fo
 E2E. Organised as an npm workspace:
 
 - **(root)** — the web app (`src/`).
-- **`shared/`** — `@floaty/shared`: the pure, environment-agnostic domain core
+- **`shared/`** — `@capacitylens/shared`: the pure, environment-agnostic domain core
   (types, validation, integrity, cascade, import remap, migrate, seed) shared by the
   app and the server.
 - **`server/`** — an optional Node + `node:sqlite` REST API behind the same
   `PersistenceAdapter` seam. Off by default; see `server/README.md`. Enable it with
-  `VITE_FLOATY_API=http://localhost:8787 npm run dev`.
+  `VITE_CAPACITYLENS_API=http://localhost:8787 npm run dev`.
 
 ## Data model
 

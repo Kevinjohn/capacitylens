@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useScopedData } from '../store/useScopedData'
-import { parseData, serializeData } from '@floaty/shared/data/transfer'
+import { parseData, serializeData } from '@capacitylens/shared/data/transfer'
 import { downloadTextFile } from '../lib/download'
 import { errorMessage } from '../lib/errorMessage'
 import { ConfirmDialog } from './common/ui'
-import type { AppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 // Refuse files past this size before reading them into memory (self-DoS guard).
 const MAX_IMPORT_BYTES = 10_000_000
@@ -43,7 +44,7 @@ export function ImportExport() {
     // downloadTextFile throws if the download couldn't start — surface it rather than letting it
     // escape as an uncaught handler error, so the user knows the export did NOT save.
     try {
-      downloadTextFile('floaty-data.json', serializeData(data))
+      downloadTextFile('capacitylens-data.json', serializeData(data))
     } catch (e) {
       setNotice(errorMessage(e), 'error')
     }
@@ -61,9 +62,9 @@ export function ImportExport() {
     } catch (e) {
       // parseData throws PRECISE, user-ready messages ("This file isn't valid JSON.", "This file is
       // damaged: a data table is not a list.", "This file has too many records (…)", "This file
-      // contains no Floaty records.") — surface the REAL reason instead of a generic catch-all, so
+      // contains no CapacityLens records.") — surface the REAL reason instead of a generic catch-all, so
       // the user (and a contributor) knows why the file was rejected.
-      setNotice(errorMessage(e) || 'Could not import that file — it is not valid Floaty JSON.', 'error')
+      setNotice(errorMessage(e) || `Could not import that file — it is not valid ${APP_NAME} JSON.`, 'error')
     }
   }
 

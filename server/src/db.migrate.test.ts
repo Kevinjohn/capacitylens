@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { unlinkSync } from 'node:fs'
 import { openDb, insertRow, getRow, loadState, seedIfUninitialized, isInitialized, isEmpty, deleteRow } from './db'
-import { seed } from '@floaty/shared/data/seed'
+import { seed } from '@capacitylens/shared/data/seed'
 
 // openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
 // kept its old columns/constraints forever and broke after a model change. These
@@ -62,7 +62,7 @@ function writeOldDb(path: string): void {
 
 describe('schema migration of an existing on-disk DB', () => {
   it('upgrades an old-shape DB (NOT NULL projectId, missing new columns) to current', () => {
-    const path = join(tmpdir(), `floaty-migrate-${process.pid}-${Date.now()}.db`)
+    const path = join(tmpdir(), `capacitylens-migrate-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {
       for (const suffix of ['', '-wal', '-shm']) {
         try {
@@ -166,7 +166,7 @@ describe('schema migration of an existing on-disk DB', () => {
     // hard-coded rule for disciplines.color, so this proves the migration is GENERIC —
     // a future additive optional field is picked up from the spec automatically (the old
     // version-gated pass would have frozen and left the column missing).
-    const path = join(tmpdir(), `floaty-migrate-gen-${process.pid}-${Date.now()}.db`)
+    const path = join(tmpdir(), `capacitylens-migrate-gen-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {
       for (const suffix of ['', '-wal', '-shm']) {
         try {
@@ -207,7 +207,7 @@ describe('schema migration of an existing on-disk DB', () => {
     // to existing rows, so it needs an explicit rebuild step that doesn't exist yet. Rather than
     // let that drift surface later as a cryptic "no column named color" on the first write (or
     // silently read back undefined), openDb's assertSchemaCurrent must fail fast and name it.
-    const path = join(tmpdir(), `floaty-migrate-req-${process.pid}-${Date.now()}.db`)
+    const path = join(tmpdir(), `capacitylens-migrate-req-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {
       for (const suffix of ['', '-wal', '-shm']) {
         try {
@@ -233,7 +233,7 @@ describe('schema migration of an existing on-disk DB', () => {
 
   it('accounts.timezone and accounts.weekStartsOn are added by migration', () => {
     // An old accounts table without the new optional columns.
-    const path = join(tmpdir(), `floaty-migrate-tz-${process.pid}-${Date.now()}.db`)
+    const path = join(tmpdir(), `capacitylens-migrate-tz-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {
       for (const suffix of ['', '-wal', '-shm']) {
         try { unlinkSync(path + suffix) } catch { /* fine */ }
@@ -274,7 +274,7 @@ describe('schema migration of an existing on-disk DB', () => {
 
   it('accounts.placeholdersEnabled and accounts.externalEnabled are added by migration', () => {
     // An old accounts table without the two new optional view-pref columns.
-    const path = join(tmpdir(), `floaty-migrate-flags-${process.pid}-${Date.now()}.db`)
+    const path = join(tmpdir(), `capacitylens-migrate-flags-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {
       for (const suffix of ['', '-wal', '-shm']) {
         try { unlinkSync(path + suffix) } catch { /* fine */ }
@@ -319,7 +319,7 @@ describe('schema migration of an existing on-disk DB', () => {
     // check passes — only the nullability check catches that the two sources of truth (TABLES'
     // optional? flag vs SCHEMA_SQL's NOT NULL) have drifted. Without it, a write that legitimately
     // omits schedulingMode would hit a confusing NOT NULL error instead.
-    const path = join(tmpdir(), `floaty-migrate-null-${process.pid}-${Date.now()}.db`)
+    const path = join(tmpdir(), `capacitylens-migrate-null-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {
       for (const suffix of ['', '-wal', '-shm']) {
         try {

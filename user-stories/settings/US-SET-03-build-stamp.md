@@ -2,7 +2,7 @@
 
 **Area:** Settings · **Persona:** Tester on the hosted demo · **Linked E2E:** `e2e/settings-build-stamp.spec.ts` → "no build stamp in the default dev build"
 
-> **Flag-gated:** the stamp only exists in builds made with `VITE_FLOATY_BUILD_SHA` set
+> **Flag-gated:** the stamp only exists in builds made with `VITE_CAPACITYLENS_BUILD_SHA` set
 > (the deploy script does this). The default dev/local build renders nothing — so the
 > only part of this story runnable against `npm run dev` is the *absence* check, which
 > is what the linked E2E asserts.
@@ -14,7 +14,7 @@ the one-line stamp at the bottom of Settings.
 ## Why
 Testers report "it broke" against a moving target. The stamp pins the report to a commit
 (`build a1b2c3d`) and proves the deploy is really in server mode — a build accidentally
-missing `VITE_FLOATY_API` silently reverts to browser-local storage and otherwise looks
+missing `VITE_CAPACITYLENS_API` silently reverts to browser-local storage and otherwise looks
 identical. `· server` vs `· local` is the difference between a shared-data bug and a
 my-browser bug, and the post-deploy smoke test checks it first.
 
@@ -31,7 +31,7 @@ company; click **Settings** in the sidebar.
 4. Confirm there is **no** build stamp — the page ends with the Appearance section.
 
 ## Acceptance criteria
-- On a build with `VITE_FLOATY_BUILD_SHA=<sha>`, Settings shows a muted one-line footer
+- On a build with `VITE_CAPACITYLENS_BUILD_SHA=<sha>`, Settings shows a muted one-line footer
   `build <sha> · server` when a backend is configured, or `build <sha> · local` otherwise.
 - On a build without the variable (dev server, plain `npm run build`), the footer is
   absent — today's Settings, unchanged.

@@ -4,7 +4,7 @@ import { openApp } from './helpers'
 test.use({ reducedMotion: 'reduce' })
 
 // P1.7 + P5.2: the build stamp and the Send-feedback link only exist in builds made with
-// VITE_FLOATY_BUILD_SHA / VITE_FLOATY_FEEDBACK_MAILTO set (the deploy script does that).
+// VITE_CAPACITYLENS_BUILD_SHA / VITE_CAPACITYLENS_FEEDBACK_MAILTO set (the deploy script does that).
 // The dev server never sets them, so against this suite the correct behaviour is ABSENCE —
 // today's Settings, byte for byte (US-SET-03 / US-SET-04).
 

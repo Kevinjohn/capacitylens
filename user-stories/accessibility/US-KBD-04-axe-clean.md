@@ -10,7 +10,7 @@ critical WCAG 2.1 AA violations, by an automated oracle rather than by eye.
 `getByRole` only proves an attribute exists — it can't prove the structure is valid or
 that text meets contrast. axe is the a11y oracle here: it audits the rendered DOM
 against WCAG 2.1 A/AA and is what guards the whole accessibility pass against silent
-regressions. Holding the bar at "no serious/critical" keeps Floaty usable for everyone.
+regressions. Holding the bar at "no serious/critical" keeps CapacityLens usable for everyone.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open. Entrance animations are disabled (reduced motion)

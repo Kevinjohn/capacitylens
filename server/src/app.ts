@@ -11,9 +11,9 @@ declare module 'fastify' {
     user: SessionUser | null
   }
 }
-import { parseData, MAX_IMPORT_RECORDS } from '@floaty/shared/data/transfer'
-import { remapAndValidateImport } from '@floaty/shared/domain/mutations'
-import { seed } from '@floaty/shared/data/seed'
+import { parseData, MAX_IMPORT_RECORDS } from '@capacitylens/shared/data/transfer'
+import { remapAndValidateImport } from '@capacitylens/shared/domain/mutations'
+import { seed } from '@capacitylens/shared/data/seed'
 import { TABLES } from './tables'
 import { validateWrite, sanitizeWrite, ValidationError } from './validate'
 import {
@@ -38,25 +38,25 @@ const BODY_LIMIT = 5 * 1024 * 1024
 // browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
 // to pass corsOrigin is still locked down; opening the API to every site requires an
 // EXPLICIT '*'. The entrypoint (index.ts) imports this same default and lets
-// FLOATY_CORS_ORIGIN override it for a deliberate deploy.
+// CAPACITYLENS_CORS_ORIGIN override it for a deliberate deploy.
 export const DEFAULT_CORS =
   'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273'
 
 export interface AppOptions {
   /** Gate POST /api/test/reset — only enabled for tests / explicit dev opt-in. */
   allowReset?: boolean
-  /** FLOATY_LOG=1 — structured per-request logging (Fastify's bundled pino, JSON on
+  /** CAPACITYLENS_LOG=1 — structured per-request logging (Fastify's bundled pino, JSON on
    *  stdout: method/path/status/latency), and the 500-path error log routed through the
    *  request-scoped logger. Default OFF = exactly today's behaviour (startup line +
    *  console.error on 500s). */
   log?: boolean
   /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
   logStream?: { write(msg: string): void }
-  /** FLOATY_HEALTH_DEEP=1 — /api/health also proves the DB answers a trivial read:
+  /** CAPACITYLENS_HEALTH_DEEP=1 — /api/health also proves the DB answers a trivial read:
    *  200 { ok, db: true }, or 503 { ok: false } when the read throws. Default OFF =
    *  today's unconditional { ok: true } (Playwright's webServer probe depends on it). */
   healthDeep?: boolean
-  /** FLOATY_RATE_LIMIT=<n> — n requests/minute per IP across /api/* (a guard against an
+  /** CAPACITYLENS_RATE_LIMIT=<n> — n requests/minute per IP across /api/* (a guard against an
    *  accidental client loop hammering the single-writer SQLite file, NOT a security
    *  control). /api/health is exempt. <= 0 / omitted ⇒ the plugin is not registered at
    *  all (today's behaviour) — see parseRateLimit for the fail-closed env parse. */
@@ -65,7 +65,7 @@ export interface AppOptions {
    *  Set ONLY when the listen host is loopback (i.e. behind the Nginx proxy, where every
    *  socket is 127.0.0.1); on a directly-exposed host the header is client-spoofable. */
   rateLimitTrustForwarded?: boolean
-  /** FLOATY_AUTH (P3.2): 'off' (the default) means Better Auth does not exist here —
+  /** CAPACITYLENS_AUTH (P3.2): 'off' (the default) means Better Auth does not exist here —
    *  the only auth surface is GET /api/auth/me reporting the demo identity, and
    *  requireUser attaches that identity and continues, so NO request that succeeds
    *  today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and
@@ -76,7 +76,7 @@ export interface AppOptions {
   /** CORS allow-list: a comma-separated origin list, or an EXPLICIT '*' to allow any
    *  origin. Defaults FAIL-CLOSED to the localhost allow-list (DEFAULT_CORS) when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
-   *  entrypoint (index.ts) passes the FLOATY_CORS_ORIGIN override. */
+   *  entrypoint (index.ts) passes the CAPACITYLENS_CORS_ORIGIN override. */
   corsOrigin?: string
   /** When true, PUT rejects a write whose row is older than the stored row
    *  (updatedAt compare) with 409. Default off: the prototype is single-dataset,
@@ -85,7 +85,7 @@ export interface AppOptions {
   optimisticConcurrency?: boolean
 }
 
-/** Fail-closed parse of FLOATY_RATE_LIMIT: only a positive integer turns the limiter on;
+/** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
  *  unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit). */
 export function parseRateLimit(raw: string | undefined): number {
   if (!raw || !/^\d+$/.test(raw)) return 0
@@ -188,7 +188,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const logOn = opts.log === true
   const app = Fastify({
     bodyLimit: BODY_LIMIT,
-    // FLOATY_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
+    // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
     // Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
     logger: logOn ? (opts.logStream ? { stream: opts.logStream } : true) : false,
   })
@@ -217,7 +217,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     return sendFail(reply, err)
   })
 
-  // Rate limiting (P1.5, flag FLOATY_RATE_LIMIT): registered ONLY when a positive limit
+  // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
   // was configured — off means the plugin doesn't exist in the app at all. Keyed per IP;
   // behind the Nginx proxy every socket is loopback, so rateLimitTrustForwarded swaps the
   // key to the first X-Forwarded-For hop there (and only there). 429s flow through the

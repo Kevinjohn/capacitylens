@@ -1,6 +1,6 @@
-# Floaty — User stories
+# CapacityLens — User stories
 
-End-to-end user stories for **every** capability of Floaty, written as **runnable test
+End-to-end user stories for **every** capability of CapacityLens, written as **runnable test
 scripts for a human**. Each story is goal-first (what the user wants), then *why*, then
 *how* (numbered, end-to-end steps from a defined starting state), then explicit, checkable
 **acceptance criteria** (✅). Every story also names its automated coverage — the Playwright
@@ -40,7 +40,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-NAV-07](navigation/US-NAV-07-error-boundary.md) | Recoverable error screen | unit (`ErrorBoundary.test.tsx`) + manual |
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md) | Command palette (⌘K / Ctrl+K) | `e2e/palette.spec.ts` |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md) | Mobile affordances (sidebar rail + rotate hint) | `e2e/mobile.spec.ts` |
-| [US-NAV-10](navigation/US-NAV-10-login-screen.md) | Login screen (flag-gated; `FLOATY_AUTH` deploys only) | `e2e/login.auth.spec.ts` (auth-backed project) |
+| [US-NAV-10](navigation/US-NAV-10-login-screen.md) | Login screen (flag-gated; `CAPACITYLENS_AUTH` deploys only) | `e2e/login.auth.spec.ts` (auth-backed project) |
 
 ## Resources — `resources/`
 | Story | Title | Automated coverage |
@@ -181,6 +181,6 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-DAT-01](data/US-DAT-01-export-json.md) | Export to JSON | `e2e/crud.spec.ts` |
 | [US-DAT-02](data/US-DAT-02-import-json.md) | Import (with confirmation) | `e2e/data.spec.ts` |
 | [US-DAT-03](data/US-DAT-03-undo-import.md) | Undo an import | `e2e/data.spec.ts` |
-| [US-DAT-04](data/US-DAT-04-reject-non-floaty.md) | Reject a non-Floaty file | `e2e/data.spec.ts` |
+| [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md) | Reject a non-CapacityLens file | `e2e/data.spec.ts` |
 | [US-DAT-05](data/US-DAT-05-persist-reload.md) | Persist across reload | `e2e/crud.spec.ts` |
 | [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md) | Seed on first run, no re-seed after clear | `e2e/data.spec.ts` + `e2e/crud.spec.ts` |

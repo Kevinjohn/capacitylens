@@ -22,9 +22,9 @@ async function freshProvider() {
   return { AuthProvider, useStore }
 }
 
-describe('AuthProvider — local mode (no VITE_FLOATY_API)', () => {
+describe('AuthProvider — local mode (no VITE_CAPACITYLENS_API)', () => {
   it('renders children and performs no fetch at all', async () => {
-    vi.stubEnv('VITE_FLOATY_API', '')
+    vi.stubEnv('VITE_CAPACITYLENS_API', '')
     const fetchSpy = vi.fn()
     vi.stubGlobal('fetch', fetchSpy)
     const { AuthProvider } = await freshProvider()
@@ -40,7 +40,7 @@ describe('AuthProvider — local mode (no VITE_FLOATY_API)', () => {
 
 describe('AuthProvider — server mode', () => {
   it("authMode 'off' renders children after one credentialed /api/auth/me check", async () => {
-    vi.stubEnv('VITE_FLOATY_API', 'http://api.test')
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     const fetchSpy = vi.fn(async () => me(200, { authMode: 'off', user: { id: 'demo', name: 'Demo' } }))
     vi.stubGlobal('fetch', fetchSpy)
     const { AuthProvider } = await freshProvider()
@@ -54,7 +54,7 @@ describe('AuthProvider — server mode', () => {
   })
 
   it('a 401 replaces the app with the login screen (password form)', async () => {
-    vi.stubEnv('VITE_FLOATY_API', 'http://api.test')
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password' })))
     const { AuthProvider } = await freshProvider()
     render(
@@ -69,7 +69,7 @@ describe('AuthProvider — server mode', () => {
   })
 
   it('an unreachable server renders the app (ConnectionError owns that failure)', async () => {
-    vi.stubEnv('VITE_FLOATY_API', 'http://api.test')
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))))
     const { AuthProvider } = await freshProvider()
     render(
@@ -81,7 +81,7 @@ describe('AuthProvider — server mode', () => {
   })
 
   it('re-checks on persistError and swaps to the login screen when the session is gone', async () => {
-    vi.stubEnv('VITE_FLOATY_API', 'http://api.test')
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(me(200, { authMode: 'password', user: { id: 'u1', email: 'a@b.test' } }))

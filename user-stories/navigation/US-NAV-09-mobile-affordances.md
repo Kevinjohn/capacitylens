@@ -7,7 +7,7 @@ Glance at the schedule from a phone without the sidebar eating the screen, and g
 nudge that the week-grid works best in landscape.
 
 ## Why
-Full mobile workflows are a non-goal (DECISIONS.md) — but testers do open Floaty on a phone.
+Full mobile workflows are a non-goal (DECISIONS.md) — but testers do open CapacityLens on a phone.
 Three light affordances keep that first contact sane: nav items carry icons, the sidebar
 collapses to an icons-only rail (collapsed by default on small screens), and portrait phones
 get a one-per-session "turn it sideways" hint. The rail icons deliberately do **not**
@@ -48,7 +48,7 @@ phone-ish size (≤ 767px wide, or ≤ 480px tall for landscape).
 - ✅ Tapping a rail icon re-opens the menu and does **not** navigate.
 - ✅ Rail icons are skipped by keyboard/assistive tech (`aria-hidden`, not tabbable); the
   toggle is the single accessible control for expanding.
-- ✅ The open/collapsed choice persists per device (`floaty/sidebar`) across reloads.
+- ✅ The open/collapsed choice persists per device (`capacitylens/sidebar`) across reloads.
 - ✅ Portrait phone: the **Best in landscape** dialog appears (including over the company
   picker); **Got it**, Escape or a backdrop press dismisses it for the session
   (`sessionStorage`), and it re-appears in a fresh session.

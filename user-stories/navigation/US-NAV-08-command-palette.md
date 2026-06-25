@@ -7,7 +7,7 @@ Open a keyboard-driven command palette to jump instantly to any person, project,
 without mousing through the sidebar.
 
 ## Why
-The palette is for speed: Floaty is a helicopter view of who's busy. A single shortcut and a
+The palette is for speed: CapacityLens is a helicopter view of who's busy. A single shortcut and a
 couple of keystrokes navigate faster than any menu when you already know what you're looking for.
 
 ## How (end-to-end)

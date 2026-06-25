@@ -5,7 +5,7 @@ import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListP
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { byDisciplineOrder } from '../../store/selectors'
 import { DisciplineForm } from './DisciplineForm'
-import type { Discipline } from '@floaty/shared/types/entities'
+import type { Discipline } from '@capacitylens/shared/types/entities'
 
 export function DisciplineList() {
   const disciplines = useScopedData().disciplines

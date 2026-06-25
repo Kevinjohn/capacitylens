@@ -1,7 +1,7 @@
-import { emptyAppData, SCHEMA_VERSION } from '@floaty/shared/types/entities'
-import type { AppData, PersistedState } from '@floaty/shared/types/entities'
+import { emptyAppData, SCHEMA_VERSION } from '@capacitylens/shared/types/entities'
+import type { AppData, PersistedState } from '@capacitylens/shared/types/entities'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
-import { migrate } from '@floaty/shared/data/migrate'
+import { migrate } from '@capacitylens/shared/data/migrate'
 
 // The canonical table keys (accounts + every scoped table), derived from emptyAppData so
 // this never drifts from the schema. A stored blob whose table is present but NOT an array
@@ -27,7 +27,7 @@ export class LocalStorageAdapter implements PersistenceAdapter {
   private readonly key: string
 
   // The storage key is required (no default): the live key is versioned
-  // (`floaty/v3`, see main.tsx) and a silent default would read/write an
+  // (`capacitylens/v3`, see main.tsx) and a silent default would read/write an
   // orphaned older key.
   constructor(key: string) {
     this.key = key
@@ -55,19 +55,19 @@ export class LocalStorageAdapter implements PersistenceAdapter {
     try {
       parsed = JSON.parse(raw)
     } catch (e) {
-      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.', { cause: e })
+      throw new LoadError('corrupt', 'Stored CapacityLens data could not be parsed.', { cause: e })
     }
     // Parseable but STRUCTURALLY damaged (e.g. a partial write left a table as a string):
     // migrate() would coerce it to [] and silently drop the data, then the next autosave
     // would overwrite the recoverable bytes. Treat it as corrupt so the recovery UI
     // (export-raw / reset) fires instead.
     if (hasNonArrayTable(parsed)) {
-      throw new LoadError('corrupt', 'Stored Floaty data is damaged.')
+      throw new LoadError('corrupt', 'Stored CapacityLens data is damaged.')
     }
     try {
       return migrate(parsed)
     } catch (e) {
-      throw new LoadError('corrupt', 'Stored Floaty data could not be parsed.', { cause: e })
+      throw new LoadError('corrupt', 'Stored CapacityLens data could not be parsed.', { cause: e })
     }
   }
 

@@ -13,7 +13,7 @@ import {
 
 describe('sidebar preference', () => {
   beforeEach(() => {
-    localStorage.removeItem('floaty/sidebar')
+    localStorage.removeItem('capacitylens/sidebar')
   })
 
   it('reads null when the user has never chosen', () => {
@@ -28,7 +28,7 @@ describe('sidebar preference', () => {
   })
 
   it('treats an unrecognised stored value as "no choice"', () => {
-    localStorage.setItem('floaty/sidebar', 'sideways')
+    localStorage.setItem('capacitylens/sidebar', 'sideways')
     expect(readStoredSidebarOpen()).toBeNull()
   })
 
@@ -41,7 +41,7 @@ describe('sidebar preference', () => {
 
 describe('minimise-weekends preference', () => {
   beforeEach(() => {
-    localStorage.removeItem('floaty/minimiseWeekends')
+    localStorage.removeItem('capacitylens/minimiseWeekends')
   })
 
   it('defaults to TRUE (on) when the user has never chosen', () => {
@@ -56,14 +56,14 @@ describe('minimise-weekends preference', () => {
   })
 
   it('treats an unrecognised stored value as the default (on)', () => {
-    localStorage.setItem('floaty/minimiseWeekends', 'maybe')
+    localStorage.setItem('capacitylens/minimiseWeekends', 'maybe')
     expect(readStoredMinimiseWeekends()).toBe(true)
   })
 })
 
 describe('snap-to-week-start preference', () => {
   beforeEach(() => {
-    localStorage.removeItem('floaty/snapToWeekStart')
+    localStorage.removeItem('capacitylens/snapToWeekStart')
   })
 
   it('defaults to TRUE (on) when the user has never chosen', () => {
@@ -78,7 +78,7 @@ describe('snap-to-week-start preference', () => {
   })
 
   it('treats an unrecognised stored value as the default (on)', () => {
-    localStorage.setItem('floaty/snapToWeekStart', 'maybe')
+    localStorage.setItem('capacitylens/snapToWeekStart', 'maybe')
     expect(readStoredSnapToWeekStart()).toBe(true)
   })
 
@@ -112,7 +112,7 @@ describe('snap-to-week-start preference', () => {
 
 describe('fake sign-in (cosmetic demo) preference', () => {
   beforeEach(() => {
-    localStorage.removeItem('floaty/fakeSignedIn')
+    localStorage.removeItem('capacitylens/fakeSignedIn')
   })
 
   it('defaults to FALSE (signed out → show the demo sign-in) when never chosen', () => {
@@ -127,7 +127,7 @@ describe('fake sign-in (cosmetic demo) preference', () => {
   })
 
   it('treats an unrecognised stored value as the default (signed out)', () => {
-    localStorage.setItem('floaty/fakeSignedIn', 'perhaps')
+    localStorage.setItem('capacitylens/fakeSignedIn', 'perhaps')
     expect(readStoredFakeSignedIn()).toBe(false)
   })
 })

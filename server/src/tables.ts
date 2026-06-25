@@ -10,7 +10,7 @@ import type {
   ScopedEntityKey,
   Activity,
   TimeOff,
-} from '@floaty/shared/types/entities'
+} from '@capacitylens/shared/types/entities'
 
 // The single source of truth for the SQL schema and the row<->object mapping. One
 // entry per AppData table. `columns` is the exact column order used for INSERT and

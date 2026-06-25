@@ -3,7 +3,7 @@ import { act, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SchedulerGrid } from './SchedulerGrid'
 import { useStore } from '../../store/useStore'
-import type { AppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
 import { LAYOUT } from './layout'
 

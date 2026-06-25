@@ -3,7 +3,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ActivityForm } from './ActivityForm'
-import type { Activity } from '@floaty/shared/types/entities'
+import type { Activity } from '@capacitylens/shared/types/entities'
 
 export function ActivityList() {
   const data = useScopedData()

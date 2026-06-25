@@ -2,12 +2,12 @@ import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
-import { todayISO } from '@floaty/shared/lib/dateMath'
+import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
 import { Button, DateField, FieldError, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS, resourceDisplayName } from '../../lib/metadata'
-import { isExternalResource } from '@floaty/shared/types/entities'
-import type { ISODate, TimeOff, TimeOffType } from '@floaty/shared/types/entities'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
+import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities'
 
 export function TimeOffForm({
   timeOff,

@@ -1,7 +1,7 @@
-// The Floaty shape guards (looksLikeFloaty / hasNonArrayKnownTable) live in migrate.ts —
-// next to the migrate they gate, so the "is this even Floaty" check and the transform it
+// The CapacityLens shape guards (looksLikeCapacityLens / hasNonArrayKnownTable) live in migrate.ts —
+// next to the migrate they gate, so the "is this even CapacityLens" check and the transform it
 // protects can't drift (mirrors schedule/diary). Imported back here for the parse path.
-import { migrate, looksLikeFloaty, hasNonArrayKnownTable } from './migrate'
+import { migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from './migrate'
 import { SCHEMA_VERSION } from '../types/entities'
 import type { AppData, PersistedState } from '../types/entities'
 
@@ -29,8 +29,8 @@ export function parseData(json: string): AppData {
     // message (ESLint preserve-caught-error enforces this for re-thrown native errors).
     throw new Error("That file isn't valid JSON.", { cause: e })
   }
-  if (!looksLikeFloaty(raw)) {
-    throw new Error('This file is not Floaty data.')
+  if (!looksLikeCapacityLens(raw)) {
+    throw new Error('This file is not CapacityLens data.')
   }
   // Reject a structurally damaged file (a known table present but not a list) rather than
   // letting migrate() silently coerce it to [] and under-report the loss. See above.
@@ -47,11 +47,11 @@ export function parseData(json: string): AppData {
   if (total > MAX_IMPORT_RECORDS) {
     throw new Error(`This file has too many records (${total.toLocaleString()}).`)
   }
-  // A Floaty-shaped file that migrates to ZERO records would, if imported, replace the
+  // A CapacityLens-shaped file that migrates to ZERO records would, if imported, replace the
   // active company's slice with nothing — a silent wipe. Refuse it: importing an empty
   // file is never the intent (delete is the explicit path for clearing data).
   if (total === 0) {
-    throw new Error('This file contains no Floaty records.')
+    throw new Error('This file contains no CapacityLens records.')
   }
   return data
 }

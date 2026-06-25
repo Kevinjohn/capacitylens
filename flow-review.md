@@ -1,4 +1,4 @@
-# Floaty — Flow Review
+# CapacityLens — Flow Review
 
 _Read-only product/UX review of the whole flow (wishlist item 8). No source files
 were changed, no branch, no PR. Written after the 7 preceding wishlist items shipped
@@ -6,7 +6,7 @@ were changed, no branch, no PR. Written after the 7 preceding wishlist items shi
 External relocated + gated; capacity % over the visible window; red over-capacity
 background; post-login intro page)._
 
-Reviewed against Floaty's stated positioning — a **deliberately small, week-granularity
+Reviewed against CapacityLens's stated positioning — a **deliberately small, week-granularity
 "helicopter view of who's busy / free / overworked."** Every suggestion below stays
 inside that scope: nothing here proposes budgets, timesheets, hour-granularity, mobile
 views, or project-management process. The recommendations **reduce or clarify existing
@@ -60,7 +60,7 @@ and a returning user still passes 2 (sign-in + picker) on *every* reload.
   open question — see §5.)_
 - **[Med] Two near-identical "Choose an account" / "Choose a company" cards back-to-back
   read as "pick, then pick again."** Make the cosmetic sign-in unmistakably an *identity*
-  step (avatar/email prominent, "Sign in to Floaty") so it reads "who are you → which
+  step (avatar/email prominent, "Sign in to CapacityLens") so it reads "who are you → which
   company," not "pick → pick." (`FakeSignIn.tsx` vs `AccountPicker.tsx`.)
 - **[Med] A brand-new company lands on a near-blank grid with thin, easy-to-miss guidance.**
   Seed data only appears on true first run; a user-created company gets an empty grid whose
@@ -174,7 +174,7 @@ items grew this surface measurably.
 - **[High] The device-global vs account-data split is invisible.** The only cue is a
   `text-xs text-muted` "applies to this browser" clause buried mid-paragraph in *some*
   descriptions (and Calendar says the opposite, "the whole team," in the same style). A user
-  who toggles "Minimise weekends" or "Show placeholders," then opens Floaty on another
+  who toggles "Minimise weekends" or "Show placeholders," then opens CapacityLens on another
   laptop, finds it reverted with no explanation. **Fix:** group the page into two labelled
   blocks — "Company settings (shared with your team / included in export)" vs "This browser"
   — or a per-card badge. The buckets already exist in code; the UI just doesn't name them.

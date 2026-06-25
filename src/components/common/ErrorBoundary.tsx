@@ -26,7 +26,7 @@ export function ErrorFallback({ message }: { message?: string }) {
  *  wired HERE for any view crash (SchedulerView, a list page, AppShell, …) to show it. */
 export function RouteError() {
   const error = useRouteError()
-  if (error) console.error('Floaty route error:', error)
+  if (error) console.error('CapacityLens route error:', error)
   return <ErrorFallback message={errorMessage(error)} />
 }
 
@@ -44,7 +44,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Floaty crashed:', error, info)
+    console.error('CapacityLens crashed:', error, info)
   }
 
   render() {

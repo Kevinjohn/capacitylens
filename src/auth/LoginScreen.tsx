@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { Button, FieldError } from '../components/common/ui'
 import { inputClass } from '../components/common/controls'
 import { authClient } from './authClient'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 // The flag-gated login wall (production plan P3.3; US-NAV-10). Only ever rendered when
 // the server reports authMode 'password' or 'sso' AND there is no session — the default
@@ -69,7 +70,7 @@ export function LoginScreen({
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
         <div className="mb-6 text-center">
-          <div className="mb-1 text-2xl font-bold text-brand">Floaty</div>
+          <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
           <h1 className="text-lg font-semibold text-ink">Sign in</h1>
           <p className="text-sm text-muted">This workspace requires an account.</p>
         </div>

@@ -10,7 +10,7 @@ Escape closes it, and focus returns to whatever opened it.
 A modal that leaks focus to the page behind it strands keyboard and screen-reader
 users — they tab into controls they can't see and lose their place. Proper focus
 management (trap Tab, focus first control on open, Escape to close, restore focus on
-close) is the baseline that makes every form in Floaty usable without a mouse.
+close) is the baseline that makes every form in CapacityLens usable without a mouse.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open; click **Resources** in the sidebar.

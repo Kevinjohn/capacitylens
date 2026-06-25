@@ -1,6 +1,6 @@
 import { memo, useMemo } from 'react'
 import { format } from 'date-fns'
-import { parseDate, weekdayOf } from '@floaty/shared/lib/dateMath'
+import { parseDate, weekdayOf } from '@capacitylens/shared/lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
 import { LAYOUT } from './layout'
 import type { ColumnGeometry } from './columnGeometry'

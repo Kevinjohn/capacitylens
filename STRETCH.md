@@ -1,6 +1,6 @@
-# Floaty — Stretch goal
+# CapacityLens — Stretch goal
 
-**Goal:** Floaty is polished, accessible, feature-rich and durable, with a cohesive
+**Goal:** CapacityLens is polished, accessible, feature-rich and durable, with a cohesive
 modern-CSS design system and comprehensive automated test coverage plus an
 adversarial review pass. The entire gate is green with no open findings:
 

@@ -1,13 +1,13 @@
-# Floaty — User-story reference (single source of truth)
+# CapacityLens — User-story reference (single source of truth)
 
 This file pins the exact, current facts every user story and test script depends on:
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
-> Floaty is a **local-first** resource scheduler (a small Float clone). By default all data
+> CapacityLens is a **local-first** resource scheduler (a focused capacity scheduler). By default all data
 > lives in the browser's `localStorage` with no login or network calls. The app is
 > **multi-tenant by Account**: you pick a company on load and the whole dataset is scoped to
-> it. An **optional** SQLite server (off by default, `VITE_FLOATY_API=…`) can persist data
+> it. An **optional** SQLite server (off by default, `VITE_CAPACITYLENS_API=…`) can persist data
 > behind the same seam without changing any flow below. These stories run against the
 > **default local mode**, signed in to the seeded **Studio North** company.
 
@@ -20,7 +20,7 @@ If the app changes, update this file first, then the affected stories.
    port-in-use error, another dev server is squatting 5173 — find it with
    `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
 2. **First run** seeds a demo dataset (see *Seed data* below).
-3. Floaty opens on a **demo sign-in** — a cosmetic, Google-style *"Choose an account"* screen
+3. CapacityLens opens on a **demo sign-in** — a cosmetic, Google-style *"Choose an account"* screen
    (the **Jordan Avery** account; heading `Choose an account`). It is **not** real auth and
    has **no** popup: click the account (or "Use another account") to continue. It is shown only
    when real auth is off (the default) and is skipped once "signed in" (the choice persists
@@ -29,10 +29,10 @@ If the app changes, update this file first, then the affected stories.
    persisted). Pick **Studio North** to see the seeded data these stories describe. (A second
    seeded company, *Loft Digital*, is near-empty.) While "signed in", the picker shows
    *"Signed in as Jordan Avery"* with a **Sign out** link.
-5. Then a one-time **"What Floaty is" intro page** (heading `Welcome to Floaty`) — a minimal
-   post-login explainer that Floaty is a resourcing tool, not a project-management tool. Click
+5. Then a one-time **"What CapacityLens is" intro page** (heading `Welcome to CapacityLens`) — a minimal
+   post-login explainer that CapacityLens is a resourcing tool, not a project-management tool. Click
    **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
-   (`floaty/introSeen`, default off, never in `AppData`/export) and is skipped thereafter. The
+   (`capacitylens/introSeen`, default off, never in `AppData`/export) and is skipped thereafter. The
    wording is **placeholder copy** (single-sourced in `src/lib/introCopy.ts`), pending a human edit.
 6. To start from the seeded state again, clear it: open DevTools → Console →
    `localStorage.clear()` → reload. (Clearing data *inside* the app does **not** re-seed —
@@ -72,20 +72,20 @@ both the open menu and the collapsed rail, so the nav icons don't shift when the
 **Collapse / expand.** A toggle button at the **top-left** of the sidebar (accessible name
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
 The toggle sits at the same left inset as the nav icons, so the toggle + icon column keep their
-x-position when collapsing — only the labels and the "Floaty" wordmark come and go. Rail icons
+x-position when collapsing — only the labels and the "CapacityLens" wordmark come and go. Rail icons
 (`data-testid="nav-rail-item"`, one per **visible** section — so 8 with disciplines on, 7 when disciplines are off —
 `data-label` = the section label; each shows an instant visual hover label to the right) are **not** navigation — tapping any
 of them just re-opens the menu; they're hidden from assistive tech (the labelled toggle is the
 single accessible control). Collapsing hides
 the company block and the Data section until re-opened. The choice is device-global
-(`localStorage` key `floaty/sidebar`); with no stored choice the sidebar starts **open on
+(`localStorage` key `capacitylens/sidebar`); with no stored choice the sidebar starts **open on
 desktop and collapsed on small screens** (`(max-width: 767px), (max-height: 480px)` — phone
 portrait or phone landscape).
 
 **Rotate hint (portrait phones only).** On a portrait viewport ≤ 767px wide, a dismissable
 dialog titled **Best in landscape** appears (over the company picker too, since that's a
 phone's first contact). **Got it** (or Escape / backdrop) dismisses it for the session
-(`sessionStorage` key `floaty/rotateHintDismissed`); rotating to landscape hides it. It
+(`sessionStorage` key `capacitylens/rotateHintDismissed`); rotating to landscape hides it. It
 never appears on desktop viewports or in landscape.
 
 ## Seed data (first run)
@@ -188,7 +188,7 @@ who's free to staff), `Clear` (only shown when a filter is active).
 
 **Schedule display (minimise weekends).** Settings → **Schedule** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
-It's a **device-global** display pref (own `localStorage` key `floaty/minimiseWeekends`, NOT on the
+It's a **device-global** display pref (own `localStorage` key `capacitylens/minimiseWeekends`, NOT on the
 account and NOT in export) — like the theme and bar-label toggles. On → narrow Sat/Sun columns
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See *Weekend
 columns* above.
@@ -196,7 +196,7 @@ columns* above.
 **Schedule display (snap to week start).** The same Settings → **Schedule** section has a second
 switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
 default — sibling to *Minimise weekends*. It's also a **device-global** display pref (own
-`localStorage` key `floaty/snapToWeekStart`, NOT on the account and NOT in export). On → after a
+`localStorage` key `capacitylens/snapToWeekStart`, NOT on the account and NOT in export). On → after a
 **free horizontal scroll** settles, the grid **floors** its left edge back to the current week's
 first day (the account `weekStartsOn`, default Monday) — a stray nudge that would park the view on
 a Tue/Wed settles back to that week's Monday. It floors (never forward): forward weeks are reached
@@ -239,24 +239,24 @@ data itself is kept and reappears if switched back on. Both seed companies leave
 **Local data** section near the bottom of Settings: a `Clear local storage` button
 (`data-testid="clear-local-storage"`). Clicking it opens the standard confirm dialog (title
 `Clear local storage?`, danger `Clear local storage` confirm + `Cancel`) whose copy depends on the
-backend — in **server mode** (`VITE_FLOATY_API` set) it says your data lives in the database and is
+backend — in **server mode** (`VITE_CAPACITYLENS_API` set) it says your data lives in the database and is
 safe, the app will reload and re-load it from there; in **local mode** it says this is your only copy
-so it erases your local data. Both say it clears Floaty data + settings in **THIS browser** and
-**cannot be undone**. Confirm removes every `floaty/`-prefixed localStorage key (the data blob + all
+so it erases your local data. Both say it clears CapacityLens data + settings in **THIS browser** and
+**cannot be undone**. Confirm removes every `capacitylens/`-prefixed localStorage key (the data blob + all
 device prefs — unrelated origin keys are left alone) and reloads the page. **Cancel is a no-op.**
 
 **Build stamp + feedback link (Settings, flag-gated).** When the build sets
-`VITE_FLOATY_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the
+`VITE_CAPACITYLENS_BUILD_SHA`, the Settings page ends with a muted one-line footer containing the
 stamp (`data-testid="build-stamp"`) reading `build <sha> · server` (a server backend is
-configured, i.e. `VITE_FLOATY_API` was baked in) or `build <sha> · local` (localStorage
-mode). When the build also sets `VITE_FLOATY_FEEDBACK_MAILTO`, a **Send feedback** link
+configured, i.e. `VITE_CAPACITYLENS_API` was baked in) or `build <sha> · local` (localStorage
+mode). When the build also sets `VITE_CAPACITYLENS_FEEDBACK_MAILTO`, a **Send feedback** link
 (`data-testid="send-feedback"`) sits beside the stamp — a `mailto:` whose subject carries
 the build stamp, so reports arrive pinned to a build. The default dev/local build leaves
 both variables unset and renders **nothing** — the seeded state these stories run against
 has no footer at all.
 
 **Login screen (flag-gated; not reachable in the default deploy).** Only when the app runs in
-server mode (`VITE_FLOATY_API` set) **and** that server runs with `FLOATY_AUTH=password` or
+server mode (`VITE_CAPACITYLENS_API` set) **and** that server runs with `CAPACITYLENS_AUTH=password` or
 `sso`: the app checks `GET /api/auth/me` once at boot, and a 401 replaces everything — company
 picker included — with a **Sign in** screen (heading `Sign in`; fields `Email` + `Password`
 and a `Sign in` button in password mode; a `Continue with SSO` button in sso mode; failures
@@ -271,16 +271,16 @@ client-side auth flag.
 `data-testid="fake-sign-in"`; a "Use another account" row) is shown **before** the company
 picker, to preview a "log in first, then pick a company" flow. There is no password and no
 popup — any choice just advances. The signed-in state is a **device-global** flag
-(`floaty/fakeSignedIn`, default off; never in `AppData`/export), so it persists across reloads
+(`capacitylens/fakeSignedIn`, default off; never in `AppData`/export), so it persists across reloads
 and is cleared by **Sign out** (on the picker and the sidebar footer). It is mounted only when
 `authMode === 'off'`, so it never collides with the real login wall above. The persona lives in
 `src/lib/fakeAuth.ts` (avatar: `src/assets/avatar-demo.svg`).
 
-**Post-login intro page ("What Floaty is").** After a company is chosen — in **every** entry mode
+**Post-login intro page ("What CapacityLens is").** After a company is chosen — in **every** entry mode
 (real auth, the cosmetic demo sign-in, and the no-auth default all converge on a chosen account) —
-a minimal full-screen page (heading `Welcome to Floaty`) explains Floaty is a **resourcing tool**,
+a minimal full-screen page (heading `Welcome to CapacityLens`) explains CapacityLens is a **resourcing tool**,
 not a project-management tool, before the app proper. It has a single **Continue** button
-(`data-testid="intro-continue"`). Shown **once per device** (`floaty/introSeen`, default off; never
+(`data-testid="intro-continue"`). Shown **once per device** (`capacitylens/introSeen`, default off; never
 in `AppData`/export) and skipped thereafter — so it does not reappear on reload. The copy is
 **placeholder** (a human edits it later), single-sourced in `src/lib/introCopy.ts`; the component is
 `src/components/IntroPage.tsx`. Spec `e2e/fake-signin.spec.ts` (and `e2e/login.auth.spec.ts` for the
@@ -320,11 +320,11 @@ Mouse hover sets the active option; mouse click selects.
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
-`intro-continue` (the post-login "What Floaty is" page's Continue button; shown once per device),
+`intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
 `clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
 `build-stamp` (Settings footer; only rendered when the build sets
-`VITE_FLOATY_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
-`VITE_FLOATY_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
+`VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
+`VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries
 `data-alloc-id`/`data-status`. Seed ids include `r-tyler`, `r-nike`, `r-alex`,
 `r-ph-designer`, `r-ext-dogeatcog` (external party), `p-acme` (Project Lightning), `p-brand` (Brand Themes), `t-wires`.
 

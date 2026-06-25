@@ -1,4 +1,5 @@
 import { Button } from './common/ui'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 // Shown when bootstrap could not load state from the server (it's down or
 // unreachable). Distinct from StorageRecovery (corrupt LOCAL data): there is nothing
@@ -11,7 +12,7 @@ export function ConnectionError() {
       <div className="w-full max-w-md rounded-lg border border-line bg-surface p-6 shadow-sm">
         <h1 className="mb-2 text-lg font-semibold text-ink">Can’t reach the server</h1>
         <p className="mb-4 text-sm text-muted">
-          Floaty couldn’t load your data — the server is unavailable or your connection is down. Your
+          {APP_NAME} couldn’t load your data — the server is unavailable or your connection is down. Your
           saved data is safe on the server; nothing has been changed. Check your connection and try
           again.
         </p>

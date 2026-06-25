@@ -1,7 +1,7 @@
 import { applyGesture, type DateRange, type DragMode, type GestureOpts } from '../../lib/gestureMath'
-import { spanDays } from '@floaty/shared/lib/schedulingDays'
-import { isExternalResource, MAX_HOURS_PER_DAY } from '@floaty/shared/types/entities'
-import type { Resource } from '@floaty/shared/types/entities'
+import { spanDays } from '@capacitylens/shared/lib/schedulingDays'
+import { isExternalResource, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
+import type { Resource } from '@capacitylens/shared/types/entities'
 import type { ColumnGeometry } from './columnGeometry'
 
 // Pure drag/resize policy for AllocationBar, split out so the gesture math is unit-testable

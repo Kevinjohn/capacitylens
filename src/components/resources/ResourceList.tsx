@@ -9,8 +9,8 @@ import { resourceDisplayName } from '../../lib/metadata'
 import { ResourceForm } from './ResourceForm'
 import { ExternalForm } from '../external/ExternalForm'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
-import { isExternalResource } from '@floaty/shared/types/entities'
-import type { Resource, ResourceKind } from '@floaty/shared/types/entities'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
+import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
 
 export function ResourceList() {
   const data = useScopedData()

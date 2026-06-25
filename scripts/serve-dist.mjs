@@ -1,5 +1,5 @@
 // Production-shaped local server for the Phase 6 rehearsal (docs/runbook.md): serves the
-// real Vite build from dist/ and proxies /api/* to the Floaty daemon — the same shape
+// real Vite build from dist/ and proxies /api/* to the CapacityLens daemon — the same shape
 // Nginx gives the droplet (same-origin /api, no CORS in play). Deliberately dependency-
 // free and NOT a dev tool: no watch, no transform, no fallback magic beyond the SPA
 // index.html rewrite.

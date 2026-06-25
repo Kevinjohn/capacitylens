@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@floaty/shared/lib/strings'
+import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
 import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from '../../lib/palette'
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
 // be exported without tripping react-refresh/only-export-components on this file.
@@ -8,7 +8,7 @@ import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
 import { cn } from '@/lib/utils'
-import type { Weekday } from '@floaty/shared/types/entities'
+import type { Weekday } from '@capacitylens/shared/types/entities'
 
 // Form fields slice of the shared kit (re-exported from ./ui). The text/number/date
 // fields and the textarea are built on shadcn's Input/Textarea (../ui); the SelectField
@@ -22,7 +22,7 @@ const labelClass = 'mb-1 block text-xs font-medium text-muted'
 //   required (at rest) → a thin red left-edge accent — a quiet marker.
 //   invalid (failed Save) → a full danger border + ring — the field you missed pops.
 // invalid wins when both apply, so a required field that fails shows the error state.
-// These are the floaty ACCENTS only; the shared `controlBase` (controls.ts) supplies the
+// These are the capacitylens ACCENTS only; the shared `controlBase` (controls.ts) supplies the
 // bg-surface/text-ink/placeholder/px-2.5 py-1.5/shadow-sm field look (the SAME base the
 // native SelectField uses, so the migrated shadcn fields sit flush beside it), and twMerge
 // lets controlBase + these accents win over the shadcn Input/Textarea base where they
@@ -34,7 +34,7 @@ function fieldAccent(invalid?: boolean, required?: boolean) {
 }
 
 // The native <select> isn't a shadcn primitive (kept native by design), so it keeps
-// floaty's own full inputClass base plus the accent — unchanged from before.
+// capacitylens's own full inputClass base plus the accent — unchanged from before.
 function selectClass(invalid?: boolean, required?: boolean) {
   if (invalid) return `${inputClass} border-danger ring-1 ring-danger`
   if (required) return `${inputClass} border-l-2 border-l-danger/60`
@@ -90,7 +90,7 @@ export function TextField({
     <label className="block">
       <FieldLabel label={label} required={required} />
       <Input
-        // Reuse floaty's shared controlBase (the SAME field look the native SelectField
+        // Reuse capacitylens's shared controlBase (the SAME field look the native SelectField
         // carries) so this shadcn-backed input matches it exactly — bg-surface in BOTH
         // themes, text-ink, placeholder:text-faint, px-2.5 py-1.5, shadow-sm — instead of
         // shadcn's bg-transparent/text-base. The accent (required/invalid) layers on top.
@@ -334,14 +334,14 @@ export function ColorField({
   return (
     <div className="block">
       <span className={labelClass}>{label}</span>
-      {/* Radix Popover supplies ONLY the shell + anchored positioning (Phase 8 reskin). Floaty's
+      {/* Radix Popover supplies ONLY the shell + anchored positioning (Phase 8 reskin). CapacityLens's
           own dismiss collaboration is kept verbatim as the SINGLE dismiss path — the capture-phase
           mousedown above and the Escape onKeyDown below. Radix's competing dismissals are
           neutralised on the Content (onInteractOutside / onPointerDownOutside / onEscapeKeyDown →
           preventDefault) so it can never double-close or change ordering, and Radix's auto-focus is
-          suppressed so opening doesn't yank focus off the trigger. `open` (floaty's state) drives
+          suppressed so opening doesn't yank focus off the trigger. `open` (capacitylens's state) drives
           Popover.Root; onOpenChange only mirrors a Radix-initiated close (none, since all of them
-          are neutralised) back into floaty's state as a backstop. */}
+          are neutralised) back into capacitylens's state as a backstop. */}
       <Popover open={open} onOpenChange={setOpen}>
         <div
           ref={ref}
@@ -381,7 +381,7 @@ export function ColorField({
             // Modal's overflow-y-auto would clip a downward popup, so the popup must ALWAYS open
             // upward — without avoidCollisions={false} Radix would flip it down when room is tight,
             // re-introducing exactly that clipping. forceMount-free: Radix only renders Content while
-            // Root is open, and floaty's `open` already gates it, so mount/unmount tracks the popup
+            // Root is open, and capacitylens's `open` already gates it, so mount/unmount tracks the popup
             // exactly as before.
             <PopoverContent
               portal={false}
@@ -391,13 +391,13 @@ export function ColorField({
               align="start"
               sideOffset={4}
               avoidCollisions={false}
-              // Floaty's panel look (bg-elevated/ring-line/shadow-pop), NOT shadcn's bg-popover, so
+              // CapacityLens's panel look (bg-elevated/ring-line/shadow-pop), NOT shadcn's bg-popover, so
               // the swatch grid keeps its exact prior surface + the grid layout is unchanged. The
-              // floaty-pop motion matches CommandPalette/Modal (tw-animate-css isn't installed, so
+              // capacitylens-pop motion matches CommandPalette/Modal (tw-animate-css isn't installed, so
               // shadcn's animate-in classes would be inert no-ops here).
-              className="grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line animate-[floaty-pop_0.14s_ease-out]"
+              className="grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line animate-[capacitylens-pop_0.14s_ease-out]"
               style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
-              // Floaty owns dismissal (the capture-phase mousedown + the Escape onKeyDown above), so
+              // CapacityLens owns dismissal (the capture-phase mousedown + the Escape onKeyDown above), so
               // neutralise every Radix dismiss path — one dismiss path, unchanged ordering.
               onInteractOutside={(e) => e.preventDefault()}
               onPointerDownOutside={(e) => e.preventDefault()}
@@ -456,7 +456,7 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
     // (NOT a Radix ToggleGroup): the Weekday[] model (0–6, Sun=0) is the source of truth
     // and aria-pressed reflects it directly. Plain buttons keep every chip individually
     // Tab-reachable — a roving-tabindex toolbar would put only ONE of the seven in the tab
-    // order, regressing keyboard reach for no gain (floaty drives the model, not Radix).
+    // order, regressing keyboard reach for no gain (capacitylens drives the model, not Radix).
     <fieldset className="block">
       <legend className={labelClass}>{label}</legend>
       <div className="flex flex-wrap gap-2">

@@ -4,10 +4,10 @@ import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
-import { validateProjectClient } from '@floaty/shared/lib/integrity'
+import { validateProjectClient } from '@capacitylens/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
-import type { Project } from '@floaty/shared/types/entities'
+import type { Project } from '@capacitylens/shared/types/entities'
 
 /** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
  *  save or cancel. */

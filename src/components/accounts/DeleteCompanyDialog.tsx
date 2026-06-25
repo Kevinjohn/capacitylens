@@ -1,12 +1,12 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { scopeData } from '../../store/selectors'
-import { serializeData } from '@floaty/shared/data/transfer'
-import { todayISO } from '@floaty/shared/lib/dateMath'
+import { serializeData } from '@capacitylens/shared/data/transfer'
+import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { downloadTextFile } from '../../lib/download'
 import { errorMessage } from '../../lib/errorMessage'
 import { Button, Modal, TextField } from '../common/ui'
-import type { Account } from '@floaty/shared/types/entities'
+import type { Account } from '@capacitylens/shared/types/entities'
 
 // Friction for the one irreversible action in the app. Deleting a company cascade-
 // drops all of its data with no undo, so we (a) offer a one-click export of that
@@ -35,7 +35,7 @@ export function DeleteCompanyDialog({
   const exportFirst = () => {
     const slug = account.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'company'
     try {
-      downloadTextFile(`floaty-${slug}-${todayISO()}.json`, serializeData(scopeData(data, account.id)))
+      downloadTextFile(`capacitylens-${slug}-${todayISO()}.json`, serializeData(scopeData(data, account.id)))
       setExportError(null)
     } catch (e) {
       // The backup did NOT save. Make it loud and inline so the user does NOT proceed to delete

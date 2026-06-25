@@ -3,7 +3,7 @@
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** manual + unit (`src/data/persist.test.ts` seed-fail — a failed write surfaces the error that flips the banner)
 
 ## Goal
-Get an unmistakable warning when Floaty can't save to browser storage, while still
+Get an unmistakable warning when CapacityLens can't save to browser storage, while still
 being able to keep working in-memory for the rest of the session.
 
 ## Why

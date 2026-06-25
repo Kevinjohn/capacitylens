@@ -8,7 +8,7 @@ activities) and see it on the schedule — without it cluttering the Clients man
 were a client you maintain by hand.
 
 ## Why
-Not all work belongs to a paying client. Floaty gives every account ONE built-in **Internal**
+Not all work belongs to a paying client. CapacityLens gives every account ONE built-in **Internal**
 pseudo-client so project-less internal/repeatable activities have a home in the client view: they
 bucket under Internal for labelling and filtering, and Internal can also own real projects when the
 team wants to. But Internal is a behind-the-scenes data anchor, not a client you manage — so it is

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { volumePreservingHoursClamped, computeGesture, snappedBarGeometry, reconcileReassignedHours } from './allocationDrag'
 import { buildColumnGeometry } from './columnGeometry'
-import { eachDayISO } from '@floaty/shared/lib/dateMath'
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
 import type { DateRange } from '../../lib/gestureMath'
-import type { Resource } from '@floaty/shared/types/entities'
+import type { Resource } from '@capacitylens/shared/types/entities'
 
 // These functions were extracted from AllocationBar so the gesture math could be tested
 // directly. The branches below are exactly the ones a happy-path drag interaction test

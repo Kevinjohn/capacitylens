@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import { internalClientFor } from '@floaty/shared/data/internalClient'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import { internalClientFor } from '@capacitylens/shared/data/internalClient'
 
 const s = () => useStore.getState()
 

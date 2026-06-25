@@ -21,8 +21,8 @@ import {
 } from './ui'
 import { useStore } from '../../store/useStore'
 import { colorName } from '../../lib/palette'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { Resource } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { Resource } from '@capacitylens/shared/types/entities'
 import { WORKDAYS } from '../../test/fixtures'
 
 beforeEach(() => {

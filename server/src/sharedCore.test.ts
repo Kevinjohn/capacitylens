@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { assertDateRange, remapAndValidateImport } from '@floaty/shared/domain/mutations'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
+import { assertDateRange, remapAndValidateImport } from '@capacitylens/shared/domain/mutations'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 // Proves the client's pure domain-core actually imports and executes under Node
 // (the server runtime), not just in the browser/jsdom. The exhaustive rule coverage

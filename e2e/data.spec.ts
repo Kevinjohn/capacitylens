@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test'
 import { openApp } from './helpers'
 
-const EMPTY_FLOATY = JSON.stringify({
+const EMPTY_CAPACITYLENS = JSON.stringify({
   schemaVersion: 2,
   data: { disciplines: [], resources: [], clients: [], projects: [], phases: [], activities: [], allocations: [], timeOff: [] },
 })
 
 // A real (non-empty) import: one resource. Importing nothing is now refused (it would
 // silently wipe the account), so the confirm/replace flow is exercised with actual data.
-const NONEMPTY_FLOATY = JSON.stringify({
+const NONEMPTY_CAPACITYLENS = JSON.stringify({
   schemaVersion: 2,
   data: {
     disciplines: [],
@@ -37,7 +37,7 @@ test.describe('Data import/export', () => {
 
   test('import shows a confirmation that replaces all data; Cancel keeps the data', async ({ page }) => {
     await openApp(page)
-    await importFile(page, 'incoming.json', NONEMPTY_FLOATY)
+    await importFile(page, 'incoming.json', NONEMPTY_CAPACITYLENS)
 
     const dialog = page.getByRole('dialog', { name: 'Import data?' })
     await expect(dialog).toBeVisible()
@@ -51,7 +51,7 @@ test.describe('Data import/export', () => {
   test('confirming an import replaces the dataset and ⌘Z restores it', async ({ page }) => {
     await openApp(page)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
-    await importFile(page, 'incoming.json', NONEMPTY_FLOATY)
+    await importFile(page, 'incoming.json', NONEMPTY_CAPACITYLENS)
     await page.getByRole('dialog', { name: 'Import data?' }).getByRole('button', { name: 'Replace data' }).click()
 
     // Replaced → the imported resource shows and the seeded data is gone.
@@ -63,25 +63,25 @@ test.describe('Data import/export', () => {
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })
 
-  test('rejects a non-Floaty file with a notice and preserves existing data', async ({ page }) => {
+  test('rejects a non-CapacityLens file with a notice and preserves existing data', async ({ page }) => {
     await openApp(page)
     await importFile(page, 'random.json', JSON.stringify({ hello: 'world' }))
 
-    // Surfaces the SPECIFIC reason from parseData (a JSON object with no Floaty keys), not a generic
+    // Surfaces the SPECIFIC reason from parseData (a JSON object with no CapacityLens keys), not a generic
     // catch-all. Shown via a Sonner error toast now (was the hand-rolled Toast's role="alert");
     // assert on the message text, which is Sonner-DOM-agnostic.
-    await expect(page.getByText(/not Floaty data/i)).toBeVisible()
+    await expect(page.getByText(/not CapacityLens data/i)).toBeVisible()
     await expect(page.getByText('Tyler Nix')).toBeVisible() // data preserved, no dialog, no wipe
   })
 
-  test('rejects an EMPTY Floaty file (would silently wipe the account) with a notice', async ({ page }) => {
+  test('rejects an EMPTY CapacityLens file (would silently wipe the account) with a notice', async ({ page }) => {
     await openApp(page)
-    await importFile(page, 'empty.json', EMPTY_FLOATY)
+    await importFile(page, 'empty.json', EMPTY_CAPACITYLENS)
 
-    // No confirmation dialog, an error notice naming the specific reason (a Floaty-shaped but
+    // No confirmation dialog, an error notice naming the specific reason (a CapacityLens-shaped but
     // empty file → would silently wipe the account), and the seeded data is preserved. The notice
     // is a Sonner error toast now; assert on its message text (Sonner-DOM-agnostic).
-    await expect(page.getByText(/no Floaty records/i)).toBeVisible()
+    await expect(page.getByText(/no CapacityLens records/i)).toBeVisible()
     await expect(page.getByRole('dialog', { name: 'Import data?' })).toHaveCount(0)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })

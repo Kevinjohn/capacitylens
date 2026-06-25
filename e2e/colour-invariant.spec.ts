@@ -1,7 +1,7 @@
 import { test, expect, type Locator } from '@playwright/test'
 import { openApp } from './helpers'
 
-// The hard colour invariant, end-to-end (Phase 9 verification). Floaty allows colour to be
+// The hard colour invariant, end-to-end (Phase 9 verification). CapacityLens allows colour to be
 // set ONLY by picking a preset swatch (no hex/RGB entry — see ColorField + the "preset
 // swatches only" rule), and that swatch must (a) PERSIST across a reload and (b) actually
 // RENDER on the scheduler: a discipline's colour drives its group-header dot + every member's
@@ -62,7 +62,7 @@ test.describe('Colour invariant (preset swatch → persists → renders on the s
     const tylerRow = page.getByTestId('scheduler-row').filter({ hasText: 'Tyler Nix' })
     await expect(rowAvatar(tylerRow)).toHaveCSS('background-color', PICK_RGB)
 
-    // Reload: the colour is stored in the persisted AppData (localStorage floaty/v3), so it must
+    // Reload: the colour is stored in the persisted AppData (localStorage capacitylens/v3), so it must
     // STILL render after a fresh load + re-entry through the account picker.
     await openApp(page, 'Studio North', '/')
     const designGroupAfter = page.getByTestId('discipline-group').filter({ hasText: 'Design' })

@@ -1,5 +1,5 @@
-import { dayIndex } from '@floaty/shared/lib/dateMath'
-import type { ID, ISODate } from '@floaty/shared/types/entities'
+import { dayIndex } from '@capacitylens/shared/lib/dateMath'
+import type { ID, ISODate } from '@capacitylens/shared/types/entities'
 
 // Greedy first-fit interval partitioning, per resource. Produces the minimum
 // number of vertical lanes needed so that overlapping allocations never share a

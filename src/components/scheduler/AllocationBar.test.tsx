@@ -3,10 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
 import { buildColumnGeometry } from './columnGeometry'
 import type { BarLayout } from './schedulerModel'
-import { eachDayISO } from '@floaty/shared/lib/dateMath'
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { Allocation } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { Allocation } from '@capacitylens/shared/types/entities'
 
 // Uniform geometry over June at 48px/day (minimise off). These tests don't drag across columns;
 // the resolver only needs to exist for the prop contract (origin at clientX 0).

@@ -7,9 +7,9 @@ import {
   INTRO_PARA_3,
 } from '../lib/introCopy'
 
-// Post-login "What Floaty is" intermediary page. A minimal full-screen gate shown once per device
-// (the `floaty/introSeen` flag) after the viewer lands on a company, before the app proper —
-// explaining Floaty is a resourcing tool, not a project-management tool. Mirrors the FakeSignIn /
+// Post-login "What CapacityLens is" intermediary page. A minimal full-screen gate shown once per device
+// (the `capacitylens/introSeen` flag) after the viewer lands on a company, before the app proper —
+// explaining CapacityLens is a resourcing tool, not a project-management tool. Mirrors the FakeSignIn /
 // LoginScreen card styling (centred card on the canvas). The wording is PLACEHOLDER COPY single-
 // sourced in `lib/introCopy.ts` (pending human edit); the two bold phrases are wrapped in <strong>
 // here in JSX, never via dangerouslySetInnerHTML and with no markdown library.

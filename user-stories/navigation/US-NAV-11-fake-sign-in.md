@@ -9,7 +9,7 @@
 > is **off** (`authMode === 'off'`), so the two never both appear.
 
 ## Goal
-Open Floaty and see a believable "sign in first" step before the company picker, so a viewer
+Open CapacityLens and see a believable "sign in first" step before the company picker, so a viewer
 understands the planned shape of the product (auth → choose a workspace → plan).
 
 ## Why
@@ -18,7 +18,7 @@ to *show* the intended journey without standing up auth. A cosmetic screen does 
 strictly separate from the real seam (it disappears the moment real auth is enabled).
 
 ## How (end-to-end, default local mode)
-**Precondition:** Seeded app in the default deploy (no `VITE_FLOATY_API`, or a server with auth
+**Precondition:** Seeded app in the default deploy (no `VITE_CAPACITYLENS_API`, or a server with auth
 off). Start from a clean state (DevTools → Console → `localStorage.clear()` → reload).
 
 1. Open the app. The first screen is **Choose an account** — a Google-style card with the

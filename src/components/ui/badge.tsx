@@ -5,12 +5,12 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 // shadcn Badge on `radix-ui`'s Slot (asChild support). Stock variants use shadcn's --primary /
-// --secondary / --destructive — floaty's --primary is the slate brand and --destructive solid red
-// fails AA against white in floaty's dark token, so the brand/danger variants instead bind to
-// floaty's own AA-tuned SOFT tokens (bg-brand-soft + brand-soft-ink; bg-danger-soft + danger-soft-ink)
+// --secondary / --destructive — capacitylens's --primary is the slate brand and --destructive solid red
+// fails AA against white in capacitylens's dark token, so the brand/danger variants instead bind to
+// capacitylens's own AA-tuned SOFT tokens (bg-brand-soft + brand-soft-ink; bg-danger-soft + danger-soft-ink)
 // — a quiet chip fill that's AA-safe in both themes. (NB: ui/button.tsx is stock — bg-primary /
-// bg-destructive — so this is a Badge-specific floaty treatment, not Button parity.) `secondary`
-// keeps shadcn's bg-secondary (a neutral chip, AA-safe in both themes). `warn` is floaty's amber
+// bg-destructive — so this is a Badge-specific capacitylens treatment, not Button parity.) `secondary`
+// keeps shadcn's bg-secondary (a neutral chip, AA-safe in both themes). `warn` is capacitylens's amber
 // chip (the parked TemporaryTag look).
 
 const badgeVariants = cva(

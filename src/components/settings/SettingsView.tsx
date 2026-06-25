@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../../auth/authContext'
 import { buildStamp, feedbackMailto } from '../../data/buildInfo'
 import { isServerConfigured } from '../../data/apiConfig'
-import { clearFloatyLocalStorage } from '../../data/clearLocalStorage'
+import { clearCapacitylensLocalStorage } from '../../data/clearLocalStorage'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
@@ -11,7 +11,8 @@ import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextFiel
 import { cn } from '@/lib/utils'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import type { ThemePref } from '../../lib/theme'
-import type { SchedulingMode } from '@floaty/shared/types/entities'
+import type { SchedulingMode } from '@capacitylens/shared/types/entities'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 const WEEK_START_OPTIONS: { value: 0 | 1; label: string }[] = [
   { value: 1, label: 'Monday' },
@@ -110,9 +111,9 @@ export function SettingsView() {
   const { error, errorField, errorId, fail } = useFieldError()
   const { authMode, user, signOut } = useAuth()
 
-  // "Clear local storage" — a destructive, user-triggered wipe of everything Floaty keeps in THIS
+  // "Clear local storage" — a destructive, user-triggered wipe of everything CapacityLens keeps in THIS
   // browser (the persisted AppData + every device-global pref). The copy adapts to where the real
-  // data lives: in server mode (VITE_FLOATY_API set) the DB is the source of truth and the reload
+  // data lives: in server mode (VITE_CAPACITYLENS_API set) the DB is the source of truth and the reload
   // re-hydrates from it, so the local wipe is non-destructive to account data; in local mode this
   // erases the only copy. The reload re-initialises the app from whichever source applies.
   const [confirmingClear, setConfirmingClear] = useState(false)
@@ -122,7 +123,7 @@ export function SettingsView() {
     // Surface, never swallow (DEFENSIVE-CODING.md §1): this is a user-triggered action, so a storage
     // failure (private mode / disabled storage) must show as a visible notice rather than vanish.
     try {
-      clearFloatyLocalStorage()
+      clearCapacitylensLocalStorage()
     } catch (e) {
       setConfirmingClear(false)
       setNotice(`Could not clear local storage: ${errorMessage(e)}`, 'error')
@@ -354,14 +355,14 @@ export function SettingsView() {
         </section>
 
         {/* Local data — a destructive maintenance action, kept near the bottom with danger
-            styling so it can't be hit by accident. Wipes everything Floaty stores in THIS
+            styling so it can't be hit by accident. Wipes everything CapacityLens stores in THIS
             browser (data blob + device prefs); the wording + outcome depend on server vs local. */}
         <section className="rounded border border-danger/40 bg-surface p-4">
           <h2 className="mb-1 text-sm font-semibold text-danger">Local data</h2>
           <p className="mb-3 max-w-prose text-xs text-muted">
             {serverMode
-              ? 'Clears the Floaty data and settings cached in this browser. Your account data lives in the database and is safe — the app reloads from there. This cannot be undone for this browser.'
-              : 'Permanently clears the Floaty data and settings stored in this browser. In local mode this is your only copy, so this erases your data. This cannot be undone.'}
+              ? `Clears the ${APP_NAME} data and settings cached in this browser. Your account data lives in the database and is safe — the app reloads from there. This cannot be undone for this browser.`
+              : `Permanently clears the ${APP_NAME} data and settings stored in this browser. In local mode this is your only copy, so this erases your data. This cannot be undone.`}
           </p>
           <Button variant="danger" testId="clear-local-storage" onClick={() => setConfirmingClear(true)}>
             Clear local storage
@@ -374,8 +375,8 @@ export function SettingsView() {
             confirmLabel="Clear local storage"
             message={
               serverMode
-                ? 'This permanently clears the Floaty data and settings stored in THIS browser, and cannot be undone. On this hosted site your data lives in the database and is safe — the app will reload and re-load it from there.'
-                : 'This permanently clears the Floaty data and settings stored in THIS browser, and cannot be undone. In local mode this is your only copy, so this erases your local data.'
+                ? `This permanently clears the ${APP_NAME} data and settings stored in THIS browser, and cannot be undone. On this hosted site your data lives in the database and is safe — the app will reload and re-load it from there.`
+                : `This permanently clears the ${APP_NAME} data and settings stored in THIS browser, and cannot be undone. In local mode this is your only copy, so this erases your local data.`
             }
             onConfirm={clearLocalStorage}
             onCancel={() => setConfirmingClear(false)}

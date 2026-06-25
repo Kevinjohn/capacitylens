@@ -5,8 +5,8 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateText } from '../../lib/validation'
 import { Button, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
 import { NEUTRAL_COLOR } from '../../lib/palette'
-import { externalCapacityDefaults } from '@floaty/shared/types/entities'
-import type { Resource } from '@floaty/shared/types/entities'
+import { externalCapacityDefaults } from '@capacitylens/shared/types/entities'
+import type { Resource } from '@capacitylens/shared/types/entities'
 
 /**
  * Add/edit an external / 3rd-party party — a trimmed resource form. It captures only a COMPANY

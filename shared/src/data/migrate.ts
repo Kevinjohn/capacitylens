@@ -4,10 +4,10 @@ import type { AppData } from '../types/entities'
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
 // current-shape AppData, plus the IMPORT-path shape guards that decide whether a
-// blob is even Floaty before we let migrate() near it. This is mostly NORMALIZE-SHAPE
+// blob is even CapacityLens before we let migrate() near it. This is mostly NORMALIZE-SHAPE
 // (coerce every known table to an array via normalize()), not a general version-
 // migration engine: there is exactly ONE structural transform (v1 → v2, below). The
-// v2 → v3 bump added `accountId` and needs NO step here — the live key is `floaty/v3`
+// v2 → v3 bump added `accountId` and needs NO step here — the live key is `capacitylens/v3`
 // (main.tsx), so older keys are orphaned rather than read, and the import path stamps
 // `accountId` on every incoming row (see useStore.importData).
 
@@ -19,7 +19,7 @@ export const KNOWN_KEYS: string[] = ['accounts', ...SCOPED_KEYS]
 // Legacy table keys that a pre-rename export/blob may carry. `activities` was once `tasks`
 // (the Task→Activity rename, schema v5). The IMPORT shape-guards recognise these so a
 // legacy file — even one that ONLY carries the renamed table — is accepted (then migrated),
-// not mistaken for non-Floaty JSON and rejected. The migrate path renames them (migrateV4toV5).
+// not mistaken for non-CapacityLens JSON and rejected. The migrate path renames them (migrateV4toV5).
 const LEGACY_KEYS: string[] = ['tasks']
 const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS]
 
@@ -33,12 +33,12 @@ export function importCandidate(value: unknown): Record<string, unknown> | null 
     : obj
 }
 
-// Recognisable-Floaty guard for the IMPORT path: any JSON that parses but isn't
-// shaped like Floaty data would otherwise be migrated to an EMPTY dataset and
+// Recognisable-CapacityLens guard for the IMPORT path: any JSON that parses but isn't
+// shaped like CapacityLens data would otherwise be migrated to an EMPTY dataset and
 // silently wipe the user's data. (The load path stays lenient on purpose.) Lives in
 // migrate.ts so the shape guard and the migrate it gates can't drift — mirrors how
 // schedule/diary keep their `looksLike…` guard next to migrate().
-export function looksLikeFloaty(value: unknown): boolean {
+export function looksLikeCapacityLens(value: unknown): boolean {
   const candidate = importCandidate(value)
   // Accept legacy keys too (e.g. pre-rename `tasks`) so a valid older export — even one
   // whose only array is a renamed table — passes the guard and reaches migrate().

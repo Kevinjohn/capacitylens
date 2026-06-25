@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@floaty/shared': fileURLToPath(new URL('./shared/src', import.meta.url)),
+      '@capacitylens/shared': fileURLToPath(new URL('./shared/src', import.meta.url)),
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },

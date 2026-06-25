@@ -1,6 +1,6 @@
 import type { StoreApi } from 'zustand'
-import { emptyAppData, isEmpty } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
+import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 import type { StoreState } from '../store/useStore'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 

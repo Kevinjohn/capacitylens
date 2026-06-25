@@ -8,14 +8,17 @@
          doesn't break the Vite dev/build pipeline. A full policy (script-src,
          style-src, connect-src) belongs in a response header at the host/CDN. -->
     <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'none'" />
-    <title>Floaty</title>
+    <title>CapacityLens</title>
     <!-- Set the colour scheme before first paint so dark-mode users don't get a
          flash of light. Mirrors readStoredTheme()/resolveTheme() in
-         src/lib/theme.ts (default: light); main.tsx re-applies + wires changes. -->
+         src/lib/theme.ts (default: light); main.tsx re-applies + wires changes.
+         Reads the new `capacitylens/theme` key, falling back to the legacy `floaty/theme`
+         so a returning user still gets the right pre-paint scheme BEFORE main.tsx's
+         storage-key migration runs (the legacy fallback is removable a release later). -->
     <script>
       (function () {
         try {
-          var p = localStorage.getItem('floaty/theme') || 'light'
+          var p = localStorage.getItem('capacitylens/theme') || localStorage.getItem('floaty/theme') || 'light'
           var dark = p === 'dark' || (p === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
           document.documentElement.dataset.theme = dark ? 'dark' : 'light'
         } catch (e) {
@@ -34,19 +37,19 @@
            carries the diagnosis instead of vanishing into a blank screen. -->
     <div id="root">
       <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 36rem; margin: 4rem auto; padding: 0 1.5rem; color: #64748b; line-height: 1.5">
-        <p style="font-weight: 600; color: #6366f1">Floaty</p>
+        <p style="font-weight: 600; color: #6366f1">CapacityLens</p>
         <p>Loading&hellip;</p>
         <p style="font-size: 0.875rem">
           If this message doesn't go away, JavaScript isn't running on this page —
           it may be disabled for this site in your browser settings, or blocked by an
           extension (content/script blockers also run in private windows when allowed).
-          Floaty needs JavaScript; nothing is shown without it.
+          CapacityLens needs JavaScript; nothing is shown without it.
         </p>
       </div>
     </div>
     <noscript>
       <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 36rem; margin: 1rem auto; padding: 0 1.5rem; color: #b91c1c">
-        JavaScript is disabled in this browser, and Floaty cannot start without it.
+        JavaScript is disabled in this browser, and CapacityLens cannot start without it.
         Enable JavaScript for this site, then reload.
       </div>
     </noscript>

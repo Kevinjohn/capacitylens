@@ -3,12 +3,12 @@
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "settings toggles the colour theme", "renders in dark mode"; `e2e/a11y.spec.ts` → "scheduler in dark mode has no serious or critical violations"
 
 ## Goal
-Choose Floaty's colour scheme in **Settings** — **Light** (the default), **Dark**, or
+Choose CapacityLens's colour scheme in **Settings** — **Light** (the default), **Dark**, or
 **Match system** (follow the OS) — with legible text in every theme, and have a
 reduced-motion preference honoured.
 
 ## Why
-People schedule at all hours, and some prefer a dark UI at night. Floaty themes from
+People schedule at all hours, and some prefer a dark UI at night. CapacityLens themes from
 semantic colour tokens resolved to one `data-theme` on `<html>`, so the whole UI
 re-themes at once and stays readable (WCAG AA), with no per-component dark styling to
 drift out of sync. The default is **light**; dark is an explicit opt-in (or "Match

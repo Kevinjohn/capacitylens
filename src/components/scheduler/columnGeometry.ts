@@ -1,6 +1,6 @@
-import { dayIndex, weekdayOf } from '@floaty/shared/lib/dateMath'
+import { dayIndex, weekdayOf } from '@capacitylens/shared/lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
-import type { ISODate } from '@floaty/shared/types/entities'
+import type { ISODate } from '@capacitylens/shared/types/entities'
 
 // The scheduler grid used to be a UNIFORM fixed-pixel grid: a single scalar `dayWidth`,
 // every column the same width, so `x = index * dayWidth` and the inverse was a plain

@@ -13,7 +13,7 @@ Open product questions to revisit with the owner. Don't silently resolve these â
   and the branch's hard invariant is "`ui.test.tsx` passes verbatim; never edit tests to fit Radix";
   the native select is also more robust on mobile/keyboard. **WeekdayPicker** kept its plain
   Tab-reachable `<button aria-pressed>` chips because shadcn ToggleGroup was a net-negative keyboard
-  regression (roving tabindex + nested `role="toolbar"`, with floaty owning the `Weekday[]` model).
+  regression (roving tabindex + nested `role="toolbar"`, with capacitylens owning the `Weekday[]` model).
   No further work; if Radix Select is ever wanted, it's a deliberate test-interaction update
   (open trigger â†’ click option, keeping the behavioural assertions) + the 32 e2e calls.
 
@@ -45,8 +45,8 @@ Open product questions to revisit with the owner. Don't silently resolve these â
   multi-tab localStorage clobbering and related local-mode findings are accepted, not scheduled.
 
 ## Resolved by assumption (confirm)
-- **Local-first by default.** Data is one `AppData` blob in `localStorage` (`floaty/v3`); no
-  backend, no login. The optional server is off unless `VITE_FLOATY_API` is set. Confirm this stays
+- **Local-first by default.** Data is one `AppData` blob in `localStorage` (`capacitylens/v3`); no
+  backend, no login. The optional server is off unless `VITE_CAPACITYLENS_API` is set. Confirm this stays
   the default â€” turning the server on for everyone is a behaviour change (shared dataset,
   last-writer-wins).
 - **Tenant picker is not auth.** You pick an Account on load (`AccountPicker`) and the dataset is
@@ -62,7 +62,7 @@ Open product questions to revisit with the owner. Don't silently resolve these â
   throwaway; per-tester Basic Auth entries; one Account per tester; Node 24 LTS;
   no Sentry this round; **Better Auth** (third-party OSS) for the wired-but-off auth
   scaffold, SSO provider choice still deferred. Plus: daemon backups are configurable
-  and OFF by default (`FLOATY_BACKUP_DIR`), enabled on the droplet.
+  and OFF by default (`CAPACITYLENS_BACKUP_DIR`), enabled on the droplet.
 
 ## Resolved (owner-confirmed, 2026-06-16)
 - **Server cutover EXECUTED â€” SHARED + OPEN.** The alpha demo is live in server mode on
@@ -83,8 +83,8 @@ Open product questions to revisit with the owner. Don't silently resolve these â
   drill on the droplet (P4.2). See `docs/production-plan.md` Phase 2.
 
 ## Genuinely open
-- **Intro page frequency is once-per-device** (`floaty/introSeen`, default off â€” the post-login
-  "What Floaty is" page in `src/components/IntroPage.tsx`). The owner may prefer it every login
+- **Intro page frequency is once-per-device** (`capacitylens/introSeen`, default off â€” the post-login
+  "What CapacityLens is" page in `src/components/IntroPage.tsx`). The owner may prefer it every login
   instead; that's a one-line change (don't read/persist `introSeen`, or reset it on sign-out). The
   copy is placeholder, single-sourced in `src/lib/introCopy.ts`, pending a human edit.
 - **Built-in "Internal" client â€” shipped as a REAL builtin client; the virtual-only option was
@@ -99,7 +99,7 @@ Open product questions to revisit with the owner. Don't silently resolve these â
   - Their sheet books an external partner studio (Dog Eat Cog) as a *bookable* row with real
     day amounts â€” live evidence for the parked third-party line, but bookable, not FYI-only.
     Imported as a contractor "person" for now.
-  - Their visual language colour-codes rows by **person**; Floaty colours bars by
+  - Their visual language colour-codes rows by **person**; CapacityLens colours bars by
     project/client. Do owners want a "colour by person" schedule toggle?
   - "Poindexter 90min for Laura" â€” a booking referencing another person. Is a
     personâ†”person (or booked-for) link on allocations ever in scope?

@@ -4,7 +4,7 @@ import { buildApp } from './app'
 import { openDb } from './db'
 import { authFromEnv, parseAuthMode, runAuthMigrations, AuthConfigError, DEMO_USER } from './auth'
 
-// P3.1/P3.2/P3.5 (flag FLOATY_AUTH → opts.authMode/auth). The load-bearing assertion set:
+// P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
 // by running unchanged — these tests add the /api/auth/me surface and the absence of the
 // Better Auth routes); password gates every data route on a real session; sso issues a
@@ -24,18 +24,18 @@ function cookiesOf(res: LightMyRequestResponse): string {
 }
 
 const PASSWORD_ENV = {
-  FLOATY_AUTH: 'password',
+  CAPACITYLENS_AUTH: 'password',
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
   BETTER_AUTH_URL: 'http://localhost:8787',
 }
 
 const SSO_ENV = {
   ...PASSWORD_ENV,
-  FLOATY_AUTH: 'sso',
-  FLOATY_SSO_CLIENT_ID: 'client-id',
-  FLOATY_SSO_CLIENT_SECRET: 'client-secret',
-  FLOATY_SSO_AUTHORIZATION_URL: 'http://idp.test/authorize',
-  FLOATY_SSO_TOKEN_URL: 'http://idp.test/token',
+  CAPACITYLENS_AUTH: 'sso',
+  CAPACITYLENS_SSO_CLIENT_ID: 'client-id',
+  CAPACITYLENS_SSO_CLIENT_SECRET: 'client-secret',
+  CAPACITYLENS_SSO_AUTHORIZATION_URL: 'http://idp.test/authorize',
+  CAPACITYLENS_SSO_TOKEN_URL: 'http://idp.test/token',
 }
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -45,7 +45,7 @@ async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance
   return buildApp(db, { authMode: mode, auth })
 }
 
-describe('FLOATY_AUTH off (default)', () => {
+describe('CAPACITYLENS_AUTH off (default)', () => {
   it('reports the demo identity from /api/auth/me and gates nothing', async () => {
     const app = buildApp(openDb(':memory:'))
     const me = await call(app, { method: 'GET', url: '/api/auth/me' })
@@ -69,7 +69,7 @@ describe('FLOATY_AUTH off (default)', () => {
   })
 })
 
-describe('FLOATY_AUTH password', () => {
+describe('CAPACITYLENS_AUTH password', () => {
   it('401s data routes without a session; /api/health stays open', async () => {
     const app = await appWithAuth(PASSWORD_ENV)
     expect((await call(app, { method: 'GET', url: '/api/state' })).statusCode).toBe(401)
@@ -85,7 +85,7 @@ describe('FLOATY_AUTH password', () => {
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'tester@floaty.dev', password: 'password-123', name: 'Tester' },
+      payload: { email: 'tester@capacitylens.dev', password: 'password-123', name: 'Tester' },
     })
     expect(signUp.statusCode).toBe(200)
     const cookie = cookiesOf(signUp)
@@ -94,7 +94,7 @@ describe('FLOATY_AUTH password', () => {
     const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
     expect(me.statusCode).toBe(200)
     expect(me.json().authMode).toBe('password')
-    expect(me.json().user.email).toBe('tester@floaty.dev')
+    expect(me.json().user.email).toBe('tester@capacitylens.dev')
 
     const write = await call(app, { method: 'POST', url: '/api/accounts', payload: account, headers: { cookie } })
     expect(write.statusCode).toBe(201)
@@ -106,7 +106,7 @@ describe('FLOATY_AUTH password', () => {
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'out@floaty.dev', password: 'password-123', name: 'Out' },
+      payload: { email: 'out@capacitylens.dev', password: 'password-123', name: 'Out' },
     })
     const cookie = cookiesOf(signUp)
     const out = await call(app, { method: 'POST', url: '/api/auth/sign-out', payload: {}, headers: { cookie } })
@@ -115,7 +115,7 @@ describe('FLOATY_AUTH password', () => {
   })
 })
 
-describe('FLOATY_AUTH sso', () => {
+describe('CAPACITYLENS_AUTH sso', () => {
   it('issues a redirect to the configured provider', async () => {
     const app = await appWithAuth(SSO_ENV)
     const res = await call(app, {
@@ -131,22 +131,22 @@ describe('FLOATY_AUTH sso', () => {
 })
 
 describe('boot refusal (AuthConfigError)', () => {
-  it('rejects an unknown FLOATY_AUTH value; blank/unset means off', () => {
+  it('rejects an unknown CAPACITYLENS_AUTH value; blank/unset means off', () => {
     expect(() => parseAuthMode('on')).toThrow(AuthConfigError)
     expect(parseAuthMode(undefined)).toBe('off')
     expect(parseAuthMode('')).toBe('off')
   })
 
   it("off mode reads no BETTER_AUTH_* env at all", () => {
-    const { mode, auth } = authFromEnv(openDb(':memory:'), { FLOATY_AUTH: 'off' })
+    const { mode, auth } = authFromEnv(openDb(':memory:'), { CAPACITYLENS_AUTH: 'off' })
     expect(mode).toBe('off')
     expect(auth).toBeNull()
   })
 
   it('password mode without secret or URL refuses', () => {
     const db = openDb(':memory:')
-    expect(() => authFromEnv(db, { FLOATY_AUTH: 'password' })).toThrow(AuthConfigError)
-    expect(() => authFromEnv(db, { FLOATY_AUTH: 'password', BETTER_AUTH_SECRET: 'x'.repeat(32) })).toThrow(
+    expect(() => authFromEnv(db, { CAPACITYLENS_AUTH: 'password' })).toThrow(AuthConfigError)
+    expect(() => authFromEnv(db, { CAPACITYLENS_AUTH: 'password', BETTER_AUTH_SECRET: 'x'.repeat(32) })).toThrow(
       AuthConfigError,
     )
   })
@@ -156,9 +156,9 @@ describe('boot refusal (AuthConfigError)', () => {
     expect(() =>
       authFromEnv(db, {
         ...PASSWORD_ENV,
-        FLOATY_AUTH: 'sso',
-        FLOATY_SSO_CLIENT_ID: 'id',
-        FLOATY_SSO_CLIENT_SECRET: 'secret',
+        CAPACITYLENS_AUTH: 'sso',
+        CAPACITYLENS_SSO_CLIENT_ID: 'id',
+        CAPACITYLENS_SSO_CLIENT_SECRET: 'secret',
         // no discovery URL and no authorization+token pair
       }),
     ).toThrow(AuthConfigError)

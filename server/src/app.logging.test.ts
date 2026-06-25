@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { buildApp } from './app'
 import { openDb } from './db'
 
-// P1.3 (flag FLOATY_LOG → opts.log): ON gives structured per-request JSON via Fastify's
+// P1.3 (flag CAPACITYLENS_LOG → opts.log): ON gives structured per-request JSON via Fastify's
 // bundled pino and routes the 500-path error through the request logger; OFF is byte-for-
 // byte today's behaviour (no request logs, bare console.error on 500s). The logStream
 // seam exists only so these tests can read the JSON lines instead of stdout.
@@ -14,7 +14,7 @@ function capture() {
 
 afterEach(() => vi.restoreAllMocks())
 
-describe('FLOATY_LOG on', () => {
+describe('CAPACITYLENS_LOG on', () => {
   it('emits method/path/status request-completion JSON lines', async () => {
     const { lines, stream } = capture()
     const app = buildApp(openDb(':memory:'), { log: true, logStream: stream })
@@ -40,7 +40,7 @@ describe('FLOATY_LOG on', () => {
   })
 })
 
-describe('FLOATY_LOG off (default)', () => {
+describe('CAPACITYLENS_LOG off (default)', () => {
   it('emits no request logs at all', async () => {
     const { lines, stream } = capture()
     const app = buildApp(openDb(':memory:'), { logStream: stream }) // stream ignored when off

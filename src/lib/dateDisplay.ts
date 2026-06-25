@@ -1,6 +1,6 @@
 import { format } from 'date-fns'
-import { daysInclusive, parseDate } from '@floaty/shared/lib/dateMath'
-import type { ISODate } from '@floaty/shared/types/entities'
+import { daysInclusive, parseDate } from '@capacitylens/shared/lib/dateMath'
+import type { ISODate } from '@capacitylens/shared/types/entities'
 
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long" — not a machine date. Pure display formatting only; the

@@ -1,5 +1,5 @@
-import { allocationWorksOnDay, eachDayISO, isWithin, isWorkingWeekday } from '@floaty/shared/lib/dateMath'
-import type { Allocation, ID, ISODate, Resource, TimeOff } from '@floaty/shared/types/entities'
+import { allocationWorksOnDay, eachDayISO, isWithin, isWorkingWeekday } from '@capacitylens/shared/lib/dateMath'
+import type { Allocation, ID, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities'
 
 // Capacity reflects real availability: a resource has 0 available hours on a
 // non-working weekday or a time-off day, otherwise their workingHoursPerDay.

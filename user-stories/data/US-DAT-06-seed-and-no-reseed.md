@@ -9,10 +9,10 @@ Get a populated demo dataset on a genuine first run (empty storage), and — cri
 A first-time user wants something to look at, so an empty browser gets the demo seed. But once someone clears the app to start their own real plan, resurrecting the demo on the next reload would be infuriating and could clobber intent. Seeding must therefore key off "has this app ever stored anything?", not "is the data currently empty?".
 
 ## How (end-to-end)
-**Precondition:** A browser/profile where Floaty has never run (or one reset via DevTools → Console → `localStorage.clear()`).
+**Precondition:** A browser/profile where CapacityLens has never run (or one reset via DevTools → Console → `localStorage.clear()`).
 
 **Scenario A — first run seeds:**
-1. With storage empty (no `floaty/v3` key), open the app at `/`.
+1. With storage empty (no `capacitylens/v3` key), open the app at `/`.
 2. Observe the seeded demo dataset (Disciplines, Resources incl. *Tyler Nix* / *Senior Designer*, Clients *Acme Inc.* / *Globex*, etc.; Schedule bars in June 2026).
 
 **Scenario B — clearing in-app does NOT re-seed:**
@@ -21,9 +21,9 @@ A first-time user wants something to look at, so an empty browser gets the demo 
 5. Confirm the app comes back **empty**, not re-seeded.
 
 **Contrast — only true reset re-seeds:**
-6. Separately, open DevTools → Console → run `localStorage.clear()` (removes the `floaty/v3` key entirely) → reload. The seed returns (this is the genuine first-run path again).
+6. Separately, open DevTools → Console → run `localStorage.clear()` (removes the `capacitylens/v3` key entirely) → reload. The seed returns (this is the genuine first-run path again).
 
 ## Acceptance criteria
-- ✅ On a genuine first run (no `floaty/v3` key in `localStorage`), the app loads with the full demo seed.
+- ✅ On a genuine first run (no `capacitylens/v3` key in `localStorage`), the app loads with the full demo seed.
 - ✅ After deleting all entities **inside the app** and reloading, the app stays **empty** — the demo seed is **not** resurrected (deleting in-app leaves the storage key present, so bootstrap treats it as "existing", not first-run).
 - ✅ Re-seeding only happens after a true reset that removes the storage key (`localStorage.clear()` in DevTools), which restores the first-run demo data.

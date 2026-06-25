@@ -1,15 +1,15 @@
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
 import { capacityForWindow, dayCapacity, utilization as utilizationOf } from '../../lib/capacity'
-import { resolveBarColor } from '@floaty/shared/lib/color'
+import { resolveBarColor } from '@capacitylens/shared/lib/color'
 import { TIME_OFF_TYPE_LABELS, resourceDisplayName } from '../../lib/metadata'
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
-import { isCapacityTracked, isExternalResource } from '@floaty/shared/types/entities'
-import { internalClientFor } from '@floaty/shared/data/internalClient'
+import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
+import { internalClientFor } from '@capacitylens/shared/data/internalClient'
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { laneLayout } from './layout'
 import type { ColumnGeometry } from './columnGeometry'
 import type { Filters } from '../../store/useStore'
-import type { Allocation, AppData, ID, ISODate, Resource, TimeOff } from '@floaty/shared/types/entities'
+import type { Allocation, AppData, ID, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities'
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,

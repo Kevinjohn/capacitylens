@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { Allocation, AppData, Resource, TimeOff } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { Allocation, AppData, Resource, TimeOff } from '@capacitylens/shared/types/entities'
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../test/fixtures'
 
 const s = () => useStore.getState()

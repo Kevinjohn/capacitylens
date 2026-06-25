@@ -140,13 +140,13 @@ test.describe('Scheduler', () => {
     await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('button', { name: '4w', exact: true })).toHaveAttribute('aria-pressed', 'false')
     const wide = await box(bar)
-    await page.screenshot({ path: 'test-results/floaty-1week.png' })
+    await page.screenshot({ path: 'test-results/capacitylens-1week.png' })
 
     await page.getByRole('button', { name: '8w', exact: true }).click()
     await expect(page.getByRole('button', { name: '8w', exact: true })).toHaveAttribute('aria-pressed', 'true')
     await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'false')
     const narrow = await box(bar)
-    await page.screenshot({ path: 'test-results/floaty-8week.png' })
+    await page.screenshot({ path: 'test-results/capacitylens-8week.png' })
 
     // Same 9-day allocation is physically narrower when more weeks are visible.
     expect(narrow.width).toBeLessThan(wide.width)

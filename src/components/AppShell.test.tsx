@@ -43,9 +43,9 @@ describe('AppShell navigation links', () => {
     expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument()
   })
 
-  it('renders the Floaty brand name in the nav', () => {
+  it('renders the CapacityLens brand name in the nav', () => {
     renderAppShell()
-    expect(screen.getByText('Floaty')).toBeInTheDocument()
+    expect(screen.getByText('CapacityLens')).toBeInTheDocument()
   })
 
   it('renders Export and Import buttons', () => {
@@ -75,7 +75,7 @@ describe('AppShell sidebar collapse', () => {
     act(() => {
       useStore.getState().setSidebarOpen(true)
     })
-    localStorage.removeItem('floaty/sidebar')
+    localStorage.removeItem('capacitylens/sidebar')
   })
 
   it('defaults open (jsdom has no matchMedia → large-screen default): links + collapse toggle', () => {
@@ -101,7 +101,7 @@ describe('AppShell sidebar collapse', () => {
     expect(screen.getAllByTestId('nav-rail-item')).toHaveLength(8)
     expect(screen.getByRole('button', { name: 'Expand menu' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByTestId('export-data')).not.toBeInTheDocument()
-    expect(localStorage.getItem('floaty/sidebar')).toBe('closed')
+    expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed')
   })
 
   it('rail icons do not navigate — they just reopen the menu', () => {
@@ -117,7 +117,7 @@ describe('AppShell sidebar collapse', () => {
     })
 
     expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument()
-    expect(localStorage.getItem('floaty/sidebar')).toBe('open')
+    expect(localStorage.getItem('capacitylens/sidebar')).toBe('open')
   })
 
   it('nav links carry icons without changing their accessible names', () => {

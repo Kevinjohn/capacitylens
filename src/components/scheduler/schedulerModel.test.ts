@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { buildSchedulerModel, type GroupModel } from './schedulerModel'
 import { buildColumnGeometry } from './columnGeometry'
-import { eachDayISO, addDaysISO } from '@floaty/shared/lib/dateMath'
+import { eachDayISO, addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { emptyFilters } from '../../store/useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 const start = '2026-06-01'
 const end = '2026-06-07'

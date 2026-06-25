@@ -15,6 +15,7 @@ import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 const LINKS: [string, string, IconName][] = [
   ['/', 'Schedule', 'calendar'],
@@ -180,11 +181,11 @@ export function AppShell() {
       </>
     )
 
-  // Post-login intro gate: a one-time "What Floaty is" page shown AFTER a company is chosen and
-  // BEFORE the app proper, explaining Floaty is a resourcing tool, not a project-management tool.
+  // Post-login intro gate: a one-time "What CapacityLens is" page shown AFTER a company is chosen and
+  // BEFORE the app proper, explaining CapacityLens is a resourcing tool, not a project-management tool.
   // This single slot sits after the tenant gate so it covers ALL THREE entry modes — they all
   // converge here on a chosen activeAccount: real-auth (login wall → picker), the cosmetic
-  // fake-sign-in, and the no-auth default. Device-global once-per-device flag (`floaty/introSeen`,
+  // fake-sign-in, and the no-auth default. Device-global once-per-device flag (`capacitylens/introSeen`,
   // NOT persisted in tenant data); Continue flips it and the app renders. The rotate hint rides
   // along, mirroring the gates above.
   if (hydrated && activeAccount && !introSeen)
@@ -215,11 +216,11 @@ export function AppShell() {
       <nav className={cn(sidebarOpen ? 'w-48' : 'w-14', 'flex shrink-0 flex-col border-r border-line bg-surface p-2')}>
         {/* The collapse/expand toggle sits FIRST and at the same left inset (px-2) as every
             nav icon below it, so the toggle and the icons keep their exact x-position when the
-            sidebar collapses — only the labels and the "Floaty" wordmark come and go, the
+            sidebar collapses — only the labels and the "CapacityLens" wordmark come and go, the
             icon column never shifts. */}
         <div className="mb-2 flex items-center gap-1">
           {/* Tooltips consistency pass (DONE): this FOCUSABLE toggle uses the shadcn Radix
-              Tooltip (ui/tooltip.tsx) — instant (delayDuration 0), restyled to floaty's
+              Tooltip (ui/tooltip.tsx) — instant (delayDuration 0), restyled to capacitylens's
               elevated-surface tokens — so its hover/focus label is the same mechanism the rest of
               the shell aims for and there's no native `title` left here. The button keeps its own
               aria-label as the accessible name (the tooltip is supplementary, never the sole name);
@@ -242,7 +243,7 @@ export function AppShell() {
             </TooltipTrigger>
             <TooltipContent>{sidebarOpen ? 'Collapse menu' : 'Expand menu'}</TooltipContent>
           </Tooltip>
-          {sidebarOpen && <div className="text-xl font-bold text-brand">Floaty</div>}
+          {sidebarOpen && <div className="text-xl font-bold text-brand">{APP_NAME}</div>}
         </div>
         {sidebarOpen ? (
           <>
@@ -366,19 +367,19 @@ export function AppShell() {
       {/* Sonner toaster — bottom-centre (matches the retired Toast's `bottom-4`). `theme`: an
           explicit light|dark pref is passed through concrete; a 'system' pref delegates to Sonner
           ('system'), which subscribes to prefers-color-scheme itself so an OS flip re-themes the
-          toasts live (this shell doesn't re-render on that). Explicit prefs still track floaty's
+          toasts live (this shell doesn't re-render on that). Explicit prefs still track capacitylens's
           [data-theme] dark mode through the --normal-* vars below. `closeButton` gives every toast
           a dismiss control (aria-label "Close toast"); the store `notice` is the source of truth,
           the effect above feeds it.
 
           NOT `richColors`: its light-mode error palette (red #e60000 on pink #fff0f0) is 4.34:1,
           just under WCAG AA (the a11y gate is hard, not advisory). Instead we paint every toast
-          on floaty's already-AA-validated elevated/ink/line tokens (the old hand-rolled Toast was
+          on capacitylens's already-AA-validated elevated/ink/line tokens (the old hand-rolled Toast was
           likewise one neutral surface for both tones). Wired through Sonner's --normal-* CSS vars
           so it tracks [data-theme] for free.
 
           Error distinction is restored WITHOUT richColors: the `toast-error` class (styled in
-          index.css off floaty's --color-danger) gives error toasts a danger left-accent + ring +
+          index.css off capacitylens's --color-danger) gives error toasts a danger left-accent + ring +
           icon tint over the same AA-safe neutral surface, so an error reads as an error at a
           glance in both themes. */}
       <Toaster

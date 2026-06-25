@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { buildApp } from './app'
 import { openDb } from './db'
 
-// P1.4 (flag FLOATY_HEALTH_DEEP → opts.healthDeep): ON makes /api/health prove the DB
+// P1.4 (flag CAPACITYLENS_HEALTH_DEEP → opts.healthDeep): ON makes /api/health prove the DB
 // answers a trivial read; OFF keeps today's unconditional { ok: true } — the exact body
 // Playwright's webServer probe (and anything else pinned to it) depends on.
 
-describe('FLOATY_HEALTH_DEEP on', () => {
+describe('CAPACITYLENS_HEALTH_DEEP on', () => {
   it('reports { ok, db: true } while the DB answers', async () => {
     const app = buildApp(openDb(':memory:'), { healthDeep: true })
     const res = await app.inject({ method: 'GET', url: '/api/health' })
@@ -24,7 +24,7 @@ describe('FLOATY_HEALTH_DEEP on', () => {
   })
 })
 
-describe('FLOATY_HEALTH_DEEP off (default)', () => {
+describe('CAPACITYLENS_HEALTH_DEEP off (default)', () => {
   it('returns exactly the current body, even with the DB closed', async () => {
     const db = openDb(':memory:')
     const app = buildApp(db)

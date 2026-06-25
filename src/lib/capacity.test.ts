@@ -9,7 +9,7 @@ import {
   overAllocatedInWindow,
   utilization,
 } from './capacity'
-import type { Allocation, Resource, TimeOff } from '@floaty/shared/types/entities'
+import type { Allocation, Resource, TimeOff } from '@capacitylens/shared/types/entities'
 
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
   id: 'r1',

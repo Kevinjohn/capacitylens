@@ -7,7 +7,7 @@ See a brief "Loading…" placeholder until data is read from `localStorage`, the
 real schedule — never a flash of empty lists or an empty grid.
 
 ## Why
-Floaty reads everything from `localStorage` on startup. If the UI rendered before that
+CapacityLens reads everything from `localStorage` on startup. If the UI rendered before that
 finished, a manager would see (and might panic at) an empty schedule that then pops
 full of data. Gating the main content on a `hydrated` flag removes that flash entirely.
 
@@ -28,5 +28,5 @@ full of data. Gating the main content on a `hydrated` flag removes that flash en
   "0 resources" then a jump to the seeded rows).
 - ✅ After hydration completes, the seeded schedule renders (the grid and its seeded
   resource rows are present).
-- ✅ The sidebar (Floaty title + the eight links) is visible throughout, including
+- ✅ The sidebar (CapacityLens title + the eight links) is visible throughout, including
   during the loading phase.

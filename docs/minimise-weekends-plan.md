@@ -153,7 +153,7 @@ Both currently invert px→date with `/dayWidth` — wrong under variable widths
 
 Mirror the existing single-boolean device-global pref pattern (`theme` / `sidebarOpen`):
 - `src/lib/displayPrefs.ts` — `readStoredMinimiseWeekends()` / `writeStoredMinimiseWeekends()`,
-  own key `floaty/minimiseWeekends`, **default `true`** (tolerant read, best-effort write —
+  own key `capacitylens/minimiseWeekends`, **default `true`** (tolerant read, best-effort write —
   this is the documented "device-global non-tenant swallow" category).
 - `src/store/useStore.ts` — `minimiseWeekends: boolean` state (init from the reader),
   `setMinimiseWeekends(v)` setter (write-through + `set`), and the typed setter on the interface.

@@ -21,7 +21,7 @@ test('scheduler has no serious or critical accessibility violations', async ({ p
 test('scheduler in dark mode has no serious or critical violations', async ({ page }) => {
   // Dark is now an explicit preference (default is light), so seed the stored theme
   // rather than emulating the OS scheme — otherwise axe would sample the light palette.
-  await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
+  await page.addInitScript(() => localStorage.setItem('capacitylens/theme', 'dark'))
   await openApp(page)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.getByTestId('scheduler-grid')).toBeVisible()
@@ -57,7 +57,7 @@ test('scheduler in time-off draw mode has no serious or critical violations', as
 })
 
 test('scheduler in time-off draw mode (dark) has no serious or critical violations', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
+  await page.addInitScript(() => localStorage.setItem('capacitylens/theme', 'dark'))
   await openDrawMode(page)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
@@ -77,11 +77,11 @@ test('a resource form modal has no serious or critical violations', async ({ pag
 
 // A ConfirmDialog in DARK mode specifically: its `danger` confirm button is the only place the
 // danger button variant shows, and dark is where a solid bg-danger + white ink fails WCAG AA
-// (the dark --c-danger is a light coral, ~2.7:1). The variant uses floaty's AA-safe SOFT red
+// (the dark --c-danger is a light coral, ~2.7:1). The variant uses capacitylens's AA-safe SOFT red
 // pairing (bg-danger-soft + danger-soft-ink) instead; this scan locks that in so the button
 // can't silently regress to the failing solid fill.
 test('a confirm dialog (dark) danger button has no serious or critical violations', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
+  await page.addInitScript(() => localStorage.setItem('capacitylens/theme', 'dark'))
   await openApp(page, 'Studio North', '/clients')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Delete' }).click()
@@ -109,7 +109,7 @@ test('the empty schedule has no serious or critical violations', async ({ page }
 })
 
 test('the empty schedule (dark) has no serious or critical violations', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
+  await page.addInitScript(() => localStorage.setItem('capacitylens/theme', 'dark'))
   await openApp(page)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await page.getByLabel('Search people').fill('zzznobody')

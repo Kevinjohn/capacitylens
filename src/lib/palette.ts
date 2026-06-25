@@ -3,7 +3,7 @@
 
 // One definition lives in the shared core (used by the bar-colour fallback AND external identity);
 // re-export it here so app-side imports keep their `../lib/palette` path and the two can't drift.
-export { NEUTRAL_COLOR } from '@floaty/shared/lib/color'
+export { NEUTRAL_COLOR } from '@capacitylens/shared/lib/color'
 
 export const DEFAULT_COLORS = {
   client: '#2d75da', // blue

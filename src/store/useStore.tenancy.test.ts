@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
 import { makeAccount, makeAppData } from '../test/fixtures'
-import type { AppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 // The store is the strict per-account WRITE boundary: an update/delete must own
 // the target row, and every foreign key on an add/update must point inside the

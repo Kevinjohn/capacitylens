@@ -7,7 +7,7 @@ import { expect, type APIRequestContext } from '@playwright/test'
 // UI → store → ServerSyncAdapter → REST → SQLite, and rehydration via GET /api/state.
 
 // The server origin the db-backed Vite build points at (see playwright.config.ts).
-const API = process.env.VITE_FLOATY_API ?? 'http://localhost:8787'
+const API = process.env.VITE_CAPACITYLENS_API ?? 'http://localhost:8787'
 
 /** Wipe the server DB and re-seed the demo data so each test starts identically. */
 export async function resetServer(request: APIRequestContext, withSeed = true): Promise<void> {

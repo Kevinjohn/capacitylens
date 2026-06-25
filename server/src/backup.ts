@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Db } from './db'
 
-// Online DB snapshots (production plan P4.1, flag FLOATY_BACKUP_DIR — default OFF: this
+// Online DB snapshots (production plan P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: this
 // module is never started, touches no filesystem, owns no timer). A small server feature
 // rather than a host cron because WAL mode means a raw `cp` can catch a torn state —
 // node:sqlite's backup() takes a consistent online snapshot instead (fallback:
@@ -12,9 +12,9 @@ import type { Db } from './db'
 
 export interface BackupConfig {
   dir: string
-  /** Snapshot cadence in minutes (FLOATY_BACKUP_INTERVAL_MIN, default 60). */
+  /** Snapshot cadence in minutes (CAPACITYLENS_BACKUP_INTERVAL_MIN, default 60). */
   intervalMin: number
-  /** Rolling retention count, oldest pruned (FLOATY_BACKUP_KEEP, default 48). */
+  /** Rolling retention count, oldest pruned (CAPACITYLENS_BACKUP_KEEP, default 48). */
   keep: number
 }
 
@@ -24,12 +24,12 @@ export interface Backups {
   stop(): void
 }
 
-const SNAPSHOT_RE = /^floaty-\d{8}-\d{6}\.db$/
+const SNAPSHOT_RE = /^capacitylens-\d{8}-\d{6}\.db$/
 
-/** Fail-closed env parse: no FLOATY_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
+/** Fail-closed env parse: no CAPACITYLENS_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
  *  knobs are only read when backups are on; junk falls back to the documented defaults. */
 export function parseBackupConfig(env: Record<string, string | undefined>): BackupConfig | null {
-  const dir = env.FLOATY_BACKUP_DIR
+  const dir = env.CAPACITYLENS_BACKUP_DIR
   if (!dir) return null
   const positive = (raw: string | undefined, fallback: number) => {
     const n = Number(raw)
@@ -37,8 +37,8 @@ export function parseBackupConfig(env: Record<string, string | undefined>): Back
   }
   return {
     dir,
-    intervalMin: positive(env.FLOATY_BACKUP_INTERVAL_MIN, 60),
-    keep: Math.floor(positive(env.FLOATY_BACKUP_KEEP, 48)),
+    intervalMin: positive(env.CAPACITYLENS_BACKUP_INTERVAL_MIN, 60),
+    keep: Math.floor(positive(env.CAPACITYLENS_BACKUP_KEEP, 48)),
   }
 }
 
@@ -46,7 +46,7 @@ function stampName(now: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const date = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`
   const time = `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`
-  return `floaty-${date}-${time}.db`
+  return `capacitylens-${date}-${time}.db`
 }
 
 /** Delete the oldest snapshots beyond `keep`; returns how many were pruned. Only files
@@ -75,14 +75,14 @@ export function startBackups(
     if (typeof backup === 'function') await backup(db, file)
     else db.exec(`VACUUM INTO '${file.replaceAll("'", "''")}'`)
     const pruned = prune(config.dir, config.keep)
-    log(`floaty-server: backup written ${file}${pruned > 0 ? ` (pruned ${pruned})` : ''}`)
+    log(`capacitylens-server: backup written ${file}${pruned > 0 ? ` (pruned ${pruned})` : ''}`)
     return file
   }
 
   // A failed snapshot must never crash the daemon — log and try again next tick.
   const safeSnapshot = () =>
     void snapshotNow().catch((err: unknown) =>
-      log(`floaty-server: backup FAILED — ${err instanceof Error ? err.message : String(err)}`),
+      log(`capacitylens-server: backup FAILED — ${err instanceof Error ? err.message : String(err)}`),
     )
 
   safeSnapshot() // one immediately on start, so a fresh deploy is covered before the first hour

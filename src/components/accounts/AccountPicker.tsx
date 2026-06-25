@@ -7,7 +7,8 @@ import { validateHex, validateName } from '../../lib/validation'
 import { AddButton, Avatar, Button, ColorField, DeleteButton, FieldError, TextField } from '../common/ui'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { Account } from '@floaty/shared/types/entities'
+import type { Account } from '@capacitylens/shared/types/entities'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 // Full-screen tenant chooser. Shown on every load (activeAccountId is never
 // persisted) and whenever the user picks "Switch company". Lets you open an
@@ -79,7 +80,7 @@ export function AccountPicker() {
           </button>
         )}
         <div className="mb-6 text-center">
-          <div className="mb-1 text-2xl font-bold text-brand">Floaty</div>
+          <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
           <h1 className="text-lg font-semibold text-ink">Choose a company</h1>
           <p className="text-sm text-muted">Pick a company to plan, or create a new one.</p>
         </div>

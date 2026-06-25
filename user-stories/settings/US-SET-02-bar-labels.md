@@ -27,4 +27,4 @@ theme), not shared account data.
 - With both on, a bar's label is `Client · Project · Activity` (then `· Nh` outside blocks mode).
 - Switching **Show client name** off removes only the client part; **Show project name** off removes only the project part; both off leaves just the activity.
 - An activity with no project shows no empty separators — missing parts are skipped.
-- The choice survives a reload in the same browser (device-global `floaty/barLabelPrefs`), and is **not** included in Export JSON.
+- The choice survives a reload in the same browser (device-global `capacitylens/barLabelPrefs`), and is **not** included in Export JSON.

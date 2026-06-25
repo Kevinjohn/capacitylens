@@ -8,8 +8,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 afterEach(() => vi.unstubAllEnvs())
 
 describe('apiConfig', () => {
-  it('isServerConfigured is true when VITE_FLOATY_API is set', async () => {
-    vi.stubEnv('VITE_FLOATY_API', 'https://api.example.com')
+  it('isServerConfigured is true when VITE_CAPACITYLENS_API is set', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.com')
     vi.resetModules()
     const { isServerConfigured, API_BASE } = await import('./apiConfig')
     expect(isServerConfigured()).toBe(true)
@@ -17,7 +17,7 @@ describe('apiConfig', () => {
   })
 
   it('isServerConfigured is false when the env var is unset (local-first default)', async () => {
-    vi.stubEnv('VITE_FLOATY_API', '')
+    vi.stubEnv('VITE_CAPACITYLENS_API', '')
     vi.resetModules()
     const { isServerConfigured, API_BASE } = await import('./apiConfig')
     expect(isServerConfigured()).toBe(false)
@@ -25,7 +25,7 @@ describe('apiConfig', () => {
   })
 
   it('trims a trailing slash so `${API_BASE}/api/...` stays clean', async () => {
-    vi.stubEnv('VITE_FLOATY_API', 'https://api.example.com///')
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'https://api.example.com///')
     vi.resetModules()
     const { API_BASE, isServerConfigured } = await import('./apiConfig')
     expect(API_BASE).toBe('https://api.example.com')
