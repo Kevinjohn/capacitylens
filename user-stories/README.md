@@ -160,6 +160,11 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-SET-02](settings/US-SET-02-bar-labels.md) | Allocation-bar label toggles | `e2e/settings-bar-labels.spec.ts` |
 | [US-SET-03](settings/US-SET-03-build-stamp.md) | Build stamp (flag-gated) | `e2e/settings-build-stamp.spec.ts` (absence by default) |
 | [US-SET-04](settings/US-SET-04-send-feedback.md) | Send feedback mailto (flag-gated) | `e2e/settings-build-stamp.spec.ts` (absence by default) |
+| [US-SET-05](settings/US-SET-05-minimise-weekends.md) | Minimise weekends on the schedule | `e2e/minimise-weekends.spec.ts` |
+| [US-SET-06](settings/US-SET-06-show-placeholders.md) | Show placeholders on the schedule | `e2e/placeholders.spec.ts` |
+| [US-SET-07](settings/US-SET-07-show-external.md) | Show external / 3rd parties | `e2e/external.spec.ts` |
+| [US-SET-08](settings/US-SET-08-clear-local-storage.md) | Clear local storage | `e2e/clear-local-storage.spec.ts` |
+| [US-SET-09](settings/US-SET-09-snap-to-week-start.md) | Snap the schedule's left edge to the week start | `e2e/snap-week.spec.ts` |
 
 ## Keyboard & accessibility — `accessibility/`
 | Story | Title | Automated coverage |

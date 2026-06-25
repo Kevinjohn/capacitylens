@@ -4,7 +4,7 @@ import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, startOfWeekISO, todayISO } from '@floaty/shared/lib/dateMath'
-import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
+import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEK_SNAP_IDLE_MS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, EmptyState } from '../common/ui'
 import { resourceDisplayName } from '../../lib/metadata'
 import { Icon } from '../common/Icon'
@@ -54,6 +54,10 @@ export function SchedulerGrid() {
   const utilizationPrefs = useStore((s) => s.utilizationPrefs)
   // Device-global display pref (default on): narrow the weekend columns. Drives the geometry below.
   const minimiseWeekends = useStore((s) => s.minimiseWeekends)
+  // Device-global display pref (default on): after a FREE scroll settles, floor the left edge back
+  // to the current week's first day (the scroll-idle snap in onScroll below). FREE SCROLL ONLY —
+  // the navigation snap (zoom / Prev-Next / date-picker, Feature 1) is always on, independent of this.
+  const snapToWeekStart = useStore((s) => s.snapToWeekStart)
   // Per-account display pref (default OFF): when off, placeholder ("slot") rows are hidden from
   // the schedule (and dropped from utilisation) by buildSchedulerModel's resourceVisible filter.
   const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
@@ -83,6 +87,8 @@ export function SchedulerGrid() {
   // paint scrollLeft=0 points at the past-buffer origin, NOT today — see visibleWindow below).
   const [leftEdgeIdx, setLeftEdgeIdx] = useState(-1)
   const scrollRaf = useRef(0)
+  // Debounce timer for the scroll-idle "snap to week start" floor (armed in onScroll). 0 = idle.
+  const snapTimer = useRef(0)
 
   // Measure the scroll container so the day-column width can fit ui.zoom weeks (and
   // the height drives row virtualization). useLayoutEffect (NOT useEffect) so the measure runs
@@ -376,9 +382,31 @@ export function SchedulerGrid() {
       if (!el) return
       setScrollTop(el.scrollTop)
       setLeftEdgeIdx(geom.indexAt(el.scrollLeft))
+      // Scroll-idle "snap to week start" floor — device-global pref (default on; FREE SCROLL ONLY,
+      // independent of Feature 1's always-on navigation snap). When on, debounce until the scroll
+      // settles, then floor the left edge to the current left-edge day's WEEK START. FLOOR not
+      // nearest — by design, forward weeks are reached via Prev/Next, so a free nudge only ever
+      // settles BACKWARD to its own Monday. It respects the drag-freeze (re-checks live state in the
+      // timeout) and converges in ONE step: a programmatic scroll (zoom / recenter, Feature 1) has
+      // already landed on a week start, so target ≈ scrollLeft and the > 0.5px guard makes it a
+      // no-op there — no feedback loop where the snap re-triggers itself.
+      if (snapToWeekStart) {
+        clearTimeout(snapTimer.current)
+        snapTimer.current = window.setTimeout(() => {
+          const node = scrollRef.current
+          if (!node || useStore.getState().draggingAllocationId !== null) return // respect the drag-freeze
+          const weekStart = startOfWeekISO(days[geom.indexAt(node.scrollLeft)] ?? days[0], calendarWeekStartsOn)
+          const target = geom.xForDateInGeom(weekStart)
+          if (Math.abs(target - node.scrollLeft) > 0.5) node.scrollLeft = target
+        }, WEEK_SNAP_IDLE_MS)
+      }
     })
   }
-  useEffect(() => () => { if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current) }, [])
+  // Cancel the in-flight scroll rAF AND the pending week-snap debounce on unmount.
+  useEffect(() => () => {
+    if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current)
+    clearTimeout(snapTimer.current)
+  }, [])
   // When a drag ENDS, catch the window up to any scrolling done while it was frozen.
   useEffect(() => {
     if (!dragging && scrollRef.current) setScrollTop(scrollRef.current.scrollTop)

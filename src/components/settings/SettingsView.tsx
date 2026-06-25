@@ -91,6 +91,8 @@ export function SettingsView() {
   const setBarLabelPref = useStore((s) => s.setBarLabelPref)
   const minimiseWeekends = useStore((s) => s.minimiseWeekends)
   const setMinimiseWeekends = useStore((s) => s.setMinimiseWeekends)
+  const snapToWeekStart = useStore((s) => s.snapToWeekStart)
+  const setSnapToWeekStart = useStore((s) => s.setSnapToWeekStart)
 
   const schedulingMode: SchedulingMode = activeAccount?.schedulingMode ?? 'hourly'
   const weekStartsOn: 0 | 1 = activeAccount?.weekStartsOn ?? 1
@@ -257,13 +259,19 @@ export function SettingsView() {
           <p className="mb-3 text-xs text-muted">
             How the week grid is drawn — applies to this browser. Minimise weekends shrinks the
             Saturday and Sunday columns so the working week dominates the view. Weekend work still
-            shows; the columns just narrow.
+            shows; the columns just narrow. Snap to week start keeps the first day of the week pinned
+            to the left edge so a stray scroll doesn't nudge the view onto a mid-week day.
           </p>
           <div className="divide-y divide-line">
             <ToggleRow
               label="Minimise weekends"
               on={minimiseWeekends}
               onToggle={() => setMinimiseWeekends(!minimiseWeekends)}
+            />
+            <ToggleRow
+              label="Snap to week start"
+              on={snapToWeekStart}
+              onToggle={() => setSnapToWeekStart(!snapToWeekStart)}
             />
           </div>
         </section>

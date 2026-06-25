@@ -5,6 +5,8 @@ import {
   writeStoredSidebarOpen,
   readStoredMinimiseWeekends,
   writeStoredMinimiseWeekends,
+  readStoredSnapToWeekStart,
+  writeStoredSnapToWeekStart,
   readStoredFakeSignedIn,
   writeStoredFakeSignedIn,
 } from './displayPrefs'
@@ -56,6 +58,28 @@ describe('minimise-weekends preference', () => {
   it('treats an unrecognised stored value as the default (on)', () => {
     localStorage.setItem('floaty/minimiseWeekends', 'maybe')
     expect(readStoredMinimiseWeekends()).toBe(true)
+  })
+})
+
+describe('snap-to-week-start preference', () => {
+  beforeEach(() => {
+    localStorage.removeItem('floaty/snapToWeekStart')
+  })
+
+  it('defaults to TRUE (on) when the user has never chosen', () => {
+    expect(readStoredSnapToWeekStart()).toBe(true)
+  })
+
+  it('round-trips an explicit on/off choice', () => {
+    writeStoredSnapToWeekStart(false)
+    expect(readStoredSnapToWeekStart()).toBe(false)
+    writeStoredSnapToWeekStart(true)
+    expect(readStoredSnapToWeekStart()).toBe(true)
+  })
+
+  it('treats an unrecognised stored value as the default (on)', () => {
+    localStorage.setItem('floaty/snapToWeekStart', 'maybe')
+    expect(readStoredSnapToWeekStart()).toBe(true)
   })
 })
 

@@ -29,6 +29,11 @@ export const WEEKDAY_LABEL_MIN_WIDTH = 36
  *  fine zoom (dayWidth >= DAY_COLUMN_MIN_WIDTH); buildColumnGeometry also caps it at dayWidth. */
 export const WEEKEND_COLUMN_REM = 1.4 // ≈ a 2-digit number at text-xs + a little padding
 
+/** Idle delay (ms) after a FREE horizontal scroll settles before the "snap to week start" pref
+ *  floors the left edge back to the current week's first day — long enough that a continuous drag
+ *  isn't fought mid-gesture, short enough to feel immediate once the user lets go. */
+export const WEEK_SNAP_IDLE_MS = 120
+
 /** How many days the timeline spans FORWARD from the focus date. */
 export const DEFAULT_RANGE_DAYS = 120
 /** Scrollable history kept to the LEFT of the focus date (default view, Today,
