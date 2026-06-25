@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hasActiveFilters, useStore } from './useStore'
-import { resetStoreWithAccount } from '../test/fixtures'
+import { resetStoreWithAccount, makeAppData, makeAccount } from '../test/fixtures'
 import { addDaysISO, weekdayOf } from '@floaty/shared/lib/dateMath'
+import { serializeData } from '@floaty/shared/data/transfer'
 import { PAST_BUFFER_DAYS } from '../lib/schedulerConfig'
 
 const s = () => useStore.getState()
@@ -149,6 +150,45 @@ describe('store scheduler UI', () => {
     expect(s().ui.recenterToken).toBe(before + 1)
     // Origin sits the back-buffer behind the snapped Monday, so the past stays scrollable.
     expect(s().ui.originDate).toBe(addDaysISO('2026-09-07', -PAST_BUFFER_DAYS))
+  })
+
+  it('goToDate snaps to the account week start when weekStartsOn=0 (Sunday) — not a hardcoded Monday', () => {
+    // Seed an account whose calendar week starts on SUNDAY and make it active. This guards a
+    // regression where goToDate floored to Monday regardless of the account's weekStartsOn.
+    const sunStart = 'acct-sun'
+    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: sunStart, weekStartsOn: 0 })] }))
+    useStore.getState().setActiveAccount(sunStart)
+    // 2026-09-09 is a Wednesday (verified); the Sunday that starts its week is 2026-09-06 (verified).
+    useStore.getState().goToDate('2026-09-09')
+    expect(useStore.getState().ui.focusDate).toBe('2026-09-06') // that week's Sunday, NOT 09-07 (Monday)
+    expect(weekdayOf(useStore.getState().ui.focusDate)).toBe(0) // 0 = Sunday
+    // Origin sits the back-buffer behind the snapped Sunday, so the past stays scrollable.
+    expect(useStore.getState().ui.originDate).toBe(addDaysISO('2026-09-06', -PAST_BUFFER_DAYS))
+  })
+
+  it('setSnapToWeekStart persists to its own key, is OFF the undo stack, and is NOT in export', () => {
+    // Device-global pref (default ON). Turning it off writes the 'off' literal and updates the
+    // reactive store value.
+    s().setSnapToWeekStart(false)
+    expect(localStorage.getItem('floaty/snapToWeekStart')).toBe('off')
+    expect(s().snapToWeekStart).toBe(false)
+
+    // It is a device pref, NOT a data mutation, so undo must not revert it (mirrors theme /
+    // minimiseWeekends — those never touch the undo/redo stack either).
+    s().addClient({ name: 'Acme', color: '#1' }) // a real mutation to give undo something to pop
+    s().undo()
+    expect(s().snapToWeekStart).toBe(false) // still off — the pref rode through the undo untouched
+
+    // And it never leaks into exported AppData (it lives on the store, not in `data`). Serialize the
+    // active company's data the way the export/delete-backup paths do and confirm the key is absent —
+    // same contract the e2e reload covers for theme / minimiseWeekends.
+    const json = serializeData(s().data)
+    expect(json).not.toContain('snapToWeekStart')
+    expect(s().data).not.toHaveProperty('snapToWeekStart')
+
+    // Restore the default — the store is a singleton, so leaving it off (and the 'off' key set)
+    // would bleed into later specs that read the pref.
+    s().setSnapToWeekStart(true)
   })
 
   it('setDrawMode toggles between work and time off', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { SchedulerGrid } from './SchedulerGrid'
@@ -153,5 +153,140 @@ describe('SchedulerGrid filters', () => {
     act(() => useStore.getState().toggleGroup('d1'))
     expect(screen.queryByText('Tyler')).not.toBeInTheDocument()
     expect(screen.getByTestId('discipline-group')).toBeInTheDocument()
+  })
+})
+
+// Feature 2 (the device-global "Snap to week start" pref) — the scroll-idle floor wired through
+// onScroll. The PURE floor math is unit-tested in weekSnap.test.ts; here we pin the COMPONENT
+// WIRING: the debounce, the drag-freeze respect, the convergence no-op, and the unmount cleanup.
+//
+// jsdom never lays the grid out (clientWidth === 0), so the geometry effect and the scroll-idle snap
+// both early-return (see the "leftEdgeIdx stays -1 in jsdom" note above). We therefore (1) mock
+// clientWidth/clientHeight so timelineWidth > 0 and didScroll flips, (2) run rAF synchronously so
+// onScroll's body executes inside the dispatched scroll event, and (3) drive WEEK_SNAP_IDLE_MS with
+// fake timers. minimise-weekends is forced OFF so the column grid is uniform (dayWidth = floor(944/7)
+// = 134, a 938px week) and the snap targets are plain multiples of the week width.
+describe('SchedulerGrid — snap to week start (Feature 2 wiring)', () => {
+  const DAY_WIDTH = 134 // floor((1200 - leftColWidth 256) / 7) at zoom=1, minimise OFF
+  const WEEK = DAY_WIDTH * 7 // 938 — offset of the next Monday from the origin Monday
+  // A mid-week nudge: Wed of week 2 (origin index 9). Floors back to week 2's Monday (index 7).
+  const NUDGE = 9 * DAY_WIDTH // 1206
+  const SNAPPED = 7 * DAY_WIDTH // 938
+  let rafSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    // Make the grid measure so timelineWidth > 0 (didScroll flips) and the snap actually runs.
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 1200 })
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 600 })
+    // Run the onScroll rAF synchronously so its body executes within the dispatched scroll event; the
+    // setTimeout(WEEK_SNAP_IDLE_MS) it arms is still driven by the fake timers below.
+    rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb(0)
+      return 1
+    })
+    // Uniform columns → predictable week-multiple offsets.
+    useStore.getState().setMinimiseWeekends(false)
+    // Anchor BOTH origin and focus on Mon 2026-06-01 so first-paint scrollLeft (focusX) is 0.
+    useStore.setState((st) => ({ ui: { ...st.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom: 1, collapsedGroups: [] } }))
+  })
+
+  afterEach(() => {
+    rafSpy.mockRestore()
+    vi.useRealTimers()
+    delete (HTMLElement.prototype as unknown as { clientWidth?: number }).clientWidth
+    delete (HTMLElement.prototype as unknown as { clientHeight?: number }).clientHeight
+    useStore.getState().setSnapToWeekStart(true) // restore the default for other suites
+    useStore.getState().setMinimiseWeekends(true)
+    useStore.setState({ draggingAllocationId: null })
+  })
+
+  // Scroll the grid to `px` and fire the scroll event (the component's onScroll listens for it).
+  const scrollTo = (px: number) => {
+    const grid = screen.getByTestId('scheduler-grid')
+    act(() => {
+      grid.scrollLeft = px
+      grid.dispatchEvent(new Event('scroll'))
+    })
+  }
+
+  it('pref ON: a mid-week nudge floors back to the week start after the idle (and not before)', () => {
+    useStore.getState().setSnapToWeekStart(true)
+    const view = renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+
+    scrollTo(NUDGE)
+    expect(grid.scrollLeft).toBe(NUDGE) // debounce: nothing has moved yet
+    act(() => { vi.advanceTimersByTime(50) }) // still inside the idle window
+    expect(grid.scrollLeft).toBe(NUDGE)
+
+    act(() => { vi.advanceTimersByTime(100) }) // past WEEK_SNAP_IDLE_MS (120) total
+    expect(grid.scrollLeft).toBe(SNAPPED) // floored back to week 2's Monday
+    view.unmount()
+  })
+
+  it('re-arms on each scroll: two quick scrolls fire only ONE snap, after the final idle', () => {
+    useStore.getState().setSnapToWeekStart(true)
+    const view = renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+
+    scrollTo(NUDGE) // arms timer A (would fire at t=120)
+    act(() => { vi.advanceTimersByTime(40) }) // t=40, under the idle — no snap yet
+    expect(grid.scrollLeft).toBe(NUDGE)
+    scrollTo(NUDGE + WEEK) // a second scroll (Wed of week 3) clears A and re-arms timer B (fires t=160)
+    act(() => { vi.advanceTimersByTime(40) }) // t=80, still under BOTH idles (A cleared, B fires at 160)
+    expect(grid.scrollLeft).toBe(NUDGE + WEEK) // no premature snap
+
+    act(() => { vi.advanceTimersByTime(120) }) // t=200, past timer B → exactly one snap
+    expect(grid.scrollLeft).toBe(SNAPPED + WEEK) // floored to week 3's Monday
+    view.unmount()
+  })
+
+  it('pref OFF: a nudge is left where it lands (no snap timer armed)', () => {
+    useStore.getState().setSnapToWeekStart(false)
+    const view = renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+
+    scrollTo(NUDGE)
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(grid.scrollLeft).toBe(NUDGE) // stays put
+    view.unmount()
+  })
+
+  it('drag-freeze: a snap armed before a drag bails when it fires mid-drag', () => {
+    useStore.getState().setSnapToWeekStart(true)
+    const view = renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+
+    scrollTo(NUDGE) // arms the snap timer
+    // A drag begins before the idle elapses; the timeout re-checks live draggingAllocationId and bails.
+    act(() => useStore.setState({ draggingAllocationId: 'x' }))
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(grid.scrollLeft).toBe(NUDGE) // not snapped — the drag-freeze held
+    view.unmount()
+  })
+
+  it('convergence: a scroll that lands exactly on a week start writes nothing back', () => {
+    useStore.getState().setSnapToWeekStart(true)
+    const view = renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+
+    scrollTo(WEEK) // already a Monday offset → helper returns null → no write
+    act(() => { vi.advanceTimersByTime(500) })
+    expect(grid.scrollLeft).toBe(WEEK)
+    view.unmount()
+  })
+
+  it('clears the pending snap timer on unmount (no late write to a detached node)', () => {
+    useStore.getState().setSnapToWeekStart(true)
+    const view = renderGrid()
+    const grid = screen.getByTestId('scheduler-grid')
+
+    scrollTo(NUDGE) // arm the snap
+    view.unmount() // cleanup effect clears snapTimer
+    // Advancing past the idle must NOT throw or write (the timer was cleared). The detached node's
+    // scrollLeft stays at the nudged value.
+    expect(() => act(() => { vi.advanceTimersByTime(500) })).not.toThrow()
+    expect(grid.scrollLeft).toBe(NUDGE)
   })
 })

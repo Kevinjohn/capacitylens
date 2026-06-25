@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   defaultSidebarOpen,
   readStoredSidebarOpen,
@@ -80,6 +80,33 @@ describe('snap-to-week-start preference', () => {
   it('treats an unrecognised stored value as the default (on)', () => {
     localStorage.setItem('floaty/snapToWeekStart', 'maybe')
     expect(readStoredSnapToWeekStart()).toBe(true)
+  })
+
+  it('swallows a blocked read to the default (on) — a device pref can never corrupt account data', () => {
+    // Private mode / quota / a sandboxed iframe can make getItem THROW (not just return null). The
+    // read must degrade to the documented default rather than crash boot (DEFENSIVE-CODING.md §5:
+    // the ONE category where swallow-to-default is correct — a non-tenant view toggle).
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    try {
+      expect(readStoredSnapToWeekStart()).toBe(true)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('does not throw when the write is blocked (best-effort persist)', () => {
+    // A blocked/full setItem must not bubble — the in-memory store still honours the choice for the
+    // session; only persistence across reloads is lost.
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    try {
+      expect(() => writeStoredSnapToWeekStart(false)).not.toThrow()
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
 

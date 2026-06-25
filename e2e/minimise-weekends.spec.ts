@@ -20,15 +20,45 @@ async function probe(page: import('@playwright/test').Page) {
     const cells = dayTier ? Array.from(dayTier.children) : []
     const gridRect = grid.getBoundingClientRect()
     const laneLeft = gridRect.left + 256 // past the sticky left column
+    // The weekday label is the cell's last <span> ("Mon"/"S"/…); a 3-letter label marks a weekday.
+    const weekdayLabel = (c: Element) => {
+      const spans = c.querySelectorAll('span')
+      return (spans[spans.length - 1]?.textContent || '').trim()
+    }
     let leftDate = ''
     let visibleDays = 0
+    let weekdayWidth = 0
     for (const c of cells) {
       const r = (c as HTMLElement).getBoundingClientRect()
       if (!leftDate && r.right > laneLeft + 1) leftDate = (c.textContent || '').trim()
       if (r.right > laneLeft && r.left < gridRect.right) visibleDays++
+      // First wide (3-letter) weekday cell gives a representative column width for column-relative nudges.
+      if (!weekdayWidth && weekdayLabel(c).length === 3) weekdayWidth = r.width
     }
-    return { leftDate, visibleDays }
+    return { leftDate, visibleDays, weekdayWidth }
   })
+}
+
+// Nudge the grid by a fixed number of weekday columns (derived from a probed column width, so it's
+// resolution-independent), mirroring e2e/snap-week.spec.ts's nudge().
+async function nudge(page: import('@playwright/test').Page, columns: number) {
+  const { weekdayWidth } = await probe(page)
+  await page.getByTestId('scheduler-grid').evaluate((node, dx) => {
+    ;(node as HTMLElement).scrollLeft += dx
+  }, Math.round(weekdayWidth * columns))
+}
+
+// Turn the device-global "Snap to week start" pref OFF and land on the Schedule at 1w. With the
+// free-scroll snap off, a mid-week nudge STICKS — so any later left-edge move is attributable to the
+// thing under test (a resize / a minimise toggle), and we can prove that thing does NOT snap.
+async function openWithFreeScrollSnapOff(page: import('@playwright/test').Page) {
+  await page.setViewportSize({ width: 1440, height: 800 })
+  await openApp(page, 'Studio North', '/settings')
+  const snap = page.getByRole('switch', { name: 'Snap to week start' })
+  await snap.click()
+  await expect(snap).toHaveAttribute('aria-checked', 'false')
+  await page.getByRole('link', { name: 'Schedule' }).click()
+  await page.getByRole('button', { name: '1w', exact: true }).click()
 }
 
 // Covers US-SET-05. "Minimise weekends" (device-global, default ON) shrinks the
@@ -132,5 +162,56 @@ test.describe('Minimise weekends', () => {
     dialog = page.getByRole('dialog', { name: 'Edit allocation' })
     const startAfter = await dialog.getByLabel('Start Date', { exact: true }).inputValue()
     expect(startAfter > startBefore).toBe(true) // ISO dates sort chronologically
+  })
+
+  // Feature 1's navigation snap (zoom / Prev-Next / date-picker) re-anchors the left edge to the week
+  // start. A pure RESIZE and a minimise-weekends TOGGLE both re-fit the day width WITHOUT a zoom or a
+  // day-range change — so the snap=false branch must run: the left-edge DATE is preserved exactly, not
+  // floored to a Monday. We turn the F2 free-scroll snap OFF first so its idle snap can't masquerade
+  // as a navigation snap and mask a regression. The nudge lands on a mid-week WEEKDAY ("…Wed"/"…Thu")
+  // so a (wrong) Monday-snap would be plainly visible as a changed date.
+  test('a pure resize preserves the mid-week left-edge date (no navigation snap)', async ({ page }) => {
+    await openWithFreeScrollSnapOff(page)
+
+    await nudge(page, 2.5) // → a mid-week weekday
+    const leftDate = (await probe(page)).leftDate
+    expect(leftDate).not.toMatch(/Mon$/) // sanity: parked mid-week, so a Monday-snap would change it
+
+    // A pure resize re-fits dayWidth but changes neither zoom nor day-range → snap must NOT fire.
+    await page.setViewportSize({ width: 1180, height: 800 })
+
+    // Let the refit (rAF) fully settle past the free-scroll idle window so a (wrong) snap WOULD have
+    // landed by now. A single post-settle read — NOT expect.poll, which would short-circuit on the
+    // stale pre-resize value before the snap could fire and pass this no-change assertion vacuously.
+    await page.waitForTimeout(400) // > WEEK_SNAP_IDLE_MS (120ms) + the refit frame
+    expect((await probe(page)).leftDate).toBe(leftDate) // exact date unchanged (no snap to Monday)
+  })
+
+  // The same snap=false (preserve-exact-date) branch, but with "Minimise weekends" OFF — proving the
+  // navigation snap is gated on a zoom/pan, NOT on the minimise geometry. We flip minimise off FIRST
+  // (a Settings round-trip remounts the grid and recentres it to the focus Monday — that's mount
+  // behaviour, separate from the snap branch under test), THEN nudge to a mid-week WEEKDAY and do a
+  // pure in-component RESIZE: a refit that is neither a zoom nor a pan must preserve the exact date.
+  test('with minimise OFF, a pure resize still preserves the mid-week left-edge date (no snap)', async ({ page }) => {
+    await openWithFreeScrollSnapOff(page)
+
+    // Turn minimise weekends off (so this exercises the OTHER geometry), then return to the grid.
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.getByRole('switch', { name: 'Minimise weekends' }).click()
+    await page.getByRole('link', { name: 'Schedule' }).click()
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+
+    await nudge(page, 2.5) // → a mid-week weekday
+    const leftDate = (await probe(page)).leftDate
+    expect(leftDate).not.toMatch(/Mon$/) // sanity: parked mid-week
+
+    // A pure resize re-fits dayWidth without a zoom/day-range change → snap must NOT fire.
+    await page.setViewportSize({ width: 1180, height: 800 })
+
+    // Let the refit (rAF) fully settle past the free-scroll idle window so a (wrong) snap WOULD have
+    // landed by now. A single post-settle read — NOT expect.poll, which would short-circuit on the
+    // stale pre-resize value before the snap could fire and pass this no-change assertion vacuously.
+    await page.waitForTimeout(400) // > WEEK_SNAP_IDLE_MS (120ms) + the refit frame
+    expect((await probe(page)).leftDate).toBe(leftDate) // exact mid-week date preserved (no Monday-floor)
   })
 })

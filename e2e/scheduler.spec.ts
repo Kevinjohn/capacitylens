@@ -153,21 +153,30 @@ test.describe('Scheduler', () => {
   })
 
   test('clicking Today re-centres the timeline after scrolling away', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 800 })
     await openApp(page)
+    await page.getByRole('button', { name: '1w', exact: true }).click()
     const grid = page.getByTestId('scheduler-grid')
     await expect(grid).toBeVisible()
 
-    // Scroll far to the right, then ask to go back to Today.
-    await grid.evaluate((el) => {
-      ;(el as HTMLElement).scrollLeft = 5000
-    })
+    // Scroll far to the right, then add a deterministic 2.5-weekday-column nudge so the left edge
+    // lands MID-WEEK (a fixed 5000px can coincidentally align to a Monday, depending on column
+    // width). The mid-week precondition is what proves Today actively re-anchors to the week start,
+    // rather than the view having merely stayed put on a Monday.
+    const { weekdayWidth } = await probe(page)
+    await grid.evaluate((el, dx) => {
+      ;(el as HTMLElement).scrollLeft = 5000 + dx
+    }, Math.round(weekdayWidth * 2.5))
     const scrolled = await grid.evaluate((el) => (el as HTMLElement).scrollLeft)
     expect(scrolled).toBeGreaterThan(800)
+    expect((await probe(page)).leftDate).not.toMatch(/Mon$/)
 
     await page.getByRole('button', { name: 'Today', exact: true }).click()
 
-    // The grid re-scrolls back towards today (much smaller scrollLeft than where we were).
+    // The grid re-scrolls back towards today (much smaller scrollLeft than where we were)…
     await expect.poll(() => grid.evaluate((el) => (el as HTMLElement).scrollLeft)).toBeLessThan(scrolled - 400)
+    // …AND the left edge lands flush on the focus week's start (Monday), not a coarse pixel target.
+    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/)
   })
 
   test('jumping to a date moves the timeline to that month', async ({ page }) => {
@@ -289,35 +298,59 @@ test.describe('Scheduler', () => {
   })
 
   // Feature 1 (ALWAYS on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
-  // week start (account weekStartsOn, default Monday). A free-scroll nudge to a mid-week day is NOT
-  // snapped on its own (no free-scroll snapping yet — that's a later setting), so the nudge persists
-  // until the next navigation, which is exactly what lets us observe the re-anchor here.
-  test('navigation re-anchors the left edge to the week start', async ({ page }) => {
+  // week start (account weekStartsOn, default Monday) — INDEPENDENT of Feature 2's "Snap to week
+  // start" free-scroll pref. The audit found this test was CONFOUNDED: because F2 defaults ON, the
+  // idle free-scroll snap masked the F1 navigation snap (disabling only F1 still left it green).
+  // So we turn F2 OFF first — now a free nudge to a mid-week day STICKS, and the ONLY thing that can
+  // re-anchor the left edge to a Monday is the navigation branch under test (zoom / Next / Prev).
+  // Frozen clock 2026-06-03 (Wed); week origin Monday 2026-06-01 → the 1w view opens flush on "1Mon".
+  test('navigation re-anchors the left edge to the week start (with the free-scroll snap OFF)', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 })
-    await openApp(page)
+    await openApp(page, 'Studio North', '/settings')
 
-    // Header day cells read "<dayNum><EEE>", e.g. "7Mon"; a minimised weekend collapses to "<n>S".
-    // We assert on the weekday suffix.
+    // Turn F2 ("Snap to week start") OFF so the idle free-scroll snap can't mask the navigation snap.
+    const snap = page.getByRole('switch', { name: 'Snap to week start' })
+    await snap.click()
+    await expect(snap).toHaveAttribute('aria-checked', 'false')
+
+    await page.getByRole('link', { name: 'Schedule' }).click()
     await page.getByRole('button', { name: '1w', exact: true }).click()
-    const start = await probe(page)
-    // The focused left edge is the current week's Monday (the default view is flush to it).
-    expect(start.leftDate).toMatch(/Mon$/)
 
-    // Nudge the grid so the left edge sits on a mid-week day: scroll past ~2.5 weekday columns.
+    // Header day cells read "<dayNum><EEE>", e.g. "1Mon"; a minimised weekend collapses to "<n>S".
+    // We assert on the weekday suffix, and capture the leading day NUMBER to prove the window moved.
     const grid = page.getByTestId('scheduler-grid')
+    const start = await probe(page)
+    expect(start.leftDate).toMatch(/Mon$/) // the focused left edge opens on the current week's Monday
     const nudge = Math.round(start.weekdayWidth * 2.5)
-    await grid.evaluate((el, px) => { (el as HTMLElement).scrollLeft = px }, nudge)
-    const nudged = await probe(page)
-    expect(nudged.leftDate).not.toMatch(/Mon$/) // sanity: we're no longer parked on the Monday
+    const dayNum = (s: string) => Number.parseInt(s, 10) // leading day number, e.g. "12Wed" → 12
+    // The idle snap is OFF, so a nudge to a mid-week day must STICK — proving any later return to
+    // Monday is attributable to NAVIGATION, not the free-scroll snap. (If the nudge didn't move off
+    // Monday, every assertion below would be vacuous.)
+    const nudgeOffMonday = async () => {
+      await grid.evaluate((el, px) => { (el as HTMLElement).scrollLeft = px }, nudge)
+      await page.waitForTimeout(300) // > WEEK_SNAP_IDLE_MS — a snap, if it fired, would have by now
+      expect((await probe(page)).leftDate).not.toMatch(/Mon$/)
+    }
 
-    // A zoom click snaps the left edge back to the week start.
+    // (1) ZOOM snaps even with the pref OFF.
+    await nudgeOffMonday()
     await page.getByRole('button', { name: '2w', exact: true }).click()
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/)
+    const afterZoom = dayNum((await probe(page)).leftDate)
 
-    // A Prev/Next pan snaps too: nudge to mid-week again, then click Next.
-    await grid.evaluate((el, px) => { (el as HTMLElement).scrollLeft = px }, nudge)
-    expect((await probe(page)).leftDate).not.toMatch(/Mon$/)
+    // (2) NEXT pans forward AND snaps: the window advances ~a week and lands on a Monday.
+    await nudgeOffMonday()
     await page.getByRole('button', { name: 'Next' }).click()
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/)
+    const afterNext = dayNum((await probe(page)).leftDate)
+    expect(afterNext).toBeGreaterThan(afterZoom) // moved roughly a week forward (still a Monday)
+
+    // (3) PREV pans backward AND snaps (this branch was previously UNtested). It must land on a
+    // Monday EARLIER than the Next position — i.e. a real backward week step, not a no-op.
+    await nudgeOffMonday()
+    await page.getByRole('button', { name: 'Prev' }).click()
+    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/)
+    const afterPrev = dayNum((await probe(page)).leftDate)
+    expect(afterPrev).toBeLessThan(afterNext) // moved a week earlier (still a Monday)
   })
 })
