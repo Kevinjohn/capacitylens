@@ -3,7 +3,9 @@
 /* shadcn's `dark:` utilities key off `.dark` by default; floaty's theme is the
    `[data-theme="dark"]` attribute on <html> (src/lib/theme.ts). Point the variant at
    that attribute so shadcn components track the existing toggle with zero JS changes.
-   (No `dark:` utilities exist in the codebase today — this is purely additive.) */
+   (src/components/ui/button.tsx carries stock shadcn `dark:` utilities — they resolve
+   through this variant against floaty's [data-theme="dark"] toggle. input/textarea keep
+   their `dark:` strings in comments only, so button is the lone live consumer today.) */
 @custom-variant dark (&:is([data-theme="dark"] *));
 
 /* ── Design tokens ──────────────────────────────────────────────────────────
