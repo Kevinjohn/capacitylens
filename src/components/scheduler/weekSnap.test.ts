@@ -73,6 +73,39 @@ describe('weekStartSnapTarget — degenerate inputs stay finite', () => {
   })
 })
 
+// Regression for the HiDPI Firefox sub-pixel bug: a fractional scrollLeft a hair BELOW an integer
+// Monday boundary (`mondayOffset - 0.4`) must NOT resolve to the previous (weekend) day and jump the
+// snap back a whole week. Run BOTH geometries: the minimised-weekend case is where it actually bites
+// (the narrow Sunday sits immediately before the Monday, so a strict floor lands on it and
+// startOfWeekISO of a Sunday is the PRIOR week's Monday — a full-week jump). These cases FAIL before
+// the Math.round in weekStartSnapTarget and pass after.
+describe.each([
+  ['minimise OFF', OFF],
+  ['minimise ON', ON],
+] as const)('weekStartSnapTarget — sub-pixel left edge near a Monday boundary (%s)', (_label, opts) => {
+  const geom = buildColumnGeometry(DAYS, DAY_W, opts)
+  const mondayOffset = geom.xForDateInGeom('2026-06-08') // week-2 Monday, an integer offset
+  const prevMonday = geom.xForDateInGeom('2026-06-01') // week-1 Monday — the WRONG, week-back target
+
+  it('a position a sub-pixel BELOW the Monday boundary stays on that Monday (no week-back jump)', () => {
+    const target = weekStartSnapTarget(geom, DAYS, mondayOffset - 0.4, 1)
+    // Already essentially ON the Monday → a no-op. The decisive guard: it must NOT be the prior
+    // week's Monday (the pre-fix behaviour, where indexAt floored onto the preceding weekend day).
+    expect(target).not.toBe(prevMonday)
+    expect(target).toBeNull()
+  })
+
+  it('a position a sub-pixel ABOVE the Monday boundary also stays on that Monday (no-op)', () => {
+    expect(weekStartSnapTarget(geom, DAYS, mondayOffset + 0.4, 1)).toBeNull()
+  })
+
+  it('a genuinely mid-week (integer Wed) left edge still FLOORS to that week’s Monday', () => {
+    // Rounding must not break the normal floor: a clearly-previous-day position still snaps back.
+    const wedX = geom.xForDateInGeom('2026-06-10') // Wed of week 2, integer offset
+    expect(weekStartSnapTarget(geom, DAYS, wedX, 1)).toBe(mondayOffset)
+  })
+})
+
 describe('weekStartSnapTarget — minimised-weekend geometry', () => {
   const geom = buildColumnGeometry(DAYS, DAY_W, ON)
 

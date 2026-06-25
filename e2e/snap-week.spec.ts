@@ -9,7 +9,13 @@ test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 800 } })
 // Mirrors minimise-weekends.spec.ts's probe(), but returns the weekday label rather than the
 // concatenated cell text — the snap floors onto a *weekday boundary*, so the label is the oracle.
 async function probe(page: import('@playwright/test').Page) {
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
+    // Sample AFTER two animation frames so layout has settled to the current scrollLeft. Reading
+    // header cell rects mid-relayout (heavy parallel load on Firefox widens that window) can pair a
+    // stale, mid-timeline cell's text with a leftmost layout position and return a torn left-edge
+    // value. The double-rAF lets the scroll/relayout settle before we measure. (Paired with the
+    // expect.poll reads below, which retry until the value settles on the known-correct day.)
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
     const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement
     const header = document.querySelector('[role="columnheader"][aria-label="Dates"]') as HTMLElement
     const dayTier = header?.querySelector('.flex.flex-auto')
@@ -37,6 +43,26 @@ async function probe(page: import('@playwright/test').Page) {
     }
     return { leftWeekday, leftDate, weekdayWidth }
   })
+}
+
+// Wait until the grid's horizontal scroll has STOPPED moving, then read the settled left-edge date.
+// The left-edge probe derives the date from header cell rects at the *current* scroll position, so
+// sampling while a programmatic scroll (zoom re-anchor / idle snap) is still in flight returns the
+// date of a transient position — a Monday one-to-three weeks off. Under heavy parallel load on
+// Firefox/WebKit that window is wide enough that a plain poll on the date can keep sampling mid-
+// scroll. Polling scrollLeft to a fixed point first guarantees we measure only at rest.
+async function settledLeftDate(page: import('@playwright/test').Page): Promise<string> {
+  const grid = page.getByTestId('scheduler-grid')
+  let last = NaN
+  await expect
+    .poll(async () => {
+      const x = await grid.evaluate((n) => (n as HTMLElement).scrollLeft)
+      const stable = x === last // two consecutive equal reads ⇒ the scroll has come to rest
+      last = x
+      return stable
+    }, { timeout: 15_000 })
+    .toBe(true)
+  return (await probe(page)).leftDate
 }
 
 // Reset the horizontal scroll to a known week boundary (the focus Monday is flush at scrollLeft on
@@ -76,14 +102,18 @@ test.describe('Snap to week start', () => {
     await page.getByRole('button', { name: '1w', exact: true }).click()
 
     // Pre-condition: the left edge opens flush on the week start (Monday, default weekStartsOn).
-    expect((await probe(page)).leftWeekday).toBe('Mon')
+    // Poll, not a single read: under parallel load (Firefox especially) the zoom-click scroll +
+    // header layout can still be settling on the first probe, sampling a transient sub-pixel
+    // boundary that reads as the adjacent weekend column. Polling retries until it settles on the
+    // known-correct Monday; a genuinely drifted grid never settles and times out (not vacuous).
+    await expect.poll(async () => (await probe(page)).leftWeekday).toBe('Mon')
 
     // Nudge ~2.5 weekday columns so the left edge would sit on a Wed/Thu.
     await nudge(page, 2.5)
     await page.waitForTimeout(300) // > WEEK_SNAP_IDLE_MS (120ms) + a frame, so the idle snap fires
 
     // The floor-snap has pulled the left edge back to this week's Monday.
-    expect((await probe(page)).leftWeekday).toBe('Mon')
+    await expect.poll(async () => (await probe(page)).leftWeekday).toBe('Mon')
   })
 
   test('the snap FLOORS to the current week (not NEAREST), even past the half-week', async ({ page }) => {
@@ -91,11 +121,11 @@ test.describe('Snap to week start', () => {
     await page.getByRole('button', { name: '1w', exact: true }).click()
 
     // Pre-condition: the left edge opens flush on this week's Monday. Frozen clock 2026-06-03 (Wed),
-    // week origin Monday 2026-06-01 → the leading day NUMBER here is "1". Capture it so we can prove
-    // the snap returns to the SAME Monday date, not a different one.
-    const before = await probe(page)
-    expect(before.leftWeekday).toBe('Mon')
-    const mondayDate = before.leftDate // "1Mon"
+    // week origin Monday 2026-06-01 → the leading day NUMBER here is "1". Read it only once the zoom-
+    // click scroll has come to rest (settledLeftDate), so we capture the real Monday — not a transient
+    // mid-scroll cell — and can prove the snap returns to the SAME Monday, not a different one.
+    const mondayDate = await settledLeftDate(page) // "1Mon"
+    expect(mondayDate).toMatch(/Mon$/)
 
     // Nudge 4.5 weekday columns forward → the left edge lands on a Fri (Jun 5), which is PAST the
     // half-week. A NEAREST implementation would round FORWARD to next Monday (Jun 8 → "8Mon"); a
@@ -104,10 +134,10 @@ test.describe('Snap to week start', () => {
     await nudge(page, 4.5)
     await page.waitForTimeout(300) // > WEEK_SNAP_IDLE_MS (120ms) + a frame, so the idle snap fires
 
-    const after = await probe(page)
-    expect(after.leftWeekday).toBe('Mon')
-    // The decisive assertion: SAME Monday date (floored back), not next Monday (rounded forward).
-    expect(after.leftDate).toBe(mondayDate)
+    // The decisive assertion: SAME Monday date (floored back), NOT next Monday (rounded forward).
+    // Poll the settled left edge onto the captured Monday — the floor-not-nearest oracle (it would
+    // never settle to "1Mon" if the snap rounded forward to "8Mon"), so polling does not weaken it.
+    await expect.poll(async () => settledLeftDate(page), { timeout: 15_000 }).toBe(mondayDate)
   })
 
   test('with a Sunday week-start, the free-scroll snap floors to Sunday (not a hardcoded Monday)', async ({ page }) => {
@@ -131,7 +161,9 @@ test.describe('Snap to week start', () => {
     // Nudge ~2.5 columns off the Sunday, let the idle settle, and confirm it floors back to Sunday.
     await nudge(page, 2.5)
     await page.waitForTimeout(300) // > WEEK_SNAP_IDLE_MS
-    expect((await probe(page)).leftWeekday).toBe('Sun')
+    // Poll the settle on the known-correct Sunday (parallel-load Firefox can still be settling on a
+    // single read); a grid that floored to the wrong day never settles here, so it isn't vacuous.
+    await expect.poll(async () => (await probe(page)).leftWeekday).toBe('Sun')
   })
 
   test('with the setting OFF, the nudge sticks (and so proves the nudge moves off Monday)', async ({ page }) => {
@@ -142,13 +174,17 @@ test.describe('Snap to week start', () => {
 
     await page.getByRole('link', { name: 'Schedule' }).click()
     await page.getByRole('button', { name: '1w', exact: true }).click()
-    expect((await probe(page)).leftWeekday).toBe('Mon')
+    // Poll the open-flush precondition until the zoom-click scroll settles on Monday (parallel-load
+    // Firefox can still be settling on a single read).
+    await expect.poll(async () => (await probe(page)).leftWeekday).toBe('Mon')
 
     // Same nudge as the ON test — with the pref off it must STICK on the mid-week day. This
     // doubles as the proof that the nudge actually leaves Monday (otherwise the ON test is vacuous).
     await nudge(page, 2.5)
     await page.waitForTimeout(300) // > WEEK_SNAP_IDLE_MS — long enough that a snap WOULD have fired
 
+    // A single post-settle read, NOT expect.poll: poll on a `not.toBe` would short-circuit on the
+    // first transient non-Monday frame before any (wrong) snap could fire, passing vacuously.
     expect((await probe(page)).leftWeekday).not.toBe('Mon')
   })
 })

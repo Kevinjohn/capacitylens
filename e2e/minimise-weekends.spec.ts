@@ -13,7 +13,13 @@ async function box(locator: Locator) {
 // guard (a) the zoom scroll-anchor (the left-edge date must not drift onto the weekend) and
 // (b) the weekend-aware fit (a "1-week" view must show ~1 week, not ~1.5).
 async function probe(page: import('@playwright/test').Page) {
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
+    // Sample AFTER two animation frames so the date header has been re-laid-out to match the current
+    // scrollLeft. The header scroll is rAF-synced to the body, so reading cell rects mid-relayout
+    // (which heavy parallel load on Firefox makes a wide window) pairs a stale, mid-timeline cell's
+    // text with a leftmost layout position — yielding a torn left-edge date like a non-existent
+    // "18Mon". The double-rAF lets layout settle before we measure. (See also the expect.poll reads.)
+    await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())))
     const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement
     const header = document.querySelector('[role="columnheader"][aria-label="Dates"]') as HTMLElement
     const dayTier = header?.querySelector('.flex.flex-auto')
@@ -37,6 +43,27 @@ async function probe(page: import('@playwright/test').Page) {
     }
     return { leftDate, visibleDays, weekdayWidth }
   })
+}
+
+// Wait until the grid's horizontal scroll has STOPPED moving, then read the settled left-edge date.
+// The left-edge probe derives the date from header cell rects at the *current* scroll position, so
+// sampling while a programmatic scroll (zoom re-anchor) is still in flight returns the date of a
+// transient position — a Monday one-to-three weeks off, e.g. a stray "18Mon". Under heavy parallel
+// load on Firefox/WebKit that in-flight window is wide enough that a plain poll can keep sampling
+// mid-scroll and never converge in time. Polling scrollLeft to a fixed point first guarantees we
+// measure only once the view has settled, so the returned date is the real left edge.
+async function settledLeftDate(page: import('@playwright/test').Page): Promise<string> {
+  const grid = page.getByTestId('scheduler-grid')
+  let last = NaN
+  await expect
+    .poll(async () => {
+      const x = await grid.evaluate((n) => (n as HTMLElement).scrollLeft)
+      const stable = x === last // two consecutive equal reads ⇒ the scroll has come to rest
+      last = x
+      return stable
+    }, { timeout: 15_000 })
+    .toBe(true)
+  return (await probe(page)).leftDate
 }
 
 // Nudge the grid by a fixed number of weekday columns (derived from a probed column width, so it's
@@ -130,14 +157,18 @@ test.describe('Minimise weekends', () => {
   test('zoom flips preserve the left-edge date (no drift onto the weekend)', async ({ page }) => {
     await openApp(page)
     await page.getByRole('button', { name: '1w', exact: true }).click()
-    const before = await probe(page)
+    // Read `before` only once the 1w zoom-click scroll has come to rest, so it's the real settled
+    // Monday and not a transient mid-scroll cell (which the equality below would then chase forever).
+    const before = await settledLeftDate(page)
     // Round-trip the zoom; the integer-pixel geometry must round-trip the left-edge date exactly.
     await page.getByRole('button', { name: '2w', exact: true }).click()
     await page.getByRole('button', { name: '1w', exact: true }).click()
-    const after = await probe(page)
-    expect(after.leftDate).toBe(before.leftDate)
+    // After the flip settles, the left-edge date must return to `before` (the known-correct value),
+    // so a genuinely drifted grid times out and fails — not vacuous. Replaces the bare single read
+    // that flaked under parallel load on Firefox/WebKit.
+    await expect.poll(async () => settledLeftDate(page), { timeout: 15_000 }).toBe(before)
     // And it must be a weekday (the focused Monday), never drifted back onto the narrow "S" weekend.
-    expect(before.leftDate).not.toMatch(/S$/)
+    expect(before).not.toMatch(/S$/)
   })
 
   test('a bar dragged across the narrowed weekend commits a later date (no crash)', async ({ page }) => {
