@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 // re-exports @radix-ui/react-dialog at the identical version — one Radix import surface.
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { useStore } from '../../store/useStore'
+import { cn } from '@/lib/utils'
 import { Button as ShadButton } from '../ui/button'
 
 // Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
@@ -60,6 +61,7 @@ export function Button({
   ariaLabel,
   describedById,
   testId,
+  className,
 }: {
   children: ReactNode
   onClick?: () => void
@@ -74,6 +76,9 @@ export function Button({
   /** Optional test hook, forwarded to the underlying <button> so the testid lands on the
    *  interactive control itself (the house pattern) — not on a wrapping span. */
   testId?: string
+  /** Extra classes merged AFTER the variant colours (via cn → twMerge), so a caller can
+   *  adjust a one-off (e.g. width) without forking the Button. The current callers pass none. */
+  className?: string
 }) {
   return (
     // shadcn Button base supplies the layout/focus-ring/disabled scaffold (size="sm" keeps
@@ -89,7 +94,7 @@ export function Button({
       aria-label={ariaLabel}
       aria-describedby={describedById}
       data-testid={testId}
-      className={VARIANT_CLASS[variant]}
+      className={cn(VARIANT_CLASS[variant], className)}
     >
       {children}
     </ShadButton>

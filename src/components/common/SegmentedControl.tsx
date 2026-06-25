@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
 /** One selectable segment: the value it sets and the label shown on its button. */
 export type SegmentedOption<T> = { value: T; label: ReactNode }
@@ -37,7 +38,11 @@ export function SegmentedControl<T extends string | number>({
   ariaLabel?: string
   /** Id of an existing visible label, as an alternative to `ariaLabel`. */
   ariaLabelledby?: string
-  /** Extra classes appended to the wrapper (the four current call sites pass none). */
+  /**
+   * Extra classes merged onto the wrapper via `cn()` (twMerge-resolved, so a conflicting
+   * utility passed here OVERRIDES the base rather than doubling it). The four current call
+   * sites pass none.
+   */
   className?: string
 }) {
   return (
@@ -45,7 +50,7 @@ export function SegmentedControl<T extends string | number>({
       role="radiogroup"
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
-      className={`inline-flex rounded-md border border-line p-0.5${className ? ` ${className}` : ''}`}
+      className={cn('inline-flex rounded-md border border-line p-0.5', className)}
     >
       {options.map((opt) => {
         const selected = value === opt.value
@@ -56,9 +61,10 @@ export function SegmentedControl<T extends string | number>({
             role="radio"
             aria-checked={selected}
             onClick={() => onChange(opt.value)}
-            className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-              selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink'
-            }`}
+            className={cn(
+              'rounded px-3 py-1.5 text-sm font-medium transition',
+              selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink',
+            )}
           >
             {opt.label}
           </button>

@@ -1,4 +1,5 @@
 import { type ReactNode } from 'react'
+import { cn } from '@/lib/utils'
 
 // Feedback & callouts slice of the shared kit (re-exported from ./ui). Colours come from
 // semantic tokens (see index.css), so everything adapts to dark mode automatically.
@@ -12,7 +13,7 @@ import { type ReactNode } from 'react'
 export function Callout({ tone = 'warn', children }: { tone?: 'warn'; children: ReactNode }) {
   const toneClass = tone === 'warn' ? 'border-warn/40 bg-warn/10 text-ink' : ''
   return (
-    <div role="status" className={`rounded-md border px-3 py-2 text-xs font-medium ${toneClass}`}>
+    <div role="status" className={cn('rounded-md border px-3 py-2 text-xs font-medium', toneClass)}>
       {children}
     </div>
   )

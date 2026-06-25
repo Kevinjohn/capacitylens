@@ -13,6 +13,7 @@ import { ConnectionError } from './ConnectionError'
 import { CommandPalette } from './CommandPalette'
 import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
+import { cn } from '@/lib/utils'
 
 const LINKS: [string, string, IconName][] = [
   ['/', 'Schedule', 'calendar'],
@@ -210,7 +211,7 @@ export function AppShell() {
       >
         Skip to content
       </a>
-      <nav className={`${sidebarOpen ? 'w-48' : 'w-14'} flex shrink-0 flex-col border-r border-line bg-surface p-2`}>
+      <nav className={cn(sidebarOpen ? 'w-48' : 'w-14', 'flex shrink-0 flex-col border-r border-line bg-surface p-2')}>
         {/* The collapse/expand toggle sits FIRST and at the same left inset (px-2) as every
             nav icon below it, so the toggle and the icons keep their exact x-position when the
             sidebar collapses — only the labels and the "Floaty" wordmark come and go, the
