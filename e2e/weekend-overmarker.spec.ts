@@ -77,9 +77,19 @@ test.describe('Weekend over-marker', () => {
     await expect(nikeOverMarkers(page)).toHaveCount(baseline + 1)
     // POSITION: the single new over-marker sits on the time-off day (Mon 15), not a weekend — assert
     // it shares the time-off block's column offset.
-    const withTimeOffLefts = await leftsOf(nikeOverMarkers(page))
-    const newTimeOffLefts = withTimeOffLefts.filter((l) => !weekendAwareLefts.includes(l))
-    const timeOffBlockLeft = await nikeLane(page).getByTestId('timeoff-block').first().evaluate((e) => (e as HTMLElement).style.left)
-    expect(newTimeOffLefts).toEqual([timeOffBlockLeft])
+    //
+    // Retry until the column geometry settles. We just navigated Time off → back to Schedule, which
+    // REMOUNTS the grid; its `dayWidth` is derived from the MEASURED container width, applied a tick
+    // after first paint. WebKit lays the remounted grid out a frame later than Chromium/Firefox, so a
+    // single `style.left` read here can catch the over-marker at an intermediate dayWidth before the
+    // measure effect lands (the marker is on the right DAY throughout — only its px settles; the count
+    // assertion above doesn't gate the pixel). toPass() re-reads BOTH lefts each attempt, comparing
+    // them from one settled snapshot — they re-render to the final geometry in lockstep. Chromium/
+    // Firefox pass on the first attempt; a real wrong-day regression still fails the inner toEqual.
+    await expect(async () => {
+      const newTimeOffLefts = (await leftsOf(nikeOverMarkers(page))).filter((l) => !weekendAwareLefts.includes(l))
+      const timeOffBlockLeft = await nikeLane(page).getByTestId('timeoff-block').first().evaluate((e) => (e as HTMLElement).style.left)
+      expect(newTimeOffLefts).toEqual([timeOffBlockLeft])
+    }).toPass()
   })
 })
