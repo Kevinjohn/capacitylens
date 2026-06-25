@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { SchedulerGrid } from './SchedulerGrid'
 import { useStore } from '../../store/useStore'
 import type { AppData } from '@floaty/shared/types/entities'
@@ -7,6 +8,12 @@ import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
 import { LAYOUT } from './layout'
 
 const ACC = DEFAULT_ACCOUNT_ID
+
+// SchedulerGrid calls useNavigate (the empty-state "Go to Resources" CTA), so every render must
+// sit inside a Router.
+function renderGrid() {
+  return render(<SchedulerGrid />, { wrapper: MemoryRouter })
+}
 
 function dataset(): AppData {
   return makeAppData({
@@ -36,7 +43,7 @@ beforeEach(() => {
 
 describe('SchedulerGrid', () => {
   it('positions a bar by start date with inclusive width', () => {
-    render(<SchedulerGrid />)
+    renderGrid()
     const bar = screen.getByTestId('allocation-bar')
     // origin === start -> left is just the visual inset; width is a positive multiple of
     // the (responsive) dayWidth. Exact px geometry is covered by schedulerModel.test.
@@ -46,14 +53,14 @@ describe('SchedulerGrid', () => {
   })
 
   it('groups resource rows under their discipline', () => {
-    render(<SchedulerGrid />)
+    renderGrid()
     expect(screen.getByText('Design')).toBeInTheDocument()
     expect(screen.getByText('Tyler')).toBeInTheDocument()
     expect(screen.getByText(/Wireframes/)).toBeInTheDocument()
   })
 
   it('exposes grid semantics + an sr-only capacity summary for screen readers', () => {
-    render(<SchedulerGrid />)
+    renderGrid()
     expect(screen.getByRole('grid', { name: 'Resource schedule' })).toBeInTheDocument()
     expect(screen.getAllByRole('row').length).toBeGreaterThan(0)
     expect(screen.getByRole('rowheader', { name: /Tyler/ })).toBeInTheDocument()
@@ -65,7 +72,7 @@ describe('SchedulerGrid', () => {
     useStore.getState().addAllocation({
       resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 4, status: 'confirmed',
     })
-    render(<SchedulerGrid />)
+    renderGrid()
     expect(screen.getAllByTestId('over-marker').length).toBeGreaterThan(0)
     expect(screen.getAllByTestId('utilization').length).toBeGreaterThan(0)
   })
@@ -101,7 +108,7 @@ describe('SchedulerGrid visible-window utilisation', () => {
     useStore.getState().setActiveAccount(ACC)
     useStore.getState().clearFilters()
     useStore.setState((st) => ({ ui: { ...st.ui, originDate: '2026-06-01', focusDate: '2026-06-01', zoom, collapsedGroups: [] } }))
-    return render(<SchedulerGrid />)
+    return renderGrid()
   }
   const overallPct = () => Number.parseInt(screen.getByTestId('overall-utilization').textContent ?? '', 10)
 
@@ -125,23 +132,23 @@ describe('SchedulerGrid filters', () => {
     useStore.getState().addAllocation({
       resourceId: 'r1', activityId: 't1', startDate: '2026-06-10', endDate: '2026-06-11', hoursPerDay: 2, status: 'tentative',
     })
-    const view = render(<SchedulerGrid />)
+    const view = renderGrid()
     expect(screen.getAllByTestId('allocation-bar')).toHaveLength(2)
     view.unmount()
 
     useStore.getState().setFilters({ hideTentative: true })
-    render(<SchedulerGrid />)
+    renderGrid()
     expect(screen.getAllByTestId('allocation-bar')).toHaveLength(1)
   })
 
   it('shows an empty state when the search matches nobody', () => {
     useStore.getState().setFilters({ search: 'no-such-person' })
-    render(<SchedulerGrid />)
+    renderGrid()
     expect(screen.getByTestId('scheduler-empty')).toBeInTheDocument()
   })
 
   it('collapsing a discipline hides its rows but keeps the header', () => {
-    render(<SchedulerGrid />)
+    renderGrid()
     expect(screen.getByText('Tyler')).toBeInTheDocument()
     act(() => useStore.getState().toggleGroup('d1'))
     expect(screen.queryByText('Tyler')).not.toBeInTheDocument()

@@ -60,6 +60,11 @@ test.describe('Filters', () => {
     await page.getByLabel('Search people').fill('nobody-matches-this')
     await expect(page.getByTestId('scheduler-empty')).toBeVisible()
     await expect(page.getByTestId('scheduler-empty')).toContainText(/match the current filters/i)
+    // The empty state offers an in-context "Clear filters" button (also the focusable element that
+    // keeps the scrollable grid axe-clean): clicking it clears the search and the schedule returns.
+    await page.getByTestId('scheduler-empty').getByRole('button', { name: 'Clear filters' }).click()
+    await expect(page.getByTestId('scheduler-empty')).toBeHidden()
+    await expect(page.getByTestId('allocation-bar').first()).toBeVisible()
   })
 
   test('filters the schedule to a repeatable activity (the activity lens)', async ({ page }) => {
