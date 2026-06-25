@@ -7,6 +7,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.10.1] — 2026-06-25
+
+The list-management screens get a lighter touch: row actions become icons, and every "Add" button shows a +.
+
+### Changed
+- **Edit and Delete on list rows are now icon buttons.** Each row across Resources, Clients,
+  Projects, Disciplines, Activities, Time off (and the company picker) shows a **pencil** for Edit
+  and a **trash** for Delete in place of the text buttons — quieter rows, same actions, with the
+  label on hover. The confirmation dialogs keep their worded **Delete** / **Cancel** buttons.
+- **Every "Add" button leads with a `+`.** The create buttons across the app — Add resource, Add
+  client, New company, and the rest — now carry a leading plus, matching the schedule's existing
+  per-row add control.
+
 ## [0.10.0] — 2026-06-25
 
 New companies start lean, and the view settings that were once browser-wide now belong to each company.
