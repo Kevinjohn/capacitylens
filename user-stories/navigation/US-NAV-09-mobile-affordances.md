@@ -44,7 +44,7 @@ phone-ish size (≤ 767px wide, or ≤ 480px tall for landscape).
 - ✅ With no stored choice, the sidebar starts collapsed on small screens (portrait *or*
   landscape phone) and open on desktop.
 - ✅ Collapsed: link labels, the company block and Export/Import are hidden; eight rail
-  icons show with `title` tooltips.
+  icons show, each revealing its section label as an instant hover label to its right.
 - ✅ Tapping a rail icon re-opens the menu and does **not** navigate.
 - ✅ Rail icons are skipped by keyboard/assistive tech (`aria-hidden`, not tabbable); the
   toggle is the single accessible control for expanding.

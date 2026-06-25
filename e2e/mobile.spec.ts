@@ -61,7 +61,7 @@ test.describe('landscape phone', () => {
     await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
 
     // A rail icon is not navigation: tapping "Projects" expands the menu, URL unchanged.
-    await page.locator('[data-testid="nav-rail-item"][title="Projects"]').click()
+    await page.locator('[data-testid="nav-rail-item"][data-label="Projects"]').click()
     await expect(page).toHaveURL('/')
     const projects = page.getByRole('link', { name: 'Projects' })
     await expect(projects).toBeVisible()

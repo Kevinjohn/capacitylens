@@ -54,4 +54,21 @@ test.describe('Navigation & shell', () => {
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })
+
+  // The sidebar collapse toggle's hover label is the shadcn Radix Tooltip (ui/tooltip.tsx),
+  // not a native `title`. This runs cross-engine (e2e:browsers → Chromium/WebKit/Firefox) on
+  // purpose: Radix Tooltip's hover behavior was the uncertainty that deferred this pass.
+  test('the collapse toggle reveals its shadcn Tooltip on hover', async ({ page }) => {
+    await openApp(page)
+    // Desktop default = sidebar open, so the focusable toggle reads "Collapse menu" and
+    // keeps that aria-label as its accessible name (the tooltip is supplementary).
+    const toggle = page.getByRole('button', { name: 'Collapse menu' })
+    await expect(toggle).toBeVisible()
+    // Closed: Radix mounts the tooltip only while open, so there's no role=tooltip yet.
+    await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toHaveCount(0)
+    // Hover reveals it instantly (the provider uses delayDuration 0). This is the cross-engine
+    // behavior the pass was deferred over; the toggle's aria-label stays its accessible name.
+    await toggle.hover()
+    await expect(page.getByRole('tooltip', { name: 'Collapse menu' })).toBeVisible()
+  })
 })

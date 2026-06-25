@@ -27,7 +27,7 @@ test.describe('Disciplines optional (account-level)', () => {
     // (External is no longer a standalone nav link — it lives inside the Resources tab now).
     await page.getByRole('button', { name: 'Collapse menu' }).click()
     await expect(page.getByTestId('nav-rail-item')).toHaveCount(7)
-    await expect(page.locator('[data-testid="nav-rail-item"][title="Disciplines"]')).toHaveCount(0)
+    await expect(page.locator('[data-testid="nav-rail-item"][data-label="Disciplines"]')).toHaveCount(0)
     await page.getByRole('button', { name: 'Expand menu' }).click()
 
     // Schedule renders flat: the rows are still there, but there are no discipline-group
