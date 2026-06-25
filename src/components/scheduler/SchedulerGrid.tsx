@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, visibleRange } from '../../store/selectors'
@@ -82,8 +82,14 @@ export function SchedulerGrid() {
   const scrollRaf = useRef(0)
 
   // Measure the scroll container so the day-column width can fit ui.zoom weeks (and
-  // the height drives row virtualization).
-  useEffect(() => {
+  // the height drives row virtualization). useLayoutEffect (NOT useEffect) so the measure runs
+  // synchronously BEFORE the browser paints: on mount — and on every remount, e.g. returning to
+  // the Schedule tab — `timelineWidth` starts at 0, so a plain post-paint effect would let the
+  // first frame render at FALLBACK_TIMELINE_WIDTH geometry and then snap to the measured width
+  // (a visible flash). Measuring pre-paint collapses that to one correct frame. (Client-only SPA,
+  // so there's no SSR useLayoutEffect warning; under jsdom clientWidth is 0 → the same fallback
+  // path the tests already exercise.)
+  useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
     const measure = () => {
