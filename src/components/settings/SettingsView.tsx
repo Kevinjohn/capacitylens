@@ -7,7 +7,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
-import { Button, ConfirmDialog, FieldError, ListPage, TextField } from '../common/ui'
+import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import type { ThemePref } from '../../lib/theme'
 import type { SchedulingMode } from '@floaty/shared/types/entities'
@@ -191,25 +191,12 @@ export function SettingsView() {
               utilisation is ignored.
             </li>
           </ul>
-          <div role="radiogroup" aria-label="Scheduling input" className="inline-flex rounded-md border border-line p-0.5">
-            {SCHEDULING_OPTIONS.map((opt) => {
-              const selected = schedulingMode === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => updateAccount(activeAccount.id, { schedulingMode: opt.value })}
-                  className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-                    selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              )
-            })}
-          </div>
+          <SegmentedControl
+            ariaLabel="Scheduling input"
+            value={schedulingMode}
+            onChange={(value) => updateAccount(activeAccount.id, { schedulingMode: value })}
+            options={SCHEDULING_OPTIONS}
+          />
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
@@ -220,25 +207,12 @@ export function SettingsView() {
           <div className="space-y-3">
             <div>
               <p className="mb-1.5 text-xs font-medium text-ink">Week starts on</p>
-              <div role="radiogroup" aria-label="Week starts on" className="inline-flex rounded-md border border-line p-0.5">
-                {WEEK_START_OPTIONS.map((opt) => {
-                  const selected = weekStartsOn === opt.value
-                  return (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      role="radio"
-                      aria-checked={selected}
-                      onClick={() => updateAccount(activeAccount.id, { weekStartsOn: opt.value })}
-                      className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-                        selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink'
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  )
-                })}
-              </div>
+              <SegmentedControl
+                ariaLabel="Week starts on"
+                value={weekStartsOn}
+                onChange={(value) => updateAccount(activeAccount.id, { weekStartsOn: value })}
+                options={WEEK_START_OPTIONS}
+              />
             </div>
             <div>
               <label htmlFor="timezone-select" className="mb-1.5 block text-xs font-medium text-ink">
@@ -366,25 +340,7 @@ export function SettingsView() {
           <p className="mb-3 text-xs text-muted">
             Theme — applies to this browser. “Match system” follows your operating system.
           </p>
-          <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-md border border-line p-0.5">
-            {THEME_OPTIONS.map((opt) => {
-              const selected = theme === opt.value
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={() => setTheme(opt.value)}
-                  className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-                    selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              )
-            })}
-          </div>
+          <SegmentedControl ariaLabel="Theme" value={theme} onChange={setTheme} options={THEME_OPTIONS} />
         </section>
 
         {/* Local data — a destructive maintenance action, kept near the bottom with danger

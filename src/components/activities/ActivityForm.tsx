@@ -4,7 +4,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
-import { Button, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
+import { Button, FieldError, Modal, RequiredLegend, SegmentedControl, SelectField, TextField, type Option } from '../common/ui'
 import type { Activity, ActivityKind } from '@floaty/shared/types/entities'
 
 const KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
@@ -96,25 +96,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
       <div className="mb-3">
         <p className="mb-1.5 text-sm font-medium text-ink">Kind</p>
-        <div role="radiogroup" aria-label="Activity kind" className="inline-flex rounded-md border border-line p-0.5">
-          {KIND_OPTIONS.map((opt) => {
-            const selected = kind === opt.value
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => onKindChange(opt.value)}
-                className={`rounded px-3 py-1.5 text-sm font-medium transition ${
-                  selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink'
-                }`}
-              >
-                {opt.label}
-              </button>
-            )
-          })}
-        </div>
+        <SegmentedControl ariaLabel="Activity kind" value={kind} onChange={onKindChange} options={KIND_OPTIONS} />
       </div>
       {kind === 'project' && (
         <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'project'} describedById={errorId} />
