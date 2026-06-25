@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { APP_NAME, STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
 import { Button, Modal } from './common/ui'
 
 // One-time-per-session nudge for portrait phones: the schedule is a wide
@@ -9,7 +10,7 @@ import { Button, Modal } from './common/ui'
 // it was dismissed.
 
 const PORTRAIT_PHONE_QUERY = '(orientation: portrait) and (max-width: 767px)'
-const DISMISS_KEY = 'floaty/rotateHintDismissed'
+const DISMISS_KEY = `${STORAGE_KEY_PREFIX}rotateHintDismissed`
 
 function isPortraitPhone(): boolean {
   try {
@@ -66,7 +67,7 @@ export function RotateHint() {
       }
     >
       <p className="text-sm text-muted">
-        Floaty is a week-at-a-glance schedule — turn your phone sideways to see the full picture.
+        {APP_NAME} is a week-at-a-glance schedule — turn your phone sideways to see the full picture.
       </p>
     </Modal>
   )

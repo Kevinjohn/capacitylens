@@ -5,7 +5,7 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { Client } from '@floaty/shared/types/entities'
+import type { Client } from '@capacitylens/shared/types/entities'
 
 /** Add (no `client`) or edit a client: name + preset colour. `onClose` fires on save or cancel. */
 export function ClientForm({ client, onClose }: { client?: Client; onClose: () => void }) {

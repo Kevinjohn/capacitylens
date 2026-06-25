@@ -6,7 +6,7 @@ import type { Db } from './db'
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
 // OSS library owns the session/credential/OIDC machinery — accepted precisely so we
-// don't own crypto/session code. THE OFF GUARANTEE: with FLOATY_AUTH unset or 'off',
+// don't own crypto/session code. THE OFF GUARANTEE: with CAPACITYLENS_AUTH unset or 'off',
 // nothing in this module runs — Better Auth is never initialised, no BETTER_AUTH_* env
 // is read, no auth tables are created, zero new attack surface (authFromEnv returns
 // { mode: 'off', auth: null } before touching anything else).
@@ -54,7 +54,7 @@ export function parseAuthMode(raw: string | undefined): AuthMode {
   const mode = raw === undefined || raw === '' ? 'off' : raw
   if (mode === 'off' || mode === 'password' || mode === 'sso') return mode
   throw new AuthConfigError(
-    `FLOATY_AUTH must be 'off', 'password' or 'sso' — got '${raw}'. Unset it for today's no-auth behaviour.`,
+    `CAPACITYLENS_AUTH must be 'off', 'password' or 'sso' — got '${raw}'. Unset it for today's no-auth behaviour.`,
   )
 }
 
@@ -67,7 +67,7 @@ function required(env: Env, key: string, context: string): string {
 }
 
 /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
- *  env beyond FLOATY_AUTH itself is read. `trustedOrigins` should be the same browser
+ *  env beyond CAPACITYLENS_AUTH itself is read. `trustedOrigins` should be the same browser
  *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
  *  the same-origin production deploy needs none. */
 export function authFromEnv(
@@ -75,11 +75,11 @@ export function authFromEnv(
   env: Env,
   opts: { trustedOrigins?: string[] } = {},
 ): { mode: AuthMode; auth: Auth | null } {
-  const mode = parseAuthMode(env.FLOATY_AUTH)
+  const mode = parseAuthMode(env.CAPACITYLENS_AUTH)
   if (mode === 'off') return { mode, auth: null }
 
-  const secret = required(env, 'BETTER_AUTH_SECRET', `FLOATY_AUTH=${mode}`)
-  const baseURL = required(env, 'BETTER_AUTH_URL', `FLOATY_AUTH=${mode}`)
+  const secret = required(env, 'BETTER_AUTH_SECRET', `CAPACITYLENS_AUTH=${mode}`)
+  const baseURL = required(env, 'BETTER_AUTH_URL', `CAPACITYLENS_AUTH=${mode}`)
 
   // Provider choice stays deferred (Phase 0 #7): 'sso' wires the generic OAuth2/OIDC
   // plugin entirely from env, so picking Google/Microsoft/an IdP later is config, not code.
@@ -89,22 +89,22 @@ export function authFromEnv(
           genericOAuth({
             config: [
               {
-                providerId: env.FLOATY_SSO_PROVIDER_ID || 'sso',
-                clientId: required(env, 'FLOATY_SSO_CLIENT_ID', 'FLOATY_AUTH=sso'),
-                clientSecret: required(env, 'FLOATY_SSO_CLIENT_SECRET', 'FLOATY_AUTH=sso'),
+                providerId: env.CAPACITYLENS_SSO_PROVIDER_ID || 'sso',
+                clientId: required(env, 'CAPACITYLENS_SSO_CLIENT_ID', 'CAPACITYLENS_AUTH=sso'),
+                clientSecret: required(env, 'CAPACITYLENS_SSO_CLIENT_SECRET', 'CAPACITYLENS_AUTH=sso'),
                 // Either a discovery URL (OIDC) or explicit endpoints.
-                discoveryUrl: env.FLOATY_SSO_DISCOVERY_URL,
-                authorizationUrl: env.FLOATY_SSO_AUTHORIZATION_URL,
-                tokenUrl: env.FLOATY_SSO_TOKEN_URL,
-                scopes: (env.FLOATY_SSO_SCOPES ?? 'openid profile email').split(' ').filter(Boolean),
+                discoveryUrl: env.CAPACITYLENS_SSO_DISCOVERY_URL,
+                authorizationUrl: env.CAPACITYLENS_SSO_AUTHORIZATION_URL,
+                tokenUrl: env.CAPACITYLENS_SSO_TOKEN_URL,
+                scopes: (env.CAPACITYLENS_SSO_SCOPES ?? 'openid profile email').split(' ').filter(Boolean),
               },
             ],
           }),
         ]
       : []
-  if (mode === 'sso' && !env.FLOATY_SSO_DISCOVERY_URL && !(env.FLOATY_SSO_AUTHORIZATION_URL && env.FLOATY_SSO_TOKEN_URL)) {
+  if (mode === 'sso' && !env.CAPACITYLENS_SSO_DISCOVERY_URL && !(env.CAPACITYLENS_SSO_AUTHORIZATION_URL && env.CAPACITYLENS_SSO_TOKEN_URL)) {
     throw new AuthConfigError(
-      'FLOATY_AUTH=sso needs FLOATY_SSO_DISCOVERY_URL, or FLOATY_SSO_AUTHORIZATION_URL + FLOATY_SSO_TOKEN_URL.',
+      'CAPACITYLENS_AUTH=sso needs CAPACITYLENS_SSO_DISCOVERY_URL, or CAPACITYLENS_SSO_AUTHORIZATION_URL + CAPACITYLENS_SSO_TOKEN_URL.',
     )
   }
 

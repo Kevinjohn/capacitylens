@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 export type SegmentedOption<T> = { value: T; label: ReactNode }
 
 /**
- * The single home for floaty's pill-style segmented choosers — the four that were
+ * The single home for capacitylens's pill-style segmented choosers — the four that were
  * hand-rolled identically: Settings' Scheduling-input, Week-starts-on and Theme pickers,
  * plus ActivityForm's Kind picker. Centralising them keeps that markup from drifting.
  *

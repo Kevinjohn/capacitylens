@@ -2,14 +2,14 @@
   <!-- Cosmetic illustrated profile avatar for the demo (fake) sign-in screen. No real
        person; swap this file to change the face shown. See src/components/FakeSignIn.tsx. -->
   <defs>
-    <clipPath id="floaty-avatar-clip"><circle cx="48" cy="48" r="48" /></clipPath>
-    <linearGradient id="floaty-avatar-bg" x1="0" y1="0" x2="0" y2="1">
+    <clipPath id="capacitylens-avatar-clip"><circle cx="48" cy="48" r="48" /></clipPath>
+    <linearGradient id="capacitylens-avatar-bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#e0e7ff" />
       <stop offset="1" stop-color="#c7d2fe" />
     </linearGradient>
   </defs>
-  <g clip-path="url(#floaty-avatar-clip)">
-    <rect width="96" height="96" fill="url(#floaty-avatar-bg)" />
+  <g clip-path="url(#capacitylens-avatar-clip)">
+    <rect width="96" height="96" fill="url(#capacitylens-avatar-bg)" />
     <!-- shoulders / shirt -->
     <path d="M12 96c0-19.9 16.1-36 36-36s36 16.1 36 36Z" fill="#6366f1" />
     <!-- neck -->

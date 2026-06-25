@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -35,7 +35,7 @@
     <div class="pagehead">
       <div class="crumb"><a href="index.html">Home</a> / Build / 04</div>
       <p class="eyebrow">Build</p>
-      <h1>Domain core — <code>@floaty/shared</code></h1>
+      <h1>Domain core — <code>@capacitylens/shared</code></h1>
       <p class="lead">The pure, environment-agnostic package that both the app and the server import. This is
       where the rules live exactly once. If you copy one thing carefully into a sibling, copy the
       <em>shape</em> of this package and its conventions.</p>
@@ -69,7 +69,7 @@
       </tbody>
     </table>
     <p>Consumed as raw source: the package's <code>exports</code> map (<code>"./*": "./src/*.ts"</code>) means
-    <code>import { migrate } from '@floaty/shared/data/migrate'</code> resolves straight to the
+    <code>import { migrate } from '@capacitylens/shared/data/migrate'</code> resolves straight to the
     <code>.ts</code> file. No build, no <code>dist/</code>, no drift between built and source.</p>
 
     <h2 id="types">types/ — the shapes and the contractual helpers</h2>
@@ -215,11 +215,11 @@
 
     <h2 id="data">data/ — lifecycle: migrate, seed, transfer, fixtures</h2>
     <h3>migrate.ts — turn any blob into current-shape AppData</h3>
-    <p>Two guards protect the import path before any migration runs, so a non-Floaty file can never wipe data:</p>
+    <p>Two guards protect the import path before any migration runs, so a non-CapacityLens file can never wipe data:</p>
 <pre><code><span class="k">export const</span> KNOWN_KEYS: string[] = ['accounts', ...SCOPED_KEYS]   <span class="c">// derived — can't drift</span>
 
 <span class="c">// True if the candidate has at least one known table that IS an array.</span>
-<span class="k">export function</span> <span class="f">looksLikeFloaty</span>(value: unknown): boolean
+<span class="k">export function</span> <span class="f">looksLikeCapacityLens</span>(value: unknown): boolean
 
 <span class="c">// True if a known key is PRESENT but NOT an array (structural damage from a</span>
 <span class="c">// truncated/hand-edited file). migrate would silently coerce it to []; this</span>
@@ -231,9 +231,9 @@
     table to an array. It never throws on bad data — it repairs or empties.</p>
     <div class="callout warn">
       <span class="label">A migration that needs no migration step</span>
-      <p>When Floaty added <code>accountId</code> to every scoped entity (v2→v3), it did <em>not</em> write a
-      migration function — it changed the live <code>localStorage</code> key from <code>floaty/v2</code> to
-      <code>floaty/v3</code>, orphaning the old data, and the import path stamps <code>accountId</code> on
+      <p>When CapacityLens added <code>accountId</code> to every scoped entity (v2→v3), it did <em>not</em> write a
+      migration function — it changed the live <code>localStorage</code> key from <code>capacitylens/v2</code> to
+      <code>capacitylens/v3</code>, orphaning the old data, and the import path stamps <code>accountId</code> on
       every incoming row. Bumping the storage key is a legitimate "migration" for a local-first app where the
       old data is demo-only. Decide per change: transform, or bump-and-orphan.</p>
     </div>
@@ -241,7 +241,7 @@
     <h3>transfer.ts — export/import with caps</h3>
     <p><code>serializeData</code> wraps <code>AppData</code> as <code>{ schemaVersion, data }</code> pretty JSON.
     <code>parseData</code> is the only import-path function that <em>throws</em> — and only for structural
-    failures the user must see before any change: not JSON, not Floaty (<code>looksLikeFloaty</code> fails),
+    failures the user must see before any change: not JSON, not CapacityLens (<code>looksLikeCapacityLens</code> fails),
     structurally damaged (<code>hasNonArrayKnownTable</code>), over the record cap
     (<code>MAX_IMPORT_RECORDS</code> = 200,000), or zero records. The caps guard against a self-DoS / JSON
     bomb.</p>

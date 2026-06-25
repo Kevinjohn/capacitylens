@@ -1,10 +1,10 @@
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
-import { isBuiltinClient } from '@floaty/shared/data/internalClient'
+import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
-import type { Client } from '@floaty/shared/types/entities'
+import type { Client } from '@capacitylens/shared/types/entities'
 
 export function ClientList() {
   // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/repeatable

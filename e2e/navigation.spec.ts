@@ -48,7 +48,7 @@ test.describe('Navigation & shell', () => {
   test('renders in dark mode', async ({ page }) => {
     // Dark is now an explicit preference, not OS-driven: seed the stored theme so
     // the pre-paint script in index.html resolves the app to dark.
-    await page.addInitScript(() => localStorage.setItem('floaty/theme', 'dark'))
+    await page.addInitScript(() => localStorage.setItem('capacitylens/theme', 'dark'))
     await openApp(page)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()

@@ -1,4 +1,4 @@
-import type { AppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 // The seam that makes "local now, shared backend later" an adapter swap rather
 // than a rewrite. The async signature is deliberate: a fetch-based adapter must

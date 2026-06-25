@@ -3,7 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { makeAccount } from '../../test/fixtures'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
 
 // Friction on the one irreversible action: Delete stays disabled until the exact
 // company name is typed.

@@ -1,4 +1,4 @@
-# Floaty — Production plan (controlled demo, near-live)
+# CapacityLens — Production plan (controlled demo, near-live)
 
 **Status:** plan of record for the next user-testing round. Written 2026-06-12; upgraded
 same day to hand-off-ready task specs (each task below is written so it can be given
@@ -12,8 +12,8 @@ verbatim to a coding model/agent and implemented without further product decisio
 
 > **Update (2026-06-16) — Phase 2 cutover EXECUTED (alpha).** The move is live on
 > DigitalOcean+Forge (`small-saas-agency-resource-alpha.kevinjohngallagher.com`): Node 24, the
-> Fastify daemon as a Forge Background process (wrapper `/home/forge/floaty-data/run-server.sh`),
-> the Nginx `/api` proxy, and the `VITE_FLOATY_API` build flip. Verified: `/api/health`
+> Fastify daemon as a Forge Background process (wrapper `/home/forge/capacitylens-data/run-server.sh`),
+> the Nginx `/api` proxy, and the `VITE_CAPACITYLENS_API` build flip. Verified: `/api/health`
 > {ok,db:true}, `/api/state` seeded, Settings `build … · server`. **Two owner divergences from
 > the plan below:** (1) **no Basic Auth** and **no per-tester Accounts** — the round is SHARED +
 > OPEN (just persist a shared dataset); (2) the deploy script keeps `NODE_ENV=development` for
@@ -39,10 +39,10 @@ Basic Auth was dropped; add before beta). Stage C (real isolation) stays parked 
 ## Ground rules for every task in this plan (owner, 2026-06-12)
 
 1. **Every behavioural change ships behind an env flag, default OFF.** Unset flag ⇒
-   byte-for-byte today's behaviour. This matches the existing fail-closed `FLOATY_*`
-   posture (`FLOATY_ALLOW_RESET`, `FLOATY_CORS_ORIGIN`, `FLOATY_OPTIMISTIC_CONCURRENCY`).
-   Server flags are runtime env (`FLOATY_*`); client flags are build-time Vite env
-   (`VITE_FLOATY_*` — inlined at build, like `VITE_FLOATY_API`). The full register is
+   byte-for-byte today's behaviour. This matches the existing fail-closed `CAPACITYLENS_*`
+   posture (`CAPACITYLENS_ALLOW_RESET`, `CAPACITYLENS_CORS_ORIGIN`, `CAPACITYLENS_OPTIMISTIC_CONCURRENCY`).
+   Server flags are runtime env (`CAPACITYLENS_*`); client flags are build-time Vite env
+   (`VITE_CAPACITYLENS_*` — inlined at build, like `VITE_CAPACITYLENS_API`). The full register is
    below; three narrow exceptions are called out there with rationale.
 2. **Each task is standalone** — own flag, own tests, own gate run. Land in any order
    within its phase.
@@ -58,14 +58,14 @@ Basic Auth was dropped; add before beta). Stage C (real isolation) stays parked 
 
 ```
 Browser ──HTTPS──> Nginx (Forge site, Let's Encrypt, Basic Auth, security headers)
-                     ├── /            → dist/ (Vite build, VITE_FLOATY_API baked in)
+                     ├── /            → dist/ (Vite build, VITE_CAPACITYLENS_API baked in)
                      └── /api/*       → 127.0.0.1:8787  (Fastify daemon, node:sqlite)
-                                          └── /home/forge/floaty-data/floaty.db (WAL)
-                                                + online backups (FLOATY_BACKUP_DIR —
+                                          └── /home/forge/capacitylens-data/capacitylens.db (WAL)
+                                                + online backups (CAPACITYLENS_BACKUP_DIR —
                                                   off by default, enabled on this host)
 ```
 
-Same-origin `/api` proxy ⇒ CORS stays fail-closed (leave `FLOATY_CORS_ORIGIN` unset;
+Same-origin `/api` proxy ⇒ CORS stays fail-closed (leave `CAPACITYLENS_CORS_ORIGIN` unset;
 the localhost defaults never match a real origin).
 
 ---
@@ -86,7 +86,7 @@ incorporate them — an implementer does not need to re-ask any of these:
 | 7 | **Auth library** | **Better Auth** (third-party OSS) instead of hand-rolled sessions + `openid-client` — owner prefers an open-source library where possible. Provider choice (Google/Microsoft/…) still deferred to when SSO is actually turned on; Better Auth's social providers / OIDC plugin make that config, not code |
 
 Plus (also owner, 2026-06-12): **backups are configurable and OFF by default**
-(`FLOATY_BACKUP_DIR`), and **every change in this plan is flagged OFF by default**
+(`CAPACITYLENS_BACKUP_DIR`), and **every change in this plan is flagged OFF by default**
 (see Ground rules).
 
 Prerequisites (cheap, do regardless — see task P1.1):
@@ -105,16 +105,16 @@ Every flag introduced by this plan. **Unset = OFF = exactly today's behaviour.**
 
 | Flag | Where | Default (unset) | ON means | Set on droplet |
 |------|-------|-----------------|----------|----------------|
-| `FLOATY_LOG=1` | server runtime | current logging (startup `console.log`, `console.error` on 500s) | Fastify pino logger: per-request method/path/status/latency JSON on stdout | `1` |
-| `FLOATY_HEALTH_DEEP=1` | server runtime | `/api/health` → `{ ok: true }` unconditionally | `/api/health` also does a trivial DB read; `{ ok: true, db: true }`, or HTTP 503 `{ ok: false }` if the read throws | `1` |
-| `FLOATY_RATE_LIMIT=<n>` | server runtime | no rate limiting | `@fastify/rate-limit`, `<n>` requests/min per IP on `/api/*`; `/api/health` exempt; non-numeric/`0` = off (fail-closed) | `300` |
-| `FLOATY_BACKUP_DIR=<path>` | server runtime | no backups | periodic online snapshots into `<path>` (see P4.1) | `/home/forge/floaty-data/backups` |
-| `FLOATY_BACKUP_INTERVAL_MIN=<n>` | server runtime | `60` (only read when backups on) | snapshot cadence in minutes | leave default |
-| `FLOATY_BACKUP_KEEP=<n>` | server runtime | `48` (only read when backups on) | rolling retention count, oldest pruned | leave default |
-| `FLOATY_AUTH=off\|password\|sso` | server runtime | `off` — no Better Auth init, no auth tables, no new routes except the thin `/api/auth/me`; every request passes with a synthetic demo identity | `password`/`sso`: Better Auth mounted at `/api/auth/*`, sessions required (401 otherwise) | leave `off` |
-| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | server runtime | unused | required when `FLOATY_AUTH ≠ off` — boot refuses loudly if missing | not set |
-| `VITE_FLOATY_BUILD_SHA=<sha>` | client build | Settings shows no build row (today's UI) | Settings shows `build <sha> · server\|local` | deploy script sets `$(git rev-parse --short HEAD)` |
-| `VITE_FLOATY_FEEDBACK_MAILTO=<addr>` | client build | no feedback link (today's UI) | "Send feedback" mailto link in Settings | owner's address |
+| `CAPACITYLENS_LOG=1` | server runtime | current logging (startup `console.log`, `console.error` on 500s) | Fastify pino logger: per-request method/path/status/latency JSON on stdout | `1` |
+| `CAPACITYLENS_HEALTH_DEEP=1` | server runtime | `/api/health` → `{ ok: true }` unconditionally | `/api/health` also does a trivial DB read; `{ ok: true, db: true }`, or HTTP 503 `{ ok: false }` if the read throws | `1` |
+| `CAPACITYLENS_RATE_LIMIT=<n>` | server runtime | no rate limiting | `@fastify/rate-limit`, `<n>` requests/min per IP on `/api/*`; `/api/health` exempt; non-numeric/`0` = off (fail-closed) | `300` |
+| `CAPACITYLENS_BACKUP_DIR=<path>` | server runtime | no backups | periodic online snapshots into `<path>` (see P4.1) | `/home/forge/capacitylens-data/backups` |
+| `CAPACITYLENS_BACKUP_INTERVAL_MIN=<n>` | server runtime | `60` (only read when backups on) | snapshot cadence in minutes | leave default |
+| `CAPACITYLENS_BACKUP_KEEP=<n>` | server runtime | `48` (only read when backups on) | rolling retention count, oldest pruned | leave default |
+| `CAPACITYLENS_AUTH=off\|password\|sso` | server runtime | `off` — no Better Auth init, no auth tables, no new routes except the thin `/api/auth/me`; every request passes with a synthetic demo identity | `password`/`sso`: Better Auth mounted at `/api/auth/*`, sessions required (401 otherwise) | leave `off` |
+| `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | server runtime | unused | required when `CAPACITYLENS_AUTH ≠ off` — boot refuses loudly if missing | not set |
+| `VITE_CAPACITYLENS_BUILD_SHA=<sha>` | client build | Settings shows no build row (today's UI) | Settings shows `build <sha> · server\|local` | deploy script sets `$(git rev-parse --short HEAD)` |
+| `VITE_CAPACITYLENS_FEEDBACK_MAILTO=<addr>` | client build | no feedback link (today's UI) | "Send feedback" mailto link in Settings | owner's address |
 
 **Deliberate exceptions — changes that are NOT behind a flag** (each is a correctness/
 safety fix where an "off" default would preserve the defect; flagging them was
@@ -127,7 +127,7 @@ considered and rejected):
    (today: requests can die mid-transaction). No steady-state behaviour change to
    gate; an off-default would keep the bug.
 3. **P1.6 reset boot-guard** — a safety interlock on the *existing*
-   `FLOATY_ALLOW_RESET` flag; it only activates when `NODE_ENV=production`, so dev
+   `CAPACITYLENS_ALLOW_RESET` flag; it only activates when `NODE_ENV=production`, so dev
    and e2e behaviour is untouched. Defaulting a guard to off defeats it.
 
 ---
@@ -159,10 +159,10 @@ shape. All repo work, all CI-testable. Each task below is a standalone hand-off.
 - **Acceptance:** `kill -TERM` on a dev run exits 0 cleanly; no behaviour change
   while running.
 
-### P1.3 — Structured request logging · flag `FLOATY_LOG` (default OFF)
+### P1.3 — Structured request logging · flag `CAPACITYLENS_LOG` (default OFF)
 - **Decision:** plain `console.*` can't be filtered or parsed in production.
 - **Change:** in `server/src/app.ts`, construct Fastify with
-  `logger: env.FLOATY_LOG === '1'` (pino, default JSON to stdout). Route the existing
+  `logger: env.CAPACITYLENS_LOG === '1'` (pino, default JSON to stdout). Route the existing
   500-path `console.error` through `req.log.error` when the logger is on (keep
   `console.error` when off — today's behaviour). No new dependency (pino ships with
   Fastify).
@@ -170,7 +170,7 @@ shape. All repo work, all CI-testable. Each task below is a standalone hand-off.
 - **Tests:** app factory unit test — flag on ⇒ `app.log` is a real logger and a
   request emits a completion log; flag off ⇒ logger disabled.
 
-### P1.4 — Deep health check · flag `FLOATY_HEALTH_DEEP` (default OFF)
+### P1.4 — Deep health check · flag `CAPACITYLENS_HEALTH_DEEP` (default OFF)
 - **Decision:** `{ ok: true }` from a server whose DB is corrupt/locked is a lie to
   the uptime monitor.
 - **Change:** in the `/api/health` handler: when flag is `'1'`, run a trivial read
@@ -180,12 +180,12 @@ shape. All repo work, all CI-testable. Each task below is a standalone hand-off.
 - **Tests:** flag on + healthy ⇒ `{ok,db}`; flag on + closed DB ⇒ 503; flag off ⇒
   exact current body.
 
-### P1.5 — Rate limiting · flag `FLOATY_RATE_LIMIT` (default OFF)
+### P1.5 — Rate limiting · flag `CAPACITYLENS_RATE_LIMIT` (default OFF)
 - **Decision:** not a security control — a guard against accidental client loops
   hammering the single-writer SQLite file.
 - **Change:** add `@fastify/rate-limit` (dev-approved dependency); register only when
   the flag parses to a positive integer `n` (`max: n`, `timeWindow: '1 minute'`,
-  keyed by IP — trust `X-Forwarded-For` only when `FLOATY_HOST` is loopback, i.e.
+  keyed by IP — trust `X-Forwarded-For` only when `CAPACITYLENS_HOST` is loopback, i.e.
   behind the Nginx proxy). Exempt `/api/health`. Non-numeric or `0` ⇒ off.
 - **OFF behaviour:** plugin not registered at all.
 - **Tests:** flag `=2` ⇒ third request inside a minute is 429 with a JSON error;
@@ -195,16 +195,16 @@ shape. All repo work, all CI-testable. Each task below is a standalone hand-off.
 - **Decision:** `POST /api/test/reset` must be impossible in production, not merely
   unconfigured.
 - **Change:** in `server/src/index.ts`, before listen: if
-  `FLOATY_ALLOW_RESET === '1' && NODE_ENV === 'production'`, print one clear line and
+  `CAPACITYLENS_ALLOW_RESET === '1' && NODE_ENV === 'production'`, print one clear line and
   `process.exit(1)`.
 - **Tests:** unit test the guard predicate (extract it); e2e/dev unaffected
   (`NODE_ENV` isn't `production` there).
 
-### P1.7 — Build/mode stamp in Settings · flag `VITE_FLOATY_BUILD_SHA` (default OFF)
+### P1.7 — Build/mode stamp in Settings · flag `VITE_CAPACITYLENS_BUILD_SHA` (default OFF)
 - **Decision:** testers must be able to report *which build*, and the smoke test must
-  prove the deploy is actually in server mode (a build missing `VITE_FLOATY_API`
+  prove the deploy is actually in server mode (a build missing `VITE_CAPACITYLENS_API`
   silently reverts to localStorage and otherwise looks identical).
-- **Change (client):** read `import.meta.env.VITE_FLOATY_BUILD_SHA` in a tiny helper
+- **Change (client):** read `import.meta.env.VITE_CAPACITYLENS_BUILD_SHA` in a tiny helper
   next to `src/data/apiConfig.ts`. When set, `SettingsView` renders a muted one-line
   footer: `build <sha> · server` (when `isServerConfigured()`) or `build <sha> ·
   local`. When unset, render nothing — today's Settings exactly.
@@ -226,11 +226,11 @@ stated rollback. Execute `server-migration-plan.md` steps 1–6 as written, then
 the items below. Order matters.
 
 1. **Daemon + proxy + build flag** (migration plan steps 1–4): persistent
-   `FLOATY_DB=/home/forge/floaty-data/floaty.db`; Forge daemon
+   `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`; Forge daemon
    `npm start --workspace=server`; daemon restart added to the deploy script; Nginx
-   `/api` → `127.0.0.1:8787`; `export VITE_FLOATY_API=https://<site>` in the deploy
+   `/api` → `127.0.0.1:8787`; `export VITE_CAPACITYLENS_API=https://<site>` in the deploy
    script *before* `npm run build`, plus
-   `export VITE_FLOATY_BUILD_SHA=$(git rev-parse --short HEAD)` (P1.7).
+   `export VITE_CAPACITYLENS_BUILD_SHA=$(git rev-parse --short HEAD)` (P1.7).
    *Rollback:* remove the exports, redeploy (data-strand caveat — see runbook P4.5).
 2. **Gate it** (migration plan step 5): Nginx Basic Auth over the whole site,
    **one htpasswd entry per tester** (Phase 0 #3). *Verify:* anonymous `GET /` and
@@ -240,11 +240,11 @@ the items below. Order matters.
    (the import endpoint takes `{ accountId, data }`; create the Account first via the
    UI or a PUT). *Verify:* the Cohesion company appears in the AccountPicker.
 4. **Daemon env** (the droplet column of the flag register): `NODE_ENV=production`,
-   `PORT=8787`, `FLOATY_DB` as above, `FLOATY_LOG=1`, `FLOATY_HEALTH_DEEP=1`,
-   `FLOATY_RATE_LIMIT=300`, `FLOATY_BACKUP_DIR=/home/forge/floaty-data/backups`.
-   Leave `FLOATY_HOST` at its `127.0.0.1` default (Nginx proxies on loopback); leave
-   `FLOATY_CORS_ORIGIN`, `FLOATY_ALLOW_RESET`, `FLOATY_OPTIMISTIC_CONCURRENCY`, and
-   `FLOATY_AUTH` unset.
+   `PORT=8787`, `CAPACITYLENS_DB` as above, `CAPACITYLENS_LOG=1`, `CAPACITYLENS_HEALTH_DEEP=1`,
+   `CAPACITYLENS_RATE_LIMIT=300`, `CAPACITYLENS_BACKUP_DIR=/home/forge/capacitylens-data/backups`.
+   Leave `CAPACITYLENS_HOST` at its `127.0.0.1` default (Nginx proxies on loopback); leave
+   `CAPACITYLENS_CORS_ORIGIN`, `CAPACITYLENS_ALLOW_RESET`, `CAPACITYLENS_OPTIMISTIC_CONCURRENCY`, and
+   `CAPACITYLENS_AUTH` unset.
 5. **Security headers** in the Nginx site config (DECISIONS: CSP belongs in a host
    header, not the app):
 
@@ -264,7 +264,7 @@ the items below. Order matters.
    `index.html` → `no-cache`. Without the second part testers get stuck on a stale
    build after a deploy.
 
-## Phase 3 — Auth wired, switched OFF · flag `FLOATY_AUTH` (default `off`) (~1.5–2 days)
+## Phase 3 — Auth wired, switched OFF · flag `CAPACITYLENS_AUTH` (default `off`) (~1.5–2 days)
 
 **Decision (Phase 0 #7):** Better Auth — third-party OSS — rather than hand-rolled
 sessions + `openid-client`. It owns the session/credential/OIDC machinery; it is the
@@ -272,7 +272,7 @@ one new runtime dependency this round, accepted precisely to avoid owning crypto
 session code. Provider choice stays deferred; Better Auth's social providers / OIDC
 plugin make that config, not code.
 
-**The OFF guarantee (read first):** with `FLOATY_AUTH` unset or `off` —
+**The OFF guarantee (read first):** with `CAPACITYLENS_AUTH` unset or `off` —
 - Better Auth is **not initialised**: no handler mounted, no auth tables created in
   the SQLite file, no `BETTER_AUTH_*` env read, zero new attack surface.
 - The only new route is the thin `GET /api/auth/me` → `{ authMode: 'off', user:
@@ -280,11 +280,11 @@ plugin make that config, not code.
 - `requireUser` attaches that demo identity and continues — **no request that
   succeeds today may fail in off mode** (the e2e suite enforces this by running
   unchanged).
-- The client never shows a login screen; in local mode (no `VITE_FLOATY_API`) the
+- The client never shows a login screen; in local mode (no `VITE_CAPACITYLENS_API`) the
   auth layer is a pass-through that performs **no fetch at all**.
 
 ### P3.1 — Server: Better Auth module (`server/src/auth.ts`, new)
-- Parse `FLOATY_AUTH` (`off`|`password`|`sso`, anything else ⇒ refuse to boot,
+- Parse `CAPACITYLENS_AUTH` (`off`|`password`|`sso`, anything else ⇒ refuse to boot,
   loudly — same posture as `assertSchemaCurrent`). Export `authMode`.
 - When mode ≠ `off`: require `BETTER_AUTH_SECRET` + `BETTER_AUTH_URL` (boot refusal
   if missing); initialise Better Auth with email/password enabled in `password` mode
@@ -329,7 +329,7 @@ plugin make that config, not code.
 ### P3.5 — Tests (per mode)
 - Server: `off` ⇒ all existing app.test.ts routes pass unchanged AND `/api/auth/me`
   returns the demo identity; `password` ⇒ unauthenticated write 401 → sign-up/sign-in
-  → 200; `sso` ⇒ `/api/auth/*` issues a provider redirect; bad `FLOATY_AUTH` value or
+  → 200; `sso` ⇒ `/api/auth/*` issues a provider redirect; bad `CAPACITYLENS_AUTH` value or
   missing secret ⇒ boot refusal.
 - e2e: the whole suite keeps running in `off` mode (that *is* the off-guarantee
   test); one new spec for the `password` login screen against a dev server started
@@ -343,14 +343,14 @@ wiring ≠ isolation, and this round's gate is still the Nginx Basic Auth.
 
 ## Phase 4 — Data safety + operations (~half a day)
 
-### P4.1 — Backups · flag `FLOATY_BACKUP_DIR` (default OFF) — owner call 2026-06-12
+### P4.1 — Backups · flag `CAPACITYLENS_BACKUP_DIR` (default OFF) — owner call 2026-06-12
 - **Decision:** a small server feature, not a host cron; OFF by default, switched on
   per-host by env. WAL mode means a raw `cp` can catch a torn state ⇒ online
   snapshots only (this supersedes the migration plan's `cp` cron).
-- **Change:** `server/src/backup.ts` (new). When `FLOATY_BACKUP_DIR` is set: ensure
-  the dir exists; every `FLOATY_BACKUP_INTERVAL_MIN` minutes (default 60; `unref()`
-  the timer) write `floaty-<YYYYMMDD-HHmmss>.db` via `node:sqlite`'s `backup()`
-  (fallback `VACUUM INTO` if unavailable); prune to the newest `FLOATY_BACKUP_KEEP`
+- **Change:** `server/src/backup.ts` (new). When `CAPACITYLENS_BACKUP_DIR` is set: ensure
+  the dir exists; every `CAPACITYLENS_BACKUP_INTERVAL_MIN` minutes (default 60; `unref()`
+  the timer) write `capacitylens-<YYYYMMDD-HHmmss>.db` via `node:sqlite`'s `backup()`
+  (fallback `VACUUM INTO` if unavailable); prune to the newest `CAPACITYLENS_BACKUP_KEEP`
   (default 48). Take one snapshot immediately on start. Stop the timer in the P1.2
   shutdown path. Log one line per snapshot/prune (respects P1.3's flag).
 - **OFF behaviour:** module never starts a timer, never touches the filesystem.
@@ -359,7 +359,7 @@ wiring ≠ isolation, and this round's gate is still the Nginx Basic Auth.
   files, no timer.
 
 ### P4.2 — Restore drill (ops, once, before testers arrive)
-Stop daemon → copy a snapshot over `FLOATY_DB` → start daemon → verify data in the
+Stop daemon → copy a snapshot over `CAPACITYLENS_DB` → start daemon → verify data in the
 app. A backup that's never been restored is a hope, not a backup. Record the working
 command sequence in the runbook (P4.5).
 
@@ -367,16 +367,16 @@ command sequence in the runbook (P4.5).
 Snapshot before each testing session (the P4.1 files, or a manual
 `sqlite3 … ".backup pre-session-<date>.db"`); restoring it is the
 reset-to-clean-state button. This replaces any temptation to enable
-`FLOATY_ALLOW_RESET` in production (which P1.6 makes impossible anyway).
+`CAPACITYLENS_ALLOW_RESET` in production (which P1.6 makes impossible anyway).
 
 ### P4.4 — Monitoring (ops)
 Uptime check (Forge monitor or UptimeRobot) on `https://<site>/api/health` *with
 Basic Auth creds* + the SPA root; droplet disk alert sized against backup retention.
-With `FLOATY_HEALTH_DEEP=1` (Phase 2) the probe actually exercises the DB.
+With `CAPACITYLENS_HEALTH_DEEP=1` (Phase 2) the probe actually exercises the DB.
 
 ### P4.5 — `docs/runbook.md` (new, one page)
 Deploy, logs location, daemon restart, restore (P4.2's exact commands), demo reset,
-flag register pointer, and **rollback**: rebuild without `VITE_FLOATY_API` returns
+flag register pointer, and **rollback**: rebuild without `VITE_CAPACITYLENS_API` returns
 the app to localStorage but *strands server data* — export via `GET /api/state`
 first. Rollback is a data decision, not just a redeploy.
 
@@ -386,7 +386,7 @@ first. Rollback is a data decision, not just a redeploy.
    tester on the deployed server (plus the Cohesion Account from Phase 2). Collisions
    under last-writer-wins become rare by construction; the AccountPicker doubles as
    "who are you".
-2. **Feedback affordance · flag `VITE_FLOATY_FEEDBACK_MAILTO` (default OFF):** when
+2. **Feedback affordance · flag `VITE_CAPACITYLENS_FEEDBACK_MAILTO` (default OFF):** when
    set, Settings renders a "Send feedback" `mailto:` link next to the P1.7 build
    stamp (so reports arrive as "build `a1b2c3d`: …"). Unset ⇒ nothing renders —
    today's UI. REFERENCE.md + story update, same as P1.7.
@@ -407,10 +407,10 @@ first. Rollback is a data decision, not just a redeploy.
 **Pre-deploy (CI, already wired):** `gate` + `gate:server` + `e2e` green, including
 the db-backed Playwright project.
 
-**Production-shaped rehearsal (local):** build with `VITE_FLOATY_API` (+
-`VITE_FLOATY_BUILD_SHA`) set, serve `dist/` behind a local proxy to the API **with
-the droplet's flag set** (`FLOATY_LOG=1`, `FLOATY_HEALTH_DEEP=1`,
-`FLOATY_RATE_LIMIT=300`, `FLOATY_BACKUP_DIR=<tmp>`), run the db-backed e2e specs
+**Production-shaped rehearsal (local):** build with `VITE_CAPACITYLENS_API` (+
+`VITE_CAPACITYLENS_BUILD_SHA`) set, serve `dist/` behind a local proxy to the API **with
+the droplet's flag set** (`CAPACITYLENS_LOG=1`, `CAPACITYLENS_HEALTH_DEEP=1`,
+`CAPACITYLENS_RATE_LIMIT=300`, `CAPACITYLENS_BACKUP_DIR=<tmp>`), run the db-backed e2e specs
 against it — this is the migration plan's gate, kept, now also exercising the flags
 in their ON state.
 
@@ -423,8 +423,8 @@ in their ON state.
 - [ ] Cross-origin `fetch` to `/api/state` from another site is refused (CORS)
 - [ ] CSP report-only shows no violations after a full click-through → enforce
 - [ ] `GET /api/health` returns `{ ok, db }` (deep check live) and the uptime monitor is green; deliberately kill the daemon → alert fires + Forge restarts it
-- [ ] A backup snapshot file exists in `FLOATY_BACKUP_DIR`; restore drill done once (P4.2)
-- [ ] `FLOATY_ALLOW_RESET` and `FLOATY_AUTH` unset (and P1.6 would refuse the former anyway)
+- [ ] A backup snapshot file exists in `CAPACITYLENS_BACKUP_DIR`; restore drill done once (P4.2)
+- [ ] `CAPACITYLENS_ALLOW_RESET` and `CAPACITYLENS_AUTH` unset (and P1.6 would refuse the former anyway)
 - [ ] Repeat the create/reload smoke on a phone (landscape) — rail + rotate hint behave per US-NAV-09
 
 ---
@@ -435,7 +435,7 @@ in their ON state.
   is Basic Auth. Do not invite anyone outside the trusted tester group: anyone with
   the URL + creds can edit/wipe the shared dataset. That line moves only when Stage C
   lands.
-- **Stage B — optimistic concurrency.** Leave `FLOATY_OPTIMISTIC_CONCURRENCY` off:
+- **Stage B — optimistic concurrency.** Leave `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` off:
   flipping it without a client 409/conflict UI just turns races into error churn
   (per the migration plan). Per-tester Accounts are this round's mitigation. If the
   test script deliberately has people co-editing one Account, build the client 409
@@ -452,7 +452,7 @@ in their ON state.
 | Last-writer-wins clobber between testers | Mitigated: per-tester Accounts; watched via testing-round feedback |
 | Destructive API behind Basic Auth only | Accepted for trusted testers; Stage C is the exit |
 | Single droplet, single DB file | Accepted; daemon backups ON in prod (OFF by default elsewhere), RPO ≤ 1 h, tested restore |
-| Build missing `VITE_FLOATY_API` silently reverts to localStorage | Mitigated: deploy script owns the export; smoke test asserts `server` in the build stamp |
+| Build missing `VITE_CAPACITYLENS_API` silently reverts to localStorage | Mitigated: deploy script owns the export; smoke test asserts `server` in the build stamp |
 | Rollback strands server data | Documented in runbook: export before rebuilding without the flag |
 | `node:sqlite` driver regressions on Node 24 | Mitigated: P1.1 lands behind the full server gate; `better-sqlite3` fallback pre-approved |
 | Better Auth lacks solid `node:sqlite` support | Mitigated: P3.1 storage spike first; `better-sqlite3` fallback for auth tables only, pre-approved |

@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
-import { seed } from '@floaty/shared/data/seed'
-import { emptyAppData } from '@floaty/shared/types/entities'
+import { seed } from '@capacitylens/shared/data/seed'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
 
-const KEY = 'floaty/test'
+const KEY = 'capacitylens/test'
 
 describe('LocalStorageAdapter', () => {
   beforeEach(() => localStorage.clear())

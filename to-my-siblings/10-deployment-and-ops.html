@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -61,12 +61,12 @@
       <thead><tr><th>Mode</th><th>What ships</th><th>Data</th><th>When</th></tr></thead>
       <tbody>
         <tr><td><strong>Static SPA</strong> (default)</td><td>The Vite build (<code>dist/</code>) on a static host. No backend.</td><td>Each browser's own <code>localStorage</code> — per-browser islands.</td><td>Solo use, demos, the simplest possible deploy.</td></tr>
-        <tr><td><strong>Server mode</strong></td><td>The build (with <code>VITE_FLOATY_API</code> baked in) + the Fastify daemon behind an <code>/api</code> proxy + persistent SQLite.</td><td>One shared, server-persisted dataset, last-writer-wins.</td><td>A shared dataset across people/devices.</td></tr>
+        <tr><td><strong>Server mode</strong></td><td>The build (with <code>VITE_CAPACITYLENS_API</code> baked in) + the Fastify daemon behind an <code>/api</code> proxy + persistent SQLite.</td><td>One shared, server-persisted dataset, last-writer-wins.</td><td>A shared dataset across people/devices.</td></tr>
       </tbody>
     </table>
     <div class="callout warn">
       <span class="label">The one structural fact that frames everything</span>
-      <p><code>VITE_FLOATY_API</code> is inlined <strong>at build time</strong> with <strong>no localStorage
+      <p><code>VITE_CAPACITYLENS_API</code> is inlined <strong>at build time</strong> with <strong>no localStorage
       fallback</strong>. A build either targets the server or it doesn't. So in server mode the server is a
       <em>hard dependency</em> (server down ⇒ app down), and rollback = rebuild without the flag, which strands
       whatever is on the server. Rollback is a data decision, not just a redeploy (see below).</p>
@@ -96,15 +96,15 @@ npm run build   <span class="c"># tsc -b &amp;&amp; vite build  ->  dist/</span>
     <p>Moving to a shared dataset is a <strong>cutover plus hardening</strong>, not a build — the server and the
     sync adapter already exist. The target architecture:</p>
 <pre><code>Browser ──HTTPS──&gt; Nginx (Let's Encrypt, Basic Auth, security headers)
-                     ├── /          → dist/  (Vite build, VITE_FLOATY_API baked in)
+                     ├── /          → dist/  (Vite build, VITE_CAPACITYLENS_API baked in)
                      └── /api/*      → 127.0.0.1:8787  (Fastify daemon, node:sqlite)
-                                         └── /home/.../floaty.db (WAL) + online backups</code></pre>
+                                         └── /home/.../capacitylens.db (WAL) + online backups</code></pre>
     <p>The cutover steps (operations, mostly no code):</p>
     <ol>
-      <li><strong>Persistent DB path</strong> <em>outside</em> the deploy tree so <code>git pull</code> never touches it (<code>FLOATY_DB=/home/forge/floaty-data/floaty.db</code>).</li>
+      <li><strong>Persistent DB path</strong> <em>outside</em> the deploy tree so <code>git pull</code> never touches it (<code>CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db</code>).</li>
       <li><strong>Run the server as a managed daemon</strong> (<code>npm start --workspace=server</code>); add a daemon restart to the deploy script so new code actually runs.</li>
-      <li><strong>Reverse-proxy <code>/api</code> → <code>127.0.0.1:8787</code></strong>. Same-origin, so CORS stays moot and fail-closed (leave <code>FLOATY_CORS_ORIGIN</code> unset — the localhost defaults never match a real origin).</li>
-      <li><strong>Flip the build onto the server</strong>: <code>export VITE_FLOATY_API=https://&lt;site&gt;</code> <em>before</em> <code>npm run build</code>.</li>
+      <li><strong>Reverse-proxy <code>/api</code> → <code>127.0.0.1:8787</code></strong>. Same-origin, so CORS stays moot and fail-closed (leave <code>CAPACITYLENS_CORS_ORIGIN</code> unset — the localhost defaults never match a real origin).</li>
+      <li><strong>Flip the build onto the server</strong>: <code>export VITE_CAPACITYLENS_API=https://&lt;site&gt;</code> <em>before</em> <code>npm run build</code>.</li>
       <li><strong>Gate it with Nginx Basic Auth</strong> over the whole site — one htpasswd entry per user (attribution in access logs, per-person revocation). The API is destructive and unauthenticated; it must not be naked on the internet.</li>
       <li><strong>Security headers in the host config</strong>, not the app (the app ships only the safe <code>object-src</code>/<code>base-uri</code> CSP). Ship the full CSP as <code>Report-Only</code> first, click through the whole app, then enforce. Note <code>style-src 'unsafe-inline'</code> is required because the scheduler positions bars with inline styles.</li>
       <li><strong>Cache headers</strong>: hashed <code>/assets/</code> immutable for a year; <code>index.html</code> <code>no-cache</code> — or testers get stuck on a stale build after a deploy.</li>
@@ -116,13 +116,13 @@ npm run build   <span class="c"># tsc -b &amp;&amp; vite build  ->  dist/</span>
     <table>
       <thead><tr><th>Flag</th><th>Default</th><th>Droplet</th><th>On means</th></tr></thead>
       <tbody>
-        <tr><td><code>FLOATY_LOG</code></td><td>off</td><td><code>1</code></td><td>Structured per-request JSON logs (pino).</td></tr>
-        <tr><td><code>FLOATY_HEALTH_DEEP</code></td><td>off</td><td><code>1</code></td><td><code>/api/health</code> proves a DB read.</td></tr>
-        <tr><td><code>FLOATY_RATE_LIMIT</code></td><td>off</td><td><code>300</code></td><td><em>n</em> req/min/IP on <code>/api/*</code>; health exempt.</td></tr>
-        <tr><td><code>FLOATY_BACKUP_DIR</code></td><td>off</td><td>a path</td><td>Periodic online DB snapshots.</td></tr>
-        <tr><td><code>FLOATY_AUTH</code></td><td><code>off</code></td><td><code>off</code></td><td><code>password</code>/<code>sso</code>: sessions required.</td></tr>
-        <tr><td><code>VITE_FLOATY_BUILD_SHA</code></td><td>none</td><td>git sha</td><td>Settings shows <code>build &lt;sha&gt; · server|local</code>.</td></tr>
-        <tr><td><code>VITE_FLOATY_FEEDBACK_MAILTO</code></td><td>none</td><td>an address</td><td>"Send feedback" mailto in Settings.</td></tr>
+        <tr><td><code>CAPACITYLENS_LOG</code></td><td>off</td><td><code>1</code></td><td>Structured per-request JSON logs (pino).</td></tr>
+        <tr><td><code>CAPACITYLENS_HEALTH_DEEP</code></td><td>off</td><td><code>1</code></td><td><code>/api/health</code> proves a DB read.</td></tr>
+        <tr><td><code>CAPACITYLENS_RATE_LIMIT</code></td><td>off</td><td><code>300</code></td><td><em>n</em> req/min/IP on <code>/api/*</code>; health exempt.</td></tr>
+        <tr><td><code>CAPACITYLENS_BACKUP_DIR</code></td><td>off</td><td>a path</td><td>Periodic online DB snapshots.</td></tr>
+        <tr><td><code>CAPACITYLENS_AUTH</code></td><td><code>off</code></td><td><code>off</code></td><td><code>password</code>/<code>sso</code>: sessions required.</td></tr>
+        <tr><td><code>VITE_CAPACITYLENS_BUILD_SHA</code></td><td>none</td><td>git sha</td><td>Settings shows <code>build &lt;sha&gt; · server|local</code>.</td></tr>
+        <tr><td><code>VITE_CAPACITYLENS_FEEDBACK_MAILTO</code></td><td>none</td><td>an address</td><td>"Send feedback" mailto in Settings.</td></tr>
       </tbody>
     </table>
     <div class="callout do">
@@ -136,24 +136,24 @@ npm run build   <span class="c"># tsc -b &amp;&amp; vite build  ->  dist/</span>
 
     <h2 id="clientflags">Client build flags &amp; the build stamp</h2>
     <p>Client flags are build-time Vite env (<code>VITE_*</code>), inlined into the bundle. The build stamp is a
-    deliberate safety device: a build that <em>silently</em> lost <code>VITE_FLOATY_API</code> reverts to
+    deliberate safety device: a build that <em>silently</em> lost <code>VITE_CAPACITYLENS_API</code> reverts to
     localStorage and looks identical otherwise. So Settings shows a one-line footer — <code>build &lt;sha&gt; ·
     server</code> or <code>build &lt;sha&gt; · local</code> — and the post-deploy smoke test asserts it says
     <code>server</code>.</p>
     <div class="filename">deploy script (server mode, the exports)</div>
-<pre><code>export VITE_FLOATY_API="https://&lt;site&gt;"                       <span class="c"># server mode — REQUIRED</span>
-export VITE_FLOATY_BUILD_SHA="$(git rev-parse --short HEAD)"  <span class="c"># the tell-tale stamp</span>
-export VITE_FLOATY_FEEDBACK_MAILTO="&lt;owner address&gt;"
+<pre><code>export VITE_CAPACITYLENS_API="https://&lt;site&gt;"                       <span class="c"># server mode — REQUIRED</span>
+export VITE_CAPACITYLENS_BUILD_SHA="$(git rev-parse --short HEAD)"  <span class="c"># the tell-tale stamp</span>
+export VITE_CAPACITYLENS_FEEDBACK_MAILTO="&lt;owner address&gt;"
 npm run build</code></pre>
 
     <h2 id="backups">Backups, restore, and demo reset</h2>
-    <p>Backups are a <em>server feature</em> (flag <code>FLOATY_BACKUP_DIR</code>), not a host cron — because
+    <p>Backups are a <em>server feature</em> (flag <code>CAPACITYLENS_BACKUP_DIR</code>), not a host cron — because
     WAL mode means a raw <code>cp</code> can catch a torn state. The daemon writes online
     <code>backup()</code> snapshots once at boot then hourly, keeping the newest 48 (RPO ≤ 1 h).</p>
     <div class="callout rule">
       <span class="label">Load-bearing rule — a backup that's never been restored is a hope</span>
       <p>Run the restore drill once before real use: stop the daemon, copy a snapshot over the live DB,
-      <strong>remove the WAL sidecars</strong> (<code>floaty.db-wal</code>/<code>-shm</code> — stale ones would
+      <strong>remove the WAL sidecars</strong> (<code>capacitylens.db-wal</code>/<code>-shm</code> — stale ones would
       replay old frames over the restored file), restart, verify in the app. Document the exact command
       sequence in a one-page <code>runbook.md</code>. Snapshot before each demo session; restoring it is the
       reset-to-clean button (which is why the destructive reset route stays forbidden in production).</p>
@@ -167,7 +167,7 @@ npm run build</code></pre>
     <h2 id="rollback">Rollback is a data decision</h2>
     <div class="callout warn">
       <span class="label">Export before you roll back</span>
-      <p>Rebuilding without <code>VITE_FLOATY_API</code> returns the app to browser-local storage but
+      <p>Rebuilding without <code>VITE_CAPACITYLENS_API</code> returns the app to browser-local storage but
       <strong>strands the server data</strong> (nothing migrates back). Before flipping, export it:
       <code>curl -su &lt;user&gt; https://&lt;site&gt;/api/state &gt; export-$(date +%F).json</code>. Rolling back to a
       good state <em>without</em> leaving server mode is the restore sequence above.</p>
@@ -181,7 +181,7 @@ npm run build</code></pre>
       <tbody>
         <tr><td>0</td><td>Static localStorage deploy.</td><td>Today's default.</td></tr>
         <tr><td>Near-term</td><td>Shared dataset on the DB, behind Basic Auth (the cutover above).</td><td>People need one shared, durable dataset.</td></tr>
-        <tr><td>B</td><td>Optimistic concurrency — but <em>build the client 409/conflict UI first</em>, then turn on <code>FLOATY_OPTIMISTIC_CONCURRENCY</code>. Move off any experimental driver. Tested restore.</td><td>The shared dataset starts mattering / people co-edit.</td></tr>
+        <tr><td>B</td><td>Optimistic concurrency — but <em>build the client 409/conflict UI first</em>, then turn on <code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code>. Move off any experimental driver. Tested restore.</td><td>The shared dataset starts mattering / people co-edit.</td></tr>
         <tr><td>C <span class="tag red">the big one</span></td><td>Real auth + per-account isolation: app login, derive <code>accountId</code> from the session (never the client), server-enforce ownership on every read/write, isolation tests + a security review as the gate.</td><td>Real users in separate trust domains who must not see each other's data.</td></tr>
         <tr><td>D</td><td>Productised "push my localStorage to the server" import flow.</td><td>Real users with existing local data to carry over.</td></tr>
         <tr><td>E</td><td>Postgres. Note: no ORM seam, so this is a data-layer <em>rewrite</em>, not a dialect swap.</td><td>SQLite concurrency/scale/managed-backup needs justify the ops cost.</td></tr>
@@ -197,7 +197,7 @@ npm run build</code></pre>
     <h2 id="security">Security posture, stated honestly</h2>
     <ul>
       <li><strong>No app-level auth by default.</strong> The demo's gate is Nginx Basic Auth; the dataset is shared, last-writer-wins.</li>
-      <li><strong>Auth is wired but OFF</strong> (<code>FLOATY_AUTH</code>, Better Auth): off = byte-for-byte today, no auth tables, no login UI. The server-reported <code>authMode</code> is the only auth flag — there is no client-side auth flag.</li>
+      <li><strong>Auth is wired but OFF</strong> (<code>CAPACITYLENS_AUTH</code>, Better Auth): off = byte-for-byte today, no auth tables, no login UI. The server-reported <code>authMode</code> is the only auth flag — there is no client-side auth flag.</li>
       <li><strong>Session ≠ isolation.</strong> Turning auth on gates requests, but <code>accountId</code> stays client-asserted (<code>ownsRow</code> is defence-in-depth) until Stage C derives it from the session.</li>
       <li><strong>CSP</strong>: <code>object-src</code>/<code>base-uri</code> ship in the app; the full policy belongs in a host header.</li>
     </ul>

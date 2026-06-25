@@ -1,4 +1,4 @@
-# Floaty — End-to-end code review (pre-first-push)
+# CapacityLens — End-to-end code review (pre-first-push)
 
 Max-effort, recall-oriented review of the **entire** tree (~16.5k LOC): web app (`src/`),
 pure domain core (`shared/`), optional `node:sqlite` server (`server/`). Method: 14 parallel
@@ -8,7 +8,7 @@ findings re-confirmed by reading source directly (`transfer.ts`, `mutations.ts`,
 `capacity.ts`, `ui.tsx`, router/shell), plus a gap sweep (returned empty).
 
 **Mode tags:** `[default]` hits the local-first app everyone runs first. `[server]` only
-when the optional API is enabled (`VITE_FLOATY_API=…`, off by default) — triage below default-mode bugs.
+when the optional API is enabled (`VITE_CAPACITYLENS_API=…`, off by default) — triage below default-mode bugs.
 
 The data/date/layout core is genuinely strong — see "Verified clean" at the bottom. The
 findings cluster in **import/data-safety**, **form/gesture validation gaps**, and
@@ -28,13 +28,13 @@ import-cluster claim re-confirmed by reading source directly (`transfer.ts`, `mu
 findings.** Nothing here is fixed yet — this round is review-only.
 
 Ranked by **severity-of-kind**, with `[default]` items first (every user hits these) and a
-separated `[server]` block at the end — gated behind the off-by-default API (`VITE_FLOATY_API`),
+separated `[server]` block at the end — gated behind the off-by-default API (`VITE_CAPACITYLENS_API`),
 so they triage *below* default-mode bugs for the first push despite being severe within server mode.
 
 | # | Sev | Mode | File:line | Finding → failure |
 |---|-----|------|-----------|-------------------|
 | 1 | **Crash** | default | `scheduler/AllocationModal.tsx:318,337` | "Days over/of work" field is `min:1` with **no max**, and the end-date hint calls `format(parseDate(effEndDate))` unguarded. A large value (~2.9M+ days, empirically confirmed) yields a 5-digit-year string `parseDate` can't round-trip → `format(Invalid Date)` throws `RangeError` mid-render → router boundary replaces the whole scheduler. **Fix: guard `effEndDate` validity before formatting (and cap the field).** |
-| 2 | **Data loss** | default | `ImportExport.tsx:65` | When an import drops every record (`imported===0`) the store correctly skips `mutate` (no wipe), but the toast still says "**Press ⌘Z to undo**". Following it pops the user's *prior unrelated* edit. Trigger: import a Floaty-shaped file whose rows all dangle (e.g. allocations-only export into an empty company). **Fix: only show the undo hint when `imported>0`.** |
+| 2 | **Data loss** | default | `ImportExport.tsx:65` | When an import drops every record (`imported===0`) the store correctly skips `mutate` (no wipe), but the toast still says "**Press ⌘Z to undo**". Following it pops the user's *prior unrelated* edit. Trigger: import a CapacityLens-shaped file whose rows all dangle (e.g. allocations-only export into an empty company). **Fix: only show the undo hint when `imported>0`.** |
 | 3 | **Data loss** | default | `AppShell.tsx:57` | Global ⌘Z/⌘⇧Z suppresses only when focus is in INPUT/TEXTAREA/contentEditable, never checking `dirtyForm` (unlike the sibling `beforeunload` guard at L38). AllocationModal sets **no** `autoFocus`, so on open focus sits on the close button / Assignee `<select>` — a non-text control — so ⌘Z there runs `undo()` against the data behind the open, unsaved form; Save then writes stale local state over the reverted data. **Fix: bail undo/redo when `dirtyForm`.** |
 | 4 | **Wrong UI** | default | `scheduler/AllocationBar.tsx:225` | Drag **preview** is a raw calendar pixel shift; **commit** runs `applyGesture`→`endDateForWorkingDays`/`snapToWorkingDay`. For a Mon–Fri resource any move/resize crossing a weekend makes the bar **jump** on pointer-release vs what was previewed. **Fix: preview through the same working-day snap.** |
 | 5 | **Bad data** | default | `scheduler/AllocationBar.tsx:169,188` | Cross-row **reassign** computes dates with the **source** resource's `workingDays` but writes them to the **target**. Dropping a Mon–Fri bar onto a Tue–Sat resource commits dates on the target's non-working days. **Fix: recompute against the target's working days on reassign.** |
@@ -162,8 +162,8 @@ pre-fix baseline (measured by stashing the changes): statements 86.91%→**87.68
 ## Findings (most severe first)
 
 ### 1. Empty/empty-shaped import file silently wipes the active company `[default · DATA LOSS]`
-- **Where:** `shared/src/data/transfer.ts:26` (`looksLikeFloaty`) → `src/store/useStore.ts:322` (`importData`) → `shared/src/domain/mutations.ts:234` (slice replace).
-- **What:** `looksLikeFloaty` only checks *shape* — `KNOWN_KEYS.some(k => Array.isArray(candidate[k]))`. A file like `{"accounts":[]}` or a truncated backup with all-empty arrays **passes the guard whose own comment says it exists to prevent a silent wipe**, migrates to 0 records, and `remapAndValidateImport` replaces the active account's slice with nothing.
+- **Where:** `shared/src/data/transfer.ts:26` (`looksLikeCapacityLens`) → `src/store/useStore.ts:322` (`importData`) → `shared/src/domain/mutations.ts:234` (slice replace).
+- **What:** `looksLikeCapacityLens` only checks *shape* — `KNOWN_KEYS.some(k => Array.isArray(candidate[k]))`. A file like `{"accounts":[]}` or a truncated backup with all-empty arrays **passes the guard whose own comment says it exists to prevent a silent wipe**, migrates to 0 records, and `remapAndValidateImport` replaces the active account's slice with nothing.
 - **Trigger:** Import a truncated/empty/pre-data export. The active company's disciplines/resources/projects/allocations vanish. Recoverable only via ⌘Z (lost on reload/persist).
 - **Fix:** Reject an import that nets 0 records (or whose scoped arrays are all empty) before replacing the slice; or require explicit confirmation showing the non-zero delta.
 

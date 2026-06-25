@@ -18,7 +18,7 @@ import {
 } from '../common/ui'
 import { EMPLOYMENT_TYPE_OPTIONS } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { EmploymentType, Resource, ResourceKind, Weekday } from '@floaty/shared/types/entities'
+import type { EmploymentType, Resource, ResourceKind, Weekday } from '@capacitylens/shared/types/entities'
 
 /**
  * Add/edit a person or a placeholder. The richest validation path in the app.

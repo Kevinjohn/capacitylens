@@ -6,9 +6,11 @@
 // concrete light | dark, written to <html data-theme> for the CSS to key off.
 // 'system' is resolved here (via matchMedia) rather than left to a CSS media
 // query, so the explicit choices and the OS-following choice share one mechanism.
+import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
+
 export type ThemePref = 'light' | 'dark' | 'system'
 
-const STORAGE_KEY = 'floaty/theme'
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}theme`
 
 /** Read the saved preference. Defaults to 'light' (the product default) when
  *  nothing is stored or storage is unavailable. */

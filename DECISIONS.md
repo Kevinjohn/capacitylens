@@ -1,4 +1,4 @@
-# Floaty — Standing decisions (digest)
+# CapacityLens — Standing decisions (digest)
 
 Present-tense summary of the judgement calls that **still constrain the code**. Short by
 design — read it whole. The dated blow-by-blow (every review/remediation round, with findings
@@ -11,14 +11,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 
 ## Architecture
 - **Local-first by default.** No backend, no login; data is one `AppData` blob in
-  `localStorage` (`floaty/v3`).
+  `localStorage` (`capacitylens/v3`).
 - **Optional server behind one seam.** A Node + `node:sqlite` REST API (`server/`, off by
-  default, `VITE_FLOATY_API=…`) plugs into the same `PersistenceAdapter`; nothing else changes.
+  default, `VITE_CAPACITYLENS_API=…`) plugs into the same `PersistenceAdapter`; nothing else changes.
   Server mode is last-writer-wins, no per-user isolation.
 - **Multi-tenant by Account.** Every entity carries `accountId`; you pick a company on load
   (`AccountPicker`) and `activeAccountId` is never persisted. Scoped access goes through the
   `useScopedData` / `scopedTables()` seam.
-- **Pure domain core is shared.** `shared/` (`@floaty/shared`) owns types, validation,
+- **Pure domain core is shared.** `shared/` (`@capacitylens/shared`) owns types, validation,
   integrity, cascade, import-remap, migrate, seed — imported by both app and server so they
   can't drift.
 - **Entity extension is drift-proofed.** The parallel lists (KNOWN_KEYS, sanitize switch,
@@ -36,12 +36,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Schema migrated on open** (introspection-gated, idempotent); `assertSchemaCurrent` throws
   loudly at startup on any required-column drift or `optional?`-vs-`NULL` mismatch, instead of
   failing silently on a later write.
-- **"Clear local storage" wipes only `floaty/`-prefixed keys (owner, 2026-06-20).** Settings →
+- **"Clear local storage" wipes only `capacitylens/`-prefixed keys (owner, 2026-06-20).** Settings →
   **Local data** → a danger button (`clear-local-storage`) opens the destructive `ConfirmDialog`;
-  Confirm calls `clearFloatyLocalStorage()` (`src/data/clearLocalStorage.ts` — iterates localStorage,
-  removes every `floaty/`-prefixed key: the `floaty/v3` AppData blob + ALL device prefs, leaving
+  Confirm calls `clearCapacitylensLocalStorage()` (`src/data/clearLocalStorage.ts` — iterates localStorage,
+  removes every `capacitylens/`-prefixed key: the `capacitylens/v3` AppData blob + ALL device prefs, leaving
   unrelated origin keys), then `window.location.reload()`. Never a blind `localStorage.clear()`. Copy
-  adapts to mode: server mode (VITE_FLOATY_API set) says the DB is safe and the app re-loads from it;
+  adapts to mode: server mode (VITE_CAPACITYLENS_API set) says the DB is safe and the app re-loads from it;
   local mode says this erases your only copy. A clear failure surfaces via `setNotice(…, 'error')`
   (user-triggered, so don't swallow).
 
@@ -49,7 +49,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Forms reject; import + server strip/repair.** Import sanitises per record (clean text,
   clamp hours, fresh id when missing), drops dangling **required** FKs (mirrors cascade) and
   unbinds dangling **optional** ones (mirrors set-null); one id-map **per table**.
-- **Shape-checked before migrate** (`looksLikeFloaty`) so non-Floaty JSON can't wipe data;
+- **Shape-checked before migrate** (`looksLikeCapacityLens`) so non-CapacityLens JSON can't wipe data;
   **confirmation dialog** + **undoable** `importData`; honest delta ("imported N, M skipped").
 - **Caps** on file size + record count (self-DoS / JSON-bomb).
 
@@ -114,17 +114,17 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   pref's documented default — disciplines absent = on, placeholders/external absent = off).
 
 ## UI & product
-- **Deliberately small (owner, 2026-06-11).** Floaty solves ONE problem — a helicopter view of
+- **Deliberately small (owner, 2026-06-11).** CapacityLens solves ONE problem — a helicopter view of
   who's busy, free, or overworked, week-by-week — for small agencies with few staff and rotating
   freelancers. Owner-confirmed non-goals: budgets/money, timesheets, hour-granularity workflows,
   mobile views (light mobile *affordances* are in scope — next bullet), per-seat/per-feature
   gating. Reject features that add process or granularity.
 - **Light mobile affordances, not mobile views (owner, 2026-06-12).** Nav links carry icons;
-  the sidebar collapses to an icons-only rail (device-global `floaty/sidebar`, default
+  the sidebar collapses to an icons-only rail (device-global `capacitylens/sidebar`, default
   collapsed on small screens — `(max-width:767px), (max-height:480px)`) whose rail icons just
   re-open the menu, never navigate (they're `aria-hidden`; the labelled Collapse/Expand toggle
   is the single accessible control); portrait phones get a dismissable session-scoped
-  "Best in landscape" hint (`floaty/rotateHintDismissed`, shown over the account picker too).
+  "Best in landscape" hint (`capacitylens/rotateHintDismissed`, shown over the account picker too).
   A phone is a glanceable surface, not a workflow surface — don't grow this into mobile views.
 - **"Utilisation" is the term** everywhere on the schedule (not "Load").
 - **Filtering by client/project hides non-matching resources** by default; the
@@ -168,18 +168,18 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   weekends flip is the exception — it preserves the EXACT left-edge date. `goToDate` does the snap
   in the store (so `Jump to date` shows the snapped Monday); zoom/pan do it in `SchedulerGrid`'s
   geometry re-anchor effect (`panDays(±7)` itself is unchanged).
-- **"Snap to week start" is a device-global pref** (`floaty/snapToWeekStart`, own key, NOT in
+- **"Snap to week start" is a device-global pref** (`capacitylens/snapToWeekStart`, own key, NOT in
   `AppData`/export), **default on**. When on, FREE horizontal scrolling FLOORS the left edge back to
   the current week's start once it settles (never forward — forward weeks are reached via Prev/Next);
   off = unconstrained scroll. The navigation snap above is independent of it (always on). Both snaps
   round `scrollLeft` to the nearest px before mapping it to a day (`weekStartSnapTarget` in
   `weekSnap.ts`), so a sub-pixel-below scroll position (HiDPI Firefox reports a fractional
   `scrollLeft`) can't floor onto the prior day and jump the view back a week.
-- **Theme is device-global** — own key (`floaty/theme`), NOT in `AppData`/export. Default
+- **Theme is device-global** — own key (`capacitylens/theme`), NOT in `AppData`/export. Default
   **light**; `system` follows `matchMedia`; FOUC guard in `index.html`.
-- **Utilisation display toggles are device-global** too (`floaty/utilizationPrefs`, default all-on).
+- **Utilisation display toggles are device-global** too (`capacitylens/utilizationPrefs`, default all-on).
 - **Bar labels carry `Client · Project` context** before the activity name, behind two
-  device-global toggles (`floaty/barLabelPrefs`, Settings → Allocation bars, default both on);
+  device-global toggles (`capacitylens/barLabelPrefs`, Settings → Allocation bars, default both on);
   missing metadata just skips its part. The popover keeps its own activity-first layout.
 - **Time-off draw mode recedes work, spotlights absence (owner, 2026-06-23).** While the toolbar's
   `Time off` draw toggle is active, the grid signals the mode whole-view: work allocation bars drop to a
@@ -190,7 +190,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   so the memoised lanes/bars don't re-render for the visual; each bar reads the mode from the store to set
   `inert` (one re-render per toggle, a rare deliberate action — the memo still guards the drag hot path).
   Purely visual + interaction state — **no data changes**; switching back to `Work` restores everything.
-- **Weekends minimise by default** — device-global `floaty/minimiseWeekends` (Settings →
+- **Weekends minimise by default** — device-global `capacitylens/minimiseWeekends` (Settings →
   Schedule, default **ON**), NOT on the account / not in export. On = the Sat/Sun columns shrink
   to a rem-based sliver (`WEEKEND_COLUMN_REM`, capped at `dayWidth`, fine-zoom only) labelled a
   single **"S"**; weekends are never removed (weekend work + spanning bars still render). This
@@ -299,7 +299,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Demo "fake sign-in" precedes the picker (cosmetic, 2026-06-16).** A Google-style *Choose an
   account* screen (`src/components/FakeSignIn.tsx`) gates the app **before** the account picker so
   a viewer sees "log in first, then pick a company". It is **not** real auth: a device-global flag
-  (`floaty/fakeSignedIn`, default off, NOT in `AppData`/export) is flipped by clicking the account
+  (`capacitylens/fakeSignedIn`, default off, NOT in `AppData`/export) is flipped by clicking the account
   and cleared by **Sign out** (picker + sidebar, which also drops the active company). Mounted in
   AppShell **only** when `authMode === 'off'`, so it never stacks with the real login wall — the
   real, server-authoritative seam stays `src/auth/`. Persona/avatar: `src/lib/fakeAuth.ts` /
@@ -320,10 +320,10 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   the URL can read/edit/wipe the data; owner-accepted for the trusted alpha group only.
   **Before beta: add a real gate** (Stage C session auth, or at minimum Nginx Basic Auth) — see
   `NEEDS-INPUT.md` and decisions-log 2026-06-16.
-- **Auth seam is wired but OFF.** `FLOATY_AUTH=off|password|sso` (Better Auth, sessions + login
+- **Auth seam is wired but OFF.** `CAPACITYLENS_AUTH=off|password|sso` (Better Auth, sessions + login
   screen): off = byte-for-byte today, no auth tables, no login UI. The server-reported
   `authMode` is the only auth flag — no client-side flag exists.
-- **Session ≠ isolation.** Turning `FLOATY_AUTH` on gates requests, but `accountId` stays
+- **Session ≠ isolation.** Turning `CAPACITYLENS_AUTH` on gates requests, but `accountId` stays
   client-asserted (`ownsRow` is defense-in-depth) until Stage C derives it from the session.
 - **CSP:** `object-src`/`base-uri` ship in `index.html`; a full `script-src` policy belongs in
   a host response header, not the app — **not yet added at the host** (Phase 2 edge-hardening
@@ -356,7 +356,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   Firefox always runs second AND unconditionally, even after a red WebKit pass; the run fails if
   either engine fails. Deliberately NOT a `firefox` project `dependencies: ['webkit']`, which would
   *skip* Firefox whenever WebKit failed). Every core-specs-only run boots **only Vite** (`viteOnly` =
-  `FLOATY_VITE_ONLY` for `e2e:browsers`, or either single-engine `*_ONLY` flag, trims the `webServer`
+  `CAPACITYLENS_VITE_ONLY` for `e2e:browsers`, or either single-engine `*_ONLY` flag, trims the `webServer`
   list) so it needs neither the SQLite/auth servers nor Node 24. db-backed/auth-backed stay
   Chromium-only (server round-trips, not cross-engine rendering). Keep specs browser-agnostic — no
   UA branching; the pointer-drag/`page.clock`/`fill`/`Meta+z` patterns already pass on WebKit and Firefox.

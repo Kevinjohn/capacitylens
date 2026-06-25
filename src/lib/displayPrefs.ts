@@ -11,6 +11,10 @@
 // private-mode / quota / corrupt store can lose a toggle but can NEVER corrupt account data, and
 // the in-memory store still honours the choice for the session. Do NOT copy this onto a data path.
 
+// All keys below carry the shared brand prefix (defined once in shared/src/brand.ts) so clearing /
+// migrating by prefix catches every one of them.
+import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
+
 export interface UtilizationPrefs {
   /** Show the account-wide utilisation summary. */
   showTotal: boolean
@@ -26,7 +30,7 @@ export const DEFAULT_UTILIZATION_PREFS: UtilizationPrefs = {
   showPersonal: true,
 }
 
-const STORAGE_KEY = 'floaty/utilizationPrefs'
+const STORAGE_KEY = `${STORAGE_KEY_PREFIX}utilizationPrefs`
 
 /** Read the saved preferences, falling back to the defaults for anything missing
  *  or when storage is unavailable. Tolerant of partial/legacy stored shapes. */
@@ -71,7 +75,7 @@ export const DEFAULT_BAR_LABEL_PREFS: BarLabelPrefs = {
   showProject: true,
 }
 
-const BAR_LABEL_STORAGE_KEY = 'floaty/barLabelPrefs'
+const BAR_LABEL_STORAGE_KEY = `${STORAGE_KEY_PREFIX}barLabelPrefs`
 
 /** Read the saved bar-label preferences — same tolerant fallback behaviour as
  *  readStoredUtilizationPrefs. */
@@ -104,7 +108,7 @@ export function writeStoredBarLabelPrefs(prefs: BarLabelPrefs): void {
 // read: null means "the user has never chosen", and the caller falls back to the
 // viewport-derived default below instead of a fixed boolean.
 
-const SIDEBAR_STORAGE_KEY = 'floaty/sidebar'
+const SIDEBAR_STORAGE_KEY = `${STORAGE_KEY_PREFIX}sidebar`
 
 /** Small-screen query for the sidebar's first-run default. Phone-portrait widths
  *  OR phone-landscape heights count as small — a landscape phone is the app's
@@ -177,7 +181,7 @@ function writeBoolPref(key: string, on: boolean): void {
 // Device-global like the prefs above (own key, not account data), but DEFAULTS ON — the owner's
 // stated default. A plain on/off string (like the sidebar) rather than JSON: it's a single bool.
 
-const MINIMISE_WEEKENDS_STORAGE_KEY = 'floaty/minimiseWeekends'
+const MINIMISE_WEEKENDS_STORAGE_KEY = `${STORAGE_KEY_PREFIX}minimiseWeekends`
 
 /** The saved "minimise weekends" choice; defaults to TRUE (on) when unset, unrecognised, or
  *  when storage is unavailable. */
@@ -197,7 +201,7 @@ export function writeStoredMinimiseWeekends(on: boolean): void {
 // SCROLL ONLY; the navigation snap (zoom / Prev-Next / date-picker) is always on, independent of
 // this flag. A plain on/off string (like minimiseWeekends) — it's a single bool.
 
-const SNAP_TO_WEEK_START_STORAGE_KEY = 'floaty/snapToWeekStart'
+const SNAP_TO_WEEK_START_STORAGE_KEY = `${STORAGE_KEY_PREFIX}snapToWeekStart`
 
 /** The saved "snap to week start" choice; defaults to TRUE (on) when unset, unrecognised, or
  *  when storage is unavailable. */
@@ -217,7 +221,7 @@ export function writeStoredSnapToWeekStart(on: boolean): void {
 // flipped on by the demo sign-in screen and cleared by "Sign out". See
 // `src/components/FakeSignIn.tsx` and DECISIONS.md.
 
-const FAKE_SIGNED_IN_STORAGE_KEY = 'floaty/fakeSignedIn'
+const FAKE_SIGNED_IN_STORAGE_KEY = `${STORAGE_KEY_PREFIX}fakeSignedIn`
 
 /** The saved fake-sign-in state; defaults to FALSE (signed out → show the demo sign-in)
  *  when unset, unrecognised, or when storage is unavailable. */
@@ -230,13 +234,13 @@ export function writeStoredFakeSignedIn(on: boolean): void {
   writeBoolPref(FAKE_SIGNED_IN_STORAGE_KEY, on)
 }
 
-// "Intro seen": whether the post-login "What Floaty is" intermediary page has been dismissed on
+// "Intro seen": whether the post-login "What CapacityLens is" intermediary page has been dismissed on
 // this device. Device-global like the prefs above (own key, on/off string, NOT account data) and
 // DEFAULTS OFF so the intro shows on first contact, then stays dismissed. Frequency is
 // once-per-device by design (see NEEDS-INPUT.md — owner may prefer every-login). See
 // `src/components/IntroPage.tsx`.
 
-const INTRO_SEEN_STORAGE_KEY = 'floaty/introSeen'
+const INTRO_SEEN_STORAGE_KEY = `${STORAGE_KEY_PREFIX}introSeen`
 
 /** The saved "intro seen" state; defaults to FALSE (not yet seen → show the intro) when unset,
  *  unrecognised, or when storage is unavailable. */

@@ -5,8 +5,8 @@ import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } fro
 import { useScopedData } from '../store/useScopedData'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { resourceDisplayName } from '../lib/metadata'
-import { isValidISODate } from '@floaty/shared/lib/integrity'
-import { isExternalResource } from '@floaty/shared/types/entities'
+import { isValidISODate } from '@capacitylens/shared/lib/integrity'
+import { isExternalResource } from '@capacitylens/shared/types/entities'
 import {
   Command,
   CommandInput,
@@ -54,7 +54,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Build the full item list (kept verbatim — floaty's own fuzzyFilter drives results, not cmdk's
+  // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
   // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
   // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
   // re-render), and the active-row change must not re-run the filter. Keyed on the real inputs only.
@@ -129,7 +129,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   return (
     // Backdrop — click outside to close
     <div
-      className="fixed inset-0 z-50 flex justify-center bg-black/40 pt-[15vh] backdrop-blur-sm animate-[floaty-fade_0.12s_ease-out]"
+      className="fixed inset-0 z-50 flex justify-center bg-black/40 pt-[15vh] backdrop-blur-sm animate-[capacitylens-fade_0.12s_ease-out]"
       onMouseDown={(e) => {
         // Only close if the mousedown was directly on the backdrop (not bubbled)
         if (e.target === e.currentTarget) onClose()
@@ -138,7 +138,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       role="presentation"
     >
       <div
-        className="flex h-fit max-h-[60vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-elevated shadow-pop ring-1 ring-line animate-[floaty-pop_0.14s_ease-out]"
+        className="flex h-fit max-h-[60vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-elevated shadow-pop ring-1 ring-line animate-[capacitylens-pop_0.14s_ease-out]"
         onMouseDown={(e) => e.stopPropagation()}
       >
         <Command

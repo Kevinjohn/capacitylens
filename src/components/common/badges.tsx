@@ -1,6 +1,6 @@
-import { isTemporary } from '@floaty/shared/lib/integrity'
-import { ensureBarColors } from '@floaty/shared/lib/color'
-import type { Resource } from '@floaty/shared/types/entities'
+import { isTemporary } from '@capacitylens/shared/lib/integrity'
+import { ensureBarColors } from '@capacitylens/shared/lib/color'
+import type { Resource } from '@capacitylens/shared/types/entities'
 import { Badge } from '../ui/badge'
 
 // Colour, avatar & resource-badge slice of the shared kit (re-exported from ./ui).
@@ -13,7 +13,7 @@ import { Badge } from '../ui/badge'
 export function TemporaryTag({ resource }: { resource: Resource }) {
   if (!isTemporary(resource)) return null
   // Reshaped onto the shadcn Badge `warn` variant (Phase 8) — its tokens (border-warn/40 +
-  // bg-warn/10 + text-ink) are floaty's amber chip, the SAME treatment this carried before, so
+  // bg-warn/10 + text-ink) are capacitylens's amber chip, the SAME treatment this carried before, so
   // the look is unchanged. Safe to reshape: this tag is currently rendered nowhere (parked; see
   // the note above). The extra-compact sizing (text-[9px], uppercase) is kept via className so the
   // pill stays the small marker it was when re-introduced.

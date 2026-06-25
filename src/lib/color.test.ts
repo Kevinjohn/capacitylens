@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { resolveBarColor, readableTextColor, contrastRatio, ensureBarColors, isHexColor } from '@floaty/shared/lib/color'
+import { resolveBarColor, readableTextColor, contrastRatio, ensureBarColors, isHexColor } from '@capacitylens/shared/lib/color'
 import { DEFAULT_COLORS } from './palette'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 function dataWith(projectColor: string, clientColor = '#client'): AppData {
   return {

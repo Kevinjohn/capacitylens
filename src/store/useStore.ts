@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { newId } from '@floaty/shared/lib/id'
-import { addDaysISO, startOfWeekISO, todayISO } from '@floaty/shared/lib/dateMath'
+import { newId } from '@capacitylens/shared/lib/id'
+import { addDaysISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
 import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS, type WeeksZoom } from '../lib/schedulerConfig'
 import {
   deleteClientCascade,
@@ -9,7 +9,7 @@ import {
   deleteProjectCascade,
   deleteResourceCascade,
   deleteActivityCascade,
-} from '@floaty/shared/lib/integrity'
+} from '@capacitylens/shared/lib/integrity'
 import {
   assertAllocationRefs,
   assertDateRange,
@@ -19,7 +19,7 @@ import {
   deleteAccountCascade,
   findOwned as findOwnedIn,
   remapAndValidateImport,
-} from '@floaty/shared/domain/mutations'
+} from '@capacitylens/shared/domain/mutations'
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
@@ -40,8 +40,8 @@ import {
   type UtilizationPrefs,
 } from '../lib/displayPrefs'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
-import { buildInternalClient, isBuiltinClient } from '@floaty/shared/data/internalClient'
-import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@floaty/shared/types/entities'
+import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
+import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@capacitylens/shared/types/entities'
 import type {
   Account,
   Allocation,
@@ -58,7 +58,7 @@ import type {
   Activity,
   TimeOff,
   Weekday,
-} from '@floaty/shared/types/entities'
+} from '@capacitylens/shared/types/entities'
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -210,7 +210,7 @@ export interface StoreState {
    *  NOT real auth — the real seam is `src/auth/`; the gate is active only when that auth is
    *  off. See `src/components/FakeSignIn.tsx`. */
   fakeSignedIn: boolean
-  /** Whether the post-login "What Floaty is" intro page has been dismissed on this device.
+  /** Whether the post-login "What CapacityLens is" intro page has been dismissed on this device.
    *  Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF so
    *  the intro shows once on first contact (after a company is chosen), then stays dismissed.
    *  Frequency is once-per-device by design — see NEEDS-INPUT.md. See `src/components/IntroPage.tsx`. */

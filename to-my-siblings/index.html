@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>To my siblings — the Floaty standardisation handbook</title>
+<title>To my siblings — the CapacityLens standardisation handbook</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html" class="active"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -32,10 +32,10 @@
   </aside>
 
   <main class="content">
-    <p class="eyebrow">The Floaty house style</p>
+    <p class="eyebrow">The CapacityLens house style</p>
     <h1>To my siblings</h1>
     <p class="lead">
-      This is the complete architectural, coding, and process handbook for <strong>Floaty</strong> — the
+      This is the complete architectural, coding, and process handbook for <strong>CapacityLens</strong> — the
       original repo. It exists so its sibling projects (<code>floaty-schedule</code>, a shift rota;
       <code>delivery-diary</code>, a deliverables tracker; and any future relatives) can adopt the same
       conventions <em>exactly</em>, down to the small decisions. If you are a developer or an AI agent
@@ -45,7 +45,7 @@
     <div class="callout why">
       <span class="label">What these repos share</span>
       <p>
-        Floaty and its siblings are all the <strong>same machine re-skinned for a new domain</strong>: a
+        CapacityLens and its siblings are all the <strong>same machine re-skinned for a new domain</strong>: a
         local-first, browser-based scheduler with a pure domain core, an optional SQLite server behind one
         seam, multi-tenancy by account, and a relentless testing gate. The <em>domain</em> changes
         (people&times;allocations vs. shifts vs. deliverables); the <em>architecture, conventions, and
@@ -70,7 +70,7 @@
     <ol>
       <li><strong>Be deliberately small.</strong> One product solves one problem well. Non-goals are written down and defended. New scope is rejected by default.</li>
       <li><strong>Local-first, server-optional, one seam.</strong> The app runs with zero backend on <code>localStorage</code>; an optional server drops in behind a single <code>PersistenceAdapter</code> interface and <em>nothing else changes</em>.</li>
-      <li><strong>One source of truth, shared so it can't drift.</strong> A pure domain core (<code>@floaty/shared</code>) is imported by both client and server. Server validation <em>is</em> client validation — the same code, not a re-implementation.</li>
+      <li><strong>One source of truth, shared so it can't drift.</strong> A pure domain core (<code>@capacitylens/shared</code>) is imported by both client and server. Server validation <em>is</em> client validation — the same code, not a re-implementation.</li>
       <li><strong>Forms reject; import and server repair.</strong> The same rule has two enforcement modes: a person fixes their mistake at a form; a machine import or a direct API write strips/repairs/drops instead.</li>
       <li><strong>Extending an entity is drift-proofed.</strong> Most parallel lists are exhaustiveness-checked against the types, so a new field that misses one <em>fails the build</em>; the FK map only type-checks its values, so a missed FK field is caught by the round-trip fixtures instead of silently dropping.</li>
       <li><strong>Multi-tenant by account, through one seam.</strong> Every entity carries an <code>accountId</code>; the active account is chosen on load and <em>never persisted</em>; all scoped reads go through one hook.</li>
@@ -85,7 +85,7 @@
       <a class="card" href="01-principles.html"><div class="knum">01</div><div class="ktitle">Principles &amp; the why</div><p class="kdesc">The foundational decisions and the reasoning behind each — scope discipline, local-first, no-drift, repair-don't-reject, flags-off, surface-never-swallow.</p></a>
       <a class="card" href="02-repo-and-tooling.html"><div class="knum">02</div><div class="ktitle">Repository &amp; tooling</div><p class="kdesc">Monorepo layout, npm workspaces, every config file, Node pinning, scripts, and the green gate, exactly.</p></a>
       <a class="card" href="03-architecture.html"><div class="knum">03</div><div class="ktitle">Architecture</div><p class="kdesc">The layered design, the data model, the persistence seam, multi-tenancy, and the entity-extension path.</p></a>
-      <a class="card" href="04-domain-core.html"><div class="knum">04</div><div class="ktitle">Domain core</div><p class="kdesc"><code>@floaty/shared</code> in depth: types, validation, integrity, cascade, import-remap, migrate, seed, drift-proofing.</p></a>
+      <a class="card" href="04-domain-core.html"><div class="knum">04</div><div class="ktitle">Domain core</div><p class="kdesc"><code>@capacitylens/shared</code> in depth: types, validation, integrity, cascade, import-remap, migrate, seed, drift-proofing.</p></a>
       <a class="card" href="05-state-and-persistence.html"><div class="knum">05</div><div class="ktitle">State &amp; persistence</div><p class="kdesc">The Zustand orchestrator, undo/redo, the adapter seam, server sync via diffing, and the bootstrap.</p></a>
       <a class="card" href="06-ui-conventions.html"><div class="knum">06</div><div class="ktitle">UI &amp; components</div><p class="kdesc">Folder layout, the primitive kit, the canonical form &amp; list, styling tokens, and accessibility conventions.</p></a>
       <a class="card" href="07-server.html"><div class="knum">07</div><div class="ktitle">Optional server</div><p class="kdesc">Fastify + <code>node:sqlite</code> as a thin shell over the shared core; auto-ALTER columns; the hardening flags.</p></a>
@@ -98,7 +98,7 @@
     <div class="callout warn">
       <span class="label">A note on the code samples</span>
       <p>
-        Code shown here is drawn from the live Floaty source and is faithful to its patterns, but it is meant
+        Code shown here is drawn from the live CapacityLens source and is faithful to its patterns, but it is meant
         to teach the <em>convention</em>, not to be copy-pasted byte-for-byte. The authoritative source is
         always the repo itself; configuration files (package.json, tsconfig, eslint, vite, playwright) are
         reproduced exactly because they are meant to be copied.

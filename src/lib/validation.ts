@@ -1,5 +1,5 @@
-import { isHexColor } from '@floaty/shared/lib/color'
-import { hasDisallowedChars, MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@floaty/shared/lib/strings'
+import { isHexColor } from '@capacitylens/shared/lib/color'
+import { hasDisallowedChars, MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
 
 // Shared form-validation copy + helpers. Centralised so the same message isn't
 // re-typed in every form (it was duplicated ~15 times across the CRUD forms).

@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -71,7 +71,7 @@
           └───────────────┬─────────────────────────────────────────────┘
                           │ every mutation calls into ↓
           ┌───────────────▼─────────────────────────────────────────────┐
-          │  @floaty/shared — PURE DOMAIN CORE  (no DOM/React)           │
+          │  @capacitylens/shared — PURE DOMAIN CORE  (no DOM/React)           │
           │  types · lib (id,strings,dateMath,color,integrity,sanitize)  │
           │  data (migrate,seed,transfer,fixtures) · domain (mutations,  │
           │  tenancy)        ── imported UNCHANGED by the server ──┐     │
@@ -80,7 +80,7 @@
           ┌───────────────▼──────────────────┐                    │
           │  PersistenceAdapter  (ONE seam)   │                    │
           │  ┌────────────────┐ ┌───────────┐ │     ┌──────────────▼─────────────┐
-          │  │LocalStorage    │ │ServerSync │─┼────▶│ floaty-server (optional)   │
+          │  │LocalStorage    │ │ServerSync │─┼────▶│ capacitylens-server (optional)   │
           │  │Adapter (default)│ │Adapter    │ │HTTP │ Fastify + node:sqlite      │
           │  └────────────────┘ └───────────┘ │     │ thin shell over shared core│
           └───────────────────────────────────┘     └────────────────────────────┘</code></pre>
@@ -135,7 +135,7 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
       onto existing rows is a migration; having it from the first commit is free. Carry both bases into a
       sibling unchanged.</p>
     </div>
-    <p>Floaty's concrete tables (your sibling will rename these to its own domain, but the <em>shape</em> — a
+    <p>CapacityLens's concrete tables (your sibling will rename these to its own domain, but the <em>shape</em> — a
     tenant at the top, everything else scoped under it, with required vs. optional foreign keys — carries
     over):</p>
     <table>
@@ -180,7 +180,7 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
 
     <h2 id="seam">The persistence seam</h2>
     <p>The app never reads or writes storage directly. It talks to one interface; an implementation is chosen
-    at module load based on whether <code>VITE_FLOATY_API</code> was baked into the build.</p>
+    at module load based on whether <code>VITE_CAPACITYLENS_API</code> was baked into the build.</p>
     <div class="filename">src/data/PersistenceAdapter.ts</div>
 <pre><code><span class="k">export interface</span> <span class="t">PersistenceAdapter</span> {
   loadAll(): <span class="t">Promise</span>&lt;<span class="t">AppData</span>&gt;

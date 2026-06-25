@@ -3,6 +3,7 @@ import { storageAdapter } from '../data/storageAdapter'
 import { downloadTextFile } from '../lib/download'
 import { errorMessage } from '../lib/errorMessage'
 import { Button, ConfirmDialog } from './common/ui'
+import { APP_NAME } from '@capacitylens/shared/brand'
 
 // Shown when bootstrap found stored data it could NOT read (corrupt JSON / failed
 // migrate). Autosave is deliberately not attached in that state, so the original
@@ -24,7 +25,7 @@ export function StorageRecovery() {
       return
     }
     try {
-      downloadTextFile('floaty-corrupt-backup.json', raw)
+      downloadTextFile('capacitylens-corrupt-backup.json', raw)
       setError(null)
     } catch (e) {
       setError(errorMessage(e))
@@ -44,7 +45,7 @@ export function StorageRecovery() {
       <div className="w-full max-w-md rounded-lg border border-line bg-surface p-6 shadow-sm">
         <h1 className="mb-2 text-lg font-semibold text-ink">Stored data could not be read</h1>
         <p className="mb-4 text-sm text-muted">
-          Your saved Floaty data is present but unreadable, so it hasn’t been loaded. To protect it,
+          Your saved {APP_NAME} data is present but unreadable, so it hasn’t been loaded. To protect it,
           nothing has been saved over it. Download a raw copy to keep (you can try to repair it), then
           reset to start fresh. After resetting you can import a backup from the Data menu.
         </p>
@@ -69,7 +70,7 @@ export function StorageRecovery() {
           confirmLabel="Reset"
           message={
             <>
-              This permanently discards the unreadable data and starts Floaty fresh. Download a raw copy
+              This permanently discards the unreadable data and starts {APP_NAME} fresh. Download a raw copy
               first if you might want to recover it.
             </>
           }

@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { ImportExport } from './ImportExport'
 import { useStore } from '../store/useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import { seed } from '@floaty/shared/data/seed'
-import { serializeData } from '@floaty/shared/data/transfer'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import { seed } from '@capacitylens/shared/data/seed'
+import { serializeData } from '@capacitylens/shared/data/transfer'
 import { makeResourceDraft, resetStoreWithAccount } from '../test/fixtures'
 
 beforeEach(() => {
@@ -41,12 +41,12 @@ describe('ImportExport – Export', () => {
 })
 
 describe('ImportExport – Import', () => {
-  it('replaces the store data when a valid Floaty JSON file is loaded', async () => {
+  it('replaces the store data when a valid CapacityLens JSON file is loaded', async () => {
     render(<ImportExport />)
 
     const seedData = seed()
     const json = serializeData(seedData)
-    const file = new File([json], 'floaty-data.json', { type: 'application/json' })
+    const file = new File([json], 'capacitylens-data.json', { type: 'application/json' })
 
     const input = screen.getByTestId('import-input')
 
@@ -126,7 +126,7 @@ describe('ImportExport – Import', () => {
     useStore.getState().addClient({ name: 'Real Edit', color: '#111111' })
     render(<ImportExport />)
 
-    // A Floaty-shaped file that PARSES (non-empty → dialog appears) but whose only record
+    // A CapacityLens-shaped file that PARSES (non-empty → dialog appears) but whose only record
     // dangles, so the store drops it and imported === 0 (no mutate, no undo entry pushed).
     const dangling = serializeData({
       ...emptyAppData(),
@@ -149,7 +149,7 @@ describe('ImportExport – Import', () => {
     expect(useStore.getState().data.clients.map((c) => c.name)).toContain('Real Edit') // prior edit intact
   })
 
-  it('rejects a Floaty-shaped file with zero records (no dialog, no wipe)', async () => {
+  it('rejects a CapacityLens-shaped file with zero records (no dialog, no wipe)', async () => {
     useStore.getState().replaceAll(seed()) // existing data that must NOT be wiped
     render(<ImportExport />)
 
@@ -160,14 +160,14 @@ describe('ImportExport – Import', () => {
     fireEvent.change(input)
     await new Promise((resolve) => setTimeout(resolve, 0))
 
-    // No confirmation dialog appears, an error notice naming the specific reason (empty Floaty
+    // No confirmation dialog appears, an error notice naming the specific reason (empty CapacityLens
     // file → no records) is shown, and data is preserved.
     expect(screen.queryByRole('button', { name: 'Replace data' })).toBeNull()
-    expect(useStore.getState().notice?.message).toMatch(/no Floaty records/i)
+    expect(useStore.getState().notice?.message).toMatch(/no CapacityLens records/i)
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0)
   })
 
-  it('surfaces a notice (and keeps the data) when the file is not valid Floaty JSON', async () => {
+  it('surfaces a notice (and keeps the data) when the file is not valid CapacityLens JSON', async () => {
     useStore.getState().replaceAll(seed()) // existing data that must NOT be wiped
     render(<ImportExport />)
 

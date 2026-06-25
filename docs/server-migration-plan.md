@@ -1,4 +1,4 @@
-# Plan of action — moving Floaty onto the database model
+# Plan of action — moving CapacityLens onto the database model
 
 **Status of this doc:** forward-looking roadmap. Nothing here is started. The
 *prep* it builds on (the server + the sync adapter) is already done — see below.
@@ -8,13 +8,13 @@
 The architectural groundwork is complete (see the `db-migration` memory and
 `~/.claude/plans/at-some-stage-in-atomic-sundae.md`):
 
-- **Phase 0 (done)** — pure, env-agnostic domain-core in `@floaty/shared`
+- **Phase 0 (done)** — pure, env-agnostic domain-core in `@capacitylens/shared`
   (`shared/src/domain/mutations.ts`): validation, integrity, cascade, import-remap.
 - **Phase 1 (done)** — `server/` is a working Fastify + **raw `node:sqlite`** REST
   API (one table per entity, FK cascades mirror the store). The client
   `ServerSyncAdapter` (`src/data/ServerSyncAdapter.ts`) is a drop-in
   `PersistenceAdapter`: whole-tree read (`GET /api/state`), diffed per-entity writes.
-  It's switched on by the **build-time** flag `VITE_FLOATY_API`
+  It's switched on by the **build-time** flag `VITE_CAPACITYLENS_API`
   (`src/data/storageAdapter.ts:19-21`).
 
 So "moving to the DB model" is **not** a build — it's a **cutover plus hardening**.
@@ -26,7 +26,7 @@ is its own island, refresh-safe, no server. Everything below is the step *beyond
 
 ## The one structural fact that frames everything
 
-`VITE_FLOATY_API` is **inlined at build time** with **no localStorage fallback**.
+`VITE_CAPACITYLENS_API` is **inlined at build time** with **no localStorage fallback**.
 A build either targets the server or it doesn't. Consequences the plan must respect:
 
 - After cutover the **server is a hard dependency**. Server down ⇒ app down (unlike
@@ -52,15 +52,15 @@ This is a handful of ops steps on the existing Forge site — no app code requir
 
 1. **Persistent DB path.** Point the server at a stable file *outside* the deploy
    tree so `git pull`/rebuild never touches it:
-   `FLOATY_DB=/home/forge/floaty-data/floaty.db`.
+   `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`.
 2. **Run the server as a Forge Daemon.** Command `npm start --workspace=server`,
-   directory `/home/forge/<site>`, env `FLOATY_DB=…`, `PORT=8787`. Supervisor keeps
+   directory `/home/forge/<site>`, env `CAPACITYLENS_DB=…`, `PORT=8787`. Supervisor keeps
    it alive across crashes/reboots. **Add a daemon restart to the deploy script** so
    new code actually runs after a deploy.
 3. **Reverse-proxy `/api` → `127.0.0.1:8787`** in the Nginx config. Same-origin, so
-   CORS is moot (no `FLOATY_CORS_ORIGIN` needed).
+   CORS is moot (no `CAPACITYLENS_CORS_ORIGIN` needed).
 4. **Flip the build onto the server.** Add to the deploy script *before*
-   `npm run build`: `export VITE_FLOATY_API=https://<site>`.
+   `npm run build`: `export VITE_CAPACITYLENS_API=https://<site>`.
 5. **Gate it.** Nginx **HTTP Basic Auth** over the whole site — the API is fully
    destructive and unauthenticated; it must not be naked on the internet.
 6. **Back it up.** It's one file: a `cron` `cp` to a timestamped copy (and/or
@@ -96,7 +96,7 @@ build ahead of the trigger.
 *Trigger: the shared dataset starts mattering / multiple people edit at once.*
 
 - **Build client-side conflict handling, THEN turn on the flag.**
-  `FLOATY_OPTIMISTIC_CONCURRENCY=1` only makes the *server* return 409s; there is **no
+  `CAPACITYLENS_OPTIMISTIC_CONCURRENCY=1` only makes the *server* return 409s; there is **no
   client conflict UI yet** (server README, "Status"). Flipping the flag without the UI
   just turns races into `persistError`/replay churn. So: build the 409-handling path
   in `ServerSyncAdapter` first, then enable the flag.

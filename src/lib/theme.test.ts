@@ -20,7 +20,7 @@ describe('readStoredTheme', () => {
   })
 
   it('falls back to light for an unrecognised stored value', () => {
-    localStorage.setItem('floaty/theme', 'neon')
+    localStorage.setItem('capacitylens/theme', 'neon')
     expect(readStoredTheme()).toBe('light')
   })
 })

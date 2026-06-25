@@ -10,9 +10,9 @@ import {
   activityById,
   timeOffForResource,
 } from './selectors'
-import type { Discipline } from '@floaty/shared/types/entities'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
+import type { Discipline } from '@capacitylens/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 const data: AppData = {
   ...emptyAppData(),

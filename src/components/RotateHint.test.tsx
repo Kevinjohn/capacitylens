@@ -25,7 +25,7 @@ function stubMatchMedia(initialMatches: boolean) {
 }
 
 beforeEach(() => {
-  sessionStorage.removeItem('floaty/rotateHintDismissed')
+  sessionStorage.removeItem('capacitylens/rotateHintDismissed')
 })
 
 afterEach(() => {
@@ -53,7 +53,7 @@ describe('RotateHint', () => {
       screen.getByRole('button', { name: 'Got it' }).click()
     })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(sessionStorage.getItem('floaty/rotateHintDismissed')).toBe('1')
+    expect(sessionStorage.getItem('capacitylens/rotateHintDismissed')).toBe('1')
 
     // A remount in the same session (e.g. navigating back to the picker) stays quiet.
     unmount()

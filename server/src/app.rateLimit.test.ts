@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import { buildApp, parseRateLimit } from './app'
 import { openDb } from './db'
 
-// P1.5 (flag FLOATY_RATE_LIMIT → opts.rateLimit): a guard against accidental client
+// P1.5 (flag CAPACITYLENS_RATE_LIMIT → opts.rateLimit): a guard against accidental client
 // loops hammering the single-writer SQLite file. OFF (the default) means the plugin is
 // not registered at all; /api/health is always exempt so the uptime monitor never sees
 // a 429. The env parse is fail-closed: only a positive integer turns it on.
@@ -26,7 +26,7 @@ describe('parseRateLimit (fail-closed)', () => {
   })
 })
 
-describe('FLOATY_RATE_LIMIT on', () => {
+describe('CAPACITYLENS_RATE_LIMIT on', () => {
   it('429s the third request inside a minute with a JSON error', async () => {
     const app = buildApp(openDb(':memory:'), { rateLimit: 2 })
     expect((await stateReq(app)).statusCode).toBe(200)
@@ -55,7 +55,7 @@ describe('FLOATY_RATE_LIMIT on', () => {
   })
 })
 
-describe('FLOATY_RATE_LIMIT off (default)', () => {
+describe('CAPACITYLENS_RATE_LIMIT off (default)', () => {
   it('no 429 under burst — the plugin is not registered', async () => {
     const app = buildApp(openDb(':memory:'))
     for (let i = 0; i < 10; i++) expect((await stateReq(app)).statusCode).toBe(200)

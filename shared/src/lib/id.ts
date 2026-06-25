@@ -3,7 +3,7 @@
  * `crypto` API directly.
  *
  * **Runtime requirement:** `crypto.randomUUID` needs a *secure context* in the browser
- * (HTTPS or localhost) and Node 19+ / a modern runtime. `@floaty/shared` is published, so an
+ * (HTTPS or localhost) and Node 19+ / a modern runtime. `@capacitylens/shared` is published, so an
  * embedder could load it somewhere `crypto` is absent.
  *
  * @throws {Error} a clear message if `crypto.randomUUID` is unavailable, rather than a cryptic
@@ -15,7 +15,7 @@
 export function newId(): string {
   if (typeof crypto === 'undefined' || typeof crypto.randomUUID !== 'function') {
     throw new Error(
-      'newId(): crypto.randomUUID is unavailable. Floaty needs a secure context (HTTPS or localhost) ' +
+      'newId(): crypto.randomUUID is unavailable. CapacityLens needs a secure context (HTTPS or localhost) ' +
         'in the browser, or Node 19+ / a modern runtime, to generate unique ids.',
     )
   }

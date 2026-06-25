@@ -31,8 +31,8 @@ export async function openApp(page: Page, company = 'Studio North', path = '/'):
   // Picking an account leaves the URL intact, so a deep link like `/resources`
   // still lands on that route once the tenant gate clears.
   await companyButton.click()
-  // A post-login "What Floaty is" intro page now follows the company pick (once per device,
-  // `floaty/introSeen`). It is skipped once dismissed, so wait for whichever screen this load
+  // A post-login "What CapacityLens is" intro page now follows the company pick (once per device,
+  // `capacitylens/introSeen`). It is skipped once dismissed, so wait for whichever screen this load
   // lands on — the intro, or (if already seen) the app proper — then click Continue through only
   // when the intro is up. Guarded exactly like the fake-sign-in above so neither case hangs.
   // The "already in the app" sentinel is the AppShell's `#main` landmark (it wraps the routed

@@ -28,4 +28,4 @@ not shared account data, so each person sets it to taste. It defaults **on** —
 - With it off: weekend columns return to full `dayWidth` and read `Sat` / `Sun`.
 - Weekends are never removed — bars that start, end on, or span a weekend still render across the (narrow) weekend columns with correct widths, and a drag across a weekend lands on the intended date with no jump on release.
 - Narrowing only applies at a zoom fine enough to show per-day columns; zoomed out (week blocks) the schedule is unchanged.
-- The choice survives a reload in the same browser (device-global `floaty/minimiseWeekends`), is **not** on the account, and is **not** included in Export JSON.
+- The choice survives a reload in the same browser (device-global `capacitylens/minimiseWeekends`), is **not** on the account, and is **not** included in Export JSON.

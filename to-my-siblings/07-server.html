@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -61,17 +61,17 @@
     <strong><code>node:sqlite</code></strong> (<code>DatabaseSync</code> + the online <code>backup</code> API) —
     <em>no ORM, no driver library</em>. Node 24+ is required because <code>node:sqlite</code> needs no flag
     there. The server runs its TypeScript directly via <code>tsx</code> (no build), and consumes
-    <code>@floaty/shared</code> as a workspace dependency.</p>
+    <code>@capacitylens/shared</code> as a workspace dependency.</p>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>The server contains <strong>no copy of any domain rule</strong>. Validation, sanitisation, integrity,
-      cascade, and import all come from <code>@floaty/shared</code>. The server's job is HTTP + SQLite + ops.
+      cascade, and import all come from <code>@capacitylens/shared</code>. The server's job is HTTP + SQLite + ops.
       When a request needs to validate, it calls the client's validators. "Server validation is client
       validation" is structural here, not a goal.</p>
     </div>
     <div class="filename">server/src/README + module comments capture the spirit</div>
-<pre><code><span class="c">// Imports the same pure domain-core the client uses — @floaty/shared/domain/mutations,</span>
-<span class="c">// @floaty/shared/data/{migrate,seed,transfer}, /types/entities, /lib/* — so server-side</span>
+<pre><code><span class="c">// Imports the same pure domain-core the client uses — @capacitylens/shared/domain/mutations,</span>
+<span class="c">// @capacitylens/shared/data/{migrate,seed,transfer}, /types/entities, /lib/* — so server-side</span>
 <span class="c">// validation, integrity, cascade and import rules are literally the client's code.</span></code></pre>
 
     <h2 id="app">App structure &amp; the route table</h2>
@@ -92,7 +92,7 @@
         <tr><td><code>DELETE /api/:entity/:id</code></td><td>Idempotent. Scoped tables require <code>?accountId=</code> (400 absent, 404 cross-account).</td></tr>
         <tr><td><code>POST /api/batch</code></td><td><strong>The write path the sync adapter uses.</strong> <code>{ ops: [...] }</code> applied in one transaction, in op order.</td></tr>
         <tr><td><code>POST /api/import</code></td><td><code>{ accountId, data }</code> → reuses <code>parseData</code> + <code>remapAndValidateImport</code> → replaces that account's slice.</td></tr>
-        <tr><td><code>POST /api/test/reset</code></td><td>Wipe (+ optional reseed). Gated by <code>FLOATY_ALLOW_RESET=1</code>; refused in production by a boot-guard.</td></tr>
+        <tr><td><code>POST /api/test/reset</code></td><td>Wipe (+ optional reseed). Gated by <code>CAPACITYLENS_ALLOW_RESET=1</code>; refused in production by a boot-guard.</td></tr>
       </tbody>
     </table>
     <div class="callout why">
@@ -207,12 +207,12 @@
     <p>Each lives in its own module, is enabled by an env flag, and its unset state is exactly today's
     behaviour. The flag parsers are fail-closed.</p>
     <dl class="defs">
-      <dt>auth.ts (Better Auth)</dt><dd><code>FLOATY_AUTH=off|password|sso</code>. <strong>Off</strong>: Better Auth is never initialised — no auth tables, no <code>/api/auth/*</code> routes beyond the thin <code>/api/auth/me</code>, and every request carries a synthetic <code>DEMO_USER</code>. Any unknown value refuses to boot. On modes require <code>BETTER_AUTH_SECRET</code> + <code>BETTER_AUTH_URL</code> (boot refusal if missing). The auth library's own tables live in the same SQLite file but are deliberately outside the entity drift-proofing lists (commented as such).</dd>
-      <dt>backup.ts</dt><dd><code>FLOATY_BACKUP_DIR</code> set → online <code>backup()</code> snapshots (<code>floaty-&lt;YYYYMMDD-HHmmss&gt;.db</code>) once at boot then hourly; prune to the newest <code>FLOATY_BACKUP_KEEP</code> (48). The timer is <code>unref()</code>'d (must not keep a draining process alive); failed snapshots log and continue. Unset → no timer, no filesystem writes.</dd>
-      <dt>bootGuard.ts</dt><dd><code>resetForbidden(env)</code> = <code>FLOATY_ALLOW_RESET==='1' &amp;&amp; NODE_ENV==='production'</code>. If true, the process exits 1 before listening — the destructive reset route can never be reachable in production.</dd>
+      <dt>auth.ts (Better Auth)</dt><dd><code>CAPACITYLENS_AUTH=off|password|sso</code>. <strong>Off</strong>: Better Auth is never initialised — no auth tables, no <code>/api/auth/*</code> routes beyond the thin <code>/api/auth/me</code>, and every request carries a synthetic <code>DEMO_USER</code>. Any unknown value refuses to boot. On modes require <code>BETTER_AUTH_SECRET</code> + <code>BETTER_AUTH_URL</code> (boot refusal if missing). The auth library's own tables live in the same SQLite file but are deliberately outside the entity drift-proofing lists (commented as such).</dd>
+      <dt>backup.ts</dt><dd><code>CAPACITYLENS_BACKUP_DIR</code> set → online <code>backup()</code> snapshots (<code>capacitylens-&lt;YYYYMMDD-HHmmss&gt;.db</code>) once at boot then hourly; prune to the newest <code>CAPACITYLENS_BACKUP_KEEP</code> (48). The timer is <code>unref()</code>'d (must not keep a draining process alive); failed snapshots log and continue. Unset → no timer, no filesystem writes.</dd>
+      <dt>bootGuard.ts</dt><dd><code>resetForbidden(env)</code> = <code>CAPACITYLENS_ALLOW_RESET==='1' &amp;&amp; NODE_ENV==='production'</code>. If true, the process exits 1 before listening — the destructive reset route can never be reachable in production.</dd>
       <dt>shutdown.ts</dt><dd>On SIGTERM/SIGINT: <code>await app.close()</code> (drain in-flight) → <code>db.close()</code> → exit 0. A second signal force-exits 1. Injected <code>app</code>/<code>db</code>/<code>exit</code> make it unit-testable.</dd>
-      <dt>rate limit</dt><dd><code>FLOATY_RATE_LIMIT=&lt;n&gt;</code>, parsed by <code>/^\d+$/</code> (fail-closed: <code>0</code>/non-numeric/unset = off, plugin not registered). <code>/api/health</code> exempt. Behind the loopback proxy it trusts <code>X-Forwarded-For</code>; on a directly-exposed host it ignores it (spoofable).</dd>
-      <dt>logging / health-deep</dt><dd><code>FLOATY_LOG=1</code> → Fastify's bundled pino (JSON per request); off → startup line + <code>console.error</code> on 500s. <code>FLOATY_HEALTH_DEEP=1</code> → health proves a <code>SELECT 1</code>.</dd>
+      <dt>rate limit</dt><dd><code>CAPACITYLENS_RATE_LIMIT=&lt;n&gt;</code>, parsed by <code>/^\d+$/</code> (fail-closed: <code>0</code>/non-numeric/unset = off, plugin not registered). <code>/api/health</code> exempt. Behind the loopback proxy it trusts <code>X-Forwarded-For</code>; on a directly-exposed host it ignores it (spoofable).</dd>
+      <dt>logging / health-deep</dt><dd><code>CAPACITYLENS_LOG=1</code> → Fastify's bundled pino (JSON per request); off → startup line + <code>console.error</code> on 500s. <code>CAPACITYLENS_HEALTH_DEEP=1</code> → health proves a <code>SELECT 1</code>.</dd>
     </dl>
     <div class="callout do">
       <span class="label">The OFF-guarantee, enforced by the test suite</span>
@@ -225,15 +225,15 @@
     <table>
       <thead><tr><th>Var</th><th>Default</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td><code>FLOATY_DB</code></td><td><code>floaty.db</code></td><td>SQLite path (<code>:memory:</code> works).</td></tr>
+        <tr><td><code>CAPACITYLENS_DB</code></td><td><code>capacitylens.db</code></td><td>SQLite path (<code>:memory:</code> works).</td></tr>
         <tr><td><code>PORT</code></td><td><code>8787</code></td><td>Listen port.</td></tr>
-        <tr><td><code>FLOATY_HOST</code></td><td><code>127.0.0.1</code></td><td>Listen host — localhost-only by default; <code>0.0.0.0</code> to expose.</td></tr>
-        <tr><td><code>FLOATY_CORS_ORIGIN</code></td><td>local dev origins</td><td>Allow-list (comma-sep) or <code>*</code>. Defaults so the API isn't open to every site.</td></tr>
-        <tr><td><code>FLOATY_ALLOW_RESET</code></td><td>off</td><td><code>1</code> exposes the reset route (dev/E2E only; boot-guard blocks it in prod).</td></tr>
-        <tr><td><code>FLOATY_OPTIMISTIC_CONCURRENCY</code></td><td>off</td><td><code>1</code> rejects a stale overwrite with 409 instead of last-writer-wins.</td></tr>
-        <tr><td><code>FLOATY_LOG</code> · <code>FLOATY_HEALTH_DEEP</code> · <code>FLOATY_RATE_LIMIT</code></td><td>off</td><td>Logging / deep health / rate limit (page 10's flag register).</td></tr>
-        <tr><td><code>FLOATY_BACKUP_DIR</code> (+ <code>_INTERVAL_MIN</code>=60, <code>_KEEP</code>=48)</td><td>off</td><td>Periodic online snapshots.</td></tr>
-        <tr><td><code>FLOATY_AUTH</code> (+ <code>BETTER_AUTH_*</code>, <code>FLOATY_SSO_*</code>)</td><td><code>off</code></td><td>Auth mode &amp; its required secrets.</td></tr>
+        <tr><td><code>CAPACITYLENS_HOST</code></td><td><code>127.0.0.1</code></td><td>Listen host — localhost-only by default; <code>0.0.0.0</code> to expose.</td></tr>
+        <tr><td><code>CAPACITYLENS_CORS_ORIGIN</code></td><td>local dev origins</td><td>Allow-list (comma-sep) or <code>*</code>. Defaults so the API isn't open to every site.</td></tr>
+        <tr><td><code>CAPACITYLENS_ALLOW_RESET</code></td><td>off</td><td><code>1</code> exposes the reset route (dev/E2E only; boot-guard blocks it in prod).</td></tr>
+        <tr><td><code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code></td><td>off</td><td><code>1</code> rejects a stale overwrite with 409 instead of last-writer-wins.</td></tr>
+        <tr><td><code>CAPACITYLENS_LOG</code> · <code>CAPACITYLENS_HEALTH_DEEP</code> · <code>CAPACITYLENS_RATE_LIMIT</code></td><td>off</td><td>Logging / deep health / rate limit (page 10's flag register).</td></tr>
+        <tr><td><code>CAPACITYLENS_BACKUP_DIR</code> (+ <code>_INTERVAL_MIN</code>=60, <code>_KEEP</code>=48)</td><td>off</td><td>Periodic online snapshots.</td></tr>
+        <tr><td><code>CAPACITYLENS_AUTH</code> (+ <code>BETTER_AUTH_*</code>, <code>CAPACITYLENS_SSO_*</code>)</td><td><code>off</code></td><td>Auth mode &amp; its required secrets.</td></tr>
       </tbody>
     </table>
 

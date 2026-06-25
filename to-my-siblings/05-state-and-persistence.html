@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -211,7 +211,7 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
     <p>The seam is the three-method interface from page 03. Two implementations; one ternary selects between
     them at module load:</p>
     <div class="filename">src/data/storageAdapter.ts</div>
-<pre><code><span class="k">export const</span> STORAGE_KEY = 'floaty/v3'
+<pre><code><span class="k">export const</span> STORAGE_KEY = 'capacitylens/v3'
 <span class="k">export const</span> storageAdapter = <span class="k">new</span> LocalStorageAdapter(STORAGE_KEY)
 
 <span class="k">export const</span> persistenceAdapter: <span class="t">PersistenceAdapter</span> = isServerConfigured()
@@ -224,7 +224,7 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
     are deliberately <em>not</em> on the shared interface.</p>
     <p><code>API_BASE</code> and <code>isServerConfigured()</code> read the build-time env once:</p>
     <div class="filename">src/data/apiConfig.ts</div>
-<pre><code><span class="k">export const</span> API_BASE = (import.meta.env.VITE_FLOATY_API ?? '').replace(/\/+$/, '')
+<pre><code><span class="k">export const</span> API_BASE = (import.meta.env.VITE_CAPACITYLENS_API ?? '').replace(/\/+$/, '')
 <span class="k">export function</span> <span class="f">isServerConfigured</span>(): boolean { <span class="k">return</span> API_BASE.length &gt; 0 }</code></pre>
 
     <h2 id="sync">Server sync by diffing snapshots</h2>

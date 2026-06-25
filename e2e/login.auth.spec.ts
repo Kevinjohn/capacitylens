@@ -5,12 +5,12 @@ import AxeBuilder from '@axe-core/playwright'
 test.use({ reducedMotion: 'reduce' })
 
 // US-NAV-10: the flag-gated login wall, against the auth-backed project's server
-// (FLOATY_AUTH=password on :8887 — see playwright.config.ts). The default deploy keeps
+// (CAPACITYLENS_AUTH=password on :8887 — see playwright.config.ts). The default deploy keeps
 // auth off, so this is the ONLY place the login screen exists; the rest of the suite
 // running unchanged in the other two projects is the off-guarantee.
 
 const API = 'http://localhost:8887'
-const EMAIL = 'tester@floaty.dev'
+const EMAIL = 'tester@capacitylens.dev'
 const PASSWORD = 'demo-password-123'
 
 // Sign-up is API-only this round (no form). Idempotent: a rerun against a reused server
@@ -22,7 +22,7 @@ async function seedUser(request: APIRequestContext) {
   if (!res.ok()) expect(res.status()).toBe(422)
 }
 
-test.describe('login screen (FLOATY_AUTH=password)', () => {
+test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
   test('unauthenticated visit shows the login screen, not the app — and the API 401s', async ({
     page,
     request,
@@ -64,9 +64,9 @@ test.describe('login screen (FLOATY_AUTH=password)', () => {
     // The normal boot flow resumes: server-seeded company picker → the post-login intro → the app.
     // exact: true — a bare /Studio North/ would also match "Delete Studio North".
     await page.getByRole('button', { name: 'Studio North', exact: true }).click()
-    // The "What Floaty is" intro gate fires after the company pick in every entry mode (incl. real
+    // The "What CapacityLens is" intro gate fires after the company pick in every entry mode (incl. real
     // auth — they all converge on a chosen account); dismiss it to reach the app.
-    await expect(page.getByRole('heading', { name: 'Welcome to Floaty' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Welcome to CapacityLens' })).toBeVisible()
     await page.getByTestId('intro-continue').click()
     await expect(page.getByRole('link', { name: 'Settings' })).toBeVisible()
 

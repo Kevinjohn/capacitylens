@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { hasActiveFilters, useStore } from './useStore'
 import { resetStoreWithAccount, makeAppData, makeAccount } from '../test/fixtures'
-import { addDaysISO, weekdayOf } from '@floaty/shared/lib/dateMath'
-import { serializeData } from '@floaty/shared/data/transfer'
+import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath'
+import { serializeData } from '@capacitylens/shared/data/transfer'
 import { PAST_BUFFER_DAYS } from '../lib/schedulerConfig'
 
 const s = () => useStore.getState()
@@ -170,7 +170,7 @@ describe('store scheduler UI', () => {
     // Device-global pref (default ON). Turning it off writes the 'off' literal and updates the
     // reactive store value.
     s().setSnapToWeekStart(false)
-    expect(localStorage.getItem('floaty/snapToWeekStart')).toBe('off')
+    expect(localStorage.getItem('capacitylens/snapToWeekStart')).toBe('off')
     expect(s().snapToWeekStart).toBe(false)
 
     // It is a device pref, NOT a data mutation, so undo must not revert it (mirrors theme /

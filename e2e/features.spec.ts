@@ -63,7 +63,7 @@ test.describe('Feature flows', () => {
     await page.getByRole('button', { name: 'Design', exact: true }).click()
     await expect(page.getByText('Tyler Nix')).toHaveCount(0) // rows removed
     await expect(page.getByTestId('discipline-group').first()).toBeVisible() // header stays
-    await page.screenshot({ path: 'test-results/floaty-collapsed.png' })
+    await page.screenshot({ path: 'test-results/capacitylens-collapsed.png' })
   })
 
   test('dragging an allocation onto another row reassigns it', async ({ page }) => {
@@ -84,7 +84,7 @@ test.describe('Feature flows', () => {
     await page.mouse.move(cx, nike.y + nike.height / 2, { steps: 10 })
     // Nike's row is highlighted as the drop target mid-drag.
     await expect(nikeLane).toHaveAttribute('data-droptarget', '')
-    await page.screenshot({ path: 'test-results/floaty-drophighlight.png' })
+    await page.screenshot({ path: 'test-results/capacitylens-drophighlight.png' })
     await page.mouse.up()
 
     // Assert the resulting state, not a pixel delta: the bar now lives inside Nike's lane.

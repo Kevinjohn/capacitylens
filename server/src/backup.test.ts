@@ -4,14 +4,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseBackupConfig, startBackups } from './backup'
 import { openDb, loadState, insertAll } from './db'
-import { seed } from '@floaty/shared/data/seed'
+import { seed } from '@capacitylens/shared/data/seed'
 
-// P4.1 (flag FLOATY_BACKUP_DIR): OFF (unset) means backups don't exist — parseBackupConfig
+// P4.1 (flag CAPACITYLENS_BACKUP_DIR): OFF (unset) means backups don't exist — parseBackupConfig
 // is the single gate. ON: snapshots are real, openable SQLite files holding the data, the
 // retention prunes oldest-first by filename, and stop() ends the timer (the shutdown path).
 
-const tempDir = () => mkdtempSync(join(tmpdir(), 'floaty-backup-test-'))
-const snapshots = (dir: string) => readdirSync(dir).filter((f) => /^floaty-\d{8}-\d{6}\.db$/.test(f)).sort()
+const tempDir = () => mkdtempSync(join(tmpdir(), 'capacitylens-backup-test-'))
+const snapshots = (dir: string) => readdirSync(dir).filter((f) => /^capacitylens-\d{8}-\d{6}\.db$/.test(f)).sort()
 
 /** A fake clock that advances one second per call, so every snapshot gets a unique name. */
 function tickingClock(start = new Date('2026-06-13T00:00:00')) {
@@ -20,18 +20,18 @@ function tickingClock(start = new Date('2026-06-13T00:00:00')) {
 }
 
 describe('parseBackupConfig (fail-closed)', () => {
-  it('is null without FLOATY_BACKUP_DIR — backups simply do not exist', () => {
+  it('is null without CAPACITYLENS_BACKUP_DIR — backups simply do not exist', () => {
     expect(parseBackupConfig({})).toBeNull()
-    expect(parseBackupConfig({ FLOATY_BACKUP_INTERVAL_MIN: '5', FLOATY_BACKUP_KEEP: '3' })).toBeNull()
+    expect(parseBackupConfig({ CAPACITYLENS_BACKUP_INTERVAL_MIN: '5', CAPACITYLENS_BACKUP_KEEP: '3' })).toBeNull()
   })
 
   it('applies the documented defaults and ignores junk knob values', () => {
-    expect(parseBackupConfig({ FLOATY_BACKUP_DIR: '/tmp/x' })).toEqual({ dir: '/tmp/x', intervalMin: 60, keep: 48 })
+    expect(parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x' })).toEqual({ dir: '/tmp/x', intervalMin: 60, keep: 48 })
     expect(
-      parseBackupConfig({ FLOATY_BACKUP_DIR: '/tmp/x', FLOATY_BACKUP_INTERVAL_MIN: 'lots', FLOATY_BACKUP_KEEP: '-2' }),
+      parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_INTERVAL_MIN: 'lots', CAPACITYLENS_BACKUP_KEEP: '-2' }),
     ).toEqual({ dir: '/tmp/x', intervalMin: 60, keep: 48 })
     expect(
-      parseBackupConfig({ FLOATY_BACKUP_DIR: '/tmp/x', FLOATY_BACKUP_INTERVAL_MIN: '15', FLOATY_BACKUP_KEEP: '4' }),
+      parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_INTERVAL_MIN: '15', CAPACITYLENS_BACKUP_KEEP: '4' }),
     ).toEqual({ dir: '/tmp/x', intervalMin: 15, keep: 4 })
   })
 })

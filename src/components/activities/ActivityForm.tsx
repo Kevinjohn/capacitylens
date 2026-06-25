@@ -5,7 +5,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, FieldError, Modal, RequiredLegend, SegmentedControl, SelectField, TextField, type Option } from '../common/ui'
-import type { Activity, ActivityKind } from '@floaty/shared/types/entities'
+import type { Activity, ActivityKind } from '@capacitylens/shared/types/entities'
 
 const KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
   { value: 'project', label: 'Project' },

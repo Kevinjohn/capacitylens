@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -62,7 +62,7 @@
 
     <h2 id="small">1. Deliberately small (the most important one)</h2>
     <p>
-      Floaty solves exactly one problem: <strong>a helicopter view of who is busy, free, or overworked,
+      CapacityLens solves exactly one problem: <strong>a helicopter view of who is busy, free, or overworked,
       week by week</strong>, for small agencies with a few staff and rotating freelancers. That is the
       entire product. It deliberately replaces a resourcing spreadsheet — not Float, not a PSA suite.
     </p>
@@ -97,7 +97,7 @@
     <p>
       An <strong>optional</strong> Node + <code>node:sqlite</code> REST API plugs in behind the same
       <code>PersistenceAdapter</code> interface, switched on by a single build-time env var
-      (<code>VITE_FLOATY_API</code>). When it is on, the app talks to the server through that one seam and
+      (<code>VITE_CAPACITYLENS_API</code>). When it is on, the app talks to the server through that one seam and
       <em>nothing else in the app changes</em>. Server mode is last-writer-wins with no per-user isolation —
       a deliberate, documented posture, not an oversight.
     </p>
@@ -111,7 +111,7 @@
     <h2 id="nodrift">3. One source of truth, shared so it cannot drift</h2>
     <p>
       The pure domain core — types, validation, integrity rules, cascade-delete, import-remap, migration,
-      seed — lives in a workspace package (<code>@floaty/shared</code>) that is <strong>imported by both the
+      seed — lives in a workspace package (<code>@capacitylens/shared</code>) that is <strong>imported by both the
       web app and the server</strong>. There is no second copy of the rules on the server. Server-side
       validation is <em>literally the client's code running in Node</em>.
     </p>
@@ -196,7 +196,7 @@
     <h2 id="separate">8. Keep conceptually distinct signals distinct</h2>
     <p>
       A recurring discipline: when two things <em>look</em> similar but answer <em>different questions</em>,
-      they get separate code paths and separate names, and merging them is explicitly forbidden. Floaty's
+      they get separate code paths and separate names, and merging them is explicitly forbidden. CapacityLens's
       canonical example is its two "over-capacity" signals:
     </p>
     <ul>
@@ -208,7 +208,7 @@
       <p>They answer different questions ("is anything booked on a day off?" vs. "how loaded is this person
       this fortnight?") so they are never merged. Your sibling will have its own such pairs — find them, name
       them distinctly, and write the "don't merge these" note where the next person will see it. Naming is
-      part of this: it is always "Utilisation", never "Load", everywhere in Floaty.</p>
+      part of this: it is always "Utilisation", never "Load", everywhere in CapacityLens.</p>
     </div>
 
     <h2 id="oracles">9. Two oracles beyond "the tests pass"</h2>
@@ -225,8 +225,8 @@
     <h2 id="flags">10. Every behavioural change ships behind a flag, default OFF</h2>
     <p>
       Production-hardening and new server behaviours are introduced behind environment flags whose
-      <strong>unset state is byte-for-byte today's behaviour</strong>. The flags are <code>FLOATY_*</code> on
-      the server (runtime) and <code>VITE_FLOATY_*</code> on the client (build-time, inlined). Flag parsing is
+      <strong>unset state is byte-for-byte today's behaviour</strong>. The flags are <code>CAPACITYLENS_*</code> on
+      the server (runtime) and <code>VITE_CAPACITYLENS_*</code> on the client (build-time, inlined). Flag parsing is
       <strong>fail-closed</strong>: a non-numeric rate limit, a typo'd auth mode, a missing secret — each
       means "off" or "refuse to boot", never "accidentally on".
     </p>
@@ -235,7 +235,7 @@
       <p>A handful of changes are deliberately <em>not</em> flagged — graceful shutdown, a production
       safety-interlock, a Node version bump. The test is: would an "off" default <em>preserve a defect</em>?
       If yes, don't flag it; fix it. Otherwise, flag it off. Document the exceptions with their rationale, as
-      Floaty does in its flag register.</p>
+      CapacityLens does in its flag register.</p>
     </div>
 
     <h2 id="docs">11. Decisions are documentation, and documentation is cheap to keep</h2>
@@ -281,7 +281,7 @@
       <p>When you re-throw from a <code>catch</code>, attach the caught error as <code>{ cause: e }</code> so
       the <em>full chain</em> survives, not just a re-worded message. ESLint's
       <code>preserve-caught-error</code> enforces this for native errors; it does <strong>not</strong> fire on
-      custom error classes or a bare <code>catch&nbsp;{}</code>, so make those carry the cause too (Floaty's
+      custom error classes or a bare <code>catch&nbsp;{}</code>, so make those carry the cause too (CapacityLens's
       <code>LoadError</code> and <code>ValidationError</code> take an <code>ErrorOptions</code> and forward
       it). <em>This convention came from a sibling repo — exactly the kind of lesson this handbook is for.</em></p>
     </div>

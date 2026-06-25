@@ -3,8 +3,8 @@ import { attachPersistence, bootstrap } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { useStore } from '../store/useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import { seed } from '@floaty/shared/data/seed'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import { seed } from '@capacitylens/shared/data/seed'
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '../test/fixtures'
 
 beforeEach(() => {
@@ -16,7 +16,7 @@ beforeEach(() => {
 
 describe('attachPersistence', () => {
   it('persists data changes (immediate mode)', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-a')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-a')
     const detach = attachPersistence(useStore, adapter, 0)
     useStore.getState().addClient({ name: 'Acme', color: '#1' })
     const loaded = await adapter.loadAll()
@@ -25,7 +25,7 @@ describe('attachPersistence', () => {
   })
 
   it('stops persisting after detach', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-b')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-b')
     const detach = attachPersistence(useStore, adapter, 0)
     detach()
     useStore.getState().addClient({ name: 'Acme', color: '#1' })
@@ -33,7 +33,7 @@ describe('attachPersistence', () => {
   })
 
   it('flushes a pending debounced write on pagehide (so a tab close does not lose it)', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-flush')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-flush')
     const detach = attachPersistence(useStore, adapter, 300) // debounced, NOT immediate
     useStore.getState().addClient({ name: 'Acme', color: '#1' })
     expect((await adapter.loadAll()).clients).toHaveLength(0) // still inside the debounce window
@@ -45,7 +45,7 @@ describe('attachPersistence', () => {
   it('reports a failed write via onError, then a recovered write via onSuccess', async () => {
     // A transient write failure (e.g. server unreachable) should fire onError; the
     // next successful write must fire onSuccess so the caller can clear the banner.
-    const adapter = new LocalStorageAdapter('floaty/persist-recover')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-recover')
     const realSave = adapter.saveAll.bind(adapter)
     let calls = 0
     vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
@@ -75,7 +75,7 @@ describe('attachPersistence', () => {
     // adapter recovers — proven here with a one-shot failure + a short backoff.
     vi.useFakeTimers()
     try {
-      const adapter = new LocalStorageAdapter('floaty/persist-retry')
+      const adapter = new LocalStorageAdapter('capacitylens/persist-retry')
       const realSave = adapter.saveAll.bind(adapter)
       let calls = 0
       vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
@@ -107,7 +107,7 @@ describe('attachPersistence', () => {
     // re-attempts it with a fresh budget (so a reload after recovery doesn't lose it).
     vi.useFakeTimers()
     try {
-      const adapter = new LocalStorageAdapter('floaty/persist-online')
+      const adapter = new LocalStorageAdapter('capacitylens/persist-online')
       const realSave = adapter.saveAll.bind(adapter)
       let online = false
       vi.spyOn(adapter, 'saveAll').mockImplementation(async (d) => {
@@ -136,7 +136,7 @@ describe('attachPersistence', () => {
   })
 
   it('does NOT re-write on an online event when nothing is stranded (no needless full rewrite)', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-online-noop')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-online-noop')
     const saveAll = vi.spyOn(adapter, 'saveAll')
     const detach = attachPersistence(useStore, adapter, 0)
     useStore.getState().addClient({ name: 'Synced', color: '#555555' })
@@ -152,7 +152,7 @@ describe('attachPersistence', () => {
 
 describe('bootstrap', () => {
   it('seeds an empty store and marks it hydrated', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-c')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-c')
     const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed() })
     expect(useStore.getState().hydrated).toBe(true)
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0)
@@ -162,7 +162,7 @@ describe('bootstrap', () => {
   })
 
   it('does not re-seed after the user has cleared all their data', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-cleared')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-cleared')
     await adapter.saveAll(emptyAppData()) // user deleted everything; empty IS persisted
     const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed() })
     expect(useStore.getState().data.resources).toHaveLength(0) // seed must NOT come back
@@ -170,7 +170,7 @@ describe('bootstrap', () => {
   })
 
   it('a failing first-run seed write still hydrates, reports via onError, and attaches persistence', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-seedfail')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-seedfail')
     const realSave = adapter.saveAll.bind(adapter)
     let calls = 0
     const errors: unknown[] = []
@@ -191,7 +191,7 @@ describe('bootstrap', () => {
   })
 
   it('loads existing data without re-seeding', async () => {
-    const adapter = new LocalStorageAdapter('floaty/persist-d')
+    const adapter = new LocalStorageAdapter('capacitylens/persist-d')
     await adapter.saveAll({ ...emptyAppData(), clients: [{ id: 'c1', accountId: DEFAULT_ACCOUNT_ID, createdAt: 't', updatedAt: 't', name: 'Saved', color: '#1' }] })
     const detach = await bootstrap(useStore, adapter, { debounceMs: 0, seedIfEmpty: seed() })
     expect(useStore.getState().data.clients).toHaveLength(1)
@@ -229,7 +229,7 @@ describe('bootstrap', () => {
   })
 
   it('flags loadError and refuses to seed/save over corrupt stored data', async () => {
-    const KEY = 'floaty/persist-corrupt'
+    const KEY = 'capacitylens/persist-corrupt'
     localStorage.setItem(KEY, '{ not valid json') // unreadable-but-present bytes
     const adapter = new LocalStorageAdapter(KEY)
     useStore.getState().setLoadError(false)

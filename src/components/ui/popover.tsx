@@ -4,9 +4,9 @@ import { Popover as PopoverPrimitive } from "radix-ui"
 import { cn } from "@/lib/utils"
 
 // shadcn Popover primitives on the `radix-ui` umbrella (same import idiom as button/command).
-// The stock content surface uses bg-popover/text-popover-foreground — both EXIST in floaty
+// The stock content surface uses bg-popover/text-popover-foreground — both EXIST in capacitylens
 // (index.css: --popover/--popover-foreground are a white/dark elevated surface), so they're
-// AA-safe and kept. Callers that need floaty's own elevated panel token can override via
+// AA-safe and kept. Callers that need capacitylens's own elevated panel token can override via
 // className (ColorField does, with bg-elevated).
 //
 // Content defaults to a Portal. A caller that must stay inside a specific DOM subtree (e.g.

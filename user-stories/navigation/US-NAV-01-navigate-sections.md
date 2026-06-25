@@ -3,7 +3,7 @@
 **Area:** Navigation & shell · **Persona:** Studio manager · **Linked E2E:** `e2e/navigation.spec.ts` → "sidebar links route to each section"
 
 ## Goal
-Reach every part of Floaty from the left sidebar, so each section's screen actually loads.
+Reach every part of CapacityLens from the left sidebar, so each section's screen actually loads.
 
 ## Why
 The sidebar is the only way around the app. If any link is mis-wired or a screen

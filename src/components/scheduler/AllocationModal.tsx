@@ -2,12 +2,12 @@ import { useEffect, useId, useState } from 'react'
 import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
-import { parseDate, todayISO } from '@floaty/shared/lib/dateMath'
-import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, MAX_SPAN_DAYS, spanDays } from '@floaty/shared/lib/schedulingDays'
+import { parseDate, todayISO } from '@capacitylens/shared/lib/dateMath'
+import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, MAX_SPAN_DAYS, spanDays } from '@capacitylens/shared/lib/schedulingDays'
 import { externalEnabledFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
-import { validateAllocationAssignment } from '@floaty/shared/lib/integrity'
+import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity'
 import { validateText } from '../../lib/validation'
-import { MAX_NAME_LENGTH } from '@floaty/shared/lib/strings'
+import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 import {
   AddButton,
   Button,
@@ -24,8 +24,8 @@ import {
 import { inputClass } from '../common/controls'
 import { capacityAdvisory } from '../../lib/capacity'
 import { ALLOCATION_STATUS_OPTIONS, resourceDisplayName } from '../../lib/metadata'
-import { isExternalResource, MAX_HOURS_PER_DAY } from '@floaty/shared/types/entities'
-import type { AllocationStatus, ISODate } from '@floaty/shared/types/entities'
+import { isExternalResource, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
+import type { AllocationStatus, ISODate } from '@capacitylens/shared/types/entities'
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
  *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction

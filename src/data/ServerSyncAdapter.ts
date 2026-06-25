@@ -1,7 +1,7 @@
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
-import { migrate } from '@floaty/shared/data/migrate'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
+import { migrate } from '@capacitylens/shared/data/migrate'
 import { diffOps, type Op } from './syncOps'
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
@@ -44,7 +44,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     this.fetchImpl = fetchImpl
   }
 
-  // P3.4: every request carries credentials so an auth-enabled server (FLOATY_AUTH ≠ off)
+  // P3.4: every request carries credentials so an auth-enabled server (CAPACITYLENS_AUTH ≠ off)
   // sees the Better Auth session cookie. With auth off (the default) and same-origin
   // requests there are no cookies to send — a verified no-op (the db-backed e2e project
   // runs unchanged); the server pairs reflected CORS origins with Allow-Credentials.
@@ -53,8 +53,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       const res = await this.fetchImpl(`${this.baseUrl}/api/state`, { credentials: 'include' })
       if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
       const json: unknown = await res.json()
-      // migrate() is TOLERANT: it coerces a malformed/non-Floaty object to an EMPTY AppData rather
-      // than throwing. So a 200 carrying a non-Floaty body (a proxy HTML error page, a truncated
+      // migrate() is TOLERANT: it coerces a malformed/non-CapacityLens object to an EMPTY AppData rather
+      // than throwing. So a 200 carrying a non-CapacityLens body (a proxy HTML error page, a truncated
       // response) hydrates EMPTY and sets lastSynced=empty here — accepted because in server mode
       // the SERVER is the source of truth (there's nothing local to overwrite). If a suspicious
       // 200 should instead be a hard failure, reuse the shared hasNonArrayKnownTable guard before

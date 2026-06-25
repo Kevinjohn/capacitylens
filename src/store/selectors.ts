@@ -1,7 +1,7 @@
-import { addDaysISO } from '@floaty/shared/lib/dateMath'
-import { byAccount } from '@floaty/shared/domain/tenancy'
-import { emptyAppData, isCapacityTracked, isExternalResource, scopedTables, SCOPED_KEYS } from '@floaty/shared/types/entities'
-import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@floaty/shared/types/entities'
+import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
+import { byAccount } from '@capacitylens/shared/domain/tenancy'
+import { emptyAppData, isCapacityTracked, isExternalResource, scopedTables, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
+import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@capacitylens/shared/types/entities'
 
 export interface CalendarConfig {
   timeZone: string

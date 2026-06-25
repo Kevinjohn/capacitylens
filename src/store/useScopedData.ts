@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { useStore } from './useStore'
 import { scopeData } from './selectors'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 // The single read-side seam for multi-tenancy: every component that used to read
 // `s.data` (or a slice of it) reads through here instead, getting only the active

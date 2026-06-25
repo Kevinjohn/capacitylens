@@ -3,8 +3,8 @@
 **Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Settings returns to the login screen"
 
 > **Flag-gated; not reachable in the default deploy.** The login screen only exists when
-> the optional server runs with `FLOATY_AUTH=password` (or `sso`) — the controlled-demo
-> deploy keeps `FLOATY_AUTH` unset (off), where every request carries a synthetic demo
+> the optional server runs with `CAPACITYLENS_AUTH=password` (or `sso`) — the controlled-demo
+> deploy keeps `CAPACITYLENS_AUTH` unset (off), where every request carries a synthetic demo
 > identity and no login UI exists. The dedicated Playwright `auth-backed` project boots a
 > server with the flag on to run this story's checks; it cannot be exercised against
 > `npm run dev`.
@@ -20,7 +20,7 @@ re-architecture. The login screen is the user-visible end of that seam: a 401 fr
 session must restore exactly the normal flow.
 
 ## How (end-to-end, password mode)
-**Precondition:** a deploy with `FLOATY_AUTH=password`, and a user account created
+**Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created
 (sign-up is API-only this round — there is no sign-up form).
 
 1. Open the app URL. Instead of the company picker, a **Sign in** screen appears.

@@ -3,7 +3,7 @@
 **Area:** Data management · **Persona:** Studio manager · **Linked E2E:** `e2e/crud.spec.ts` → "adding a client persists across a reload"
 
 ## Goal
-Add something, fully reload the page, and find it still there — Floaty saves to `localStorage` automatically.
+Add something, fully reload the page, and find it still there — CapacityLens saves to `localStorage` automatically.
 
 ## Why
 Local-first by default means that in the default local mode no server does the saving — the browser is the database. A manager must be able to close the tab or reload mid-session and trust nothing is lost — otherwise the tool can't be relied on for real planning.
@@ -16,6 +16,6 @@ Local-first by default means that in the default local mode no server does the s
 
 ## Acceptance criteria
 - ✅ Before reload, **Reload Test Co.** appears in the Clients list.
-- ✅ After a full page reload, **Reload Test Co.** is still present in the Clients list (it was written to `localStorage`, under the key `floaty/v3`, and re-loaded on bootstrap).
+- ✅ After a full page reload, **Reload Test Co.** is still present in the Clients list (it was written to `localStorage`, under the key `capacitylens/v3`, and re-loaded on bootstrap).
 - ✅ The rest of the seed data is also intact after reload (the reload restores the whole persisted dataset, not just the new entity).
 - ✅ This holds for an edit immediately before reload too: the persistence layer flushes pending writes on tab hide/close, so a change made just before reloading is not lost inside the save debounce window.

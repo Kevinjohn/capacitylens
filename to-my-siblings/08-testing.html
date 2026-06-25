@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -140,8 +140,8 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
       <thead><tr><th>Project</th><th>Matches</th><th>Stack under test</th></tr></thead>
       <tbody>
         <tr><td><code>chromium</code></td><td><code>*.spec.ts</code> (ignores db/auth)</td><td>The default localStorage app on :5173.</td></tr>
-        <tr><td><code>db-backed</code></td><td><code>*.db.spec.ts</code></td><td>The SQLite server (:8787, reset-enabled, temp DB) + a Vite build with <code>VITE_FLOATY_API</code> on :5273 — exercises the real <code>ServerSyncAdapter</code>.</td></tr>
-        <tr><td><code>auth-backed</code></td><td><code>*.auth.spec.ts</code></td><td>A server booted with <code>FLOATY_AUTH=password</code> (fresh DB) + a Vite app on :5373 — the only place the flag-gated login screen exists.</td></tr>
+        <tr><td><code>db-backed</code></td><td><code>*.db.spec.ts</code></td><td>The SQLite server (:8787, reset-enabled, temp DB) + a Vite build with <code>VITE_CAPACITYLENS_API</code> on :5273 — exercises the real <code>ServerSyncAdapter</code>.</td></tr>
+        <tr><td><code>auth-backed</code></td><td><code>*.auth.spec.ts</code></td><td>A server booted with <code>CAPACITYLENS_AUTH=password</code> (fresh DB) + a Vite app on :5373 — the only place the flag-gated login screen exists.</td></tr>
       </tbody>
     </table>
     <p>Selector strategy in specs mirrors the component tests: <code>getByRole</code> &gt; <code>getByLabel</code>
@@ -164,11 +164,11 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
         <tr><td><code>npm run e2e:all</code></td><td>the whole matrix (Chromium + WebKit)</td><td>3 Vite + 2 servers</td></tr>
       </tbody>
     </table>
-    <p>The trick that keeps <code>e2e:webkit</code> cheap: it sets <code>FLOATY_WEBKIT_ONLY</code>, which both
+    <p>The trick that keeps <code>e2e:webkit</code> cheap: it sets <code>CAPACITYLENS_WEBKIT_ONLY</code>, which both
     makes the <code>webkit</code> project exist <em>and</em> trims the config's <code>webServer</code> list to
     just the :5173 Vite dev server. The core specs never touch the SQLite or auth servers, so the WebKit run
     needs <strong>neither those servers nor Node 24</strong> — it runs anywhere the app builds.
-    (<code>e2e:all</code> sets <code>FLOATY_WEBKIT</code> instead: project on, full stack.) Both are env-gated
+    (<code>e2e:all</code> sets <code>CAPACITYLENS_WEBKIT</code> instead: project on, full stack.) Both are env-gated
     spreads in the <code>projects</code>/<code>webServer</code> arrays, exactly like the <code>rehearsal</code>
     project — add a flavour the same way.</p>
     <div class="callout do">

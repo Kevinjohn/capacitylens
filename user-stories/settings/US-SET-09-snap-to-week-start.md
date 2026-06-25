@@ -32,4 +32,4 @@ the always-on navigation snap — already land on a week start regardless of thi
 - With it off: free scrolling is unconstrained — a nudge onto a Tue/Wed stays there.
 - This governs **free scroll only**. The navigation snap (zoom click, Prev/Next pan, date picker) re-anchors the left edge to the week start regardless of this switch (see US-SET — Scheduler toolbar / Feature 1).
 - A drag in progress is never fought: the floor-snap respects the drag-freeze (it doesn't fire while a bar is being dragged), and it converges in one step (a programmatic scroll that already sits on a week start is a no-op, so there's no feedback loop).
-- The choice survives a reload in the same browser (device-global `floaty/snapToWeekStart`), is **not** on the account, and is **not** included in Export JSON.
+- The choice survives a reload in the same browser (device-global `capacitylens/snapToWeekStart`), is **not** on the account, and is **not** included in Export JSON.

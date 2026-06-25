@@ -1,9 +1,9 @@
-# Deploying Floaty (Laravel Forge + DigitalOcean)
+# Deploying CapacityLens (Laravel Forge + DigitalOcean)
 
-Floaty is a Vite/React SPA in an npm-workspaces monorepo. It builds to a static
+CapacityLens is a Vite/React SPA in an npm-workspaces monorepo. It builds to a static
 `dist/` and, by default, persists to the browser's `localStorage` — no backend
 required. The `server/` (Fastify + SQLite) is **opt-in** via the build-time
-`VITE_FLOATY_API` env var and is documented separately in `server/README.md`.
+`VITE_CAPACITYLENS_API` env var and is documented separately in `server/README.md`.
 
 This guide covers the **static SPA** deploy (the default). You don't SSH in to run
 npm by hand — Forge's **Deploy Script** runs `git pull` + the npm build on the
@@ -18,13 +18,13 @@ droplet for you on each deploy. SSH is only for debugging.
 ## 1. DNS
 
 Add an **A record** for the subdomain pointing at the droplet's public IP
-(e.g. `floaty` → `203.0.113.10`).
+(e.g. `capacitylens` → `203.0.113.10`).
 
 ## 2. Create the Site in Forge
 
 Forge → server → **New Site**:
 
-- **Root Domain:** `floaty.yourdomain.com`
+- **Root Domain:** `capacitylens.yourdomain.com`
 - **Project Type:** `Static HTML`
 - **Web Directory:** `/dist`  ← serves the Vite build output, not `/public`.
 
@@ -42,7 +42,7 @@ Ensure the Forge server runs **Node 20 or 22** (Vite 8 needs ≥18; 22 is safest
 Site → **Apps** → **Deploy Script**:
 
 ```bash
-cd /home/forge/floaty.yourdomain.com
+cd /home/forge/capacitylens.yourdomain.com
 
 git pull origin $FORGE_SITE_BRANCH
 
@@ -78,7 +78,7 @@ location / {
 
 ```bash
 ssh forge@<droplet-ip>
-cd /home/forge/floaty.yourdomain.com
+cd /home/forge/capacitylens.yourdomain.com
 npm ci --include=dev && npm run build   # reproduce build errors interactively
 ```
 

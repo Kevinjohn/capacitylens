@@ -6,7 +6,7 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { Discipline } from '@floaty/shared/types/entities'
+import type { Discipline } from '@capacitylens/shared/types/entities'
 
 /** Add (no `discipline`) or edit a discipline: name + colour. `sortOrder` is auto-assigned (one past
  *  the current max, not the count — see below). `onClose` fires on save or cancel. */

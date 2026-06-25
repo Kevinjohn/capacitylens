@@ -37,12 +37,12 @@ function restoreFocus(prev: HTMLElement | null) {
   }
 }
 
-// Floaty's three button NAMES mapped onto shadcn's button aesthetic (Button base in
-// ../ui/button) via a plain Record lookup (floaty's original idiom — no second same-named
-// cva). The colours bind to floaty's own --c-* brand/danger tokens (the bg-brand* /
+// CapacityLens's three button NAMES mapped onto shadcn's button aesthetic (Button base in
+// ../ui/button) via a plain Record lookup (capacitylens's original idiom — no second same-named
+// cva). The colours bind to capacitylens's own --c-* brand/danger tokens (the bg-brand* /
 // bg-danger* utilities) rather than shadcn's slate --primary, so the indigo brand identity
 // holds. `primary` is a solid brand fill: brand-strong is tuned so white ink clears WCAG AA
-// in light AND dark (see index.css). `danger` is the destructive read: floaty's AA-safe
+// in light AND dark (see index.css). `danger` is the destructive read: capacitylens's AA-safe
 // SOFT red pairing (bg-danger-soft + danger-soft-ink), which clears AA in BOTH themes —
 // solid bg-danger + white would only read ~2.7:1 against the light-coral dark token. `ghost`
 // is the quiet outline.
@@ -83,8 +83,8 @@ export function Button({
 }) {
   return (
     // shadcn Button base supplies the layout/focus-ring/disabled scaffold (size="sm" keeps
-    // floaty's compact footer height); we override its variant colours with floaty's brand
-    // tokens via className. The floaty prop API (ariaLabel/describedById/testId) is mapped
+    // capacitylens's compact footer height); we override its variant colours with capacitylens's brand
+    // tokens via className. The capacitylens prop API (ariaLabel/describedById/testId) is mapped
     // onto the native aria-/data- attributes the base forwards.
     <ShadButton
       size="sm"
@@ -195,11 +195,11 @@ export function Modal({
   // Radix Dialog supplies the accessible shell — role="dialog", the <h2> title wired via
   // aria-labelledby (DialogTitle), and the dismiss/focus scaffold. It runs in NON-modal mode
   // (`modal={false}`): the modal variant aria-hides ALL sibling subtrees (aria-hidden's
-  // hideOthers), which would hide the page BEHIND the dialog from the a11y tree — but floaty
+  // hideOthers), which would hide the page BEHIND the dialog from the a11y tree — but capacitylens
   // shows hints like RotateHint OVER content that must stay readable (mobile.spec relies on
-  // the sign-in heading staying findable). So we keep floaty's own light-touch modal
+  // the sign-in heading staying findable). So we keep capacitylens's own light-touch modal
   // semantics: a plain backdrop div (rendered INLINE, no Portal, so it's container.firstChild
-  // and the panel's parentElement) and the manual Tab-trap below. Floaty's dismiss/restore
+  // and the panel's parentElement) and the manual Tab-trap below. CapacityLens's dismiss/restore
   // behaviours — which stock Radix does NOT reproduce — are layered on top; Radix's competing
   // paths are neutralised (see each handler).
   const panelRef = useRef<HTMLDivElement>(null)
@@ -261,7 +261,7 @@ export function Modal({
   //    can't reach: they fire fireEvent.keyDown(window, …)). Radix's own Escape is neutralised
   //    on the Content (onEscapeKeyDown preventDefault) so there's a single dismiss path.
   //  • Tab focus-trap. Radix's FocusScope trap is OFF in non-modal mode (DialogContentNonModal
-  //    sets trapFocus=false), so floaty keeps its own wrap — bound once, reading the latest
+  //    sets trapFocus=false), so capacitylens keeps its own wrap — bound once, reading the latest
   //    via panelRef. (Empty deps; the trigger ref keeps the guard state current.)
   useEffect(() => {
     const focusables = () => {
@@ -297,7 +297,7 @@ export function Modal({
   // Capture the trigger before Radix's FocusScope moves focus, then restore to it on UNMOUNT
   // (the effect cleanup) — Radix has no Trigger here, and onCloseAutoFocus fires only on a
   // controlled open→closed transition, NOT on the hard unmount callers actually use
-  // ({isOpen && <Modal/>}). So the restore lives here, exactly as floaty did pre-Radix.
+  // ({isOpen && <Modal/>}). So the restore lives here, exactly as capacitylens did pre-Radix.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
     // Restore synchronously, exactly once, here in the cleanup — callers use
@@ -318,7 +318,7 @@ export function Modal({
           mode). Rendered INLINE (no Portal) so it's container.firstChild and the panel's
           parentElement — the contract ColorField + the tests rely on. */}
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-[floaty-fade_0.15s_ease-out]"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-[capacitylens-fade_0.15s_ease-out]"
         // Close only when the press both STARTS and ENDS on the backdrop — a drag that
         // begins inside an input and releases over the backdrop must not dismiss (and
         // mouseup, not mousedown, so a stray 3px press can't nuke an in-progress form).
@@ -334,11 +334,11 @@ export function Modal({
           ref={panelRef}
           // Radix's Content under modal={false} emits role="dialog" WITHOUT aria-modal, so we
           // pass it back through (Content forwards unknown props) to restore the screen-reader
-          // modality signal floaty's pre-Radix panel carried.
+          // modality signal capacitylens's pre-Radix panel carried.
           aria-modal="true"
           // No visible description chrome — silence Radix's "missing Description" warning.
           aria-describedby={undefined}
-          // Floaty owns Escape (the window listener above) and the backdrop press (the backdrop
+          // CapacityLens owns Escape (the window listener above) and the backdrop press (the backdrop
           // handlers), so neutralise Radix's competing dismissals — one dismiss path each,
           // routed through requestClose's dirty guard.
           onEscapeKeyDown={(e) => e.preventDefault()}
@@ -364,7 +364,7 @@ export function Modal({
           // the app intentionally placed after close. Suppressing FocusScope's auto-restore here
           // leaves the synchronous cleanup as the single focus move.
           onCloseAutoFocus={(e) => e.preventDefault()}
-          className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[floaty-pop_0.16s_ease-out]"
+          className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[capacitylens-pop_0.16s_ease-out]"
         >
           <header className="border-b px-4 py-3">
             <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>

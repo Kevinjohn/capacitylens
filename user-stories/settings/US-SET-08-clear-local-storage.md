@@ -3,11 +3,11 @@
 **Area:** Settings · **Persona:** Studio manager / operator · **Linked E2E:** `e2e/clear-local-storage.spec.ts` → "shows a destructive button + confirm modal; Cancel does not wipe"
 
 ## Goal
-From Settings, deliberately wipe everything Floaty has cached in **this browser** — the data blob and
+From Settings, deliberately wipe everything CapacityLens has cached in **this browser** — the data blob and
 all per-browser preferences — behind a clear destructive confirmation, then start fresh on reload.
 
 ## Why
-Floaty is local-first: a data blob plus a handful of preference keys live in this browser's
+CapacityLens is local-first: a data blob plus a handful of preference keys live in this browser's
 localStorage. Sometimes you want a clean slate — a wedged local dataset, a shared/demo machine you're
 handing on, or a stale cache against a hosted site. On the **hosted/live** site the real data lives in
 the database, so clearing the browser cache is safe (the app reloads from the DB); in **local mode**
@@ -23,12 +23,12 @@ explicit and gates the wipe behind the same destructive confirm used for deletes
    cannot be undone. (On a hosted build with a server backend it instead says your data is in the
    database and the app will reload from there.)
 3. Click **Clear local storage**. A confirm dialog opens — title **Clear local storage?**, a danger
-   **Clear local storage** confirm button and **Cancel** — restating that it clears Floaty data +
+   **Clear local storage** confirm button and **Cancel** — restating that it clears CapacityLens data +
    settings in **THIS browser** and **cannot be undone**.
 4. Click **Cancel**. The dialog closes and **nothing changes** — your data, settings and the page are
    all intact (no reload). The button is still there.
 5. *(Not exercised in E2E — it would wipe the test context.)* Clicking **Clear local storage** in the
-   confirm dialog removes every `floaty/`-prefixed localStorage key (the data blob + all device prefs,
+   confirm dialog removes every `capacitylens/`-prefixed localStorage key (the data blob + all device prefs,
    leaving unrelated keys alone) and reloads the page; the app re-initialises from the server database
    (hosted) or an empty/seeded dataset (local mode).
 
@@ -40,5 +40,5 @@ explicit and gates the wipe behind the same destructive confirm used for deletes
   browser** and **cannot be undone**.
 - ✅ Clicking the button opens the standard destructive confirm dialog; **Cancel is a no-op** — no
   storage is cleared and the page does not reload.
-- ✅ Confirming clears every `floaty/`-prefixed localStorage key (data blob + device prefs), leaves
+- ✅ Confirming clears every `capacitylens/`-prefixed localStorage key (data blob + device prefs), leaves
   unrelated origin keys, and reloads so the app re-initialises from its source of truth.

@@ -3,9 +3,9 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import { AllocationBar } from './AllocationBar'
 import { buildColumnGeometry } from './columnGeometry'
 import type { BarLayout } from './schedulerModel'
-import { eachDayISO } from '@floaty/shared/lib/dateMath'
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
 import { useStore } from '../../store/useStore'
-import { type Allocation } from '@floaty/shared/types/entities'
+import { type Allocation } from '@capacitylens/shared/types/entities'
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
 
 // Uniform geometry over June at 48px/day (minimise off), origin 2026-06-01. Standalone bars are

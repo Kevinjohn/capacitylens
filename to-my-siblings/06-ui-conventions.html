@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -251,7 +251,7 @@
     <code>Math.floor((clientX&nbsp;&minus;&nbsp;laneLeft)&nbsp;/&nbsp;dayWidth)</code>. That scalar is
     load-bearing: it shows up in the bar layout, the lane overlays, the today line, the date header, the
     zoom/resize scroll-anchor <em>and</em> the drag/resize math. The day you want <em>one</em> column a
-    different width — Floaty's <strong>"minimise weekends"</strong>, where Sat/Sun shrink to a date-number
+    different width — CapacityLens's <strong>"minimise weekends"</strong>, where Sat/Sun shrink to a date-number
     sliver — you must give up the uniform assumption across ~7 files at once. The pattern that makes that safe
     is to replace the scalar with <strong>one pure geometry object</strong> that every site asks instead of
     multiplying.</p>
@@ -391,7 +391,7 @@
       colour value is tuned to clear WCAG AA in both themes (the comments record the contrast adjustments).</p>
     </div>
     <p>Other token-level decisions: a global <code>:focus-visible</code> ring on all interactives; preset
-    swatch palette only; two custom keyframes (<code>floaty-pop</code>, <code>floaty-fade</code>) for
+    swatch palette only; two custom keyframes (<code>capacitylens-pop</code>, <code>capacitylens-fade</code>) for
     modal/toast entrances; and a global <code>prefers-reduced-motion</code> block that nulls all animation. The
     metric is always called <strong>"Utilisation", never "Load"</strong> — in labels, store keys
     (<code>utilizationPrefs</code>), and identifiers.</p>

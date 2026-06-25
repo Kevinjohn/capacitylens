@@ -4,13 +4,13 @@ import {
   assertResourceExists,
   assertResourceKindAllowsDependents,
   assertScopedRefs,
-} from '@floaty/shared/domain/mutations'
-import { sanitizeImportedRecord, sanitizeAccount } from '@floaty/shared/lib/sanitizeImport'
-import { wouldAddSecondBuiltin } from '@floaty/shared/data/internalClient'
-import { isHexColor } from '@floaty/shared/lib/color'
-import { cleanText } from '@floaty/shared/lib/strings'
-import { SCHEDULING_MODES, SCOPED_KEYS } from '@floaty/shared/types/entities'
-import type { AppData, ScopedEntityKey } from '@floaty/shared/types/entities'
+} from '@capacitylens/shared/domain/mutations'
+import { sanitizeImportedRecord, sanitizeAccount } from '@capacitylens/shared/lib/sanitizeImport'
+import { wouldAddSecondBuiltin } from '@capacitylens/shared/data/internalClient'
+import { isHexColor } from '@capacitylens/shared/lib/color'
+import { cleanText } from '@capacitylens/shared/lib/strings'
+import { SCHEDULING_MODES, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
+import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities'
 
 // The server is the integrity boundary for direct API writes. Two layers, both
 // reusing the SAME shared domain-core the client uses (so server rules can't drift

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { memo } from 'react'
 import { act, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import type { AppData } from '@floaty/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 import { useStore } from '../../store/useStore'
 import { DEFAULT_ACCOUNT_ID, makeAppData } from '../../test/fixtures'
 

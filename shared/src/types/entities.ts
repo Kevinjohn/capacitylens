@@ -1,4 +1,4 @@
-// Core domain types for Floaty. Pure data shapes — no behaviour lives here.
+// Core domain types for CapacityLens. Pure data shapes — no behaviour lives here.
 
 export type ID = string // crypto.randomUUID()
 export type ISODate = string // date-only, "YYYY-MM-DD"

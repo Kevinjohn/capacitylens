@@ -1,22 +1,22 @@
-# Floaty — working notes for Claude
+# CapacityLens — working notes for Claude
 
 # What this Project is
-A  **Float-style agency resource scheduler** in the browser (People/Resources →
+An **agency resource & capacity scheduler** in the browser (People/Resources →
 Allocations across Clients → Projects → Activities, multi-tenant by Account). **Deliberately small
 (owner):** one problem — a helicopter view of who's busy/free/overworked, week granularity —
 for small agencies with rotating freelancers. Budgets/money, timesheets, hour-granularity
-workflows and mobile views are non-goals; don't propose them. This is the **original**
-floaty repo; `../floaty-schedule` (shift rota) and `../delivery-diary` (deliverables tracker)
+workflows and mobile views are non-goals; don't propose them. This is the **original** repo
+(CapacityLens); `../floaty-schedule` (shift rota) and `../delivery-diary` (deliverables tracker)
 re-target this same setup to new domains. No backend or login by default; an **optional**
 SQLite-backed API plugs in behind the persistence seam.
 
 ## Architecture in one breath
-`shared/` (`@floaty/shared`) = pure domain core (types, validation, integrity, cascade,
+`shared/` (`@capacitylens/shared`) = pure domain core (types, validation, integrity, cascade,
 import-remap, migrate, seed), imported by both app and server so they can't drift.
 `src/store/useStore.ts` (Zustand) = the orchestrator (owns ids/timestamps, undo/redo);
 `src/components/scheduler/` builds the week-grid view-model (unit-tested). Persistence is
-local-first behind `PersistenceAdapter` (`localStorage` key `floaty/v3`); the optional Node +
-`node:sqlite` `server/` drops in behind that seam when `VITE_FLOATY_API` is set. Scoped access
+local-first behind `PersistenceAdapter` (`localStorage` key `capacitylens/v3`); the optional Node +
+`node:sqlite` `server/` drops in behind that seam when `VITE_CAPACITYLENS_API` is set. Scoped access
 goes through the `useScopedData` / `scopedTables()` seam.
 
 ## Load-bearing invariants (don't break)
@@ -43,12 +43,12 @@ goes through the `useScopedData` / `scopedTables()` seam.
   on load/import. "Repeatable" *is* the renamed "general" activity. The schedule's **activity lens**
   ("Filter by activity") is a standalone view, mutually exclusive with the client/project filter
   (set in `setFilters`).
-- **Theme is device-global** (own key `floaty/theme`, default light), NOT in `AppData`/export;
-  same for utilisation display toggles (`floaty/utilizationPrefs`).
+- **Theme is device-global** (own key `capacitylens/theme`, default light), NOT in `AppData`/export;
+  same for utilisation display toggles (`capacitylens/utilizationPrefs`).
 - **Colours are preset swatches only** (no custom hex), and a resource's colour derives from its
   discipline — no per-resource colour control.
-- **Forms reject; import + server strip/repair.** Non-Floaty JSON is shape-checked
-  (`looksLikeFloaty`) before migrate so it can't wipe data; import is confirmed + undoable, with
+- **Forms reject; import + server strip/repair.** Non-CapacityLens JSON is shape-checked
+  (`looksLikeCapacityLens`) before migrate so it can't wipe data; import is confirmed + undoable, with
   caps on file size + record count.
 - **Surface, never swallow.** A `catch` exists only to re-throw with more context, route the error
   to a visible surface (`FieldError`/a `Sonner toast` driven by `setNotice` (the hand-rolled

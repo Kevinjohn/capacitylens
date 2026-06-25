@@ -6,7 +6,7 @@ import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '.
 import { resourceDisplayName } from '../../lib/metadata'
 import { formatShortDate, formatDayCount } from '../../lib/dateDisplay'
 import { TimeOffForm } from './TimeOffForm'
-import type { TimeOff } from '@floaty/shared/types/entities'
+import type { TimeOff } from '@capacitylens/shared/types/entities'
 
 export function TimeOffList() {
   const data = useScopedData()

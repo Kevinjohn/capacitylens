@@ -8,7 +8,7 @@ describe('data transfer', () => {
     expect(parseData(serializeData(data))).toEqual(data)
   })
 
-  it('rejects JSON that is not Floaty-shaped (so import never silently wipes data)', () => {
+  it('rejects JSON that is not CapacityLens-shaped (so import never silently wipes data)', () => {
     expect(() => parseData('[1,2,3]')).toThrow()
     expect(() => parseData('{"data":5}')).toThrow()
     expect(() => parseData('5')).toThrow()
@@ -22,9 +22,9 @@ describe('data transfer', () => {
     expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { resources } }))).toThrow(/too many records/i)
   })
 
-  it('refuses a Floaty-shaped file that contains zero records (would silently wipe the account)', () => {
-    expect(() => parseData('{"accounts":[],"clients":[],"projects":[]}')).toThrow(/no Floaty records/i)
-    expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { clients: [] } }))).toThrow(/no Floaty records/i)
+  it('refuses a CapacityLens-shaped file that contains zero records (would silently wipe the account)', () => {
+    expect(() => parseData('{"accounts":[],"clients":[],"projects":[]}')).toThrow(/no CapacityLens records/i)
+    expect(() => parseData(JSON.stringify({ schemaVersion: 3, data: { clients: [] } }))).toThrow(/no CapacityLens records/i)
   })
 
   it('import tolerates a bare AppData and fills any missing arrays', () => {

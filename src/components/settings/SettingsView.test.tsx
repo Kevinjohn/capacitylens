@@ -118,13 +118,13 @@ describe('SettingsView — build stamp', () => {
   // (the server/local suffix is exercised in buildInfo.test.ts, where modules are reset).
   afterEach(() => vi.unstubAllEnvs())
 
-  it('renders nothing when VITE_FLOATY_BUILD_SHA is unset (today\'s Settings)', () => {
+  it('renders nothing when VITE_CAPACITYLENS_BUILD_SHA is unset (today\'s Settings)', () => {
     render(<SettingsView />)
     expect(screen.queryByTestId('build-stamp')).not.toBeInTheDocument()
   })
 
   it('renders the muted footer when the build is stamped', () => {
-    vi.stubEnv('VITE_FLOATY_BUILD_SHA', 'a1b2c3d')
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d')
     render(<SettingsView />)
     expect(screen.getByTestId('build-stamp')).toHaveTextContent('build a1b2c3d · local')
   })
@@ -134,14 +134,14 @@ describe('SettingsView — build stamp', () => {
     expect(screen.queryByTestId('send-feedback')).not.toBeInTheDocument()
     unmount()
 
-    vi.stubEnv('VITE_FLOATY_FEEDBACK_MAILTO', 'owner@example.com')
-    vi.stubEnv('VITE_FLOATY_BUILD_SHA', 'a1b2c3d')
+    vi.stubEnv('VITE_CAPACITYLENS_FEEDBACK_MAILTO', 'owner@example.com')
+    vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d')
     render(<SettingsView />)
     const link = screen.getByTestId('send-feedback')
     expect(link).toHaveTextContent('Send feedback')
     expect(link).toHaveAttribute(
       'href',
-      `mailto:owner@example.com?subject=${encodeURIComponent('Floaty feedback — build a1b2c3d · local')}`,
+      `mailto:owner@example.com?subject=${encodeURIComponent('CapacityLens feedback — build a1b2c3d · local')}`,
     )
   })
 })
@@ -158,13 +158,13 @@ describe('SettingsView — Account section (auth)', () => {
     const signOut = vi.fn().mockResolvedValue(undefined)
     render(
       <AuthContext.Provider
-        value={{ authMode: 'password', user: { id: 'u1', email: 'tester@floaty.dev' }, signOut }}
+        value={{ authMode: 'password', user: { id: 'u1', email: 'tester@capacitylens.dev' }, signOut }}
       >
         <SettingsView />
       </AuthContext.Provider>,
     )
     expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument()
-    expect(screen.getByText(/Signed in as tester@floaty\.dev/)).toBeInTheDocument()
+    expect(screen.getByText(/Signed in as tester@capacitylens\.dev/)).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Sign out' }))
     expect(signOut).toHaveBeenCalled()
   })
@@ -226,23 +226,23 @@ describe('SettingsView — Clear local storage', () => {
 
   it('Cancel is a no-op — it neither clears storage nor reloads', async () => {
     const user = userEvent.setup()
-    localStorage.setItem('floaty/v3', '{"keep":true}')
-    localStorage.setItem('floaty/theme', 'dark')
+    localStorage.setItem('capacitylens/v3', '{"keep":true}')
+    localStorage.setItem('capacitylens/theme', 'dark')
     render(<SettingsView />)
 
     await user.click(screen.getByTestId('clear-local-storage'))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(localStorage.getItem('floaty/v3')).toBe('{"keep":true}')
-    expect(localStorage.getItem('floaty/theme')).toBe('dark')
+    expect(localStorage.getItem('capacitylens/v3')).toBe('{"keep":true}')
+    expect(localStorage.getItem('capacitylens/theme')).toBe('dark')
     expect(reload).not.toHaveBeenCalled()
   })
 
-  it('Confirm clears every floaty/ key and reloads', async () => {
+  it('Confirm clears every capacitylens/ key and reloads', async () => {
     const user = userEvent.setup()
-    localStorage.setItem('floaty/v3', '{"data":1}')
-    localStorage.setItem('floaty/theme', 'dark')
+    localStorage.setItem('capacitylens/v3', '{"data":1}')
+    localStorage.setItem('capacitylens/theme', 'dark')
     localStorage.setItem('unrelated', 'leave-me') // a sibling tool's key must survive
     render(<SettingsView />)
 
@@ -250,8 +250,8 @@ describe('SettingsView — Clear local storage', () => {
     // Scope to the dialog — the section button and the modal's confirm share the label.
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear local storage' }))
 
-    expect(localStorage.getItem('floaty/v3')).toBeNull()
-    expect(localStorage.getItem('floaty/theme')).toBeNull()
+    expect(localStorage.getItem('capacitylens/v3')).toBeNull()
+    expect(localStorage.getItem('capacitylens/theme')).toBeNull()
     expect(localStorage.getItem('unrelated')).toBe('leave-me')
     expect(reload).toHaveBeenCalledTimes(1)
   })

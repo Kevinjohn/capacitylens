@@ -16,7 +16,7 @@ import {
   FIXTURE_ACTIVITY_REPEATABLE,
   FIXTURE_ALLOCATION,
   FIXTURE_TIMEOFF,
-} from '@floaty/shared/data/fixtures'
+} from '@capacitylens/shared/data/fixtures'
 
 // API integration tests: drive the real Fastify app + a real (in-memory) node:sqlite
 // DB via inject(). Covers CRUD, whole-state read, cascade deletes, import round-trip,
@@ -537,7 +537,7 @@ describe('import', () => {
     expect((await call(app, { method: 'POST', url: '/api/import', payload: { data: {} } })).statusCode).toBe(400)
   })
 
-  it('rejects non-Floaty data', async () => {
+  it('rejects non-CapacityLens data', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
     const res = await call(app, { method: 'POST', url: '/api/import', payload: { accountId: 'a1', data: { nope: true } } })

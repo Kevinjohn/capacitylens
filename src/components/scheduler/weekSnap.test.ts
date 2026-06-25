@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildColumnGeometry } from './columnGeometry'
 import { weekStartSnapTarget } from './weekSnap'
-import { eachDayISO, startOfWeekISO } from '@floaty/shared/lib/dateMath'
+import { eachDayISO, startOfWeekISO } from '@capacitylens/shared/lib/dateMath'
 
 // Three full weeks: 2026-06-01 (Mon) … 2026-06-21 (Sun). Mondays sit at indices 0 (06-01),
 // 7 (06-08), 14 (06-15); Sundays (the Sunday-week-start anchors) at 6 (06-07), 13 (06-14).

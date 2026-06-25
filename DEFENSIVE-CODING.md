@@ -1,6 +1,6 @@
-# Floaty — Defensive coding & commenting standard
+# CapacityLens — Defensive coding & commenting standard
 
-Floaty is a **local-first, multi-tenant** app: the user's only copy of their data lives in their
+CapacityLens is a **local-first, multi-tenant** app: the user's only copy of their data lives in their
 browser (or one SQLite file). That raises the stakes on failure handling — a swallowed error here
 isn't a missed log line, it's **silent data corruption the user can't see and can't undo**. This
 doc is the standard every contributor (and every AI editing this repo) follows. It's short by
@@ -146,7 +146,7 @@ When you want "more safety" on a pure path, **add a clamp/early-return in the pu
 
 We comment for the **junior contributor reading this cold**, and we explain **why**, not what.
 
-- **Every exported symbol gets TSDoc.** `shared/` is published (`@floaty/shared`) and imported by
+- **Every exported symbol gets TSDoc.** `shared/` is published (`@capacitylens/shared`) and imported by
   others — its public API is the highest priority. State **preconditions** ("input must be a
   validated `ISODate` — see `isValidISODate`"), **`@throws`** (and what a throw *means* — e.g. "a
   throw from `downloadTextFile` means the file was NOT saved; do not proceed with a dependent

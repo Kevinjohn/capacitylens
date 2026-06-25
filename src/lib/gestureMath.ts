@@ -1,5 +1,5 @@
-import { addDaysISO, countWorkingDays, daysInclusive, endDateForWorkingDays, isWeekendAware, weekdayOf } from '@floaty/shared/lib/dateMath'
-import type { ISODate, Weekday } from '@floaty/shared/types/entities'
+import { addDaysISO, countWorkingDays, daysInclusive, endDateForWorkingDays, isWeekendAware, weekdayOf } from '@capacitylens/shared/lib/dateMath'
+import type { ISODate, Weekday } from '@capacitylens/shared/types/entities'
 
 // Pure drag/resize math, extracted from the pointer hook so it can be unit
 // tested without a DOM. A gesture is: pixels dragged -> whole-day delta (snap)

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { disciplinesEnabledFor, resourcesByDiscipline, activitiesForProject, visibleRange } from './selectors'
 import { emptyFilters } from './useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
-import type { AppData } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 function data(): AppData {
   return {

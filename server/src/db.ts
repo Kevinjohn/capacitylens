@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
-import { emptyAppData, isEmpty } from '@floaty/shared/types/entities'
-import { buildInternalClient } from '@floaty/shared/data/internalClient'
-import type { AppData } from '@floaty/shared/types/entities'
+import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import type { AppData } from '@capacitylens/shared/types/entities'
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
 // keep resolving it from this module; the single definition lives in shared/types.
@@ -38,7 +38,7 @@ export function openDb(path: string): Db {
     db = new DatabaseSync(path)
   } catch (e) {
     // Boot SHOULD crash on an unopenable DB — but frame the raw node:sqlite error with the path so
-    // an operator sees "could not open <FLOATY_DB>" instead of a bare stack. Rethrow (don't swallow).
+    // an operator sees "could not open <CAPACITYLENS_DB>" instead of a bare stack. Rethrow (don't swallow).
     throw new Error(
       `Could not open the SQLite database at "${path}": ${e instanceof Error ? e.message : String(e)}`,
       { cause: e },
@@ -46,7 +46,7 @@ export function openDb(path: string): Db {
   }
   db.exec('PRAGMA journal_mode = WAL;')
   // Wait up to 5s for a held lock instead of throwing SQLITE_BUSY immediately — two server
-  // processes on the same FLOATY_DB file (or a WAL checkpoint) contend rather than error.
+  // processes on the same CAPACITYLENS_DB file (or a WAL checkpoint) contend rather than error.
   db.exec('PRAGMA busy_timeout = 5000;')
   // Legacy domain rename (Task→Activity, schema v5): bring an old DB's `tasks` table and
   // `allocations.taskId` column to `activities` / `activityId` BEFORE SCHEMA_SQL — otherwise

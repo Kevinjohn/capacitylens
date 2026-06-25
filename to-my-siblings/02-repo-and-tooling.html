@@ -10,7 +10,7 @@
 <div class="layout">
   <aside class="sidebar">
     <a class="brand" href="index.html">To&nbsp;my&nbsp;<span>siblings</span></a>
-    <p class="tagline">The Floaty house style</p>
+    <p class="tagline">The CapacityLens house style</p>
     <nav>
       <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
       <div class="navgroup">Orient</div>
@@ -61,7 +61,7 @@
     <h2 id="tree">Directory tree</h2>
     <p>The repo is an npm-workspaces monorepo with three packages. Tests are <strong>co-located</strong> with
     the code they cover; only Playwright specs live apart in <code>e2e/</code>.</p>
-<pre><code>floaty-v1/
+<pre><code>capacitylens-v1/
 ├── src/                      <span class="c"># the web app (the root workspace)</span>
 │   ├── auth/                 <span class="c"># AuthProvider, LoginScreen (flag-gated)</span>
 │   ├── components/           <span class="c"># per-entity folders + common/ + scheduler/</span>
@@ -73,9 +73,9 @@
 │   ├── index.css             <span class="c"># Tailwind v4 @theme tokens (the design system)</span>
 │   ├── main.tsx              <span class="c"># entry: theme + bootstrap + createRoot</span>
 │   └── router.tsx
-├── shared/                   <span class="c"># @floaty/shared — pure domain core (no DOM; Node-agnostic by convention)</span>
+├── shared/                   <span class="c"># @capacitylens/shared — pure domain core (no DOM; Node-agnostic by convention)</span>
 │   └── src/{types,lib,data,domain}/
-├── server/                   <span class="c"># floaty-server — optional Fastify + node:sqlite API</span>
+├── server/                   <span class="c"># capacitylens-server — optional Fastify + node:sqlite API</span>
 │   └── src/
 ├── e2e/                      <span class="c"># Playwright specs (*.spec.ts, *.db.spec.ts, *.auth.spec.ts)</span>
 ├── user-stories/             <span class="c"># manual test scripts, 1:1 with e2e; REFERENCE.md is canon</span>
@@ -92,15 +92,15 @@
     <table>
       <thead><tr><th>Workspace</th><th>Package name</th><th>Role</th><th>Environment</th></tr></thead>
       <tbody>
-        <tr><td>(root)</td><td><code>floaty</code></td><td>The web app — React/Vite SPA.</td><td>Browser</td></tr>
-        <tr><td><code>shared/</code></td><td><code>@floaty/shared</code></td><td>The pure domain core: types, validation, integrity, cascade, import-remap, migrate, seed, fixtures.</td><td>Agnostic — no DOM lib, Node-agnostic by convention, no React</td></tr>
-        <tr><td><code>server/</code></td><td><code>floaty-server</code></td><td>The optional SQLite REST API.</td><td>Node 24+</td></tr>
+        <tr><td>(root)</td><td><code>capacitylens</code></td><td>The web app — React/Vite SPA.</td><td>Browser</td></tr>
+        <tr><td><code>shared/</code></td><td><code>@capacitylens/shared</code></td><td>The pure domain core: types, validation, integrity, cascade, import-remap, migrate, seed, fixtures.</td><td>Agnostic — no DOM lib, Node-agnostic by convention, no React</td></tr>
+        <tr><td><code>server/</code></td><td><code>capacitylens-server</code></td><td>The optional SQLite REST API.</td><td>Node 24+</td></tr>
       </tbody>
     </table>
     <div class="callout why">
       <span class="label">Why a shared workspace and not a folder import</span>
       <p>Making the core a real package with its own name means the app and the server import it by the same
-      specifier (<code>@floaty/shared/...</code>), the workspace linker guarantees they get the identical
+      specifier (<code>@capacitylens/shared/...</code>), the workspace linker guarantees they get the identical
       code, and the boundary is reinforced by config: the core's tsconfig omits the DOM lib
       (<code>"lib": ["ES2023"]</code>), so a browser API like <code>document</code> won't type-check. Node is
       a convention rather than a compiler wall — the tsconfig keeps <code>"types": ["node"]</code> (it shares
@@ -110,12 +110,12 @@
     </div>
 
     <h2 id="root-pkg">Root <code>package.json</code></h2>
-    <p>Copy this almost as-is; change <code>name</code> and the <code>@floaty/shared</code> dependency
+    <p>Copy this almost as-is; change <code>name</code> and the <code>@capacitylens/shared</code> dependency
     specifier to your scope. Note <code>"type": "module"</code>, the <code>engines</code> pin, and the
     <code>workspaces</code> array.</p>
     <div class="filename">package.json</div>
 <pre><code>{
-  "name": "floaty",
+  "name": "capacitylens",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -131,14 +131,14 @@
     "dev:api": "vite --port 5273",
     "dev:auth": "vite --port 5373",
     "e2e": "playwright test",
-    "e2e:webkit": "FLOATY_WEBKIT_ONLY=1 playwright test --project=webkit",
-    "e2e:all": "FLOATY_WEBKIT=1 playwright test",
+    "e2e:webkit": "CAPACITYLENS_WEBKIT_ONLY=1 playwright test --project=webkit",
+    "e2e:all": "CAPACITYLENS_WEBKIT=1 playwright test",
     "gate": "tsc -b &amp;&amp; eslint . &amp;&amp; vitest run &amp;&amp; vite build",
-    "test:server": "npm test -w floaty-server",
-    "gate:server": "npm run type-check -w floaty-server &amp;&amp; npm test -w floaty-server"
+    "test:server": "npm test -w capacitylens-server",
+    "gate:server": "npm run type-check -w capacitylens-server &amp;&amp; npm test -w capacitylens-server"
   },
   "dependencies": {
-    "@floaty/shared": "*",
+    "@capacitylens/shared": "*",
     "better-auth": "^1.6.18",
     "date-fns": "^4.3.0",
     "react": "^19.2.6",
@@ -166,7 +166,7 @@
     consumers' bundler/transpiler handle it.</p>
     <div class="filename">shared/package.json</div>
 <pre><code>{
-  "name": "@floaty/shared",
+  "name": "@capacitylens/shared",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -175,24 +175,24 @@
   "devDependencies": { "@types/node": "^22.10.0", "vitest": "^4.1.7" },
   "scripts": { "test": "vitest run", "type-check": "tsc --noEmit" }
 }</code></pre>
-    <p><code>@floaty/shared/types/entities</code> resolves to <code>shared/src/types/entities.ts</code>,
-    <code>@floaty/shared/lib/integrity</code> to <code>shared/src/lib/integrity.ts</code>, and so on.</p>
+    <p><code>@capacitylens/shared/types/entities</code> resolves to <code>shared/src/types/entities.ts</code>,
+    <code>@capacitylens/shared/lib/integrity</code> to <code>shared/src/lib/integrity.ts</code>, and so on.</p>
     <div class="filename">server/package.json (excerpt)</div>
 <pre><code>{
-  "name": "floaty-server",
+  "name": "capacitylens-server",
   "private": true,
   "type": "module",
   "engines": { "node": "&gt;=24" },
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "start:e2e": "FLOATY_ALLOW_RESET=1 FLOATY_DB=.e2e.db tsx src/index.ts",
+    "start:e2e": "CAPACITYLENS_ALLOW_RESET=1 CAPACITYLENS_DB=.e2e.db tsx src/index.ts",
     "test": "vitest run",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@fastify/rate-limit": "^11.0.0",
-    "@floaty/shared": "*",
+    "@capacitylens/shared": "*",
     "better-auth": "^1.6.18",
     "fastify": "^5.6.1"
   },
@@ -201,7 +201,7 @@
     <div class="callout warn">
       <span class="label">Install at the root, always</span>
       <p>Run <code>npm install</code> from the repo root, never inside a workspace — the root install is what
-      links <code>@floaty/shared</code> into both the app and the server. The server runs its TypeScript
+      links <code>@capacitylens/shared</code> into both the app and the server. The server runs its TypeScript
       directly via <code>tsx</code> (no emit); the app is transpiled by Vite.</p>
     </div>
 
@@ -296,7 +296,7 @@
     "fail-loud" server settings.</p>
     <div class="filename">vite.config.ts (server block + alias)</div>
 <pre><code>resolve: {
-  alias: { '@floaty/shared': fileURLToPath(new URL('./shared/src', import.meta.url)) },
+  alias: { '@capacitylens/shared': fileURLToPath(new URL('./shared/src', import.meta.url)) },
 },
 <span class="c">// Bind IPv4 loopback explicitly. Node 17+ resolves `localhost` to ::1 (IPv6) first, so</span>
 <span class="c">// the default host would listen on ::1 only and a browser hitting 127.0.0.1 gets</span>
@@ -340,7 +340,7 @@ server: { host: '127.0.0.1', port: 5173, strictPort: true },</code></pre>
 <pre><code>&lt;script&gt;
   (function () {
     try {
-      var p = localStorage.getItem('floaty/theme') || 'light'
+      var p = localStorage.getItem('capacitylens/theme') || 'light'
       var dark = p === 'dark' || (p === 'system' &amp;&amp; matchMedia('(prefers-color-scheme: dark)').matches)
       document.documentElement.dataset.theme = dark ? 'dark' : 'light'
     } catch (e) { <span class="c">/* storage/matchMedia unavailable — leave the default light palette */</span> }
@@ -385,7 +385,7 @@ server: { host: '127.0.0.1', port: 5173, strictPort: true },</code></pre>
       <span class="label">Starting a sibling</span>
       <p>Copy the three <code>package.json</code> files, the five tsconfigs, <code>eslint.config.js</code>,
       <code>vite.config.ts</code>, <code>playwright.config.ts</code>, <code>index.html</code>, and the
-      dotfiles. Rename the packages and the <code>@floaty</code> scope to your own. You now have an empty
+      dotfiles. Rename the packages and the <code>@capacitylens</code> scope to your own. You now have an empty
       app with the identical toolchain and an identical green gate — before writing a line of domain code.</p>
     </div>
 

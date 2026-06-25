@@ -25,9 +25,9 @@ test.describe('fake sign-in (cosmetic demo gate)', () => {
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toBeVisible()
     await expect(page.getByText('Signed in as Jordan Avery')).toBeVisible()
 
-    // Pick a company → the post-login "What Floaty is" intro page (once per device).
+    // Pick a company → the post-login "What CapacityLens is" intro page (once per device).
     await page.getByRole('button', { name: 'Studio North', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Welcome to Floaty' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Welcome to CapacityLens' })).toBeVisible()
     // The intro is a resourcing-vs-PM explainer; one h1, no company picker, no app nav behind it.
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Schedule' })).toHaveCount(0)

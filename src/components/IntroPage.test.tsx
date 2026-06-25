@@ -14,29 +14,29 @@ function paragraphWithText(text: string) {
 // copy single-sourced in `lib/introCopy.ts` (a human edits it later) — pin the EXACT strings here so
 // an accidental paraphrase fails the gate. The two emphasised phrases must render inside <strong>
 // without altering the surrounding text (assembled in JSX, no markdown library). The em-dash "—" and
-// the STRAIGHT ASCII apostrophes "'" (byte-verbatim from floaty-copy.md, NOT curly) are part of the
+// the STRAIGHT ASCII apostrophes "'" (byte-verbatim from capacitylens-copy.md, NOT curly) are part of the
 // copy and are asserted as-is.
 
-describe('IntroPage (post-login "What Floaty is")', () => {
+describe('IntroPage (post-login "What CapacityLens is")', () => {
   it('renders the heading, three verbatim paragraphs, the two bold phrases, and Continue', () => {
     render(<IntroPage onContinue={() => {}} />)
 
     // Exactly one h1, with the verbatim heading.
     const headings = screen.getAllByRole('heading', { level: 1 })
     expect(headings).toHaveLength(1)
-    expect(headings[0]).toHaveTextContent('Welcome to Floaty')
+    expect(headings[0]).toHaveTextContent('Welcome to CapacityLens')
 
     // Paragraph 1 — verbatim, including the bold span as part of the sentence.
     expect(
       paragraphWithText(
-        'Floaty is a resourcing tool — it helps you see who\'s working on what, and who has capacity.',
+        'CapacityLens is a resourcing tool — it helps you see who\'s working on what, and who has capacity.',
       ),
     ).toBeInTheDocument()
 
     // Paragraph 2 — verbatim. "tasks" here is generic English (NOT the renamed Activity concept).
     expect(
       paragraphWithText(
-        'Floaty is not a project management tool. It won\'t track tasks, tickets, or deadlines for ' +
+        'CapacityLens is not a project management tool. It won\'t track tasks, tickets, or deadlines for ' +
           'you. It answers a simpler question: where are your people\'s hours going, and where is ' +
           'there room?',
       ),

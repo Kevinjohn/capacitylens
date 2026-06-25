@@ -5,7 +5,7 @@ import { ResourceLane } from './ResourceLane'
 import { buildColumnGeometry } from './columnGeometry'
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'
 import { useStore } from '../../store/useStore'
-import { emptyAppData } from '@floaty/shared/types/entities'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())

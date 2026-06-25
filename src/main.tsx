@@ -1,3 +1,7 @@
+// MUST be first: runs the storage-key rebrand migration (floaty/ → capacitylens/) as a module
+// side-effect, before any other import reads storage (the Zustand store reads device prefs eagerly
+// on import). Removable a release after the rebrand. See src/data/runStorageMigration.ts.
+import './data/runStorageMigration'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
@@ -8,7 +12,8 @@ import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { useStore } from './store/useStore'
 import { persistenceAdapter } from './data/storageAdapter'
 import { bootstrap } from './data/persist'
-import { seed } from '@floaty/shared/data/seed'
+import { seed } from '@capacitylens/shared/data/seed'
+import { APP_NAME } from '@capacitylens/shared/brand'
 import { applyThemeToDom, watchSystemTheme } from './lib/theme'
 
 // Paint the saved colour scheme (the inline <head> script already did this to beat
@@ -41,13 +46,13 @@ void bootstrap(useStore, persistenceAdapter, {
 // index.html): a fatal, unrecoverable boot precondition deserves a clear message, not the cryptic
 // "Cannot read properties of null" that `getElementById('root')!` would throw on a blank screen.
 const rootEl = document.getElementById('root')
-if (!rootEl) throw new Error('Floaty mount node #root not found in index.html')
+if (!rootEl) throw new Error(`${APP_NAME} mount node #root not found in index.html`)
 
 createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
       {/* Auth boundary (P3.3): local mode and auth-off deploys pass straight through;
-          only an auth-enabled server (FLOATY_AUTH=password|sso) can swap in the login
+          only an auth-enabled server (CAPACITYLENS_AUTH=password|sso) can swap in the login
           screen. Wraps the router so a 401 walls off the whole app, picker included. */}
       <AuthProvider>
         <RouterProvider router={router} />
