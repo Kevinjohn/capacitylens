@@ -138,7 +138,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-TBR-03](toolbar/US-TBR-03-today.md) | Re-centre on Today | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
 | [US-TBR-04](toolbar/US-TBR-04-jump-to-date.md) | Jump to a date | `e2e/toolbar.spec.ts` + `e2e/scheduler.spec.ts` |
 | [US-TBR-05](toolbar/US-TBR-05-draw-mode.md) | Work / Time-off draw mode | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts` |
-| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md) | No undo/redo toolbar buttons (keyboard-only) | `e2e/toolbar.spec.ts` |
+| [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md) | Undo/redo toolbar buttons + keyboard | `e2e/toolbar.spec.ts` |
 | [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo/redo (⌘Z / ⌘⇧Z) | `e2e/toolbar.spec.ts` |
 
 ## Filters — `filters/`

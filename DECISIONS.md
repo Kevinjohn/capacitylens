@@ -185,8 +185,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   and the left-edge date drifts; (2) **weekend-aware zoom fit** — `resolveDayWidth` takes the
   weekend width and widens the weekday columns so a "1-week" view shows ~1 week (narrow weekends
   would otherwise under-fill it to ~1.5); `MAX_DAY_WIDTH` is 240 to let that fill a normal screen.
-- **Undo/redo is keyboard-only** (⌘Z / ⌘⇧Z, global in `AppShell`); the toolbar buttons are
-  intentionally hidden (clearer affordance is a TODO).
+- **Undo/redo has visible toolbar buttons + the global ⌘Z / ⌘⇧Z shortcut.** The schedule
+  toolbar carries Undo/Redo icon buttons (`undo-button` / `redo-button`, disabled when the
+  history stack is empty); the keyboard shortcut stays global in `AppShell`.
 - **Modals are real forms.** `Modal` takes an optional `onSubmit` and wraps children+footer in
   a `<form noValidate>`; the primary action is `type="submit"` so **Enter submits every
   dialog** (all other buttons stay `type="button"` — the Button default). Keep new dialogs on

@@ -31,8 +31,9 @@ test.describe('Feature flows', () => {
     await page.getByRole('button', { name: 'Delete' }).click()
     await expect(bars).toHaveCount(n - 1)
 
-    // The Undo toolbar button is hidden for now; undo lives on ⌘Z (AppShell). Click an
-    // empty corner of the grid first so the shortcut isn't swallowed by a focused input.
+    // Undo here uses the global ⌘Z shortcut (AppShell); the toolbar Undo button path is
+    // covered in toolbar.spec.ts. Click an empty corner of the grid first so the shortcut
+    // isn't swallowed by a focused input.
     await page.getByTestId('scheduler-grid').click({ position: { x: 5, y: 5 } })
     await page.keyboard.press('Meta+z')
     await expect(bars).toHaveCount(n)

@@ -60,6 +60,12 @@ export function SchedulerToolbar() {
   const focusDate = useStore((s) => s.ui.focusDate)
   const drawMode = useStore((s) => s.ui.drawMode)
   const setDrawMode = useStore((s) => s.setDrawMode)
+  // Undo/redo is global (the ⌘Z/⌘⇧Z handler lives in AppShell) but its visible affordance lives
+  // here on the schedule toolbar — the main editing surface. Enabled off the history stacks.
+  const undo = useStore((s) => s.undo)
+  const redo = useStore((s) => s.redo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const canRedo = useStore((s) => s.future.length > 0)
   const filters = useStore((s) => s.ui.filters)
   const setFilters = useStore((s) => s.setFilters)
   const clearFilters = useStore((s) => s.clearFilters)
@@ -136,7 +142,6 @@ export function SchedulerToolbar() {
       <div className="flex items-center gap-2 px-4 py-2">
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">Schedule</h1>
-          {/* Undo/redo buttons hidden for now (still on ⌘Z / ⌘⇧Z via AppShell). See DECISIONS.md. */}
         </div>
         <Button variant="ghost" onClick={() => panDays(-7)} title="Back one week">
           <Icon name="chevron-left" /> Prev
@@ -175,6 +180,31 @@ export function SchedulerToolbar() {
             { value: 'timeoff', label: 'Time off', title: 'Draw time off' },
           ]}
         />
+        {/* Undo/redo — the visible counterpart to the global ⌘Z / ⌘⇧Z shortcuts. Always shown
+            (disabled when the stack is empty) so the affordance is discoverable; the icon stays
+            the lucide undo/redo glyph the IconName union already carries. */}
+        <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
+          <Button
+            variant="ghost"
+            onClick={undo}
+            disabled={!canUndo}
+            ariaLabel="Undo"
+            title="Undo (⌘Z)"
+            testId="undo-button"
+          >
+            <Icon name="undo" />
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={redo}
+            disabled={!canRedo}
+            ariaLabel="Redo"
+            title="Redo (⌘⇧Z)"
+            testId="redo-button"
+          >
+            <Icon name="redo" />
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-sm">

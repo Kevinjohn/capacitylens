@@ -77,9 +77,36 @@ test.describe('Toolbar', () => {
     expect(await bar.evaluate((el) => { el.focus(); return document.activeElement === el })).toBe(true)
   })
 
-  // The Undo/Redo toolbar buttons are intentionally hidden for now (undo/redo lives on
-  // ⌘Z / ⌘⇧Z via AppShell — see SchedulerToolbar + DECISIONS.md), so there are no
-  // buttons to drive here; the keyboard path below is the coverage for that feature.
+  // Undo/redo now has BOTH a visible affordance (the toolbar buttons) and the global
+  // ⌘Z / ⌘⇧Z shortcut (handled in AppShell). This test drives the buttons + their
+  // disabled states; the keyboard test below covers the shortcut path + the typing guard.
+  test('undoes and redoes with the toolbar buttons, disabled when the stack is empty', async ({ page }) => {
+    await openApp(page)
+    const undoBtn = page.getByTestId('undo-button')
+    const redoBtn = page.getByTestId('redo-button')
+    // Fresh load (account just picked): nothing to undo or redo.
+    await expect(undoBtn).toBeDisabled()
+    await expect(redoBtn).toBeDisabled()
+
+    // Make a mutation (delete an allocation) → Undo becomes available.
+    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+    const before = await page.getByTestId('allocation-bar').count()
+    await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
+    await page.getByRole('dialog', { name: 'Edit allocation' }).getByRole('button', { name: 'Delete' }).click()
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
+    await expect(undoBtn).toBeEnabled()
+
+    // Click Undo → the bar is restored and Redo becomes available.
+    await undoBtn.click()
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before)
+    await expect(redoBtn).toBeEnabled()
+
+    // Click Redo → the delete re-applies.
+    await redoBtn.click()
+    await expect(page.getByTestId('allocation-bar')).toHaveCount(before - 1)
+  })
+
   test('undoes/redoes with the keyboard and ignores the shortcut while typing', async ({ page }) => {
     await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
