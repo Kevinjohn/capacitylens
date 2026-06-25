@@ -190,6 +190,26 @@ export function writeStoredMinimiseWeekends(on: boolean): void {
   writeBoolPref(MINIMISE_WEEKENDS_STORAGE_KEY, on)
 }
 
+// "Snap to week start": after a FREE horizontal scroll settles, the schedule floors its left edge
+// back to the current week's first day. Device-global like the prefs above (own key, not account
+// data, NOT in AppData/export), and DEFAULTS ON — keeps the first day of the week pinned to the
+// left edge so a stray scroll can't nudge the view onto a mid-week (Tue/Wed) day. Governs FREE
+// SCROLL ONLY; the navigation snap (zoom / Prev-Next / date-picker) is always on, independent of
+// this flag. A plain on/off string (like minimiseWeekends) — it's a single bool.
+
+const SNAP_TO_WEEK_START_STORAGE_KEY = 'floaty/snapToWeekStart'
+
+/** The saved "snap to week start" choice; defaults to TRUE (on) when unset, unrecognised, or
+ *  when storage is unavailable. */
+export function readStoredSnapToWeekStart(): boolean {
+  return readBoolPref(SNAP_TO_WEEK_START_STORAGE_KEY, true)
+}
+
+/** Persist the "snap to week start" choice. Best-effort, like the prefs above. */
+export function writeStoredSnapToWeekStart(on: boolean): void {
+  writeBoolPref(SNAP_TO_WEEK_START_STORAGE_KEY, on)
+}
+
 // "Fake sign-in": a COSMETIC demo gate shown before the account picker so a viewer sees a
 // "log in first, then pick a company" flow. Device-global like the prefs above (own key,
 // on/off string, NOT account data) and DEFAULTS OFF so the demo sign-in shows on first run.

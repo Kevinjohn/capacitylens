@@ -186,12 +186,23 @@ clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Sho
 resources with no matching work; ticking it brings them back visible-but-dimmed so you can see
 who's free to staff), `Clear` (only shown when a filter is active).
 
-**Schedule display (minimise weekends).** Settings → **Schedule** has a single switch
+**Schedule display (minimise weekends).** Settings → **Schedule** has a switch
 **Minimise weekends** (`role="switch"`, accessible name `Minimise weekends`), **on** by default.
 It's a **device-global** display pref (own `localStorage` key `floaty/minimiseWeekends`, NOT on the
 account and NOT in export) — like the theme and bar-label toggles. On → narrow Sat/Sun columns
 with a single **"S"** label; off → full-width weekend columns labelled `Sat`/`Sun`. See *Weekend
 columns* above.
+
+**Schedule display (snap to week start).** The same Settings → **Schedule** section has a second
+switch **Snap to week start** (`role="switch"`, accessible name `Snap to week start`), **on** by
+default — sibling to *Minimise weekends*. It's also a **device-global** display pref (own
+`localStorage` key `floaty/snapToWeekStart`, NOT on the account and NOT in export). On → after a
+**free horizontal scroll** settles, the grid **floors** its left edge back to the current week's
+first day (the account `weekStartsOn`, default Monday) — a stray nudge that would park the view on
+a Tue/Wed settles back to that week's Monday. It floors (never forward): forward weeks are reached
+via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the mid-week day. This
+governs **free scroll only** — the always-on **navigation** snap (zoom / Prev-Next / date-picker,
+see *Scheduler toolbar* above) re-anchors to the week start regardless of this switch.
 
 **Placeholders (per-account, default OFF).** Settings → **Placeholders** has a single switch
 **Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
