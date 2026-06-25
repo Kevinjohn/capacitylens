@@ -3,6 +3,9 @@
   "version": "0.9.1",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "exports": {
     "./*": "./src/*.ts"
   },
@@ -10,7 +13,7 @@
     "date-fns": "^4.3.0"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^24.12.3",
     "vitest": "^4.1.7"
   },
   "scripts": {
