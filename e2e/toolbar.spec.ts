@@ -44,8 +44,11 @@ test.describe('Toolbar', () => {
 
   test('jumps to a chosen date', async ({ page }) => {
     await openApp(page)
+    // 2026-09-10 is a Thursday; the picker re-anchors the left edge to the week start, so the
+    // input reflects the snapped Monday (2026-09-07) and the grid opens on a week boundary.
     await page.getByLabel('Jump to date').fill('2026-09-10')
     await expect(page.getByText('Sep 2026')).toBeVisible()
+    await expect(page.getByLabel('Jump to date')).toHaveValue('2026-09-07')
   })
 
   test('switches draw mode between Work and Time off', async ({ page }) => {

@@ -140,6 +140,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-TBR-05](toolbar/US-TBR-05-draw-mode.md) | Work / Time-off draw mode | `e2e/toolbar.spec.ts` + `e2e/features.spec.ts` |
 | [US-TBR-06](toolbar/US-TBR-06-undo-redo-buttons.md) | Undo/redo toolbar buttons + keyboard | `e2e/toolbar.spec.ts` |
 | [US-TBR-07](toolbar/US-TBR-07-undo-redo-keyboard.md) | Undo/redo (⌘Z / ⌘⇧Z) | `e2e/toolbar.spec.ts` |
+| [US-TBR-08](toolbar/US-TBR-08-week-start-snap.md) | Navigation re-anchors left edge to week start | `e2e/scheduler.spec.ts` + `e2e/toolbar.spec.ts` |
 
 ## Filters — `filters/`
 | Story | Title | Automated coverage |

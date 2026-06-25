@@ -7,6 +7,31 @@ async function box(locator: Locator) {
   return b
 }
 
+// Read the leftmost visible date-header cell text (e.g. "7Mon" = day number + 3-letter weekday)
+// and the width of one weekday column, used to nudge the grid by a deterministic number of columns
+// so the left-edge week-snap is testable without flaky pixel guesses. Mirrors the probe in
+// e2e/minimise-weekends.spec.ts. (At fine zoom the header day cells carry the weekday label.)
+async function probe(page: import('@playwright/test').Page) {
+  return page.evaluate(() => {
+    const grid = document.querySelector('[data-testid="scheduler-grid"]') as HTMLElement
+    const header = document.querySelector('[role="columnheader"][aria-label="Dates"]') as HTMLElement
+    const dayTier = header?.querySelector('.flex.flex-auto')
+    const cells = dayTier ? Array.from(dayTier.children) : []
+    const gridRect = grid.getBoundingClientRect()
+    const laneLeft = gridRect.left + 256 // past the sticky left column
+    let leftDate = ''
+    let weekdayWidth = 0
+    for (const c of cells) {
+      const r = (c as HTMLElement).getBoundingClientRect()
+      if (!leftDate && r.right > laneLeft + 1) leftDate = (c.textContent || '').trim()
+      // A weekday column is the wide one (weekends collapse to a sliver when minimised) — take the
+      // widest visible cell as a robust "one weekday column" measure for nudging.
+      if (r.right > laneLeft && r.left < gridRect.right) weekdayWidth = Math.max(weekdayWidth, r.width)
+    }
+    return { leftDate, weekdayWidth }
+  })
+}
+
 test.describe('Scheduler', () => {
   test('shows seeded resources, grouping and capacity cues', async ({ page }) => {
     await openApp(page)
@@ -261,5 +286,38 @@ test.describe('Scheduler', () => {
     await expect(done).toHaveAttribute('data-status', 'completed')
     await expect(done).toContainText('✓')
     await expect(done).toContainText('•')
+  })
+
+  // Feature 1 (ALWAYS on): a zoom click and a Prev/Next pan re-anchor the grid's left edge to the
+  // week start (account weekStartsOn, default Monday). A free-scroll nudge to a mid-week day is NOT
+  // snapped on its own (no free-scroll snapping yet — that's a later setting), so the nudge persists
+  // until the next navigation, which is exactly what lets us observe the re-anchor here.
+  test('navigation re-anchors the left edge to the week start', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 800 })
+    await openApp(page)
+
+    // Header day cells read "<dayNum><EEE>", e.g. "7Mon"; a minimised weekend collapses to "<n>S".
+    // We assert on the weekday suffix.
+    await page.getByRole('button', { name: '1w', exact: true }).click()
+    const start = await probe(page)
+    // The focused left edge is the current week's Monday (the default view is flush to it).
+    expect(start.leftDate).toMatch(/Mon$/)
+
+    // Nudge the grid so the left edge sits on a mid-week day: scroll past ~2.5 weekday columns.
+    const grid = page.getByTestId('scheduler-grid')
+    const nudge = Math.round(start.weekdayWidth * 2.5)
+    await grid.evaluate((el, px) => { (el as HTMLElement).scrollLeft = px }, nudge)
+    const nudged = await probe(page)
+    expect(nudged.leftDate).not.toMatch(/Mon$/) // sanity: we're no longer parked on the Monday
+
+    // A zoom click snaps the left edge back to the week start.
+    await page.getByRole('button', { name: '2w', exact: true }).click()
+    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/)
+
+    // A Prev/Next pan snaps too: nudge to mid-week again, then click Next.
+    await grid.evaluate((el, px) => { (el as HTMLElement).scrollLeft = px }, nudge)
+    expect((await probe(page)).leftDate).not.toMatch(/Mon$/)
+    await page.getByRole('button', { name: 'Next' }).click()
+    await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/)
   })
 })

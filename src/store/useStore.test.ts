@@ -139,12 +139,16 @@ describe('store scheduler UI', () => {
     expect(s().notice).toBeNull()
   })
 
-  it('goToDate sets focusDate + origin and bumps recenterToken', () => {
+  it('goToDate snaps focusDate to the week start and bumps recenterToken', () => {
     const before = s().ui.recenterToken
-    s().goToDate('2026-08-15')
-    expect(s().ui.focusDate).toBe('2026-08-15')
+    // 2026-09-09 is a Wednesday (verified); with the default weekStartsOn=1 the picker
+    // re-anchors the left edge to that week's Monday so the grid always opens on a week boundary.
+    s().goToDate('2026-09-09')
+    expect(weekdayOf(s().ui.focusDate)).toBe(1) // Monday
+    expect(s().ui.focusDate).toBe('2026-09-07') // that week's Monday
     expect(s().ui.recenterToken).toBe(before + 1)
-    expect(s().ui.originDate).toBe(addDaysISO('2026-08-15', -PAST_BUFFER_DAYS)) // back-buffer behind the jump
+    // Origin sits the back-buffer behind the snapped Monday, so the past stays scrollable.
+    expect(s().ui.originDate).toBe(addDaysISO('2026-09-07', -PAST_BUFFER_DAYS))
   })
 
   it('setDrawMode toggles between work and time off', () => {

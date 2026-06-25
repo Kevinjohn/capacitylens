@@ -10,10 +10,12 @@ The seed bars live in June 2026 and the grid opens centred on today, which may b
 
 ## How (end-to-end)
 **Precondition:** Seeded app open at **Schedule** (`/`). (Do not pre-set a jump — this story performs one.)
-1. Set the **Jump to date** input to `2026-08-10`.
+1. Set the **Jump to date** input to `2026-09-10` (a Thursday).
 
 ## Acceptance criteria
-- ✅ The **Jump to date** input holds the chosen value (`2026-08-10`).
-- ✅ The timeline scrolls/moves so that month is shown — the header reads **"Aug 2026"**.
+- ✅ The timeline scrolls/moves so that month is shown — the header reads **"Sep 2026"**.
+- ✅ The picker **re-anchors the grid's left edge to the week start** (account `weekStartsOn`, default Monday): the **Jump to date** input snaps to and holds that week's Monday, **`2026-09-07`** (not the Thursday you typed). The grid's leftmost column is that Monday.
 - ✅ Jumping does not change the zoom level.
-- ✅ (Sanity) Setting the date to `2026-06-01` brings the June seed bars into view.
+- ✅ (Sanity) Setting the date to `2026-06-01` (already a Monday) brings the June seed bars into view and the input keeps `2026-06-01`.
+
+> See **US-TBR-08** for the same week-start re-anchoring on zoom and Prev/Next.

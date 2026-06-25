@@ -780,14 +780,22 @@ export const useStore = create<StoreState>()((set, get) => {
         }
       }),
     goToDate: (date) =>
-      set((s) => ({
-        ui: {
-          ...s.ui,
-          originDate: addDaysISO(date, -PAST_BUFFER_DAYS),
-          focusDate: date,
-          recenterToken: s.ui.recenterToken + 1,
-        },
-      })),
+      set((s) => {
+        // The date picker now snaps to the week start so the grid's left edge always lands on a
+        // week boundary (mirrors goToToday). The date input shows the snapped Monday, since it's
+        // value={focusDate}.
+        const account = s.activeAccountId ? s.data.accounts.find((a) => a.id === s.activeAccountId) : null
+        const wso = account?.weekStartsOn ?? 1
+        const weekStart = startOfWeekISO(date, wso)
+        return {
+          ui: {
+            ...s.ui,
+            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
+            focusDate: weekStart,
+            recenterToken: s.ui.recenterToken + 1,
+          },
+        }
+      }),
     setDrawMode: (mode) => set((s) => ({ ui: { ...s.ui, drawMode: mode } })),
     selectAllocation: (id) => set((s) => ({ ui: { ...s.ui, selectedAllocationId: id } })),
     setFilters: (patch) =>

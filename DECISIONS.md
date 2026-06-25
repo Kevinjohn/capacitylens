@@ -161,6 +161,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   the focus date — the view opens flush at the focused Monday, and scrolling left pans into
   the past instead of overscrolling (macOS turns left-edge overscroll into browser back;
   `overscroll-x-contain` on the grid guards the buffer's own edge).
+- **The schedule re-anchors its left edge to the week start on navigation (zoom / Prev-Next /
+  date picker; ALWAYS on).** A zoom click, a Prev/Next pan, and `goToDate` all snap the leftmost
+  column to that week's `startOfWeekISO(date, weekStartsOn)` (default Monday), so the weekly view
+  always opens on a week boundary; `goToToday` already did. A pure container resize / minimise-
+  weekends flip is the exception — it preserves the EXACT left-edge date. `goToDate` does the snap
+  in the store (so `Jump to date` shows the snapped Monday); zoom/pan do it in `SchedulerGrid`'s
+  geometry re-anchor effect (`panDays(±7)` itself is unchanged).
 - **Theme is device-global** — own key (`floaty/theme`), NOT in `AppData`/export. Default
   **light**; `system` follows `matchMedia`; FOUC guard in `index.html`.
 - **Utilisation display toggles are device-global** too (`floaty/utilizationPrefs`, default all-on).

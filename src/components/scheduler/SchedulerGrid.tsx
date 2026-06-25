@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor, visibleRange } from '../../store/selectors'
-import { addDaysISO, eachDayISO, todayISO } from '@floaty/shared/lib/dateMath'
+import { addDaysISO, eachDayISO, startOfWeekISO, todayISO } from '@floaty/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, EmptyState } from '../common/ui'
 import { resourceDisplayName } from '../../lib/metadata'
@@ -202,30 +202,49 @@ export function SchedulerGrid() {
     focusXRef.current = focusX
   })
 
-  // Keep the left-edge DATE anchored when the COLUMN WIDTHS change (zoom click, container
+  // Re-position the left edge when the GEOMETRY changes (zoom click, Prev/Next pan, container
   // resize, or the minimise-weekends toggle): scrollLeft is pixels, so the same offset would
-  // otherwise re-point at a different date — with the past buffer behind the focus date that
-  // read as a multi-week jump on every zoom flip. We read the date at the left edge under the
-  // PREVIOUS geometry, then re-locate it under the new one (variable widths rule out a flat
-  // ratio). Skipped until the initial scroll has run (didScroll); that effect (below, so it runs
-  // AFTER this one skips on the first-measure commit) owns the first real-width placement.
+  // otherwise re-point at a different date. We read the date at the left edge — for a pan,
+  // `prevGeom` is numerically identical to `geom` (the origin shifts a whole week, so the
+  // weekday/width pattern is unchanged) and `days[idx]` reads the POST-pan date, so the single
+  // `indexAt` formula gives the right left-edge date for both a zoom and a pan. Skipped until the
+  // initial scroll has run (didScroll); the effect below (so it runs AFTER this skips on the
+  // first-measure commit) owns the first real-width placement.
   //
-  // A PAN (Back/Forward week → originDate change → a new `days` array) must NOT re-anchor:
-  // preserving scrollLeft while the window shifts is exactly what advances the view by a week.
-  // The `days === prevDays` test distinguishes a width change (same day set, new widths) from a
-  // pan (new day set) — `days` is referentially stable across a pure zoom/resize.
+  // Where it re-anchors depends on WHY the geometry changed:
+  // - A zoom click OR a pan (`ui.zoom` or `days` reference changed) → snap the left edge to the
+  //   WEEK START of the left-edge date (Feature 1, ALWAYS on). `panDays(±7)` in the store is
+  //   unchanged — the week-snap happens here in the component.
+  // - A pure container resize / minimise-weekends flip (geometry changed, but zoom AND days are
+  //   the same) → preserve the EXACT left-edge date, so we don't yank a deliberately
+  //   free-positioned view off the day the user parked it on.
+  // - A goToDate / goToToday (recenterToken bumped) → do NOTHING here; the recenter effect below
+  //   owns that placement (it scrolls to focusX = the already-week-snapped focusDate).
   const prevGeomRef = useRef(geom)
   const prevDaysRef = useRef(days)
+  const prevZoomRef = useRef(ui.zoom)
+  const prevRecenterRef = useRef(ui.recenterToken)
   useEffect(() => {
     const prevGeom = prevGeomRef.current
     const prevDays = prevDaysRef.current
+    const prevZoom = prevZoomRef.current
+    const prevRecenter = prevRecenterRef.current
     prevGeomRef.current = geom
     prevDaysRef.current = days
+    prevZoomRef.current = ui.zoom
+    prevRecenterRef.current = ui.recenterToken
     const el = scrollRef.current
-    if (!el || !didScroll.current || days !== prevDays || prevGeom === geom || prevGeom.totalWidth <= 0) return
+    if (!el || !didScroll.current || prevGeom === geom || prevGeom.totalWidth <= 0) return
+    // goToDate / goToToday bump recenterToken; the recenter effect below owns that placement
+    // (it scrolls to the already-week-snapped focusDate). Don't fight it here.
+    if (ui.recenterToken !== prevRecenter) return
     const leftDate = days[prevGeom.indexAt(el.scrollLeft)] ?? days[0]
-    el.scrollLeft = geom.xForDateInGeom(leftDate)
-  }, [geom, days])
+    // Feature 1 (ALWAYS): a zoom click or a Prev/Next pan re-anchors the left edge to its WEEK
+    // START. A pure container resize / minimise-weekends flip preserves the exact left-edge date.
+    const snap = ui.zoom !== prevZoom || days !== prevDays
+    const target = snap ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate
+    el.scrollLeft = geom.xForDateInGeom(target)
+  }, [geom, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn])
 
   // Bring the focus date (today by default) flush to the left edge on first render —
   // the PAST_BUFFER_DAYS of history before it stay off-screen to the left, reachable

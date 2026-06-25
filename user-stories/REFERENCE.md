@@ -158,6 +158,14 @@ Cascade dialogs say "You can undo this with ⌘Z."
 
 **Scheduler toolbar.** Zoom buttons `1w`/`2w`/`4w`/`6w`/`8w` (the active one has
 `aria-pressed="true"`); `‹ Prev`, `Today`, `Next ›`; a `Jump to date` date input; a
+**Navigation always re-anchors the grid's left edge to the week start** (the account
+`weekStartsOn`, default Monday): a **zoom** click (1/2/4/6/8w), a **Prev/Next** pan, and the
+**date picker** all snap the leftmost column to that week's Monday so the helicopter view always
+opens on a week boundary. The `Jump to date` input reflects the snapped Monday (its value is the
+snapped focus date — pick a Thursday and it shows that week's Monday). `Today` snaps the same way.
+A pure window resize / Minimise-weekends toggle does NOT re-anchor — it preserves the exact
+left-edge date. (This is ALWAYS on; there is no setting.)
+A
 draw-mode toggle `Work`/`Time off` (buttons — note "Time off" here is the *toggle*, distinct
 from the "Time off" *nav link*). Then **Undo**/**Redo** icon buttons (`undo-button` /
 `redo-button`, `aria-label` "Undo"/"Redo", disabled when the history stack is empty) — the
