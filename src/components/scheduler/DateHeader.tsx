@@ -79,7 +79,7 @@ export const DateHeader = memo(function DateHeader({
         {months.map((m) => (
           <div key={m.key} className="shrink-0 border-r border-line" style={{ width: spanWidth(m) }}>
             <span
-              className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold text-muted"
+              className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
               style={{ left: LAYOUT.leftColWidth }}
             >
               {m.label}

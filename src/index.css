@@ -66,7 +66,7 @@
   --c-elevated: #ffffff;
   --c-line: #e6e8ee;
   --c-line-soft: #eef0f5;
-  --c-line-faint: #eff1f6;
+  --c-line-faint: #ebedf2; /* nudged darker from #eff1f6 so intra-week day hairlines register at fine zoom; still lighter than --c-line so the Monday week line stays dominant */
   --c-ink: #1c2230;
   --c-muted: #5b6472;
   --c-faint: #6b7280; /* darkened from #98a1b1 to clear WCAG AA (~4.5:1) for small text */
