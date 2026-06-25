@@ -245,7 +245,11 @@ export function SchedulerGrid() {
     // goToDate / goToToday bump recenterToken; the recenter effect below owns that placement
     // (it scrolls to the already-week-snapped focusDate). Don't fight it here.
     if (ui.recenterToken !== prevRecenter) return
-    const leftDate = days[prevGeom.indexAt(el.scrollLeft)] ?? days[0]
+    // Round scrollLeft before resolving the left-edge day: a HiDPI browser (Firefox especially,
+    // devicePixelRatio > 1) can report a fractional scrollLeft a sub-pixel BELOW the integer column
+    // boundary, which `indexAt` (strict floor) would resolve to the previous day — and the week-snap
+    // below would then jump back a whole week. See weekSnap.ts for the full reasoning.
+    const leftDate = days[prevGeom.indexAt(Math.round(el.scrollLeft))] ?? days[0]
     // Feature 1 (ALWAYS): a zoom click or a Prev/Next pan re-anchors the left edge to its WEEK
     // START. A pure container resize / minimise-weekends flip preserves the exact left-edge date.
     const snap = ui.zoom !== prevZoom || days !== prevDays
