@@ -84,17 +84,15 @@
 
   /* ── shadcn stock tokens (light) ──────────────────────────────────────────
      The canonical default token set `shadcn init` writes for the new-york style
-     with baseColor: slate. Consumed by `src/components/ui/**` from Phase 3 on —
-     INERT until then (no floaty component reads these yet). Kept fully separate
-     from the `--c-*` palette above so the scheduler/over-marker are untouched.
+     with baseColor: slate. Consumed by `src/components/ui/**` (the shadcn primitives);
+     floaty's own components use the `--c-*` semantic layer above, NOT these. Kept fully
+     separate from `--c-*` so the scheduler/over-marker stay untouched.
      Hand-authored — do NOT regenerate via `shadcn init` (it rewrites this file);
      add components with `shadcn add` only (writes to src/components/ui/).
      NB: `--radius` is the base var only; the radius UTILITIES (--radius-md/-lg)
      stay owned by floaty's @theme — see the @theme inline note below. */
   --background: oklch(1 0 0);
   --foreground: oklch(0.129 0.042 264.695);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.129 0.042 264.695);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.129 0.042 264.695);
   --primary: oklch(0.208 0.042 265.755);
@@ -137,12 +135,10 @@
 
   /* ── shadcn stock tokens (dark) ───────────────────────────────────────────
      The dark counterpart of the stock set above (new-york / slate, as `shadcn
-     init` writes into `.dark`). Same caveats: inert until Phase 3, separate from
+     init` writes into `.dark`). Same caveats: consumed only by `src/components/ui/**`, separate from
      `--c-*`, and `--radius` here is the base var only (no radius utilities). */
   --background: oklch(0.129 0.042 264.695);
   --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
   --popover: oklch(0.208 0.042 265.755);
   --popover-foreground: oklch(0.984 0.003 247.858);
   --primary: oklch(0.929 0.013 255.508);
@@ -182,8 +178,6 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
