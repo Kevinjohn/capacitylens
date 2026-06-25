@@ -26,7 +26,7 @@ goes through the `useScopedData` / `scopedTables()` seam.
   any day where `allocated > available` (the over / red-background signal — STRICTLY greater, so
   at-capacity is NOT over), whole timeline. `allocated` is **weekend-aware**: a normal allocation does
   no work on the resource's non-working weekdays, so a weekend a bar merely **spans** is NOT over (it
-  keeps only the grey "unavailable" tint). The zero-capacity days that DO read as over are a **time-off**
+  keeps only the cool "unavailable" weekend tint — its own `--c-weekend` token). The zero-capacity days that DO read as over are a **time-off**
   day a working allocation covers (a real conflict) and a weekend an allocation opts into via
   `ignoreWeekends`. It renders as a clear, saturated red background (`bg-danger-cell` — empty cell, no
   text, so no AA bound) per over-day. (2) The displayed **utilisation %** (per-person,

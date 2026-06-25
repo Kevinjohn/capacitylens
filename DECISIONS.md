@@ -75,7 +75,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   *any* day where `allocated > available` (STRICTLY greater — at-capacity is NOT over) across the
   whole timeline. `allocated` is **weekend-aware** (`isWeekendAware`): a normal allocation does no
   work on the resource's non-working weekdays, so a weekend a bar merely **spans** is NOT over (it
-  keeps only the grey "unavailable" tint) — the zero-capacity days that DO read as over are a
+  keeps only the cool "unavailable" weekend tint, its own `--c-weekend` token) — the zero-capacity days that DO read as over are a
   **time-off** day a working allocation covers (a real conflict) and a weekend an allocation opts
   into via `ignoreWeekends`. Rendered as a clear red
   background (`bg-danger-cell`, a strongly saturated red — the cell is EMPTY so no text-contrast/AA constraint binds it, unlike the `danger-soft` BUTTON tint) per over-day; (2) the **displayed utilisation %** (per-person,
@@ -185,6 +185,20 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   and the left-edge date drifts; (2) **weekend-aware zoom fit** — `resolveDayWidth` takes the
   weekend width and widens the weekday columns so a "1-week" view shows ~1 week (narrow weekends
   would otherwise under-fill it to ~1.5); `MAX_DAY_WIDTH` is 240 to let that fill a normal screen.
+- **Schedule visual treatment (2026-06-25 refresh — re-skin only, no geometry change).** The four
+  status signals stay in DISTINCT colour families so none reads as another: over-capacity = saturated
+  rose (`bg-danger-cell`), weekend/unavailable = a cool recessed band (`--c-weekend` — its own token,
+  not the page canvas), today = brand (a 2px `bg-brand` line + an inset-shadow brand cap on the today
+  header column), time-off = amber hatch. A future restyle must keep these four distinguishable. Bars
+  keep a soft shadow + a light `ring-black/5`, and the FILL stays the exact resolved swatch (the colour
+  invariant). The grid measures its container in `useLayoutEffect` (BEFORE paint) so it never flashes
+  the `FALLBACK_TIMELINE_WIDTH` geometry on mount / tab-return — don't move that back to `useEffect`.
+- **Empty states share one component.** The entity lists AND the empty schedule render the shared
+  `EmptyState` (icon + heading + subtext + CTA). The empty schedule sits in a sticky, viewport-width
+  `role="row" > role="gridcell"` pinned left — a DIRECT child of the scrolling grid, or the centred card
+  drifts off-screen with the horizontal scroll. Its CTA (**Go to Resources** when there are genuinely no
+  resources, **Clear filters** when a filter hides everyone) is ALSO the keyboard-focusable element that
+  keeps the scrollable grid axe-clean when empty (`scrollable-region-focusable`).
 - **Undo/redo has visible toolbar buttons + the global ⌘Z / ⌘⇧Z shortcut.** The schedule
   toolbar carries Undo/Redo icon buttons (`undo-button` / `redo-button`, disabled when the
   history stack is empty); the keyboard shortcut stays global in `AppShell`.
