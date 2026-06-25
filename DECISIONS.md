@@ -168,6 +168,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   weekends flip is the exception — it preserves the EXACT left-edge date. `goToDate` does the snap
   in the store (so `Jump to date` shows the snapped Monday); zoom/pan do it in `SchedulerGrid`'s
   geometry re-anchor effect (`panDays(±7)` itself is unchanged).
+- **"Snap to week start" is a device-global pref** (`floaty/snapToWeekStart`, own key, NOT in
+  `AppData`/export), **default on**. When on, FREE horizontal scrolling FLOORS the left edge back to
+  the current week's start once it settles (never forward — forward weeks are reached via Prev/Next);
+  off = unconstrained scroll. The navigation snap above is independent of it (always on). Both snaps
+  round `scrollLeft` to the nearest px before mapping it to a day (`weekStartSnapTarget` in
+  `weekSnap.ts`), so a sub-pixel-below scroll position (HiDPI Firefox reports a fractional
+  `scrollLeft`) can't floor onto the prior day and jump the view back a week.
 - **Theme is device-global** — own key (`floaty/theme`), NOT in `AppData`/export. Default
   **light**; `system` follows `matchMedia`; FOUC guard in `index.html`.
 - **Utilisation display toggles are device-global** too (`floaty/utilizationPrefs`, default all-on).
