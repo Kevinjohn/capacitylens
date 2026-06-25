@@ -112,8 +112,10 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   available — e.g. light Mon–Thu but a crushing Friday averaging out to over) get a distinct red
   WEEK band, separate from per-day over? Currently a week reads red via its over-days only. (Owner
   to decide; no per-week aggregate signal exists today.)
-- **Undo/redo affordance.** Undo/redo is keyboard-only (⌘Z / ⌘⇧Z); the toolbar buttons are hidden
-  on purpose pending a clearer affordance. Do owners want visible buttons, or is keyboard enough?
+- **Undo/redo affordance — RESOLVED (owner chose visible buttons, 2026-06-25).** The schedule
+  toolbar now shows Undo/Redo icon buttons (`undo-button` / `redo-button`, disabled when the
+  history stack is empty), alongside the still-global ⌘Z / ⌘⇧Z shortcut. (Buttons live on the
+  schedule toolbar — the main editing surface; the keyboard path remains app-wide.)
 - **Shared server dataset for the demo — DONE (cutover executed 2026-06-16).** The demo now
   runs in server mode on DigitalOcean+Forge (daemon + `/api` proxy + persistent SQLite),
   build-time flag, no localStorage fallback. Diverged from the migration plan: **no Basic Auth**

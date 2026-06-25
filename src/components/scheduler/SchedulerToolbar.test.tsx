@@ -36,8 +36,8 @@ describe('SchedulerToolbar search filter', () => {
   })
 })
 
-// Undo/redo toolbar buttons were removed (deferred — see DECISIONS.md); the keyboard
-// path (⌘Z / ⌘⇧Z via AppShell) and the store history remain and are covered elsewhere.
+// The Undo/Redo toolbar buttons (undo-button / redo-button) and the keyboard path
+// (⌘Z / ⌘⇧Z via AppShell) are both exercised end-to-end in e2e/toolbar.spec.ts.
 
 describe('SchedulerToolbar Clear filter button', () => {
   it('Clear button is absent when no filters are set', () => {

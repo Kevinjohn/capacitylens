@@ -17,7 +17,7 @@ so the seed bars and time off are in view. **Tyler Nix** has both allocations
 4. Click **Cancel** first — the dialog closes and Tyler is still present (nothing deleted).
 5. Click **Delete** on the Tyler row again, then click **Delete** to confirm.
 6. Go back to **Schedule** (Jump to `2026-06-01` if needed) and observe Tyler is gone.
-7. Press **⌘Z** to undo (undo/redo is keyboard-only — there is no toolbar button).
+7. Undo the delete — either press **⌘Z** or click the toolbar **Undo** button.
 
 ## Why
 A departing team member must be removed cleanly, but a mis-click shouldn't quietly destroy
