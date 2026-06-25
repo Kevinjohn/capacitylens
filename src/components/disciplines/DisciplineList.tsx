@@ -17,7 +17,13 @@ export function DisciplineList() {
   return (
     <ListPage title="Disciplines" addLabel="Add discipline" onAdd={() => setCreating(true)}>
       {sorted.length === 0 ? (
-        <EmptyState>No disciplines yet.</EmptyState>
+        <EmptyState
+          icon="tag"
+          description="Disciplines group your people and give them a colour on the schedule."
+          action={{ label: 'Add your first discipline', onClick: () => setCreating(true) }}
+        >
+          No disciplines yet.
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
           {sorted.map((d) => (

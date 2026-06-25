@@ -70,16 +70,29 @@ export function ResourceList() {
     </li>
   )
 
-  const box = (rows: Resource[], empty: string) =>
+  // `enrich` carries the icon/description/CTA for the *genuinely-empty* People box. The
+  // placeholder box passes none — its bare message is left as-is (its own "Add placeholder"
+  // button sits right above it). The `empty` text stays the load-bearing children either way.
+  const box = (
+    rows: Resource[],
+    empty: string,
+    enrich?: { icon: 'people'; description: string; action: { label: string; onClick: () => void } },
+  ) =>
     rows.length === 0 ? (
-      <EmptyState>{empty}</EmptyState>
+      <EmptyState icon={enrich?.icon} description={enrich?.description} action={enrich?.action}>
+        {empty}
+      </EmptyState>
     ) : (
       <ul className="divide-y divide-line rounded border border-line bg-surface">{rows.map(renderRow)}</ul>
     )
 
   return (
     <ListPage title="Resources" addLabel="Add resource" onAdd={() => setCreatingKind('person')}>
-      {box(people, 'No resources yet.')}
+      {box(people, 'No resources yet.', {
+        icon: 'people',
+        description: 'Resources are the people you schedule work for.',
+        action: { label: 'Add your first resource', onClick: () => setCreatingKind('person') },
+      })}
 
       {/* The whole placeholder feature is behind the device-global `placeholdersEnabled` pref
           (default off, Settings → Placeholders). When off, the management section + "Add
@@ -115,7 +128,13 @@ export function ResourceList() {
           {/* Explainer copy (editable, shared with Settings → External — see lib/externalCopy.ts). */}
           <p className="mb-4 max-w-prose text-sm text-muted">{EXTERNAL_EXPLAINER}</p>
           {externals.length === 0 ? (
-            <EmptyState>No external parties yet.</EmptyState>
+            <EmptyState
+              icon="people"
+              description="External parties are third-party suppliers you book without tracking their capacity."
+              action={{ label: 'Add an external party', onClick: () => ext.setCreating(true) }}
+            >
+              No external parties yet.
+            </EmptyState>
           ) : (
             <ul className="divide-y divide-line rounded border border-line bg-surface">
               {externals.map((r) => (

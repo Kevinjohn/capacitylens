@@ -17,7 +17,13 @@ export function ProjectList() {
   return (
     <ListPage title="Projects" addLabel="Add project" onAdd={() => setCreating(true)}>
       {projects.length === 0 ? (
-        <EmptyState>No projects yet.</EmptyState>
+        <EmptyState
+          icon="folder"
+          description="Projects belong to a client and hold the activities you schedule."
+          action={{ label: 'Add your first project', onClick: () => setCreating(true) }}
+        >
+          No projects yet.
+        </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
           {projects.map((p) => (
