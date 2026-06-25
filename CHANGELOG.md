@@ -7,6 +7,17 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.10.2] — 2026-06-25
+
+The Time off list reads at a glance — who's away, from when, and for how long.
+
+### Changed
+- **Time-off list rows are terser.** Each row now reads the resource, a readable start date
+  and a day count (e.g. **Wed 10th Jun · 3 days**) in place of the raw `start → end` range,
+  type and note. Those details are still stored and still shown on the schedule's time-off
+  block — where the kind of absence and its exact span earn their place — so the list stays a
+  quick "who's out" scan.
+
 ## [0.10.1] — 2026-06-25
 
 The list-management screens get a lighter touch: row actions become icons, and every "Add" button shows a +.
