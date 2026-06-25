@@ -23,7 +23,7 @@
     "fastify": "^5.6.1"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/node": "^24.12.3",
     "tsx": "^4.19.2",
     "typescript": "~6.0.2",
     "vitest": "^4.1.7"
