@@ -1,0 +1,120 @@
+// `npm run dev` — the everyday full-stack dev launcher. Server-backed persistence is now the
+// app's DEFAULT (empty env = same-origin API; localStorage only under VITE_CAPACITYLENS_DEMO=1),
+// so a bare `vite` would boot the app in server-mode against a backend-less dev server (broken).
+// This boots BOTH halves and keeps them in lockstep:
+//   A) the SQLite API (capacitylens-server, tsx watch on :8787, seeds on first boot), and
+//   B) the Vite web server (`dev:web`), whose dev proxy forwards /api → the API port.
+// The web app talks to a same-origin /api, exactly like prod behind nginx; the Vite proxy
+// (vite.config.ts) is the dev stand-in. For the backend-free localStorage build use `npm run
+// dev:demo` instead.
+//
+// NODE 24+: the API uses Node's built-in `node:sqlite`, so full-stack dev needs Node 24 (.nvmrc).
+// `npm run dev:demo` has no such requirement.
+//
+//   node scripts/dev-fullstack.mjs   # = npm run dev
+
+import { spawn } from 'node:child_process'
+import net from 'node:net'
+
+// Keep the launcher, the API child (server reads PORT), and the Vite proxy on the SAME port.
+const API_PORT = Number(process.env.CAPACITYLENS_DEV_API_PORT ?? 8787)
+
+/**
+ * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe —
+ * no new dependency. We surface a collision as a hard error rather than letting the API child fail
+ * with a confusing EADDRINUSE deep in tsx, or (worse) silently reuse a stale/foreign server.
+ */
+function portInUse(port) {
+  return new Promise((resolve) => {
+    const socket = net
+      .connect({ host: '127.0.0.1', port }, () => {
+        socket.destroy()
+        resolve(true)
+      })
+      .on('error', () => {
+        socket.destroy()
+        resolve(false)
+      })
+    // Don't hang the launcher if the probe never resolves (e.g. a host that blackholes the port).
+    socket.setTimeout(1000, () => {
+      socket.destroy()
+      resolve(false)
+    })
+  })
+}
+
+if (await portInUse(API_PORT)) {
+  console.error(
+    `dev: port ${API_PORT} is already in use — the API can't start. Stop whatever holds it ` +
+      `(another \`npm run dev\`, a stray capacitylens-server), or set CAPACITYLENS_DEV_API_PORT ` +
+      `to a free port. Not starting the web server to avoid a half-up stack.`,
+  )
+  process.exit(1)
+}
+
+// shell:true so `npm` resolves on Windows (npm is npm.cmd there); mirrors scripts/e2e-*.mjs.
+const children = []
+let shuttingDown = false
+
+/**
+ * SIGTERM a child's WHOLE process group, not just the immediate `npm`. With `shell:true` each child
+ * is a shell → npm → node(vite/tsx) tree; signalling only the shell leaves vite/tsx orphaned holding
+ * :5173/:8787. `detached:true` (below) makes each child a group leader, so a negative-pid kill
+ * reaches the whole tree. ESRCH (group already gone) is fine; Windows has no POSIX groups, so fall
+ * back to `taskkill /T` which walks the tree there.
+ */
+function killTree(child) {
+  if (child.exitCode !== null || child.signalCode !== null) return
+  try {
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+    } else {
+      process.kill(-child.pid, 'SIGTERM')
+    }
+  } catch (err) {
+    if (err.code !== 'ESRCH') throw err
+  }
+}
+
+/** Tear down every still-running child, then exit. Idempotent (first caller wins). */
+function shutdown(code) {
+  if (shuttingDown) return
+  shuttingDown = true
+  for (const child of children) killTree(child)
+  process.exit(code)
+}
+
+function start(label, args, env) {
+  const child = spawn('npm', args, {
+    // Ignore stdin (inherit stdout/stderr): with detached:true the child is outside the terminal's
+    // foreground group, so handing it the TTY stdin risks SIGTTIN and trips Vite's stdin-EOF→SIGTERM
+    // shortcut handler. Neither tsx-watch nor Vite needs interactive stdin under this launcher.
+    stdio: ['ignore', 'inherit', 'inherit'],
+    shell: true,
+    // Own process group so shutdown() can SIGTERM the whole shell→npm→node tree (see killTree).
+    detached: true,
+    env: { ...process.env, ...env },
+  })
+  children.push(child)
+  // Either child exiting tears the WHOLE stack down — a dead API or a dead web server both mean
+  // dev is broken, and we never leave the survivor orphaned.
+  child.on('exit', (code, signal) => {
+    if (shuttingDown) return
+    console.error(`dev: ${label} exited (${signal ? `signal ${signal}` : `code ${code}`}); shutting down.`)
+    shutdown(code ?? 1)
+  })
+  child.on('error', (err) => {
+    if (shuttingDown) return
+    console.error(`dev: failed to launch ${label}: ${err.message}`)
+    shutdown(1)
+  })
+  return child
+}
+
+// A) SQLite API on API_PORT (server reads PORT). B) Vite web server with its /api proxy.
+start('api', ['run', 'dev', '-w', 'capacitylens-server'], { PORT: String(API_PORT) })
+start('web', ['run', 'dev:web'], { CAPACITYLENS_DEV_API_PORT: String(API_PORT) })
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => shutdown(0))
+}

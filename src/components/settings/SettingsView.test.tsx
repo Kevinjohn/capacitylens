@@ -115,7 +115,8 @@ describe('SettingsView — theme', () => {
 
 describe('SettingsView — build stamp', () => {
   // buildStamp() reads the env at render time, so stubbing before render is enough here
-  // (the server/local suffix is exercised in buildInfo.test.ts, where modules are reset).
+  // (the server/demo suffix is exercised in buildInfo.test.ts, where modules are reset).
+  // Server is the default mode now (no demo flag), so the stamp reads `· server`.
   afterEach(() => vi.unstubAllEnvs())
 
   it('renders nothing when VITE_CAPACITYLENS_BUILD_SHA is unset (today\'s Settings)', () => {
@@ -126,7 +127,7 @@ describe('SettingsView — build stamp', () => {
   it('renders the muted footer when the build is stamped', () => {
     vi.stubEnv('VITE_CAPACITYLENS_BUILD_SHA', 'a1b2c3d')
     render(<SettingsView />)
-    expect(screen.getByTestId('build-stamp')).toHaveTextContent('build a1b2c3d · local')
+    expect(screen.getByTestId('build-stamp')).toHaveTextContent('build a1b2c3d · server')
   })
 
   it('renders no Send feedback link by default, and a stamped mailto when configured', () => {
@@ -141,7 +142,7 @@ describe('SettingsView — build stamp', () => {
     expect(link).toHaveTextContent('Send feedback')
     expect(link).toHaveAttribute(
       'href',
-      `mailto:owner@example.com?subject=${encodeURIComponent('CapacityLens feedback — build a1b2c3d · local')}`,
+      `mailto:owner@example.com?subject=${encodeURIComponent('CapacityLens feedback — build a1b2c3d · server')}`,
     )
   })
 })

@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 // Playwright drives the real app via Vite. Three project flavours:
-//   chromium    — the default localStorage-backed app on :5173 (the existing specs).
+//   chromium    — the localStorage-backed DEMO build on :5173 (VITE_CAPACITYLENS_DEMO=1; the existing specs).
 //   db-backed   — the SQLite server (:8787, reset enabled, temp DB) + a second Vite
 //                 dev server (:5273) built with VITE_CAPACITYLENS_API so the app persists
 //                 through the entity-level ServerSyncAdapter. *.db.spec.ts run here.
@@ -32,10 +32,16 @@ const firefoxEnabled = firefoxOnly || !!process.env.CAPACITYLENS_FIREFOX
 const viteOnly = !!process.env.CAPACITYLENS_VITE_ONLY || webkitOnly || firefoxOnly
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
+// Runs the DEMO build (localStorage) so the core specs stay backend-free now that server is the
+// app's default; the db/auth flavours below carry their own VITE_CAPACITYLENS_API.
 const devWebServer = {
-  command: 'npm run dev',
+  command: 'npm run dev:demo',
   url: 'http://localhost:5173',
-  reuseExistingServer: !process.env.CI,
+  // Never reuse: Playwright matches a running server by URL (:5173) only — it can't see the
+  // persistence flavour. Post-flip, `npm run dev` boots a SERVER-mode dev server on :5173; reusing
+  // that for the localStorage core specs would run them against the wrong backend. Always spawn a
+  // fresh demo build (the CI guard is moot now that we never reuse).
+  reuseExistingServer: false,
   timeout: 120_000,
 }
 

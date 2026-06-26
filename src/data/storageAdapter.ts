@@ -13,12 +13,12 @@ export const STORAGE_KEY = `${STORAGE_KEY_PREFIX}v3`
 
 export const storageAdapter = new LocalStorageAdapter(STORAGE_KEY)
 
-// The persistence target the app actually boots against. Setting VITE_CAPACITYLENS_API at
-// build/dev time (e.g. http://localhost:8787) flips CapacityLens onto the SQLite-backed
-// server via the entity-level ServerSyncAdapter — a drop-in PersistenceAdapter, so
-// nothing else in the app changes. Unset → the localStorage backend (default). The env
-// read lives in apiConfig.ts so this wiring just asks isServerConfigured() (mirrors
-// schedule/diary).
+// The persistence target the app actually boots against. By DEFAULT this is the SQLite-backed
+// server via the entity-level ServerSyncAdapter — a drop-in PersistenceAdapter, so nothing else
+// in the app changes. An empty API_BASE means the SAME-ORIGIN server (relative `/api`); set
+// VITE_CAPACITYLENS_API (e.g. http://localhost:8787) to point at a different origin. The
+// localStorage backend is used ONLY in the demo build (VITE_CAPACITYLENS_DEMO=1). The env read
+// lives in apiConfig.ts so this wiring just asks isServerConfigured() (mirrors schedule/diary).
 export const persistenceAdapter: PersistenceAdapter = isServerConfigured()
   ? new ServerSyncAdapter(API_BASE)
   : storageAdapter
