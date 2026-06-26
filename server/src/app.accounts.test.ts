@@ -38,15 +38,17 @@ function cookiesOf(res: LightMyRequestResponse): string {
 }
 
 describe('OFF mode — GET /api/accounts + GET /api/state?accountId=', () => {
-  it('GET /api/accounts returns ALL seeded accounts as {id,name} (no membership gate)', async () => {
+  it('GET /api/accounts returns ALL seeded accounts as {id,name,role:owner} (no membership gate)', async () => {
     const db = openDb(':memory:')
     seedTwo(db)
     const app = buildApp(db)
     const res = await call(app, { method: 'GET', url: '/api/accounts' })
     expect(res.statusCode).toBe(200)
+    // OFF mode tags every account with the trusted-local full-access sentinel role 'owner' (P1.12),
+    // so the wire shape matches auth-on's AccountSummary and the client's pure `can` keeps OFF editable.
     expect(res.json()).toEqual([
-      { id: 'a1', name: 'Studio a1' },
-      { id: 'a2', name: 'Studio a2' },
+      { id: 'a1', name: 'Studio a1', role: 'owner' },
+      { id: 'a2', name: 'Studio a2', role: 'owner' },
     ])
   })
 
@@ -121,7 +123,7 @@ describe('auth-on (password) — membership-existence guard', () => {
     // Seed two accounts (directly — account creation flows aren't under test here).
     seedTwo(db)
     const { cookie, userId } = await signUp(app, 'member@capacitylens.dev')
-    // Make the login an active member of a1 ONLY.
+    // Make the login an active member of a1 ONLY (as an editor — asserted on /api/accounts below).
     upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
 
     // Their account → 200 slice scoped to a1.
@@ -133,10 +135,10 @@ describe('auth-on (password) — membership-existence guard', () => {
     const denied = await call(app, { method: 'GET', url: '/api/state?accountId=a2', headers: { cookie } })
     expect(denied.statusCode).toBe(403)
 
-    // /api/accounts returns ONLY their membership (a1), not the full account list.
+    // /api/accounts returns ONLY their membership (a1) WITH the caller's role, not the full account list.
     const accts = await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie } })
     expect(accts.statusCode).toBe(200)
-    expect(accts.json()).toEqual([{ id: 'a1', name: 'Studio a1' }])
+    expect(accts.json()).toEqual([{ id: 'a1', name: 'Studio a1', role: 'editor' }])
   })
 
   it('a session-less request is still 401 (the requireUser gate is upstream of the slice guard)', async () => {

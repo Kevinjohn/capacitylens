@@ -37,18 +37,24 @@ const ACTIVE_STATUS = 'active' as const
  *
  * @property id    The account's id (the `accountId` a subsequent `GET /api/state?accountId=…` uses).
  * @property name  The account's company name, for display in the picker.
+ * @property role  The caller's {@link Role} for this account. The client (P1.12) feeds it into the
+ *                 SAME pure `can(role, action)` matrix to gate affordances (a Viewer goes read-only).
+ *                 OFF mode supplies `'owner'` (trusted-local full access) at the route so the OFF and
+ *                 auth-on wire shapes stay identical and OFF stays fully editable via the same path.
  */
 export interface AccountSummary {
   id: string
   name: string
+  role: Role
 }
 
 /**
  * The account summaries this login may access — the picker's data source (P1.13 / GET /api/accounts).
  *
  * Takes the login's memberships ({@link listMembershipsForUser}), keeps ONLY active ones, and maps
- * each to its account summary by reading the `accounts` table. Returns a STABLE order (by account
- * name, then id) so the picker render is deterministic.
+ * each to its account summary ({@link AccountSummary}: `id`, `name`, the caller's `role`) by reading
+ * the `accounts` table. Returns a STABLE order (by account name, then id) so the picker render is
+ * deterministic.
  *
  * INVARIANTS:
  * - ACTIVE-ONLY: a non-`'active'` membership is excluded (it is not a member for access purposes).
@@ -70,7 +76,7 @@ export function listAccounts(db: Db, session: SessionUser): AccountSummary[] {
     const row = getRow(db, 'accounts', membership.accountId)
     // Dangling membership (account row gone): skip, don't throw — degrade to "not listed".
     if (!row) continue
-    summaries.push({ id: String(row.id), name: String(row.name) })
+    summaries.push({ id: String(row.id), name: String(row.name), role: membership.role })
   }
   // Stable order so the picker is deterministic: by name (the visible label), then id as a tiebreak.
   return summaries.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))

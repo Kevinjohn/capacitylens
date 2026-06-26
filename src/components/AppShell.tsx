@@ -11,6 +11,8 @@ import { IntroPage } from './IntroPage'
 import { StorageRecovery } from './StorageRecovery'
 import { ConnectionError } from './ConnectionError'
 import { CommandPalette } from './CommandPalette'
+import { PermissionProvider } from '../auth/PermissionProvider'
+import { useRole } from '../auth/permissionContext'
 import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
@@ -204,6 +206,12 @@ export function AppShell() {
   )
 
   return (
+    // PermissionProvider (P1.12) wraps the APP BODY — mounted HERE, AFTER the connection/load/auth/
+    // tenant/intro gates above, so `activeAccountId` is already set when it resolves the role. It is a
+    // pure pass-through (role: null, no fetch) in OFF/local; only an auth-on + server deploy resolves a
+    // real role and gates affordances. The view-only badge + every gated affordance hub read the role
+    // from THIS provider (so they live inside the subtree, not above it).
+    <PermissionProvider>
     <div className="flex h-full">
       {/* Skip past the sidebar nav straight to page content (WCAG 2.4.1). Hidden until focused;
           targets the <main> landmark (id="main", tabIndex=-1 so it can receive programmatic focus). */}
@@ -276,6 +284,9 @@ export function AppShell() {
                 <div className="truncate text-sm font-semibold text-ink" title={activeAccount.name}>
                   {activeAccount.name}
                 </div>
+                {/* "View only" badge (P1.12) — appears here for a Viewer; renders nothing otherwise
+                    (incl. the default OFF/local deploy). Inside PermissionProvider's subtree. */}
+                <ViewOnlyBadge />
                 <button
                   type="button"
                   onClick={() => setActiveAccount(null)}
@@ -398,5 +409,28 @@ export function AppShell() {
       {paletteOpen && !dirtyForm && <CommandPalette onClose={() => setPaletteOpen(false)} />}
       <RotateHint />
     </div>
+    </PermissionProvider>
+  )
+}
+
+/**
+ * The "View only" badge (P1.12) — shown in the sidebar footer beside the company name when the
+ * active account's role resolves to `viewer`. Subtle, non-interactive. It is a SEPARATE component so
+ * it consumes the role from {@link PermissionProvider} (mounted around the app body in AppShell);
+ * `useRole()` called at AppShell's top level would read the OUTER default (null), not this provider.
+ * Renders nothing for any non-viewer role (incl. OFF/local → null), so the default deploy shows it
+ * never.
+ */
+function ViewOnlyBadge() {
+  if (useRole() !== 'viewer') return null
+  return (
+    <span
+      data-testid="view-only"
+      className="mt-1 inline-flex items-center gap-1 rounded bg-canvas px-1.5 py-0.5 text-2xs font-medium text-muted ring-1 ring-line"
+      title="You have read-only access to this company."
+    >
+      <Icon name="eye" size={11} aria-hidden />
+      View only
+    </span>
   )
 }

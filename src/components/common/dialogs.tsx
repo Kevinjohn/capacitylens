@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 // re-exports @radix-ui/react-dialog at the identical version — one Radix import surface.
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { useStore } from '../../store/useStore'
+import { useCanEdit } from '../../auth/permissionContext'
 import { cn } from '@/lib/utils'
 import { Button as ShadButton } from '../ui/button'
 import { Icon, type IconName } from './Icon'
@@ -135,7 +136,8 @@ export function AddButton({
 
 /** Icon-only Edit button for a list row. `label` is BOTH the accessible name and the hover
  *  tooltip — it defaults to "Edit" so per-row selectors keep matching; pass a contextual label
- *  (e.g. "Edit Acme") where rows need to disambiguate. */
+ *  (e.g. "Edit Acme") where rows need to disambiguate. Renders NOTHING for a Viewer (P1.12) — one
+ *  gate here covers every list row's edit affordance; the server 403 is the backstop regardless. */
 export function EditButton({
   label = 'Edit',
   onClick,
@@ -145,6 +147,7 @@ export function EditButton({
   onClick: () => void
   testId?: string
 }) {
+  if (!useCanEdit()) return null
   return (
     <Button variant="ghost" ariaLabel={label} title={label} onClick={onClick} testId={testId}>
       <Icon name="edit" />
@@ -154,7 +157,8 @@ export function EditButton({
 
 /** Icon-only Delete button for a list row — the danger-variant twin of EditButton. `label`
  *  defaults to "Delete" (so per-row selectors keep matching); pass a contextual label where
- *  rows need to disambiguate (e.g. "Delete Studio North" on the company picker). */
+ *  rows need to disambiguate (e.g. "Delete Studio North" on the company picker). Renders NOTHING
+ *  for a Viewer (P1.12) — one gate here covers every list row's delete affordance. */
 export function DeleteButton({
   label = 'Delete',
   onClick,
@@ -164,6 +168,7 @@ export function DeleteButton({
   onClick: () => void
   testId?: string
 }) {
+  if (!useCanEdit()) return null
   return (
     <Button variant="danger" ariaLabel={label} title={label} onClick={onClick} testId={testId}>
       <Icon name="delete" />
@@ -423,11 +428,14 @@ export function ListPage({
   onAdd?: () => void
   children?: ReactNode
 }) {
+  // A Viewer (P1.12) sees NO top create affordance — gating ListPage once covers every entity list's
+  // "Add X" button. The server 403 backstops anyway; this is the UX read-only signal.
+  const canEdit = useCanEdit()
   return (
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{title}</h1>
-        {onAdd && <AddButton label={addLabel ?? 'Add'} onClick={onAdd} />}
+        {canEdit && onAdd && <AddButton label={addLabel ?? 'Add'} onClick={onAdd} />}
       </div>
       {children}
     </div>
@@ -451,6 +459,13 @@ export function EmptyState({
   description?: ReactNode
   action?: { label: string; onClick: () => void; icon?: IconName }
 }) {
+  // A Viewer (P1.12) sees no CREATE CTA, but navigation actions (e.g. "Clear filters", "Go to
+  // Resources") stay. A create CTA is the one carrying a leading `plus` icon (per this component's
+  // contract: create CTAs pass `icon: 'plus'`, navigation actions leave it unset), so drop ONLY
+  // those for a non-editor. This also keeps the scheduler-empty "Clear filters" CTA focusable so the
+  // grid stays axe-clean. The server 403 backstops a create regardless.
+  const canEdit = useCanEdit()
+  const showAction = action && (canEdit || action.icon !== 'plus')
   return (
     <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-4 py-12 text-center">
       {icon && (
@@ -462,7 +477,7 @@ export function EmptyState({
         <p className="text-sm font-medium text-ink">{children}</p>
         {description && <p className="mx-auto max-w-xs text-sm text-muted">{description}</p>}
       </div>
-      {action && (
+      {showAction && action && (
         <Button onClick={action.onClick}>
           {action.icon && <Icon name={action.icon} />}
           {action.label}

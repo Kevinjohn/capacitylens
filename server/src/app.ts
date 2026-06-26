@@ -557,12 +557,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // The login → account list that drives the AccountPicker (P1.13). OFF mode is trusted-local:
     // EVERY account is accessible, so return all summaries with NO membership gate — branch on
     // authMode === 'off' BEFORE touching membership (the OFF guarantee). Auth-on returns ONLY the
-    // caller's memberships via listAccounts. Returns AccountSummary[] = [{ id, name }].
+    // caller's memberships via listAccounts. Returns AccountSummary[] = [{ id, name, role }].
     app.get('/api/accounts', (req) => {
       if (authMode === 'off') {
-        // No membership in off mode: every account is visible. Map to the same minimal {id,name}
-        // summary listAccounts returns so the auth-on / auth-off shapes are identical on the wire.
-        return loadState(db).accounts.map((a) => ({ id: a.id, name: a.name }))
+        // No membership in off mode: every account is visible. Map to the same AccountSummary shape
+        // listAccounts returns ({ id, name, role }) so the auth-on / auth-off shapes are identical on
+        // the wire. The role is 'owner' — the trusted-local full-access sentinel: OFF is byte-identical
+        // to today's no-login deploy, so the client's pure `can('owner', …)` keeps OFF fully editable
+        // (and a Viewer read-only mode is reachable ONLY auth-on, where a real membership role exists).
+        return loadState(db).accounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const }))
       }
       return listAccounts(db, req.user!)
     })
