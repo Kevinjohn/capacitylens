@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
+import { m } from '@/i18n'
 import { useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { useDragResize } from '../../hooks/useDragResize'
@@ -393,8 +394,20 @@ export const AllocationBar = memo(function AllocationBar({
         tabIndex={canEdit ? 0 : undefined}
         aria-label={
           canEdit
-            ? `${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`
-            : `${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}.`
+            ? m.scheduler_bar_aria_editor({
+                label: labelText,
+                hours: hideHours ? '' : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
+                status: bar.allocation.status,
+                start: bar.allocation.startDate,
+                end: bar.allocation.endDate,
+              })
+            : m.scheduler_bar_aria_viewer({
+                label: labelText,
+                hours: hideHours ? '' : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
+                status: bar.allocation.status,
+                start: bar.allocation.startDate,
+                end: bar.allocation.endDate,
+              })
         }
         onPointerDown={
           canEdit
@@ -466,7 +479,7 @@ export const AllocationBar = memo(function AllocationBar({
         <span className="truncate px-2.5">
           {completed ? '✓ ' : ''}
           {labelText}
-          {hideHours ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h`}
+          {hideHours ? '' : m.scheduler_bar_hours_suffix({ hours: hoursLabel(bar.allocation.hoursPerDay) })}
           {bar.allocation.note ? ' •' : ''}
         </span>
         {canEdit && (
@@ -506,11 +519,11 @@ export const AllocationBar = memo(function AllocationBar({
             )}
             <div className="text-muted">
               {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
-              {hideHours ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h/day`} · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
+              {hideHours ? '' : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
             </div>
             {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted">{bar.allocation.note}</div>}
             <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">
-              Drag to move · edges to resize · drop on another row to reassign
+              {m.scheduler_bar_pop_footer()}
             </div>
           </div>,
           document.body,

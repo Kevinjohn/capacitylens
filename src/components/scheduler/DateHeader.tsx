@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react'
 import { format } from 'date-fns'
+import { m } from '@/i18n'
 import { parseDate, weekdayOf } from '@capacitylens/shared/lib/dateMath'
 import { DAY_COLUMN_MIN_WIDTH, WEEKDAY_LABEL_MIN_WIDTH } from '../../lib/schedulerConfig'
 import { LAYOUT } from './layout'
@@ -64,7 +65,7 @@ export const DateHeader = memo(function DateHeader({
   const weeks = useMemo(() => weekBlocks(days, weekStartsOn), [days, weekStartsOn])
 
   return (
-    <div role="columnheader" aria-label="Dates" className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
+    <div role="columnheader" aria-label={m.scheduler_dates_aria()} className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
       {/* Month tier — padding-driven height (not a fixed px) so it scales with font size.
           Each month's LABEL is position:sticky, pinned to the left edge of the visible
           timeline (left = leftColWidth, just past the sticky utilisation column), so the
@@ -76,13 +77,13 @@ export const DateHeader = memo(function DateHeader({
           overflow-hidden ancestor traps position:sticky (truncate on the span itself is
           fine). */}
       <div className="flex shrink-0 border-b border-line">
-        {months.map((m) => (
-          <div key={m.key} className="shrink-0 border-r border-line" style={{ width: spanWidth(m) }}>
+        {months.map((mo) => (
+          <div key={mo.key} className="shrink-0 border-r border-line" style={{ width: spanWidth(mo) }}>
             <span
               className="sticky inline-block max-w-full truncate bg-surface px-2 py-0.5 text-2xs font-semibold uppercase tracking-wide text-faint"
               style={{ left: LAYOUT.leftColWidth }}
             >
-              {m.label}
+              {mo.label}
             </span>
           </div>
         ))}
@@ -111,7 +112,7 @@ export const DateHeader = memo(function DateHeader({
                 {/* Narrowed weekend columns have no room for "Sat"/"Sun" — both read just "S"
                     (the date number always stays). Weekdays keep their three-letter label. */}
                 {showWeekday && (
-                  <span className="text-2xs uppercase">{geom.minimiseActive && weekend ? 'S' : format(date, 'EEE')}</span>
+                  <span className="text-2xs uppercase">{geom.minimiseActive && weekend ? m.scheduler_weekday_narrow_weekend() : format(date, 'EEE')}</span>
                 )}
               </div>
             )
