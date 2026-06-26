@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { can, canSeeTimeOffNote } from './access'
+import {
+  can,
+  canSeeTimeOffNote,
+  isAtLeast,
+  canManageMemberRole,
+  canRemoveMember,
+} from './access'
 import type { Role, Action } from './access'
 
 // These tests are an INDEPENDENT oracle of the CapacityLens Decisions access matrix: the expected
@@ -101,5 +107,91 @@ describe('canSeeTimeOffNote(role) — field-level rule (owner/admin only)', () =
   })
   it('viewer may NOT see the time-off note', () => {
     expect(canSeeTimeOffNote('viewer')).toBe(false)
+  })
+})
+
+// P1.11 member-management guards. The expected booleans below are the hand-written oracle of the
+// member-management policy (no admin→owner grant; admin can't touch an owner), NOT derived from the
+// implementation — if access.ts and these tables disagree, the test is doing its job.
+
+describe('isAtLeast(role, min) — tier comparison', () => {
+  // The full 4×4 oracle, written from the strict hierarchy viewer<editor<admin<owner.
+  const EXPECTED: Record<Role, Record<Role, boolean>> = {
+    owner: { owner: true, admin: true, editor: true, viewer: true },
+    admin: { owner: false, admin: true, editor: true, viewer: true },
+    editor: { owner: false, admin: false, editor: true, viewer: true },
+    viewer: { owner: false, admin: false, editor: false, viewer: true },
+  }
+  for (const role of ROLES) {
+    for (const min of ROLES) {
+      const expected = EXPECTED[role][min]
+      it(`isAtLeast('${role}', '${min}') === ${expected}`, () => {
+        expect(isAtLeast(role, min)).toBe(expected)
+      })
+    }
+  }
+})
+
+describe('canManageMemberRole(actor, target, next) — role-change matrix', () => {
+  // Exhaustive sweep over every actor × target × next combination, against a hand-derived oracle.
+  // Oracle rules: actor must hold manageMembers (admin+); next==='owner' only an owner may grant;
+  // target==='owner' only an owner may touch.
+  const oracle = (actor: Role, target: Role, next: Role): boolean => {
+    if (!(actor === 'owner' || actor === 'admin')) return false // manageMembers = admin tier
+    if (next === 'owner' && actor !== 'owner') return false
+    if (target === 'owner' && actor !== 'owner') return false
+    return true
+  }
+  for (const actor of ROLES) {
+    for (const target of ROLES) {
+      for (const next of ROLES) {
+        const expected = oracle(actor, target, next)
+        it(`canManageMemberRole('${actor}','${target}','${next}') === ${expected}`, () => {
+          expect(canManageMemberRole(actor, target, next)).toBe(expected)
+        })
+      }
+    }
+  }
+
+  it('owner may grant owner (admin→owner); admin may NOT grant owner', () => {
+    expect(canManageMemberRole('owner', 'editor', 'owner')).toBe(true)
+    expect(canManageMemberRole('admin', 'editor', 'owner')).toBe(false)
+  })
+
+  it('admin may NOT change an existing owner; owner may', () => {
+    expect(canManageMemberRole('admin', 'owner', 'editor')).toBe(false)
+    expect(canManageMemberRole('owner', 'owner', 'editor')).toBe(true)
+  })
+
+  it('editor/viewer (no manageMembers) can never change a role', () => {
+    expect(canManageMemberRole('editor', 'viewer', 'editor')).toBe(false)
+    expect(canManageMemberRole('viewer', 'viewer', 'viewer')).toBe(false)
+  })
+})
+
+describe('canRemoveMember(actor, target) — removal matrix', () => {
+  const oracle = (actor: Role, target: Role): boolean => {
+    if (!(actor === 'owner' || actor === 'admin')) return false
+    if (target === 'owner' && actor !== 'owner') return false
+    return true
+  }
+  for (const actor of ROLES) {
+    for (const target of ROLES) {
+      const expected = oracle(actor, target)
+      it(`canRemoveMember('${actor}','${target}') === ${expected}`, () => {
+        expect(canRemoveMember(actor, target)).toBe(expected)
+      })
+    }
+  }
+
+  it('admin may NOT remove an owner; owner may remove an owner', () => {
+    expect(canRemoveMember('admin', 'owner')).toBe(false)
+    expect(canRemoveMember('owner', 'owner')).toBe(true)
+  })
+
+  it('admin may remove non-owners; editor/viewer may remove no one', () => {
+    expect(canRemoveMember('admin', 'editor')).toBe(true)
+    expect(canRemoveMember('editor', 'viewer')).toBe(false)
+    expect(canRemoveMember('viewer', 'viewer')).toBe(false)
   })
 })

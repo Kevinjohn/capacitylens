@@ -5,6 +5,15 @@ import {
   upsertMember,
   getMemberRole,
   listMembershipsForUser,
+  listMembersForAccount,
+  countOwners,
+  removeMember,
+  getUsersByIds,
+  createInvite,
+  getInvite,
+  newInviteId,
+  listInvitesForAccount,
+  revokeInvite,
   type AccountMember,
 } from './controlTables'
 import type { Db } from './db'
@@ -84,5 +93,146 @@ describe('listMembershipsForUser', () => {
   it('returns an empty array for a user with no memberships', () => {
     const db = freshDb()
     expect(listMembershipsForUser(db, 'ghost')).toEqual([])
+  })
+})
+
+// ── P1.11 member-management helpers ────────────────────────────────────────────────────────────
+
+describe('listMembersForAccount', () => {
+  it('lists only the requested account\'s members, in a stable createdAt order', () => {
+    const db = freshDb()
+    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-b', role: 'editor', createdAt: '2026-01-02T00:00:00.000Z' }))
+    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-a', role: 'owner', createdAt: '2026-01-01T00:00:00.000Z' }))
+    upsertMember(db, member({ accountId: 'acc-2', userId: 'u-c', role: 'admin' }))
+
+    const rows = listMembersForAccount(db, 'acc-1')
+    expect(rows).toHaveLength(2)
+    expect(rows.every((r) => r.accountId === 'acc-1')).toBe(true)
+    expect(rows.map((r) => r.userId)).toEqual(['u-a', 'u-b']) // ordered by createdAt then userId
+  })
+
+  it('returns an empty array for an account with no members', () => {
+    const db = freshDb()
+    expect(listMembersForAccount(db, 'nobody')).toEqual([])
+  })
+})
+
+describe('countOwners', () => {
+  it('counts ONLY active owners of the account', () => {
+    const db = freshDb()
+    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-1', role: 'owner' }))
+    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-2', role: 'owner' }))
+    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-3', role: 'admin' }))
+    upsertMember(db, member({ accountId: 'acc-2', userId: 'u-4', role: 'owner' })) // other account
+    expect(countOwners(db, 'acc-1')).toBe(2)
+    expect(countOwners(db, 'acc-2')).toBe(1)
+    expect(countOwners(db, 'empty')).toBe(0)
+  })
+})
+
+describe('removeMember', () => {
+  it('removes the named membership and is idempotent (a missing row is a no-op)', () => {
+    const db = freshDb()
+    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-1', role: 'editor' }))
+    removeMember(db, 'acc-1', 'u-1')
+    expect(getMemberRole(db, 'acc-1', 'u-1')).toBeNull()
+    expect(() => removeMember(db, 'acc-1', 'u-1')).not.toThrow() // idempotent
+  })
+
+  it('only deletes the row of the named account (cross-tenant safe)', () => {
+    const db = freshDb()
+    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-1', role: 'editor' }))
+    upsertMember(db, member({ accountId: 'acc-2', userId: 'u-1', role: 'admin' }))
+    removeMember(db, 'acc-1', 'u-1')
+    expect(getMemberRole(db, 'acc-1', 'u-1')).toBeNull()
+    expect(getMemberRole(db, 'acc-2', 'u-1')).toBe('admin') // the other account's row survives
+  })
+})
+
+describe('getUsersByIds', () => {
+  // The Better Auth `user` table is not part of ensureControlTables (it's created by Better Auth's
+  // migrations); create a minimal stand-in so this unit can read it.
+  const dbWithUsers = (): Db => {
+    const db = freshDb()
+    db.exec(`CREATE TABLE user (id TEXT PRIMARY KEY, name TEXT, email TEXT, emailVerified INTEGER)`)
+    db.prepare(`INSERT INTO user (id, name, email, emailVerified) VALUES (?, ?, ?, 1)`).run('u-1', 'Alice', 'alice@x.io')
+    db.prepare(`INSERT INTO user (id, name, email, emailVerified) VALUES (?, ?, ?, 1)`).run('u-2', null, 'bob@x.io')
+    return db
+  }
+
+  it('returns an empty map for empty ids (no invalid zero-id IN clause)', () => {
+    expect(getUsersByIds(freshDb(), []).size).toBe(0)
+  })
+
+  it('resolves name/email for known ids, degrades a null name, omits unknown ids', () => {
+    const db = dbWithUsers()
+    const map = getUsersByIds(db, ['u-1', 'u-2', 'ghost'])
+    expect(map.get('u-1')).toEqual({ name: 'Alice', email: 'alice@x.io' })
+    expect(map.get('u-2')).toEqual({ name: null, email: 'bob@x.io' })
+    expect(map.has('ghost')).toBe(false) // no row → absent (caller degrades to null)
+  })
+})
+
+const TS_FUTURE = '2999-01-01T00:00:00.000Z'
+
+const invite = (over: Partial<Parameters<typeof createInvite>[1]> = {}) => ({
+  token: `tok-${over.id ?? '1'}`,
+  id: 'inv-1',
+  accountId: 'acc-1',
+  role: 'editor' as const,
+  preauthEmail: null,
+  expiresAt: TS_FUTURE,
+  usedAt: null,
+  createdAt: TS,
+  ...over,
+})
+
+describe('createInvite / getInvite — non-secret id (P1.11)', () => {
+  it('round-trips the id through getInvite', () => {
+    const db = freshDb()
+    const id = newInviteId()
+    expect(id.length).toBeGreaterThan(0)
+    createInvite(db, invite({ token: 'tok-a', id }))
+    expect(getInvite(db, 'tok-a')!.id).toBe(id)
+  })
+
+  it('newInviteId mints distinct ids', () => {
+    expect(newInviteId()).not.toBe(newInviteId())
+  })
+})
+
+describe('listInvitesForAccount', () => {
+  it('lists an account\'s invites WITHOUT the token, newest first', () => {
+    const db = freshDb()
+    createInvite(db, invite({ token: 'tok-1', id: 'inv-1', createdAt: '2026-01-01T00:00:00.000Z' }))
+    createInvite(db, invite({ token: 'tok-2', id: 'inv-2', createdAt: '2026-01-02T00:00:00.000Z' }))
+    createInvite(db, invite({ token: 'tok-3', id: 'inv-3', accountId: 'acc-2' })) // other account
+
+    const list = listInvitesForAccount(db, 'acc-1')
+    expect(list.map((i) => i.id)).toEqual(['inv-2', 'inv-1']) // newest first
+    // No token field on ANY row (it's a write-once secret — never on a read path).
+    expect(list.every((i) => !('token' in i))).toBe(true)
+    expect(JSON.stringify(list)).not.toContain('tok-')
+  })
+
+  it('returns an empty array for an account with no invites', () => {
+    expect(listInvitesForAccount(freshDb(), 'none')).toEqual([])
+  })
+})
+
+describe('revokeInvite', () => {
+  it('deletes the invite by id (scoped to its account) and is idempotent', () => {
+    const db = freshDb()
+    createInvite(db, invite({ token: 'tok-1', id: 'inv-1' }))
+    revokeInvite(db, 'acc-1', 'inv-1')
+    expect(getInvite(db, 'tok-1')).toBeNull()
+    expect(() => revokeInvite(db, 'acc-1', 'inv-1')).not.toThrow() // idempotent
+  })
+
+  it('cross-tenant revoke is a NO-OP — an admin of one account can\'t revoke another\'s invite', () => {
+    const db = freshDb()
+    createInvite(db, invite({ token: 'tok-1', id: 'inv-1', accountId: 'acc-1' }))
+    revokeInvite(db, 'acc-2', 'inv-1') // wrong account predicate → no row matches
+    expect(getInvite(db, 'tok-1')).not.toBeNull() // survives
   })
 })

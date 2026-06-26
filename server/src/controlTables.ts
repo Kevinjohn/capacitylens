@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import type { Role } from '@capacitylens/shared/domain/access'
 import type { Db } from './db'
 
@@ -59,9 +60,11 @@ const isKnownRole = (value: unknown): value is Role =>
  * by-`userId` index (P1.2's listAccounts: "which accounts can this login see?") and a
  * by-`accountId` index (member-management listing: "who is in this account?").
  *
- * Also creates `invites(token PK, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)`
+ * Also creates `invites(token PK, id, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)`
  * (P1.9) — the single-use, expiring invite links that mint a membership on accept — with a
- * by-`accountId` index (list an account's outstanding invites).
+ * by-`accountId` index (list an account's outstanding invites). The `id` column (P1.11) is a
+ * NON-SECRET handle, distinct from the bearer `token`: list/revoke key on `id` so the secret `token`
+ * stays WRITE-ONCE and never travels on a read path.
  *
  * No FOREIGN KEY to `accounts(id)` on EITHER table BY DESIGN: these are control-plane tables that
  * must stay decoupled from the AppData cascade — they must never be dragged into the entity drift
@@ -85,6 +88,7 @@ export function ensureControlTables(db: Db): void {
     CREATE INDEX IF NOT EXISTS idx_account_members_accountId ON account_members(accountId);
     CREATE TABLE IF NOT EXISTS invites (
       token TEXT NOT NULL PRIMARY KEY,
+      id TEXT NOT NULL,             -- NON-SECRET handle (P1.11); list/revoke key on this, never the token
       accountId TEXT NOT NULL,
       role TEXT NOT NULL,
       preauthEmail TEXT,            -- NULLABLE; P1.10 (email-preauth) uses it; P1.9 always writes NULL
@@ -94,6 +98,22 @@ export function ensureControlTables(db: Db): void {
     );
     CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);
   `)
+  // ADDITIVE column for an ALREADY-CREATED dev DB (the `invites` table is new in P1.9; the `id`
+  // column is added in P1.11). A DB that already has the table from P1.9 won't get `id` from the
+  // IF-NOT-EXISTS CREATE above (node:sqlite never re-runs CREATE on an existing table), so add it
+  // here — guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
+  // can't ALTER-ADD a NOT NULL column to existing rows, so it lands NULLABLE; createInvite always
+  // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
+  if (!inviteHasColumn(db, 'id')) {
+    db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`)
+  }
+}
+
+/** Does the `invites` table already carry `column`? Used to gate the additive ALTER above for a dev
+ *  DB created under P1.9 (before the `id` column existed). Mirrors schema.ts's PRAGMA-based check. */
+function inviteHasColumn(db: Db, column: string): boolean {
+  const cols = db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>
+  return cols.some((c) => c.name === column)
 }
 
 /**
@@ -179,11 +199,118 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
 }
 
 /**
+ * List EVERY membership row of one account — the by-`accountId` lookup the member-management UI
+ * (P1.11) builds on ("who is in this account?"). Ordered by `createdAt` then `userId` so the member
+ * list renders deterministically.
+ *
+ * LOUD role-integrity throw (mirrors {@link listMembershipsForUser}): a stored role that is not a
+ * known {@link Role} is a control-table corruption — fail rather than hand back a mistyped,
+ * access-bearing role.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose members to list.
+ * @returns The account's membership rows (possibly empty), in a stable order.
+ */
+export function listMembersForAccount(db: Db, accountId: string): AccountMember[] {
+  const rows = db
+    .prepare(
+      `SELECT accountId, userId, role, status, createdAt FROM account_members
+       WHERE accountId = ? ORDER BY createdAt, userId`,
+    )
+    .all(accountId) as Array<{
+    accountId: string
+    userId: string
+    role: string
+    status: string
+    createdAt: string
+  }>
+  return rows.map((r) => {
+    if (!isKnownRole(r.role)) {
+      throw new Error(
+        `listMembersForAccount: stored role ${JSON.stringify(r.role)} for (${r.accountId}, ${r.userId}) is not a known role — control table corrupted.`,
+      )
+    }
+    return {
+      accountId: r.accountId,
+      userId: r.userId,
+      role: r.role,
+      status: r.status as MembershipStatus,
+      createdAt: r.createdAt,
+    }
+  })
+}
+
+/**
+ * Count an account's ACTIVE owners — the LAST-OWNER backstop for member-management (P1.11). The
+ * server refuses to demote/remove the sole remaining owner (would strand the account ownerless); this
+ * is the count that rule reads. Counts ONLY `role='owner' AND status='active'` (a non-active owner is
+ * not a real owner for access purposes — see membership.ts).
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose active owners to count.
+ * @returns The number of active owner memberships of `accountId`.
+ */
+export function countOwners(db: Db, accountId: string): number {
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS n FROM account_members WHERE accountId = ? AND role = 'owner' AND status = 'active'`,
+    )
+    .get(accountId) as { n: number }
+  return row.n
+}
+
+/**
+ * Remove one membership — the member-revoke write (P1.11). IDEMPOTENT: deleting an absent
+ * `(accountId, userId)` is a no-op (mirrors {@link deleteRow}). The `accountId` predicate is the
+ * cross-tenant guard: a revoke can only ever touch a row of the named account.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account the membership belongs to.
+ * @param userId     The login whose membership to remove.
+ */
+export function removeMember(db: Db, accountId: string, userId: string): void {
+  db.prepare(`DELETE FROM account_members WHERE accountId = ? AND userId = ?`).run(accountId, userId)
+}
+
+/**
+ * Resolve display identity (name + email) for a set of user ids — the ONLY place the member-management
+ * code reads Better Auth's `user` table, and ONLY to render an AUTHORIZED admin's member list. The
+ * `user` table lives in the same SQLite file as the control tables (see auth.ts); this reads `name`
+ * and `email` for member-row display, nothing more, and never on an unauthorized path (the caller is
+ * the gated GET members route, which has already passed `manageMembers`).
+ *
+ * The IN-clause is built from PARAMETERISED placeholders (one `?` per id) — never string-interpolated
+ * — so a crafted user id can't inject SQL. An EMPTY `ids` short-circuits to an empty map (a zero-id IN
+ * clause is invalid SQL). A user id with no `user` row is simply absent from the map (the caller
+ * degrades a missing identity to null, it does not throw).
+ *
+ * @param db   The open SQLite handle.
+ * @param ids  The user ids to resolve (de-duplication is the caller's concern; duplicates are harmless).
+ * @returns A Map keyed by user id → `{ name, email }` (each possibly null); ids with no row are absent.
+ */
+export function getUsersByIds(
+  db: Db,
+  ids: string[],
+): Map<string, { name: string | null; email: string | null }> {
+  const map = new Map<string, { name: string | null; email: string | null }>()
+  if (ids.length === 0) return map // a zero-id IN () is invalid SQL — short-circuit
+  const placeholders = ids.map(() => '?').join(', ')
+  const rows = db
+    .prepare(`SELECT id, name, email FROM user WHERE id IN (${placeholders})`)
+    .all(...ids) as Array<{ id: string; name: string | null; email: string | null }>
+  for (const r of rows) map.set(r.id, { name: r.name ?? null, email: r.email ?? null })
+  return map
+}
+
+/**
  * One row of the `invites` control table (P1.9): a single-use, expiring link that, when accepted by
  * a signed-in caller, binds {@link role} to that caller's membership of {@link accountId}.
  *
  * @property token         The opaque, unguessable invite secret — the link's `:token` segment AND
- *   the table's PRIMARY KEY. Treat it like a password: never log it.
+ *   the table's PRIMARY KEY. Treat it like a password: never log it, never return it on a read path.
+ * @property id            A NON-SECRET handle (P1.11), distinct from {@link token}. list/revoke key on
+ *   THIS, so the bearer `token` is write-once: minted + returned to the authorised creator and never
+ *   read back. Safe to surface on a read path (it grants nothing on its own).
  * @property accountId     The account a successful accept joins the caller to.
  * @property role          The {@link Role} the accept binds (see shared/domain/access for semantics).
  * @property preauthEmail  An OPTIONAL pre-authorised email. `null` in P1.9 (any signed-in caller may
@@ -197,6 +324,7 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
  */
 export interface Invite {
   token: string
+  id: string
   accountId: string
   role: Role
   preauthEmail: string | null
@@ -222,10 +350,11 @@ export function createInvite(db: Db, invite: Invite): void {
     )
   }
   db.prepare(
-    `INSERT INTO invites (token, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO invites (token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     invite.token,
+    invite.id,
     invite.accountId,
     invite.role,
     invite.preauthEmail,
@@ -233,6 +362,18 @@ export function createInvite(db: Db, invite: Invite): void {
     invite.usedAt,
     invite.createdAt,
   )
+}
+
+/**
+ * Mint a fresh NON-SECRET invite id (P1.11) — a `randomBytes`-based value DISTINCT from the bearer
+ * token. It need not be unguessable (it grants nothing on its own — list/revoke also key on
+ * `accountId`), but it must be collision-resistant so two invites of one account get distinct ids;
+ * 16 random bytes is ample. Kept SEPARATE from the token generator so the two are never confused.
+ *
+ * @returns A base64url-encoded random id for an invite row.
+ */
+export function newInviteId(): string {
+  return randomBytes(16).toString('base64url')
 }
 
 /**
@@ -246,11 +387,12 @@ export function createInvite(db: Db, invite: Invite): void {
 export function getInvite(db: Db, token: string): Invite | null {
   const row = db
     .prepare(
-      `SELECT token, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites WHERE token = ?`,
+      `SELECT token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites WHERE token = ?`,
     )
     .get(token) as
     | {
         token: string
+        id: string
         accountId: string
         role: string
         preauthEmail: string | null
@@ -271,6 +413,7 @@ export function getInvite(db: Db, token: string): Invite | null {
   }
   return {
     token: row.token,
+    id: row.id,
     accountId: row.accountId,
     role: row.role,
     // Coerce SQLite's nullable cols to a real `null` (node:sqlite yields null already, but pin the
@@ -362,4 +505,80 @@ export function looksLikeEmail(email: string): boolean {
  */
 export function markInviteUsed(db: Db, token: string, usedAt: string): void {
   db.prepare(`UPDATE invites SET usedAt = ? WHERE token = ? AND usedAt IS NULL`).run(usedAt, token)
+}
+
+/** One row of {@link listInvitesForAccount} — an account's outstanding-invite summary for the
+ *  member-management UI. DELIBERATELY has NO `token` field: the bearer token is a write-once secret
+ *  (returned to the creator at mint time and never again), so a read path must never carry it. The
+ *  non-secret {@link Invite.id} is what list/revoke key on. */
+export interface InviteSummary {
+  id: string
+  accountId: string
+  role: Role
+  preauthEmail: string | null
+  expiresAt: string
+  usedAt: string | null
+  createdAt: string
+}
+
+/**
+ * List an account's invites for the member-management UI (P1.11) — ordered newest-first by
+ * `createdAt`. CRITICAL: this NEVER selects or returns the `token` column. The token is a write-once
+ * bearer secret (handed to the creator at mint time and nowhere else); returning it on this read path
+ * would hand out live, role-bearing links to anyone who can list invites. list/revoke key on the
+ * non-secret `id` instead.
+ *
+ * LOUD role-integrity throw (mirrors the other control-table readers): a stored role that is not a
+ * known {@link Role} is corruption — fail rather than hand back a mistyped role.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose invites to list.
+ * @returns The account's invite summaries (NO token), newest first (possibly empty).
+ */
+export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[] {
+  const rows = db
+    .prepare(
+      // NOTE: token is intentionally ABSENT from this SELECT — it must never leave on a read path.
+      `SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites
+       WHERE accountId = ? ORDER BY createdAt DESC`,
+    )
+    .all(accountId) as Array<{
+    id: string
+    accountId: string
+    role: string
+    preauthEmail: string | null
+    expiresAt: string
+    usedAt: string | null
+    createdAt: string
+  }>
+  return rows.map((r) => {
+    if (!isKnownRole(r.role)) {
+      throw new Error(
+        `listInvitesForAccount: stored role ${JSON.stringify(r.role)} for invite ${r.id} is not a known role — control table corrupted.`,
+      )
+    }
+    return {
+      id: r.id,
+      accountId: r.accountId,
+      role: r.role,
+      preauthEmail: r.preauthEmail ?? null,
+      expiresAt: r.expiresAt,
+      usedAt: r.usedAt ?? null,
+      createdAt: r.createdAt,
+    }
+  })
+}
+
+/**
+ * Revoke (delete) one outstanding invite by its non-secret `id` — the member-management revoke write
+ * (P1.11). IDEMPOTENT: deleting an absent id is a no-op. The `accountId = ?` predicate is the
+ * CROSS-TENANT guard: a revoke can only ever delete an invite of the named account, so an admin of
+ * one account cannot revoke another account's invite even with its id.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account the invite must belong to (the cross-tenant guard).
+ * @param id         The non-secret invite id to revoke.
+ */
+export function revokeInvite(db: Db, accountId: string, id: string): void {
+  db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId)
 }

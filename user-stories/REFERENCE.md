@@ -277,8 +277,44 @@ opens the joined company). A **used** link shows *"This invite has already been 
 **expired** link shows *"This invite has expired."*; an **unknown** token shows *"Invite not
 found."* Invites are server-only: in local mode (no `VITE_CAPACITYLENS_API`) the page shows a
 short *"Invite links work only when CapacityLens is connected to a server."* note and makes no
-request. The link page is `src/components/invites/InviteAccept.tsx`; the create UI is a later
-phase (links are minted via the API for now). Spec `e2e/invite.auth.spec.ts`.
+request. The link page is `src/components/invites/InviteAccept.tsx`; the create UI is the Members
+section below. Spec `e2e/invite.auth.spec.ts`.
+
+**Settings → Members (Owner/Admin only; server + auth-on).** When the app runs in server mode
+(`VITE_CAPACITYLENS_API` set) against a server with auth ON, Settings gains a **Members** section
+(heading `Members`, `data-testid="members-section"`) — but ONLY for an Owner or Admin: the section
+self-gates by trying to read the member list and rendering **nothing** if the server replies 403
+(a Viewer/Editor/non-member), so it is invisible to anyone who can't manage members. In **auth off**
+(the default everywhere) or **local mode** the section is **absent**. It has three parts:
+- **Members list** — one row per member (`data-testid="member-row"`) showing name (email), role and
+  status; the caller's own row is marked **(you)**. Each manageable row carries a **role select**
+  (`data-testid="member-role-select"`) and a **Remove** button (`data-testid="member-remove"`).
+- **Invite form** — a **role** picker (`data-testid="invite-role"`) + an optional **pre-authorise
+  email** field (`data-testid="invite-preauth"`) and a **Create invite** button
+  (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
+  **once** (`data-testid="invite-link"`) with a **Copy** button — the token is write-once and never
+  shown again.
+- **Outstanding invites** — a row per invite (`data-testid="invite-row"`) with role / preauth-email
+  or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
+  carries the secret token.
+
+What's **hidden for an Admin vs an Owner**: an Admin never sees the **owner** option (not in the
+role-change select nor the invite-role picker), and an **owner row** shows no role control and no
+Remove for an Admin (an Admin can't touch an owner). The **sole owner** is protected — its role
+select is disabled and Remove is hidden (the account must keep at least one owner; *"Sole owner —
+protected"* is shown). The Owner sees every affordance. The server is the backstop for all of this:
+an Admin granting owner, touching an owner, or demoting/removing the last owner is **403** even if
+the UI is bypassed; revoking another account's invite is a no-op; reading another account's members
+is **403** (no cross-tenant leak).
+
+The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; OFF → `{members:[]}`),
+`PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role, 404 non-member, 403 by the
+role/last-owner rules), `DELETE /api/accounts/:accountId/members/:userId` (204; 403 owner/last-owner),
+`GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
+`DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe). Creating an
+**owner** invite via `POST /api/invites` requires the caller be an owner (admin → 403). The UI is
+`src/components/settings/MembersSection.tsx`; story `user-stories/settings/US-SET-10-member-management.md`;
+spec `e2e/members.auth.spec.ts`.
 
 **Demo sign-in (cosmetic; not real auth).** In the default (auth-off) deploy, a Google-style
 *"Choose an account"* screen (heading `Choose an account`; the **Jordan Avery** account row,

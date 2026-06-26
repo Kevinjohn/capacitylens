@@ -216,6 +216,7 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
     // Insert a born-expired invite directly (the body param refuses a past expiresAt, so seed it).
     createInvite(db, {
       token: 'expired-token-xyz',
+      id: 'expired-invite-id',
       accountId: 'a1',
       role: 'editor',
       preauthEmail: null,
@@ -459,6 +460,7 @@ describe('invites are excluded from the AppData path', () => {
     const app = buildApp(db)
     createInvite(db, {
       token: 'secret-invite-token',
+      id: 'secret-invite-id',
       accountId: 'acc-1',
       role: 'admin',
       preauthEmail: null,
