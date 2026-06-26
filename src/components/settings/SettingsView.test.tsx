@@ -257,34 +257,31 @@ describe('SettingsView — Clear local storage', () => {
   })
 })
 
-describe('SettingsView — Calendar section', () => {
-  it('renders the Calendar section with defaults (Monday, GMT)', () => {
+describe('SettingsView — Calendar section (frozen after creation, P1.14)', () => {
+  it('still shows the chosen week-start / timezone, plus a frozen Language row', () => {
     render(<SettingsView />)
     expect(screen.getByRole('radiogroup', { name: 'Week starts on' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: 'Sunday' })).toHaveAttribute('aria-checked', 'false')
-    const select = screen.getByLabelText('Timezone')
-    expect((select as HTMLSelectElement).value).toBe('Etc/GMT')
+    expect((screen.getByLabelText('Timezone') as HTMLSelectElement).value).toBe('Etc/GMT')
+    expect(screen.getByTestId('settings-language')).toHaveTextContent('English')
   })
 
-  it('clicking Sunday calls updateAccount with weekStartsOn: 0', async () => {
+  it('week-start and timezone controls are DISABLED (the freeze inverts the old editable contract)', () => {
+    render(<SettingsView />)
+    expect(screen.getByRole('radio', { name: 'Monday' })).toBeDisabled()
+    expect(screen.getByRole('radio', { name: 'Sunday' })).toBeDisabled()
+    expect(screen.getByLabelText('Timezone')).toBeDisabled()
+    // An explainer states why they can't change.
+    expect(screen.getByText(/Set when the company was created and can't be changed/i)).toBeInTheDocument()
+  })
+
+  it('clicking a disabled week-start segment does NOT mutate the account', async () => {
     const user = userEvent.setup()
     render(<SettingsView />)
     await user.click(screen.getByRole('radio', { name: 'Sunday' }))
     const id = useStore.getState().activeAccountId!
     const account = useStore.getState().data.accounts.find((a) => a.id === id)
-    expect(account?.weekStartsOn).toBe(0)
-    expect(screen.getByRole('radio', { name: 'Sunday' })).toHaveAttribute('aria-checked', 'true')
-    expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'false')
-  })
-
-  it('changing timezone persists the new value', async () => {
-    const user = userEvent.setup()
-    render(<SettingsView />)
-    const select = screen.getByLabelText('Timezone')
-    await user.selectOptions(select, 'Europe/London')
-    const id = useStore.getState().activeAccountId!
-    const account = useStore.getState().data.accounts.find((a) => a.id === id)
-    expect(account?.timezone).toBe('Europe/London')
+    // Default reads as 1 (Monday); the disabled click can't change it.
+    expect(account?.weekStartsOn ?? 1).toBe(1)
   })
 })

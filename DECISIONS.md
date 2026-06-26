@@ -112,6 +112,17 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   week boundaries — they drive the Today snap, header week blocks, lane dividers, and form
   date defaults via `todayISO(timeZone)` / `startOfWeekISO(date, weekStartsOn)`. The weekend
   TINT stays Sat/Sun regardless of week start.
+- **Calendar/locale are FROZEN after company creation (P1.14, owner).** `language` (new optional
+  Account field via the drift path — optional col auto-ALTER, default `'en'`, English-only until
+  P1.5.1 Paraglide), `weekStartsOn` and `timezone` are CAPTURED in the company-create form
+  (AccountPicker) with concrete defaults (never undefined — an unset frozen value can't be set later)
+  and **disabled** in Settings. The server is the boundary: `accountFieldsFrozen(existing, incoming)`
+  rejects a CHANGE (value !== stored, NOT mere presence — the sync adapter re-sends the whole row on
+  any edit) of any of the three, comparing the **PUT body / PATCH `req.body`** (NOT the merged row),
+  entity=`accounts` only. Per-route PUT/PATCH → **409**; the batch sync path → **400** (documented
+  asymmetry — the disabled UI never sends a changed frozen field). Creation (no existing row) and
+  `/api/orgs` (P1.8 insert-only) are EXEMPT. `name`/`disciplinesEnabled`/`schedulingMode`/colour/
+  placeholders/external stay MUTABLE.
 - **Disciplines are optional (account-level)** — `disciplinesEnabled` on the Account (absent =
   true; Settings → Disciplines). Off hides disciplines across the WHOLE UI (nav + `/disciplines`
   route guard, resource-form field, schedule grouping + filter, Resources list, command palette,

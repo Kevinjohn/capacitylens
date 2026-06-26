@@ -631,6 +631,79 @@ describe('scheduling-mode fields round-trip through the DB', () => {
   })
 })
 
+describe('account frozen fields (P1.14): language / weekStartsOn / timezone', () => {
+  // Seed an account carrying all three frozen fields (so a change is detectable).
+  const FROZEN = { weekStartsOn: 1 as const, timezone: 'Etc/GMT', language: 'en' }
+  async function seedFrozen(app: FastifyInstance) {
+    expect((await post(app, 'accounts', { ...account('a1'), ...FROZEN })).statusCode).toBe(201)
+  }
+
+  it('PATCH changing weekStartsOn → 409', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    const res = await patch(app, 'accounts', 'a1', { weekStartsOn: 0 })
+    expect(res.statusCode).toBe(409)
+    expect((await state(app)).accounts[0].weekStartsOn).toBe(1) // unchanged
+  })
+
+  it('PATCH changing timezone → 409', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    expect((await patch(app, 'accounts', 'a1', { timezone: 'Europe/London' })).statusCode).toBe(409)
+    expect((await state(app)).accounts[0].timezone).toBe('Etc/GMT')
+  })
+
+  it('PATCH changing language → 409', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    expect((await patch(app, 'accounts', 'a1', { language: 'fr' })).statusCode).toBe(409)
+    expect((await state(app)).accounts[0].language).toBe('en')
+  })
+
+  it('PUT resending the row with a CHANGED frozen field → 409', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    const res = await put(app, 'accounts', 'a1', { ...account('a1'), ...FROZEN, weekStartsOn: 0 })
+    expect(res.statusCode).toBe(409)
+    expect((await state(app)).accounts[0].weekStartsOn).toBe(1)
+  })
+
+  it('an UNCHANGED PUT of the frozen fields → 200 (change-not-presence)', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    // The sync adapter re-sends the WHOLE row on any edit (e.g. a rename) — an unchanged
+    // frozen value present in the body must PASS.
+    const res = await put(app, 'accounts', 'a1', { ...account('a1'), ...FROZEN, name: 'Renamed' })
+    expect(res.statusCode).toBe(200)
+    expect((await state(app)).accounts[0].name).toBe('Renamed')
+  })
+
+  it('an UNCHANGED PATCH of a frozen field → 200', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    expect((await patch(app, 'accounts', 'a1', { weekStartsOn: 1 })).statusCode).toBe(200)
+  })
+
+  it('PATCH name → 200; disciplinesEnabled → 200; schedulingMode → 200 (mutable regression)', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    expect((await patch(app, 'accounts', 'a1', { name: 'New Name' })).statusCode).toBe(200)
+    expect((await patch(app, 'accounts', 'a1', { disciplinesEnabled: true })).statusCode).toBe(200)
+    expect((await patch(app, 'accounts', 'a1', { schedulingMode: 'blocks' })).statusCode).toBe(200)
+  })
+
+  it('a batch PUT op changing a frozen field is rejected (400) and the row is unchanged', async () => {
+    const { app } = freshApp()
+    await seedFrozen(app)
+    // Documented asymmetry: the batch maps a ValidationError to 400 (vs the per-route 409).
+    const res = await batch(app, [
+      { method: 'PUT', table: 'accounts', id: 'a1', row: { ...account('a1'), ...FROZEN, timezone: 'Europe/London' } },
+    ])
+    expect(res.statusCode).toBe(400)
+    expect((await state(app)).accounts[0].timezone).toBe('Etc/GMT') // tx rolled back
+  })
+})
+
 describe('error status mapping (statusFor)', () => {
   it('maps validation + constraint errors to 400 and unexpected errors to 500', () => {
     expect(statusFor(new ValidationError('bad ref'))).toBe(400)

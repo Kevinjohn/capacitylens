@@ -4,11 +4,24 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
 import { validateHex, validateName } from '../../lib/validation'
-import { AddButton, Avatar, Button, ColorField, DeleteButton, FieldError, TextField } from '../common/ui'
+import { AddButton, Avatar, Button, ColorField, DeleteButton, FieldError, SegmentedControl, TextField } from '../common/ui'
+import { supportedTimeZones } from '../../lib/timezones'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { AccountSummary } from '../../store/useStore'
 import { APP_NAME } from '@capacitylens/shared/brand'
+
+// Onboarding capture (P1.14): the create-company form sets language, week-start and time zone —
+// the three fields the server FREEZES after creation (a later change → 409). They're captured here,
+// with concrete defaults (never undefined: an unset frozen value can't be set later), and disabled
+// in Settings. English-only until P1.5.1 (Paraglide), so Language is a fixed display, not a chooser.
+const WEEK_START_OPTIONS: { value: 0 | 1; label: string }[] = [
+  { value: 1, label: 'Monday' },
+  { value: 0, label: 'Sunday' },
+]
+const DEFAULT_WEEK_STARTS_ON = 1 as const
+const DEFAULT_TIMEZONE = 'Etc/GMT'
+const DEFAULT_LANGUAGE = 'en'
 
 // Full-screen tenant chooser. Shown on every load (activeAccountId is never
 // persisted) and whenever the user picks "Switch company". Lets you open an
@@ -33,13 +46,19 @@ export function AccountPicker() {
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(DEFAULT_COLORS.account)
+  // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
+  const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON)
+  const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE)
   const { error, errorField, errorId, fail } = useFieldError()
   const [confirming, setConfirming] = useState<AccountSummary | null>(null)
+  const tzOptions = supportedTimeZones()
 
   const resetForm = () => {
     setCreating(false)
     setName('')
     setColor(DEFAULT_COLORS.account)
+    setWeekStartsOn(DEFAULT_WEEK_STARTS_ON)
+    setTimezone(DEFAULT_TIMEZONE)
   }
 
   const submit = () => {
@@ -48,8 +67,10 @@ export function AccountPicker() {
     if (!validateHex(color, fail)) return
     // Surface a store-side rejection as a form error rather than an uncaught React error. (addAccount
     // is the one CRUD action that works with no active account — bootstrapping the first tenant.)
+    // Pass the three frozen fields as CONCRETE values (never undefined): the server freezes them after
+    // creation, so an unset value here could never be set later — stranding the user (P1.14, TRAP 4).
     try {
-      const account = addAccount({ name: trimmed, color })
+      const account = addAccount({ name: trimmed, color, weekStartsOn, timezone, language: DEFAULT_LANGUAGE })
       resetForm()
       setActiveAccount(account.id)
     } catch (e) {
@@ -128,6 +149,38 @@ export function AccountPicker() {
               describedById={errorId}
             />
             <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+            {/* The three calendar/locale facts captured at creation and FROZEN afterwards (P1.14). */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-ink">Week starts on</p>
+              <SegmentedControl
+                ariaLabel="Week starts on"
+                value={weekStartsOn}
+                onChange={setWeekStartsOn}
+                options={WEEK_START_OPTIONS}
+              />
+            </div>
+            <div>
+              <label htmlFor="create-timezone-select" className="mb-1.5 block text-xs font-medium text-ink">
+                Timezone
+              </label>
+              <select
+                id="create-timezone-select"
+                value={timezone}
+                onChange={(e) => setTimezone(e.target.value)}
+                className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
+              >
+                {tzOptions.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz === 'Etc/GMT' ? 'GMT' : tz}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}
+              <p className="mb-1.5 text-xs font-medium text-ink">Language</p>
+              <p className="text-sm text-muted" data-testid="create-language">English</p>
+            </div>
             <FieldError id={errorId}>{error}</FieldError>
             <div className="flex items-center justify-end gap-2">
               <Button variant="ghost" onClick={resetForm}>

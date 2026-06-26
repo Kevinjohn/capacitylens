@@ -152,4 +152,14 @@ describe('sanitizeAccount', () => {
     expect(sanitizeAccount({ externalEnabled: false }).externalEnabled).toBe(false)
     expect(sanitizeAccount({ externalEnabled: true }).externalEnabled).toBe(true)
   })
+
+  it('drops a language that is not the supported value (English-only until P1.5.1)', () => {
+    expect(sanitizeAccount({ language: 'fr' }).language).toBeUndefined()
+    expect(sanitizeAccount({ language: 123 }).language).toBeUndefined()
+    expect(sanitizeAccount({ language: null }).language).toBeUndefined()
+  })
+
+  it("keeps language === 'en'", () => {
+    expect(sanitizeAccount({ language: 'en' }).language).toBe('en')
+  })
 })

@@ -28,7 +28,12 @@ If the app changes, update this file first, then the affected stories.
 4. Then the **company picker** (you choose a tenant on every load — `activeAccountId` is never
    persisted). Pick **Studio North** to see the seeded data these stories describe. (A second
    seeded company, *Loft Digital*, is near-empty.) While "signed in", the picker shows
-   *"Signed in as Jordan Avery"* with a **Sign out** link.
+   *"Signed in as Jordan Avery"* with a **Sign out** link. **`New company`** opens an inline
+   create form (P1.14) that captures, besides name + colour, the three **frozen-after-creation**
+   fields: **Week starts on** (segmented Monday/Sunday, default Monday), **Timezone** (select,
+   default `GMT`), and **Language** (read-only **English** — `data-testid="create-language"`;
+   English-only until Paraglide). These three are set ONCE here and are then **disabled** in
+   Settings; the server rejects a later change with **409**.
 5. Then a one-time **"What CapacityLens is" intro page** (heading `Welcome to CapacityLens`) — a minimal
    post-login explainer that CapacityLens is a resourcing tool, not a project-management tool. Click
    **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
@@ -203,6 +208,15 @@ a Tue/Wed settles back to that week's Monday. It floors (never forward): forward
 via Prev/Next. Off → free scrolling is unconstrained and a nudge sticks on the mid-week day. This
 governs **free scroll only** — the always-on **navigation** snap (zoom / Prev-Next / date-picker,
 see *Scheduler toolbar* above) re-anchors to the week start regardless of this switch.
+
+**Calendar (per-account, FROZEN after creation — P1.14).** Settings → **Calendar** shows the
+account's **Week starts on** (segmented Monday/Sunday, default Monday), **Timezone** (select,
+default `GMT`), and a read-only **Language** row (`data-testid="settings-language"`, **English**).
+All three are **disabled** here — they are captured ONCE in the company-create form (see *Launching
+the app* above) and are then **frozen**: the section carries the explainer *"Set when the company
+was created and can't be changed."*, and the server rejects a direct change to any of the three
+(`language`/`weekStartsOn`/`timezone`) with **409**. Company **name** and **disciplines** remain
+editable. (English-only until Paraglide; the value persists as `'en'` on the Account.)
 
 **Placeholders (per-account, default OFF).** Settings → **Placeholders** has a single switch
 **Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
@@ -395,6 +409,8 @@ Mouse hover sets the active option; mouse click selects.
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
+`create-language` (company-create form's read-only Language row — **English**), `settings-language`
+(Settings → Calendar's read-only Language row — **English**; both frozen, P1.14),
 `clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy; absent in the default OFF/local deploy and for any non-viewer role),

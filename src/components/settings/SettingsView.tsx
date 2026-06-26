@@ -9,6 +9,7 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
 import { MembersSection } from './MembersSection'
+import { supportedTimeZones } from '../../lib/timezones'
 import { cn } from '@/lib/utils'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import type { ThemePref } from '../../lib/theme'
@@ -19,17 +20,6 @@ const WEEK_START_OPTIONS: { value: 0 | 1; label: string }[] = [
   { value: 1, label: 'Monday' },
   { value: 0, label: 'Sunday' },
 ]
-
-function supportedTimeZones(): string[] {
-  try {
-    const zones = Intl.supportedValuesOf('timeZone') as string[]
-    if (!zones.includes('Etc/GMT')) return ['Etc/GMT', ...zones]
-    return zones
-  } catch {
-    // Fallback for older engines
-    return ['Etc/GMT', 'UTC', 'Europe/London', 'Europe/Paris', 'America/New_York', 'America/Los_Angeles', 'Asia/Tokyo', 'Australia/Sydney']
-  }
-}
 
 const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -207,9 +197,13 @@ export function SettingsView() {
 
         <section className="rounded border border-line bg-surface p-4">
           <h2 className="mb-1 text-sm font-semibold text-ink">Calendar</h2>
-          <p className="mb-3 text-xs text-muted">
+          <p className="mb-1 text-xs text-muted">
             Applies to the whole team — sets which day starts the week and the time zone used to determine "today".
           </p>
+          {/* P1.14: language/week-start/time zone are captured when the company is created and FROZEN
+              thereafter (the server returns 409 on a change). Disabled here, not removed, so the
+              chosen values stay visible. */}
+          <p className="mb-3 text-xs text-muted">Set when the company was created and can't be changed.</p>
           <div className="space-y-3">
             <div>
               <p className="mb-1.5 text-xs font-medium text-ink">Week starts on</p>
@@ -218,6 +212,7 @@ export function SettingsView() {
                 value={weekStartsOn}
                 onChange={(value) => updateAccount(activeAccount.id, { weekStartsOn: value })}
                 options={WEEK_START_OPTIONS}
+                disabled
               />
             </div>
             <div>
@@ -227,8 +222,9 @@ export function SettingsView() {
               <select
                 id="timezone-select"
                 value={timezone}
+                disabled
                 onChange={(e) => updateAccount(activeAccount.id, { timezone: e.target.value })}
-                className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
+                className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink disabled:cursor-not-allowed disabled:text-muted"
               >
                 {tzOptions.map((tz) => (
                   <option key={tz} value={tz}>
@@ -236,6 +232,12 @@ export function SettingsView() {
                   </option>
                 ))}
               </select>
+            </div>
+            <div>
+              {/* Language is English-only until P1.5.1 (Paraglide); a read-only row, frozen like the
+                  two above. Shown so the company's chosen language is visible even though it can't change. */}
+              <p className="mb-1.5 text-xs font-medium text-ink">Language</p>
+              <p className="text-sm text-muted" data-testid="settings-language">English</p>
             </div>
           </div>
         </section>

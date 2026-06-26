@@ -56,6 +56,9 @@ export interface Account extends Entity {
   timezone?: string
   /** Which weekday starts the week: 0 = Sunday, 1 = Monday. Absent = 1. */
   weekStartsOn?: 0 | 1
+  /** UI language for this company. Absent = 'en'. English-only until P1.5.1 (Paraglide).
+   *  Frozen after creation — see P1.14. */
+  language?: string
   /** Whether this company uses disciplines. Absent = true (the original behaviour).
    *  When false, disciplines are hidden across the whole UI (nav, resource form,
    *  schedule grouping + filter, lists, command palette) — the data is preserved. */
