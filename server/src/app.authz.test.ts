@@ -1,0 +1,360 @@
+import { describe, it, expect } from 'vitest'
+import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import { buildApp } from './app'
+import { openDb, insertAll, type Db } from './db'
+import { upsertMember } from './controlTables'
+import { authFromEnv, runAuthMigrations } from './auth'
+import { can, type Role } from '@capacitylens/shared/domain/access'
+import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
+
+// P1.5 requirePermission — the auth-on 403 matrix for the authorize() route gate, plus the #1
+// invariant that OFF mode stays allow-all/no-op (cross-account ids included). The gate maps each
+// protected route onto a pure can(role, action) decision against the caller's membership role; this
+// suite drives those routes end-to-end (sign-up → membership → request) and asserts the resulting
+// 2xx/403, NOT the matrix in isolation (access.test.ts owns the matrix unit).
+
+const TS = '2026-01-01T00:00:00.000Z'
+const meta = () => ({ createdAt: TS, updatedAt: TS })
+
+const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
+const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
+const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
+
+/** Two accounts a1/a2, each with a client + project, seeded directly via insertAll (parent-first). */
+function seedTwo(db: Db): void {
+  const d = emptyAppData() as unknown as Record<string, unknown[]>
+  d.accounts = [account('a1'), account('a2')]
+  d.clients = [client('c1', 'a1'), client('c2', 'a2')]
+  d.projects = [project('p1', 'a1', 'c1'), project('p2', 'a2', 'c2')]
+  insertAll(db, d as unknown as AppData)
+}
+
+const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
+  app.inject(opts) as unknown as Promise<LightMyRequestResponse>
+
+/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
+function cookiesOf(res: LightMyRequestResponse): string {
+  const raw = res.headers['set-cookie']
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : []
+  return list.map((c) => String(c).split(';')[0]).join('; ')
+}
+
+const PASSWORD_ENV = {
+  CAPACITYLENS_AUTH: 'password',
+  BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
+  BETTER_AUTH_URL: 'http://localhost:8787',
+}
+
+/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
+async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
+  const db = openDb(':memory:')
+  const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
+  await runAuthMigrations(auth!)
+  return { app: buildApp(db, { authMode: mode, auth }), db }
+}
+
+/** Sign up a user, returning its session cookie + the resolved user id (from /api/auth/me). */
+async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
+  const res = await call(app, {
+    method: 'POST',
+    url: '/api/auth/sign-up/email',
+    payload: { email, password: 'password-123', name: 'Tester' },
+  })
+  expect(res.statusCode).toBe(200)
+  const cookie = cookiesOf(res)
+  const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
+  expect(me.statusCode).toBe(200)
+  return { cookie, userId: me.json().user.id as string }
+}
+
+// ---- Per-verb requests against a1's seeded rows (cookie carries the session in auth-on). ----
+// Each returns the status of ONE write/read so a test can assert allow (2xx) vs deny (403).
+
+const getState = (app: FastifyInstance, accountId: string, cookie?: string) =>
+  call(app, { method: 'GET', url: `/api/state?accountId=${accountId}`, headers: cookie ? { cookie } : {} })
+
+/** POST a NEW client into `accountId`. */
+const postClient = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+  call(app, { method: 'POST', url: '/api/clients', payload: client(id, accountId), headers: cookie ? { cookie } : {} })
+
+/** PUT (upsert) a client by id into `accountId`. */
+const putClient = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+  call(app, { method: 'PUT', url: `/api/clients/${id}`, payload: client(id, accountId), headers: cookie ? { cookie } : {} })
+
+/** PATCH the seeded client c1/c2 (no accountId in the body — it merges from the stored row). */
+const patchClient = (app: FastifyInstance, id: string, cookie?: string) =>
+  call(app, { method: 'PATCH', url: `/api/clients/${id}`, payload: { name: 'Renamed' }, headers: cookie ? { cookie } : {} })
+
+/** DELETE the seeded project p1/p2 (scoped delete needs ?accountId=). */
+const deleteProject = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+  call(app, { method: 'DELETE', url: `/api/projects/${id}?accountId=${accountId}`, headers: cookie ? { cookie } : {} })
+
+/** A batch that upserts a NEW client into `accountId`. */
+const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
+  call(app, {
+    method: 'POST',
+    url: '/api/batch',
+    payload: { ops: [{ method: 'PUT', table: 'clients', id, row: client(id, accountId) }] },
+    headers: cookie ? { cookie } : {},
+  })
+
+/** Import a single-client slice into `accountId`. */
+const importInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) => {
+  const data = { ...emptyAppData(), clients: [client(id, accountId)] }
+  return call(app, { method: 'POST', url: '/api/import', payload: { accountId, data }, headers: cookie ? { cookie } : {} })
+}
+
+describe('P1.5 authorize — auth-on 403 matrix', () => {
+  it('non-member (signed in, no membership): every scoped read/write to a1 → 403', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie } = await signUp(app, 'stranger@capacitylens.dev') // NO membership upserted
+
+    expect((await getState(app, 'a1', cookie)).statusCode).toBe(403)
+    expect((await postClient(app, 'a1', 'nc1', cookie)).statusCode).toBe(403)
+    expect((await putClient(app, 'a1', 'nc2', cookie)).statusCode).toBe(403)
+    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(403)
+    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(403)
+    expect((await batchInto(app, 'a1', 'nc3', cookie)).statusCode).toBe(403)
+    expect((await importInto(app, 'a1', 'nc4', cookie)).statusCode).toBe(403)
+  })
+
+  it('cross-account: a member of a1 only → any read/write targeting a2 → 403', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, 'a1member@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+
+    expect((await getState(app, 'a2', cookie)).statusCode).toBe(403)
+    expect((await postClient(app, 'a2', 'x1', cookie)).statusCode).toBe(403)
+    expect((await putClient(app, 'a2', 'x2', cookie)).statusCode).toBe(403)
+    expect((await patchClient(app, 'c2', cookie)).statusCode).toBe(403) // c2 belongs to a2
+    expect((await deleteProject(app, 'a2', 'p2', cookie)).statusCode).toBe(403)
+    expect((await batchInto(app, 'a2', 'x3', cookie)).statusCode).toBe(403)
+    expect((await importInto(app, 'a2', 'x4', cookie)).statusCode).toBe(403)
+  })
+
+  it('cross-account batch (one a1 op + one a2 op) → 403 AND the a1 op is NOT applied', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, 'mixed@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: {
+        ops: [
+          { method: 'PUT', table: 'clients', id: 'mixA', row: client('mixA', 'a1') }, // allowed alone
+          { method: 'PUT', table: 'clients', id: 'mixB', row: client('mixB', 'a2') }, // denied → rejects WHOLE
+        ],
+      },
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(403)
+
+    // Pre-scan rejected the batch before the tx opened, so the a1 op left NO trace. Read a1 as a
+    // member and confirm only the originally-seeded client c1 exists.
+    const a1 = await getState(app, 'a1', cookie)
+    expect(a1.statusCode).toBe(200)
+    expect(a1.json().clients.map((c: { id: string }) => c.id).sort()).toEqual(['c1'])
+  })
+
+  it('viewer of a1: read → 200; any write to a1 → 403', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, 'viewer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'viewer', status: 'active', createdAt: TS })
+
+    expect((await getState(app, 'a1', cookie)).statusCode).toBe(200)
+    expect((await postClient(app, 'a1', 'vc1', cookie)).statusCode).toBe(403)
+    expect((await putClient(app, 'a1', 'vc2', cookie)).statusCode).toBe(403)
+    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(403)
+    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(403)
+    expect((await batchInto(app, 'a1', 'vc3', cookie)).statusCode).toBe(403)
+    expect((await importInto(app, 'a1', 'vc4', cookie)).statusCode).toBe(403)
+  })
+
+  it('editor of a1: read → 200; every write to a1 → 2xx', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, 'editor@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+
+    expect((await getState(app, 'a1', cookie)).statusCode).toBe(200)
+    expect((await postClient(app, 'a1', 'ec1', cookie)).statusCode).toBe(201)
+    expect((await putClient(app, 'a1', 'ec2', cookie)).statusCode).toBe(200)
+    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(200)
+    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(204)
+    expect((await batchInto(app, 'a1', 'ec3', cookie)).statusCode).toBe(200)
+    expect((await importInto(app, 'a1', 'ec4', cookie)).statusCode).toBe(200)
+  })
+
+  it.each(['admin', 'owner'] as const)('%s of a1: writes to a1 → 2xx (tier ≥ editor)', async (role) => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, `${role}@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+
+    expect((await getState(app, 'a1', cookie)).statusCode).toBe(200)
+    expect((await postClient(app, 'a1', `${role}-c1`, cookie)).statusCode).toBe(201)
+    expect((await putClient(app, 'a1', `${role}-c2`, cookie)).statusCode).toBe(200)
+    expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(200)
+    expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(204)
+    expect((await batchInto(app, 'a1', `${role}-c3`, cookie)).statusCode).toBe(200)
+    expect((await importInto(app, 'a1', `${role}-c4`, cookie)).statusCode).toBe(200)
+  })
+
+  it('account-lifecycle exemption: a signed-in user with NO membership can POST /api/accounts → 201', async () => {
+    const { app } = await appWithAuth()
+    const { cookie } = await signUp(app, 'onboarding@capacitylens.dev') // no membership → no account yet
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/accounts',
+      payload: account('newAcct'),
+      headers: { cookie },
+    })
+    // 201: account creation is NOT gated (there is no createAccount Action) so a fresh user can
+    // bootstrap their first company — see the P1.5 account-lifecycle deferral in app.ts.
+    expect(res.statusCode).toBe(201)
+  })
+})
+
+describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vectors gated', () => {
+  // Account hard-delete CASCADES (FK ON DELETE CASCADE wipes all the account's scoped data), so in
+  // auth-on it must NOT be reachable by an arbitrary signed-in user. Two vectors: the direct
+  // DELETE /api/accounts/:id route, and a POST /api/batch op {method:'DELETE',table:'accounts',id}
+  // (the client's real delete-company path). Both gate 'purge' (admin+) against the account's OWN id.
+
+  const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+    call(app, { method: 'DELETE', url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} })
+
+  const batchDeleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+    call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: { ops: [{ method: 'DELETE', table: 'accounts', id }] },
+      headers: cookie ? { cookie } : {},
+    })
+
+  /** Does the accounts row still exist? Read it back via a member with read access (resolveRole). */
+  const accountExists = async (app: FastifyInstance, id: string, cookie: string): Promise<boolean> => {
+    const res = await getState(app, id, cookie)
+    return res.statusCode === 200 && Array.isArray(res.json().accounts) && res.json().accounts.length === 1
+  }
+
+  it('non-member: direct DELETE /api/accounts/a1 → 403, and batch accounts-DELETE → 403; a1 survives', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie } = await signUp(app, 'stranger-del@capacitylens.dev') // NO membership
+    // A separate ADMIN of a1 so we can read a1 back afterwards (the stranger can't read it).
+    const admin = await signUp(app, 'a1admin-witness@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: admin.userId, role: 'admin', status: 'active', createdAt: TS })
+
+    expect((await deleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
+
+    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    // Pre-scan rejected the batch before the tx opened — a1 left wholly intact.
+    expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
+  })
+
+  it.each(['viewer', 'editor'] as const)('%s of a1: DELETE /api/accounts/a1 → 403 (purge is admin+)', async (role) => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, `${role}-del@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+    // A read-witness admin so the survival read-back can resolve a role for a1.
+    const admin = await signUp(app, `${role}-del-witness@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId: admin.userId, role: 'admin', status: 'active', createdAt: TS })
+
+    expect((await deleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
+  })
+
+  it.each(['admin', 'owner'] as const)('%s of an account: DELETE /api/accounts/:id → 2xx (account gone)', async (role) => {
+    // Fresh account per success case so we never delete an account other assertions rely on.
+    const { app, db } = await appWithAuth()
+    insertAll(db, { ...emptyAppData(), accounts: [account('purgeMe')] } as unknown as AppData)
+    const { cookie, userId } = await signUp(app, `${role}-purge@capacitylens.dev`)
+    upsertMember(db, { accountId: 'purgeMe', userId, role, status: 'active', createdAt: TS })
+
+    const res = await deleteAccount(app, 'purgeMe', cookie)
+    expect(res.statusCode).toBe(204)
+    // The membership row is still present, so a read resolves a role but the account is gone → empty.
+    const after = await getState(app, 'purgeMe', cookie)
+    expect(after.statusCode).toBe(200)
+    expect(after.json().accounts).toEqual([])
+  })
+
+  it('admin of an account: batch accounts-DELETE op → 2xx (account gone)', async () => {
+    const { app, db } = await appWithAuth()
+    insertAll(db, { ...emptyAppData(), accounts: [account('purgeBatch')] } as unknown as AppData)
+    const { cookie, userId } = await signUp(app, 'admin-purge-batch@capacitylens.dev')
+    upsertMember(db, { accountId: 'purgeBatch', userId, role: 'admin', status: 'active', createdAt: TS })
+
+    const res = await batchDeleteAccount(app, 'purgeBatch', cookie)
+    expect(res.statusCode).toBe(200)
+    const after = await getState(app, 'purgeBatch', cookie)
+    expect(after.json().accounts).toEqual([])
+  })
+})
+
+describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)', () => {
+  // No authMode ⇒ OFF (trusted-local). Every read/write succeeds, INCLUDING cross-account ids —
+  // authorize() short-circuits to true on its first line, so resolveRole/can never run.
+  function offApp(): FastifyInstance {
+    const db = openDb(':memory:')
+    const app = buildApp(db, { allowReset: true })
+    seedTwo(db)
+    return app
+  }
+
+  it('reads any account (no cookie) → 200', async () => {
+    const app = offApp()
+    expect((await getState(app, 'a1')).statusCode).toBe(200)
+    expect((await getState(app, 'a2')).statusCode).toBe(200)
+  })
+
+  it('every write (incl. cross-account ids) succeeds with NO membership and NO session', async () => {
+    const app = offApp()
+    expect((await postClient(app, 'a1', 'off1')).statusCode).toBe(201)
+    expect((await postClient(app, 'a2', 'off2')).statusCode).toBe(201)
+    expect((await putClient(app, 'a2', 'off3')).statusCode).toBe(200)
+    expect((await patchClient(app, 'c2')).statusCode).toBe(200)
+    expect((await deleteProject(app, 'a2', 'p2')).statusCode).toBe(204)
+    expect((await batchInto(app, 'a2', 'off4')).statusCode).toBe(200)
+    expect((await importInto(app, 'a2', 'off5')).statusCode).toBe(200)
+  })
+
+  it('account hard-delete still works (no-op gate): direct DELETE + batch accounts-DELETE → 2xx', async () => {
+    // Pins the default deploy can still delete companies — the 'purge' gate short-circuits to allow
+    // in OFF, so neither vector is blocked by the new auth-on guard.
+    const app = offApp()
+    // Direct route: DELETE /api/accounts/a1 (no cookie, no membership) → 204.
+    const direct = await call(app, { method: 'DELETE', url: '/api/accounts/a1' })
+    expect(direct.statusCode).toBe(204)
+    // Batch op: {method:'DELETE',table:'accounts',id:'a2'} → 200.
+    const batch = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: { ops: [{ method: 'DELETE', table: 'accounts', id: 'a2' }] },
+    })
+    expect(batch.statusCode).toBe(200)
+  })
+})
+
+describe('P1.5 access matrix sanity (pure can()) — companion to access.test.ts', () => {
+  // The route gate above proves read/write tiers end-to-end; the manage*/purge/transferOwnership
+  // actions have no routes yet (matrix-only), so pin them directly here against the pure authority.
+  it('editor cannot manageMembers; admin can manageMembers but not transferOwnership; owner can transfer', () => {
+    const editor: Role = 'editor'
+    const admin: Role = 'admin'
+    const owner: Role = 'owner'
+    expect(can(editor, 'manageMembers')).toBe(false)
+    expect(can(admin, 'manageMembers')).toBe(true)
+    expect(can(admin, 'transferOwnership')).toBe(false)
+    expect(can(owner, 'transferOwnership')).toBe(true)
+  })
+})

@@ -32,6 +32,7 @@ import {
 } from './db'
 import { sqliteTenantStore } from './tenantStore'
 import { listAccounts, resolveRole } from './membership'
+import { can, type Action } from '@capacitylens/shared/domain/access'
 import { tx } from './txn'
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
@@ -349,6 +350,48 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // inside tenantStore.ts with no route change. See tenantStore.ts for the no-cross-tenant contract.
   const store = sqliteTenantStore(db)
 
+  /**
+   * The authorization seam (P1.5 requirePermission): "may THIS request perform `action` on
+   * `accountId`?". Returns `true` to proceed; otherwise it has already sent a 403 and returns
+   * `false`, so a caller guards with `if (!authorize(...)) return`.
+   *
+   * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns `true` on the FIRST line,
+   * BEFORE any membership read — `req.user` is the synthetic DEMO_USER and `resolveRole`/`can` never
+   * run. This pins the #1 invariant (OFF = exactly today's behaviour). Auth-on resolves the caller's
+   * membership role for `accountId` and runs the pure `can(role, action)` matrix:
+   *   - non-member (`resolveRole === null`) → 403,
+   *   - member but insufficient tier (`can === false`) → 403,
+   *   - otherwise allowed.
+   *
+   * No 401/503 here: the requireUser preHandler already 401'd a session-less request (and 503'd an
+   * auth-backend failure) upstream, so by the time a handler runs in auth-on, `req.user` is a real
+   * verified session user. The 403 uses the repo's standard `{ error }` JSON shape.
+   *
+   * @param req        The (already-authenticated in auth-on) request; `req.user` is the principal.
+   * @param reply      The reply, used to send the 403 on denial.
+   * @param accountId  The account the action targets (each route derives this as it does today).
+   * @param action     The coarse capability being attempted (see {@link Action}).
+   * @returns `true` if allowed; `false` after sending a 403 if denied.
+   */
+  function authorize(
+    req: FastifyRequest,
+    reply: FastifyReply,
+    accountId: string,
+    action: Action,
+  ): boolean {
+    if (authMode === 'off') return true // OFF = allow-all; resolveRole/can NEVER run.
+    const role = resolveRole(db, req.user!, accountId)
+    if (role === null) {
+      reply.code(403).send({ error: 'Forbidden.' }) // not a member of this account
+      return false
+    }
+    if (!can(role, action)) {
+      reply.code(403).send({ error: 'Forbidden.' }) // member, but role tier too low for action
+      return false
+    }
+    return true
+  }
+
   // No app-level auth in this phase. CORS is the only cross-origin gate, so the
   // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
   // answered here. This hook MUST live on the ROOT instance, not in the routes child
@@ -470,11 +513,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (typeof accountId !== 'string' || accountId.length === 0) {
           return reply.code(400).send({ error: 'accountId must be a non-empty string.' })
         }
-        // Auth-on only: refuse a cross-tenant read before any data leaves the DB. OFF mode skips
-        // this entirely (trusted-local, all accounts accessible). resolveRole === null = not a member.
-        if (authMode !== 'off' && resolveRole(db, req.user!, accountId) === null) {
-          return reply.code(403).send({ error: 'You do not have access to that company.' })
-        }
+        // Refuse a cross-tenant read before any data leaves the DB. The authorize seam is the
+        // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
+        // requires membership (read = any member, via can()) and 403s a non-member.
+        if (!authorize(req, reply, accountId, 'read')) return
         return store.readSlice(accountId)
       }
       // No ?accountId=. Legacy whole read, retained for the OFF client AND the not-yet-migrated
@@ -503,6 +545,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.post('/api/:entity', (req, reply) => {
       const { entity } = req.params as { entity: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is DELIBERATELY NOT gated:
+      // a freshly-signed-up auth-on user holds no membership yet and must be able to create their
+      // first account (onboarding); there is no `createAccount` Action to require. This open create
+      // does NOT extend to DELETE — account hard-delete CASCADES (total tenant destruction) and IS
+      // now gated 'purge' (admin+) on BOTH vectors: the direct DELETE /api/accounts/:id route AND the
+      // batch accounts-DELETE op (see both below). The full archive→soft-delete→purge account
+      // lifecycle is P2.5/P2.6; this delete gate is the interim guard. (Batch PUT on accounts =
+      // create/update stays open for the same onboarding reason as this POST.)
+      if (isScopedTable(entity)) {
+        const body = req.body as { accountId?: string }
+        if (!authorize(req, reply, body.accountId!, 'write')) return
+      }
       try {
         const row = sanitizeWrite(entity, req.body as Record<string, unknown>)
         validateWrite(loadState(db), entity, row)
@@ -521,6 +575,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
       const body = req.body as Record<string, unknown>
       if (body?.id !== id) return reply.code(400).send({ error: 'Body id must match the URL id.' })
+      // P1.5 write gate (scoped tables): membership + write tier for the body's accountId. The
+      // ownsRow immutability guard below still runs — authorize gates WHO may write, ownsRow keeps
+      // accountId immutable.
+      if (isScopedTable(entity) && !authorize(req, reply, body.accountId as string, 'write')) return
       try {
         const existing = getRow(db, entity, id)
         // accountId is immutable: a write must not move an EXISTING row to another account
@@ -558,6 +616,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const existing = getRow(db, entity, id)
         if (!existing) return reply.code(404).send({ error: 'Not found' })
         const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id })
+        // P1.5 write gate (scoped tables): membership + write tier for the MERGED row's accountId
+        // (the merge inherits the stored accountId unless the body overrides it — and an override is
+        // then refused by the ownsRow immutability guard just below). After the 404 so a missing row
+        // is a 404, not a 403.
+        if (isScopedTable(entity) && !authorize(req, reply, merged.accountId as string, 'write')) return
         // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
         if (!ownsRow(existing, merged.accountId)) {
           return reply.code(409).send({ error: 'That record belongs to a different company.' })
@@ -587,6 +650,20 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (!ownsRow(getRow(db, entity, id), accountId)) {
             return reply.code(404).send({ error: 'Not found' })
           }
+          // P1.5 write gate: membership + write tier for the owning account. After the 400/404
+          // ownership checks (a missing/cross-account row stays a 404; a real owned row that the
+          // caller lacks write access to is the 403).
+          if (!authorize(req, reply, accountId, 'write')) return
+        } else if (entity === 'accounts') {
+          // P1.5 account hard-delete gate. The account-lifecycle CREATE exemption (a new auth-on user
+          // must mint their first account before any membership exists) does NOT extend to DELETE:
+          // dropping an `accounts` row CASCADES (FK ON DELETE CASCADE) and wipes ALL the account's
+          // scoped data — total tenant destruction. So a direct accounts-DELETE is gated 'purge'
+          // (admin+, per the Decisions "purge = hard-delete, admin-only") against the caller's role
+          // for THAT account — the account's own id IS the accountId to resolve the role against.
+          // INTERIM gate pending P2's account-lifecycle rework (archive→soft-delete→purge); OFF mode
+          // short-circuits to allow so the default deploy can still delete companies.
+          if (!authorize(req, reply, id, 'purge')) return
         }
         deleteRow(db, entity, id) // idempotent
         return reply.code(204).send()
@@ -610,6 +687,25 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply.code(400).send({ error: 'ops array is required' })
       }
       const ops = body.ops as BatchOp[]
+      // P1.5 write gate — PRE-SCAN before the tx opens so the batch is rejected WHOLE (one 403, no
+      // partial write) if ANY op targets an account the caller may not write. A scoped PUT derives
+      // its accountId from op.row.accountId, a scoped DELETE from op.accountId. The unscoped
+      // `accounts` table is the SECOND attack vector for tenant destruction: a batch DELETE on
+      // `accounts` is the client's real delete-company path, and it CASCADES (wipes all the account's
+      // scoped data), so it is gated 'purge' (admin+) against the account's own id BEFORE the
+      // non-scoped skip — the same gate as the direct DELETE /api/accounts/:id route. An accounts
+      // PUT (create/update) stays OPEN (onboarding: a membership-less new user mints their first
+      // account) and falls through to the skip. In OFF mode authorize short-circuits true, so the
+      // whole loop is a no-op pass (the default deploy can still delete companies via batch).
+      for (const op of ops) {
+        if (op?.table === 'accounts' && op.method === 'DELETE') {
+          if (!authorize(req, reply, op.id, 'purge')) return
+          continue
+        }
+        if (typeof op?.table !== 'string' || !isKnownTable(op.table) || !isScopedTable(op.table)) continue
+        const accountId = op.method === 'PUT' ? (op.row as { accountId?: string } | undefined)?.accountId : op.accountId
+        if (!authorize(req, reply, accountId as string, 'write')) return
+      }
       try {
         tx(db, () => {
           for (const op of ops) {
@@ -662,6 +758,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!body || typeof body.accountId !== 'string') {
         return reply.code(400).send({ error: 'accountId is required' })
       }
+      // P1.5 write gate: import replaces an entire account slice (replaceAccountSlice), so it is a
+      // privileged write — require membership + write tier for the target account before parsing.
+      if (!authorize(req, reply, body.accountId, 'write')) return
       let incoming
       try {
         incoming = parseData(JSON.stringify(body.data ?? {}))
