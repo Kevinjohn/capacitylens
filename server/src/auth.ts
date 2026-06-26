@@ -60,6 +60,11 @@ export function parseAuthMode(raw: string | undefined): AuthMode {
 
 type Env = Record<string, string | undefined>
 
+/** Better Auth signs sessions/cookies with BETTER_AUTH_SECRET — a short secret is
+ *  brute-forceable, so refuse anything weaker than this. (Better Auth's own guidance and
+ *  generators emit 32+ char secrets.) */
+export const MIN_BETTER_AUTH_SECRET_LENGTH = 32
+
 function required(env: Env, key: string, context: string): string {
   const value = env[key]
   if (!value) throw new AuthConfigError(`${key} is required when ${context}.`)
@@ -79,6 +84,13 @@ export function authFromEnv(
   if (mode === 'off') return { mode, auth: null }
 
   const secret = required(env, 'BETTER_AUTH_SECRET', `CAPACITYLENS_AUTH=${mode}`)
+  // Fail closed + loud on a weak secret (message states the requirement + actual length,
+  // never the secret value itself — no leak into logs/exit output).
+  if (secret.length < MIN_BETTER_AUTH_SECRET_LENGTH) {
+    throw new AuthConfigError(
+      `BETTER_AUTH_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when CAPACITYLENS_AUTH=${mode} (got ${secret.length}).`,
+    )
+  }
   const baseURL = required(env, 'BETTER_AUTH_URL', `CAPACITYLENS_AUTH=${mode}`)
 
   // Provider choice stays deferred (Phase 0 #7): 'sso' wires the generic OAuth2/OIDC
