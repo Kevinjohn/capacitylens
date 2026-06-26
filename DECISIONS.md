@@ -428,6 +428,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   data=B) would emit DELETEs for A + PUTs for B = cross-account data loss (the #1 thing to keep right;
   guarded by the ServerSyncAdapter cross-account-diff regression test). LOCAL mode is inert (data holds
   all accounts; bootstrap keeps its no-arg whole read).
+- **Refresh-on-focus re-hydrates the active slice (P1.16, server mode).** Returning to the tab/window
+  (`window` `focus` + `visibilitychange→visible`) re-hydrates the active account by REUSING the switch
+  orchestrator's body, extracted into `refreshActive(id)` in persist.ts (await in-flight save → flush
+  pending → `loadAll` re-seeds `lastSynced` atomically → guarded `replaceAll`). **No parallel
+  re-hydrate path** (a React hook can't re-seed the private snapshot → snapshot/data desync → garbage
+  diff) — refresh MUST go through `refreshActive`. Throttled to 30s; server-mode + non-null-account
+  only; unsaved edits POST first (flush-before-loadAll = last-writer-wins, user wins). LOCAL/OFF = no
+  orchestrator, no refetch → byte-identical.
 - **`requirePermission` — the auth-on route gate (P1.5).** An `authorize(req, reply, accountId,
   action)` seam in `buildApp` (app.ts): **OFF = NO-OP allow-all on its FIRST line** (resolveRole/can
   never run — `req.user` is DEMO_USER; the #1 invariant), auth-on = `resolveRole` → null (non-member)
@@ -559,6 +567,21 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   OFF by default** behind `AppOptions.https` / `CAPACITYLENS_HTTPS=1` — HSTS is invalid/harmful
   over plain HTTP, and this server usually runs HTTP behind a TLS-terminating proxy, so the
   operator opts in only once real HTTPS fronts the public origin.
+- **Session cookies are pinned, auth-on only (P1.16).** The single `betterAuth({...})` call sets
+  `advanced.useSecureCookies` to the THREADED `https` flag (`opts.https ?? false`, fed from
+  `CAPACITYLENS_HTTPS` in index.ts — same flag that gates HSTS; auth.ts never reads the env itself),
+  `defaultCookieAttributes: { sameSite:'lax', httpOnly:true }`, and `session: { expiresIn: 7d,
+  updateAge: 1d }`. **Secure is TIED to a real HTTPS origin** — it MUST be false over plain HTTP, or
+  the browser drops the session cookie → login loop (the default deploy + the e2e are HTTP).
+  **`sameSite:'lax'` NOT 'strict'** — 'strict' drops the cookie on the top-level OAuth redirect back
+  from the IdP → broken SSO; 'lax' is correct + safe for that callback. `expiresIn`/`updateAge` mirror
+  Better Auth's defaults, pinned so a library default change can't silently re-tune session lifetime.
+  OFF constructs no betterAuth → untouched.
+- **Entitlements are default-unlimited via a parked seam (P1.16).** `server/src/entitlements.ts`
+  exposes `entitlementsFor(accountId): { unlimited: true }` — THE control-plane swap point (mirrors
+  `tenantStore.ts`). Today every account is unlimited: NO billing, NO plan/quota field, NO
+  enforcement, and the function is imported by NOTHING on a route/write path (inert; only its unit
+  test references it). A future plan/quota lookup swaps in behind this one function.
 
 ## Performance (and standing non-goals)
 - **Row virtualization** is implemented (spacer windowing, pure window math; off-screen rows

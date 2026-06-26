@@ -134,6 +134,9 @@ let auth: ReturnType<typeof authFromEnv>['auth']
 try {
   ;({ mode: authMode, auth } = authFromEnv(db, process.env, {
     trustedOrigins: corsOrigin === '*' ? undefined : corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
+    // Thread the same CAPACITYLENS_HTTPS flag that gates HSTS — it ties the session cookie's Secure
+    // attribute to a real HTTPS origin (a Secure cookie over plain HTTP is dropped → login loop).
+    https,
   }))
 } catch (err) {
   if (err instanceof AuthConfigError) {

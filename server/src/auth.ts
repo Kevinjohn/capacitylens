@@ -149,11 +149,16 @@ function socialProvidersFromEnv(env: Env): SocialProviders {
 /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
  *  env beyond CAPACITYLENS_AUTH itself is read. `trustedOrigins` should be the same browser
  *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
- *  the same-origin production deploy needs none. */
+ *  the same-origin production deploy needs none.
+ *
+ *  `https` is THREADED from the caller (index.ts derives it from CAPACITYLENS_HTTPS — auth.ts
+ *  deliberately does NOT read that env itself, mirroring how the HSTS flag is threaded into
+ *  buildApp). It is the single knob that ties the session cookie's `Secure` attribute to a real
+ *  HTTPS origin (see the betterAuth call below). */
 export function authFromEnv(
   db: Db,
   env: Env,
-  opts: { trustedOrigins?: string[] } = {},
+  opts: { trustedOrigins?: string[]; https?: boolean } = {},
 ): { mode: AuthMode; auth: Auth | null } {
   const mode = parseAuthMode(env.CAPACITYLENS_AUTH)
   if (mode === 'off') return { mode, auth: null }
@@ -214,6 +219,23 @@ export function authFromEnv(
     socialProviders: socialProvidersFromEnv(env),
     plugins,
     trustedOrigins: opts.trustedOrigins,
+    // Session-cookie hardening (P1.16), pinned so a Better Auth default change can't silently
+    // alter our cookies. `Secure` is TIED to a real HTTPS origin via the threaded `https` flag
+    // (mirrors the HSTS↔CAPACITYLENS_HTTPS coupling): it MUST be false over plain HTTP, because a
+    // browser drops a Secure cookie sent over HTTP → the session token never persists → an endless
+    // login loop. The default deploy runs HTTP behind a TLS-terminating proxy, so this is the #1
+    // footgun to keep coupled. `sameSite:'lax'` (NOT 'strict') is required for SSO: 'strict' would
+    // drop the session cookie on the top-level OAuth redirect back from the IdP → broken sign-in;
+    // 'lax' still sends the cookie on that GET callback and is safe. `httpOnly:true` keeps the token
+    // out of document.cookie (no JS read).
+    advanced: {
+      useSecureCookies: opts.https ?? false,
+      defaultCookieAttributes: { sameSite: 'lax', httpOnly: true },
+    },
+    // Session lifetime pinned to Better Auth's own defaults (7-day absolute expiry, refreshed once a
+    // day as the user stays active) so a future library default change can't silently re-tune how
+    // long a session lives. expiresIn/updateAge are in SECONDS.
+    session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
     telemetry: { enabled: false },
   })
   // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at

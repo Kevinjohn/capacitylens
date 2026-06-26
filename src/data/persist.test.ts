@@ -305,6 +305,126 @@ function makeLocalTwoAccounts() {
   }
 }
 
+describe('refresh-on-focus (P1.16, server mode)', () => {
+  // Coming back to the tab/window re-hydrates the active account's slice by REUSING refreshActive
+  // (the switch orchestrator's body) — so the adapter's private lastSynced snapshot is re-seeded
+  // atomically with `data`. Proven here against a recording adapter + window 'focus' events (the
+  // same shape as the pagehide tests above).
+
+  /** A recording adapter whose loadAll serves a fixed slice for the active account. */
+  function recordingAdapter(slice: ReturnType<typeof emptyAppData>) {
+    const loadAll = vi.fn(async (): Promise<ReturnType<typeof emptyAppData>> => slice)
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+    return { adapter, loadAll, saveAll }
+  }
+
+  const a2Slice = () => ({
+    ...emptyAppData(),
+    accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+    clients: [{ id: 'c2', accountId: 'a2', name: 'Beta Client', color: '#1', createdAt: 't', updatedAt: 't' }],
+  })
+
+  /** Server-mode attach with a2 already the active account (post-pick steady state). */
+  async function attachActiveA2(adapter: PersistenceAdapter, debounceMs = 0) {
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+    const detach = attachPersistence(useStore, adapter, debounceMs, undefined, undefined, true)
+    useStore.getState().setActiveAccount('a2') // hydrates a2, seeds snapshot := a2
+    await new Promise((r) => setTimeout(r, 5))
+    return detach
+  }
+
+  it('re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)', async () => {
+    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
+    const detach = await attachActiveA2(adapter)
+    const loadsAfterPick = loadAll.mock.calls.length // the switch already loaded once
+    saveAll.mockClear()
+
+    window.dispatchEvent(new Event('focus'))
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(loadAll).toHaveBeenCalledWith('a2') // re-hydrated the active account
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
+    // The re-hydration re-seeds lastSynced atomically: loading the same slice it already holds is
+    // NOT a user edit, so it must NOT push a save back.
+    expect(saveAll).not.toHaveBeenCalled()
+    detach()
+  })
+
+  it('THROTTLES — two focus events inside the interval call loadAll once', async () => {
+    const { adapter, loadAll } = recordingAdapter(a2Slice())
+    const detach = await attachActiveA2(adapter)
+    const before = loadAll.mock.calls.length
+
+    window.dispatchEvent(new Event('focus'))
+    window.dispatchEvent(new Event('focus')) // immediately again — inside the 30s window
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(loadAll.mock.calls.length).toBe(before + 1) // throttled to a single refetch
+    detach()
+  })
+
+  it('SKIPS refresh when there is no active account (on the picker)', async () => {
+    const { adapter, loadAll } = recordingAdapter(a2Slice())
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true)
+    // No account picked → still on the picker.
+    loadAll.mockClear()
+
+    window.dispatchEvent(new Event('focus'))
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(loadAll).not.toHaveBeenCalled() // nothing to refresh
+    detach()
+  })
+
+  it('FLUSHES a pending debounced edit BEFORE the focus refetch (user edit lands first)', async () => {
+    // The unsaved-edit safety: a pending debounced edit + a focus must POST that edit BEFORE loadAll
+    // re-seeds the snapshot (last-writer-wins, user wins). Order-assert on the recorded call sequence.
+    const order: string[] = []
+    const loadAll = vi.fn(async () => {
+      order.push('loadAll')
+      return a2Slice()
+    })
+    const saveAll = vi.fn(async () => {
+      order.push('saveAll')
+    })
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+    const detach = await attachActiveA2(adapter, 300) // genuinely debounced
+    order.length = 0 // ignore the initial switch's loadAll
+
+    useStore.getState().addClient({ name: 'Unsaved', color: '#222222' }) // debounced — not yet on the wire
+    expect(saveAll).not.toHaveBeenCalled()
+
+    window.dispatchEvent(new Event('focus'))
+    await new Promise((r) => setTimeout(r, 20)) // < 300ms: a dropped edit's timer would NOT fire
+
+    // The edit's save flushed BEFORE the refresh loadAll (no cross-account / lost-edit window).
+    expect(order[0]).toBe('saveAll')
+    expect(order).toContain('loadAll')
+    expect(order.indexOf('saveAll')).toBeLessThan(order.indexOf('loadAll'))
+    detach()
+  })
+
+  it('is INERT in local mode — focus does NOT call loadAll', async () => {
+    const { adapter, loadAll } = recordingAdapter(a2Slice())
+    useStore.getState().replaceAll(makeLocalTwoAccounts())
+    useStore.getState().setActiveAccount('a1')
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false) // local mode
+    loadAll.mockClear()
+
+    window.dispatchEvent(new Event('focus'))
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(loadAll).not.toHaveBeenCalled() // local holds every account — no refetch
+    detach()
+  })
+})
+
 describe('bootstrap', () => {
   it('seeds an empty store and marks it hydrated', async () => {
     const adapter = new LocalStorageAdapter('capacitylens/persist-c')

@@ -42,6 +42,12 @@ export function attachPersistence(
   // an in-flight FAILED save can still be awaited; settles whether the save succeeds or fails.
   let inFlightSave: Promise<void> | null = null
   const MAX_RETRY_ATTEMPTS = 5
+  // Refresh-on-focus throttle (P1.16): coming back to the tab re-hydrates the active account's
+  // slice, but a user flipping between tabs would otherwise refetch on every focus. Cap the cadence
+  // to once per 30s; the timestamp is taken at refresh START so two focus events inside the window
+  // collapse to a single loadAll.
+  const REFRESH_MIN_INTERVAL_MS = 30_000
+  let lastRefreshAt = 0
 
   const save = (data: AppData) => {
     pending = null
@@ -165,6 +171,63 @@ export function attachPersistence(
   //       LATE is discarded (it must not seed a stale account over the newer one).
   let switchToken = 0
   let lastActiveAccountId = store.getState().activeAccountId
+
+  // Re-hydrate ONE non-null account's slice and re-seed the adapter's diff snapshot to it,
+  // ATOMICALLY — the shared body of both a tenant SWITCH (newId) and a refresh-on-focus
+  // (activeId). Extracted (P1.16) precisely so refresh REUSES this exact sequence: the snapshot
+  // (adapter.lastSynced) is private to the adapter and is re-seeded ONLY by loadAll, so a parallel
+  // re-hydrate path (e.g. a React hook calling replaceAll) would leave `data` updated but the
+  // snapshot stale → the next save would diff the fresh slice against the old snapshot and emit a
+  // cross-account / garbage delta. The token discipline below also makes a late refresh that
+  // resolves after a newer switch/refresh a no-op, so the two callers can't clobber each other.
+  //
+  // SEQUENCE (token-guarded throughout, see the inline (a)/(a′)/(b)/(c) markers):
+  //   (a) await any in-flight save so a prior write can't land against the new snapshot;
+  //  (a′) FLUSH (not drop) the current account's pending debounced edits while data AND the snapshot
+  //       are BOTH still this account → the diff is self-vs-self (correct), landed BEFORE (b) reseeds;
+  //   (b) adapter.loadAll(id) → returns the slice AND re-seeds lastSynced to it;
+  //   (c) replaceAll(slice) under loadingSlice so the data subscription doesn't read it as an edit,
+  //       then advance lastData.
+  const refreshActive = async (id: string): Promise<void> => {
+    const myToken = ++switchToken
+    // (a) Let a prior account's save settle before we re-seed the snapshot.
+    if (inFlightSave) await inFlightSave
+    if (myToken !== switchToken) return // a newer switch/refresh superseded this one
+    // (a′) FLUSH (don't drop) the current account's PENDING debounced edits before we re-seed.
+    // The debounce timer can still hold the last edit; merely clearing it would LOSE those edits on
+    // a switch/refresh within the debounce window. Flush NOW — while data AND the adapter's
+    // lastSynced snapshot are both this account — so `save()` diffs self-against-self (correct ops)
+    // and POSTs them, BEFORE loadAll(id) reseeds the snapshot. Awaiting the flush keeps the
+    // no-cross-account-window invariant. A flush failure surfaces via save's onError and we still
+    // proceed — strictly better than silently dropping the edits. (Refresh-on-focus relies on this:
+    // the user's unsaved edits POST first, then loadAll → last-writer-wins with the user winning.)
+    // Always cancel the timer first so the queued debounced save can't also fire post-reseed.
+    if (timer) {
+      clearTimeout(timer)
+      timer = null
+    }
+    if (pending) {
+      save(pending) // sets inFlightSave synchronously; pending is consumed inside save()
+      if (inFlightSave) await inFlightSave
+      if (myToken !== switchToken) return // a newer switch/refresh superseded this one mid-flush
+    }
+    try {
+      // (b) Load the slice; loadAll(id) re-seeds the adapter's diff snapshot to it.
+      const slice = await adapter.loadAll(id)
+      if (myToken !== switchToken) return // superseded mid-load — discard this stale slice
+      // (c) Swap `data` to the loaded slice WITHOUT it reading as a user edit, then advance lastData.
+      loadingSlice = true
+      store.getState().replaceAll(slice)
+      lastData = store.getState().data
+      loadingSlice = false
+    } catch (e) {
+      // A failed slice load surfaces like any load failure: raise the persist banner (a stale
+      // banner clears on the next good write). Don't replaceAll — leaving the prior data is
+      // safer than blanking it, and the snapshot is unchanged so no bad diff can form.
+      if (myToken === switchToken) onError?.(e)
+    }
+  }
+
   const unsubscribeSwitch = serverMode
     ? store.subscribe((state) => {
         const newId = state.activeAccountId
@@ -191,46 +254,7 @@ export function attachPersistence(
           })()
           return
         }
-        const myToken = ++switchToken
-        void (async () => {
-          // (a) Let a prior account's save settle before we re-seed the snapshot.
-          if (inFlightSave) await inFlightSave
-          if (myToken !== switchToken) return // a newer switch superseded this one
-          // (a′) FLUSH (don't drop) the OLD account's PENDING debounced edits before we re-seed.
-          // The debounce timer can still hold account A's last edit; if we merely cleared it (the
-          // old behaviour) those edits would be LOST on a switch within the debounce window. Flush
-          // NOW — while data===A AND the adapter's lastSynced snapshot===A — so `save()` diffs A
-          // against A's snapshot (correct A-only ops) and POSTs them, BEFORE loadAll(newId) reseeds
-          // the snapshot to B. Awaiting the flush keeps the no-cross-account-window invariant: there
-          // is never a moment where a diff could cross accounts. A flush failure surfaces via the
-          // normal persistError path (save's onError) and we still proceed — strictly better than
-          // silently dropping the edits. Always cancel the timer first so the queued debounced save
-          // can't also fire post-switch (which WOULD diff against B's snapshot).
-          if (timer) {
-            clearTimeout(timer)
-            timer = null
-          }
-          if (pending) {
-            save(pending) // sets inFlightSave synchronously; pending is consumed inside save()
-            if (inFlightSave) await inFlightSave
-            if (myToken !== switchToken) return // a newer switch superseded this one mid-flush
-          }
-          try {
-            // (b) Load the new slice; loadAll(newId) re-seeds the adapter's diff snapshot to it.
-            const slice = await adapter.loadAll(newId)
-            if (myToken !== switchToken) return // superseded mid-load — discard this stale slice
-            // (c)+(d) Swap `data` to the new account WITHOUT it reading as a user edit.
-            loadingSlice = true
-            store.getState().replaceAll(slice)
-            lastData = store.getState().data
-            loadingSlice = false
-          } catch (e) {
-            // A failed slice load surfaces like any load failure: raise the persist banner (a stale
-            // banner clears on the next good write). Don't replaceAll — leaving the prior data is
-            // safer than blanking it, and the snapshot is unchanged so no bad diff can form.
-            if (myToken === switchToken) onError?.(e)
-          }
-        })()
+        void refreshActive(newId)
       })
     : null
 
@@ -240,17 +264,42 @@ export function attachPersistence(
   // close, visibilitychange → hidden fires FIRST — while the page is still alive to dispatch —
   // so it does the flush and the subsequent pagehide is a no-op (`pending` already consumed).
   // Coming BACK to the tab (or the browser firing `online`) re-attempts a stranded write.
+  // Refresh-on-focus (P1.16): when the user returns to the tab/window, re-hydrate the active
+  // account's slice so a change made in another tab/device shows up — REUSING refreshActive (the
+  // switch orchestrator's body) so the private lastSynced snapshot is re-seeded atomically and stays
+  // consistent with `data` (a parallel re-hydrate would desync them and emit a garbage diff). Guards:
+  // SERVER mode only (refreshActive only re-seeds meaningfully when serverMode; local already holds
+  // every account); SKIP when there's no active account (on the picker — nothing to refresh); and
+  // THROTTLE to REFRESH_MIN_INTERVAL_MS. Unsaved-edit safety is INHERENT — refreshActive flushes
+  // pending + awaits inFlightSave BEFORE loadAll, so the user's edits POST first (last-writer-wins).
+  const maybeRefreshOnFocus = () => {
+    if (!serverMode) return
+    const id = store.getState().activeAccountId
+    if (id === null) return // on the picker — nothing to refresh
+    const now = Date.now()
+    if (now - lastRefreshAt <= REFRESH_MIN_INTERVAL_MS) return
+    lastRefreshAt = now // stamp at refresh START so two focuses inside the window collapse to one
+    void refreshActive(id)
+  }
+
   const onPageHide = () => flushOnUnload()
   const onVisibility = () => {
     if (typeof document === 'undefined') return
     if (document.visibilityState === 'hidden') flushOnUnload()
-    else retryStrandedWrite()
+    else {
+      retryStrandedWrite()
+      maybeRefreshOnFocus() // returning via tab-switch/mobile also re-hydrates (throttled)
+    }
   }
   const onOnline = () => retryStrandedWrite()
+  // A bare window `focus` covers regaining focus without a visibility change (e.g. alt-tab back to
+  // an already-visible window); it shares the same throttle as the visibility→visible path.
+  const onFocus = () => maybeRefreshOnFocus()
   const canListen = typeof window !== 'undefined'
   if (canListen) {
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('online', onOnline)
+    window.addEventListener('focus', onFocus)
     document.addEventListener('visibilitychange', onVisibility)
   }
 
@@ -260,6 +309,7 @@ export function attachPersistence(
     if (canListen) {
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('online', onOnline)
+      window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
     if (timer) clearTimeout(timer) // cancel any pending debounced write
