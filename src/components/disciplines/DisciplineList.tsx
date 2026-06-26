@@ -6,6 +6,7 @@ import { NEUTRAL_COLOR } from '../../lib/palette'
 import { byDisciplineOrder } from '../../store/selectors'
 import { DisciplineForm } from './DisciplineForm'
 import type { Discipline } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
 export function DisciplineList() {
   const disciplines = useScopedData().disciplines
@@ -15,14 +16,14 @@ export function DisciplineList() {
   const sorted = [...disciplines].sort(byDisciplineOrder)
 
   return (
-    <ListPage title="Disciplines" addLabel="Add discipline" onAdd={() => setCreating(true)}>
+    <ListPage title={m.list_disciplines_title()} addLabel={m.list_disciplines_add()} onAdd={() => setCreating(true)}>
       {sorted.length === 0 ? (
         <EmptyState
           icon="tag"
-          description="Disciplines group your people and give them a colour on the schedule."
-          action={{ label: 'Add your first discipline', onClick: () => setCreating(true), icon: 'plus' }}
+          description={m.list_disciplines_empty_desc()}
+          action={{ label: m.list_disciplines_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
         >
-          No disciplines yet.
+          {m.list_disciplines_empty()}
         </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
@@ -45,8 +46,8 @@ export function DisciplineList() {
       {editing && <DisciplineForm discipline={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title="Delete discipline?"
-          message={`Delete "${confirming.name}"? Resources in it will be ungrouped (not deleted).`}
+          title={m.list_disciplines_delete_title()}
+          message={m.list_disciplines_delete_message({ name: confirming.name })}
           onConfirm={() => {
             del(confirming.id)
             setConfirming(null)

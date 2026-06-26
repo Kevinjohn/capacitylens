@@ -4,6 +4,7 @@ import { useCrudListState } from '../../hooks/useCrudListState'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
 import type { Project } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
 export function ProjectList() {
   const data = useScopedData()
@@ -12,17 +13,17 @@ export function ProjectList() {
   const del = useStore((s) => s.deleteProject)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Project>()
 
-  const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '(no client)'
+  const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? m.list_projects_no_client()
 
   return (
-    <ListPage title="Projects" addLabel="Add project" onAdd={() => setCreating(true)}>
+    <ListPage title={m.list_projects_title()} addLabel={m.list_projects_add()} onAdd={() => setCreating(true)}>
       {projects.length === 0 ? (
         <EmptyState
           icon="folder"
-          description="Projects belong to a client and hold the activities you schedule."
-          action={{ label: 'Add your first project', onClick: () => setCreating(true), icon: 'plus' }}
+          description={m.list_projects_empty_desc()}
+          action={{ label: m.list_projects_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
         >
-          No projects yet.
+          {m.list_projects_empty()}
         </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
@@ -46,8 +47,8 @@ export function ProjectList() {
       {editing && <ProjectForm project={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title="Delete project?"
-          message={`Delete "${confirming.name}" with its phases, activities and allocations? Placeholders bound to it will be unbound. You can undo this with ⌘Z.`}
+          title={m.list_projects_delete_title()}
+          message={m.list_projects_delete_message({ name: confirming.name })}
           onConfirm={() => {
             del(confirming.id)
             setConfirming(null)

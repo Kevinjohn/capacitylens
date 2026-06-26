@@ -5,6 +5,7 @@ import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
 import type { Client } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
 export function ClientList() {
   // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/repeatable
@@ -18,14 +19,14 @@ export function ClientList() {
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Client>()
 
   return (
-    <ListPage title="Clients" addLabel="Add client" onAdd={() => setCreating(true)}>
+    <ListPage title={m.list_clients_title()} addLabel={m.list_clients_add()} onAdd={() => setCreating(true)}>
       {clients.length === 0 ? (
         <EmptyState
           icon="briefcase"
-          description="Clients are the companies your team does work for."
-          action={{ label: 'Add your first client', onClick: () => setCreating(true), icon: 'plus' }}
+          description={m.list_clients_empty_desc()}
+          action={{ label: m.list_clients_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
         >
-          No clients yet.
+          {m.list_clients_empty()}
         </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
@@ -48,8 +49,8 @@ export function ClientList() {
       {editing && <ClientForm client={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title="Delete client?"
-          message={`Delete "${confirming.name}" and all of its projects, phases, activities and allocations? You can undo this with ⌘Z.`}
+          title={m.list_clients_delete_title()}
+          message={m.list_clients_delete_message({ name: confirming.name })}
           onConfirm={() => {
             deleteClient(confirming.id)
             setConfirming(null)
