@@ -59,6 +59,47 @@ describe('baseline security headers (helmet, on by default)', () => {
   })
 })
 
+describe('P2.7 privacy posture — CSP forbids browser egress (connect-src is self only)', () => {
+  // No-egress rationale: CapacityLens is privacy-first — the browser must not be able to call out
+  // to any third party. The page's only programmatic network calls are same-origin (to our API).
+  // SSO sign-in is a TOP-LEVEL REDIRECT (a navigation to accounts.google.com /
+  // login.microsoftonline.com / github.com), NOT a connect-src fetch, and the token exchange is
+  // server-to-server — so connect-src legitimately stays 'self'. These assertions are the
+  // no-WIDENING guard: if anyone ever adds an external origin (an IdP, an analytics endpoint, a
+  // wildcard) to connect-src or default-src, this test fails. Pairs with the dependency-denylist
+  // half in src/test/privacy-posture.test.ts to form the full no-egress proof. See docs/privacy.md.
+
+  /** Pull a single directive's full segment ("connect-src 'self'") out of the CSP header. */
+  const directive = (csp: string, name: string): string | undefined =>
+    csp
+      .split(';')
+      .map((s) => s.trim())
+      .find((seg) => seg === name || seg.startsWith(`${name} `))
+
+  it("pins connect-src to exactly 'self' — no IdP/analytics/wildcard egress origin", async () => {
+    const csp = (await health(buildApp(openDb(':memory:')))).headers['content-security-policy']
+    expect(typeof csp).toBe('string')
+    const connect = directive(csp as string, 'connect-src')
+    // EXACT value: 'self' is the only allowed source.
+    expect(connect).toBe("connect-src 'self'")
+    // Belt-and-braces: prove no external scheme/host/wildcard crept into the segment.
+    expect(connect).not.toContain('http')
+    expect(connect).not.toContain('https://')
+    expect(connect).not.toContain('*')
+    expect(connect).not.toContain('accounts.google.com')
+    expect(connect).not.toContain('login.microsoftonline.com')
+    expect(connect).not.toContain('github.com')
+  })
+
+  it("pins default-src to exactly 'self' — no external host or wildcard fallback", async () => {
+    const csp = (await health(buildApp(openDb(':memory:')))).headers['content-security-policy']
+    const def = directive(csp as string, 'default-src')
+    expect(def).toBe("default-src 'self'")
+    expect(def).not.toContain('*')
+    expect(def).not.toContain('http')
+  })
+})
+
 describe('HSTS — off by default, on behind the HTTPS flag', () => {
   it('omits Strict-Transport-Security by default (HTTP behind a TLS proxy)', async () => {
     const app = buildApp(openDb(':memory:'))

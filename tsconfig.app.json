@@ -33,5 +33,10 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src", "shared/src"]
+  "include": ["src", "shared/src"],
+  // The privacy-posture dependency-denylist test reads manifests off disk via node's `node:*`
+  // modules, so it's type-checked under tsconfig.node.json (which carries `"types": ["node"]`)
+  // instead — keeping `@types/node`'s globals out of THIS app program, whose `"types"` above
+  // is deliberately `vite/client`-only.
+  "exclude": ["src/test/privacy-posture.test.ts"]
 }

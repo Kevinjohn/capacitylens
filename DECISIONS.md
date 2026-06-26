@@ -535,6 +535,16 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   SOLE remaining account erases YOUR identity (name/email scrubbed, SSO unlinked) and kills your session
   → the post-delete read-back is 401, not an empty 200. This is "PII provably erasable" applied to the
   last-membership case; irreversible by design.
+- **Privacy posture is documented + test-locked from both ends (P2.7).** The "we phone home to no one"
+  claim is a no-egress PROOF split across the two test runners: a curated **exact-name** dependency
+  denylist (analytics/telemetry + email — deny-known-bad, NO substring matching, also scans the root
+  lockfile for transitives) in `src/test/privacy-posture.test.ts` (root vitest / `npm run gate`) fails CI
+  if such a package is ever added; and the server CSP **`connect-src 'self'`** (+ `default-src 'self'`)
+  no-widening assertion in `server/src/app.helmet.test.ts` (`gate:server`) proves the browser can't be
+  made to egress to any third party. Load-bearing nuance: IdP sign-in is a **top-level browser REDIRECT
+  (navigation), not a connect-src fetch** (token exchange is server-to-server), so `connect-src` stays
+  `'self'`. Better Auth's own telemetry is explicitly disabled (`telemetry:{enabled:false}`); the product
+  sends no email. Statement: `docs/privacy.md`. This DOCUMENTS + locks the standing posture — no behaviour change.
 - **Open shared dataset RETIRED in the hosted posture (P1.17, Phase-1 capstone).** The HOSTED (auth-on)
   posture serves **ZERO unauthenticated `/api` access**: the root-level `requireUser` preHandler 401s
   `{ error: 'Sign in to continue.' }` for every `/api/*` request EXCEPT `/api/health` (uptime monitor)
