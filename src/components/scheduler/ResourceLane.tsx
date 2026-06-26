@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { m } from '@/i18n'
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath'
 import { useStore } from '../../store/useStore'
 import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
@@ -252,7 +253,7 @@ export const ResourceLane = memo(function ResourceLane({
           <div
             key={`o-${d}`}
             data-testid="over-marker"
-            title="Overbooked"
+            title={m.scheduler_over_marker_title()}
             className="pointer-events-none absolute top-0 h-full border-t-[3px] border-danger bg-danger-cell"
             style={{ left: geom.x(i), width: geom.widthOf(i) }}
           />

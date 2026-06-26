@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { disciplinesEnabledFor } from '../../store/selectors'
@@ -146,34 +147,34 @@ export function SchedulerToolbar() {
     <div className="@container border-b border-line bg-surface">
       <div className="flex items-center gap-2 px-4 py-2">
         <div className="mr-auto flex items-center gap-1">
-          <h1 className="text-xl font-semibold">Schedule</h1>
+          <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
         </div>
-        <Button variant="ghost" onClick={() => panDays(-7)} title="Back one week">
-          <Icon name="chevron-left" /> Prev
+        <Button variant="ghost" onClick={() => panDays(-7)} title={m.scheduler_nav_prev_title()}>
+          <Icon name="chevron-left" /> {m.scheduler_nav_prev()}
         </Button>
         <Button variant="ghost" onClick={goToToday}>
-          Today
+          {m.scheduler_nav_today()}
         </Button>
-        <Button variant="ghost" onClick={() => panDays(7)} title="Forward one week">
-          Next <Icon name="chevron-right" />
+        <Button variant="ghost" onClick={() => panDays(7)} title={m.scheduler_nav_next_title()}>
+          {m.scheduler_nav_next()} <Icon name="chevron-right" />
         </Button>
         <input
           type="date"
           value={focusDate}
           onChange={(e) => e.target.value && goToDate(e.target.value)}
-          aria-label="Jump to date"
-          title="Jump to date"
+          aria-label={m.scheduler_jump_to_date()}
+          title={m.scheduler_jump_to_date()}
           className={controlBase}
         />
         <ToolbarToggleGroup
           className="ml-2"
-          ariaLabel="Weeks visible"
+          ariaLabel={m.scheduler_weeks_visible_aria()}
           value={zoom}
           onChange={setZoom}
           options={ZOOM_LEVELS.map((w) => ({
             value: w,
-            label: `${w}w`,
-            title: `${w} week${w > 1 ? 's' : ''} visible`,
+            label: m.scheduler_zoom_week_label({ count: w }),
+            title: w > 1 ? m.scheduler_weeks_visible_title_other({ count: w }) : m.scheduler_weeks_visible_title_one({ count: w }),
           }))}
         />
         {/* Draw-mode toggle + Undo/Redo: editor-only (P1.12). A viewer can't draw or mutate, so the
@@ -181,12 +182,12 @@ export function SchedulerToolbar() {
         {canEdit && (
           <>
             <ToolbarToggleGroup
-              ariaLabel="Draw mode"
+              ariaLabel={m.scheduler_draw_mode_aria()}
               value={drawMode}
               onChange={setDrawMode}
               options={[
-                { value: 'work', label: 'Work', title: 'Draw allocations' },
-                { value: 'timeoff', label: 'Time off', title: 'Draw time off' },
+                { value: 'work', label: m.scheduler_draw_work(), title: m.scheduler_draw_work_title() },
+                { value: 'timeoff', label: m.scheduler_draw_timeoff(), title: m.scheduler_draw_timeoff_title() },
               ]}
             />
             {/* Undo/redo — the visible counterpart to the global ⌘Z / ⌘⇧Z shortcuts. Always shown
@@ -197,8 +198,8 @@ export function SchedulerToolbar() {
                 variant="ghost"
                 onClick={undo}
                 disabled={!canUndo}
-                ariaLabel="Undo"
-                title="Undo (⌘Z)"
+                ariaLabel={m.scheduler_undo()}
+                title={m.scheduler_undo_title()}
                 testId="undo-button"
               >
                 <Icon name="undo" />
@@ -207,8 +208,8 @@ export function SchedulerToolbar() {
                 variant="ghost"
                 onClick={redo}
                 disabled={!canRedo}
-                ariaLabel="Redo"
-                title="Redo (⌘⇧Z)"
+                ariaLabel={m.scheduler_redo()}
+                title={m.scheduler_redo_title()}
                 testId="redo-button"
               >
                 <Icon name="redo" />
@@ -222,19 +223,19 @@ export function SchedulerToolbar() {
         <input
           value={searchInput}
           onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search people…"
-          aria-label="Search people"
+          placeholder={m.scheduler_search_people_placeholder()}
+          aria-label={m.scheduler_search_people_aria()}
           className={`${controlBase} w-44 @max-[680px]:w-full`}
         />
         {disciplinesEnabled && (
           <select
-            aria-label="Filter by discipline"
+            aria-label={m.scheduler_filter_discipline_aria()}
             className={`${controlBase} ${selectChevronClass}`}
             style={selectChevronStyle}
             value={filters.disciplineId ?? ''}
             onChange={(e) => setFilters({ disciplineId: e.target.value || null })}
           >
-            <option value="">All disciplines</option>
+            <option value="">{m.scheduler_filter_all_disciplines()}</option>
             {disciplines.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -243,13 +244,13 @@ export function SchedulerToolbar() {
           </select>
         )}
         <select
-          aria-label="Filter by client"
+          aria-label={m.scheduler_filter_client_aria()}
           className={`${controlBase} ${selectChevronClass}`}
           style={selectChevronStyle}
           value={filters.clientId ?? ''}
           onChange={(e) => setFilters({ clientId: e.target.value || null })}
         >
-          <option value="">All clients</option>
+          <option value="">{m.scheduler_filter_all_clients()}</option>
           {clients.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -257,13 +258,13 @@ export function SchedulerToolbar() {
           ))}
         </select>
         <select
-          aria-label="Filter by project"
+          aria-label={m.scheduler_filter_project_aria()}
           className={`${controlBase} ${selectChevronClass}`}
           style={selectChevronStyle}
           value={filters.projectId ?? ''}
           onChange={(e) => setFilters({ projectId: e.target.value || null })}
         >
-          <option value="">All projects</option>
+          <option value="">{m.scheduler_filter_all_projects()}</option>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -272,7 +273,7 @@ export function SchedulerToolbar() {
         </select>
         {(internalActivities.length > 0 || repeatableActivities.length > 0) && (
           <select
-            aria-label="Filter by activity"
+            aria-label={m.scheduler_filter_activity_aria()}
             className={`${controlBase} ${selectChevronClass}`}
             style={selectChevronStyle}
             // Encoded value: '' = all, 'kind:internal'/'kind:repeatable' = a whole group,
@@ -285,10 +286,10 @@ export function SchedulerToolbar() {
               else setFilters({ activityId: v || null, activityKind: null })
             }}
           >
-            <option value="">All activities</option>
+            <option value="">{m.scheduler_filter_all_activities()}</option>
             {internalActivities.length > 0 && (
-              <optgroup label="Internal">
-                <option value="kind:internal">Internal — All</option>
+              <optgroup label={m.scheduler_filter_internal_group()}>
+                <option value="kind:internal">{m.scheduler_filter_internal_all()}</option>
                 {internalActivities.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -297,8 +298,8 @@ export function SchedulerToolbar() {
               </optgroup>
             )}
             {repeatableActivities.length > 0 && (
-              <optgroup label="Repeatable">
-                <option value="kind:repeatable">Repeatable — All</option>
+              <optgroup label={m.scheduler_filter_repeatable_group()}>
+                <option value="kind:repeatable">{m.scheduler_filter_repeatable_all()}</option>
                 {repeatableActivities.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -310,17 +311,17 @@ export function SchedulerToolbar() {
         )}
         <label className="flex items-center gap-1.5 text-muted">
           <input type="checkbox" checked={filters.hideTentative} onChange={(e) => setFilters({ hideTentative: e.target.checked })} />
-          Hide tentative
+          {m.scheduler_hide_tentative()}
         </label>
         {(filters.projectId || filters.clientId || filters.activityId || filters.activityKind) && (
-          <label className="flex items-center gap-1.5 text-muted" title="Show resources with no work on this filter (dimmed) so you can staff them">
+          <label className="flex items-center gap-1.5 text-muted" title={m.scheduler_show_unallocated_title()}>
             <input type="checkbox" checked={filters.showUnmatched} onChange={(e) => setFilters({ showUnmatched: e.target.checked })} />
-            Show unallocated
+            {m.scheduler_show_unallocated()}
           </label>
         )}
         {hasActiveFilters(filters) && (
           <Button variant="ghost" onClick={onClear}>
-            Clear
+            {m.scheduler_clear()}
           </Button>
         )}
       </div>

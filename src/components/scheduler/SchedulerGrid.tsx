@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { useScopedData } from '../../store/useScopedData'
@@ -186,7 +187,8 @@ export function SchedulerGrid() {
   }, [days, leftEdgeIdx, ui.zoom, ui.focusDate])
 
   // Human label for the visible span, used in the utilisation titles ("over the visible N week(s)").
-  const visibleWeeksLabel = `${ui.zoom} week${ui.zoom === 1 ? '' : 's'}`
+  const visibleWeeksLabel =
+    ui.zoom === 1 ? m.scheduler_visible_weeks_label_one({ count: ui.zoom }) : m.scheduler_visible_weeks_label_other({ count: ui.zoom })
 
   const model = useMemo(
     () =>
@@ -455,11 +457,13 @@ export function SchedulerGrid() {
       </div>
       <div role="gridcell" className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
         {ui.collapsedGroups.includes(group.key)
-          ? `${group.rows.length} hidden`
+          ? m.scheduler_group_hidden({ count: group.rows.length })
           : group.external
             ? '' /* external parties have no capacity — an avg utilisation here would misleadingly read 0% */
             : utilizationPrefs.showDiscipline
-              ? `${group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0}% avg utilisation`
+              ? m.scheduler_group_avg_utilisation({
+                  percent: group.rows.length ? Math.round((group.rows.reduce((sum, r) => sum + r.utilization, 0) / group.rows.length) * 100) : 0,
+                })
               : ''}
       </div>
     </div>
@@ -477,7 +481,7 @@ export function SchedulerGrid() {
         aria-rowindex={rowIndex}
         data-testid="scheduler-row"
         data-dimmed={dimmed || undefined}
-        title={dimmed ? 'No work on this project — available to staff (drag work onto this row)' : undefined}
+        title={dimmed ? m.scheduler_row_dimmed_title() : undefined}
         className={`flex border-b border-line-soft bg-surface ${dimmed ? 'opacity-45' : ''}`}
         style={{ height: rowHeight }}
       >
@@ -493,13 +497,21 @@ export function SchedulerGrid() {
               1.1.1/1.3.1), so count the over-capacity days (allocated > available) and surface them
               here — the non-colour pair to the red background. */}
           <span className="sr-only">
-            {overSoon ? 'Overbooked in the next two weeks. ' : ''}
+            {overSoon ? m.scheduler_sr_overbooked_two_weeks() : ''}
             {(() => {
               const overDays = dayStates.filter((d) => d.over).length
-              return overDays ? `Over capacity on ${overDays} day${overDays > 1 ? 's' : ''}. ` : ''
+              return overDays
+                ? overDays > 1
+                  ? m.scheduler_sr_over_capacity_other({ count: overDays })
+                  : m.scheduler_sr_over_capacity_one({ count: overDays })
+                : ''
             })()}
-            {timeOff.length ? `${timeOff.length} time-off period${timeOff.length > 1 ? 's' : ''}. ` : ''}
-            {bars.length} allocation{bars.length === 1 ? '' : 's'}.
+            {timeOff.length
+              ? timeOff.length > 1
+                ? m.scheduler_sr_timeoff_other({ count: timeOff.length })
+                : m.scheduler_sr_timeoff_one({ count: timeOff.length })
+              : ''}
+            {bars.length === 1 ? m.scheduler_sr_allocations_one({ count: bars.length }) : m.scheduler_sr_allocations_other({ count: bars.length })}
           </span>
           {/* Avatar + identity, vertically centred within the FIRST lane band
               (rowPadding + barHeight + rowPadding = a single-lane row height) and pinned to
@@ -545,8 +557,8 @@ export function SchedulerGrid() {
                 const d = visibleStartDate()
                 setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
               }}
-              aria-label={`Add allocation for ${resourceDisplayName(resource)}`}
-              title="Add allocation"
+              aria-label={m.scheduler_add_allocation_for({ name: resourceDisplayName(resource) })}
+              title={m.scheduler_add_allocation()}
               // Hover tints brand-soft (the AA-validated Add/Save pastel pair), not the old
               // hover:bg-canvas — canvas is the page background, so on a bg-surface row that hover
               // was near-invisible. "+" is the create affordance, so it reads as the brand action.
@@ -562,8 +574,8 @@ export function SchedulerGrid() {
                 // The % itself is over the VISIBLE range; the overSoon red flag is the separate
                 // fixed-window "over soon" warning (next UTILIZATION_WINDOW_DAYS days).
                 overSoon
-                  ? `Overbooked within the next ${UTILIZATION_WINDOW_DAYS} days — utilisation shown over the visible ${visibleWeeksLabel}`
-                  : `Utilisation over the visible ${visibleWeeksLabel}`
+                  ? m.scheduler_util_title_oversoon({ days: UTILIZATION_WINDOW_DAYS, span: visibleWeeksLabel })
+                  : m.scheduler_util_title({ span: visibleWeeksLabel })
               }
               className={`flex w-11 flex-1 items-center justify-center border-t border-line text-2xs ${
                 overSoon ? 'font-semibold text-danger' : 'text-faint'
@@ -619,7 +631,7 @@ export function SchedulerGrid() {
          refs, so the memoised bars bail too.) */
       data-draw-mode={ui.drawMode}
       role="grid"
-      aria-label="Resource schedule"
+      aria-label={m.scheduler_grid_aria()}
       aria-rowcount={items.length + 1}
       onScroll={onScroll}
     >
@@ -638,11 +650,11 @@ export function SchedulerGrid() {
             <>
               <span
                 className="text-2xs font-medium uppercase tracking-wide text-faint"
-                title={`Average utilisation over the visible ${visibleWeeksLabel}`}
+                title={m.scheduler_total_util_title({ span: visibleWeeksLabel })}
               >
                 {/* The headline % follows the VISIBLE range, so the label tracks the zoom toggle
                     (1w/2w/4w/8w) rather than naming a fixed "next 2w". */}
-                Utilisation · {ui.zoom}w
+                {m.scheduler_total_util_label({ count: ui.zoom })}
               </span>
               <span data-testid="overall-utilization" className="text-sm font-semibold">
                 {overallUtil}%
@@ -673,18 +685,18 @@ export function SchedulerGrid() {
               // empty — without a focusable child, axe flags scrollable-region-focusable.
               <EmptyState
                 icon="sliders"
-                description="Try a different search, or clear the filters to bring everyone back into view."
-                action={{ label: 'Clear filters', onClick: () => clearFilters() }}
+                description={m.scheduler_empty_filtered_desc()}
+                action={{ label: m.scheduler_empty_clear_filters(), onClick: () => clearFilters() }}
               >
-                No resources match the current filters.
+                {m.scheduler_empty_filtered_title()}
               </EmptyState>
             ) : (
               <EmptyState
                 icon="people"
-                description="Add people on the Resources page, then click or drag on a row to schedule their work."
-                action={{ label: 'Go to Resources', onClick: () => void navigate('/resources') }}
+                description={m.scheduler_empty_desc()}
+                action={{ label: m.scheduler_empty_go_resources(), onClick: () => void navigate('/resources') }}
               >
-                No resources yet
+                {m.scheduler_empty_title()}
               </EmptyState>
             )}
           </div>
