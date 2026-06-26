@@ -1,6 +1,7 @@
 import avatarUrl from '../assets/avatar-demo.svg'
 import { FAKE_USER } from '../lib/fakeAuth'
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { m } from '@/i18n'
 
 // COSMETIC demo sign-in — a Google-account-chooser look shown BEFORE the account picker so
 // a viewer sees the intended "log in first, then pick a company" flow. There is NO real
@@ -48,9 +49,9 @@ export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {
         <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
           <div className="flex flex-col items-center gap-2 px-6 pb-5 pt-7 text-center">
             <GoogleMark />
-            <h1 className="text-xl font-semibold text-ink">Choose an account</h1>
+            <h1 className="text-xl font-semibold text-ink">{m.fake_title()}</h1>
             <p className="text-sm text-muted">
-              to continue to <span className="font-medium text-ink">{APP_NAME}</span>
+              {m.fake_continue_to()}<span className="font-medium text-ink">{APP_NAME}</span>
             </p>
           </div>
 
@@ -82,7 +83,7 @@ export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {
                     <path d="M5.5 19a6.5 6.5 0 0 1 13 0" strokeLinecap="round" />
                   </svg>
                 </span>
-                <span className="text-sm">Use another account</span>
+                <span className="text-sm">{m.fake_use_another()}</span>
               </button>
             </li>
           </ul>

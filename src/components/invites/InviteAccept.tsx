@@ -4,6 +4,7 @@ import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { useStore } from '../../store/useStore'
 import { FieldError } from '../common/ui'
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { m } from '@/i18n'
 
 // A <Link> styled as the kit's primary Button. The shared Button (../common/ui) takes an onClick,
 // not a child element, so it can't wrap a router <Link> — and a router navigation (not a full reload)
@@ -33,11 +34,11 @@ type State =
 // friendly sentence we prefer, with a safe fallback per status when the body is missing/unreadable.
 function messageForStatus(status: number, bodyError: string | undefined): string {
   if (bodyError) return bodyError
-  if (status === 404) return 'Invite not found.'
-  if (status === 409) return 'This invite has already been used.'
-  if (status === 410) return 'This invite has expired.'
-  if (status === 401) return 'Please sign in to accept this invite.'
-  return 'Could not accept this invite. Please try again.'
+  if (status === 404) return m.invite_err_not_found()
+  if (status === 409) return m.invite_err_used()
+  if (status === 410) return m.invite_err_expired()
+  if (status === 401) return m.invite_err_signin()
+  return m.invite_err_generic()
 }
 
 /**
@@ -58,7 +59,7 @@ export function InviteAccept() {
   // to setState synchronously: it only ever sets state from an async fetch callback.
   const [state, setState] = useState<State>(() => {
     if (!isServerConfigured()) return { kind: 'local' }
-    if (!token) return { kind: 'error', message: 'This invite link is missing its token.' }
+    if (!token) return { kind: 'error', message: m.invite_err_missing_token() }
     return { kind: 'working' }
   })
   // Fire the accept EXACTLY once. accept is single-use, so we MUST NOT POST twice — React 18/19
@@ -98,7 +99,7 @@ export function InviteAccept() {
         console.error('InviteAccept: accept request failed', err)
         setState({
           kind: 'error',
-          message: 'Could not reach the server. Check your connection and try again.',
+          message: m.invite_err_network(),
         })
       }
     })()
@@ -109,22 +110,22 @@ export function InviteAccept() {
       <main className="w-full max-w-sm">
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-          <h1 className="text-lg font-semibold text-ink">Accept invite</h1>
+          <h1 className="text-lg font-semibold text-ink">{m.invite_title()}</h1>
         </div>
         <div className="space-y-3 rounded-lg border border-line bg-surface p-4 shadow-sm">
           {state.kind === 'working' && (
             <p role="status" className="text-sm text-muted">
-              Joining…
+              {m.invite_joining()}
             </p>
           )}
           {state.kind === 'joined' && (
             <>
               <p role="status" className="text-sm font-medium text-ink">
-                You’ve joined this company{state.role ? ` as ${state.role}` : ''}.
+                {`${m.invite_joined_base()}${state.role ? m.invite_joined_role({ role: state.role }) : ''}.`}
               </p>
               <div className="flex justify-end">
                 <Link to="/" className={linkButtonClass}>
-                  Continue
+                  {m.invite_continue()}
                 </Link>
               </div>
             </>
@@ -134,19 +135,17 @@ export function InviteAccept() {
               <FieldError>{state.message}</FieldError>
               <div className="flex justify-end">
                 <Link to="/" className={linkButtonClass}>
-                  Go to the app
+                  {m.invite_go_to_app()}
                 </Link>
               </div>
             </>
           )}
           {state.kind === 'local' && (
             <>
-              <p className="text-sm text-muted">
-                Invite links work only when {APP_NAME} is connected to a server.
-              </p>
+              <p className="text-sm text-muted">{m.invite_local_mode({ app: APP_NAME })}</p>
               <div className="flex justify-end">
                 <Link to="/" className={linkButtonClass}>
-                  Go to the app
+                  {m.invite_go_to_app()}
                 </Link>
               </div>
             </>

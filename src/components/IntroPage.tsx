@@ -1,10 +1,10 @@
 import { Button } from './common/ui'
 import {
-  INTRO_CONTINUE_LABEL,
-  INTRO_HEADING,
-  INTRO_PARA_1,
-  INTRO_PARA_2,
-  INTRO_PARA_3,
+  introContinueLabel,
+  introHeading,
+  introPara1,
+  introPara2,
+  introPara3,
 } from '../lib/introCopy'
 
 // Post-login "What CapacityLens is" intermediary page. A minimal full-screen gate shown once per device
@@ -21,25 +21,28 @@ import {
  *   (AppShell) flips the device-global `introSeen` flag and reveals the app.
  */
 export function IntroPage({ onContinue }: { onContinue: () => void }) {
+  // Copy resolves at render via the introCopy getters (Paraglide-backed) so the active locale applies.
+  const para1 = introPara1()
+  const para2 = introPara2()
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
         <div className="rounded-lg border border-line bg-surface p-6 shadow-sm">
-          <h1 className="mb-3 text-xl font-semibold text-ink">{INTRO_HEADING}</h1>
+          <h1 className="mb-3 text-xl font-semibold text-ink">{introHeading()}</h1>
           <p className="mb-3 text-sm text-muted">
-            {INTRO_PARA_1.before}
-            <strong className="font-semibold text-ink">{INTRO_PARA_1.strong}</strong>
-            {INTRO_PARA_1.after}
+            {para1.before}
+            <strong className="font-semibold text-ink">{para1.strong}</strong>
+            {para1.after}
           </p>
           <p className="mb-3 text-sm text-muted">
-            {INTRO_PARA_2.before}
-            <strong className="font-semibold text-ink">{INTRO_PARA_2.strong}</strong>
-            {INTRO_PARA_2.after}
+            {para2.before}
+            <strong className="font-semibold text-ink">{para2.strong}</strong>
+            {para2.after}
           </p>
-          <p className="mb-5 text-sm text-muted">{INTRO_PARA_3}</p>
+          <p className="mb-5 text-sm text-muted">{introPara3()}</p>
           <div className="flex justify-end">
             <Button onClick={onContinue} testId="intro-continue">
-              {INTRO_CONTINUE_LABEL}
+              {introContinueLabel()}
             </Button>
           </div>
         </div>

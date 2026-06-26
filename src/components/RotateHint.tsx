@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { APP_NAME, STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
 import { Button, Modal } from './common/ui'
+import { m } from '@/i18n'
 
 // One-time-per-session nudge for portrait phones: the schedule is a wide
 // week-at-a-glance grid, so landscape is the orientation the app is built for.
@@ -56,19 +57,17 @@ export function RotateHint() {
 
   return (
     <Modal
-      title="Best in landscape"
+      title={m.rotate_title()}
       onClose={dismiss}
       onSubmit={dismiss}
       guardDirty={false}
       footer={
         <Button type="submit" onClick={dismiss}>
-          Got it
+          {m.rotate_dismiss()}
         </Button>
       }
     >
-      <p className="text-sm text-muted">
-        {APP_NAME} is a week-at-a-glance schedule — turn your phone sideways to see the full picture.
-      </p>
+      <p className="text-sm text-muted">{m.rotate_body({ app: APP_NAME })}</p>
     </Modal>
   )
 }

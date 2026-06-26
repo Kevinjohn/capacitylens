@@ -10,14 +10,18 @@ import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { AccountSummary } from '../../store/useStore'
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { m } from '@/i18n'
 
 // Onboarding capture (P1.14): the create-company form sets language, week-start and time zone —
 // the three fields the server FREEZES after creation (a later change → 409). They're captured here,
 // with concrete defaults (never undefined: an unset frozen value can't be set later), and disabled
 // in Settings. English-only until P1.5.1 (Paraglide), so Language is a fixed display, not a chooser.
-const WEEK_START_OPTIONS: { value: 0 | 1; label: string }[] = [
-  { value: 1, label: 'Monday' },
-  { value: 0, label: 'Sunday' },
+// Each option's `label` is a GETTER (`() => m.key()`), not a pre-resolved string — the AppShell LINKS
+// pattern (P1.5.2). Resolving at import would freeze the label to the load-time locale; the getter
+// defers it to render so an account/locale switch re-resolves the text (mapped at the call site).
+const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
+  { value: 1, label: () => m.picker_week_monday() },
+  { value: 0, label: () => m.picker_week_sunday() },
 ]
 const DEFAULT_WEEK_STARTS_ON = 1 as const
 const DEFAULT_TIMEZONE = 'Etc/GMT'
@@ -84,14 +88,14 @@ export function AccountPicker() {
         {demoAuthActive && (
           <div className="mb-4 flex items-center justify-between gap-2 text-sm">
             <span className="truncate text-muted">
-              Signed in as <span className="font-medium text-ink">{FAKE_USER.name}</span>
+              {m.picker_signed_in_as()}<span className="font-medium text-ink">{FAKE_USER.name}</span>
             </span>
             <button
               type="button"
               onClick={signOutDemo}
               className="shrink-0 text-muted underline-offset-2 hover:text-ink hover:underline"
             >
-              Sign out
+              {m.picker_sign_out()}
             </button>
           </div>
         )}
@@ -101,13 +105,13 @@ export function AccountPicker() {
             onClick={() => setActiveAccount(previous.id)}
             className="mb-4 text-sm text-muted underline-offset-2 hover:text-ink hover:underline"
           >
-            ← Back to {previous.name}
+            {m.picker_back({ name: previous.name })}
           </button>
         )}
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-          <h1 className="text-lg font-semibold text-ink">Choose a company</h1>
-          <p className="text-sm text-muted">Pick a company to plan, or create a new one.</p>
+          <h1 className="text-lg font-semibold text-ink">{m.picker_title()}</h1>
+          <p className="text-sm text-muted">{m.picker_subtitle()}</p>
         </div>
 
         <ul className="space-y-2">
@@ -124,7 +128,7 @@ export function AccountPicker() {
                 <Avatar name={a.name} color={DEFAULT_COLORS.account} />
                 <span className="font-medium">{a.name}</span>
               </button>
-              <DeleteButton label={`Delete ${a.name}`} onClick={() => setConfirming(a)} />
+              <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
             </li>
           ))}
           {accounts.length === 0 && !creating && (
@@ -133,7 +137,7 @@ export function AccountPicker() {
                   memberships yet, so guide them to ask an admin (they may still create their own org
                   below); in local/OFF mode there are no companies on this device yet. One copy covers
                   both honestly — "create your first one" still applies (the New company button is below). */}
-              No companies yet — create your first one, or ask an admin for an invite.
+              {m.picker_empty()}
             </li>
           )}
         </ul>
@@ -141,27 +145,27 @@ export function AccountPicker() {
         {creating ? (
           <form noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="mt-4 space-y-3 rounded-lg border border-line bg-surface p-4">
             <TextField
-              label="Company name"
+              label={m.picker_company_name()}
               value={name}
               onChange={setName}
               autoFocus
               invalid={errorField === 'name'}
               describedById={errorId}
             />
-            <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+            <ColorField label={m.picker_colour()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
             {/* The three calendar/locale facts captured at creation and FROZEN afterwards (P1.14). */}
             <div>
-              <p className="mb-1.5 text-xs font-medium text-ink">Week starts on</p>
+              <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
               <SegmentedControl
-                ariaLabel="Week starts on"
+                ariaLabel={m.picker_week_start()}
                 value={weekStartsOn}
                 onChange={setWeekStartsOn}
-                options={WEEK_START_OPTIONS}
+                options={WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
               />
             </div>
             <div>
               <label htmlFor="create-timezone-select" className="mb-1.5 block text-xs font-medium text-ink">
-                Timezone
+                {m.picker_timezone()}
               </label>
               <select
                 id="create-timezone-select"
@@ -171,27 +175,27 @@ export function AccountPicker() {
               >
                 {tzOptions.map((tz) => (
                   <option key={tz} value={tz}>
-                    {tz === 'Etc/GMT' ? 'GMT' : tz}
+                    {tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz}
                   </option>
                 ))}
               </select>
             </div>
             <div>
               {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}
-              <p className="mb-1.5 text-xs font-medium text-ink">Language</p>
-              <p className="text-sm text-muted" data-testid="create-language">English</p>
+              <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_language()}</p>
+              <p className="text-sm text-muted" data-testid="create-language">{m.picker_language_english()}</p>
             </div>
             <FieldError id={errorId}>{error}</FieldError>
             <div className="flex items-center justify-end gap-2">
               <Button variant="ghost" onClick={resetForm}>
-                Cancel
+                {m.picker_cancel()}
               </Button>
-              <Button type="submit">Create company</Button>
+              <Button type="submit">{m.picker_create()}</Button>
             </div>
           </form>
         ) : (
           <div className="mt-4">
-            <AddButton label="New company" onClick={() => setCreating(true)} />
+            <AddButton label={m.picker_new()} onClick={() => setCreating(true)} />
           </div>
         )}
 
