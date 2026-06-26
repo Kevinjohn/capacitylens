@@ -5,7 +5,7 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 // drop in without touching any call site.
 export interface PersistenceAdapter {
   /** Load the persisted dataset. `accountId` (P1.13, server adapter only) loads ONLY that account's
-   *  scoped slice and re-seeds the diff snapshot to it; OMITTED is the whole-tree read (OFF/local, and
+   *  scoped slice and re-seeds the diff snapshot to it; OMITTED is the whole-tree read (OFF/demo, and
    *  the pre-pick bootstrap). Synchronous/local adapters ignore the argument (the whole blob is the
    *  only thing they hold). */
   loadAll(accountId?: string): Promise<AppData>

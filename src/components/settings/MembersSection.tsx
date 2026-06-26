@@ -126,7 +126,7 @@ export function MembersSection() {
     })()
   }, [enabled, activeAccountId, reloadKey, fail])
 
-  if (!enabled) return null // OFF / local mode: the section does not exist.
+  if (!enabled) return null // OFF / demo build: the section does not exist.
   if (gate === 'hidden') return null // a 403 self-gated us out (viewer/editor/non-member).
 
   const myRole = members?.find((m) => m.isSelf)?.role

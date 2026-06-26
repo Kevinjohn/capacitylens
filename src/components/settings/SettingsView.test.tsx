@@ -148,7 +148,7 @@ describe('SettingsView — build stamp', () => {
 })
 
 describe('SettingsView — Account section (auth)', () => {
-  it('renders no Account section by default (auth off / local mode — today\'s Settings)', () => {
+  it('renders no Account section by default (auth off / demo build — today\'s Settings)', () => {
     render(<SettingsView />)
     expect(screen.queryByRole('heading', { name: 'Account' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()

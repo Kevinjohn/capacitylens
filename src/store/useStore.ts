@@ -97,11 +97,11 @@ export interface Notice {
  *
  * This is kept SEPARATE from `data.accounts`: in server mode `data` holds only the ACTIVE account's
  * slice (one account), so the picker — which must list ALL the login's tenants — reads `accountSummaries`
- * instead. In local mode the two are kept in lockstep (summaries derived from `data.accounts`).
+ * instead. In the demo build the two are kept in lockstep (summaries derived from `data.accounts`).
  *
  * @property id    The `accountId` a subsequent `GET /api/state?accountId=…` hydrates.
  * @property name  The company name shown in the picker.
- * @property role  The caller's role for this account (OFF/local supply 'owner' = full access).
+ * @property role  The caller's role for this account (OFF/demo supply 'owner' = full access).
  */
 export interface AccountSummary {
   id: ID
@@ -190,7 +190,7 @@ export interface StoreState {
   previousAccountId: ID | null
   /** The server-sourced list of accounts this login may open (P1.13) — the AccountPicker's data
    *  source. Set by useAccountSummaries: in server mode from `GET /api/accounts` (the login's
-   *  memberships); in local mode derived from `data.accounts`. SEPARATE from `data` because in
+   *  memberships); in the demo build derived from `data.accounts`. SEPARATE from `data` because in
    *  server mode `data` holds only the ACTIVE account's slice, so it can't list the other tenants.
    *  Never persisted. */
   accountSummaries: AccountSummary[]
@@ -349,26 +349,26 @@ export interface StoreState {
   deleteTimeOff: (id: ID) => void
 
   // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the three
-  // tombstone-carrying tables (resources / clients / projects). These are the LOCAL/OFF-mode path —
+  // tombstone-carrying tables (resources / clients / projects). These are the DEMO-build / OFF path —
   // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
   // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
-  // delete,purge}, P2.5a) directly, so the admin view only invokes these in local mode. They COMPOSE
+  // delete,purge}, P2.5a) directly, so the admin view only invokes these in the demo build. They COMPOSE
   // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts) — the transition logic and the
   // soft-delete obfuscation string are NEVER re-derived here. Same contract as the CRUD: undoable,
   // viewer-no-op, stale-id-no-op, and the transition THROWS a display-safe Error on an invalid source
   // state (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
-  /** Archive an entity (active → archived). LOCAL-mode path; surface-not-swallow — `archive` throws
+  /** Archive an entity (active → archived). DEMO-build path; surface-not-swallow — `archive` throws
    *  if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
   archiveEntity: (entity: LifecycleEntity, id: ID) => void
-  /** Un-archive an entity (archived → active). LOCAL-mode path; `unarchive` throws if the row isn't
+  /** Un-archive an entity (archived → active). DEMO-build path; `unarchive` throws if the row isn't
    *  archived. @param entity which tombstone table. @param id the row to restore. */
   unarchiveEntity: (entity: LifecycleEntity, id: ID) => void
-  /** Soft-delete an entity (archived → deleted tombstone). LOCAL-mode path; `softDelete` throws unless
+  /** Soft-delete an entity (archived → deleted tombstone). DEMO-build path; `softDelete` throws unless
    *  the row is archived first (the lifecycle requires prior archival). For a `resources` row the
    *  tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
    *  no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
   softDeleteEntity: (entity: LifecycleEntity, id: ID) => void
-  /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). LOCAL-mode path.
+  /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). DEMO-build path.
    *  Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
    *  it does NOT mutate and surfaces an error notice instead of throwing (a refused affordance, not a
    *  bug). @param entity which tombstone table. @param id the tombstone to purge. */
@@ -523,7 +523,7 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, accounts: [...d.accounts, e], clients: [...d.clients, internal] }))
       // Keep the picker's server-sourced list in lockstep (P1.13): the creator is the new account's
       // Owner, so optimistically append the summary. In server mode the next /api/accounts refetch
-      // (e.g. on a remount) reconciles; in local mode the derivation does. Append only if absent so a
+      // (e.g. on a remount) reconciles; in the demo build the derivation does. Append only if absent so a
       // refetch that already added it can't duplicate.
       set((s) =>
         s.accountSummaries.some((a) => a.id === e.id)
@@ -538,7 +538,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deleteAccount: (id) => {
       mutate((d) => deleteAccountCascade(d, id))
       // Drop it from the picker's list too (P1.13) so a deleted company disappears from the picker in
-      // server mode (local mode's derivation would also drop it, but this keeps both paths consistent).
+      // server mode (the demo build's derivation would also drop it, but this keeps both paths consistent).
       set((s) => ({ accountSummaries: s.accountSummaries.filter((a) => a.id !== id) }))
       if (get().activeAccountId === id) get().setActiveAccount(null)
     },
@@ -550,7 +550,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // render an empty schedule as if it were real (exactly the hidden-corruption class we guard
       // against). Never throw: null is legitimate and tests/recovery set ids; the picker is safe.
       //
-      // EXISTENCE = the UNION of `data.accounts` (local mode, and the active slice in server mode) AND
+      // EXISTENCE = the UNION of `data.accounts` (the demo build, and the active slice in server mode) AND
       // `accountSummaries` (server mode, where `data` holds only the active account's slice so a
       // not-yet-loaded tenant is absent from data but present in the summaries the picker showed). The
       // persist switch orchestrator then loads that account's slice into `data`; this validation only
@@ -914,7 +914,7 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }))
     },
 
-    // --- Data-lifecycle actions (P2.5b LOCAL-mode path). See the StoreState block above for the
+    // --- Data-lifecycle actions (P2.5b DEMO-build path). See the StoreState block above for the
     // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the three
     // tombstone-carrying tables (resources / clients / projects); there is no immediate hard-delete
     // action for them — a physical row removal happens only at the END of the lifecycle, in purgeEntity,

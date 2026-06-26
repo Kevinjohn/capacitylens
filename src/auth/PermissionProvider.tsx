@@ -10,8 +10,8 @@ import type { Role } from '@capacitylens/shared/domain/access'
 // Viewer sees a read-only UI. It mounts INSIDE AppShell, around the app body subtree, AFTER the
 // tenant/intro gates — so `activeAccountId` is already set when this runs.
 //
-// REGRESSION GUARD (load-bearing): in OFF mode OR local mode (no VITE_CAPACITYLENS_API) this is a
-// pure pass-through — `role: null`, ZERO fetches, ever (mirrors AuthProvider's local-mode
+// REGRESSION GUARD (load-bearing): in OFF mode OR the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
+// pure pass-through — `role: null`, ZERO fetches, ever (mirrors AuthProvider's demo-mode
 // discipline). That is the shipped/default path and MUST stay byte-identical to today's app, which
 // `role: null` → fully editable (see permissionContext.ts) guarantees.
 //
@@ -30,7 +30,7 @@ function isRole(v: unknown): v is Role {
 /**
  * Resolve and provide the caller's role for the active account (P1.12).
  *
- * - OFF mode OR local (no server): `role: null`, no fetch — the default, must-stay-editable path.
+ * - OFF mode OR the demo build (no server): `role: null`, no fetch — the must-stay-editable path.
  * - auth-on + server + an active account: fetch `GET /api/accounts` ONCE per active account, find
  *   the entry whose `id === activeAccountId`, and set its role. On failure/absence: `role: null`
  *   (fail-open to editable; the server 403 backstops).
@@ -50,11 +50,11 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   // whose accountId !== activeAccountId reads as null (editable) until the new fetch lands.
   const [fetched, setFetched] = useState<{ accountId: string; role: Role | null } | null>(null)
 
-  // Enabled ONLY in an auth-on, server-backed deploy. OFF / local provides null and fetches nothing.
+  // Enabled ONLY in an auth-on, server-backed deploy. OFF / demo provides null and fetches nothing.
   const enabled = authMode !== 'off' && isServerConfigured()
 
   useEffect(() => {
-    // OFF / local / no active account: there is no membership role to enforce. Make NO request — the
+    // OFF / demo / no active account: there is no membership role to enforce. Make NO request — the
     // shipped default path stays byte-identical to today. The provided role is null either way (the
     // value computation below short-circuits to null when not enabled), so no local reset is needed.
     if (!enabled || !activeAccountId) {
@@ -99,9 +99,9 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
     // in the value computation below until the new fetch lands.
   }, [enabled, activeAccountId, setActiveRole])
 
-  // OFF / local / no active account → null (editable). Otherwise use the fetched role ONLY when it was
+  // OFF / demo / no active account → null (editable). Otherwise use the fetched role ONLY when it was
   // resolved for the CURRENTLY active account (the accountId tag) — a prior tenant's role can't leak
-  // across a switch. This computation is what lets the OFF/local branch above avoid a synchronous
+  // across a switch. This computation is what lets the OFF/demo branch above avoid a synchronous
   // setState (the set-state-in-effect lint).
   const role = enabled && activeAccountId && fetched?.accountId === activeAccountId ? fetched.role : null
 

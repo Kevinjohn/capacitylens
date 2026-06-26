@@ -51,7 +51,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   //
   // @param accountId  When PRESENT (P1.13), load ONLY that account's scoped slice via
   //   `GET /api/state?accountId=…`. This is the per-account hydration path: the picker chose a tenant
-  //   and we load just its data. When ABSENT, fall back to the no-arg whole read — used in OFF/local
+  //   and we load just its data. When ABSENT, fall back to the no-arg whole read — used in OFF/demo
   //   (still a whole tree) and the pre-pick bootstrap before any account is active (in auth-on the
   //   server now 400s a no-arg read, which surfaces as a LoadError → connection screen, which is
   //   correct: there's nothing to show until a tenant is picked and re-loaded with an id).

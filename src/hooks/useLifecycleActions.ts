@@ -20,7 +20,7 @@ import { m } from '@/i18n'
 //     reflect the change AND the adapter's diff snapshot would desync (next ordinary edit would emit a
 //     spurious/garbage delta). On a non-OK response we surface `body.error` (a <30d purge → 409, a
 //     non-admin purge / non-member → 403) and never crash.
-//   • LOCAL/OFF mode (`isServerConfigured()` false): the UI calls the store action, which mutates the
+//   • DEMO build (`isServerConfigured()` false — VITE_CAPACITYLENS_DEMO=1): the UI calls the store action, which mutates the
 //     local `data` blob immediately through the same mutate()/undo machinery (no fetch, no reload).
 //     We wrap it in try/catch and surface the throw — these are the store's deliberate display-safe
 //     integrity throws (builtin-Internal guard, illegal-transition backstop), exactly the ones the UI
@@ -32,7 +32,7 @@ export type LifecycleVerb = 'archive' | 'unarchive' | 'delete' | 'purge'
 /**
  * The dispatch surface returned by {@link useLifecycleActions}. Each method runs ONE lifecycle
  * transition for one entity row, branching server vs local internally. They are async because the
- * SERVER path awaits the route POST + the reload; in LOCAL mode they resolve synchronously after the
+ * SERVER path awaits the route POST + the reload; in the demo build they resolve synchronously after the
  * store mutation. The promise NEVER rejects — a failure is surfaced as a notice and the promise still
  * resolves, so a caller can `void` it without an unhandled rejection (the MembersSection idiom).
  */
@@ -56,7 +56,7 @@ export interface LifecycleActions {
  * snapshot to EXACTLY that slice — atomically, in the one call. `replaceAll(slice)` then fires the
  * store data subscription, but because the snapshot now equals the slice the resulting diff is ZERO
  * ops — a harmless no-op save (the `loadingSlice` guard inside `refreshActive` only optimises that
- * no-op away; it is not required for correctness). LOCAL mode never calls this (its store actions
+ * no-op away; it is not required for correctness). The demo build never calls this (its store actions
  * already mutate `data`).
  */
 async function reloadFromServer(accountId: string): Promise<void> {
@@ -112,7 +112,7 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     [activeAccountId, setNotice, onReloaded],
   )
 
-  // The single local-mode dispatch: call the store action; wrap so the store's deliberate display-safe
+  // The single demo-build dispatch: call the store action; wrap so the store's deliberate display-safe
   // throws (builtin-Internal guard, illegal-transition backstop) surface as a notice rather than a
   // React error. purgeEntity surfaces its own <30d notice and no-ops (doesn't throw), handled inside.
   const dispatchLocal = useCallback(

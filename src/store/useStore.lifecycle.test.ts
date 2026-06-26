@@ -6,7 +6,7 @@ import { addDaysISO, todayISO } from '@capacitylens/shared/lib/dateMath'
 import type { Resource } from '@capacitylens/shared/types/entities'
 import { makeResourceDraft, resetStoreWithAccount } from '../test/fixtures'
 
-// Store-level coverage for the P2.5b data-lifecycle actions (the LOCAL/OFF-mode path): archiveEntity /
+// Store-level coverage for the P2.5b data-lifecycle actions (the DEMO-build / OFF path): archiveEntity /
 // unarchiveEntity / softDeleteEntity / purgeEntity. They COMPOSE the pure shared lifecycle helpers and
 // mutate the local `data` blob through the same mutate()/undo machinery as the CRUD actions, so these
 // specs mirror the existing store-test idiom (resetStoreWithAccount + s().data assertions).

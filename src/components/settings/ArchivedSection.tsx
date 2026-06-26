@@ -17,7 +17,7 @@ import type { AppData, Client, Project, Resource } from '@capacitylens/shared/ty
 // and management lists HIDE (archived + soft-deleted tombstones) and drives the lifecycle transitions
 // through `useLifecycleActions` (which branches server/local — see that hook). Modeled on
 // MembersSection: in SERVER mode it self-gates on a 403 from the inactive read and re-fetches on a
-// `reloadKey` bump; in LOCAL mode it always renders (everyone is owner locally) and reads the
+// `reloadKey` bump; in the DEMO build it always renders (everyone is owner locally) and reads the
 // inactive rows straight from the store via `useInactiveScopedData`.
 
 // One inactive row, normalised across the three lifecycle tables so the two groups (archived /
@@ -68,7 +68,7 @@ const TYPE_LABEL: Record<LifecycleEntity, () => string> = {
  * The Settings → "Archived & deleted" admin view (P2.5b). Partitions the inactive rows into Archived
  * (restore / delete) and Deleted-tombstone (permanently delete) groups and drives each transition
  * through the shared {@link useLifecycleActions} dispatch. SERVER mode fetches the inactive slice with
- * `?includeInactive=1` and self-hides on a 403 (admin-tier gate); LOCAL mode reads it from the store
+ * `?includeInactive=1` and self-hides on a 403 (admin-tier gate); the DEMO build reads it from the store
  * and always renders. The permanent-delete button is gated client-side by `canPurge` (disabled with a
  * locked hint until the 30-day grace elapses) AND by the purge role tier; the server is the backstop.
  */
@@ -82,14 +82,14 @@ export function ArchivedSection() {
   // this a screen reader announces only "Permanently delete {name}" with no reason it's disabled.
   const hintBaseId = useId()
 
-  // LOCAL-mode source: the raw scoped slice (active + archived + deleted), filtered below.
+  // DEMO-build source: the raw scoped slice (active + archived + deleted), filtered below.
   const localData = useInactiveScopedData()
 
   // SERVER-mode source: an ?includeInactive=1 fetch, with the MembersSection 403-self-hide gate.
   const [serverRows, setServerRows] = useState<Row[] | null>(null)
   const [gate, setGate] = useState<'loading' | 'shown' | 'hidden'>(server ? 'loading' : 'shown')
   // Bumped after every successful mutation to re-run the inactive fetch (server) — the MembersSection
-  // reloadKey idiom. (Local mode re-renders off the store directly, so the bump is a harmless no-op.)
+  // reloadKey idiom. (The demo build re-renders off the store directly, so the bump is a harmless no-op.)
   const [reloadKey, setReloadKey] = useState(0)
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
@@ -127,7 +127,7 @@ export function ArchivedSection() {
     })()
   }, [server, activeAccountId, reloadKey, setNotice])
 
-  // The rows to render: server fetch in server mode, the store slice in local mode.
+  // The rows to render: server fetch in server mode, the store slice in the demo build.
   const rows = useMemo(
     () => (server ? (serverRows ?? []) : collectInactive(localData)),
     [server, serverRows, localData],
