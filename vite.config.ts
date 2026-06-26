@@ -45,6 +45,8 @@ export default defineConfig({
     // does this); ignored by `vite build`. Stays in lockstep with the launcher via the same env var.
     proxy: {
       '/api': {
+        // Keep this `CAPACITYLENS_DEV_API_PORT ?? 8787` default identical to scripts/dev-fullstack.mjs's
+        // API_PORT so the launcher and this proxy stay in lockstep (the 8787 is the shared default).
         target: `http://localhost:${process.env.CAPACITYLENS_DEV_API_PORT ?? 8787}`,
         changeOrigin: true,
       },

@@ -7,6 +7,12 @@ with no `VITE_CAPACITYLENS_API` set, the build runs in server mode (the client c
 no database and no login, with your data living in `localStorage` and never leaving the device. Both
 modes talk through the same persistence seam, so nothing else about the app changes.
 
+> ⚠️ **Deploying without a backend? Build with `VITE_CAPACITYLENS_DEMO=1`.** The default build is
+> server mode and expects a backend at the **same-origin `/api`** — empty env does NOT fall back to
+> localStorage. A plain `vite build` (or `vite preview`) served on a static host with no `/api`
+> backend boots straight into a "can't reach the server" screen. For any backend-less deploy (static
+> host, `vite preview`, a demo link), build the localStorage demo: `VITE_CAPACITYLENS_DEMO=1 vite build`.
+
 **Deliberately small.** CapacityLens replaces the resourcing spreadsheet: a helicopter view of
 who's busy, who's free, who's overworked — week by week, for small agencies with a few
 staff and rotating freelancers. It is intentionally **not** feature-rich: no budgets,
@@ -114,6 +120,11 @@ SQLite/auth servers nor Node 24 and run anywhere the app builds.
 the servers + Node 24). In both `e2e:browsers` and `e2e:all`, WebKit runs first and Firefox second,
 both always run, and the run fails if either engine fails. The db-backed/auth-backed specs stay
 Chromium-only (they exercise server round-trips, not cross-engine rendering).
+
+> **Stop `npm run dev` before running `npm run e2e`.** Both bind **:5173**, and e2e deliberately does
+> NOT reuse a running dev server (`reuseExistingServer: false`) — a reused server-mode dev server
+> would corrupt the demo/localStorage specs — so it boots its own. With `npm run dev` still holding
+> the strict port, `npm run e2e` fails to start. Kill the dev server first.
 
 ## Docs map
 

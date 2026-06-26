@@ -42,8 +42,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   Confirm calls `clearCapacitylensLocalStorage()` (`src/data/clearLocalStorage.ts` — iterates localStorage,
   removes every `capacitylens/`-prefixed key: the `capacitylens/v3` AppData blob + ALL device prefs, leaving
   unrelated origin keys), then `window.location.reload()`. Never a blind `localStorage.clear()`. Copy
-  adapts to mode: server mode (VITE_CAPACITYLENS_API set) says the DB is safe and the app re-loads from it;
-  local mode says this erases your only copy. A clear failure surfaces via `setNotice(…, 'error')`
+  adapts to mode (the selector is `isServerConfigured()` in `SettingsView.tsx`, i.e. `!isDemoMode()`):
+  server mode (the default) says the DB is safe and the app re-loads from it; the `VITE_CAPACITYLENS_DEMO=1`
+  demo build (localStorage) says this erases your only copy. A clear failure surfaces via `setNotice(…, 'error')`
   (user-triggered, so don't swallow).
 
 ## Deployment / self-host

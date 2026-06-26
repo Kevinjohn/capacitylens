@@ -17,7 +17,13 @@ import { spawn } from 'node:child_process'
 import net from 'node:net'
 
 // Keep the launcher, the API child (server reads PORT), and the Vite proxy on the SAME port.
+// vite.config.ts's proxy target MUST use the same `CAPACITYLENS_DEV_API_PORT ?? 8787` default so the
+// launcher and the Vite proxy stay in lockstep (the 8787 is the shared default, not a copy to drift).
+// NB this is the DEV-proxy API port, distinct from serve-dist.mjs's bare API_PORT (its dist-serving port).
 const API_PORT = Number(process.env.CAPACITYLENS_DEV_API_PORT ?? 8787)
+// Vite is strictPort:true on 5173 (vite.config.ts), so a collision there is a hard EADDRINUSE AFTER
+// the API child has already booted. Pre-flight it too (below), symmetric with the API check.
+const WEB_PORT = 5173
 
 /**
  * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe —
@@ -48,6 +54,18 @@ if (await portInUse(API_PORT)) {
     `dev: port ${API_PORT} is already in use — the API can't start. Stop whatever holds it ` +
       `(another \`npm run dev\`, a stray capacitylens-server), or set CAPACITYLENS_DEV_API_PORT ` +
       `to a free port. Not starting the web server to avoid a half-up stack.`,
+  )
+  process.exit(1)
+}
+
+// Symmetric with the API check above: Vite is strictPort:true on WEB_PORT, so a collision is a hard
+// EADDRINUSE — but it would surface only AFTER the API child booted, leaving a half-up stack. Catch it
+// here, BEFORE starting either child, so neither runs against an unusable web port.
+if (await portInUse(WEB_PORT)) {
+  console.error(
+    `dev: port ${WEB_PORT} is already in use — the Vite web server can't start (strictPort). Stop ` +
+      `whatever holds it (another \`npm run dev\`/\`npm run dev:demo\`, a sibling repo on the same ` +
+      `port). Not starting the API server to avoid a half-up stack.`,
   )
   process.exit(1)
 }

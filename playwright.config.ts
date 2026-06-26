@@ -41,6 +41,9 @@ const devWebServer = {
   // persistence flavour. Post-flip, `npm run dev` boots a SERVER-mode dev server on :5173; reusing
   // that for the localStorage core specs would run them against the wrong backend. Always spawn a
   // fresh demo build (the CI guard is moot now that we never reuse).
+  // CONSEQUENCE: if a full-stack `npm run dev` is already holding :5173, this spawn collides
+  // (strictPort) and `npm run e2e` fails to start rather than reusing it — BY DESIGN (a reused
+  // server-mode :5173 would corrupt the demo specs). Stop `npm run dev` first.
   reuseExistingServer: false,
   timeout: 120_000,
 }
