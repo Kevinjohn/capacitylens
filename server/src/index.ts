@@ -32,6 +32,11 @@ import { parseBackupConfig, startBackups } from './backup'
 //   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across /api/* (positive
 //                                   integer; unset/0/non-numeric = off, fail-closed).
 //                                   /api/health is exempt.
+//   CAPACITYLENS_BOOTSTRAP_TOKEN          shared secret enabling constrained org-creation via
+//                                   POST /api/orgs (header x-capacitylens-bootstrap-token)
+//                                   for a caller who is not yet an Owner/Admin. Default off
+//                                   (unset/empty = the token path never allows; org-create is
+//                                   then first-run-only or an existing Owner/Admin).
 //   CAPACITYLENS_BACKUP_DIR               set to a directory to enable periodic online DB
 //                                   snapshots there (default off — no timer, no writes).
 //   CAPACITYLENS_BACKUP_INTERVAL_MIN      snapshot cadence in minutes (default 60; only read
@@ -93,6 +98,10 @@ const https = process.env.CAPACITYLENS_HTTPS === '1'
 const log = process.env.CAPACITYLENS_LOG === '1'
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === '1'
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT)
+// P1.8 constrained org-creation. An empty/unset value leaves the token path DISABLED (the app
+// treats undefined and '' identically — bootstrapTokenMatches never allows an empty secret), so
+// the secure default holds: POST /api/orgs is first-run-only or an existing Owner/Admin.
+const bootstrapToken = process.env.CAPACITYLENS_BOOTSTRAP_TOKEN || undefined
 // X-Forwarded-For is only trustworthy when Nginx proxies to us on loopback (every socket
 // is then 127.0.0.1); a deliberately-exposed host (CAPACITYLENS_HOST=0.0.0.0) keys on the
 // socket address, because the header is client-spoofable there.
@@ -149,6 +158,7 @@ const app = buildApp(db, {
   healthDeep,
   rateLimit,
   rateLimitTrustForwarded,
+  bootstrapToken,
   authMode,
   auth,
 })

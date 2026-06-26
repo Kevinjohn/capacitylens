@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
 import helmetPlugin from '@fastify/helmet'
@@ -32,8 +33,11 @@ import {
 } from './db'
 import { sqliteTenantStore } from './tenantStore'
 import { listAccounts, resolveRole } from './membership'
+import { listMembershipsForUser, upsertMember } from './controlTables'
 import { can, canSeeTimeOffNote, type Action } from '@capacitylens/shared/domain/access'
 import { tx } from './txn'
+import { newId } from '@capacitylens/shared/lib/id'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
@@ -88,6 +92,15 @@ export interface AppOptions {
    *  no-auth, last-writer-wins by design (see the plan). Turn on once real
    *  multi-user auth + client conflict-resolution land. */
   optimisticConcurrency?: boolean
+  /** CAPACITYLENS_BOOTSTRAP_TOKEN (P1.8) — a shared secret that, when sent as the
+   *  `x-capacitylens-bootstrap-token` request header on `POST /api/orgs`, authorises
+   *  constrained org-creation even for a caller who is NOT yet an Owner/Admin of any
+   *  account (e.g. an operator provisioning the SECOND account on an instance that already
+   *  has one). DEFAULT undefined = the token path is DISABLED: an unset/empty token can
+   *  never match, so `POST /api/orgs` then allows ONLY first-run (zero accounts) or an
+   *  existing Owner/Admin (or OFF mode). The compare is constant-time + length-checked so
+   *  it leaks neither the token's length nor its bytes by timing. */
+  bootstrapToken?: string
   /** CAPACITYLENS_HTTPS=1 — the API is reached over HTTPS, so HSTS is safe to emit.
    *  Default false: HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is
    *  actively HARMFUL over plain HTTP — a browser that caches an HSTS directive received
@@ -165,6 +178,22 @@ function resolveCorsOrigin(reqOrigin: string | undefined, allow: string): string
   if (allow === '*') return '*'
   const list = allow.split(',').map((s) => s.trim()).filter(Boolean)
   return reqOrigin && list.includes(reqOrigin) ? reqOrigin : null
+}
+
+// Constant-time secret compare for the P1.8 bootstrap token. Returns false UNLESS the
+// configured token is a non-empty string AND the presented header is a non-empty string of
+// the SAME byte length whose bytes match — so an unset/empty token (the default) never allows
+// the token path, and the length-equality short-circuit doesn't reveal the secret's length by
+// timing (timingSafeEqual itself requires equal-length buffers). The header arrives as
+// string | string[] | undefined from Fastify; only a single string can match.
+function bootstrapTokenMatches(configured: string | undefined, presented: unknown): boolean {
+  if (!configured || typeof presented !== 'string' || presented.length === 0) return false
+  const a = Buffer.from(configured, 'utf8')
+  const b = Buffer.from(presented, 'utf8')
+  // timingSafeEqual throws on a length mismatch — guard first; an attacker learns only "wrong
+  // length" (already observable from the response), not the secret's bytes.
+  if (a.length !== b.length) return false
+  return timingSafeEqual(a, b)
 }
 
 // Map a thrown error to an HTTP status. Caller-fault errors — domain validation
@@ -540,6 +569,75 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // non-empty" — so a user who deletes all their data isn't re-seeded on the next load
     // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
     app.get('/api/meta', () => ({ hasData: isInitialized(db) }))
+
+    // Constrained org-creation (P1.8): the ATOMIC "create a usable account" path, distinct from the
+    // generic `POST /api/accounts` below (which stays OPEN for the not-yet-migrated onboarding client
+    // and only ever writes the bare account row — closing it is deferred to the client migration,
+    // P1.13). Unlike that bare write, /api/orgs ALSO mints the account's built-in Internal client and
+    // makes the caller its Owner, in ONE transaction.
+    //
+    // AUTHORIZATION (computed BEFORE any write). Allowed iff ANY of:
+    //   (1) ZERO accounts exist — first-run bootstrap (anyone may create the very first org).
+    //   (2) OFF mode (trusted-local) — mirrors the authorize() OFF no-op; req.user is DEMO_USER.
+    //   (3) auth-on: the caller is an ACTIVE Owner/Admin of SOME existing account (can(role,
+    //       'manageMembers') = admin-tier) — an existing operator may provision more orgs.
+    //   (4) a valid bootstrap token in the `x-capacitylens-bootstrap-token` header (opts.bootstrapToken,
+    //       env CAPACITYLENS_BOOTSTRAP_TOKEN, OFF by default — disabled when unset/empty).
+    // Otherwise 403 — the acceptance criterion: a STRANGER cannot create an org once any account
+    // exists, absent a bootstrap token. The gate runs in auth-on AND off; in off mode (1)/(2) already
+    // allow, so the token/membership branches are moot there.
+    app.post('/api/orgs', (req, reply) => {
+      const accountCount = (db.prepare('SELECT COUNT(*) AS n FROM accounts').get() as { n: number }).n
+      const allowed =
+        accountCount === 0 || // (1) first-run bootstrap
+        authMode === 'off' || // (2) trusted-local — req.user is DEMO_USER
+        bootstrapTokenMatches(opts.bootstrapToken, req.headers['x-capacitylens-bootstrap-token']) || // (4)
+        // (3) an ACTIVE owner/admin of ANY existing account (admin-tier = can manageMembers).
+        listMembershipsForUser(db, req.user!.id).some(
+          (m) => m.status === 'active' && can(m.role, 'manageMembers'),
+        )
+      if (!allowed) {
+        return reply.code(403).send({ error: 'Forbidden.' })
+      }
+      // Build a VALID account row from the body (name required; colour repaired; junk schedulingMode
+      // dropped) via the SAME sanitize/validate the generic account create uses — so /api/orgs can't
+      // persist a row the generic path would reject. The id is generated server-side when the body
+      // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
+      // is accepted and validated like any other write.
+      try {
+        const now = new Date().toISOString()
+        const id = typeof (req.body as { id?: unknown })?.id === 'string' && (req.body as { id: string }).id.trim() !== ''
+          ? (req.body as { id: string }).id
+          : newId()
+        const accountRow = sanitizeWrite('accounts', {
+          ...(req.body as Record<string, unknown>),
+          id,
+          createdAt: now,
+          updatedAt: now,
+        })
+        validateWrite(loadState(db), 'accounts', accountRow)
+        // Atomic: the account, its built-in Internal client, and the Owner membership commit together
+        // or not at all (tx rolls back on any throw). Minting the Internal here is correct precisely
+        // because an /api/orgs caller does NOT separately sync one (so there is no second builtin to
+        // collide — the account is brand-new, freshly inserted in this same tx). The OFF-mode owner is
+        // DEMO_USER (id 'demo'); the membership table is not gated/read in off mode, so the row is
+        // harmless bookkeeping there.
+        tx(db, () => {
+          insertRow(db, 'accounts', accountRow)
+          insertRow(db, 'clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
+          upsertMember(db, {
+            accountId: id,
+            userId: req.user!.id,
+            role: 'owner',
+            status: 'active',
+            createdAt: now,
+          })
+        })
+        return reply.code(201).send(accountRow)
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
 
     // A bare account write (entity === 'accounts') deliberately does NOT auto-mint that account's
     // built-in Internal client. Runtime Internal creation is the CLIENT's job: the web store's
