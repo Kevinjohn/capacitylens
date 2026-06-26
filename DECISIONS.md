@@ -363,6 +363,16 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   server's membership table now and by P1.3's pure `can(role, action)` + the client later (P1.3 ADDS
   `Action`/`can`/`canSeeTimeOffNote` to this same file). Writes validate the role against this set
   and throw on an unknown role — never silently coerce an access level.
+- **`can(role, action)` is the single pure access authority (P1.3).** `shared/src/domain/access.ts`
+  exports `Action = read | write | manageMembers | manageInvites | purge | transferOwnership` and a
+  PURE `can(role, action)` (no I/O, no session, no Date/random) — the ONE place the matrix is
+  encoded, reused by the server (P1.5 `requirePermission`) AND the client (P1.12 affordances) so the
+  two can't drift. Matrix (Decisions): `read` = any member, `write` = editor+, `manageMembers` /
+  `manageInvites` / `purge` = admin+, `transferOwnership` = owner. Encoded as a named role-rank
+  (`viewer<editor<admin<owner`) + a per-action minimum-tier table `satisfies Record<Action, Role>`
+  (exhaustive over `Action` at compile time; fail-closed on an unknown role/action). The field-level
+  `canSeeTimeOffNote(role)` (owner/admin only) is kept SEPARATE — it's a field-visibility rule
+  (redacts the time-off `note` server-side in P1.6), not a route Action.
 - **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
   headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
   (`default-src`/`connect-src`/`base-uri 'self'`, `frame-ancestors 'none'`, `object-src 'none'`),

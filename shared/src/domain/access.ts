@@ -27,3 +27,106 @@
  * matrix and the membership table agree on the vocabulary.
  */
 export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
+
+/**
+ * A guarded capability the access matrix gates. These are coarse policy *actions* (not 1:1 with
+ * HTTP routes); P1.5's `requirePermission` maps each protected route onto one of these before
+ * calling {@link can}. The required tier is documented per member:
+ *
+ * - `'read'`             — view an account's scheduling data. ANY member (owner | admin | editor | viewer).
+ * - `'write'`            — create / edit / delete scheduling data. Editor and up (owner | admin | editor); NOT viewer.
+ * - `'manageMembers'`    — add / remove members and change their roles. Admin tier (owner | admin).
+ * - `'manageInvites'`    — create / revoke invites (link + email-preauth). Admin tier (owner | admin).
+ * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
+ * - `'transferOwnership'`— hand the account to another login. Owner ONLY.
+ *
+ * INVARIANT: this union is the closed vocabulary the matrix is exhaustive over (see {@link can}'s
+ * `satisfies Record<Action, …>`): adding a member here without a rule fails to compile.
+ */
+export type Action =
+  | 'read'
+  | 'write'
+  | 'manageMembers'
+  | 'manageInvites'
+  | 'purge'
+  | 'transferOwnership'
+
+// The role tiers are strictly nested for every gated Action (viewer ⊂ editor ⊂ admin ⊂ owner), so
+// the matrix is encoded as a per-action MINIMUM TIER plus a role→rank lookup, rather than spelling
+// out an allow-list per action. Higher rank = more capable; a role passes iff its rank ≥ the
+// action's minimum-tier rank. Encoding "owner > admin > editor > viewer" once (here) keeps the
+// matrix a single small table and makes "and up" literal — no per-action list can drift out of tier
+// order. The named ranks (no magic numbers) below are the only place the ordering lives.
+const ROLE_RANK: Readonly<Record<Role, number>> = {
+  viewer: 0,
+  editor: 1,
+  admin: 2,
+  owner: 3,
+} as const
+
+/**
+ * The minimum role required for each {@link Action} — the matrix from the CapacityLens Decisions
+ * table, expressed as the lowest tier that may perform the action. A role satisfies an action iff
+ * its {@link ROLE_RANK} is ≥ the rank of this minimum role.
+ *
+ * `satisfies Record<Action, Role>` is load-bearing: it makes the table exhaustive over `Action` at
+ * COMPILE time, so a newly-added Action with no rule here is a build error rather than a silent
+ * fail-open.
+ */
+const MIN_TIER = {
+  read: 'viewer', // any member
+  write: 'editor', // editor and up
+  manageMembers: 'admin', // admin and up
+  manageInvites: 'admin', // admin and up
+  purge: 'admin', // admin and up
+  transferOwnership: 'owner', // owner only
+} as const satisfies Record<Action, Role>
+
+/**
+ * The single pure authority for "may this role perform this action" on an account. The server
+ * (P1.5 `requirePermission`) resolves the caller's role for the account (a membership lookup) and
+ * then calls THIS; the client (P1.12 `useCanEdit`) calls the SAME function for affordances — so the
+ * permission decision is single-sourced and the two halves cannot drift.
+ *
+ * PURE by contract: no I/O, no session/Headers param, no Date, no randomness — just the role, the
+ * action, and the static matrix. It is a leaf module (only depends on the {@link Role} type) so
+ * both server and client can import it freely.
+ *
+ * INVARIANT: this is the ONLY place the role/action matrix is encoded. Affordance code and route
+ * guards must call `can` rather than re-deriving "is this role an admin?" inline.
+ *
+ * Fail-closed: an unrecognised role or action yields `false` (the types prevent reaching this in
+ * well-typed code; the guard is the safe default at an untyped boundary).
+ *
+ * @param role - the caller's resolved account role (see {@link Role}).
+ * @param action - the capability being attempted (see {@link Action}).
+ * @returns `true` iff `role` is at or above the action's required tier; `false` otherwise.
+ */
+export function can(role: Role, action: Action): boolean {
+  const minRole = MIN_TIER[action]
+  const have = ROLE_RANK[role]
+  const need = ROLE_RANK[minRole]
+  // Fail-closed at an untyped boundary: an unknown role/action makes a rank `undefined`, and any
+  // comparison with `undefined` is `false` — so we deny rather than fall open.
+  if (have === undefined || need === undefined) return false
+  return have >= need
+}
+
+/**
+ * Field-level visibility rule: only an owner or admin may see a time-off entry's `note`.
+ *
+ * Kept SEPARATE from the {@link Action} matrix on purpose — this is a *field-visibility* rule
+ * (which columns to project), not a *route action* (whether to allow a request). The server
+ * enforces it by redacting `note` from the read slice for everyone below admin (P1.6); the client
+ * uses the same predicate to decide whether to render the field. It is not an `Action` because
+ * there is no request to gate — the request (a read) is already allowed; this only narrows the
+ * payload.
+ *
+ * PURE: no I/O, no session — just the role.
+ *
+ * @param role - the caller's resolved account role.
+ * @returns `true` iff `role` is `'owner'` or `'admin'`.
+ */
+export function canSeeTimeOffNote(role: Role): boolean {
+  return role === 'owner' || role === 'admin'
+}
