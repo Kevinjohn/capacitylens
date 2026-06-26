@@ -57,9 +57,11 @@ const timeOff = (id: string, accountId: string, resourceId: string, note?: strin
   ...meta(),
 })
 
-/** All readSlice calls below pass includeTimeOffNote (REQUIRED, P1.6); the isolation tests want the
- *  full slice, so they pass `true`. The redaction itself is asserted in its own describe block. */
-const FULL = { includeTimeOffNote: true } as const
+/** All readSlice calls below pass includeTimeOffNote (REQUIRED, P1.6) AND includeInactive (REQUIRED,
+ *  P2.4); the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
+ *  archived/deleted row). The note redaction (P1.6) and the lifecycle projection (P2.4) each get their
+ *  own describe block where the relevant flag is flipped. */
+const FULL = { includeTimeOffNote: true, includeInactive: true } as const
 
 /** A full two-account dataset: a1 and a2 each carry rows in every scoped table. */
 function seedTwoAccounts(): AppData {
@@ -177,13 +179,77 @@ describe('readSlice — P1.6 time-off note redaction', () => {
   }
 
   it('includeTimeOffNote:true keeps the note', () => {
-    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: true })
+    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: true, includeInactive: true })
     expect((slice.timeOff[0] as { note?: string }).note).toBe(NOTE)
   })
 
   it('includeTimeOffNote:false STRIPS the note key (absent, not null)', () => {
-    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: false })
+    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: false, includeInactive: true })
     expect('note' in slice.timeOff[0]).toBe(false)
     expect((slice.timeOff[0] as { note?: string }).note).toBeUndefined()
+  })
+})
+
+describe('readSlice — P2.4 lifecycle projection (includeInactive)', () => {
+  const ARCH = '2026-03-01T00:00:00.000Z'
+  const DEL = '2026-04-01T00:00:00.000Z'
+
+  // One account 'a1' with a MIX in each lifecycle-bearing table: an active + an archived resource,
+  // an active + a soft-deleted client, an active + a soft-deleted project. Plus a phase, an activity
+  // and a time-off row (no lifecycle field) to prove they pass through regardless of the flag.
+  function seedLifecycleMix(): Db {
+    const db = openDb(':memory:')
+    const d = emptyAppData() as unknown as Record<string, unknown[]>
+    d.accounts = [account('a1')]
+    d.disciplines = [discipline('d1', 'a1')]
+    d.clients = [
+      client('c-active', 'a1'),
+      { ...client('c-deleted', 'a1'), archivedAt: ARCH, deletedAt: DEL }, // soft-deleted
+    ]
+    d.projects = [
+      project('p-active', 'a1', 'c-active'),
+      { ...project('p-deleted', 'a1', 'c-active'), archivedAt: ARCH, deletedAt: DEL }, // soft-deleted
+    ]
+    d.resources = [
+      person('r-active', 'a1', 'd1'),
+      { ...person('r-archived', 'a1', 'd1'), archivedAt: ARCH }, // archived (not deleted)
+    ]
+    // Non-lifecycle children — must survive BOTH flags untouched.
+    d.phases = [phase('ph1', 'a1', 'p-active')]
+    d.activities = [activity('act1', 'a1', 'p-active')]
+    d.timeOff = [timeOff('to1', 'a1', 'r-active')]
+    insertAll(db, d as unknown as AppData)
+    return db
+  }
+
+  it('includeInactive:false returns ONLY the active resource/client/project rows', () => {
+    const slice = readSlice(seedLifecycleMix(), 'a1', { includeTimeOffNote: true, includeInactive: false })
+    expect(slice.resources.map((r) => r.id)).toEqual(['r-active'])
+    expect(slice.clients.map((c) => c.id)).toEqual(['c-active'])
+    expect(slice.projects.map((p) => p.id)).toEqual(['p-active'])
+    // Non-lifecycle tables are NEVER filtered — pass through unchanged.
+    expect(slice.phases.map((p) => p.id)).toEqual(['ph1'])
+    expect(slice.activities.map((a) => a.id)).toEqual(['act1'])
+    expect(slice.timeOff.map((t) => t.id)).toEqual(['to1'])
+  })
+
+  it('includeInactive:true returns ALL rows (active + archived + soft-deleted)', () => {
+    const slice = readSlice(seedLifecycleMix(), 'a1', { includeTimeOffNote: true, includeInactive: true })
+    expect(slice.resources.map((r) => r.id).sort()).toEqual(['r-active', 'r-archived'])
+    expect(slice.clients.map((c) => c.id).sort()).toEqual(['c-active', 'c-deleted'])
+    expect(slice.projects.map((p) => p.id).sort()).toEqual(['p-active', 'p-deleted'])
+    // Children unaffected by the flag.
+    expect(slice.phases.map((p) => p.id)).toEqual(['ph1'])
+    expect(slice.activities.map((a) => a.id)).toEqual(['act1'])
+    expect(slice.timeOff.map((t) => t.id)).toEqual(['to1'])
+  })
+
+  it('the rows remain in the DB (retained) — the WHOLE-tree loadState still sees every row', () => {
+    const db = seedLifecycleMix()
+    // The projection narrows the READ only; nothing is deleted. loadState (export/OFF whole read) keeps all.
+    const all = loadState(db)
+    expect(all.resources.filter((r) => r.accountId === 'a1').length).toBe(2)
+    expect(all.clients.filter((c) => c.accountId === 'a1').length).toBe(2)
+    expect(all.projects.filter((p) => p.accountId === 'a1').length).toBe(2)
   })
 })

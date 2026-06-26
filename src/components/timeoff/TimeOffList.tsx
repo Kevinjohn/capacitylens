@@ -1,6 +1,6 @@
 import { useStore } from '../../store/useStore'
 import { placeholdersEnabledFor } from '../../store/selectors'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { resourceDisplayName } from '../../lib/metadata'
@@ -10,7 +10,7 @@ import type { TimeOff } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
 
 export function TimeOffList() {
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const resources = data.resources
   const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
   const del = useStore((s) => s.deleteTimeOff)

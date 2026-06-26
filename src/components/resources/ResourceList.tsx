@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../../store/selectors'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { AddButton, ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { Separator } from '../ui/separator'
@@ -14,7 +14,7 @@ import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities
 import { m } from '@/i18n'
 
 export function ResourceList() {
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const resources = data.resources
   const disciplines = data.disciplines
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))

@@ -1,5 +1,5 @@
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
@@ -7,7 +7,7 @@ import type { Project } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
 
 export function ProjectList() {
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const projects = data.projects
   const clients = data.clients
   const del = useStore((s) => s.deleteProject)

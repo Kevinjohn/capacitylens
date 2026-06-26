@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
@@ -18,7 +18,7 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
   // lands one past the current maximum — not the count, which would collide with an
   // existing order after a deletion and fall back to the name tiebreak out of place.
   // An existing discipline keeps whatever order it already had.
-  const disciplines = useScopedData().disciplines
+  const disciplines = useActiveScopedData().disciplines
   const nextSortOrder = disciplines.reduce((max, d) => Math.max(max, d.sortOrder + 1), 0)
   const [name, setName] = useState(discipline?.name ?? '')
   const [color, setColor] = useState(discipline?.color ?? DEFAULT_COLORS.discipline)

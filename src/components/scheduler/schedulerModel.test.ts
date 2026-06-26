@@ -3,6 +3,7 @@ import { buildSchedulerModel, type GroupModel } from './schedulerModel'
 import { buildColumnGeometry } from './columnGeometry'
 import { eachDayISO, addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { emptyFilters } from '../../store/useStore'
+import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 
@@ -495,4 +496,74 @@ describe('pan invariant: a +7-day Back/Forward pan moves the visible-window star
       }
     })
   }
+})
+
+// P2.4: the scheduler renders the ACTIVE-ONLY projection (SchedulerGrid reads useActiveScopedData,
+// which runs the SAME shared `activeOnly` exercised here). Prove that an archived resource and a
+// soft-deleted resource produce NO lanes when the data is passed through `activeOnly`, while the
+// active resources still do — pinning the production seam, not a re-implementation of the filter.
+describe('buildSchedulerModel(activeOnly(data), …) — non-active resources vanish (P2.4)', () => {
+  // dataset() has active people r1 (Design) + r2 (Development). Add an archived person and a
+  // soft-deleted person, each in their OWN discipline so a dropped lane also empties its band.
+  function withNonActive(): AppData {
+    const d = dataset()
+    d.disciplines.push(
+      { id: 'd-ops', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Ops', sortOrder: 2 },
+      { id: 'd-qa', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'QA', sortOrder: 3 },
+    )
+    d.resources.push(
+      // archived (archivedAt set) — must NOT render.
+      { id: 'r-arch', accountId: 'acct-test', createdAt: 't', updatedAt: 't', archivedAt: '2026-05-01T00:00:00.000Z', kind: 'person', name: 'Archived Ann', role: 'Ops', disciplineId: 'd-ops', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#6' },
+      // soft-deleted (deletedAt set) — must NOT render.
+      { id: 'r-del', accountId: 'acct-test', createdAt: 't', updatedAt: 't', archivedAt: '2026-05-01T00:00:00.000Z', deletedAt: '2026-05-20T00:00:00.000Z', kind: 'person', name: 'Deleted Del', role: 'QA', disciplineId: 'd-qa', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#7' },
+    )
+    // A booking on each non-active resource — the lane and its bars must drop together.
+    d.allocations.push(
+      { id: 'a-arch', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r-arch', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+      { id: 'a-del', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r-del', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' },
+    )
+    return d
+  }
+
+  const buildActive = (d: AppData) =>
+    buildSchedulerModel(activeOnly(d), geom, days, start, end, start, end, emptyFilters(), true, true, true)
+
+  it('RAW data renders the archived + deleted lanes; the active-only projection does NOT', () => {
+    const d = withNonActive()
+    // Sanity: WITHOUT the projection, all four people + their bars render (the filter is what hides them).
+    const raw = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const rawResourceIds = raw.flatMap((g) => g.rows).map((r) => r.resource.id)
+    expect(rawResourceIds).toEqual(expect.arrayContaining(['r1', 'r2', 'r-arch', 'r-del']))
+
+    // WITH activeOnly: the archived + soft-deleted lanes are gone; the active ones remain.
+    const model = buildActive(d)
+    const resourceIds = model.flatMap((g) => g.rows).map((r) => r.resource.id)
+    expect(resourceIds).toEqual(['r1', 'r2']) // ONLY the active people
+    expect(resourceIds).not.toContain('r-arch')
+    expect(resourceIds).not.toContain('r-del')
+    // No bars for the dropped resources (their allocations have nowhere to land).
+    const barIdsAll = model.flatMap((g) => g.rows).flatMap((r) => r.bars).map((b) => b.allocation.id)
+    expect(barIdsAll).not.toContain('a-arch')
+    expect(barIdsAll).not.toContain('a-del')
+    // Their now-empty discipline bands are dropped entirely (no empty Ops / QA headers).
+    expect(model.map((g) => g.title)).not.toContain('Ops')
+    expect(model.map((g) => g.title)).not.toContain('QA')
+  })
+
+  it('a dangling-but-ACTIVE child of a hidden parent does not throw (no cascade-prune here)', () => {
+    // An ACTIVE project whose client is ARCHIVED, plus an ACTIVE activity on it, booked to r1.
+    // activeOnly drops the client but keeps the project/activity (no lifecycle field / own status
+    // active) — the view must degrade to a fallback label, never crash. SchedulerGrid + ProjectList
+    // optional-chain every cross-ref, which this exercises through the production model builder.
+    const d = dataset()
+    d.clients.push({ id: 'c-arch', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Gone Co', color: '#8', archivedAt: '2026-05-01T00:00:00.000Z' })
+    d.projects.push({ id: 'p-orphan', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Orphan P', clientId: 'c-arch', color: '#9' })
+    d.activities.push({ id: 't-orphan', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Orphan T', kind: 'project', projectId: 'p-orphan' })
+    d.allocations.push({ id: 'a-orphan', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't-orphan', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    // The whole build must not throw despite the archived client being filtered out.
+    const model = buildActive(d)
+    const barIdsAll = model.flatMap((g) => g.rows).flatMap((r) => r.bars).map((b) => b.allocation.id)
+    // The orphan bar still renders on the active resource r1 (its activity/project survive).
+    expect(barIdsAll).toContain('a-orphan')
+  })
 })

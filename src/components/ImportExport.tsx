@@ -35,6 +35,14 @@ function summarize(data: AppData): string {
 export function ImportExport() {
   // Export only the active account's data (the `accounts` list itself is omitted,
   // since import re-stamps everything into whichever account is active).
+  // DELIBERATELY the RAW useScopedData, NOT useActiveScopedData (P2.4): the export must NOT apply the
+  // view-only active filter — it serializes whatever the store actually holds. In LOCAL mode the store
+  // is the whole device blob, so archived + soft-deleted rows ARE retained in the backup. In SERVER
+  // mode the store is hydrated from the active-only per-account read (readSlice `includeInactive:false`,
+  // P2.4), so those rows are not present client-side — they remain in the server DB and belong to the
+  // COMPLETE per-tenant export (P2.6) / the P2.5 admin "Archived & deleted" view, not this client-side
+  // snapshot. Using the raw hook keeps this export decoupled from the view-hiding rule (and complete in
+  // local mode); the normal VIEWS use the active-only projection, this export does not.
   const data = useScopedData()
   const importData = useStore((s) => s.importData)
   const setNotice = useStore((s) => s.setNotice)

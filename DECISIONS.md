@@ -433,6 +433,19 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   = ?` on all 8 scoped tables + accounts-by-id, every key present, unknown id → empty slice (no
   throw); the no-cross-tenant invariant (no unpredicated query) lives at this layer. `write` thinly
   wraps `replaceAccountSlice` (NOT yet routed into /api/batch or per-entity writes — that's P1.5).
+- **Lifecycle filtering — archived/soft-deleted hidden from the normal app (P2.4).** Non-active
+  (archived OR soft-deleted, `lifecycleStatus(e) !== 'active'`) resource/client/project are hidden from
+  every normal VIEW + the per-account read, via ONE pure shared helper `activeOnly(data)`
+  (`shared/src/domain/lifecycle.ts`) reused by BOTH the client view-seam `useActiveScopedData()` (the 15
+  view components) AND `readSlice`'s REQUIRED `includeInactive` opt (`GET /api/state` passes `false`;
+  P2.5's admin "Archived & deleted" read will pass `true`). Filter at the VIEW boundary ONLY — NEVER in
+  `scopedTables()`/`scopeData()`/integrity/cascade/import/EXPORT (those must see ALL rows; the rows stay
+  in the DB, retained). Cascade rule: filter each entity by its OWN status; a child of a hidden parent
+  renders a fallback label, never crashes (every view cross-ref is optional-chained). **Export caveat:**
+  in SERVER mode the client store is hydrated from the active-only read, so the client-side "Export JSON"
+  + delete-company backup reflect the ACTIVE working set (archived/soft-deleted live in the server DB; a
+  COMPLETE per-tenant export is P2.6). In LOCAL mode the export is the whole device blob (complete).
+  `ImportExport` deliberately keeps the RAW `useScopedData` so it never applies the view filter.
 - **The two read endpoints + per-account hydration (P1.4 / P1.13).** `GET /api/accounts` (OFF =
   ALL accounts `{id,name,role:'owner'}`, NO membership gate — branched before membership for the OFF
   guarantee; auth-on = `listAccounts` = the caller's memberships). `GET /api/state?accountId=` returns

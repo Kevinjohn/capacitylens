@@ -38,8 +38,12 @@ export interface TenantStore {
    * `opts.includeTimeOffNote` is REQUIRED (P1.6) — the caller must decide whether the owner/admin-only
    * time-off `note` is included. When `false`, `note` is redacted from every time-off row server-side
    * (see {@link readSlice} in db.ts), so it never reaches an Editor/Viewer client.
+   *
+   * `opts.includeInactive` is REQUIRED (P2.4) — the caller must decide whether archived/soft-deleted
+   * resources/clients/projects are included. When `false` (the normal app read), they are dropped
+   * server-side (see {@link readSlice}); `true` is the P2.5 admin "Archived & deleted" read.
    */
-  readSlice(accountId: string, opts: { includeTimeOffNote: boolean }): AppData
+  readSlice(accountId: string, opts: { includeTimeOffNote: boolean; includeInactive: boolean }): AppData
   /**
    * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
    * account's scoped tables; the global `accounts` row and every other account are left untouched.

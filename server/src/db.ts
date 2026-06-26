@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
 import type { AppData } from '@capacitylens/shared/types/entities'
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
@@ -204,16 +205,27 @@ export function loadState(db: Db): AppData {
  * `true`, the note is returned as stored. This is a payload-narrowing rule, not a request gate: the
  * read is already authorized; this only decides which columns leave the server.
  *
+ * LIFECYCLE PROJECTION (P2.4): `opts.includeInactive` is REQUIRED, mirroring `includeTimeOffNote` (no
+ * silent default — every caller DECIDES). When `false` (the normal app read), the SHARED `activeOnly`
+ * helper is applied AFTER the note redaction, dropping every NON-active (archived OR soft-deleted)
+ * resource/client/project from the returned slice — exactly the rows the normal views hide. The rows
+ * REMAIN in the DB and in EXPORT; this only narrows what the per-account read serializes. When `true`
+ * (P2.5's admin "Archived & deleted" read), the full slice is returned untouched. Composition order is
+ * load-bearing: redact the note FIRST, then `activeOnly` — the two narrowings are independent, and
+ * applying `activeOnly` last keeps it a single, total projection over the already-redacted slice.
+ *
  * @param db         The open SQLite handle.
  * @param accountId  The account whose slice to read.
  * @param opts.includeTimeOffNote  REQUIRED. `true` keeps each time-off `note`; `false` strips it
  *                                 (owner/admin-only field — redacted before it leaves the server).
+ * @param opts.includeInactive  REQUIRED. `false` drops archived/soft-deleted resources/clients/projects
+ *                              (the normal app read); `true` returns every row (the P2.5 admin read).
  * @returns An AppData containing ONLY `accountId`'s data (every key present; arrays may be empty).
  */
 export function readSlice(
   db: Db,
   accountId: string,
-  opts: { includeTimeOffNote: boolean },
+  opts: { includeTimeOffNote: boolean; includeInactive: boolean },
 ): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
@@ -237,6 +249,12 @@ export function readSlice(
   if (!opts.includeTimeOffNote) {
     for (const row of data['timeOff']) delete (row as Record<string, unknown>).note
   }
+  // P2.4 lifecycle projection: for the NORMAL app read (includeInactive:false), drop every NON-active
+  // (archived/soft-deleted) resource/client/project via the SHARED activeOnly helper — the SAME rule
+  // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the note
+  // redaction so the projection runs over the already-redacted slice. includeInactive:true (P2.5's
+  // admin read) returns the full slice untouched. The dropped rows stay in the DB + export.
+  if (!opts.includeInactive) return activeOnly(data as unknown as AppData)
   return data as unknown as AppData
 }
 

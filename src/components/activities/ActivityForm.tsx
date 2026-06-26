@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
@@ -22,7 +22,7 @@ const kindOptions = (): { value: ActivityKind; label: string }[] => [
 export function ActivityForm({ activity, onClose }: { activity?: Activity; onClose: () => void }) {
   const add = useStore((s) => s.addActivity)
   const update = useStore((s) => s.updateActivity)
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const projects = data.projects
   const clients = data.clients
 

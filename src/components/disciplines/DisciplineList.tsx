@@ -1,5 +1,5 @@
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { NEUTRAL_COLOR } from '../../lib/palette'
@@ -9,7 +9,7 @@ import type { Discipline } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
 
 export function DisciplineList() {
-  const disciplines = useScopedData().disciplines
+  const disciplines = useActiveScopedData().disciplines
   const del = useStore((s) => s.deleteDiscipline)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Discipline>()
 

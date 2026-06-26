@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { placeholdersEnabledFor } from '../../store/selectors'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
 import { m } from '@/i18n'
@@ -24,7 +24,7 @@ export function TimeOffForm({
   const update = useStore((s) => s.updateTimeOff)
   const placeholdersEnabled = useStore((s) => placeholdersEnabledFor(s.data, s.activeAccountId))
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
-  const resources = useScopedData().resources
+  const resources = useActiveScopedData().resources
 
   const [resourceId, setResourceId] = useState(timeOff?.resourceId ?? defaults?.resourceId ?? '')
   const [startDate, setStartDate] = useState(timeOff?.startDate ?? defaults?.startDate ?? todayISO(calendarTimeZone))

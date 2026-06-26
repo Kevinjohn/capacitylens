@@ -19,7 +19,7 @@
 // exactly why those predicates are exported separately, so a caller can gate an affordance without a
 // try/catch (mirrors access.ts's `can*` predicates).
 
-import type { ISOTimestamp, Resource } from '../types/entities'
+import type { AppData, ISOTimestamp, Resource } from '../types/entities'
 
 /**
  * The three DERIVED lifecycle states an entity can be read as. There is no stored `state` column —
@@ -87,6 +87,44 @@ export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
   if (isPresent(entity.deletedAt)) return 'deleted'
   if (isPresent(entity.archivedAt)) return 'archived'
   return 'active'
+}
+
+/**
+ * Project an {@link AppData} to its ACTIVE rows only — drop every NON-active (archived OR soft-deleted)
+ * Resource/Client/Project. PURE: returns a NEW AppData; the input and every nested array are left
+ * untouched (the kept rows are the SAME object references, just re-collected into fresh arrays).
+ *
+ * This is the SINGLE source of the "hide non-active from the view" rule (P2.4), reused by BOTH the
+ * client VIEW seam (`useActiveScopedData`, src/store) and the server per-account read
+ * (`readSlice`'s `includeInactive: false` branch, server/db.ts) — so the two halves can't drift on
+ * what "shown in the normal app" means. "Active" is exactly `lifecycleStatus(e) === 'active'`, so the
+ * lifecycle state machine stays the single authority (a future state never silently leaks into views).
+ *
+ * ONLY `resources`/`clients`/`projects` are filtered — they are the ONLY entities carrying the
+ * `archivedAt`/`deletedAt` tombstones (P2.1). `phases`/`activities`/`allocations`/`timeOff`/
+ * `disciplines`/`accounts` have NO lifecycle field, so they pass through unchanged: a child of a
+ * hidden parent (e.g. an active project under an archived client, or an active activity under an
+ * archived project) is filtered ONLY by its OWN status — it is NOT cascaded out here. Every
+ * cross-reference in the view path is optional-chained, so such a child simply renders a fallback
+ * label rather than crashing; this helper deliberately does NOT orphan-prune.
+ *
+ * INVARIANT — VIEW/READ PROJECTION ONLY. Use this ONLY where the goal is "what the normal app shows":
+ * the scheduler/list/picker/palette views and the per-account read. NEVER on an integrity, mutation,
+ * cascade, import, migrate or EXPORT path — those MUST see every row (a backup retains archived/
+ * soft-deleted rows; cascade/integrity reason over the full set). Hiding rows from those paths would
+ * silently drop retained data. This is a payload-narrowing projection, not a delete.
+ *
+ * @param data - the full (already account-scoped) AppData to project.
+ * @returns a NEW AppData identical to `data` except non-active resources/clients/projects are removed.
+ */
+export function activeOnly(data: AppData): AppData {
+  const isActive = (e: LifecycleFields) => lifecycleStatus(e) === 'active'
+  return {
+    ...data,
+    resources: data.resources.filter(isActive),
+    clients: data.clients.filter(isActive),
+    projects: data.projects.filter(isActive),
+  }
 }
 
 /**

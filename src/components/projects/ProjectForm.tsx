@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
@@ -15,7 +15,7 @@ import type { Project } from '@capacitylens/shared/types/entities'
 export function ProjectForm({ project, onClose }: { project?: Project; onClose: () => void }) {
   const add = useStore((s) => s.addProject)
   const update = useStore((s) => s.updateProject)
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const clients = data.clients
 
   const [name, setName] = useState(project?.name ?? '')
