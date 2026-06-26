@@ -247,9 +247,7 @@ export function Modal({
 
   const requestClose = () => {
     if (guardDirty && dirty) {
-      // NOTE: this is a setNotice toast string — deferred to P1.5.2 area 6 (toasts/errors),
-      // not swept here with the dialog/form chrome.
-      setNotice('You have unsaved changes — use Cancel or Save to close this dialog.')
+      setNotice(m.dialog_unsaved_changes())
       return
     }
     onClose()

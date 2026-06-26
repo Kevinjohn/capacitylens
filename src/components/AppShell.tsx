@@ -155,7 +155,7 @@ export function AppShell() {
         e.preventDefault()
         if (useStore.getState().dirtyForm) {
           useStore.getState().setNotice(
-            'You have unsaved changes — use Cancel or Save to close this dialog.',
+            m.dialog_unsaved_changes(),
           )
           return
         }
@@ -233,7 +233,7 @@ export function AppShell() {
   const loader = (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
       <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden />
-      Loading…
+      {m.app_loading()}
     </div>
   )
 
@@ -402,7 +402,7 @@ export function AppShell() {
       <main id="main" tabIndex={-1} className="flex-1 overflow-auto">
         {persistError && (
           <div role="alert" className="bg-danger px-4 py-2 text-sm font-medium text-white">
-            Changes aren’t being saved right now — we’ll keep retrying.
+            {m.app_persist_error()}
           </div>
         )}
         {hydrated ? (
