@@ -159,16 +159,10 @@ export function attachPersistence(
   // account B → cross-account data loss). In the DEMO build / OFF this is INERT — `data` already holds all
   // accounts, so a switch is a pure view change with nothing to load.
   //
-  // SEQUENCE on a switch to `newId`:
-  //   (a) AWAIT any in-flight save so a PRIOR account's write can't land against the NEW snapshot;
-  //  (a′) FLUSH (not drop) the OLD account's PENDING debounced edits while data AND the snapshot are
-  //       both STILL account A → the diff is A-vs-A (correct), landed BEFORE (b) reseeds to B;
-  //   (b) adapter.loadAll(newId) → returns the new slice AND re-seeds the adapter's lastSynced to it;
-  //   (c) replaceAll(newSlice) → `data` becomes the new account (guarded by loadingSlice so the data
-  //       subscription doesn't treat it as an edit and push a spurious save);
-  //   (d) advance lastData to the loaded slice (the guard already did, belt-and-braces);
-  //   (e) a per-switch token: a SECOND switch bumps the token, so a slow first load that resolves
-  //       LATE is discarded (it must not seed a stale account over the newer one).
+  // This sets up switchToken / lastActiveAccountId and delegates the per-switch (a)/(a′)/(b)/(c)
+  // sequence to refreshActive — see its doc below for the authoritative narration. The only
+  // switch-specific case is a NULL id (dropped to the picker / sign-out): that loads nothing (see the
+  // subscribe handler below), it just flushes the old account's pending edits.
   let switchToken = 0
   let lastActiveAccountId = store.getState().activeAccountId
 
@@ -180,6 +174,10 @@ export function attachPersistence(
   // snapshot stale → the next save would diff the fresh slice against the old snapshot and emit a
   // cross-account / garbage delta. The token discipline below also makes a late refresh that
   // resolves after a newer switch/refresh a no-op, so the two callers can't clobber each other.
+  //
+  // A per-switch token guards the whole sequence: each call bumps `switchToken`, and a SECOND
+  // switch/refresh that supersedes a slow first one makes the first's late-resolving load a no-op
+  // (it must not seed a stale account over the newer one).
   //
   // SEQUENCE (token-guarded throughout, see the inline (a)/(a′)/(b)/(c) markers):
   //   (a) await any in-flight save so a prior write can't land against the new snapshot;

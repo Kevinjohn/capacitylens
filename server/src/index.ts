@@ -33,9 +33,10 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //   CAPACITYLENS_LOG                      '1' for structured per-request JSON logs (pino) and
 //                                   500-errors through the request logger. Default off =
 //                                   today's logging (startup line + console.error on 500s).
-//   CAPACITYLENS_HEALTH_DEEP              '1' to make /api/health do a trivial DB read:
-//                                   { ok, db: true } or 503 { ok: false }. Default off =
-//                                   unconditional { ok: true }.
+//   CAPACITYLENS_HEALTH_DEEP              '1' to make /api/health do a trivial DB read plus
+//                                   surface the audit-sink state: { ok: true, db: true,
+//                                   audit: 'ok' | 'degraded' } (200) or 503 { ok: false }.
+//                                   Default off = unconditional { ok: true }.
 //   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across /api/* (positive
 //                                   integer; unset/0/non-numeric = off, fail-closed).
 //                                   /api/health is exempt.

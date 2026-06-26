@@ -171,9 +171,10 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
  *  i.e. `end` lands on the `count`-th working day at/after `start`.
  *
  *  Guards against the degenerate cases that would otherwise loop forever or make
- *  no sense: if `count <= 0`, `workingDays` is empty, or every weekday is a
- *  working day, it falls back to a raw inclusive calendar span. A hard iteration
- *  cap is also kept as a backstop so a bad `workingDays` can never hang. */
+ *  no sense: if `count <= 0`, `workingDays` is empty, or `workingDays.length >= 7`
+ *  (treated as a full/every-calendar-day week, matching isWeekendAware — which is
+ *  false at length >= 7), it falls back to a raw inclusive calendar span. A hard
+ *  iteration cap is also kept as a backstop so a bad `workingDays` can never hang. */
 export function endDateForWorkingDays(
   start: ISODate,
   count: number,

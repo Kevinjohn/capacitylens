@@ -96,7 +96,9 @@ export function migrateSchema(db: Db): void {
   })
 }
 
-/** 12-step table rebuild (per the SQLite docs) to bring `activities` to the current shape —
+/** Rebuild the `activities` table (the SQLite-docs 'create new + copy + drop + rename' approach,
+ *  simplified — there are no indexes/triggers/views to carry over, see the ASSUMPTION below) to bring
+ *  it to the current shape —
  *  nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
  *  other tables hold against activities(id). The target DDL mirrors the `activities` block in SCHEMA_SQL.
  *  `kind` is BACKFILLED from the only signal an old row carried: a project-bound activity is

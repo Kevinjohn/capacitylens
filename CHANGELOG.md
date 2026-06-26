@@ -5,7 +5,34 @@ All notable changes to CapacityLens are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
 
+> Entries before 0.6.0 use the project's former name **"Floaty"** (and the `FLOATY_*` env prefix),
+> since renamed to **CapacityLens** / `CAPACITYLENS_*`.
+
 ## [Unreleased]
+
+## [0.12.0] — 2026-06-27
+
+A repo-wide clarity sweep over documentation, inline comments, and variable names. No
+behaviour change beyond three user-facing copy strings — the focus is making the repo read
+true to the shipped v0.11.0 reality.
+
+### Changed
+- **Finished the v0.11.0 persistence-flip doc sweep.** `CONTRIBUTING.md`, `docs/deploy.md`,
+  `docs/privacy.md`, `server/README.md`, `NEEDS-INPUT.md`, and the user-story reference now
+  describe server-backed-by-default plus the explicit `VITE_CAPACITYLENS_DEMO=1` demo build,
+  instead of the inverted localStorage-default model they had drifted into.
+- **Copy.** The per-day over-marker tooltip now reads **"Over capacity"** (matching its own
+  screen-reader text); the clear-data settings line says "company" not "account"; and the login
+  subtitle drops the stray "workspace" wording.
+- Refreshed stale "future work" source TSDocs to present tense (lifecycle tombstones,
+  `useScopedData`, `membership`, the deep-health response shape, the audit-hook count), and
+  renamed leftover Task-era `t` iterators to `act` / `a` on Activity rows.
+- `TimeOffForm` now uses the shared `useFieldError()` hook like every other CRUD form.
+
+### Fixed
+- Corrected drifted references: the README version line, the CHANGELOG release-link footer, the
+  README/CLAUDE docs maps (now list the deploy & ops cluster), and the utilisation zoom set
+  (1/2/4/6/8w).
 
 ## [0.11.0] — 2026-06-26
 
@@ -291,6 +318,20 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
+[Unreleased]: https://github.com/Kevinjohn/floaty-v1/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.12.0
+[0.11.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.11.0
+[0.10.2]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.10.2
+[0.10.1]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.10.1
+[0.10.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.10.0
+[0.9.1]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.9.1
+[0.9.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.9.0
+[0.8.1]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.8.1
+[0.8.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.8.0
+[0.7.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.7.0
+[0.6.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.6.0
+[0.5.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.4.0
 [0.3.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.3.0
 [0.2.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.2.0
+[0.1.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.1.0

@@ -2,12 +2,12 @@ import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { byAccount } from '@capacitylens/shared/domain/tenancy'
 import { emptyAppData, isCapacityTracked, isExternalResource, scopedTables, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
 import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@capacitylens/shared/types/entities'
+import type { SchedulerUI } from './useStore'
 
 export interface CalendarConfig {
   timeZone: string
   weekStartsOn: 0 | 1
 }
-import type { SchedulerUI } from './useStore'
 
 /** The active company's scheduling input mode. Absent on the account reads as the
  *  original 'hourly' behaviour. Single source so the modal and the bar can't drift. */

@@ -652,8 +652,8 @@ export function SchedulerGrid() {
                 className="text-2xs font-medium uppercase tracking-wide text-faint"
                 title={m.scheduler_total_util_title({ span: visibleWeeksLabel })}
               >
-                {/* The headline % follows the VISIBLE range, so the label tracks the zoom toggle
-                    (1w/2w/4w/8w) rather than naming a fixed "next 2w". */}
+                {/* The headline % follows the VISIBLE range, so the label tracks the selected zoom
+                    span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
                 {m.scheduler_total_util_label({ count: ui.zoom })}
               </span>
               <span data-testid="overall-utilization" className="text-sm font-semibold">

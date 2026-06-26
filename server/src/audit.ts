@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path'
 // append(). Names + ids are operational metadata (who changed what, when); values are tenant PII
 // (a time-off note, a person's name) and are deliberately excluded. The callers in app.ts compute
 // changedFields with `Object.keys` and pass a typed AuditRecord — never an object — so the type
-// itself is the guardrail. See app.ts's six post-commit audit() hooks.
+// itself is the guardrail. See app.ts's post-commit audit() hooks (one per mutating route).
 
 /**
  * One audit line. ALL fields are operational metadata — never tenant data.

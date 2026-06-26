@@ -56,9 +56,11 @@ exchange (server) — never for telemetry, never as a `connect-src` egress targe
 
 ## Your data stays on your box
 
-CapacityLens is **local-first**. With no server configured, all your data is a single blob in the
-browser's `localStorage` and never leaves the device. When you run the optional server, your data
-is a **SQLite file on a volume you control** (see [`docs/self-hosting.md`](self-hosting.md)) —
+CapacityLens is **server-backed by default**; the in-browser localStorage demo build
+(`VITE_CAPACITYLENS_DEMO=1`) keeps all data on the device and never sends it anywhere. In the demo
+build, all your data is a single blob in the browser's `localStorage` and never leaves the device.
+In the default server-backed build, your data is a **SQLite file on a volume you control** (see
+[`docs/self-hosting.md`](self-hosting.md)) —
 there is no separate database service, no managed data store, and **no third-party data
 processor** beyond the IdP you choose for the sign-in step. Nobody but you (and whoever you give
 access to your instance) can read it.

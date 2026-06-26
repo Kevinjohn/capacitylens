@@ -62,7 +62,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const create = 'create' in props ? props.create : undefined
   const editing = editId ? data.allocations.find((a) => a.id === editId) : undefined
 
-  const initialActivity = editing ? data.activities.find((t) => t.id === editing.activityId) : undefined
+  const initialActivity = editing ? data.activities.find((act) => act.id === editing.activityId) : undefined
   const initialResourceId = editing?.resourceId ?? create?.resourceId ?? ''
   const initialResource = data.resources.find((r) => r.id === initialResourceId)
   const initialLocked = initialResource?.kind === 'placeholder' ? initialResource.projectId : undefined
@@ -278,7 +278,7 @@ export function AllocationModal(props: AllocationModalProps) {
     }
     const cleanNote = validateText(note, fail, { field: 'note', required: false, multiline: true })
     if (cleanNote === null) return
-    const activity = data.activities.find((t) => t.id === activityId)
+    const activity = data.activities.find((act) => act.id === activityId)
     if (selectedResource && activity) {
       const check = validateAllocationAssignment(selectedResource, activity.projectId)
       if (!check.ok) {

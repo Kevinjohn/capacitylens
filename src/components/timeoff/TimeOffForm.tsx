@@ -1,7 +1,8 @@
-import { useId, useState } from 'react'
+import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { placeholdersEnabledFor } from '../../store/selectors'
 import { useActiveScopedData } from '../../store/useScopedData'
+import { useFieldError } from '../../hooks/useFieldError'
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
 import { m } from '@/i18n'
@@ -31,13 +32,7 @@ export function TimeOffForm({
   const [endDate, setEndDate] = useState(timeOff?.endDate ?? defaults?.endDate ?? todayISO(calendarTimeZone))
   const [type, setType] = useState<TimeOffType>(timeOff?.type ?? 'holiday')
   const [note, setNote] = useState(timeOff?.note ?? '')
-  const [error, setError] = useState<string | null>(null)
-  const [errorField, setErrorField] = useState<string | null>(null)
-  const errorId = useId()
-  const fail = (field: string | null, message: string) => {
-    setError(message)
-    setErrorField(field)
-  }
+  const { error, errorField, errorId, fail } = useFieldError()
 
   // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
   // Placeholders are gated behind a per-account pref (default OFF); when off, drop them too —

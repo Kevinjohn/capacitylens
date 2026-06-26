@@ -16,8 +16,8 @@ import type { Role } from '@capacitylens/shared/domain/access'
 //
 // MIRRORS PermissionProvider's idiom exactly: an in-effect async IIFE with a cancellation flag, every
 // setState behind the await, an UNTRUSTED-shape guard on the server body (a bad entry is dropped, not
-// trusted via an `as` cast). It runs OUTSIDE the tenant gate (mounted alongside the auth/permission
-// providers in main.tsx) so the picker has the list before a tenant is chosen.
+// trusted via an `as` cast). It runs OUTSIDE the tenant gate (called at the top of AppShell, before
+// the tenant gate) so the picker has the list before a tenant is chosen.
 
 /** Narrowing guard for the UNTRUSTED `role` of a `/api/accounts` entry (the server is external input —
  *  validate the shape, don't `as`-cast it). An off-spec role degrades to 'owner' (full access) so a

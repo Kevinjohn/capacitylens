@@ -6,7 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { DEMO_USER, type Auth, type AuthMode, type SessionUser } from './auth'
 import { betterAuthAdapter, type AuthAdapter } from './authAdapter'
 
-// The identity requireUser attaches to every gated request (P3.2). Session/identity
+// The identity requireUser attaches to every gated request. Session/identity
 // plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
 // this is the seam Stage C will later use to derive accountId server-side.
 declare module 'fastify' {
@@ -126,7 +126,7 @@ export interface AppOptions {
    *  Set ONLY when the listen host is loopback (i.e. behind the Nginx proxy, where every
    *  socket is 127.0.0.1); on a directly-exposed host the header is client-spoofable. */
   rateLimitTrustForwarded?: boolean
-  /** CAPACITYLENS_AUTH (P3.2): 'off' (the default) means Better Auth does not exist here —
+  /** CAPACITYLENS_AUTH: 'off' (the default) means Better Auth does not exist here —
    *  the only auth surface is GET /api/auth/me reporting the demo identity, and
    *  requireUser attaches that identity and continues, so NO request that succeeds
    *  today may fail. 'password'/'sso' mount opts.auth's handler at /api/auth/* and
@@ -491,7 +491,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     })
   }
 
-  // requireUser (P3.2) — ONE gate for everything under /api/ except /api/health (the
+  // requireUser — ONE gate for everything under /api/ except /api/health (the
   // uptime monitor has no session) and /api/auth/* (the login machinery itself; our
   // /api/auth/me handles its own 401). Root-level so child routes inherit it; preHandler
   // only fires for MATCHED routes, so 404s and the CORS preflight 204 are unaffected.
@@ -640,7 +640,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     })
 
-    // Thin identity route (P3.2) — exists in EVERY mode so the client never forks on a
+    // Thin identity route — exists in EVERY mode so the client never forks on a
     // flag: { authMode, user }. 'off' reports the demo identity unconditionally; other
     // modes report the Better Auth session user, or 401 (with authMode, so the login
     // screen knows which form to show) when there is no session.
@@ -868,8 +868,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!isKnownRole(body.role)) {
         return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
       }
-      // Resolve the optional preauthEmail BEFORE the gate's side-effect-free check is fine, but do the
-      // 400 shape-reject here too so a malformed email never reaches the write. A non-string, or a
+      // Shape-check preauthEmail here, BEFORE the authorize() gate below, so a malformed email is
+      // rejected with 400 and never reaches the write. A non-string, or a
       // string that is empty after trim ⇒ link invite (null). A non-empty value MUST look like an
       // email (single '@', non-empty local+domain) — junk is a 400, never silently dropped (that
       // would mint a link invite the admin didn't intend, widening who may accept).

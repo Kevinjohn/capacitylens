@@ -4,18 +4,18 @@ This file pins the exact, current facts every user story and test script depends
 routes, control labels, `data-testid`s, the first-run seed data, and shared conventions.
 If the app changes, update this file first, then the affected stories.
 
-> CapacityLens is a **local-first** resource scheduler (a focused capacity scheduler). By default all data
-> lives in the browser's `localStorage` with no login or network calls. The app is
-> **multi-tenant by Account**: you pick a company on load and the whole dataset is scoped to
-> it. An **optional** SQLite server (off by default, `VITE_CAPACITYLENS_API=…`) can persist data
-> behind the same seam without changing any flow below. These stories run against the
-> **default local mode**, signed in to the seeded **Studio North** company.
+> CapacityLens is a multi-tenant resource scheduler. It is **server-backed by default** (an empty
+> env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company
+> on load and the whole dataset is scoped to it. An explicit in-browser **demo build**
+> (`VITE_CAPACITYLENS_DEMO=1`) keeps all data in `localStorage` with no login or network calls — that
+> is the build these manual stories run against, started with `npm run dev:demo`, signed in to the
+> seeded **Studio North** company.
 
 ---
 
 ## Launching the app (for a human tester)
 
-1. From the project root run `npm run dev` and open **the URL Vite prints**
+1. From the project root run `npm run dev:demo` and open **the URL Vite prints**
    (<http://127.0.0.1:5173>; `localhost:5173` also works). If Vite exits with a
    port-in-use error, another dev server is squatting 5173 — find it with
    `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
@@ -69,7 +69,7 @@ parties no longer have their own nav link — they moved INTO the **Resources** 
 **redirects to `/resources`** so saved bookmarks don't 404. Each link
 carries a small decorative icon (`aria-hidden`; the accessible name stays the label text). The
 **Data** section (**Export JSON** / **Import JSON**) sits below the nav links. The company block —
-the active company name plus a **Switch company** control (which returns to the account picker) —
+the active company name plus a **Switch company** control (which returns to the company picker) —
 is pinned to the **bottom** of the sidebar, below a divider beneath the Data section. (It used to
 sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
 both the open menu and the collapsed rail, so the nav icons don't shift when the sidebar collapses.)
@@ -565,7 +565,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   **spans** is NOT over (it keeps only the grey unavailable tint). The zero-capacity days that DO
   read as over are a **time-off** day a working allocation covers, and a weekend an allocation opts
   into via **"Include weekends as working days"** (`ignoreWeekends`). An over-allocated day renders
-  with a **clear red background** (`data-testid="over-marker"`, `title="Overbooked"`) plus a solid
+  with a **clear red background** (`data-testid="over-marker"`, `title="Over capacity"`) plus a solid
   red top band, in both light and dark themes.
 - **An allocation can't exceed 24h/day, and the form says so instead of silently trimming it.** In
   **days mode**, a *Days of work* spread over too few *Days over* (e.g. 5 days of work in a 1-day span =
@@ -574,7 +574,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   The previewed "…h/day" hint always equals what saves.
 - **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
-  the 1/2/4/8-week range anchored at the left edge of the view — so **switching the range toggle
+  the 1/2/4/6/8-week range anchored at the left edge of the view — so **switching the range toggle
   recomputes it** to reflect exactly the visible span. It turns **red** when the resource trips its
   separate **fixed forward 14-day** "over soon" radar (over-allocated on any working day in the next
   14 days from today); that red flag stays on the fixed window regardless of zoom/pan, distinct from

@@ -104,14 +104,13 @@ export interface Resource extends ScopedEntity {
   color: string
   /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
-   *  Active→Archived→Soft-deleted→Purged lifecycle; SET/cleared only by the lifecycle state
-   *  machine (P2.2) — this field is inert plumbing today (P2.1 adds the column, no behaviour). */
+   *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
+   *  shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
   archivedAt?: ISOTimestamp
   /** ISO 8601 timestamp of the soft-delete tombstone: when this resource was soft-deleted.
-   *  Absent = not deleted. Lifecycle invariant (enforced later, P2.2): a record may be archived
-   *  without being deleted, but soft-delete requires prior archival, and a tombstone is hard-purged
-   *  only after PURGE_MIN_AGE_DAYS. Inert plumbing today (P2.1) — no behaviour, no filtering yet
-   *  (that is P2.4). */
+   *  Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   *  soft-delete requires prior archival, and a tombstone is hard-purged only after
+   *  PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp
 }
 
@@ -126,14 +125,13 @@ export interface Client extends ScopedEntity {
   builtin?: boolean
   /** ISO 8601 timestamp of when this client was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
-   *  Active→Archived→Soft-deleted→Purged lifecycle; SET/cleared only by the lifecycle state
-   *  machine (P2.2) — this field is inert plumbing today (P2.1 adds the column, no behaviour). */
+   *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
+   *  shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
   archivedAt?: ISOTimestamp
   /** ISO 8601 timestamp of the soft-delete tombstone: when this client was soft-deleted.
-   *  Absent = not deleted. Lifecycle invariant (enforced later, P2.2): a record may be archived
-   *  without being deleted, but soft-delete requires prior archival, and a tombstone is hard-purged
-   *  only after PURGE_MIN_AGE_DAYS. Inert plumbing today (P2.1) — no behaviour, no filtering yet
-   *  (that is P2.4). */
+   *  Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   *  soft-delete requires prior archival, and a tombstone is hard-purged only after
+   *  PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp
 }
 
@@ -143,14 +141,13 @@ export interface Project extends ScopedEntity {
   color: string
   /** ISO 8601 timestamp of when this project was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
-   *  Active→Archived→Soft-deleted→Purged lifecycle; SET/cleared only by the lifecycle state
-   *  machine (P2.2) — this field is inert plumbing today (P2.1 adds the column, no behaviour). */
+   *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
+   *  shared/src/domain/lifecycle.ts. Non-active rows are hidden from normal views/reads (activeOnly). */
   archivedAt?: ISOTimestamp
   /** ISO 8601 timestamp of the soft-delete tombstone: when this project was soft-deleted.
-   *  Absent = not deleted. Lifecycle invariant (enforced later, P2.2): a record may be archived
-   *  without being deleted, but soft-delete requires prior archival, and a tombstone is hard-purged
-   *  only after PURGE_MIN_AGE_DAYS. Inert plumbing today (P2.1) — no behaviour, no filtering yet
-   *  (that is P2.4). */
+   *  Absent = not deleted. Lifecycle invariant: a record may be archived without being deleted, but
+   *  soft-delete requires prior archival, and a tombstone is hard-purged only after
+   *  PURGE_MIN_AGE_DAYS — all enforced by shared/src/domain/lifecycle.ts. */
   deletedAt?: ISOTimestamp
 }
 

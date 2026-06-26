@@ -1,5 +1,8 @@
 # CapacityLens — Stretch goal
 
+> **STATUS: COMPLETED / SUPERSEDED** — the backlog items below have shipped; kept only as a
+> historical record. Present truth is [`DECISIONS.md`](DECISIONS.md) and the shipped feature set.
+
 **Goal:** CapacityLens is polished, accessible, feature-rich and durable, with a cohesive
 modern-CSS design system and comprehensive automated test coverage plus an
 adversarial review pass. The entire gate is green with no open findings:

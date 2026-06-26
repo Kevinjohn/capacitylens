@@ -76,6 +76,8 @@ preview. Scoped access goes through the `useScopedData` / `scopedTables()` seam.
   `user-stories/REFERENCE.md` is their single source of truth (routes / labels / `data-testid`s
   / seed data) — update it **first** when the app changes, then the affected stories.
 - **`README.md`, `server/README.md`** — stable orientation; touch rarely.
+- **`docs/self-hosting.md`, `docs/runbook.md`, `docs/production-{plan,posture}.md`,
+  `docs/privacy.md`, `docs/deploy.md`** — running & operating a self-hosted (server-backed) instance.
 
 ## Logging a decision (keep it cheap)
 1. **Append** to `docs/decisions-log.md` as one line + commit ref —

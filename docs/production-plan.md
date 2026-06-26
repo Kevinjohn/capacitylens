@@ -4,6 +4,11 @@
 same day to hand-off-ready task specs (each task below is written so it can be given
 verbatim to a coding model/agent and implemented without further product decisions).
 
+> **NOTE (authoritative over the body):** sections below that specify Nginx Basic Auth are the
+> original plan of record; per the 2026-06-16 update the alpha shipped with **NO auth gate** —
+> treat Basic-Auth steps as historical unless re-adopted before beta. The dated task specs are
+> left verbatim as the record of what was planned.
+
 > **Update (2026-06-13):** the GitHub Actions CI workflow referenced below (the P1.1 task spec
 > and the Phase 6 "pre-deploy" line) has since been **removed** to avoid Actions cost. The gate
 > (`gate` + `gate:server` + `e2e`) now runs **locally** before pushing — there is no hosted CI by

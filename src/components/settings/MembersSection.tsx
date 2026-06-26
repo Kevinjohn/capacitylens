@@ -78,7 +78,8 @@ export function MembersSection() {
 
   const [members, setMembers] = useState<Member[] | null>(null)
   const [invites, setInvites] = useState<InviteSummary[]>([])
-  // null = still loading / not yet decided; 'hidden' = a 403 self-gated us out (render nothing).
+  // 'loading' = still loading / not yet decided; 'shown' = render the section; 'hidden' = a 403
+  // self-gated us out (render nothing).
   const [gate, setGate] = useState<'loading' | 'shown' | 'hidden'>('loading')
 
   const [inviteRole, setInviteRole] = useState<Role>('editor')

@@ -1,7 +1,7 @@
 # Contributing to CapacityLens
 
-Thanks for your interest in CapacityLens — a local-first, multi-tenant agency resource &
-capacity scheduler. The project is open source under **AGPL-3.0-only**, and contributions are
+Thanks for your interest in CapacityLens — a server-backed by default, with an explicit in-browser
+demo build, multi-tenant agency resource & capacity scheduler. The project is open source under **AGPL-3.0-only**, and contributions are
 welcome. We favour **small, focused PRs** that do one thing well: one concern, its tests, the
 green gate, and a one-line note in `docs/decisions-log.md`. That keeps changes easy to review
 and easy to land.
@@ -12,13 +12,14 @@ timesheets, hour-granularity and mobile views are explicit non-goals, not gaps.
 
 ## Dev setup
 
-You need **Node 24+** — the version is pinned in `.nvmrc`, and the optional `server/` workspace
+You need **Node 24+** — the version is pinned in `.nvmrc`, and the default `server/` workspace
 relies on Node's built-in `node:sqlite`.
 
 ```bash
 nvm use          # picks up Node 24 from .nvmrc
 npm install      # installs the whole npm workspace
-npm run dev      # runs the web app (Vite prints the URL, e.g. http://127.0.0.1:5173/)
+npm run dev      # full-stack dev: SQLite API (:8787) + web (:5173) together; needs Node 24
+npm run dev:demo # Vite-only localStorage preview (no server, no Node 24)
 ```
 
 The repo is one npm workspace:
@@ -26,12 +27,15 @@ The repo is one npm workspace:
 - **(root)** — the web app (`src/`).
 - **`shared/`** — `@capacitylens/shared`: the pure, environment-agnostic domain core (types,
   validation, integrity, cascade, import remap, migrate, seed), shared by app and server.
-- **`server/`** — an **optional** Node + `node:sqlite` REST API behind the same persistence seam.
-  Off by default. To run the app against it:
-  `VITE_CAPACITYLENS_API=http://localhost:8787 npm run dev`. See `server/README.md`.
+- **`server/`** — the **default** Node + `node:sqlite` REST API behind the same persistence seam.
+  `npm run dev` boots it on `:8787` alongside the web app, and an unconfigured build talks to it at
+  a same-origin `/api`. `VITE_CAPACITYLENS_API` only **overrides the backend origin** (e.g. a remote
+  API), it doesn't turn the server on. See `server/README.md`.
 
-By default there is no backend and no login — your data lives in `localStorage` and never leaves
-the device. See `README.md` for more on running it and `server/README.md` for the optional API.
+Server-backed persistence is the default — your data lives in the SQLite-backed `/api` and is shared,
+server-persisted. The in-browser `localStorage` build is an explicit demo opt-in
+(`VITE_CAPACITYLENS_DEMO=1` / `npm run dev:demo`): no backend and no login, with data living on the
+device. See `README.md` for more on running it and `server/README.md` for the default API.
 
 ## The green gate (verify before opening a PR)
 

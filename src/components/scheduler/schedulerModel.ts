@@ -118,7 +118,7 @@ export function buildSchedulerModel(
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
   const clientById = new Map(data.clients.map((c) => [c.id, c]))
-  const activityById = new Map(data.activities.map((t) => [t.id, t]))
+  const activityById = new Map(data.activities.map((act) => [act.id, act]))
   const resourceById = new Map(data.resources.map((r) => [r.id, r]))
   // Reused for every bar's colour (project → client → resource → grey fallback).
   const colorMaps = { activities: activityById, projects: projectById, clients: clientById, resources: resourceById }
@@ -133,14 +133,14 @@ export function buildSchedulerModel(
   const scopedAccountId = data.clients[0]?.accountId
   const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined
   const activityMeta = new Map(
-    data.activities.map((t) => {
+    data.activities.map((act) => {
       // A project activity's client is its project's client. A project-less internal/repeatable
       // activity has NO project, so its client is DERIVED as the account's built-in Internal client
       // (purely for the view-model — never persisted). `kind` feeds the activity lens
       // ('Internal — All' / 'Repeatable — All') without a second activity lookup.
-      const project = t.projectId ? projectById.get(t.projectId) : undefined
+      const project = act.projectId ? projectById.get(act.projectId) : undefined
       const clientId = project ? project.clientId : internalClient?.id
-      return [t.id, { projectId: t.projectId, clientId, kind: t.kind }]
+      return [act.id, { projectId: act.projectId, clientId, kind: act.kind }]
     }),
   )
   // Group allocations / time off by resource ONCE up front, so building each row

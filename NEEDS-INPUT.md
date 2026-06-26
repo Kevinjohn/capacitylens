@@ -45,10 +45,6 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   multi-tab localStorage clobbering and related local-mode findings are accepted, not scheduled.
 
 ## Resolved by assumption (confirm)
-- **Local-first by default.** Data is one `AppData` blob in `localStorage` (`capacitylens/v3`); no
-  backend, no login. The optional server is off unless `VITE_CAPACITYLENS_API` is set. Confirm this stays
-  the default — turning the server on for everyone is a behaviour change (shared dataset,
-  last-writer-wins).
 - **Tenant picker is not auth.** You pick an Account on load (`AccountPicker`) and the dataset is
   scoped to it; `activeAccountId` is never persisted. This is convenience scoping, not a security
   boundary. Confirm that's acceptable for the current (trusted) audience.
@@ -70,6 +66,11 @@ Open product questions to revisit with the owner. Don't silently resolve these �
   round — the goal was simply to persist a shared dataset so testers opening the same Account
   see the same data. Stranded-localStorage + open-destructive-API risks explicitly accepted.
   Full runsheet + verification: decisions-log 2026-06-16; ops in `docs/runbook.md`.
+
+## Resolved (v0.11.0, 2026-06-26)
+- **Persistence default — RESOLVED (flipped to server-backed, v0.11.0).** Server mode (empty env =
+  same-origin API) is the default; localStorage is the explicit `VITE_CAPACITYLENS_DEMO=1` demo
+  opt-in. See DECISIONS.md › Architecture.
 
 ## Open — before beta (owner-deferred 2026-06-16)
 - **Build ships React in DEV mode.** The Forge deploy script keeps `NODE_ENV=development` for

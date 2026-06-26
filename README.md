@@ -22,7 +22,7 @@ command palette (jump to a person, project, client, page, or date), **⌘Z** und
 Each company account sets its own calendar in Settings (timezone, default GMT; week
 start, default Monday) and can turn disciplines on or off for the whole team.
 
-See **[CHANGELOG.md](CHANGELOG.md)** for release notes (currently **v0.10.2**).
+See **[CHANGELOG.md](CHANGELOG.md)** for release notes.
 
 ## Run it
 
@@ -141,3 +141,5 @@ Chromium-only (they exercise server round-trips, not cross-engine rendering).
 - **`user-stories/REFERENCE.md`** — routes / labels / `data-testid`s / seed data, the single source
   of truth the E2E specs lean on.
 - **`server/README.md`** — how to run and reason about the default backend.
+- **`docs/self-hosting.md`, `docs/runbook.md`, `docs/deploy.md`, `docs/production-{plan,posture}.md`,
+  `docs/privacy.md`** — running & operating a self-hosted (server-backed) instance.

@@ -51,10 +51,10 @@ export function useActiveScopedData(): AppData {
  * the archived/deleted rows (the lifecycle store actions mutate it in place), so the raw scoped slice
  * IS the full picture.
  *
- * SERVER MODE NOTE: in server mode (the default), the per-account read narrows to ACTIVE rows
- * only (`activeOnly` runs server-side in `readSlice`'s default branch), so the store's `data` holds NO
- * archived/deleted rows. The admin view must instead fetch them with `?includeInactive=1` — that fetch
- * (and its wiring to this hook) is the NEXT subagent's job; this hook is only the demo-build half.
+ * SERVER MODE NOTE: in server mode the per-account read narrows to ACTIVE rows only (`activeOnly`
+ * runs server-side in `readSlice`), so the store's `data` holds no archived/deleted rows. The admin
+ * view (ArchivedSection) instead fetches them directly with `?includeInactive=1`; this hook is the
+ * DEMO-build/OFF source only.
  * Returns {@link useScopedData} unchanged today (a thin, clearly-named wrapper), kept distinct from
  * `useScopedData` so the admin view's intent reads at the call site and a future server-mode change
  * lands in ONE place.

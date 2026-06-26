@@ -304,7 +304,9 @@ export function wipe(db: Db): void {
 }
 
 /** Replace one account's scoped slice with the rows for that account in `next`.
- *  Used by /api/import (the store imports into the active account only). */
+ *  Used by /api/import, the P2.5 lifecycle routes (archive/unarchive/delete/purge), and
+ *  TenantStore.write — every path that rewrites one account's scoped tables wholesale.
+ *  Callers must read the full slice first: the rewrite erases any sibling row not re-supplied. */
 export function replaceAccountSlice(db: Db, accountId: string, next: AppData): void {
   const d = next as unknown as Record<string, Row[]>
   tx(db, () => {

@@ -373,14 +373,14 @@ function buildItems({
     : clientItems.slice(0, SECTION_LIMIT)
 
   // ── Activities ──────────────────────────────────────────────────────────────────
-  const activityItems: PaletteItem[] = data.activities.map((t) => {
-    const project = data.projects.find((p) => p.id === t.projectId)
+  const activityItems: PaletteItem[] = data.activities.map((a) => {
+    const project = data.projects.find((p) => p.id === a.projectId)
     return {
-      id: `activity-${t.id}`,
-      label: t.name,
+      id: `activity-${a.id}`,
+      label: a.name,
       // Project activities show their project; project-less activities show their kind so the two
       // aren't indistinguishable blank-sublabel rows.
-      sublabel: t.kind === 'project' ? project?.name : t.kind === 'internal' ? m.palette_activity_internal() : m.palette_activity_repeatable(),
+      sublabel: a.kind === 'project' ? project?.name : a.kind === 'internal' ? m.palette_activity_internal() : m.palette_activity_repeatable(),
       section: m.palette_section_activities(),
       onSelect: () => {
         void navigate('/activities')
@@ -390,7 +390,7 @@ function buildItems({
   })
 
   const filteredActivities = q
-    ? fuzzyFilter(activityItems, q, (t) => t.label).slice(0, SECTION_LIMIT)
+    ? fuzzyFilter(activityItems, q, (a) => a.label).slice(0, SECTION_LIMIT)
     : activityItems.slice(0, SECTION_LIMIT)
 
   // ── Assemble ───────────────────────────────────────────────────────────────

@@ -79,7 +79,7 @@ export const FIXTURE_RESOURCE: Resource = {
   id: 'fix-r1',
   accountId: 'fix-a1',
   kind: 'placeholder',
-  name: 'Fixture Person',
+  name: 'Fixture Placeholder',
   role: 'Fixture Role',
   disciplineId: 'fix-d1',
   employmentType: 'contractor',

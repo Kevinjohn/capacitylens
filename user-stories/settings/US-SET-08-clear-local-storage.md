@@ -7,12 +7,13 @@ From Settings, deliberately wipe everything CapacityLens has cached in **this br
 all per-browser preferences — behind a clear destructive confirmation, then start fresh on reload.
 
 ## Why
-CapacityLens is local-first: a data blob plus a handful of preference keys live in this browser's
-localStorage. Sometimes you want a clean slate — a wedged local dataset, a shared/demo machine you're
-handing on, or a stale cache against a hosted site. On the **hosted/live** site the real data lives in
-the database, so clearing the browser cache is safe (the app reloads from the DB); in **local mode**
-this browser holds your only copy, so the action erases your data. The button makes that distinction
-explicit and gates the wipe behind the same destructive confirm used for deletes — there is no undo.
+CapacityLens caches a data blob plus a handful of preference keys in this browser's localStorage.
+Sometimes you want a clean slate — a wedged local dataset, a shared/demo machine you're handing on,
+or a stale cache against a hosted site. In the **default server-backed build** the real data lives in
+the database (clearing the cache is safe — the app reloads from the DB); in the **demo build**
+(`VITE_CAPACITYLENS_DEMO=1`) this browser holds your only copy, so the action erases your data. The
+button makes that distinction explicit and gates the wipe behind the same destructive confirm used
+for deletes — there is no undo.
 
 ## How (end-to-end)
 **Precondition:** Seeded app open (clock inside the seed window — see *Seed data* in REFERENCE.md).

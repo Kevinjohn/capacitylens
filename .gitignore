@@ -48,6 +48,7 @@ src/paraglide/
 # Agent/loop scratch — never ship these in a clone (P0.2)
 *-state.json
 .claude/
+plan__*.md
 floaty-copy.md
 shadcn-branch-plan.md
 CapacityLens.md

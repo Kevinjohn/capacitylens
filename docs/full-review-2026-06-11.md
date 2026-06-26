@@ -1,6 +1,9 @@
 # Floaty — Full review, 10-feature roadmap, and one-month team plan
 
 > **Status addendum (2026-06-12).** This is a dated snapshot; read it with two corrections.
+> **Superseded — symbol/env names in this dated snapshot predate the CapacityLens rebrand**
+> (`looksLikeFloaty`→`looksLikeCapacityLens`, `VITE_FLOATY_API`→`VITE_CAPACITYLENS_API`,
+> `FLOATY_*`→`CAPACITYLENS_*`); see DECISIONS.md for current state.
 > **(1) Scope:** the owner has since confirmed the product is *deliberately small* — a
 > helicopter who's-busy view; budgets/money, timesheets, hour-granularity and mobile are
 > **non-goals** (see DECISIONS.md). Roadmap items F1/F2 (reports, money) and F10 (mobile)

@@ -104,7 +104,7 @@ of them here; copy it to `.env` and edit. The ones you should think about for a 
 | `VITE_CAPACITYLENS_API` | real domain | **Build-time.** The public origin, e.g. `https://capacity.example.com` (origin, not `/api`). Requires a rebuild. |
 | `CAPACITYLENS_DB` | rarely | SQLite file path. In compose this is `/data/capacitylens.db` on the named volume — leave it. |
 | `CAPACITYLENS_BACKUP_DIR` | recommended | Directory for timed snapshots (`/backups` in compose). Unset = backups OFF. See [§5](#5-backups--restore). |
-| `CAPACITYLENS_HEALTH_DEEP` | recommended | `1` makes `/api/health` also do a DB read (real healthcheck). |
+| `CAPACITYLENS_HEALTH_DEEP` | recommended | `1` makes `/api/health` also do a real DB read (deep healthcheck). |
 | `CAPACITYLENS_LOG` | recommended | `1` for structured per-request JSON logs (pino). |
 | `CAPACITYLENS_RATE_LIMIT` | recommended | Requests/minute per IP across `/api/*` (default `300`; `/api/health` exempt). |
 | `CAPACITYLENS_AUTH` | for auth | `off` (default) \| `password` \| `sso`. See [§4](#4-enabling-authentication). |
@@ -333,8 +333,10 @@ not a backup.
 
 - **Health check.** `GET /api/health` is unauthenticated and rate-limit-exempt. By default it
   returns `{ ok: true }` unconditionally; with `CAPACITYLENS_HEALTH_DEEP=1` it also does a
-  trivial DB read and returns `{ ok, db: true }` (200) or `{ ok: false }` (503) if the DB is
-  broken while the process is alive. The container `HEALTHCHECK` already hits this endpoint.
+  trivial DB read and returns `{ ok: true, db: true, audit: 'ok' | 'degraded' }` (200) or
+  `{ ok: false }` (503) if the DB is broken while the process is alive. (`audit` is a soft
+  signal — a `'degraded'` audit stays a 200.) The container `HEALTHCHECK` already hits this
+  endpoint.
 - **Logs.** `docker compose logs -f api` for the daemon (with `CAPACITYLENS_LOG=1`, one JSON
   line per request plus hourly backup lines); `docker compose logs -f web` for nginx.
 - **CORS.** The default topology is **same-origin** — the browser talks to nginx, which proxies

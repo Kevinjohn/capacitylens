@@ -1,7 +1,12 @@
 # Plan of action — moving CapacityLens onto the database model
 
-**Status of this doc:** forward-looking roadmap. Nothing here is started. The
-*prep* it builds on (the server + the sync adapter) is already done — see below.
+> **STATUS: the near-term server move has SHIPPED** (server-backed default, same-origin
+> `/api`, auth seam). This doc is retained for the still-conditional later stages (B–E); for
+> present truth see [`DECISIONS.md`](../DECISIONS.md).
+
+**Status of this doc:** the near-term move below is **done and shipped** (server-backed is now
+the default build). The later stages (B–E) remain forward-looking roadmap — conditional, not
+started. The *prep* it builds on (the server + the sync adapter) is also done — see below.
 
 ## Where we already are
 
@@ -19,8 +24,11 @@ The architectural groundwork is complete (see the `db-migration` memory and
 
 So "moving to the DB model" is **not** a build — it's a **cutover plus hardening**.
 
-**Stage 0 = today:** the static localStorage deploy (`docs/deploy.md`). Each browser
-is its own island, refresh-safe, no server. Everything below is the step *beyond* it.
+**Stage 0 (was "today"):** the static localStorage deploy (`docs/deploy.md`) — each browser
+its own island, refresh-safe, no server. This is **no longer the default**: server-backed is
+now the shipped default build (an empty env = the same-origin SQLite `/api`), and the static
+localStorage build is an explicit `VITE_CAPACITYLENS_DEMO=1` demo opt-in. The near-term move
+described below is what shipped; the conditional stages beyond it follow.
 
 ---
 
@@ -74,8 +82,9 @@ This is a handful of ops steps on the existing Forge site — no app code requir
   browser you care about, export it and `POST /api/import` it **at cutover** — once
   the build flips, that local data is no longer what the app reads. If it's all
   throwaway demo data, skip this.
-- **Stay on `--experimental-sqlite`?** Production on an experimental Node flag is a
-  known risk. Fine for a friends demo; revisit before anything real (see Stage B).
+- **SQLite driver.** The server uses `node:sqlite` on Node 24, where it is **unflagged**
+  (no `--experimental-sqlite`). Running on an unflagged, in-Node driver is a low risk; the
+  pre-approved `better-sqlite3` fallback stays available if a regression appears (see Stage B).
 
 ### Gate (definition of done for the near-term move)
 
@@ -100,8 +109,8 @@ build ahead of the trigger.
   client conflict UI yet** (server README, "Status"). Flipping the flag without the UI
   just turns races into `persistError`/replay churn. So: build the 409-handling path
   in `ServerSyncAdapter` first, then enable the flag.
-- **Move off `--experimental-sqlite`** to `better-sqlite3` / libSQL for a stable,
-  non-experimental driver.
+- **Driver swap, only if needed.** The server runs `node:sqlite` on Node 24 (unflagged);
+  if a driver regression forces it, swap to `better-sqlite3` / libSQL.
 - **Tested restore**, not just backups — prove a restore works.
 
 ### Stage C — Real auth + per-account isolation  *(the big one)*

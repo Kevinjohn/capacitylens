@@ -109,6 +109,7 @@ export function assertScopedRefs(
       break
     }
     case 'resources':
+      // disciplineId applies to any resource; projectId is the placeholder-only binding FK (see Resource.projectId) — both optional, so need() only fires when present.
       need('disciplineId', data.disciplines, 'Resource discipline must belong to this company.')
       need('projectId', data.projects, 'Placeholder project must belong to this company.')
       break
@@ -134,7 +135,7 @@ export function assertAllocationRefs(
   hoursPerDay: number,
 ): void {
   const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
-  const activity = data.activities.find((t) => t.id === activityId && belongsToAccount(t, accountId))
+  const activity = data.activities.find((act) => act.id === activityId && belongsToAccount(act, accountId))
   if (!resource || !activity) {
     throw new Error('Allocation must reference an existing resource and activity in this company.')
   }
@@ -371,21 +372,21 @@ export function remapAndValidateImport(
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
   // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.
   const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]))
-  for (const t of brought.activities) {
-    if (t.kind === 'internal' || t.kind === 'repeatable') {
-      t.projectId = undefined
-      t.phaseId = undefined
+  for (const act of brought.activities) {
+    if (act.kind === 'internal' || act.kind === 'repeatable') {
+      act.projectId = undefined
+      act.phaseId = undefined
       continue
     }
-    if (t.projectId !== undefined && !has(projectIds, t.projectId)) t.projectId = undefined
-    if (t.projectId === undefined) {
-      t.phaseId = undefined
-      t.kind = 'repeatable'
+    if (act.projectId !== undefined && !has(projectIds, act.projectId)) act.projectId = undefined
+    if (act.projectId === undefined) {
+      act.phaseId = undefined
+      act.kind = 'repeatable'
     } else if (
-      t.phaseId !== undefined &&
-      (!has(phaseIds, t.phaseId) || phaseProject.get(t.phaseId as string) !== t.projectId)
+      act.phaseId !== undefined &&
+      (!has(phaseIds, act.phaseId) || phaseProject.get(act.phaseId as string) !== act.projectId)
     ) {
-      t.phaseId = undefined
+      act.phaseId = undefined
     }
   }
 
@@ -399,7 +400,7 @@ export function remapAndValidateImport(
   // checks below is safe. Results are cast back to loose records afterwards so a dangling optional
   // FK can still be nulled in place. Field-level safety lives in sanitize/validate — NOT the cast.
   const resources = new Map((brought.resources as unknown as Resource[]).map((r) => [r.id, r]))
-  const activities = new Map((brought.activities as unknown as Activity[]).map((t) => [t.id, t]))
+  const activities = new Map((brought.activities as unknown as Activity[]).map((act) => [act.id, act]))
   // Single pass: resolve the owning resource ONCE per allocation and use it for BOTH the keep/drop
   // decision (date range + resource/activity existence + placeholder rule) AND the external-load
   // coercion below, so the two can never diverge.

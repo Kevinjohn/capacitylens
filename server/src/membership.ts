@@ -10,8 +10,8 @@ import { listMembershipsForUser } from './controlTables'
 // control-table helpers; this module adds the session-facing contract plus the ACTIVE-only filter.
 //
 // Server-only (I/O): these read the control table and the accounts table, so they live here, not in
-// the pure shared core. The permissioned routes (P1.4 GET /api/accounts, P1.5 requirePermission)
-// will wrap these — this task is the functions + unit tests only, no endpoints.
+// the pure shared core. The permissioned routes wrap these: GET /api/accounts calls listAccounts
+// (P1.4), and the requirePermission `authorize` seam calls resolveRole (P1.5) — both in app.ts.
 //
 // ACTIVE-ONLY (carry-forward from the P1.1 review): the P1.1 helpers do NOT filter by status. For
 // ACCESS purposes a non-active membership is NOT a member, so this layer keeps ONLY

@@ -3,7 +3,9 @@
 // (see theme.ts / DECISIONS.md): these are view toggles, not tenant records.
 //
 // The store holds the reactive values; these are the pure read/write helpers it
-// leans on. Everything defaults to true (show everything) on first run.
+// leans on. The utilisation and bar-label display toggles default to true (show
+// everything) on first run; other prefs in this file carry their own documented
+// defaults (the sidebar is tri-state; fake-sign-in and intro-seen default off).
 //
 // ON THE SWALLOW (deliberate): every localStorage access below is wrapped and falls back to a
 // documented default. This is the ONE category where swallow-to-default is correct (see

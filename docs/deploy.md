@@ -1,19 +1,24 @@
 # Deploying CapacityLens (Laravel Forge + DigitalOcean)
 
-CapacityLens is a Vite/React SPA in an npm-workspaces monorepo. It builds to a static
-`dist/` and, by default, persists to the browser's `localStorage` — no backend
-required. The `server/` (Fastify + SQLite) is **opt-in** via the build-time
-`VITE_CAPACITYLENS_API` env var and is documented separately in `server/README.md`.
+> **This page documents the legacy static localStorage build, which is now an explicit
+> demo opt-in (`VITE_CAPACITYLENS_DEMO=1`).** As of v0.11.0 CapacityLens is **server-backed
+> by default** (an empty env = the same-origin SQLite `/api`). For the default server-backed
+> deploy see [`docs/self-hosting.md`](self-hosting.md) / [`docs/runbook.md`](runbook.md).
+> The DNS/SSL/Nginx basics below still apply to either build.
 
-This guide covers the **static SPA** deploy (the default). You don't SSH in to run
-npm by hand — Forge's **Deploy Script** runs `git pull` + the npm build on the
-droplet for you on each deploy. SSH is only for debugging.
+CapacityLens is a Vite/React SPA in an npm-workspaces monorepo. By default it is
+**server-backed** — the build talks to the same-origin SQLite `/api` and the `server/`
+(Fastify + SQLite) is documented in `server/README.md`. This guide covers the **legacy
+static SPA** build, which persists to the browser's `localStorage` and needs no backend;
+that build is now an **explicit demo opt-in** via `VITE_CAPACITYLENS_DEMO=1` (`npm run
+dev:demo`). You don't SSH in to run npm by hand — Forge's **Deploy Script** runs `git
+pull` + the npm build on the droplet for you on each deploy. SSH is only for debugging.
 
-> **Superseded for the controlled demo:** the demo runs in **server mode** (daemon +
-> `/api` proxy + Basic Auth + persistent SQLite). The cutover runsheet is
+> **For the live controlled demo, follow the server path, not this page.** The demo runs
+> in **server mode** (daemon + `/api` proxy + persistent SQLite; per the 2026-06-16 update
+> the alpha runs with **no auth gate**). The cutover runsheet is
 > [`production-plan.md`](production-plan.md) Phase 2 and day-to-day operations live in
-> [`runbook.md`](runbook.md) — follow those, not just this page, or you'll ship a
-> localStorage-only build. The DNS/SSL/Nginx basics below still apply.
+> [`runbook.md`](runbook.md) — follow those, or you'll ship a localStorage-only build.
 
 ## 1. DNS
 
@@ -88,8 +93,10 @@ Add your key under Forge → server → **SSH Keys** if `forge@` is refused.
 
 ## Data model note
 
-Static-only means each visitor's data lives in **their own browser** (`localStorage`).
-A page refresh keeps it; clearing browser data, incognito, or a different
-browser/device starts fresh. There is no shared dataset. For shared/persisted
-data across people and devices, see the server path in `server/README.md`
-(note: no auth yet — Phase 2).
+This applies to the **demo build only** (`VITE_CAPACITYLENS_DEMO=1`): static-only means
+each visitor's data lives in **their own browser** (`localStorage`). A page refresh keeps
+it; clearing browser data, incognito, or a different browser/device starts fresh. There
+is no shared dataset. The **default** server-backed build persists to the same-origin
+SQLite `/api` instead, so data is shared and durable across people and devices — see the
+server path in `server/README.md` (note: per the 2026-06-16 update the alpha runs with no
+auth gate).

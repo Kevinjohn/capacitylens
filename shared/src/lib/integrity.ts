@@ -58,9 +58,9 @@ export function validateDateRange(
 
 /**
  * Placeholder rule: a placeholder is bound to one project and may only take activities
- * from that project — EXCEPT general (no-project) activities, which anyone (people and
- * placeholders alike) can be assigned. So the rule only bites when the activity itself
- * belongs to a project.
+ * from that project — EXCEPT project-less activities (internal/repeatable kinds), which
+ * anyone (people and placeholders alike) can be assigned. So the rule only bites when the
+ * activity itself belongs to a project.
  */
 export function validateAllocationAssignment(
   resource: Resource,
@@ -115,7 +115,7 @@ export function deletePhaseCascade(data: AppData, phaseId: ID): AppData {
   }
 }
 
-/** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving *  activity's phase and any placeholder bound to it. PURE — returns a new AppData. */
+/** Delete a project: drops its phases + activities + those activities' allocations, unbinds a surviving activity's phase and any placeholder bound to it. PURE — returns a new AppData. */
 export function deleteProjectCascade(data: AppData, projectId: ID): AppData {
   const removedActivityIds = new Set(
     data.activities.filter((t) => t.projectId === projectId).map((t) => t.id),

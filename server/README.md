@@ -3,7 +3,7 @@
 SQLite-backed, entity-level REST API for CapacityLens — the **default** database backend
 behind the `PersistenceAdapter` seam. This is what `npm run dev` (at the repo root) now starts
 alongside the web app, and what an unconfigured build talks to over a same-origin `/api`. (The
-in-browser `localStorage` build is the explicit opt-out — an `VITE_CAPACITYLENS_DEMO=1` demo
+in-browser `localStorage` build is the explicit opt-in — a `VITE_CAPACITYLENS_DEMO=1` demo
 preview.) `VITE_CAPACITYLENS_API` on the web app only **overrides the backend origin** (e.g. point
 it at a remote API) — it does not turn the server on, since the server is already the default. So a
 deploy with **no** same-origin `/api` backend (a static host with no API) must instead build the
@@ -45,7 +45,8 @@ VITE_CAPACITYLENS_API=http://localhost:8787 npm run dev:web
 
 ## Scripts
 
-- `npm run dev` — watch-mode server (`capacitylens.db`).
+- `npm run dev` (in `server/`, i.e. `--workspace=server`) — watch-mode API only
+  (`capacitylens.db`); the repo-root `npm run dev` is the full-stack launcher (see above).
 - `npm start` — run the server once (no watch).
 - `npm run start:e2e` — reset-enabled server on a throwaway DB (used by the
   `db-backed` Playwright project).
@@ -133,7 +134,9 @@ register with the droplet's values lives in `docs/production-plan.md`):
 ## Status / standing posture
 
 Auth is **wired but OFF** (`CAPACITYLENS_AUTH`, Better Auth): sessions/login exist behind the
-flag, but the demo gate stays Nginx Basic Auth and the dataset is shared. `ownsRow` is
+flag, but the live alpha runs with **NO auth gate at all** (no app-level auth and no Nginx Basic
+Auth — the Basic Auth plan was dropped), one shared dataset, last-writer-wins; a real gate is
+required before beta — see DECISIONS.md. `ownsRow` is
 defense-in-depth, not isolation — the account stays client-asserted until Stage C derives
 it from the session. Optimistic concurrency stays off (last-writer-wins) until a client
 conflict UI exists. Postgres and real per-account ownership remain deferred (see

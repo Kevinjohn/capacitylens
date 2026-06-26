@@ -139,7 +139,8 @@ export function ArchivedSection() {
   // admin+ may purge. The server 403 is the backstop; this hides the button for a non-purger.
   const mayPurge = role === null || can(role, 'purge')
 
-  if (server && gate !== 'shown') return null // OFF-of-server: 403 self-gated, or still loading.
+  // Server mode but the section isn't cleared to show yet — a 403 self-gated it, or the inactive fetch is still loading.
+  if (server && gate !== 'shown') return null
 
   return (
     <section className="rounded border border-line bg-surface p-4" data-testid="archived-section">

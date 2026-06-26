@@ -52,7 +52,8 @@ stamp is the tell (`· local` = bad build).
 
 - Daemon stdout (Forge daemon log): with `CAPACITYLENS_LOG=1` every request is one JSON line
   (method/path/status/latency, pino) plus `capacitylens-server: backup written …` lines hourly.
-- Nginx access log: per-tester Basic Auth usernames — who was on when.
+- Nginx access log: per-tester Basic Auth usernames — who was on when. (NOT wired in the
+  current alpha — see the alpha banner; there are no Basic Auth usernames to log this round.)
 - 500s appear in the daemon log with the real error; the HTTP body stays generic.
 
 ## Backups (CAPACITYLENS_BACKUP_DIR)
@@ -96,8 +97,9 @@ boot-guard refuses anyway (the daemon will not start with it under `NODE_ENV=pro
 ## Monitoring (P4.4)
 
 - Uptime check (Forge monitor / UptimeRobot) **with Basic Auth creds** on:
-  `https://<site>/api/health` (with `CAPACITYLENS_HEALTH_DEEP=1` a 200 `{ok,db:true}` proves the
-  DB answers; 503 `{ok:false}` = DB broken while the process lives) — and the SPA root.
+  `https://<site>/api/health` (no Basic Auth this round — see the alpha banner; hit
+  `/api/health` directly) — with `CAPACITYLENS_HEALTH_DEEP=1` a 200 `{ok,db:true}` proves the
+  DB answers; 503 `{ok:false}` = DB broken while the process lives — and the SPA root.
 - Droplet disk alert sized against backup retention (48 × DB size + WAL headroom; the DB
   is KB–MB scale, so any sane threshold works — set it when confirming disk headroom).
 
@@ -105,8 +107,9 @@ boot-guard refuses anyway (the daemon will not start with it under `NODE_ENV=pro
 
 First daemon boot auto-seeds Studio North / Loft Digital. The Cohesion Labs dataset
 (`_input/cohesion-labs-import.json`, 166 records) imports into its own Account — create
-the Account first, then import **into** it (run on the droplet from the repo root; with
-Basic Auth in front, give curl `-u <user>`):
+the Account first, then import **into** it (run on the droplet from the repo root; the
+`curl -u <user>` note assumes Basic Auth, which is NOT wired in the current alpha — see the
+alpha banner, so drop the `-u`):
 
 ```sh
 NOW=$(node -e "console.log(new Date().toISOString())")
@@ -129,7 +132,8 @@ AccountPicker next to the seeded companies, with 12 resources / 11 clients / 12 
 ## Testers (P5.1 / P5.3 / Phase 2 #3)
 
 - **Access:** one htpasswd entry per tester (`htpasswd /etc/nginx/.htpasswd-capacitylens <name>`)
-  — attribution in access logs, per-person revocation. Remove a line to revoke.
+  — attribution in access logs, per-person revocation. Remove a line to revoke. (NOT wired in
+  the current alpha — see the alpha banner; there is no htpasswd gate this round.)
 - **One Account (company) per tester**, created in the UI after deploy, plus the Cohesion
   import — makes last-writer-wins collisions rare by construction; the AccountPicker
   doubles as "who are you".

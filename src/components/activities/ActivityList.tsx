@@ -26,24 +26,24 @@ export function ActivityList() {
 
   // Three kinds, three tables. Internal first (the owner's ordering), then repeatable
   // (reusable across projects — the rename of "general"), then project work.
-  const internalActivities = activities.filter((t) => t.kind === 'internal')
-  const repeatableActivities = activities.filter((t) => t.kind === 'repeatable')
-  const projectActivities = activities.filter((t) => t.kind === 'project')
+  const internalActivities = activities.filter((a) => a.kind === 'internal')
+  const repeatableActivities = activities.filter((a) => a.kind === 'repeatable')
+  const projectActivities = activities.filter((a) => a.kind === 'project')
 
-  const renderRow = (t: Activity, showLabel: boolean) => (
-    <li key={t.id} data-testid="activity-row" className="flex items-center justify-between px-3 py-2">
+  const renderRow = (activity: Activity, showLabel: boolean) => (
+    <li key={activity.id} data-testid="activity-row" className="flex items-center justify-between px-3 py-2">
       <span>
-        <span className="font-medium">{t.name}</span>
+        <span className="font-medium">{activity.name}</span>
         {showLabel && (
           <span className="text-sm text-muted">
             {' '}
-            · {projectLabel(t.projectId)}
+            · {projectLabel(activity.projectId)}
           </span>
         )}
       </span>
       <span className="flex gap-2">
-        <EditButton onClick={() => setEditing(t)} />
-        <DeleteButton onClick={() => setConfirming(t)} />
+        <EditButton onClick={() => setEditing(activity)} />
+        <DeleteButton onClick={() => setConfirming(activity)} />
       </span>
     </li>
   )
@@ -69,7 +69,7 @@ export function ActivityList() {
       </EmptyState>
     ) : (
       <ul data-testid={testid} className="divide-y divide-line rounded border border-line bg-surface">
-        {rows.map((t) => renderRow(t, showLabel))}
+        {rows.map((a) => renderRow(a, showLabel))}
       </ul>
     )
 
