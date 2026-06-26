@@ -121,7 +121,7 @@ export function SettingsView() {
       clearCapacitylensLocalStorage()
     } catch (e) {
       setConfirmingClear(false)
-      setNotice(`Could not clear local storage: ${errorMessage(e)}`, 'error')
+      setNotice(m.settings_err_clear_storage({ error: errorMessage(e) }), 'error')
       return
     }
     // Reload so the app re-initialises from scratch — from the server DB in server mode, or an
@@ -363,8 +363,8 @@ export function SettingsView() {
           <h2 className="mb-1 text-sm font-semibold text-danger">{m.settings_local_data_heading()}</h2>
           <p className="mb-3 max-w-prose text-xs text-muted">
             {serverMode
-              ? `Clears the ${APP_NAME} data and settings cached in this browser. Your account data lives in the database and is safe — the app reloads from there. This cannot be undone for this browser.`
-              : `Permanently clears the ${APP_NAME} data and settings stored in this browser. In local mode this is your only copy, so this erases your data. This cannot be undone.`}
+              ? m.settings_clear_desc_server({ app: APP_NAME })
+              : m.settings_clear_desc_local({ app: APP_NAME })}
           </p>
           <Button variant="danger" testId="clear-local-storage" onClick={() => setConfirmingClear(true)}>
             {m.settings_clear_storage_button()}
@@ -377,8 +377,8 @@ export function SettingsView() {
             confirmLabel={m.settings_clear_storage_button()}
             message={
               serverMode
-                ? `This permanently clears the ${APP_NAME} data and settings stored in THIS browser, and cannot be undone. On this hosted site your data lives in the database and is safe — the app will reload and re-load it from there.`
-                : `This permanently clears the ${APP_NAME} data and settings stored in THIS browser, and cannot be undone. In local mode this is your only copy, so this erases your local data.`
+                ? m.settings_clear_confirm_server({ app: APP_NAME })
+                : m.settings_clear_confirm_local({ app: APP_NAME })
             }
             onConfirm={clearLocalStorage}
             onCancel={() => setConfirmingClear(false)}
@@ -391,7 +391,7 @@ export function SettingsView() {
           <section className="rounded border border-line bg-surface p-4">
             <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_account_heading()}</h2>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted">Signed in as {user?.email ?? user?.name ?? 'unknown'}</p>
+              <p className="text-sm text-muted">{m.settings_signed_in_as({ who: user?.email ?? user?.name ?? m.settings_signed_in_unknown() })}</p>
               <Button variant="ghost" onClick={() => void signOut()}>
                 {m.settings_account_sign_out()}
               </Button>

@@ -107,7 +107,7 @@ export function MembersSection() {
         }
         if (!res.ok) {
           setGate('shown')
-          fail(null, `Could not load members (${res.status}).`)
+          fail(null, m.settings_members_err_load({ status: res.status }))
           return
         }
         const body = (await res.json()) as { members: Member[] }
@@ -121,7 +121,7 @@ export function MembersSection() {
       } catch (e) {
         // A transport error (server down/offline) — surface it; do not swallow.
         setGate('shown')
-        fail(null, `Could not reach the server: ${errorMessage(e)}`)
+        fail(null, m.settings_err_server({ error: errorMessage(e) }))
       }
     })()
   }, [enabled, activeAccountId, reloadKey, fail])
@@ -132,10 +132,12 @@ export function MembersSection() {
   const myRole = members?.find((m) => m.isSelf)?.role
   const ownerCount = members?.filter((m) => m.role === 'owner').length ?? 0
 
-  const changeRole = async (m: Member, nextRole: Role) => {
-    if (nextRole === m.role) return
+  // NB: the param is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2); a
+  // `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
+  const changeRole = async (mem: Member, nextRole: Role) => {
+    if (nextRole === mem.role) return
     try {
-      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${m.userId}`, {
+      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -143,31 +145,32 @@ export function MembersSection() {
       })
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail(null, body.error ?? `Could not change role (${res.status}).`)
+        fail(null, body.error ?? m.settings_members_err_change_role({ status: res.status }))
         return
       }
-      setNotice('Role updated.')
+      setNotice(m.settings_members_role_updated())
       reload()
     } catch (e) {
-      fail(null, `Could not reach the server: ${errorMessage(e)}`)
+      fail(null, m.settings_err_server({ error: errorMessage(e) }))
     }
   }
 
-  const removeMember = async (m: Member) => {
+  // NB: the param is `mem`, NOT `m` — see changeRole above (`m` is the i18n catalogue, not a Member).
+  const removeMember = async (mem: Member) => {
     try {
-      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${m.userId}`, {
+      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
       if (!res.ok && res.status !== 204) {
         const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail(null, body.error ?? `Could not remove member (${res.status}).`)
+        fail(null, body.error ?? m.settings_members_err_remove({ status: res.status }))
         return
       }
-      setNotice('Member removed.')
+      setNotice(m.settings_members_removed())
       reload()
     } catch (e) {
-      fail(null, `Could not reach the server: ${errorMessage(e)}`)
+      fail(null, m.settings_err_server({ error: errorMessage(e) }))
     }
   }
 
@@ -187,17 +190,17 @@ export function MembersSection() {
       })
       if (res.status !== 201) {
         const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail('invite', body.error ?? `Could not create invite (${res.status}).`)
+        fail('invite', body.error ?? m.settings_members_err_create_invite({ status: res.status }))
         return
       }
       const body = (await res.json()) as { token: string }
       // The token is write-once: build + show the link straight from this response and never again.
       setMintedLink(`${window.location.origin}/invite/${body.token}`)
       setInvitePreauth('')
-      setNotice('Invite created.')
+      setNotice(m.settings_members_invite_created())
       reload()
     } catch (e) {
-      fail('invite', `Could not reach the server: ${errorMessage(e)}`)
+      fail('invite', m.settings_err_server({ error: errorMessage(e) }))
     }
   }
 
@@ -208,20 +211,20 @@ export function MembersSection() {
         credentials: 'include',
       })
       if (!res.ok && res.status !== 204) {
-        fail(null, `Could not revoke invite (${res.status}).`)
+        fail(null, m.settings_members_err_revoke_invite({ status: res.status }))
         return
       }
-      setNotice('Invite revoked.')
+      setNotice(m.settings_members_invite_revoked())
       reload()
     } catch (e) {
-      fail(null, `Could not reach the server: ${errorMessage(e)}`)
+      fail(null, m.settings_err_server({ error: errorMessage(e) }))
     }
   }
 
   const copyLink = (link: string) => {
     void navigator.clipboard?.writeText(link).then(
-      () => setNotice('Invite link copied.'),
-      () => setNotice('Could not copy — select and copy the link manually.', 'error'),
+      () => setNotice(m.settings_members_invite_copied()),
+      () => setNotice(m.settings_members_copy_failed(), 'error'),
     )
   }
 
@@ -359,8 +362,8 @@ export function MembersSection() {
               >
                 <span className="text-sm text-ink">
                   <span className="capitalize">{inv.role}</span>
-                  {inv.preauthEmail ? ` · ${inv.preauthEmail}` : ' · link'}
-                  {inv.usedAt ? ' · used' : ` · expires ${inv.expiresAt.slice(0, 10)}`}
+                  {inv.preauthEmail ? m.settings_invite_suffix_email({ email: inv.preauthEmail }) : m.settings_invite_suffix_link()}
+                  {inv.usedAt ? m.settings_invite_suffix_used() : m.settings_invite_suffix_expires({ date: inv.expiresAt.slice(0, 10) })}
                 </span>
                 <Button variant="ghost" testId="invite-revoke" onClick={() => void revokeInvite(inv.id)}>
                   {m.settings_invite_revoke()}

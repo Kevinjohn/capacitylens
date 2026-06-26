@@ -263,9 +263,9 @@ export const AllocationBar = memo(function AllocationBar({
           const overTimeOff = data.timeOff.filter((t) => t.resourceId === effResourceId)
           const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, reconciledHours, bar.allocation.ignoreWeekends)
           const bits: string[] = []
-          if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
-          if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
-          if (bits.length) advisory = ` — now ${bits.join(' and ')}`
+          if (overDays) bits.push(overDays === 1 ? m.scheduler_advisory_over_one({ count: overDays }) : m.scheduler_advisory_over_other({ count: overDays }))
+          if (timeOffDays) bits.push(timeOffDays === 1 ? m.scheduler_advisory_timeoff_one({ count: timeOffDays }) : m.scheduler_advisory_timeoff_other({ count: timeOffDays }))
+          if (bits.length) advisory = m.scheduler_advisory_prefix({ bits: bits.join(m.scheduler_advisory_join()) })
         }
         // A volume-preserving (days-mode) resize that shrank the span past the cap truncates
         // work: the derived hours/day exceeded MAX_HOURS_PER_DAY and were clamped, so the bar
@@ -274,8 +274,8 @@ export const AllocationBar = memo(function AllocationBar({
         // rescales only when mode !== 'move'), and reconcile only changes hours on a reassign,
         // which only happens on a move — so on any clamped path reconciledHours === hours; the
         // `clamped` flag alone is the signal.
-        const cap = clamped ? ` Work volume was capped at ${MAX_HOURS_PER_DAY}h/day.` : ''
-        setNotice(`${reassignTo ? 'Allocation reassigned' : 'Allocation moved'}${advisory}.${cap} Press ⌘Z to undo.`)
+        const cap = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : ''
+        setNotice(`${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${cap}${m.scheduler_toast_undo_hint()}`)
       } catch (e) {
         // Reassignment rejected (e.g. a placeholder bound to another project): keep the
         // allocation on its source resource and apply just the date move, recomputed against
@@ -290,11 +290,11 @@ export const AllocationBar = memo(function AllocationBar({
             const srcPatch = src.hours !== bar.allocation.hoursPerDay ? { hoursPerDay: src.hours } : null
             updateAllocation(bar.allocation.id, { ...src.dates, ...srcPatch })
           } catch {
-            setNotice('Could not move this allocation.', 'error')
+            setNotice(m.scheduler_toast_move_failed(), 'error')
             return
           }
         }
-        setNotice(e instanceof Error ? e.message : 'That allocation could not be moved there.', 'error')
+        setNotice(e instanceof Error ? e.message : m.scheduler_toast_move_rejected(), 'error')
       }
     },
   })
@@ -356,12 +356,12 @@ export const AllocationBar = memo(function AllocationBar({
       updateAllocation(bar.allocation.id, { ...next, ...hoursPatch })
       // Surface a clamp the same non-blocking way the pointer commit does — the bar would
       // otherwise just show the capped figure with no hint the volume was truncated.
-      if (rescale?.clamped) setNotice(`Work volume was capped at ${MAX_HOURS_PER_DAY}h/day. Press ⌘Z to undo.`)
+      if (rescale?.clamped) setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY }))
     } catch (e) {
       // Integrity rejected the keyboard move/resize (e.g. into an illegal slot). Surface it the
       // same way the pointer-drag commit path does (onCommit above) — a silent no-op left the bar
       // sitting still with no hint why, which reads as a broken key.
-      setNotice(e instanceof Error ? e.message : 'That move was not allowed.', 'error')
+      setNotice(e instanceof Error ? e.message : m.scheduler_toast_move_disallowed(), 'error')
     }
   }
 
