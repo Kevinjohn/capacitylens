@@ -346,6 +346,23 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **CSP:** `object-src`/`base-uri` ship in `index.html`; a full `script-src` policy belongs in
   a host response header, not the app — **not yet added at the host** (Phase 2 edge-hardening
   remainder, see `docs/production-plan.md`).
+- **Server-control tables are NOT AppData (P1.1).** Membership (and later invites) live in their
+  own schema module (`server/src/controlTables.ts`), mirroring Better Auth's user/session tables.
+  `account_members(accountId, userId, role, status, createdAt)` — PK `(accountId, userId)`, indexes
+  on `userId` + `accountId`, no FK to AppData — is created idempotently by `ensureControlTables(db)`
+  inside `openDb` (after `assertSchemaCurrent`), so EVERY opened DB incl. `:memory:` test DBs has it,
+  regardless of auth mode. **Exclusion invariant (load-bearing):** it is deliberately ABSENT from
+  the AppData drift path — never in shared `AppData`/`SCOPED_KEYS`, server `TABLES`/`CREATE_ORDER`/
+  `SCOPED_ORDER`, `KNOWN_KEYS`, fixtures, `sanitizeImportedRecord`, `loadState`, the generic
+  `/api/:entity` CRUD, or import/export — so it can't leak through generic CRUD or the state read.
+  Reached ONLY through `upsertMember` / `getMemberRole` / `listMembershipsForUser` (which permissioned
+  endpoints, P1.2/P1.5, wrap). Any future control table follows the same rules.
+- **`Role` is single-sourced in shared (P1.1).** `shared/src/domain/access.ts` exports
+  `Role = 'owner' | 'admin' | 'editor' | 'viewer'` (owner = all incl. ownership-transfer; admin =
+  manage members/invites + purge; editor = edit; viewer = read-only) — pure domain, consumed by the
+  server's membership table now and by P1.3's pure `can(role, action)` + the client later (P1.3 ADDS
+  `Action`/`can`/`canSeeTimeOffNote` to this same file). Writes validate the role against this set
+  and throw on an unknown role — never silently coerce an access level.
 - **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
   headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
   (`default-src`/`connect-src`/`base-uri 'self'`, `frame-ancestors 'none'`, `object-src 'none'`),

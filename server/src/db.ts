@@ -10,6 +10,7 @@ import { TABLES, SCHEMA_SQL, CREATE_ORDER, SCOPED_ORDER } from './tables'
 import { tx } from './txn'
 import { toRow, fromRow, type Row } from './rowCodec'
 import { migrateSchema, assertSchemaCurrent, renameLegacyActivityTables } from './schema'
+import { ensureControlTables } from './controlTables'
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
 // domain-core's job (see validate.ts). These helpers only map between SQL rows and the
@@ -63,6 +64,13 @@ export function openDb(path: string): Db {
   // repair — a missing REQUIRED column, or a column whose NULL/NOT NULL disagrees with its
   // optional? flag. Both are silent until a confusing runtime symptom otherwise; see below.
   assertSchemaCurrent(db)
+  // Server-CONTROL tables (membership, P1.1) — created on EVERY open, regardless of auth mode, so
+  // both the runtime and the in-memory test DBs always have them. Deliberately created HERE rather
+  // than alongside Better Auth's migrations (which only run when auth is on): membership must exist
+  // even in the default off-mode/test posture for the helpers to work. These tables sit OUTSIDE the
+  // AppData drift path (see controlTables.ts) — they carry no FK to AppData, so this is independent
+  // of the foreign-keys pragma flip below; placed with the other schema work for locality.
+  ensureControlTables(db)
   // Backfill the init marker for a pre-existing DB that already holds data (created
   // before the marker existed), so /api/meta doesn't mistake it for a fresh DB and seed
   // a second copy on top of it.
