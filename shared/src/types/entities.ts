@@ -102,6 +102,17 @@ export interface Resource extends ScopedEntity {
   /** PLACEHOLDERS ONLY: the single project a placeholder is bound to. */
   projectId?: ID
   color: string
+  /** ISO 8601 timestamp of when this resource was archived (soft, reversible): hidden from
+   *  scheduling but fully retained. Absent = active (not archived). Part of the
+   *  Active→Archived→Soft-deleted→Purged lifecycle; SET/cleared only by the lifecycle state
+   *  machine (P2.2) — this field is inert plumbing today (P2.1 adds the column, no behaviour). */
+  archivedAt?: ISOTimestamp
+  /** ISO 8601 timestamp of the soft-delete tombstone: when this resource was soft-deleted.
+   *  Absent = not deleted. Lifecycle invariant (enforced later, P2.2): a record may be archived
+   *  without being deleted, but soft-delete requires prior archival, and a tombstone is hard-purged
+   *  only after PURGE_MIN_AGE_DAYS. Inert plumbing today (P2.1) — no behaviour, no filtering yet
+   *  (that is P2.4). */
+  deletedAt?: ISOTimestamp
 }
 
 export interface Client extends ScopedEntity {
@@ -113,12 +124,34 @@ export interface Client extends ScopedEntity {
    *  user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
    *  import-remap). See shared/src/data/internalClient.ts. */
   builtin?: boolean
+  /** ISO 8601 timestamp of when this client was archived (soft, reversible): hidden from
+   *  scheduling but fully retained. Absent = active (not archived). Part of the
+   *  Active→Archived→Soft-deleted→Purged lifecycle; SET/cleared only by the lifecycle state
+   *  machine (P2.2) — this field is inert plumbing today (P2.1 adds the column, no behaviour). */
+  archivedAt?: ISOTimestamp
+  /** ISO 8601 timestamp of the soft-delete tombstone: when this client was soft-deleted.
+   *  Absent = not deleted. Lifecycle invariant (enforced later, P2.2): a record may be archived
+   *  without being deleted, but soft-delete requires prior archival, and a tombstone is hard-purged
+   *  only after PURGE_MIN_AGE_DAYS. Inert plumbing today (P2.1) — no behaviour, no filtering yet
+   *  (that is P2.4). */
+  deletedAt?: ISOTimestamp
 }
 
 export interface Project extends ScopedEntity {
   name: string
   clientId: ID // REQUIRED — a project must belong to a client
   color: string
+  /** ISO 8601 timestamp of when this project was archived (soft, reversible): hidden from
+   *  scheduling but fully retained. Absent = active (not archived). Part of the
+   *  Active→Archived→Soft-deleted→Purged lifecycle; SET/cleared only by the lifecycle state
+   *  machine (P2.2) — this field is inert plumbing today (P2.1 adds the column, no behaviour). */
+  archivedAt?: ISOTimestamp
+  /** ISO 8601 timestamp of the soft-delete tombstone: when this project was soft-deleted.
+   *  Absent = not deleted. Lifecycle invariant (enforced later, P2.2): a record may be archived
+   *  without being deleted, but soft-delete requires prior archival, and a tombstone is hard-purged
+   *  only after PURGE_MIN_AGE_DAYS. Inert plumbing today (P2.1) — no behaviour, no filtering yet
+   *  (that is P2.4). */
+  deletedAt?: ISOTimestamp
 }
 
 export interface Phase extends ScopedEntity {

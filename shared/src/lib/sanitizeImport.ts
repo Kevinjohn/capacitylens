@@ -81,6 +81,17 @@ const cleanRequiredField = (rec: Record<string, unknown>, field: string, fallbac
   rec[field] = cleaned.length > 0 ? cleaned : fallback
 }
 
+/** Drop the optional lifecycle timestamps (archivedAt / deletedAt — P2.1) when present but not a
+ *  string, in place. They're plain ISO-8601 strings (or absent); a non-string from a hand-edited /
+ *  legacy file would persist junk, and absence reads back as the default (active / not-deleted). The
+ *  P2.2 state machine is the only writer of real ISO values, so a type-check is all the validation
+ *  this needs today — no date-format parsing. Shared by the resources/clients/projects cases (the
+ *  three entities carrying these columns); accounts are out of scope (see sanitizeAccount). */
+const dropNonStringLifecycleFields = (rec: Record<string, unknown>): void => {
+  if (rec.archivedAt !== undefined && typeof rec.archivedAt !== 'string') delete rec.archivedAt
+  if (rec.deletedAt !== undefined && typeof rec.deletedAt !== 'string') delete rec.deletedAt
+}
+
 /** Sanitize the optional calendar fields of an account record in place.
  *  Called by the server write path; the import path doesn't re-import accounts. */
 export function sanitizeAccount(rec: Record<string, unknown>): Record<string, unknown> {
@@ -137,6 +148,7 @@ export function sanitizeImportedRecord(
       rec.color = safeColor(rec.color)
       cleanField(rec, 'name') // resources.name is optional (nullable)
       cleanRequiredField(rec, 'role', 'Team member') // resources.role is NOT NULL
+      dropNonStringLifecycleFields(rec)
       break
     case 'allocations':
       rec.status = oneOf(rec.status, VALID_STATUS, 'confirmed')
@@ -168,10 +180,12 @@ export function sanitizeImportedRecord(
       // one per account (keeps the FIRST, re-stamping its name/colour, and folds any duplicates into
       // it). This sanitiser still runs per-record there, so a kept builtin's flag survives untouched.
       if (rec.builtin !== true) delete rec.builtin
+      dropNonStringLifecycleFields(rec)
       break
     case 'projects':
       rec.color = safeColor(rec.color)
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
+      dropNonStringLifecycleFields(rec)
       break
     case 'phases':
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL

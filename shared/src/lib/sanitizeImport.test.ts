@@ -88,6 +88,26 @@ describe('sanitizeImportedRecord', () => {
     const alloc = sanitizeImportedRecord('allocations', { note: `done ${String.fromCodePoint(0x2705)}` })
     expect(alloc.note).toBe('done')
   })
+
+  // Lifecycle timestamps (archivedAt / deletedAt — P2.1) are optional ISO strings on
+  // resources / clients / projects; a valid string is kept, anything non-string is dropped
+  // (its absence reads back as active / not-deleted). Inert plumbing today.
+  describe.each(['resources', 'clients', 'projects'] as const)('%s lifecycle timestamps (P2.1)', (key) => {
+    it('keeps valid ISO-string archivedAt / deletedAt', () => {
+      const out = sanitizeImportedRecord(key, {
+        archivedAt: '2026-01-01T00:00:00.000Z',
+        deletedAt: '2026-06-01T12:00:00.000Z',
+      })
+      expect(out.archivedAt).toBe('2026-01-01T00:00:00.000Z')
+      expect(out.deletedAt).toBe('2026-06-01T12:00:00.000Z')
+    })
+
+    it('drops a non-string archivedAt / deletedAt', () => {
+      const out = sanitizeImportedRecord(key, { archivedAt: 123, deletedAt: null })
+      expect(out.archivedAt).toBeUndefined()
+      expect(out.deletedAt).toBeUndefined()
+    })
+  })
 })
 
 describe('sanitizeAccount', () => {
