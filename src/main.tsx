@@ -11,6 +11,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { useStore } from './store/useStore'
 import { persistenceAdapter } from './data/storageAdapter'
+import { isServerConfigured } from './data/apiConfig'
 import { bootstrap } from './data/persist'
 import { seed } from '@capacitylens/shared/data/seed'
 import { APP_NAME } from '@capacitylens/shared/brand'
@@ -26,6 +27,9 @@ watchSystemTheme(() => useStore.getState().theme)
 // content on `hydrated`, so there's no flash of empty data.
 void bootstrap(useStore, persistenceAdapter, {
   seedIfEmpty: seed(),
+  // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
+  // re-seeds the diff snapshot atomically (the switch orchestrator). Local mode leaves it inert.
+  serverMode: isServerConfigured(),
   onError: () => useStore.getState().setPersistError(true),
   // Recovery: once a write lands again (e.g. the server comes back), take the
   // "changes aren't saving" banner back down. Guarded so a normal save doesn't

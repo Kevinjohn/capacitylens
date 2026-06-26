@@ -6,17 +6,22 @@ import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { downloadTextFile } from '../../lib/download'
 import { errorMessage } from '../../lib/errorMessage'
 import { Button, Modal, TextField } from '../common/ui'
-import type { Account } from '@capacitylens/shared/types/entities'
+import type { ID } from '@capacitylens/shared/types/entities'
 
 // Friction for the one irreversible action in the app. Deleting a company cascade-
 // drops all of its data with no undo, so we (a) offer a one-click export of that
 // company's data first, and (b) require typing the exact name to arm the button.
+//
+// `account` is the minimal { id, name } the dialog needs — so the AccountPicker can pass an
+// AccountSummary (P1.13), which carries no colour/config. The "Export first" uses scopeData(data, id)
+// = the active account's loaded slice; a company whose slice isn't loaded exports an empty file
+// (acceptable — you delete the company you're in, and type-to-confirm is the real guard).
 export function DeleteCompanyDialog({
   account,
   onConfirm,
   onCancel,
 }: {
-  account: Account
+  account: { id: ID; name: string }
   onConfirm: () => void
   onCancel: () => void
 }) {

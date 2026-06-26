@@ -4,7 +4,11 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 // than a rewrite. The async signature is deliberate: a fetch-based adapter must
 // drop in without touching any call site.
 export interface PersistenceAdapter {
-  loadAll(): Promise<AppData>
+  /** Load the persisted dataset. `accountId` (P1.13, server adapter only) loads ONLY that account's
+   *  scoped slice and re-seeds the diff snapshot to it; OMITTED is the whole-tree read (OFF/local, and
+   *  the pre-pick bootstrap). Synchronous/local adapters ignore the argument (the whole blob is the
+   *  only thing they hold). */
+  loadAll(accountId?: string): Promise<AppData>
   /** Persist the whole dataset. `opts.unload` signals a page-teardown flush: an async
    *  adapter must then DISPATCH every write up-front (a sequential await-loop would only
    *  get the first request out before the event loop dies). Synchronous adapters ignore it. */

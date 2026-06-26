@@ -29,6 +29,7 @@ export function attachPersistence(
   debounceMs = 300,
   onError?: (e: unknown) => void,
   onSuccess?: () => void,
+  serverMode = false,
 ): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null
   let lastData = store.getState().data
@@ -36,6 +37,10 @@ export function attachPersistence(
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let retryAttempts = 0
   let failedSinceSuccess = false // a write failed and hasn't recovered — gates the online/visible re-attempt
+  // The currently-running save round-trip (P1.13): the account-switch orchestrator AWAITS it so a
+  // prior account's save can't land against the new account's snapshot. Resolved (never rejected) so
+  // an in-flight FAILED save can still be awaited; settles whether the save succeeds or fails.
+  let inFlightSave: Promise<void> | null = null
   const MAX_RETRY_ATTEMPTS = 5
 
   const save = (data: AppData) => {
@@ -45,7 +50,7 @@ export function attachPersistence(
     // — essential for the server adapter, where a transient network blip sets the
     // banner but the next successful sync should take it back down (and harmless
     // for localStorage, where quota can free up between writes).
-    void adapter.saveAll(data).then(
+    const round = adapter.saveAll(data).then(
       () => {
         retryAttempts = 0
         failedSinceSuccess = false
@@ -61,6 +66,13 @@ export function attachPersistence(
         scheduleRetry()
       },
     )
+    // Track the round-trip so the switch orchestrator can await it (it never rejects — both arms
+    // above settle it). Clear the handle only if it's still THIS round (a newer save may have
+    // replaced it mid-flight).
+    inFlightSave = round
+    void round.finally(() => {
+      if (inFlightSave === round) inFlightSave = null
+    })
   }
 
   // Re-attempt a STRANDED write (one that failed and exhausted its retry budget) when the
@@ -113,9 +125,17 @@ export function attachPersistence(
     void adapter.saveAll(data, { unload: true }).catch(() => {})
   }
 
+  // Set by the account-switch orchestrator (below) around its replaceAll(newSlice) so the data
+  // subscription treats the slice LOAD as a tenant change, NOT a user edit — without it the loaded
+  // slice would be diffed against the OLD account's snapshot and pushed back as a spurious (and, in
+  // server mode, CROSS-ACCOUNT) save. The orchestrator advances lastData itself in lockstep.
+  let loadingSlice = false
+
   const unsubscribe = store.subscribe((state) => {
     if (state.data === lastData) return // only persist when data actually changes
     lastData = state.data
+    // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
+    if (loadingSlice) return
     retryAttempts = 0 // a fresh user change earns a fresh retry budget
     if (debounceMs <= 0) {
       save(state.data)
@@ -125,6 +145,94 @@ export function attachPersistence(
     if (timer) clearTimeout(timer)
     timer = setTimeout(() => save(state.data), debounceMs)
   })
+
+  // ── Account-switch orchestrator (P1.13) — the §5 correctness core. ───────────────────────────────
+  // In SERVER mode only: when the active account changes to a NON-NULL id, hydrate THAT account's
+  // slice and re-seed the adapter's diff snapshot to it ATOMICALLY, so a save can never diff one
+  // account's data against another's snapshot (which would emit DELETEs for account A + PUTs for
+  // account B → cross-account data loss). In LOCAL/OFF mode this is INERT — `data` already holds all
+  // accounts, so a switch is a pure view change with nothing to load.
+  //
+  // SEQUENCE on a switch to `newId`:
+  //   (a) AWAIT any in-flight save so a PRIOR account's write can't land against the NEW snapshot;
+  //  (a′) FLUSH (not drop) the OLD account's PENDING debounced edits while data AND the snapshot are
+  //       both STILL account A → the diff is A-vs-A (correct), landed BEFORE (b) reseeds to B;
+  //   (b) adapter.loadAll(newId) → returns the new slice AND re-seeds the adapter's lastSynced to it;
+  //   (c) replaceAll(newSlice) → `data` becomes the new account (guarded by loadingSlice so the data
+  //       subscription doesn't treat it as an edit and push a spurious save);
+  //   (d) advance lastData to the loaded slice (the guard already did, belt-and-braces);
+  //   (e) a per-switch token: a SECOND switch bumps the token, so a slow first load that resolves
+  //       LATE is discarded (it must not seed a stale account over the newer one).
+  let switchToken = 0
+  let lastActiveAccountId = store.getState().activeAccountId
+  const unsubscribeSwitch = serverMode
+    ? store.subscribe((state) => {
+        const newId = state.activeAccountId
+        if (newId === lastActiveAccountId) return
+        lastActiveAccountId = newId
+        // Null (dropped to the picker / sign-out) loads nothing — the picker shows accountSummaries,
+        // and the next non-null pick will hydrate. Cancel any in-flight switch so its late load can't
+        // seed. Still FLUSH the OLD account's pending debounced edits first (same data-loss edge as a
+        // real A→B switch): data and the snapshot are both still account A here, so the flush diffs
+        // A-vs-A correctly. No loadAll follows, so there's no later snapshot reseed to race.
+        if (newId === null) {
+          const myToken = ++switchToken
+          void (async () => {
+            if (inFlightSave) await inFlightSave
+            if (myToken !== switchToken) return // a newer switch superseded this one
+            if (timer) {
+              clearTimeout(timer)
+              timer = null
+            }
+            if (pending) {
+              save(pending)
+              if (inFlightSave) await inFlightSave
+            }
+          })()
+          return
+        }
+        const myToken = ++switchToken
+        void (async () => {
+          // (a) Let a prior account's save settle before we re-seed the snapshot.
+          if (inFlightSave) await inFlightSave
+          if (myToken !== switchToken) return // a newer switch superseded this one
+          // (a′) FLUSH (don't drop) the OLD account's PENDING debounced edits before we re-seed.
+          // The debounce timer can still hold account A's last edit; if we merely cleared it (the
+          // old behaviour) those edits would be LOST on a switch within the debounce window. Flush
+          // NOW — while data===A AND the adapter's lastSynced snapshot===A — so `save()` diffs A
+          // against A's snapshot (correct A-only ops) and POSTs them, BEFORE loadAll(newId) reseeds
+          // the snapshot to B. Awaiting the flush keeps the no-cross-account-window invariant: there
+          // is never a moment where a diff could cross accounts. A flush failure surfaces via the
+          // normal persistError path (save's onError) and we still proceed — strictly better than
+          // silently dropping the edits. Always cancel the timer first so the queued debounced save
+          // can't also fire post-switch (which WOULD diff against B's snapshot).
+          if (timer) {
+            clearTimeout(timer)
+            timer = null
+          }
+          if (pending) {
+            save(pending) // sets inFlightSave synchronously; pending is consumed inside save()
+            if (inFlightSave) await inFlightSave
+            if (myToken !== switchToken) return // a newer switch superseded this one mid-flush
+          }
+          try {
+            // (b) Load the new slice; loadAll(newId) re-seeds the adapter's diff snapshot to it.
+            const slice = await adapter.loadAll(newId)
+            if (myToken !== switchToken) return // superseded mid-load — discard this stale slice
+            // (c)+(d) Swap `data` to the new account WITHOUT it reading as a user edit.
+            loadingSlice = true
+            store.getState().replaceAll(slice)
+            lastData = store.getState().data
+            loadingSlice = false
+          } catch (e) {
+            // A failed slice load surfaces like any load failure: raise the persist banner (a stale
+            // banner clears on the next good write). Don't replaceAll — leaving the prior data is
+            // safer than blanking it, and the snapshot is unchanged so no bad diff can form.
+            if (myToken === switchToken) onError?.(e)
+          }
+        })()
+      })
+    : null
 
   // The debounce window can outlive the tab. `pagehide` is the reliable close/navigate signal
   // (fires for the bfcache case where `beforeunload` doesn't); `visibilitychange → hidden`
@@ -148,6 +256,7 @@ export function attachPersistence(
 
   return () => {
     unsubscribe()
+    unsubscribeSwitch?.()
     if (canListen) {
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('online', onOnline)
@@ -168,6 +277,11 @@ export interface BootstrapOptions {
   /** Called after a persistence write succeeds — lets the caller clear a prior
    *  error state once saving recovers (e.g. the server comes back). */
   onSuccess?: () => void
+  /** True when a backend is configured (VITE_CAPACITYLENS_API set). Enables the per-account switch
+   *  orchestrator (P1.13): a tenant pick hydrates that account's slice via `loadAll(accountId)` and
+   *  re-seeds the diff snapshot atomically. Local mode (false) leaves the orchestrator inert — `data`
+   *  already holds all accounts, so a switch is a pure view change. */
+  serverMode?: boolean
 }
 
 export async function bootstrap(
@@ -227,5 +341,5 @@ export async function bootstrap(
     }
   }
 
-  return attachPersistence(store, adapter, opts.debounceMs ?? 300, opts.onError, opts.onSuccess)
+  return attachPersistence(store, adapter, opts.debounceMs ?? 300, opts.onError, opts.onSuccess, opts.serverMode)
 }

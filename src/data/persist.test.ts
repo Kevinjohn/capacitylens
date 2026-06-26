@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { attachPersistence, bootstrap } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
+import { ServerSyncAdapter } from './ServerSyncAdapter'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { useStore } from '../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
@@ -149,6 +150,160 @@ describe('attachPersistence', () => {
     detach()
   })
 })
+
+describe('account-switch orchestrator (P1.13, server mode)', () => {
+  // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
+  // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
+
+  it('loads the picked account slice into the store and does NOT push it back as a save', async () => {
+    const a2Slice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+      clients: [{ id: 'c2', accountId: 'a2', name: 'Beta Client', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    const loadAll = vi.fn(async (accountId?: string) => (accountId === 'a2' ? a2Slice : emptyAppData()))
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+
+    // Server-mode attach with an empty store (the pre-pick state in auth-on).
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true)
+
+    // Pick a2 (existence via the summary) → the orchestrator loads a2's slice.
+    useStore.getState().setActiveAccount('a2')
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(loadAll).toHaveBeenCalledWith('a2') // per-account hydration
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['c2']) // slice loaded into the store
+    // The slice load must NOT read as a user edit → no save of the loaded slice.
+    expect(saveAll).not.toHaveBeenCalled()
+    detach()
+  })
+
+  it('a genuine edit AFTER a switch still saves (the guard only suppresses the slice load)', async () => {
+    const a2Slice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    const loadAll = vi.fn(async () => a2Slice)
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true)
+
+    useStore.getState().setActiveAccount('a2')
+    await new Promise((r) => setTimeout(r, 5))
+    expect(saveAll).not.toHaveBeenCalled() // the load itself didn't save
+
+    // A real edit in the now-active account DOES save.
+    useStore.getState().addClient({ name: 'New Client', color: '#222222' })
+    await new Promise((r) => setTimeout(r, 5))
+    expect(saveAll).toHaveBeenCalledTimes(1)
+    detach()
+  })
+
+  it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
+    // Regression guard for the data-loss edge (P1.13): a user edits account A and switches to B
+    // WITHIN the debounce window. The orchestrator used to clearTimeout + pending=null, silently
+    // DROPPING A's last edit. It must instead FLUSH that pending write while data===A AND the diff
+    // snapshot===A (so the diff is A-vs-A, correct), landing it BEFORE B's slice load reseeds the
+    // snapshot to B — never a cross-account diff. Uses the REAL ServerSyncAdapter so the actual
+    // diff/snapshot logic runs against a fake fetch; we assert on the wire traffic.
+    const aSlice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', name: 'Alpha', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    const bSlice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'b1', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    type Wire = {
+      url: string
+      ops?: Array<{ method: string; table: string; id: string; accountId?: string; row?: { accountId?: string } }>
+    }
+    const wire: Wire[] = []
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url)
+      if (u.includes('/api/state')) {
+        wire.push({ url: u })
+        return new Response(JSON.stringify(u.includes('accountId=b1') ? bSlice : aSlice), { status: 200 })
+      }
+      // /api/batch — capture the ops carried on the wire.
+      const body = JSON.parse(String(init?.body)) as { ops: Wire['ops'] }
+      wire.push({ url: u, ops: body.ops })
+      return new Response('{}', { status: 200 })
+    })
+    const adapter = new ServerSyncAdapter('http://api.test', fetchImpl as unknown as typeof fetch)
+
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([
+      { id: 'a1', name: 'Alpha', role: 'owner' },
+      { id: 'b1', name: 'Beta', role: 'owner' },
+    ])
+    const detach = attachPersistence(useStore, adapter, 300, undefined, undefined, true) // genuinely debounced
+
+    // Pick A → orchestrator hydrates A's slice (snapshot := A).
+    useStore.getState().setActiveAccount('a1')
+    await new Promise((r) => setTimeout(r, 5))
+    expect(useStore.getState().activeAccountId).toBe('a1')
+
+    // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
+    const edited = useStore.getState().addClient({ name: 'A only', color: '#222222' })
+    expect(wire.some((w) => w.ops)).toBe(false) // nothing flushed yet — still inside the 300ms window
+
+    // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
+    useStore.getState().setActiveAccount('b1')
+    await new Promise((r) => setTimeout(r, 20)) // < 300ms, so a dropped edit would NOT have its timer fire
+
+    // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
+    // its accountId rides on the row — DELETEs carry a top-level accountId, PUTs carry the full row).
+    const carriesA = (o: NonNullable<Wire['ops']>[number]) => o.row?.accountId === 'a1' || o.accountId === 'a1'
+    const aBatchIdx = wire.findIndex((w) => w.ops?.some((o) => o.id === edited.id && carriesA(o)))
+    expect(aBatchIdx).toBeGreaterThanOrEqual(0)
+    // And it landed BEFORE B's slice load (no window where a diff could cross accounts).
+    const bLoadIdx = wire.findIndex((w) => w.url.includes('accountId=b1'))
+    expect(bLoadIdx).toBeGreaterThanOrEqual(0)
+    expect(aBatchIdx).toBeLessThan(bLoadIdx)
+
+    // After B loaded, NO batch carries A's ops (no cross-account diff B-vs-A).
+    const afterB = wire.slice(bLoadIdx)
+    expect(afterB.some((w) => w.ops?.some(carriesA))).toBe(false)
+    expect(useStore.getState().activeAccountId).toBe('b1')
+    detach()
+  })
+
+  it('is INERT in local mode — a switch does NOT call loadAll(accountId)', async () => {
+    const loadAll = vi.fn(async () => emptyAppData())
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+
+    useStore.getState().replaceAll(makeLocalTwoAccounts())
+    useStore.getState().setActiveAccount('a1')
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false) // local mode
+
+    useStore.getState().setActiveAccount('a2')
+    await new Promise((r) => setTimeout(r, 5))
+    // Local mode: data already holds all accounts, so the orchestrator never fetches a slice.
+    expect(loadAll).not.toHaveBeenCalled()
+    detach()
+  })
+})
+
+function makeLocalTwoAccounts() {
+  return {
+    ...emptyAppData(),
+    accounts: [
+      { id: 'a1', name: 'Alpha', color: '#1', createdAt: 't', updatedAt: 't' },
+      { id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
+    ],
+  }
+}
 
 describe('bootstrap', () => {
   it('seeds an empty store and marks it hydrated', async () => {

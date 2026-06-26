@@ -395,17 +395,28 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   = ?` on all 8 scoped tables + accounts-by-id, every key present, unknown id → empty slice (no
   throw); the no-cross-tenant invariant (no unpredicated query) lives at this layer. `write` thinly
   wraps `replaceAccountSlice` (NOT yet routed into /api/batch or per-entity writes — that's P1.5).
-- **The two read endpoints + the OFF-vs-auth-on gate posture (P1.4).** `GET /api/accounts` (OFF =
-  ALL account `{id,name}` summaries, NO membership gate — branched before membership for the OFF
-  guarantee; auth-on = `listAccounts`). `GET /api/state?accountId=` returns `store.readSlice(id)`
-  (OFF = no gate; auth-on = thin membership-existence guard: `resolveRole === null` → 403, so it
-  can't cross-tenant-read — the richer per-action `can()` gate is P1.5). **The no-arg `GET /api/state`
-  whole read is RETAINED** (legacy) for the OFF client AND the not-yet-migrated auth-on client + e2e
-  until P1.13 migrates the client to per-account hydration; remove it then. KNOWN GAP: in auth-on this
-  no-arg whole read currently returns ALL tenants to any authenticated user (a cross-tenant
-  whole-read) — closing it was attempted then reverted because the un-migrated client still hydrates
-  via no-arg `/api/state`; it closes at P1.13 (client passes accountId) + P1.5 (requirePermission).
-  Auth-on is not the default/shipped posture.
+- **The two read endpoints + per-account hydration (P1.4 / P1.13).** `GET /api/accounts` (OFF =
+  ALL accounts `{id,name,role:'owner'}`, NO membership gate — branched before membership for the OFF
+  guarantee; auth-on = `listAccounts` = the caller's memberships). `GET /api/state?accountId=` returns
+  `store.readSlice(id)` (OFF = no gate; auth-on = membership + `can(role,'read')` via the `authorize`
+  seam, P1.5 — a non-member 403s, so no cross-tenant read). **The no-arg `GET /api/state` whole read is
+  CLOSED in auth-on (P1.13)** → `400 {error:'accountId is required.'}`: a logged-in user hydrates PER
+  ACCOUNT (the client picks a tenant from `GET /api/accounts`, then loads its slice via `?accountId=`),
+  closing the old cross-tenant whole-read that returned ALL tenants to any authed user (the P1.4
+  carry-forward). **OFF RETAINS the no-arg whole read** (trusted-local; db-helpers, the OFF db-backed
+  e2e, and the OFF app.accounts tests rely on it). The client's `ServerSyncAdapter` treats a 400 on the
+  no-arg read as "hydrate empty, show the picker", so an auth-on no-arg bootstrap lands on the picker.
+- **Per-account hydration is the client tenancy model (P1.13).** The `AccountPicker` lists from
+  `store.accountSummaries` (server-sourced via `GET /api/accounts` — `useAccountSummaries` hook; OFF
+  returns all, auth-on returns memberships; LOCAL derives from `data.accounts`, no fetch), NOT
+  `data.accounts` — because in server mode `data` holds only the ACTIVE account's slice. Picking a
+  tenant runs the **persist.ts switch orchestrator** (server mode): it awaits any in-flight save, calls
+  `adapter.loadAll(accountId)` (which RE-SEEDS the diff snapshot `lastSynced` to that slice ATOMICALLY),
+  then `replaceAll(slice)` behind a guard so the load isn't pushed back as a save. **INVARIANT: the diff
+  snapshot and `data` are always the SAME account before any `saveAll` diffs** — a desync (snapshot=A,
+  data=B) would emit DELETEs for A + PUTs for B = cross-account data loss (the #1 thing to keep right;
+  guarded by the ServerSyncAdapter cross-account-diff regression test). LOCAL mode is inert (data holds
+  all accounts; bootstrap keeps its no-arg whole read).
 - **`requirePermission` — the auth-on route gate (P1.5).** An `authorize(req, reply, accountId,
   action)` seam in `buildApp` (app.ts): **OFF = NO-OP allow-all on its FIRST line** (resolveRole/can
   never run — `req.user` is DEMO_USER; the #1 invariant), auth-on = `resolveRole` → null (non-member)
@@ -420,9 +431,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   a delete CASCADES (total tenant destruction), so the CREATE exemption does not extend to it. Account
   `POST /api/accounts` (and batch PUT on accounts) **stays OPEN** (new-user onboarding has no membership
   and there is no `createAccount` Action). This is an interim gate pending P2.5/P2.6's full
-  archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** the no-arg whole `/api/state` read
-  (→ P1.13), and `manageMembers`/`manageInvites`/`transferOwnership` (no routes yet — matrix-only in
-  access.test.ts).
+  archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** `transferOwnership` (no route yet —
+  matrix-only in access.test.ts). The no-arg whole `/api/state` read is now CLOSED in auth-on (P1.13);
+  `manageMembers`/`manageInvites` routes landed in P1.11.
 - **Constrained org-creation — `POST /api/orgs` (P1.8).** The ATOMIC org-create path, distinct from
   the generic `POST /api/accounts` (which stays OPEN for the un-migrated onboarding client and only
   writes the bare account row — closing it is deferred to P1.13). Allowed iff ANY of: **zero accounts**
@@ -502,8 +513,8 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   from every time-off row before it leaves the server, so it's never serialized for an Editor/Viewer.
   `GET /api/state?accountId=` computes it as `authMode === 'off' || canSeeTimeOffNote(role)` (OFF =
   trusted-local include; auth-on: owner/admin include, editor/viewer omit) AFTER `authorize('read')`.
-  The no-arg whole `/api/state` read is left UNredacted (deferred P1.13 — moot while it already
-  returns everything to any authed user). `app.authz.test.ts` asserts the sentinel note is absent from
+  The no-arg whole `/api/state` read is now CLOSED in auth-on (P1.13 → 400; OFF keeps it, where the
+  note is trusted-local and always included). `app.authz.test.ts` asserts the sentinel note is absent from
   the raw response BODY for editor/viewer (proof of server-side redaction).
 - **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
   headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
