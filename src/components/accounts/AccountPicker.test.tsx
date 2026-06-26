@@ -8,9 +8,18 @@ import { useStore } from '../../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
 
+/** Seed the picker's server-sourced list (P1.13) from the store's accounts — mirrors local-mode
+ *  derivation (useAccountSummaries), which these unit tests don't mount. The picker now lists from
+ *  accountSummaries, NOT data.accounts, so any test that seeds accounts must seed summaries too. */
+function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
+  useStore.getState().replaceAll(makeAppData({ accounts }))
+  useStore.getState().setAccountSummaries(accounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const })))
+}
+
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
   useStore.getState().setActiveAccount(null)
+  useStore.getState().setAccountSummaries([])
   useStore.getState().setHydrated(true)
   // Sign through the cosmetic demo gate so AppShell renders the picker (the demo sign-in
   // sits in front of it) — these tests exercise the account gate, not the demo one.
@@ -30,7 +39,7 @@ function renderShell() {
 
 describe('AppShell account gate', () => {
   it('shows the AccountPicker (not the nav) when hydrated with no active account', () => {
-    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ name: 'Studio North' })] }))
+    seedAccounts(makeAccount({ name: 'Studio North' }))
     renderShell()
     expect(screen.getByText('Choose a company')).toBeInTheDocument()
     expect(screen.getByText('Studio North')).toBeInTheDocument()
@@ -39,7 +48,7 @@ describe('AppShell account gate', () => {
   })
 
   it('shows the shell (with the active company + Switch company) once an account is active', () => {
-    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ name: 'Studio North' })] }))
+    seedAccounts(makeAccount({ name: 'Studio North' }))
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
     renderShell()
     expect(screen.queryByText('Choose a company')).not.toBeInTheDocument()
@@ -50,7 +59,7 @@ describe('AppShell account gate', () => {
 
   it('"Switch company" returns to the picker', async () => {
     const user = userEvent.setup()
-    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ name: 'Studio North' })] }))
+    seedAccounts(makeAccount({ name: 'Studio North' }))
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
     renderShell()
     await user.click(screen.getByRole('button', { name: 'Switch company' }))
@@ -86,7 +95,7 @@ describe('AccountPicker create + open + delete', () => {
 
   it('opens an existing company by clicking it', async () => {
     const user = userEvent.setup()
-    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ name: 'Studio North' })] }))
+    seedAccounts(makeAccount({ name: 'Studio North' }))
     render(<AccountPicker />)
     await user.click(screen.getByRole('button', { name: 'Studio North' }))
     expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID)
@@ -107,7 +116,7 @@ describe('AccountPicker create + open + delete', () => {
 
   it('deletes a company only after typing its name to confirm', async () => {
     const user = userEvent.setup()
-    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ name: 'Studio North' })] }))
+    seedAccounts(makeAccount({ name: 'Studio North' }))
     render(<AccountPicker />)
 
     await user.click(screen.getByRole('button', { name: 'Delete Studio North' }))
@@ -123,5 +132,40 @@ describe('AccountPicker create + open + delete', () => {
     await user.click(deleteBtn)
 
     expect(useStore.getState().data.accounts).toHaveLength(0)
+  })
+})
+
+describe('AccountPicker server-mode list (P1.13)', () => {
+  it('lists from accountSummaries, NOT data.accounts (server mode holds only the active slice in data)', () => {
+    // Simulate server mode: `data` holds only ONE account (the active slice would, post-load), but the
+    // login has TWO memberships in accountSummaries. The picker must show BOTH from the summaries.
+    useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: 'a1', name: 'Active Co' })] }))
+    useStore.getState().setAccountSummaries([
+      { id: 'a1', name: 'Active Co', role: 'owner' },
+      { id: 'a2', name: 'Other Co', role: 'editor' }, // NOT in data.accounts
+    ])
+    render(<AccountPicker />)
+    expect(screen.getByText('Active Co')).toBeInTheDocument()
+    expect(screen.getByText('Other Co')).toBeInTheDocument() // proves the source is summaries, not data
+  })
+
+  it('activates an account whose slice is NOT loaded (existence via summaries)', async () => {
+    const user = userEvent.setup()
+    // `data` is empty (no slice loaded yet — the pre-load state), but the summary exists.
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Other Co', role: 'editor' }])
+    render(<AccountPicker />)
+    await user.click(screen.getByRole('button', { name: 'Other Co' }))
+    // setActiveAccount validates against the UNION of data.accounts + summaries, so it activates
+    // (the switch orchestrator then hydrates the slice) rather than bouncing back to the picker.
+    expect(useStore.getState().activeAccountId).toBe('a2')
+  })
+
+  it('shows the no-accounts help state when summaries are empty', () => {
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setAccountSummaries([])
+    render(<AccountPicker />)
+    expect(screen.getByText(/No companies yet/)).toBeInTheDocument()
+    expect(screen.getByText(/ask an admin for an invite/)).toBeInTheDocument()
   })
 })

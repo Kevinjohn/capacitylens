@@ -13,6 +13,7 @@ import { ConnectionError } from './ConnectionError'
 import { CommandPalette } from './CommandPalette'
 import { PermissionProvider } from '../auth/PermissionProvider'
 import { useRole } from '../auth/permissionContext'
+import { useAccountSummaries } from '../auth/useAccountSummaries'
 import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
@@ -34,6 +35,10 @@ const LINKS: [string, string, IconName][] = [
 ]
 
 export function AppShell() {
+  // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, local mode
+  // derives from data.accounts. Mounted at the TOP so it runs before (and during) the tenant gate
+  // below — the picker needs the list before any account is chosen. A side-effect hook, renders nothing.
+  useAccountSummaries()
   const hydrated = useStore((s) => s.hydrated)
   const persistError = useStore((s) => s.persistError)
   const loadError = useStore((s) => s.loadError)
@@ -48,9 +53,15 @@ export function AppShell() {
   const undo = useStore((s) => s.undo)
   const redo = useStore((s) => s.redo)
   const accounts = useStore((s) => s.data.accounts)
+  const accountSummaries = useStore((s) => s.accountSummaries)
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
-  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
+  // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
+  // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
+  // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
+  // is enough to pass the tenant gate and render the shell; the slice fills in the body a frame later.
+  const activeAccount =
+    accounts.find((a) => a.id === activeAccountId) ?? accountSummaries.find((a) => a.id === activeAccountId) ?? null
   // Cosmetic demo sign-in (see the gate below). `demoAuthActive` is true only when the real
   // auth seam is OFF, so the demo gate and the real login wall never double-gate.
   const demoAuthActive = useDemoAuthActive()

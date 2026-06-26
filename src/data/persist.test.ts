@@ -150,6 +150,89 @@ describe('attachPersistence', () => {
   })
 })
 
+describe('account-switch orchestrator (P1.13, server mode)', () => {
+  // The §5 correctness core at the persist layer: a tenant switch hydrates THAT account's slice and
+  // re-seeds the adapter's diff snapshot atomically, with NO spurious save of the loaded slice.
+
+  it('loads the picked account slice into the store and does NOT push it back as a save', async () => {
+    const a2Slice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+      clients: [{ id: 'c2', accountId: 'a2', name: 'Beta Client', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    const loadAll = vi.fn(async (accountId?: string) => (accountId === 'a2' ? a2Slice : emptyAppData()))
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+
+    // Server-mode attach with an empty store (the pre-pick state in auth-on).
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true)
+
+    // Pick a2 (existence via the summary) → the orchestrator loads a2's slice.
+    useStore.getState().setActiveAccount('a2')
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(loadAll).toHaveBeenCalledWith('a2') // per-account hydration
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['c2']) // slice loaded into the store
+    // The slice load must NOT read as a user edit → no save of the loaded slice.
+    expect(saveAll).not.toHaveBeenCalled()
+    detach()
+  })
+
+  it('a genuine edit AFTER a switch still saves (the guard only suppresses the slice load)', async () => {
+    const a2Slice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    const loadAll = vi.fn(async () => a2Slice)
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true)
+
+    useStore.getState().setActiveAccount('a2')
+    await new Promise((r) => setTimeout(r, 5))
+    expect(saveAll).not.toHaveBeenCalled() // the load itself didn't save
+
+    // A real edit in the now-active account DOES save.
+    useStore.getState().addClient({ name: 'New Client', color: '#222222' })
+    await new Promise((r) => setTimeout(r, 5))
+    expect(saveAll).toHaveBeenCalledTimes(1)
+    detach()
+  })
+
+  it('is INERT in local mode — a switch does NOT call loadAll(accountId)', async () => {
+    const loadAll = vi.fn(async () => emptyAppData())
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+
+    useStore.getState().replaceAll(makeLocalTwoAccounts())
+    useStore.getState().setActiveAccount('a1')
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false) // local mode
+
+    useStore.getState().setActiveAccount('a2')
+    await new Promise((r) => setTimeout(r, 5))
+    // Local mode: data already holds all accounts, so the orchestrator never fetches a slice.
+    expect(loadAll).not.toHaveBeenCalled()
+    detach()
+  })
+})
+
+function makeLocalTwoAccounts() {
+  return {
+    ...emptyAppData(),
+    accounts: [
+      { id: 'a1', name: 'Alpha', color: '#1', createdAt: 't', updatedAt: 't' },
+      { id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' },
+    ],
+  }
+}
+
 describe('bootstrap', () => {
   it('seeds an empty store and marks it hydrated', async () => {
     const adapter = new LocalStorageAdapter('capacitylens/persist-c')

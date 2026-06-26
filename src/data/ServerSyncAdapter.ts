@@ -48,9 +48,38 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // sees the Better Auth session cookie. With auth off (the default) and same-origin
   // requests there are no cookies to send — a verified no-op (the db-backed e2e project
   // runs unchanged); the server pairs reflected CORS origins with Allow-Credentials.
-  async loadAll(): Promise<AppData> {
+  //
+  // @param accountId  When PRESENT (P1.13), load ONLY that account's scoped slice via
+  //   `GET /api/state?accountId=…`. This is the per-account hydration path: the picker chose a tenant
+  //   and we load just its data. When ABSENT, fall back to the no-arg whole read — used in OFF/local
+  //   (still a whole tree) and the pre-pick bootstrap before any account is active (in auth-on the
+  //   server now 400s a no-arg read, which surfaces as a LoadError → connection screen, which is
+  //   correct: there's nothing to show until a tenant is picked and re-loaded with an id).
+  //
+  // EITHER WAY `lastSynced` is set to EXACTLY the returned body — this is the diff SNAPSHOT every save
+  // is computed against, so it MUST equal the slice we just loaded. The persist switch orchestrator
+  // (persist.ts) relies on this: re-seeding the snapshot to the new account in the SAME call as the
+  // load is what keeps snapshot and `data` on the same tenant. If they ever desync (snapshot=A,
+  // data=B) the next save would emit DELETEs for A + PUTs for B → cross-account data loss.
+  async loadAll(accountId?: string): Promise<AppData> {
     try {
-      const res = await this.fetchImpl(`${this.baseUrl}/api/state`, { credentials: 'include' })
+      const url =
+        accountId !== undefined
+          ? `${this.baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`
+          : `${this.baseUrl}/api/state`
+      const res = await this.fetchImpl(url, { credentials: 'include' })
+      // The no-arg whole read is CLOSED in auth-on (P1.13): the server 400s it (tenant isolation —
+      // a logged-in user must hydrate PER ACCOUNT via ?accountId=). Treat that 400 on the NO-ARG read
+      // as "nothing to hydrate yet" — return EMPTY (snapshot empty) so bootstrap shows the picker
+      // rather than a connection-error dead end. The picker lists the login's accounts from
+      // GET /api/accounts (useAccountSummaries); picking one hydrates its slice via loadAll(accountId).
+      // OFF keeps the no-arg whole read (200), so this branch never fires there. A 400 on a SCOPED
+      // read (accountId present) is a real error and still throws below.
+      if (accountId === undefined && res.status === 400) {
+        const empty = emptyAppData()
+        this.lastSynced = empty
+        return empty
+      }
       if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
       const json: unknown = await res.json()
       // migrate() is TOLERANT: it coerces a malformed/non-CapacityLens object to an EMPTY AppData rather
@@ -60,6 +89,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // 200 should instead be a hard failure, reuse the shared hasNonArrayKnownTable guard before
       // migrate and throw LoadError('unavailable').
       const data = migrate(json)
+      // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
+      // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
+      // account's slice, so the immediately-following saveAll diffs new-vs-new = ZERO ops, never
+      // cross-account deletes.
       this.lastSynced = data
       return data
     } catch (e) {

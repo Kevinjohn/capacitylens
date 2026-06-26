@@ -595,13 +595,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const includeTimeOffNote = authMode === 'off' || (role !== null && canSeeTimeOffNote(role))
         return store.readSlice(accountId, { includeTimeOffNote })
       }
-      // No ?accountId=. Legacy whole read, retained for the OFF client AND the not-yet-migrated
-      // auth-on client. NOTE: in auth-on this currently returns ALL tenants to any authenticated
-      // user — a cross-tenant whole-read that MUST be closed once the client is migrated to pass
-      // accountId (P1.13) and requirePermission lands (P1.5). Auth-on is not the default/shipped
-      // posture; remove this whole-read path at P1.13.
-      // P1.6 note: this no-arg whole read does NOT redact the time-off `note` — moot while the path
-      // already returns everything to any authed user; redaction lands when P1.13 closes the read.
+      // No ?accountId=. The auth-on cross-tenant whole-read is now CLOSED (P1.13 — the P1.4
+      // carry-forward): a logged-in user must hydrate PER ACCOUNT via ?accountId= (the client picker
+      // → GET /api/accounts → GET /api/state?accountId=). Returning the whole DB to any authed user
+      // was a tenant-isolation leak; 400 it. OFF mode is trusted-local, so it RETAINS the whole read
+      // (db-helpers, the OFF db-backed e2e, and the OFF app.accounts tests all rely on it). The client
+      // adapter treats this 400 on the NO-ARG read as "hydrate empty, show the picker" (see
+      // ServerSyncAdapter.loadAll), so a no-arg bootstrap in auth-on lands on the picker, not an error.
+      if (authMode !== 'off') {
+        return reply.code(400).send({ error: 'accountId is required.' })
+      }
+      // OFF: trusted-local whole read RETAINED. (P1.6 note: this whole read does NOT redact the
+      // time-off `note` — fine, OFF is trusted-local and includes it everywhere.)
       return loadState(db)
     })
 

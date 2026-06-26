@@ -80,6 +80,26 @@ export interface Notice {
   tone: 'info' | 'error'
 }
 
+/**
+ * The minimal per-login account summary that drives the AccountPicker (P1.13) — the server-sourced
+ * list of accounts this login may open. MIRRORS the server's `AccountSummary` (server/src/membership.ts)
+ * so the `GET /api/accounts` wire shape maps straight in. Re-declared here (not imported) because the
+ * server module is Node-only and out of the client build.
+ *
+ * This is kept SEPARATE from `data.accounts`: in server mode `data` holds only the ACTIVE account's
+ * slice (one account), so the picker — which must list ALL the login's tenants — reads `accountSummaries`
+ * instead. In local mode the two are kept in lockstep (summaries derived from `data.accounts`).
+ *
+ * @property id    The `accountId` a subsequent `GET /api/state?accountId=…` hydrates.
+ * @property name  The company name shown in the picker.
+ * @property role  The caller's role for this account (OFF/local supply 'owner' = full access).
+ */
+export interface AccountSummary {
+  id: ID
+  name: string
+  role: Role
+}
+
 /** Outcome of an import: how many records landed vs. were dropped as invalid
  *  (broken date range / dangling ref). Lets the UI report the delta honestly. */
 export interface ImportSummary {
@@ -159,6 +179,12 @@ export interface StoreState {
   /** The account that was active before switching to the picker — lets the picker
    *  offer a "back" escape after an accidental "Switch company". Never persisted. */
   previousAccountId: ID | null
+  /** The server-sourced list of accounts this login may open (P1.13) — the AccountPicker's data
+   *  source. Set by useAccountSummaries: in server mode from `GET /api/accounts` (the login's
+   *  memberships); in local mode derived from `data.accounts`. SEPARATE from `data` because in
+   *  server mode `data` holds only the ACTIVE account's slice, so it can't list the other tenants.
+   *  Never persisted. */
+  accountSummaries: AccountSummary[]
   past: AppData[]
   future: AppData[]
   persistError: boolean
@@ -229,6 +255,9 @@ export interface StoreState {
   updateAccount: (id: ID, patch: Patch<Account>) => void
   deleteAccount: (id: ID) => void
   setActiveAccount: (id: ID | null) => void
+  /** Replace the picker's server-sourced account list (P1.13). Called by useAccountSummaries with the
+   *  result of `GET /api/accounts` (server mode) or the local derivation. Plain transient state. */
+  setAccountSummaries: (list: AccountSummary[]) => void
 
   replaceAll: (data: AppData) => void
   /** Replace the active account's slice from an import; undoable via ⌘Z. Returns a
@@ -419,6 +448,7 @@ export const useStore = create<StoreState>()((set, get) => {
     hydrated: false,
     activeAccountId: null,
     previousAccountId: null,
+    accountSummaries: [],
     past: [],
     future: [],
     persistError: false,
@@ -459,6 +489,15 @@ export const useStore = create<StoreState>()((set, get) => {
       // holds the instant the tenant exists — matching seed() and the v5→v6 migrate.
       const internal = buildInternalClient(e.id, ts.createdAt)
       mutate((d) => ({ ...d, accounts: [...d.accounts, e], clients: [...d.clients, internal] }))
+      // Keep the picker's server-sourced list in lockstep (P1.13): the creator is the new account's
+      // Owner, so optimistically append the summary. In server mode the next /api/accounts refetch
+      // (e.g. on a remount) reconciles; in local mode the derivation does. Append only if absent so a
+      // refetch that already added it can't duplicate.
+      set((s) =>
+        s.accountSummaries.some((a) => a.id === e.id)
+          ? {}
+          : { accountSummaries: [...s.accountSummaries, { id: e.id, name: e.name, role: 'owner' as const }] },
+      )
       return e
     },
     updateAccount: (id, patch) => mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, patch) })),
@@ -466,6 +505,9 @@ export const useStore = create<StoreState>()((set, get) => {
     // active one, fall back to the picker.
     deleteAccount: (id) => {
       mutate((d) => deleteAccountCascade(d, id))
+      // Drop it from the picker's list too (P1.13) so a deleted company disappears from the picker in
+      // server mode (local mode's derivation would also drop it, but this keeps both paths consistent).
+      set((s) => ({ accountSummaries: s.accountSummaries.filter((a) => a.id !== id) }))
       if (get().activeAccountId === id) get().setActiveAccount(null)
     },
     // Switching tenant resets per-account view state and history — undo must never
@@ -475,15 +517,28 @@ export const useStore = create<StoreState>()((set, get) => {
       // picker rather than silently activating a dead id — a dead id would pass requireAccount() and
       // render an empty schedule as if it were real (exactly the hidden-corruption class we guard
       // against). Never throw: null is legitimate and tests/recovery set ids; the picker is safe.
+      //
+      // EXISTENCE = the UNION of `data.accounts` (local mode, and the active slice in server mode) AND
+      // `accountSummaries` (server mode, where `data` holds only the active account's slice so a
+      // not-yet-loaded tenant is absent from data but present in the summaries the picker showed). The
+      // persist switch orchestrator then loads that account's slice into `data`; this validation only
+      // proves the id is one the login may open, not that its data is loaded yet.
       let id = rawId
-      if (id !== null && !get().data.accounts.some((a) => a.id === id)) {
+      if (
+        id !== null &&
+        !get().data.accounts.some((a) => a.id === id) &&
+        !get().accountSummaries.some((a) => a.id === id)
+      ) {
         console.warn(`setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`)
         get().setNotice('That company no longer exists.', 'error')
         id = null
       }
       set((s) => {
         // Open the switched-into company on the current week (mirrors defaultUI) rather
-        // than inheriting the previous tenant's panned origin/focus.
+        // than inheriting the previous tenant's panned origin/focus. The account's tz/weekStartsOn
+        // come from its slice when loaded; in server mode the slice loads a frame later (the switch
+        // orchestrator awaits the fetch), so fall back to the existing defaults for that one frame
+        // (an acceptable transient — the grid re-anchors when the slice arrives via replaceAll).
         const account = id ? s.data.accounts.find((a) => a.id === id) : null
         const tz = account?.timezone ?? 'Etc/GMT'
         const wso = account?.weekStartsOn ?? 1
@@ -506,6 +561,10 @@ export const useStore = create<StoreState>()((set, get) => {
         }
       })
     },
+
+    // Plain set (NOT mutate): the picker's account list is transient, server-sourced, never on the
+    // undo/redo stack, never in AppData/export.
+    setAccountSummaries: (list) => set({ accountSummaries: list }),
 
     replaceAll: (data) => set({ data, past: [], future: [] }),
     // Replace only the active account's slice; other accounts and the account

@@ -143,7 +143,15 @@ describe('CAPACITYLENS_AUTH password', () => {
 
     const write = await call(app, { method: 'POST', url: '/api/accounts', payload: account, headers: { cookie } })
     expect(write.statusCode).toBe(201)
-    expect((await call(app, { method: 'GET', url: '/api/state', headers: { cookie } })).json().accounts).toHaveLength(1)
+    // P1.13: the no-arg whole read is CLOSED in auth-on (tenant isolation — the P1.4 carry-forward).
+    // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
+    const noArg = await call(app, { method: 'GET', url: '/api/state', headers: { cookie } })
+    expect(noArg.statusCode).toBe(400)
+    // The bare account write above does NOT grant membership (account_members is separate), so the
+    // membership-existence guard 403s a scoped read of 'a1' for this user — the slice path itself is
+    // exercised in app.accounts.test.ts (member → 200). Here we only pin that no-arg is closed.
+    const scoped = await call(app, { method: 'GET', url: '/api/state?accountId=a1', headers: { cookie } })
+    expect(scoped.statusCode).toBe(403)
   })
 
   it('sign-out invalidates the session again', async () => {

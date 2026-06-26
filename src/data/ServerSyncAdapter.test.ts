@@ -95,7 +95,7 @@ function okFetch() {
 }
 
 describe('ServerSyncAdapter.loadAll', () => {
-  it('GETs /api/state, migrates, and seeds the snapshot so the next save diffs against it', async () => {
+  it('GETs /api/state (no-arg whole read, OFF/fallback), migrates, and seeds the snapshot so the next save diffs against it', async () => {
     const state = withData({ clients: [client('c1')] })
     const fetchImpl = vi.fn(async (url: string) => {
       if (url.endsWith('/api/state')) return new Response(JSON.stringify(state), { status: 200 })
@@ -108,6 +108,59 @@ describe('ServerSyncAdapter.loadAll', () => {
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length
     await a.saveAll(state)
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls)
+  })
+
+  it('loadAll(accountId) GETs /api/state?accountId= and seeds the snapshot to THAT slice (zero ops on an identical save)', async () => {
+    // Per-account hydration (P1.13): the picker chose a1, so we load ONLY a1's slice.
+    const a1Slice = withData({ clients: [client('c1')] })
+    const urls: string[] = []
+    const fetchImpl = vi.fn(async (url: string) => {
+      urls.push(url)
+      if (url.includes('/api/state')) return new Response(JSON.stringify(a1Slice), { status: 200 })
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    const loaded = await a.loadAll('a1')
+    expect(loaded.clients).toHaveLength(1)
+    expect(urls[0]).toBe('http://x/api/state?accountId=a1') // scoped read, not the whole tree
+    // Snapshot == the loaded a1 slice, so re-saving it emits ZERO ops.
+    const callsBefore = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length
+    await a.saveAll(a1Slice)
+    expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsBefore)
+  })
+
+  it('CROSS-ACCOUNT REGRESSION: re-seed to a2 then save a2 emits ONLY a2 ops — never deletes of a1', async () => {
+    // The #1 correctness guard (§5): after a switch, lastSynced (the diff snapshot) MUST be the NEW
+    // account's slice. If it stayed a1's, the first a2 save would diff a1→a2 and emit DELETEs for a1's
+    // rows + PUTs for a2's — catastrophic cross-account data loss. The switch orchestrator (persist.ts)
+    // achieves this by calling loadAll(a2), which re-seeds the snapshot to a2's slice.
+    const a1c = client('c1') // accountId 'a1'
+    const a2c: Client = { id: 'c2', accountId: 'a2', name: 'Beta', color: '#3b82f6', createdAt: TS1, updatedAt: TS1 }
+    const a1Slice = withData({ clients: [a1c] })
+    const a2Slice = withData({ clients: [a2c] })
+    let nextSlice = a1Slice
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes('/api/state')) return new Response(JSON.stringify(nextSlice), { status: 200 })
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    await a.loadAll('a1') // snapshot = a1's slice
+    nextSlice = a2Slice
+    await a.loadAll('a2') // RE-SEED: snapshot is now a2's slice (the orchestrator's atomic re-seed)
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+
+    // Saving a2's slice now diffs a2→a2 = ZERO ops. Critically it does NOT emit a DELETE for c1 (a1).
+    await a.saveAll(a2Slice)
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(0) // no batch at all — snapshot already equals a2's slice
+
+    // And an EDIT to a2 emits only the a2 op (a PUT c2), never a delete of c1.
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    await a.saveAll(withData({ clients: [{ ...a2c, name: 'Beta II', updatedAt: TS2 }] }))
+    const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
+    expect(ops.every((o) => o.id !== 'c1')).toBe(true) // NEVER touches a1's row
+    expect(ops).toEqual([expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c2' })])
   })
 })
 
