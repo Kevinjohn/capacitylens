@@ -516,6 +516,25 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** `transferOwnership` (no route yet —
   matrix-only in access.test.ts). The no-arg whole `/api/state` read is now CLOSED in auth-on (P1.13);
   `manageMembers`/`manageInvites` routes landed in P1.11.
+- **Per-tenant export + delete-with-PII-erasure (P2.6).** EXPORT (P2.6a): the complete per-tenant backup
+  is NOT a new route — it is the existing `GET /api/state?accountId=X&includeInactive=1` admin read (full
+  slice incl archived+soft-deleted, admin/`'purge'` gated, control tables structurally excluded since
+  `readSlice` never reads the control plane); documented + test-locked. DELETE+ERASURE (P2.6b): account
+  hard-delete (both `'purge'` vectors) now routes through `server/src/erasure.ts` — `eraseAccount` (own
+  `tx`) for the DELETE route, `eraseAccountInTx` (no `tx`, reuses the batch's outer tx — node:sqlite has
+  NO nested BEGIN) for the batch op. In ONE transaction: capture member ids → `deleteRow('accounts')`
+  (FK-cascades the scoped AppData) → bulk-DELETE `account_members` + `invites` for the account (they have
+  NO FK to accounts, so they previously LEAKED) → for each affected user, scrub the Better Auth `user`
+  row (name→`'Removed member'`, email→globally-unique `deleted-<fullSanitisedUserId>@invalid`, image→NULL)
+  + DELETE `account` (SSO unlink) + DELETE `session` rows — but ONLY IF the user has NO remaining
+  membership in another account (`listMembershipsForUser` checked AFTER the account's member rows are
+  gone). Multi-account members are RETAINED (their identity is untouched). An auth-table-existence guard
+  makes an OFF-mode delete a no-op on the (absent) auth tables. Raw parameterised SQL on the shared `db`
+  handle (no Better Auth delete API exposed; version pinned 1.6.20 in the module). Gate stays `'purge'`
+  (admin+) — NOT owner-only. **Self-erasure consequence (deliberate, privacy-first):** deleting your
+  SOLE remaining account erases YOUR identity (name/email scrubbed, SSO unlinked) and kills your session
+  → the post-delete read-back is 401, not an empty 200. This is "PII provably erasable" applied to the
+  last-membership case; irreversible by design.
 - **Open shared dataset RETIRED in the hosted posture (P1.17, Phase-1 capstone).** The HOSTED (auth-on)
   posture serves **ZERO unauthenticated `/api` access**: the root-level `requireUser` preHandler 401s
   `{ error: 'Sign in to continue.' }` for every `/api/*` request EXCEPT `/api/health` (uptime monitor)
