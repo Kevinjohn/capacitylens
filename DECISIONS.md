@@ -373,6 +373,25 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   (exhaustive over `Action` at compile time; fail-closed on an unknown role/action). The field-level
   `canSeeTimeOffNote(role)` (owner/admin only) is kept SEPARATE — it's a field-visibility rule
   (redacts the time-off `note` server-side in P1.6), not a route Action.
+- **`TenantStore` is the scoped-read/write swap point (P1.4).** `server/src/tenantStore.ts` —
+  `interface TenantStore { readSlice(accountId): AppData; write(accountId, next): void }` +
+  `sqliteTenantStore(db)`, the SINGLE shared-SQLite implementation and the documented swap point: a
+  future per-agency-DB / per-instance / Postgres backend swaps HERE, behind the interface, with no
+  route change. `readSlice(db, accountId)` (db.ts) is the per-account scoped read — `WHERE accountId
+  = ?` on all 8 scoped tables + accounts-by-id, every key present, unknown id → empty slice (no
+  throw); the no-cross-tenant invariant (no unpredicated query) lives at this layer. `write` thinly
+  wraps `replaceAccountSlice` (NOT yet routed into /api/batch or per-entity writes — that's P1.5).
+- **The two read endpoints + the OFF-vs-auth-on gate posture (P1.4).** `GET /api/accounts` (OFF =
+  ALL account `{id,name}` summaries, NO membership gate — branched before membership for the OFF
+  guarantee; auth-on = `listAccounts`). `GET /api/state?accountId=` returns `store.readSlice(id)`
+  (OFF = no gate; auth-on = thin membership-existence guard: `resolveRole === null` → 403, so it
+  can't cross-tenant-read — the richer per-action `can()` gate is P1.5). **The no-arg `GET /api/state`
+  whole read is RETAINED** (legacy) for the OFF client AND the not-yet-migrated auth-on client + e2e
+  until P1.13 migrates the client to per-account hydration; remove it then. KNOWN GAP: in auth-on this
+  no-arg whole read currently returns ALL tenants to any authenticated user (a cross-tenant
+  whole-read) — closing it was attempted then reverted because the un-migrated client still hydrates
+  via no-arg `/api/state`; it closes at P1.13 (client passes accountId) + P1.5 (requirePermission).
+  Auth-on is not the default/shipped posture.
 - **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
   headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
   (`default-src`/`connect-src`/`base-uri 'self'`, `frame-ancestors 'none'`, `object-src 'none'`),
