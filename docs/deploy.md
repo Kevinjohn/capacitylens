@@ -35,7 +35,9 @@ Leave "Install Composer Dependencies" unchecked (no PHP).
 
 ## 4. Node version
 
-Ensure the Forge server runs **Node 20 or 22** (Vite 8 needs ≥18; 22 is safest).
+Ensure the Forge server runs **Node 24+** — pinned by the root `.nvmrc` (`24`) and the
+`"engines": { "node": ">=24" }` field in every workspace manifest. The optional `server/`
+workspace needs Node 24 specifically, where `node:sqlite` is unflagged.
 
 ## 5. Deploy Script
 
