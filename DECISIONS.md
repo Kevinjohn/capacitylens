@@ -527,6 +527,31 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   The no-arg whole `/api/state` read is now CLOSED in auth-on (P1.13 → 400; OFF keeps it, where the
   note is trusted-local and always included). `app.authz.test.ts` asserts the sentinel note is absent from
   the raw response BODY for editor/viewer (proof of server-side redaction).
+- **Audit log is ON by default, NAMES-only, fail-never (P1.15).** An append-only JSONL sink
+  (`server/src/audit.ts`) writes one line per AppData mutation —
+  `{ts,userId,accountId,action,entity,id,changedFields}` — at the COMMIT POINT of each route (six
+  explicit post-commit `audit()` hooks: `POST/PUT/PATCH/DELETE /api/:entity`, `POST /api/batch`
+  one-line-PER-OP after the tx so a rolled-back batch logs NOTHING, and `POST /api/import` one
+  `import` line). **THE #1 INVARIANT: `changedFields` is field NAMES only** (`Object.keys` of the
+  wire body/row — PATCH uses the `req.body` keys, NOT the merged row); a VALUE, ROW, or BODY is
+  NEVER passed to `append()`, so no tenant PII reaches a line. **ON BY DEFAULT** (`CAPACITYLENS_AUDIT
+  !== 'off'`, the deliberate flag-OFF exception; `CAPACITYLENS_AUDIT_FILE` defaults beside the DB) —
+  **SERVER-MODE ONLY** (the sink is built in `index.ts`, so the default local/no-server deploy gets
+  no audit automatically, and `buildApp` defaults to `noopAuditSink()` so tests + the default deploy
+  are byte-identical). OFF-mode server audits log `userId: 'demo'` (DEMO_USER) — correct, it's
+  server-mode not auth-gated. **FAIL-NEVER contract:** `append` is synchronous and CANNOT throw (a
+  broken sink never fails a request); on a write failure it returns false, latches `degraded`, logs
+  ONE redacted message-only line (a `loggedOnce` guard, never the record). The mutation still 2xx; a
+  uniform **`x-capacitylens-audit-warning: true`** response header (on all six routes — keeps row
+  payloads pure + works for the bodyless 204 DELETE) is the warning, and **deep-health surfaces
+  `audit: 'degraded'|'ok'` while KEEPING `ok: true`** (the DB is fine; audit-degraded is a soft
+  signal). The SHALLOW `/api/health` stays exactly `{ ok: true }` (the Playwright probe contract).
+- **The invite bearer token is redacted from the access log (P1.9 carry-forward, P1.15).** A pino
+  `serializers.req` (active only under `CAPACITYLENS_LOG=1`) rewrites a
+  `/api/invites/<token>/accept` URL to `/api/invites/[redacted]/accept` so the live token (the only
+  path-borne secret in the API) never reaches stdout — pino logs `req.url` verbatim, and only headers
+  were redacted before. Every other URL passes through untouched; this is REQUEST-log hygiene,
+  separate from the audit sink.
 - **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
   headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
   (`default-src`/`connect-src`/`base-uri 'self'`, `frame-ancestors 'none'`, `object-src 'none'`),

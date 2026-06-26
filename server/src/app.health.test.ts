@@ -7,11 +7,13 @@ import { openDb } from './db'
 // Playwright's webServer probe (and anything else pinned to it) depends on.
 
 describe('CAPACITYLENS_HEALTH_DEEP on', () => {
-  it('reports { ok, db: true } while the DB answers', async () => {
+  it('reports { ok, db: true, audit: ok } while the DB answers and the audit sink is healthy', async () => {
+    // P1.15: deep-health also surfaces the audit sink state. The factory default is a noop sink
+    // (never degraded), so a healthy server reports audit:'ok'.
     const app = buildApp(openDb(':memory:'), { healthDeep: true })
     const res = await app.inject({ method: 'GET', url: '/api/health' })
     expect(res.statusCode).toBe(200)
-    expect(res.json()).toEqual({ ok: true, db: true })
+    expect(res.json()).toEqual({ ok: true, db: true, audit: 'ok' })
   })
 
   it('returns 503 { ok: false } when the DB read throws', async () => {

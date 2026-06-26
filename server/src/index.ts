@@ -5,6 +5,7 @@ import { createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
 import { authFromEnv, runAuthMigrations, AuthConfigError } from './auth'
 import { parseBackupConfig, startBackups } from './backup'
+import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 
 // Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
 //   CAPACITYLENS_DB                       SQLite file (default ./capacitylens.db; ':memory:' ok)
@@ -42,6 +43,13 @@ import { parseBackupConfig, startBackups } from './backup'
 //   CAPACITYLENS_BACKUP_INTERVAL_MIN      snapshot cadence in minutes (default 60; only read
 //                                   when backups are on).
 //   CAPACITYLENS_BACKUP_KEEP              rolling retention count (default 48; oldest pruned).
+//   CAPACITYLENS_AUDIT                    append-only JSONL audit log of every AppData mutation
+//                                   (one line {ts,userId,accountId,action,entity,id,changedFields};
+//                                   changedFields are field NAMES only — never values, so no PII
+//                                   reaches the log). ON BY DEFAULT (the deliberate flag-off
+//                                   exception); set to 'off' to disable. Server-mode only.
+//   CAPACITYLENS_AUDIT_FILE               the audit JSONL path (default: capacitylens-audit.jsonl
+//                                   beside the DB; a ':memory:' DB falls back to a CWD-relative file).
 //   CAPACITYLENS_AUTH                     off|password|sso (default off = no Better Auth at
 //                                   all; only the thin /api/auth/me exists). Any other
 //                                   value refuses to boot. When ≠ off:
@@ -149,6 +157,16 @@ try {
   refuseToStart(e instanceof Error ? e.message : String(e))
 }
 
+// Audit log (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT; =off disables). Server-mode only:
+// the sink lives here, so the default local/no-server deploy (which never runs index.ts) gets no
+// audit automatically. console.error (not app.log) so the rare/operational audit-write error
+// doesn't depend on the app.log ordering. The append() is fail-never (see audit.ts) — a broken
+// sink latches `degraded` (deep-health surfaces it), never crashes the daemon or fails a request.
+const auditCfg = parseAuditConfig(process.env, dbPath)
+const auditSink = auditCfg.enabled
+  ? fileAuditSink(auditCfg.file, (m) => console.error(m))
+  : noopAuditSink()
+
 const app = buildApp(db, {
   allowReset,
   corsOrigin,
@@ -161,6 +179,7 @@ const app = buildApp(db, {
   bootstrapToken,
   authMode,
   auth,
+  audit: auditSink,
 })
 
 // Backups (P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: no timer, no filesystem writes).

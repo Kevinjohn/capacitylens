@@ -63,6 +63,7 @@ import {
 import { tx } from './txn'
 import { newId } from '@capacitylens/shared/lib/id'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import { type AuditRecord, type AuditSink, noopAuditSink } from './audit'
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
@@ -140,6 +141,12 @@ export interface AppOptions {
    *  all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
    *  are on regardless, as they are pure improvements with no HTTPS precondition. */
   https?: boolean
+  /** CAPACITYLENS_AUDIT (P1.15) — the append-only JSONL audit sink. ON-by-default is decided at
+   *  the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); THIS factory
+   *  defaults to noopAuditSink() so tests AND the default local/no-server deploy are byte-identical
+   *  unless a real sink is explicitly injected. NEVER pass a row/body into the sink — only the
+   *  typed AuditRecord whose changedFields are field NAMES (the #1 no-PII invariant). */
+  audit?: AuditSink
 }
 
 // P0.5.5: NEVER let a secret reach the logs. pino strips these exact paths from every record
@@ -154,6 +161,16 @@ const LOG_REDACT_PATHS = [
   'req.headers.cookie',
   'res.headers["set-cookie"]',
 ]
+
+// P1.9: mask the bearer token in the invite-accept URL before it reaches the access log. The token
+// is the ONLY path-borne secret in the API; every other URL passes through unchanged. Anchored to
+// the exact `/api/invites/<token>/accept` shape (optionally with a query string) so a normal path
+// is never mangled. The match is on the path-with-query string pino logs (req.url).
+const INVITE_ACCEPT_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/accept(?:[?#].*)?)$/
+// `url` is typed unknown because the serializer may also run over a hand-built `{ req: {...} }`
+// record (e.g. app.log.info(...)) whose url is absent; a non-string passes through untouched.
+const redactInviteTokenUrl = (url: unknown): string | undefined =>
+  typeof url === 'string' ? url.replace(INVITE_ACCEPT_URL_RE, '$1[redacted]$2') : undefined
 
 /** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
  *  unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit). */
@@ -319,7 +336,28 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // ON always attaches the redact config (both branches) so a secret can never reach the
     // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
     logger: logOn
-      ? { ...(opts.logStream ? { stream: opts.logStream } : {}), redact: { paths: LOG_REDACT_PATHS, remove: true } }
+      ? {
+          ...(opts.logStream ? { stream: opts.logStream } : {}),
+          redact: { paths: LOG_REDACT_PATHS, remove: true },
+          // P1.9 access-log hygiene: the invite-accept URL carries the bearer token in the path
+          // (`/api/invites/<token>/accept`), and pino logs req.url VERBATIM (only headers are
+          // redacted via redact above). Rewrite just that one URL shape to mask the :token segment
+          // so the live token never reaches stdout under CAPACITYLENS_LOG. All other URLs pass
+          // through untouched. This is REQUEST-log hygiene — entirely separate from the P1.15 audit
+          // sink. The default Fastify req serializer is reconstructed so method/hostname/remote
+          // address keep logging exactly as before.
+          serializers: {
+            req(req: FastifyRequest) {
+              return {
+                method: req.method,
+                url: redactInviteTokenUrl(req.url),
+                hostname: req.hostname,
+                remoteAddress: req.ip,
+                remotePort: req.socket?.remotePort,
+              }
+            },
+          },
+        }
       : false,
   })
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
@@ -440,6 +478,23 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // a server whose DB is broken is a lie).
   const healthStmt = opts.healthDeep === true ? db.prepare('SELECT 1') : null
 
+  // The audit sink (P1.15). Defaults to noopAuditSink() so the default deploy + every test are
+  // byte-identical unless index.ts injects a real fileAuditSink (ON by default in server mode).
+  const auditSink = opts.audit ?? noopAuditSink()
+
+  // changedFields for an audit line = the wire body/row's field NAMES (never values). This is the
+  // ONLY thing ever derived from a body for the audit trail — the #1 no-PII invariant.
+  const fieldNames = (o: unknown): string[] =>
+    o && typeof o === 'object' ? Object.keys(o as Record<string, unknown>) : []
+
+  // Record one audit line and, ONLY on a write failure, set the uniform warning header. The header
+  // (not a body field) is the warning mechanism on ALL six routes — it keeps entity row payloads
+  // pure and works for the bodyless 204 DELETE. append() never throws (see audit.ts), so this can't
+  // fail a request: a degraded audit is a soft signal (deep-health latches it), not a 5xx.
+  const audit = (reply: FastifyReply, record: AuditRecord): void => {
+    if (!auditSink.append(record)) reply.header('x-capacitylens-audit-warning', 'true')
+  }
+
   // The tenancy swap point (P1.4): the per-account scoped read/write seam every permissioned route
   // goes through. Built ONCE here (factory state, like healthStmt) so the same instance backs every
   // request. Today it wraps the shared SQLite file; a future per-agency-DB / Postgres backend swaps
@@ -525,7 +580,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!healthStmt) return { ok: true }
       try {
         healthStmt.get()
-        return { ok: true, db: true }
+        // P1.15: audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
+        // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
+        // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
+        // the Playwright webServer probe contract — so the audit field appears ONLY in deep mode.
+        return { ok: true, db: true, audit: auditSink.degraded ? 'degraded' : 'ok' }
       } catch {
         // INTENTIONAL empty catch: the 503 IS the surfacing. A broken DB must make the uptime
         // monitor see 503 — not a lying { ok: true } 200, and not a thrown 500. Do NOT "fix" this
@@ -1003,6 +1062,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const row = sanitizeWrite(entity, req.body as Record<string, unknown>)
         validateWrite(loadState(db), entity, row)
         insertRow(db, entity, row)
+        // P1.15 audit (post-commit). changedFields = the row's field NAMES (never values).
+        audit(reply, {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: (row.accountId as string | undefined) ?? row.id as string,
+          action: 'create',
+          entity,
+          id: row.id as string,
+          changedFields: fieldNames(row),
+        })
         return reply.code(201).send(row)
       } catch (err) {
         return sendFail(reply, err)
@@ -1050,6 +1119,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const row = sanitizeWrite(entity, body)
         validateWrite(loadState(db), entity, row)
         upsertRow(db, entity, row)
+        // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
+        audit(reply, {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: (body.accountId as string | undefined) ?? id,
+          action: 'update',
+          entity,
+          id,
+          changedFields: fieldNames(body),
+        })
         return reply.code(200).send(row)
       } catch (err) {
         return sendFail(reply, err)
@@ -1085,6 +1164,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         }
         validateWrite(loadState(db), entity, merged)
         upsertRow(db, entity, merged)
+        // P1.15 audit (post-commit). changedFields = the PATCH req.body keys (the fields the caller
+        // actually sent), NOT the merged row's keys — a patch's intent is the keys it touched.
+        audit(reply, {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: (merged.accountId as string | undefined) ?? id,
+          action: 'patch',
+          entity,
+          id,
+          changedFields: fieldNames(req.body),
+        })
         return reply.code(200).send(merged)
       } catch (err) {
         return sendFail(reply, err)
@@ -1124,6 +1214,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (!authorize(req, reply, id, 'purge')) return
         }
         deleteRow(db, entity, id) // idempotent
+        // P1.15 audit (post-commit). A delete carries no field set → changedFields = []. accountId
+        // is the asserted owner for a scoped table, else the (accounts) row's own id.
+        audit(reply, {
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: accountId ?? id,
+          action: 'delete',
+          entity,
+          id,
+          changedFields: [],
+        })
         return reply.code(204).send()
       } catch (err) {
         return sendFail(reply, err)
@@ -1211,7 +1312,38 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             }
           }
         })
-        return reply.code(200).send({ ok: true, applied: ops.length })
+        // P1.15 audit (POST-COMMIT — outside the tx). The whole batch is all-or-nothing, so we
+        // only get here once it committed; a rolled-back batch threw above and logs NOTHING. One
+        // line PER op (action mirrors the op verb); the per-op append results OR-reduce into ONE
+        // warning so a single failed write still flags x-capacitylens-audit-warning. changedFields
+        // for a PUT = op.row's field NAMES (never values); a DELETE carries none.
+        const ts = new Date().toISOString()
+        let auditFailed = false
+        for (const op of ops) {
+          const record: AuditRecord =
+            op.method === 'PUT'
+              ? {
+                  ts,
+                  userId: req.user!.id,
+                  accountId: (op.row as { accountId?: string } | undefined)?.accountId ?? op.id,
+                  action: 'update',
+                  entity: op.table,
+                  id: op.id,
+                  changedFields: fieldNames(op.row),
+                }
+              : {
+                  ts,
+                  userId: req.user!.id,
+                  accountId: op.accountId ?? op.id,
+                  action: 'delete',
+                  entity: op.table,
+                  id: op.id,
+                  changedFields: [],
+                }
+          if (!auditSink.append(record)) auditFailed = true
+        }
+        if (auditFailed) reply.header('x-capacitylens-audit-warning', 'true')
+        return reply.code(200).send({ ok: true, applied: ops.length, auditWarning: auditFailed })
       } catch (err) {
         return sendFail(reply, err)
       }
@@ -1244,7 +1376,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // Refuse a zero-record import rather than wiping the account's slice (mirrors the
         // client store guard — replacing a company's data with nothing is never intended).
         if (result.imported > 0) replaceAccountSlice(db, body.accountId, result.data)
-        return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS }
+        // P1.15 audit (post-commit). ONE 'import' line: a slice replace, not a per-field edit, so
+        // changedFields = [] (no individual fields to name) and id = the target accountId.
+        const auditOk = auditSink.append({
+          ts: new Date().toISOString(),
+          userId: req.user!.id,
+          accountId: body.accountId,
+          action: 'import',
+          entity: 'account',
+          id: body.accountId,
+          changedFields: [],
+        })
+        if (!auditOk) reply.header('x-capacitylens-audit-warning', 'true')
+        return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS, auditWarning: !auditOk }
       } catch (err) {
         return sendFail(reply, err)
       }

@@ -78,6 +78,29 @@ describe('CAPACITYLENS_LOG redaction (P0.5.5)', () => {
   })
 })
 
+describe('CAPACITYLENS_LOG invite-token URL redaction (P1.9)', () => {
+  // The invite-accept URL carries the bearer token in its PATH; pino logs req.url verbatim, so a
+  // serializer must mask the :token segment before it reaches stdout. Other URLs stay intact.
+  it('rewrites /api/invites/<token>/accept to /api/invites/[redacted]/accept', async () => {
+    const { lines, stream } = capture()
+    const app = buildApp(openDb(':memory:'), { log: true, logStream: stream })
+    const TOKEN = 'SENTINEL_LIVE_INVITE_TOKEN'
+    // The token is unknown → the route 404s, but the request IS logged with the URL we care about.
+    const res = await app.inject({ method: 'POST', url: `/api/invites/${TOKEN}/accept`, payload: {} })
+    expect(res.statusCode).toBe(404)
+    const out = lines.join('')
+    expect(out).toContain('"url":"/api/invites/[redacted]/accept"') // masked path logged
+    expect(out).not.toContain(TOKEN) // the live token never reaches the log
+  })
+
+  it('leaves every other URL intact', async () => {
+    const { lines, stream } = capture()
+    const app = buildApp(openDb(':memory:'), { log: true, logStream: stream })
+    await app.inject({ method: 'GET', url: '/api/health' })
+    expect(lines.join('')).toContain('"url":"/api/health"')
+  })
+})
+
 describe('CAPACITYLENS_LOG off (default)', () => {
   it('emits no request logs at all', async () => {
     const { lines, stream } = capture()

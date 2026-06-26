@@ -38,6 +38,8 @@ coverage/
 *.db
 *.db-wal
 *.db-shm
+# Server audit log (P1.15, ON by default beside the DB; a runtime artifact, never committed)
+*-audit.jsonl
 
 # Agent/loop scratch — never ship these in a clone (P0.2)
 *-state.json
