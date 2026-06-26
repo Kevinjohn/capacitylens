@@ -4,7 +4,8 @@ import type { Auth, SessionUser } from './auth'
 // requireUser preHandler + GET /api/auth/me) depends ONLY on this interface, never on
 // Better Auth directly — so Phase 1 can swap the backend without touching the app. The
 // default implementation (betterAuthAdapter) wraps a Better Auth instance; nothing else
-// changes. (SessionUser keeps its current shape; it is widened separately in P1.7a.)
+// changes. P1.7a widened SessionUser to {id,email,emailVerified,name}; verifySession returns
+// it already normalized (auth.api.getSession defaults emailVerified at its narrowing boundary).
 
 /**
  * Verifies an HTTP request's session, expressed in web-standard `Headers` so the port
@@ -27,8 +28,10 @@ export interface AuthAdapter {
 /**
  * Default {@link AuthAdapter}: wraps a Better Auth {@link Auth} instance. `getSession`
  * returns `{ user }` for a valid session or `null` for none, so `?.user ?? null` maps
- * exactly onto the port's session/null contract. Backend errors are deliberately NOT
- * caught here — `getSession` throwing (auth DB down, etc.) propagates so the caller can
+ * exactly onto the port's session/null contract. The `user` is already the normalized
+ * {@link SessionUser} (auth.api.getSession defaults `emailVerified` at its narrowing
+ * boundary), so this adapter passes it through unchanged. Backend errors are deliberately
+ * NOT caught here — `getSession` throwing (auth DB down, etc.) propagates so the caller can
  * map it to a 503, per the {@link AuthAdapter} contract.
  */
 export function betterAuthAdapter(auth: Auth): AuthAdapter {

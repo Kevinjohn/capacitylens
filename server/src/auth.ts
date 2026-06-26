@@ -38,13 +38,60 @@ export interface Auth {
 }
 
 /** The identity attached to every request in 'off' mode — the seam Stage C will later
- *  replace with the session user to derive accountId server-side. */
-export const DEMO_USER = { id: 'demo', name: 'Demo' }
+ *  replace with the session user to derive accountId server-side. Off is trusted-local, so
+ *  the synthetic principal is treated as verified (`emailVerified: true`) and given a clearly
+ *  non-routable `.local` demo email so nothing mistakes it for a real verified identity. */
+export const DEMO_USER: SessionUser = {
+  id: 'demo',
+  name: 'Demo',
+  email: 'demo@capacitylens.local',
+  emailVerified: true,
+}
 
+/**
+ * The normalized session principal the whole server depends on (membership lookups,
+ * `/api/auth/me`, P1.10 invite binding) — decoupled from Better Auth's richer user type.
+ *
+ * `emailVerified` is the IdP-asserted verified-email flag. It defaults to `false` when a
+ * provider omits it (see {@link normalizeSessionUser}): an unverifiable provider is treated as
+ * unverified. The email-preauth invites in P1.10 bind a session to a pending invite ONLY when
+ * `emailVerified === true`, so this flag is load-bearing for that gate — never widen it to
+ * "truthy" or default it to `true`.
+ */
 export interface SessionUser {
   id: string
+  email: string
+  emailVerified: boolean
   name: string
-  email?: string
+}
+
+/** The subset of Better Auth's user we read before narrowing to {@link SessionUser}. Better
+ *  Auth types `emailVerified` as a boolean it sets per provider; the optional/`null` here is
+ *  the safety net for a provider/version that leaves it unset. */
+interface RawSessionUser {
+  id: string
+  email: string
+  name: string
+  emailVerified?: boolean | null
+}
+
+/**
+ * Narrow Better Auth's full user to the {@link SessionUser} the server uses, reading
+ * `emailVerified` from the raw user and defaulting it to `false`.
+ *
+ * Better Auth sets `emailVerified` per provider during sign-in (Google/Microsoft OIDC derive
+ * it from the `email_verified` claim; GitHub and email+password sign-up leave it `false` until
+ * verified). We deliberately do NOT branch on a provider allow-list — we trust Better Auth's
+ * per-provider value and use `?? false` as the safety net for any provider that omits it, so an
+ * unverifiable provider can never present as verified.
+ */
+export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
+  return {
+    id: raw.id,
+    email: raw.email,
+    emailVerified: raw.emailVerified ?? false,
+    name: raw.name,
+  }
 }
 
 /** Misconfiguration that must refuse boot loudly (same posture as assertSchemaCurrent) —
@@ -156,7 +203,7 @@ export function authFromEnv(
   // impossible (POST /api/auth/sign-up/email returns 400 EMAIL_PASSWORD_SIGN_UP_DISABLED).
   const allowOpenSignup = env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'
 
-  const auth = betterAuth({
+  const instance = betterAuth({
     database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
     secret,
     baseURL,
@@ -168,7 +215,26 @@ export function authFromEnv(
     plugins,
     trustedOrigins: opts.trustedOrigins,
     telemetry: { enabled: false },
-  }) as unknown as Auth // collapse the invariant generic to the structural surface (see Auth)
+  })
+  // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at
+  // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
+  // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
+  // downstream sees only the {id,email,emailVerified,name} SessionUser.
+  const raw = instance as unknown as {
+    handler: Auth['handler']
+    api: { getSession: (input: { headers: Headers }) => Promise<{ user: RawSessionUser } | null> }
+    options: BetterAuthOptions
+  }
+  const auth: Auth = {
+    handler: raw.handler,
+    options: raw.options,
+    api: {
+      async getSession(input) {
+        const session = await raw.api.getSession(input)
+        return session ? { user: normalizeSessionUser(session.user) } : null
+      },
+    },
+  }
   return { mode, auth }
 }
 

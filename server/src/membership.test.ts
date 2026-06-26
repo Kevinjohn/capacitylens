@@ -17,7 +17,12 @@ const freshDb = (): Db => openDb(':memory:')
 const addAccount = (db: Db, id: string, name: string): void =>
   upsertRow(db, 'accounts', { id, name, color: '#111111', createdAt: TS, updatedAt: TS })
 
-const session = (id: string): SessionUser => ({ id, name: `name-${id}` })
+const session = (id: string): SessionUser => ({
+  id,
+  name: `name-${id}`,
+  email: `${id}@capacitylens.dev`,
+  emailVerified: true,
+})
 
 describe('resolveRole', () => {
   it('returns the role for an account the login is an active member of', () => {

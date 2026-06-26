@@ -343,6 +343,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   (app.ts `requireUser` + `/api/auth/me`) depends ONLY on this port, never Better Auth directly.
   Load-bearing contract: **null = no session → 401; a thrown error = auth-backend failure → 503**
   (never swallowed to null). The OFF guarantee holds — off mode builds no adapter at all.
+- **`SessionUser` is the normalized principal (P1.7a).** `{ id, email, emailVerified, name }` (email +
+  `emailVerified` both REQUIRED). `emailVerified` is read from the full Better Auth user and **defaults
+  to `false`** at the single narrowing boundary (`normalizeSessionUser`, wired into `auth.api.getSession`):
+  a provider that omits verification is treated as unverified (no provider allow-list — `?? false` is the
+  safety net). P1.10 email-preauth invites bind only when `emailVerified === true`. `DEMO_USER` (off =
+  trusted-local) is `emailVerified: true` with a non-routable `demo@capacitylens.local` email.
 - **Social sign-in is env-driven + additive (P1.7).** `betterAuth` gets native Google/Microsoft/GitHub
   `socialProviders` from `CAPACITYLENS_<PROVIDER>_CLIENT_ID/_SECRET` — each configured ONLY when both
   are set (fail-closed-absent; Microsoft `tenantId` defaults to `common`). They coexist with the

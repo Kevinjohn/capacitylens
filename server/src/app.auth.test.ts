@@ -9,6 +9,7 @@ import {
   AuthConfigError,
   DEMO_USER,
   MIN_BETTER_AUTH_SECRET_LENGTH,
+  normalizeSessionUser,
 } from './auth'
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
@@ -62,6 +63,8 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
     const me = await call(app, { method: 'GET', url: '/api/auth/me' })
     expect(me.statusCode).toBe(200)
     expect(me.json()).toEqual({ authMode: 'off', user: DEMO_USER })
+    // P1.7a: off is trusted-local, so the demo principal is verified with a clearly-local email.
+    expect(me.json().user).toMatchObject({ email: 'demo@capacitylens.local', emailVerified: true })
     // A cookie-less write succeeds — no request that succeeds today may fail in off mode.
     const write = await call(app, { method: 'POST', url: '/api/accounts', payload: account })
     expect(write.statusCode).toBe(201)
@@ -77,6 +80,33 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
       payload: { email: 'a@b.test', password: 'password-123', name: 'X' },
     })
     expect(signUp.statusCode).toBe(404)
+  })
+})
+
+// P1.7a — the narrowing boundary. normalizeSessionUser reads emailVerified from the full Better
+// Auth user and defaults it to false, so a provider that omits verification can never present as
+// verified. (getSession in authFromEnv wraps this; here we pin the pure mapping directly.)
+describe('normalizeSessionUser (P1.7a)', () => {
+  const RAW = { id: 'u1', email: 'u1@capacitylens.dev', name: 'U One' }
+
+  it('carries an explicit emailVerified: true', () => {
+    expect(normalizeSessionUser({ ...RAW, emailVerified: true }).emailVerified).toBe(true)
+  })
+
+  it('carries an explicit emailVerified: false', () => {
+    expect(normalizeSessionUser({ ...RAW, emailVerified: false }).emailVerified).toBe(false)
+  })
+
+  it('defaults emailVerified to false when the provider omits it (undefined or null)', () => {
+    expect(normalizeSessionUser(RAW).emailVerified).toBe(false)
+    expect(normalizeSessionUser({ ...RAW, emailVerified: undefined }).emailVerified).toBe(false)
+    expect(normalizeSessionUser({ ...RAW, emailVerified: null }).emailVerified).toBe(false)
+  })
+
+  it('yields exactly {id,email,emailVerified,name} (drops any extra Better Auth fields)', () => {
+    const out = normalizeSessionUser({ ...RAW, emailVerified: true })
+    expect(out).toEqual({ id: 'u1', email: 'u1@capacitylens.dev', emailVerified: true, name: 'U One' })
+    expect(Object.keys(out).sort()).toEqual(['email', 'emailVerified', 'id', 'name'])
   })
 })
 
@@ -106,6 +136,10 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(me.statusCode).toBe(200)
     expect(me.json().authMode).toBe('password')
     expect(me.json().user.email).toBe('tester@capacitylens.dev')
+    // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
+    // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
+    // is present and defaults correctly (the P1.10 invite-bind gate depends on it).
+    expect(me.json().user.emailVerified).toBe(false)
 
     const write = await call(app, { method: 'POST', url: '/api/accounts', payload: account, headers: { cookie } })
     expect(write.statusCode).toBe(201)
