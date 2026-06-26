@@ -28,8 +28,13 @@ export interface AuditRecord {
   userId: string
   /** The tenant the mutation targeted. */
   accountId: string
-  /** The kind of mutation. */
-  action: 'create' | 'update' | 'patch' | 'delete' | 'batch' | 'import'
+  /** The kind of mutation. The lifecycle quartet (P2.5a) is distinct from the generic CRUD verbs:
+   *  `archive`/`unarchive` flip the `archivedAt` tombstone, `softDelete` sets `deletedAt` (and, for a
+   *  resource, scrubs the PII `name`), and `purge` is the HARD cascade row-delete of a ≥30-day-old
+   *  tombstone. They stay distinct from `delete` (the generic by-id row delete) so the audit trail
+   *  tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
+   *  only (e.g. `['archivedAt']`, `['deletedAt','name']`) — never values (the #1 no-PII invariant). */
+  action: 'create' | 'update' | 'patch' | 'delete' | 'batch' | 'import' | 'archive' | 'unarchive' | 'softDelete' | 'purge'
   /** The entity/table touched (e.g. 'timeOff', 'clients'), or 'account' for an import slice. */
   entity: string
   /** The affected row id (the import record uses the accountId as its id). */

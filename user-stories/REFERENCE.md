@@ -467,13 +467,41 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
 - **Archived & soft-deleted resources/clients/projects are hidden from all normal views** (the
   scheduler, the management lists, the forms' option-pickers, and the command palette) — they remain
-  in the DB **and in export**, and will surface in the **P2.5 admin "Archived & deleted" view** (P2.4).
+  in the DB **and in export**, and surface in the **admin "Archived & deleted" view** (P2.4/P2.5).
   A non-active entity is one with `archivedAt` set (archived) or `deletedAt` set (soft-deleted); the
   hide is applied by the shared `activeOnly` projection in both the client view seam
   (`useActiveScopedData`) and the server per-account read (`GET /api/state?accountId=` →
-  `includeInactive:false`). *No tester-visible archive affordance exists yet* — archiving/deleting is
-  driven by the P2.5 admin UI, so the **"archived vanishes" end-to-end story is deferred to P2.5**
-  (the unit, scheduler-model and server `readSlice` tests are the load-bearing coverage for P2.4).
+  `includeInactive:false`). *No tester-visible archive affordance exists yet* — the **server
+  lifecycle routes** (below) land in P2.5a; the **client admin UI** that drives them is P2.5b, so the
+  **"archived vanishes" end-to-end story is deferred to P2.5b** (the unit, scheduler-model and server
+  `readSlice` + `app.lifecycle` tests are the load-bearing coverage for P2.4/P2.5a).
+
+### Server lifecycle routes (P2.5a — no client UI yet)
+
+The Active → Archived → Soft-deleted → Purged data-lifecycle is enforced **server-side** by four
+dedicated action routes (entity ∈ `resources` | `clients` | `projects` **only** — any other entity is
+a **404**). Each takes a JSON body `{ accountId }` (**required** — the tenant assertion, mirroring the
+scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all on all four.
+
+| Route | Tier | Transition | Result |
+| --- | --- | --- | --- |
+| `POST /api/:entity/:id/archive` | write (editor+) | active → archived | `200` updated row |
+| `POST /api/:entity/:id/unarchive` | write (editor+) | archived → active | `200` updated row |
+| `POST /api/:entity/:id/delete` | write (editor+) | archived → soft-deleted (resource: `name` scrubbed to `Removed person #…`) | `200` updated row |
+| `POST /api/:entity/:id/purge` | **purge (admin+)** | ≥30-day-old tombstone → **HARD delete + cascade** | `204` |
+
+- **Error mapping:** an **illegal transition** (e.g. deleting a row that was never archived, archiving
+  an already-archived row) → **409** with the state machine's own message; a **cross-account** target →
+  the standard tenant guard (**403** non-member, or **404** when the id isn't in the asserted account's
+  slice); an **absent** row → **404**; an insufficient role → **403**.
+- **Purge interlock (server-enforced):** purge is refused (**409**) unless the row is a **soft-deleted
+  tombstone aged ≥ 30 days** (`PURGE_MIN_AGE_DAYS`); the cascade then removes the row **and its
+  descendants** (client → projects/phases/activities/allocations, etc.), same rules as a normal delete.
+- **Built-in Internal client guard:** the protected built-in **Internal** client cannot be
+  archived/deleted/purged — any of the three on it is a **409**.
+- **Admin "read inactive":** `GET /api/state?accountId=…&includeInactive=1` returns the **full** slice
+  (archived + soft-deleted rows retained). It is gated at the **purge tier (admin+)**: a non-admin
+  asking for the flag gets **403**; OFF mode always allows; omitting the flag = today's active-only read.
 - **Cascade deletes:** deleting a client removes its projects → activities → allocations;
   deleting a project removes its phases/activities/allocations and *unbinds* (does not delete)
   placeholders; deleting an activity removes its allocations; deleting a resource removes its
