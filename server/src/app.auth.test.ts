@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
 import { buildApp } from './app'
 import { openDb } from './db'
-import { authFromEnv, parseAuthMode, runAuthMigrations, AuthConfigError, DEMO_USER } from './auth'
+import {
+  authFromEnv,
+  parseAuthMode,
+  runAuthMigrations,
+  AuthConfigError,
+  DEMO_USER,
+  MIN_BETTER_AUTH_SECRET_LENGTH,
+} from './auth'
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -149,6 +156,29 @@ describe('boot refusal (AuthConfigError)', () => {
     expect(() => authFromEnv(db, { CAPACITYLENS_AUTH: 'password', BETTER_AUTH_SECRET: 'x'.repeat(32) })).toThrow(
       AuthConfigError,
     )
+  })
+
+  it('password mode with a too-short secret refuses (length is the cause, not the URL)', () => {
+    const db = openDb(':memory:')
+    const tooShort = 'x'.repeat(MIN_BETTER_AUTH_SECRET_LENGTH - 1)
+    let thrown: unknown
+    try {
+      authFromEnv(db, { ...PASSWORD_ENV, BETTER_AUTH_SECRET: tooShort })
+    } catch (err) {
+      thrown = err
+    }
+    expect(thrown).toBeInstanceOf(AuthConfigError)
+    // Message names the requirement + actual length, and never leaks the secret value.
+    expect((thrown as Error).message).toContain(String(MIN_BETTER_AUTH_SECRET_LENGTH))
+    expect((thrown as Error).message).not.toContain(tooShort)
+  })
+
+  it('password mode with an exactly-32-char secret passes the length gate', () => {
+    const db = openDb(':memory:')
+    // PASSWORD_ENV has a valid URL; a 32-char secret must NOT trip the length check.
+    expect(() =>
+      authFromEnv(db, { ...PASSWORD_ENV, BETTER_AUTH_SECRET: 'x'.repeat(MIN_BETTER_AUTH_SECRET_LENGTH) }),
+    ).not.toThrow()
   })
 
   it('sso mode without provider endpoints refuses', () => {
