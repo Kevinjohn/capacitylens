@@ -2,6 +2,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
+import { useCanEdit } from '../../auth/permissionContext'
 import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DragMode } from '../../lib/gestureMath'
 import { ensureBarColors } from '@capacitylens/shared/lib/color'
@@ -80,8 +81,14 @@ export const AllocationBar = memo(function AllocationBar({
   indexAtClientX: (clientX: number) => number
   // Takes the allocation id so the prop is a STABLE reference (the lane passes the
   // same callback for every bar) — which is what lets React.memo skip re-renders.
-  onEdit: (id: ID) => void
+  // ABSENT for a Viewer (P1.12): the bar then renders display-only (no edit modal). The drag/resize
+  // gating keys off `useCanEdit()` directly (below) so the hooks order stays stable across roles.
+  onEdit?: (id: ID) => void
 }) {
+  // Viewer read-only (P1.12): a viewer bar is display-only — no drag/resize wiring, no resize grips,
+  // no edit modal, no keyboard move. The popover (a read) still works. null/owner/admin/editor (incl.
+  // OFF/local) → fully interactive, byte-identical to today. The server 403 backstops a write anyway.
+  const canEdit = useCanEdit()
   const updateAllocation = useStore((s) => s.updateAllocation)
   const setNotice = useStore((s) => s.setNotice)
   const setDraggingAllocation = useStore((s) => s.setDraggingAllocation)
@@ -189,7 +196,7 @@ export const AllocationBar = memo(function AllocationBar({
     onClick: () => {
       stopScrollWatch()
       setDraggingAllocation(null)
-      onEdit(bar.allocation.id)
+      onEdit?.(bar.allocation.id)
     },
     onCancel: () => {
       // Gesture cancelled (e.g. the browser stole the pointer to scroll) — abort cleanly.
@@ -379,34 +386,49 @@ export const AllocationBar = memo(function AllocationBar({
         data-testid="allocation-bar"
         data-alloc-id={bar.allocation.id}
         data-status={bar.allocation.status}
-        role="button"
-        tabIndex={0}
-        aria-label={`${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`}
-        onPointerDown={(e) => {
-          hidePopover()
-          // Only snapshot lanes + watch scroll once the gesture is actually armed.
-          // An ignored pointerdown (non-left button / re-entrant) has no
-          // onCommit/onCancel/onClick to stop the scroll watcher, so starting it
-          // here would leak the document scroll listener until unmount.
-          if (!onPointerDown(e)) return
-          lanesRef.current = snapshotLanes()
-          startScrollWatch()
-        }}
+        // Viewer (P1.12): a read-only bar is NOT an edit button — role="img" + a description-only
+        // aria-label, no tab stop, no edit/move keys, no drag pointerdown. It still shows its hover/
+        // focus popover (a read). An editor keeps the full interactive button semantics below.
+        role={canEdit ? 'button' : 'img'}
+        tabIndex={canEdit ? 0 : undefined}
+        aria-label={
+          canEdit
+            ? `${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}. Enter to edit; arrow keys to move, Shift+arrow to resize the end, Alt+arrow to resize the start; drag to another row to reassign.`
+            : `${labelText}, ${hideHours ? '' : `${hoursLabel(bar.allocation.hoursPerDay)}h per day, `}${bar.allocation.status}, ${bar.allocation.startDate} to ${bar.allocation.endDate}.`
+        }
+        onPointerDown={
+          canEdit
+            ? (e) => {
+                hidePopover()
+                // Only snapshot lanes + watch scroll once the gesture is actually armed.
+                // An ignored pointerdown (non-left button / re-entrant) has no
+                // onCommit/onCancel/onClick to stop the scroll watcher, so starting it
+                // here would leak the document scroll listener until unmount.
+                if (!onPointerDown(e)) return
+                lanesRef.current = snapshotLanes()
+                startScrollWatch()
+              }
+            : undefined
+        }
         onMouseEnter={showPopover}
         onMouseLeave={hidePopover}
         onFocus={showPopover}
         onBlur={hidePopover}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault()
-            onEdit(bar.allocation.id)
-          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-            e.preventDefault()
-            // Alt = resize the start edge, Shift = resize the end edge, neither = move.
-            const mode = e.altKey ? 'resize-start' : e.shiftKey ? 'resize-end' : 'move'
-            nudge(mode, e.key === 'ArrowRight' ? 1 : -1)
-          }
-        }}
+        onKeyDown={
+          canEdit
+            ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onEdit?.(bar.allocation.id)
+                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                  e.preventDefault()
+                  // Alt = resize the start edge, Shift = resize the end edge, neither = move.
+                  const mode = e.altKey ? 'resize-start' : e.shiftKey ? 'resize-end' : 'move'
+                  nudge(mode, e.key === 'ArrowRight' ? 1 : -1)
+                }
+              }
+            : undefined
+        }
         // `scheduler-bar` is the semantic hook the time-off draw-mode CSS recedes (index.css);
         // it styles by this class, NOT by `data-testid` (which stays test-only selection).
         className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg ring-black/10' : ''}`}
@@ -422,13 +444,18 @@ export const AllocationBar = memo(function AllocationBar({
           border: tentative ? `1px dashed ${ink}` : undefined,
           transform: translateY ? `translateY(${translateY}px)` : undefined,
           zIndex: dragging ? 50 : undefined,
-          cursor: dragging ? 'grabbing' : 'grab',
-          touchAction: 'none', // bar drag/resize should win over the browser's touch-scroll
+          // Viewer (P1.12): a display-only bar shows the default cursor (nothing to grab) and lets
+          // touch-scroll through (no drag to win over it).
+          cursor: !canEdit ? 'default' : dragging ? 'grabbing' : 'grab',
+          touchAction: canEdit ? 'none' : undefined, // editor: bar drag/resize should win over touch-scroll
         }}
       >
+        {/* Resize grips: editor-only (P1.12) — a viewer bar has no resize affordance. */}
+        {canEdit && (
         <span data-handle="start" data-testid="resize-start" className={`left-0 ${gripClass}`}>
           {gripLine}
         </span>
+        )}
         {tentative && (
           <span
             aria-hidden
@@ -442,9 +469,11 @@ export const AllocationBar = memo(function AllocationBar({
           {hideHours ? '' : ` · ${hoursLabel(bar.allocation.hoursPerDay)}h`}
           {bar.allocation.note ? ' •' : ''}
         </span>
+        {canEdit && (
         <span data-handle="end" data-testid="resize-end" className={`right-0 ${gripClass}`}>
           {gripLine}
         </span>
+        )}
       </div>
 
       {pop &&

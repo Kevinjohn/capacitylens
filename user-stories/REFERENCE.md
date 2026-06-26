@@ -316,6 +316,30 @@ role/last-owner rules), `DELETE /api/accounts/:accountId/members/:userId` (204; 
 `src/components/settings/MembersSection.tsx`; story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
+**Viewer read-only mode (server + auth-on).** On an auth-on, server-backed deploy a member's account
+**role** (`owner` | `admin` | `editor` | `viewer`) drives the UI. `GET /api/accounts` now returns
+`{ id, name, role }` per account (the caller's role for it; in **OFF mode** every entry's role is the
+trusted-local sentinel `'owner'`, keeping OFF fully editable). When the active account's role resolves
+to **viewer**, the whole app goes **read-only**:
+- **No create/edit/delete affordances** — list pages show no **Add X** button and no row **Edit** /
+  **Delete** buttons (`EditButton`/`DeleteButton` render nothing), and the "Add your first X" empty-state
+  create CTA is hidden (navigation CTAs like *Clear filters* / *Go to Resources* stay).
+- **The scheduler is display-only** — no per-row **+**, no draw-to-create gesture (a click/drag on a
+  lane creates nothing) and no hover **+** hint; allocation bars have **no resize grips**, no
+  drag/resize, and don't open the edit modal (a viewer bar is `role="img"`, not a `button`).
+- **The toolbar hides the Draw-mode toggle and Undo/Redo** (nothing to draw/undo); navigation +
+  filters (reads) stay.
+- A subtle **"View only" badge** (`data-testid="view-only"`) sits in the sidebar footer beside the
+  company name.
+The **server 403** (the write tier is editor+; a viewer's write is rejected) is the AUTHORITATIVE
+backstop — the client gating is UX + defense-in-depth. As a second local guard, the store no-ops a
+viewer's `add*`/`update*`/`delete*`/`importData` and surfaces a *"Read-only — you don't have edit
+access."* notice, so an ungated path or an optimistic write can't desync local state. **In auth off
+(the default everywhere) or local mode the role is `null` → fully editable, byte-identical to today.**
+The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
+`src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
+spec `e2e/viewer.auth.spec.ts`.
+
 **Demo sign-in (cosmetic; not real auth).** In the default (auth-off) deploy, a Google-style
 *"Choose an account"* screen (heading `Choose an account`; the **Jordan Avery** account row,
 `data-testid="fake-sign-in"`; a "Use another account" row) is shown **before** the company
@@ -372,6 +396,8 @@ Mouse hover sets the active option; mouse click selects.
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
 `clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
+`view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
+deploy; absent in the default OFF/local deploy and for any non-viewer role),
 `build-stamp` (Settings footer; only rendered when the build sets
 `VITE_CAPACITYLENS_BUILD_SHA`), `send-feedback` (Settings footer mailto; only when the build sets
 `VITE_CAPACITYLENS_FEEDBACK_MAILTO`). A lane carries `data-resource-id="<id>"`; a bar carries

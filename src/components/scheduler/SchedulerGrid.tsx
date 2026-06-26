@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { hasActiveFilters, useStore } from '../../store/useStore'
+import { useCanEdit } from '../../auth/permissionContext'
 import { useScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
@@ -49,6 +50,12 @@ type ModalState =
 export function SchedulerGrid() {
   const navigate = useNavigate()
   const data = useScopedData()
+  // Viewer read-only (P1.12): when the active account's role is a viewer, the grid is display-only —
+  // no row "+" create, no lane draw-to-create, no bar edit/drag/resize (the bar gating lives in
+  // AllocationBar; the draw/create gating is the conditional onDraw/onEdit + the hidden "+" below).
+  // null/owner/admin/editor (incl. OFF/local) → fully editable, byte-identical to today. The server
+  // 403 backstops a write regardless; this is the UX read-only surface.
+  const canEdit = useCanEdit()
   const ui = useStore((s) => s.ui)
   // Utilisation display toggles (Settings → Utilisation). Each gates one of the three
   // utilisation figures: total (header), discipline (group header), personal (per row).
@@ -529,6 +536,9 @@ export function SchedulerGrid() {
               border is drawn: the row's border-b and the panel's border-r close the box
               off, so there's no doubled hairline against those dividers. */}
           <div className="flex shrink-0 flex-col self-stretch overflow-hidden border-s border-line text-center leading-none">
+            {/* Viewer (P1.12): no per-row create affordance. Hidden, not disabled — a viewer schedule
+                is display-only. The utilisation % below still renders (a read, not an edit). */}
+            {canEdit && (
             <button
               type="button"
               onClick={() => {
@@ -544,6 +554,7 @@ export function SchedulerGrid() {
             >
               <Icon name="plus" size={15} />
             </button>
+            )}
             {utilizationPrefs.showPersonal && isCapacityTracked(resource) && (
             <span
               data-testid="utilization"
@@ -577,8 +588,11 @@ export function SchedulerGrid() {
           bars={bars}
           placeholder={resource.kind === 'placeholder'}
           weekStartsOn={calendarWeekStartsOn}
-          onEdit={handleEdit}
-          onDraw={handleDraw}
+          // Viewer (P1.12): pass NO edit/draw callbacks — the lane then bails its draw gesture and
+          // drops the hover "+" hint (display-only). Editable (null/owner/admin/editor, incl.
+          // OFF/local) gets the stable memoised callbacks, byte-identical to today.
+          onEdit={canEdit ? handleEdit : undefined}
+          onDraw={canEdit ? handleDraw : undefined}
         />
       </div>
     )

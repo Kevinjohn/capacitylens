@@ -75,10 +75,11 @@ describe('listAccounts', () => {
     upsertMember(db, { accountId: 'acc-other', userId: 'user-2', role: 'admin', status: 'active', createdAt: TS })
 
     const out = listAccounts(db, session('user-1'))
-    // Exactly the two the login is a member of, sorted by name (Alpha before Zulu), id+name correct.
+    // Exactly the two the login is a member of, sorted by name (Alpha before Zulu); id+name+role
+    // correct — the caller's per-account role (owner of acc-a, viewer of acc-z) rides on each summary.
     expect(out).toEqual([
-      { id: 'acc-a', name: 'Alpha' },
-      { id: 'acc-z', name: 'Zulu' },
+      { id: 'acc-a', name: 'Alpha', role: 'owner' },
+      { id: 'acc-z', name: 'Zulu', role: 'viewer' },
     ])
   })
 
@@ -100,7 +101,7 @@ describe('listAccounts', () => {
     ).run('acc-invited', 'user-1', 'editor', 'invited', TS)
 
     // listAccounts lists ONLY the active one — the invited account is filtered out.
-    expect(listAccounts(db, session('user-1'))).toEqual([{ id: 'acc-active', name: 'Active Co' }])
+    expect(listAccounts(db, session('user-1'))).toEqual([{ id: 'acc-active', name: 'Active Co', role: 'editor' }])
     // resolveRole grants the active membership but NOT the non-active one.
     expect(resolveRole(db, session('user-1'), 'acc-active')).toBe('editor')
     expect(resolveRole(db, session('user-1'), 'acc-invited')).toBeNull()
@@ -114,6 +115,6 @@ describe('listAccounts', () => {
     upsertMember(db, { accountId: 'acc-gone', userId: 'user-1', role: 'owner', status: 'active', createdAt: TS })
 
     expect(() => listAccounts(db, session('user-1'))).not.toThrow()
-    expect(listAccounts(db, session('user-1'))).toEqual([{ id: 'acc-real', name: 'Real Co' }])
+    expect(listAccounts(db, session('user-1'))).toEqual([{ id: 'acc-real', name: 'Real Co', role: 'admin' }])
   })
 })

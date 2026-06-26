@@ -40,6 +40,7 @@ import {
   type UtilizationPrefs,
 } from '../lib/displayPrefs'
 import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
+import type { Role } from '@capacitylens/shared/domain/access'
 import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@capacitylens/shared/types/entities'
 import type {
@@ -215,6 +216,14 @@ export interface StoreState {
    *  the intro shows once on first contact (after a company is chosen), then stays dismissed.
    *  Frequency is once-per-device by design — see NEEDS-INPUT.md. See `src/components/IntroPage.tsx`. */
   introSeen: boolean
+  /** The caller's resolved {@link Role} for the ACTIVE account, or null. Set by PermissionProvider
+   *  (P1.12) once it resolves the role from `GET /api/accounts`; null in OFF/local/not-fetched.
+   *  Transient (never persisted, never on the undo stack). It powers ONLY the defense-in-depth
+   *  mutation guard below (assertCanWrite): a scoped mutation NO-OPS when this is exactly 'viewer',
+   *  so an ungated affordance or an optimistic write that the server would 403 can't desync local
+   *  state. The server 403 (P1.5) is the TRUE security backstop — this is UX/defense-in-depth, NOT
+   *  the access boundary, which is why ANY non-'viewer' value (incl. null = OFF/local) stays editable. */
+  activeRole: Role | null
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -249,6 +258,10 @@ export interface StoreState {
   setFakeSignedIn: (value: boolean) => void
   /** Mark the post-login intro page as seen on this device: persist and update state. */
   setIntroSeen: (value: boolean) => void
+  /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it
+   *  resolves/changes the role (incl. back to null on OFF/local/account-switch). Plain transient
+   *  state: never persisted, never on the undo stack. Drives ONLY the defense-in-depth write guard. */
+  setActiveRole: (role: Role | null) => void
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
    *  clear the device-global flag so the demo sign-in shows again. Cosmetic only — never
    *  touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
@@ -367,6 +380,19 @@ export const useStore = create<StoreState>()((set, get) => {
     return id
   }
 
+  // Defense-in-depth viewer guard (P1.12). It is INERT unless the active role is EXACTLY 'viewer':
+  // every other value — null (OFF/local/not-fetched), 'owner', 'admin', 'editor' — permits, so the
+  // default deploy is byte-identical to today (fully editable). When the role IS 'viewer', a scoped
+  // mutation NO-OPS (the caller returns early) and surfaces a notice, so an ungated affordance or an
+  // optimistic local write the server would 403 can't desync local state. This is UX/defense-in-depth,
+  // NOT the security boundary — the server 403 (P1.5) is the true backstop; we never throw here (a
+  // throw would read as corruption and could crash a drag handler), we just refuse + inform.
+  const blockedByViewer = (): boolean => {
+    if (get().activeRole !== 'viewer') return false
+    get().setNotice("Read-only — you don't have edit access.", 'error')
+    return true
+  }
+
   // Tenancy + integrity rules now live in src/domain/mutations.ts (pure, shared
   // with a future server). findOwned is wrapped here to inject the active account
   // so the call sites stay terse; assertAllocation keeps its legacy name locally.
@@ -409,6 +435,7 @@ export const useStore = create<StoreState>()((set, get) => {
     snapToWeekStart: readStoredSnapToWeekStart(),
     fakeSignedIn: readStoredFakeSignedIn(),
     introSeen: readStoredIntroSeen(),
+    activeRole: null,
 
     addAccount: (input) => {
       const ts = stamp()
@@ -491,6 +518,9 @@ export const useStore = create<StoreState>()((set, get) => {
     // let an edit in one account silently rewrite another's row.
     importData: (incoming) => {
       const accountId = requireAccount()
+      // Viewer no-op (P1.12 defense-in-depth): a read-only user can't replace the account slice.
+      // Return a zero-effect summary (nothing imported/skipped) so the caller reports honestly.
+      if (blockedByViewer()) return { imported: 0, skipped: 0 }
       const result = remapAndValidateImport(get().data, accountId, incoming, touch())
       // Refuse a zero-record import rather than wiping the account's existing slice.
       // Replacing a company's data with nothing is never the intent (delete is the
@@ -549,6 +579,9 @@ export const useStore = create<StoreState>()((set, get) => {
       writeStoredIntroSeen(value)
       set({ introSeen: value })
     },
+    // Plain set (NOT mutate): transient access state, never persisted, never on the undo/redo stack,
+    // never in AppData/export. Drives ONLY the inert-unless-viewer write guard above.
+    setActiveRole: (role) => set({ activeRole: role }),
     // Reuse setActiveAccount(null) to drop the tenant and reset its view/undo state, then ALSO
     // clear previousAccountId (so re-signing-in is a fresh pick, not a one-click "← Back to {company}")
     // and the device-global flag. Cosmetic demo only — the real auth seam (src/auth/) is untouched.
@@ -573,30 +606,40 @@ export const useStore = create<StoreState>()((set, get) => {
 
     addDiscipline: (input) => {
       const e: Discipline = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): build the entity so the return type holds, but skip
+      // the persist — nothing lands in state. Server 403 is the real backstop; see blockedByViewer.
+      if (blockedByViewer()) return e
       mutate((d) => ({ ...d, disciplines: [...d.disciplines, e] }))
       return e
     },
     updateDiscipline: (id, patch) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'disciplines', id)) return
       mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, patch) }))
     },
     deleteDiscipline: (id) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'disciplines', id)) return
       mutate((d) => deleteDisciplineCascade(d, id))
     },
 
     addResource: (input) => {
       const accountId = requireAccount()
+      // Viewer no-op (P1.12 defense-in-depth): gate BEFORE the integrity asserts so a read-only user's
+      // optimistic write neither validates nor persists. Build the (clamped) entity so the return type
+      // holds; it never lands in state. Server 403 is the real backstop; see blockedByViewer.
+      const e: Resource = { ...input, workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
+      if (blockedByViewer()) return e
       assertScopedRefs(get().data, accountId, 'resources', input)
       assertWorkingDays(input.workingDays)
       // Clamp working hours/day (the store is the last line; the form caps it, but a non-form
       // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a
       // resource works a positive day) — distinct from an allocation, where 0 is legal.
-      const e: Resource = { ...input, workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, resources: [...d.resources, e] }))
       return e
     },
     updateResource: (id, patch) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'resources', id)
       if (!existing) return
       assertScopedRefs(get().data, existing.accountId, 'resources', patch)
@@ -613,6 +656,7 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, resources: updateById(d.resources, id, safePatch) }))
     },
     deleteResource: (id) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'resources', id)) return
       mutate((d) => deleteResourceCascade(d, id))
     },
@@ -627,10 +671,13 @@ export const useStore = create<StoreState>()((set, get) => {
       const safe: Record<string, unknown> = { ...input }
       delete safe.builtin
       const e: Client = { ...(safe as Draft<Client>), id: newId(), accountId: requireAccount(), ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): build the entity for the return type, skip the persist.
+      if (blockedByViewer()) return e
       mutate((d) => ({ ...d, clients: [...d.clients, e] }))
       return e
     },
     updateClient: (id, patch) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'clients', id)
       if (!existing) return
       // The built-in Internal client is protected: it can't be renamed (or recoloured) — it's a
@@ -645,6 +692,7 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, clients: updateById(d.clients, id, safePatch as Patch<Client>) }))
     },
     deleteClient: (id) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'clients', id)
       if (!existing) return
       // The built-in Internal client cannot be deleted — every account must keep exactly one.
@@ -654,48 +702,59 @@ export const useStore = create<StoreState>()((set, get) => {
 
     addProject: (input) => {
       const accountId = requireAccount()
-      assertScopedRefs(get().data, accountId, 'projects', input)
       const e: Project = { ...input, id: newId(), accountId, ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
+      if (blockedByViewer()) return e
+      assertScopedRefs(get().data, accountId, 'projects', input)
       mutate((d) => ({ ...d, projects: [...d.projects, e] }))
       return e
     },
     updateProject: (id, patch) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'projects', id)
       if (!existing) return
       assertScopedRefs(get().data, existing.accountId, 'projects', patch)
       mutate((d) => ({ ...d, projects: updateById(d.projects, id, patch) }))
     },
     deleteProject: (id) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'projects', id)) return
       mutate((d) => deleteProjectCascade(d, id))
     },
 
     addPhase: (input) => {
       const accountId = requireAccount()
-      assertScopedRefs(get().data, accountId, 'phases', input)
       const e: Phase = { ...input, id: newId(), accountId, ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
+      if (blockedByViewer()) return e
+      assertScopedRefs(get().data, accountId, 'phases', input)
       mutate((d) => ({ ...d, phases: [...d.phases, e] }))
       return e
     },
     updatePhase: (id, patch) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'phases', id)
       if (!existing) return
       assertScopedRefs(get().data, existing.accountId, 'phases', patch)
       mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) }))
     },
     deletePhase: (id) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'phases', id)) return
       mutate((d) => deletePhaseCascade(d, id))
     },
 
     addActivity: (input) => {
       const accountId = requireAccount()
-      assertScopedRefs(get().data, accountId, 'activities', input)
       const e: Activity = { ...input, id: newId(), accountId, ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
+      if (blockedByViewer()) return e
+      assertScopedRefs(get().data, accountId, 'activities', input)
       mutate((d) => ({ ...d, activities: [...d.activities, e] }))
       return e
     },
     updateActivity: (id, patch) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'activities', id)
       if (!existing) return
       // Validate the MERGED row (like updateAllocation), not the raw patch: a partial patch
@@ -706,19 +765,23 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, activities: updateById(d.activities, id, patch) }))
     },
     deleteActivity: (id) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'activities', id)) return
       mutate((d) => deleteActivityCascade(d, id))
     },
 
     addAllocation: (input) => {
       const accountId = requireAccount()
+      const e: Allocation = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay), id: newId(), accountId, ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
+      if (blockedByViewer()) return e
       assertAllocation(get().data, accountId, input.resourceId, input.activityId, input.hoursPerDay)
       assertDateRange(input.startDate, input.endDate)
-      const e: Allocation = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay), id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, allocations: [...d.allocations, e] }))
       return e
     },
     updateAllocation: (id, patch) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'allocations', id)
       if (!existing) return // stale id (e.g. drag committed after an undo) → no-op
       // Always re-validate the EFFECTIVE MERGED row (patch ?? existing), not just when one of the
@@ -743,19 +806,23 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, allocations: updateById(d.allocations, id, safePatch) }))
     },
     deleteAllocation: (id) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'allocations', id)) return
       mutate((d) => ({ ...d, allocations: d.allocations.filter((a) => a.id !== id) }))
     },
 
     addTimeOff: (input) => {
       const accountId = requireAccount()
+      const e: TimeOff = { ...input, id: newId(), accountId, ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
+      if (blockedByViewer()) return e
       assertResourceExists(get().data, accountId, input.resourceId)
       assertDateRange(input.startDate, input.endDate)
-      const e: TimeOff = { ...input, id: newId(), accountId, ...stamp() }
       mutate((d) => ({ ...d, timeOff: [...d.timeOff, e] }))
       return e
     },
     updateTimeOff: (id, patch) => {
+      if (blockedByViewer()) return
       const existing = findOwned(get().data, 'timeOff', id)
       if (!existing) return
       // Always re-validate the EFFECTIVE MERGED resource (patch ?? existing), not just when the patch
@@ -769,6 +836,7 @@ export const useStore = create<StoreState>()((set, get) => {
       mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }))
     },
     deleteTimeOff: (id) => {
+      if (blockedByViewer()) return
       if (!findOwned(get().data, 'timeOff', id)) return
       mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }))
     },

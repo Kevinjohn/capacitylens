@@ -479,6 +479,24 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   the members read renders nothing (so a viewer/editor never sees it); owner-only affordances are
   hidden for an admin and the sole owner is protected. OFF mode hides the UI and the endpoints return
   empty lists / inert no-ops.
+- **Client permission context + Viewer read-only mode (P1.12).** `AccountSummary` gains `role` and
+  `GET /api/accounts` carries it (auth-on = the caller's per-account role; **OFF = `'owner'`**, the
+  trusted-local full-access sentinel — symmetric wire shape + OFF stays fully editable). The pure
+  `can` is single-sourced into the client via `useRole()`/`useCanEdit()` (`src/auth/permissionContext.ts`):
+  **`role === null` → editable** is the load-bearing OFF/local/not-fetched/no-provider regression guard
+  (the default deploy is byte-identical to today); otherwise `useCanEdit = can(role, 'write')` (false
+  only for `viewer`). `PermissionProvider` (mounted in AppShell around the app body, after the tenant/
+  intro gates) resolves the active account's role: OFF/local fetch NOTHING (role null); auth-on+server
+  fetches `GET /api/accounts` once per active account, FAIL-OPEN to null on failure/absence (the server
+  403 backstops; failing closed could lock out a legit editor on a blip), resets on tenant switch so a
+  prior role can't leak. A Viewer's UI is read-only: no create/edit/delete (gated once each at
+  ListPage/EmptyState/EditButton/DeleteButton), no scheduler draw/drag/resize/per-row-"+" (SchedulerGrid/
+  ResourceLane/AllocationBar), no Draw-mode toggle or Undo/Redo (SchedulerToolbar), and a subtle
+  **"View only"** badge (`view-only`) in the sidebar footer. **The server 403 (write tier = editor+) is
+  the AUTHORITATIVE boundary; client gating is UX + defense-in-depth.** As a second local guard the
+  store no-ops a viewer's `add*`/`update*`/`delete*`/`importData` (inert UNLESS `activeRole === 'viewer'`
+  EXACTLY — null/owner/admin/editor all permit, so OFF/local = fully editable) and surfaces a read-only
+  notice; it NEVER throws (that would read as corruption). CommandPalette has no create actions → no gate.
 - **Time-off `note` is owner/admin-only, redacted SERVER-SIDE (P1.6).** `readSlice` takes a REQUIRED
   `{ includeTimeOffNote }` (no silent default — every caller decides); `false` STRIPS the `note` key
   from every time-off row before it leaves the server, so it's never serialized for an Editor/Viewer.

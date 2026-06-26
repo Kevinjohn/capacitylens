@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
+  Eye,
   Folder,
   PanelLeft,
   Pencil,
@@ -52,6 +53,8 @@ export type IconName =
   | 'sun'
   | 'sliders'
   | 'panel-left'
+  // Read-only "View only" badge (P1.12 — a Viewer's sidebar footer).
+  | 'eye'
 
 const ICONS: Record<IconName, LucideIcon> = {
   close: X,
@@ -73,6 +76,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   sun: Sun,
   sliders: SlidersHorizontal,
   'panel-left': PanelLeft,
+  eye: Eye,
 }
 
 export function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {

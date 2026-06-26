@@ -57,6 +57,9 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void 
   // test's toast would leak into the next. Clear it here so every spec starts notice-free and
   // tests that assert on `notice` are order-independent (no per-test baseline needed).
   useStore.getState().setNotice(null)
+  // Likewise reset the transient access role (P1.12) so a prior viewer-guard test can't leave the
+  // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
+  useStore.getState().setActiveRole(null)
 }
 
 /** Toggle the per-account "show placeholders" view pref in unit tests — mirrors the app's Settings

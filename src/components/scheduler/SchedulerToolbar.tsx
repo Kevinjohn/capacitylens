@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { hasActiveFilters, useStore } from '../../store/useStore'
+import { useCanEdit } from '../../auth/permissionContext'
 import { disciplinesEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
@@ -52,6 +53,10 @@ function ToolbarToggleGroup<T extends string | number>({
 }
 
 export function SchedulerToolbar() {
+  // Viewer read-only (P1.12): a viewer has nothing to draw / mutate / undo, so the draw-mode toggle
+  // and Undo/Redo are hidden. Navigation + filters (reads) stay. null/owner/admin/editor (incl.
+  // OFF/local) → all affordances shown, byte-identical to today.
+  const canEdit = useCanEdit()
   const zoom = useStore((s) => s.ui.zoom)
   const setZoom = useStore((s) => s.setZoom)
   const panDays = useStore((s) => s.panDays)
@@ -171,40 +176,46 @@ export function SchedulerToolbar() {
             title: `${w} week${w > 1 ? 's' : ''} visible`,
           }))}
         />
-        <ToolbarToggleGroup
-          ariaLabel="Draw mode"
-          value={drawMode}
-          onChange={setDrawMode}
-          options={[
-            { value: 'work', label: 'Work', title: 'Draw allocations' },
-            { value: 'timeoff', label: 'Time off', title: 'Draw time off' },
-          ]}
-        />
-        {/* Undo/redo — the visible counterpart to the global ⌘Z / ⌘⇧Z shortcuts. Always shown
-            (disabled when the stack is empty) so the affordance is discoverable; the icon stays
-            the lucide undo/redo glyph the IconName union already carries. */}
-        <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
-          <Button
-            variant="ghost"
-            onClick={undo}
-            disabled={!canUndo}
-            ariaLabel="Undo"
-            title="Undo (⌘Z)"
-            testId="undo-button"
-          >
-            <Icon name="undo" />
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={redo}
-            disabled={!canRedo}
-            ariaLabel="Redo"
-            title="Redo (⌘⇧Z)"
-            testId="redo-button"
-          >
-            <Icon name="redo" />
-          </Button>
-        </div>
+        {/* Draw-mode toggle + Undo/Redo: editor-only (P1.12). A viewer can't draw or mutate, so the
+            draw toggle and the undo/redo affordances are hidden (nothing to switch / undo). */}
+        {canEdit && (
+          <>
+            <ToolbarToggleGroup
+              ariaLabel="Draw mode"
+              value={drawMode}
+              onChange={setDrawMode}
+              options={[
+                { value: 'work', label: 'Work', title: 'Draw allocations' },
+                { value: 'timeoff', label: 'Time off', title: 'Draw time off' },
+              ]}
+            />
+            {/* Undo/redo — the visible counterpart to the global ⌘Z / ⌘⇧Z shortcuts. Always shown
+                (disabled when the stack is empty) so the affordance is discoverable; the icon stays
+                the lucide undo/redo glyph the IconName union already carries. */}
+            <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
+              <Button
+                variant="ghost"
+                onClick={undo}
+                disabled={!canUndo}
+                ariaLabel="Undo"
+                title="Undo (⌘Z)"
+                testId="undo-button"
+              >
+                <Icon name="undo" />
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={redo}
+                disabled={!canRedo}
+                ariaLabel="Redo"
+                title="Redo (⌘⇧Z)"
+                testId="redo-button"
+              >
+                <Icon name="redo" />
+              </Button>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-sm">

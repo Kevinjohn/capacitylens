@@ -46,7 +46,9 @@ const BarsLayer = memo(function BarsLayer({
   bars: BarLayout[]
   geom: ColumnGeometry
   indexAtClientX: (clientX: number) => number
-  onEdit: (allocationId: ID) => void
+  // Absent for a Viewer (P1.12): the bars then render display-only (AllocationBar attaches no
+  // drag/resize and opens no edit modal). Present for an editor — the stable memoised callback.
+  onEdit?: (allocationId: ID) => void
 }) {
   const inertInTimeOff = useStore((s) => s.ui.drawMode === 'timeoff')
   return (
@@ -91,8 +93,11 @@ export const ResourceLane = memo(function ResourceLane({
   bars: BarLayout[]
   placeholder?: boolean
   weekStartsOn: 0 | 1
-  onEdit: (allocationId: ID) => void
-  onDraw: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void
+  // Both ABSENT for a Viewer (P1.12): the lane then renders display-only — no draw-to-create gesture,
+  // no hover "+" hint, and its bars get no edit/drag/resize. Present for an editor (null/owner/admin/
+  // editor, incl. OFF/local) — the stable memoised callbacks, byte-identical to today.
+  onEdit?: (allocationId: ID) => void
+  onDraw?: (resourceId: ID, startDate: ISODate, endDate: ISODate) => void
 }) {
   const laneRef = useRef<HTMLDivElement>(null)
   const [draw, setDraw] = useState<{ a: number; b: number } | null>(null)
@@ -128,6 +133,9 @@ export const ResourceLane = memo(function ResourceLane({
   )
 
   const onPointerDown = (e: React.PointerEvent) => {
+    // Viewer (P1.12): no create callback → no draw gesture at all. Bail before any listener is bound
+    // so an empty-space press on a read-only lane does nothing (and never starts a ghost).
+    if (!onDraw) return
     if (e.button !== 0) return
     // Ignore a re-entrant pointerdown (a second finger / pen) while a draw is
     // already live — otherwise its document listeners would leak (overwriting
@@ -189,6 +197,7 @@ export const ResourceLane = memo(function ResourceLane({
       style={{ width: geom.totalWidth, height: rowHeight }}
       onPointerDown={onPointerDown}
       onPointerMove={(e) => {
+        if (!onDraw) return // Viewer (P1.12): no create → no hover "+" hint to track.
         if (e.pointerType !== 'mouse') return // touch/pen have no hover state
         const i = indexAt(e.clientX)
         setHoverDay((prev) => (prev === i ? prev : i))
@@ -276,7 +285,7 @@ export const ResourceLane = memo(function ResourceLane({
           light on purpose. Mouse-only, fine-zoom only (no room for it in 8px columns),
           hidden while a draw is live (the ghost is the affordance then). Painted
           before the bars so scheduled work covers it. */}
-      {hoverDay !== null && !draw && dayWidth >= DAY_COLUMN_MIN_WIDTH && (
+      {onDraw && hoverDay !== null && !draw && dayWidth >= DAY_COLUMN_MIN_WIDTH && (
         <div
           aria-hidden
           data-testid="day-add-hint"
