@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Dialog as DialogPrimitive } from 'radix-ui'
 import { useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
+import { m } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { Button as ShadButton } from '../ui/button'
 import { Icon, type IconName } from './Icon'
@@ -139,7 +140,7 @@ export function AddButton({
  *  (e.g. "Edit Acme") where rows need to disambiguate. Renders NOTHING for a Viewer (P1.12) — one
  *  gate here covers every list row's edit affordance; the server 403 is the backstop regardless. */
 export function EditButton({
-  label = 'Edit',
+  label = m.form_edit(),
   onClick,
   testId,
 }: {
@@ -160,7 +161,7 @@ export function EditButton({
  *  rows need to disambiguate (e.g. "Delete Studio North" on the company picker). Renders NOTHING
  *  for a Viewer (P1.12) — one gate here covers every list row's delete affordance. */
 export function DeleteButton({
-  label = 'Delete',
+  label = m.form_delete(),
   onClick,
   testId,
 }: {
@@ -246,6 +247,8 @@ export function Modal({
 
   const requestClose = () => {
     if (guardDirty && dirty) {
+      // NOTE: this is a setNotice toast string — deferred to P1.5.2 area 6 (toasts/errors),
+      // not swept here with the dialog/form chrome.
       setNotice('You have unsaved changes — use Cancel or Save to close this dialog.')
       return
     }
@@ -387,7 +390,7 @@ export function Modal({
 export function ConfirmDialog({
   title,
   message,
-  confirmLabel = 'Delete',
+  confirmLabel = m.form_delete(),
   onConfirm,
   onCancel,
 }: {
@@ -404,7 +407,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {m.form_cancel()}
           </Button>
           <Button variant="danger" onClick={onConfirm}>
             {confirmLabel}
@@ -435,7 +438,7 @@ export function ListPage({
     <div className="mx-auto max-w-3xl p-6">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold">{title}</h1>
-        {canEdit && onAdd && <AddButton label={addLabel ?? 'Add'} onClick={onAdd} />}
+        {canEdit && onAdd && <AddButton label={addLabel ?? m.form_add()} onClick={onAdd} />}
       </div>
       {children}
     </div>

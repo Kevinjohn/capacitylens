@@ -7,6 +7,7 @@ import { fuzzyFilter } from '../lib/fuzzy'
 import { resourceDisplayName } from '../lib/metadata'
 import { isValidISODate } from '@capacitylens/shared/lib/integrity'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 import {
   Command,
   CommandInput,
@@ -170,21 +171,21 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             <CommandInput
               ref={inputRef}
               autoFocus
-              aria-label="Search pages, people, projects…"
-              placeholder="Search pages, people, projects…"
+              aria-label={m.palette_search_aria()}
+              placeholder={m.palette_search_placeholder()}
               value={query}
               onValueChange={setQuery}
               data-testid="command-palette-input"
             />
-            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">esc</kbd>
+            <kbd className="hidden rounded border px-1.5 py-0.5 text-xs text-faint sm:block">{m.palette_esc()}</kbd>
           </div>
 
           {/* Results — cmdk uses its `label` prop (not aria-label) for the listbox's accessible name. */}
-          <CommandList ref={listRef} label="Command palette results">
+          <CommandList ref={listRef} label={m.palette_results_label()}>
             {/* No-results: manual conditional (deterministic with shouldFilter=false) rather than
                 cmdk's CommandEmpty, which keys off its internal filtered-count. */}
             {items.length === 0 && (
-              <div className="px-4 py-6 text-center text-sm text-faint">No results for "{query}"</div>
+              <div className="px-4 py-6 text-center text-sm text-faint">{m.palette_no_results({ query })}</div>
             )}
             {sections.map((section) => (
               <CommandGroup key={section.title} heading={section.title}>
@@ -260,8 +261,8 @@ function buildItems({
   // "Go to today" — always available in Actions
   actions.push({
     id: 'action-today',
-    label: 'Go to today',
-    section: 'Actions',
+    label: m.palette_action_today(),
+    section: m.palette_section_actions(),
     onSelect: () => {
       void navigate('/')
       goToToday()
@@ -273,8 +274,8 @@ function buildItems({
   if (isValidISODate(q)) {
     actions.push({
       id: `action-date-${q}`,
-      label: `Go to date ${q}`,
-      section: 'Actions',
+      label: m.palette_action_date({ date: q }),
+      section: m.palette_section_actions(),
       onSelect: () => {
         void navigate('/')
         goToDate(q)
@@ -290,19 +291,19 @@ function buildItems({
 
   // ── Pages ──────────────────────────────────────────────────────────────────
   const pages: PaletteItem[] = [
-    { id: 'page-schedule', label: 'Schedule', sublabel: '/', section: 'Pages', onSelect: () => { void navigate('/'); onClose() } },
-    { id: 'page-resources', label: 'Resources', sublabel: '/resources', section: 'Pages', onSelect: () => { void navigate('/resources'); onClose() } },
+    { id: 'page-schedule', label: m.palette_page_schedule(), sublabel: '/', section: m.palette_section_pages(), onSelect: () => { void navigate('/'); onClose() } },
+    { id: 'page-resources', label: m.palette_page_resources(), sublabel: '/resources', section: m.palette_section_pages(), onSelect: () => { void navigate('/resources'); onClose() } },
     // External / 3rd parties moved INTO the Resources tab (behind the per-account `externalEnabled`
     // setting), so there's no standalone External page entry here anymore.
     // Disciplines page entry only when the account uses disciplines (route is guarded too).
     ...(disciplinesEnabled
-      ? [{ id: 'page-disciplines', label: 'Disciplines', sublabel: '/disciplines', section: 'Pages', onSelect: () => { void navigate('/disciplines'); onClose() } } as PaletteItem]
+      ? [{ id: 'page-disciplines', label: m.palette_page_disciplines(), sublabel: '/disciplines', section: m.palette_section_pages(), onSelect: () => { void navigate('/disciplines'); onClose() } } as PaletteItem]
       : []),
-    { id: 'page-clients', label: 'Clients', sublabel: '/clients', section: 'Pages', onSelect: () => { void navigate('/clients'); onClose() } },
-    { id: 'page-projects', label: 'Projects', sublabel: '/projects', section: 'Pages', onSelect: () => { void navigate('/projects'); onClose() } },
-    { id: 'page-activities', label: 'Activities', sublabel: '/activities', section: 'Pages', onSelect: () => { void navigate('/activities'); onClose() } },
-    { id: 'page-timeoff', label: 'Time off', sublabel: '/timeoff', section: 'Pages', onSelect: () => { void navigate('/timeoff'); onClose() } },
-    { id: 'page-settings', label: 'Settings', sublabel: '/settings', section: 'Pages', onSelect: () => { void navigate('/settings'); onClose() } },
+    { id: 'page-clients', label: m.palette_page_clients(), sublabel: '/clients', section: m.palette_section_pages(), onSelect: () => { void navigate('/clients'); onClose() } },
+    { id: 'page-projects', label: m.palette_page_projects(), sublabel: '/projects', section: m.palette_section_pages(), onSelect: () => { void navigate('/projects'); onClose() } },
+    { id: 'page-activities', label: m.palette_page_activities(), sublabel: '/activities', section: m.palette_section_pages(), onSelect: () => { void navigate('/activities'); onClose() } },
+    { id: 'page-timeoff', label: m.palette_page_timeoff(), sublabel: '/timeoff', section: m.palette_section_pages(), onSelect: () => { void navigate('/timeoff'); onClose() } },
+    { id: 'page-settings', label: m.palette_page_settings(), sublabel: '/settings', section: m.palette_section_pages(), onSelect: () => { void navigate('/settings'); onClose() } },
   ]
 
   const filteredPages = q
@@ -321,9 +322,9 @@ function buildItems({
     // External / 3rd parties are jump targets too (they're schedule rows), but mark them so they
     // don't read as one of our own people in the list — mirrors the assignee dropdown's " (external)".
     // A placeholder reads as the literal "Placeholder" with its role as secondary text.
-    label: `${resourceDisplayName(r)}${isExternalResource(r) ? ' (external)' : ''}`,
+    label: `${resourceDisplayName(r)}${isExternalResource(r) ? m.palette_resource_external_suffix() : ''}`,
     sublabel: r.kind === 'placeholder' ? r.role : r.name ? r.role : undefined,
-    section: 'People',
+    section: m.palette_section_people(),
     onSelect: () => {
       void navigate('/')
       jumpToResource(r.id)
@@ -342,7 +343,7 @@ function buildItems({
       id: `proj-${p.id}`,
       label: p.name,
       sublabel: client?.name,
-      section: 'Projects',
+      section: m.palette_section_projects(),
       onSelect: () => {
         void navigate('/')
         setFilters({ ...emptyFilters(), projectId: p.id })
@@ -359,7 +360,7 @@ function buildItems({
   const clientItems: PaletteItem[] = data.clients.map((c) => ({
     id: `client-${c.id}`,
     label: c.name,
-    section: 'Clients',
+    section: m.palette_section_clients(),
     onSelect: () => {
       void navigate('/')
       setFilters({ ...emptyFilters(), clientId: c.id })
@@ -379,8 +380,8 @@ function buildItems({
       label: t.name,
       // Project activities show their project; project-less activities show their kind so the two
       // aren't indistinguishable blank-sublabel rows.
-      sublabel: t.kind === 'project' ? project?.name : t.kind === 'internal' ? 'Internal' : 'Repeatable',
-      section: 'Activities',
+      sublabel: t.kind === 'project' ? project?.name : t.kind === 'internal' ? m.palette_activity_internal() : m.palette_activity_repeatable(),
+      section: m.palette_section_activities(),
       onSelect: () => {
         void navigate('/activities')
         onClose()

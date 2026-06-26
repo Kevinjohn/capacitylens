@@ -5,6 +5,7 @@ import { serializeData } from '@capacitylens/shared/data/transfer'
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { downloadTextFile } from '../../lib/download'
 import { errorMessage } from '../../lib/errorMessage'
+import { m } from '@/i18n'
 import { Button, Modal, TextField } from '../common/ui'
 import type { ID } from '@capacitylens/shared/types/entities'
 
@@ -52,7 +53,7 @@ export function DeleteCompanyDialog({
 
   return (
     <Modal
-      title="Delete company?"
+      title={m.dialog_delete_company_title()}
       onClose={onCancel}
       // Confirmation-only: the type-to-confirm field is a gate, not savable data, so don't
       // let the unsaved-changes guard refuse Escape/backdrop once the user starts typing.
@@ -60,36 +61,35 @@ export function DeleteCompanyDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onCancel}>
-            Cancel
+            {m.form_cancel()}
           </Button>
           <Button variant="danger" disabled={!matches} onClick={onConfirm} describedById={hintId}>
-            Delete
+            {m.form_delete()}
           </Button>
         </>
       }
     >
       <p className="text-sm text-muted">
-        Delete <span className="font-medium text-ink">{account.name}</span> and all of its data
-        (resources, projects, allocations…)? This cannot be undone.
+        {m.dialog_delete_company_body_prefix()}<span className="font-medium text-ink">{account.name}</span>{m.dialog_delete_company_body_suffix()}
       </p>
       <div className="flex justify-start">
         <Button variant="ghost" onClick={exportFirst}>
-          Export first
+          {m.dialog_delete_company_export_first()}
         </Button>
       </div>
       {exportError && (
         <p role="alert" className="text-sm font-medium text-danger">
-          {exportError} Your data was not exported — do not delete until you have a backup.
+          {exportError}{m.dialog_delete_company_export_failed_suffix()}
         </p>
       )}
       <TextField
-        label={`Type “${account.name}” to confirm`}
+        label={m.dialog_delete_company_confirm_label({ name: account.name })}
         value={typed}
         onChange={setTyped}
         autoFocus
       />
       <p id={hintId} className="text-xs text-muted">
-        Type the company name exactly to enable Delete.
+        {m.dialog_delete_company_hint()}
       </p>
     </Modal>
   )

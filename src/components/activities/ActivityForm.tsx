@@ -4,13 +4,16 @@ import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
+import { m } from '@/i18n'
 import { Button, FieldError, Modal, RequiredLegend, SegmentedControl, SelectField, TextField, type Option } from '../common/ui'
 import type { Activity, ActivityKind } from '@capacitylens/shared/types/entities'
 
-const KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
-  { value: 'project', label: 'Project' },
-  { value: 'internal', label: 'Internal' },
-  { value: 'repeatable', label: 'Repeatable' },
+// Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
+// switch rather than freezing to the import-time locale — per the i18n key convention (DECISIONS).
+const kindOptions = (): { value: ActivityKind; label: string }[] => [
+  { value: 'project', label: m.form_activity_kind_project() },
+  { value: 'internal', label: m.form_activity_kind_internal() },
+  { value: 'repeatable', label: m.form_activity_kind_repeatable() },
 ]
 
 /** Add (no `activity`) or edit an activity. Pick a kind first: a `project` activity takes a project (and keeps
@@ -58,7 +61,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     // undefined). Surface the project requirement as a field error rather than relying on the
     // store throw, so the invalid control is marked.
     if (kind === 'project' && !projectId) {
-      fail('project', 'A project activity must be assigned to a project.')
+      fail('project', m.form_activity_err_project_required())
       return
     }
     const patch = {
@@ -80,26 +83,26 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
 
   return (
     <Modal
-      title={activity ? 'Edit activity' : 'Add activity'}
+      title={activity ? m.form_activity_edit_title() : m.form_activity_add_title()}
       onClose={onClose}
       onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
-      <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
+      <TextField label={m.form_activity_name_label()} value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
       <div className="mb-3">
-        <p className="mb-1.5 text-sm font-medium text-ink">Kind</p>
-        <SegmentedControl ariaLabel="Activity kind" value={kind} onChange={onKindChange} options={KIND_OPTIONS} />
+        <p className="mb-1.5 text-sm font-medium text-ink">{m.form_activity_kind_label()}</p>
+        <SegmentedControl ariaLabel={m.form_activity_kind_aria()} value={kind} onChange={onKindChange} options={kindOptions()} />
       </div>
       {kind === 'project' && (
-        <SelectField label="Project" value={projectId} onChange={onProjectChange} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'project'} describedById={errorId} />
+        <SelectField label={m.form_activity_project_label()} value={projectId} onChange={onProjectChange} options={projectOptions} placeholder={m.form_activity_select_project_placeholder()} required invalid={errorField === 'project'} describedById={errorId} />
       )}
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>

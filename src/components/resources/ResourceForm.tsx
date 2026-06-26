@@ -5,6 +5,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateText, validateWorkingDays } from '../../lib/validation'
+import { m } from '@/i18n'
 import {
   Button,
   FieldError,
@@ -67,17 +68,17 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
     const cleanName = validateText(name, fail, {
       field: 'name',
       required: !isPlaceholder,
-      requiredMessage: 'Name is required for a person.',
+      requiredMessage: m.form_resource_err_name_required(),
     })
     if (cleanName === null) return
     const cleanRole = validateText(role, fail, { field: 'role', required: false })
     if (cleanRole === null) return
     if (isPlaceholder && !projectId) {
-      fail('projectId', 'A placeholder must be bound to a project.')
+      fail('projectId', m.form_resource_err_placeholder_project())
       return
     }
     if (!(hours > 0)) {
-      fail('hours', 'Working hours per day must be greater than 0.')
+      fail('hours', m.form_resource_err_hours_gt_zero())
       return
     }
     // A resource with zero working days has zero capacity every day (reads as
@@ -110,37 +111,45 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
 
   return (
     <Modal
-      title={`${resource ? 'Edit' : 'Add'} ${isPlaceholder ? 'placeholder' : 'resource'}`}
+      title={
+        resource
+          ? isPlaceholder
+            ? m.form_resource_edit_placeholder_title()
+            : m.form_resource_edit_resource_title()
+          : isPlaceholder
+            ? m.form_resource_add_placeholder_title()
+            : m.form_resource_add_resource_title()
+      }
       onClose={onClose}
       onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
-      <TextField label={isPlaceholder ? 'Name (optional)' : 'Name'} value={name} onChange={setName} required={!isPlaceholder} invalid={errorField === 'name'} describedById={errorId} />
-      <TextField label="Role" value={role} onChange={setRole} placeholder="e.g. Senior Designer" invalid={errorField === 'role'} describedById={errorId} />
+      <TextField label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()} value={name} onChange={setName} required={!isPlaceholder} invalid={errorField === 'name'} describedById={errorId} />
+      <TextField label={m.form_resource_role_label()} value={role} onChange={setRole} placeholder={m.form_resource_role_placeholder()} invalid={errorField === 'role'} describedById={errorId} />
       {disciplinesEnabled && (
-        <SelectField label="Discipline" value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder="— None —" />
+        <SelectField label={m.form_resource_discipline_label()} value={disciplineId} onChange={setDisciplineId} options={disciplineOptions} placeholder={m.form_resource_discipline_none_placeholder()} />
       )}
       {!isPlaceholder && (
         <SelectField
-          label="Employment"
+          label={m.form_resource_employment_label()}
           value={employmentType}
           onChange={(v) => setEmploymentType(v as EmploymentType)}
           options={EMPLOYMENT_TYPE_OPTIONS}
         />
       )}
       {isPlaceholder && (
-        <SelectField label="Bound project" value={projectId} onChange={setProjectId} options={projectOptions} placeholder="— Select project —" required invalid={errorField === 'projectId'} describedById={errorId} />
+        <SelectField label={m.form_resource_bound_project_label()} value={projectId} onChange={setProjectId} options={projectOptions} placeholder={m.form_resource_select_project_placeholder()} required invalid={errorField === 'projectId'} describedById={errorId} />
       )}
-      <NumberField label="Working hours / day" value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
-      <WeekdayPicker label="Working days" value={workingDays} onChange={setWorkingDays} />
+      <NumberField label={m.form_resource_working_hours_label()} value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
+      <WeekdayPicker label={m.form_resource_working_days_label()} value={workingDays} onChange={setWorkingDays} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

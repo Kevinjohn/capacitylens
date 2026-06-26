@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
+import { m } from '@/i18n'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { Client } from '@capacitylens/shared/types/entities'
@@ -34,21 +35,21 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
 
   return (
     <Modal
-      title={client ? 'Edit client' : 'Add client'}
+      title={client ? m.form_client_edit_title() : m.form_client_add_title()}
       onClose={onClose}
       onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
-      <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
-      <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      <TextField label={m.form_client_name_label()} value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
+      <ColorField label={m.form_client_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )
