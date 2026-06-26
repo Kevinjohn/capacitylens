@@ -30,6 +30,8 @@ import {
   upsertRow,
   wipe,
 } from './db'
+import { sqliteTenantStore } from './tenantStore'
+import { listAccounts, resolveRole } from './membership'
 import { tx } from './txn'
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
@@ -341,6 +343,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // a server whose DB is broken is a lie).
   const healthStmt = opts.healthDeep === true ? db.prepare('SELECT 1') : null
 
+  // The tenancy swap point (P1.4): the per-account scoped read/write seam every permissioned route
+  // goes through. Built ONCE here (factory state, like healthStmt) so the same instance backs every
+  // request. Today it wraps the shared SQLite file; a future per-agency-DB / Postgres backend swaps
+  // inside tenantStore.ts with no route change. See tenantStore.ts for the no-cross-tenant contract.
+  const store = sqliteTenantStore(db)
+
   // No app-level auth in this phase. CORS is the only cross-origin gate, so the
   // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
   // answered here. This hook MUST live on the ROOT instance, not in the routes child
@@ -437,9 +445,45 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       })
     }
 
-    // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES
-    // are entity-level; reads stay whole-tree so hydration is one round-trip.
-    app.get('/api/state', () => loadState(db))
+    // The login → account list that drives the AccountPicker (P1.13). OFF mode is trusted-local:
+    // EVERY account is accessible, so return all summaries with NO membership gate — branch on
+    // authMode === 'off' BEFORE touching membership (the OFF guarantee). Auth-on returns ONLY the
+    // caller's memberships via listAccounts. Returns AccountSummary[] = [{ id, name }].
+    app.get('/api/accounts', (req) => {
+      if (authMode === 'off') {
+        // No membership in off mode: every account is visible. Map to the same minimal {id,name}
+        // summary listAccounts returns so the auth-on / auth-off shapes are identical on the wire.
+        return loadState(db).accounts.map((a) => ({ id: a.id, name: a.name }))
+      }
+      return listAccounts(db, req.user!)
+    })
+
+    // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES are entity-level;
+    // reads stay whole-tree so hydration is one round-trip.
+    //
+    // P1.4: when `?accountId=` is PRESENT, return that account's scoped slice via the TenantStore
+    // (OFF mode: no gate — trusted-local; auth-on: a thin membership-existence guard — resolveRole
+    // null ⇒ 403, so auth-on can't cross-tenant-read; the richer per-action can() gate is P1.5).
+    app.get('/api/state', (req, reply) => {
+      const { accountId } = req.query as { accountId?: string }
+      if (accountId !== undefined) {
+        if (typeof accountId !== 'string' || accountId.length === 0) {
+          return reply.code(400).send({ error: 'accountId must be a non-empty string.' })
+        }
+        // Auth-on only: refuse a cross-tenant read before any data leaves the DB. OFF mode skips
+        // this entirely (trusted-local, all accounts accessible). resolveRole === null = not a member.
+        if (authMode !== 'off' && resolveRole(db, req.user!, accountId) === null) {
+          return reply.code(403).send({ error: 'You do not have access to that company.' })
+        }
+        return store.readSlice(accountId)
+      }
+      // No ?accountId=. Legacy whole read, retained for the OFF client AND the not-yet-migrated
+      // auth-on client. NOTE: in auth-on this currently returns ALL tenants to any authenticated
+      // user — a cross-tenant whole-read that MUST be closed once the client is migrated to pass
+      // accountId (P1.13) and requirePermission lands (P1.5). Auth-on is not the default/shipped
+      // posture; remove this whole-read path at P1.13.
+      return loadState(db)
+    })
 
     // "has this dataset ever been initialised" (persistent marker), NOT "is it currently
     // non-empty" — so a user who deletes all their data isn't re-seeded on the next load

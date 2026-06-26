@@ -179,6 +179,47 @@ export function loadState(db: Db): AppData {
   return data as unknown as AppData
 }
 
+/**
+ * Read ONLY one account's slice of AppData — the per-account scoped read primitive (P1.4).
+ *
+ * Returns an AppData whose `accounts` array is the single requested account (0 rows if it does not
+ * exist) and whose every SCOPED table holds ONLY rows where `accountId = accountId`. The result has
+ * EVERY AppData key present (it starts from {@link emptyAppData}), so a consumer never sees a missing
+ * table even when an account has no rows in it.
+ *
+ * NO-CROSS-TENANT INVARIANT: every scoped query carries `WHERE accountId = ?`, and the only global
+ * table (`accounts`) is read by its id (`WHERE id = ?`). No query here omits its predicate, so this
+ * function can NEVER return a row belonging to another account — the tenant-isolation guarantee the
+ * {@link TenantStore} seam rests on (see tenantStore.ts).
+ *
+ * UNKNOWN accountId: not an error. An id with no matching account yields `accounts: []` plus an empty
+ * array for every scoped table — degrade to "empty slice", never throw (a stale/typo'd id from a
+ * client is a 0-row read, not a corruption signal). Rows are mapped through the SAME `fromRow` codec
+ * {@link loadState} uses, so optional/json columns round-trip identically.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose slice to read.
+ * @returns An AppData containing ONLY `accountId`'s data (every key present; arrays may be empty).
+ */
+export function readSlice(db: Db, accountId: string): AppData {
+  const data = emptyAppData() as unknown as Record<string, Row[]>
+  // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
+  const accountsSpec = TABLES['accounts']
+  data['accounts'] = db
+    .prepare(`SELECT * FROM accounts WHERE id = ?`)
+    .all(accountId)
+    .map((r) => fromRow(accountsSpec, r))
+  // Every scoped table: WHERE accountId = ? — never an unpredicated read (the no-cross-tenant invariant).
+  for (const table of SCOPED_ORDER) {
+    const spec = TABLES[table]
+    data[table] = db
+      .prepare(`SELECT * FROM ${table} WHERE accountId = ?`)
+      .all(accountId)
+      .map((r) => fromRow(spec, r))
+  }
+  return data as unknown as AppData
+}
+
 /** Persistent "this dataset has been initialised" marker, set on the first write. Unlike
  *  a row count it SURVIVES the user emptying their data, so /api/meta can tell a
  *  genuinely-fresh DB (seed it) from one the user deliberately cleared (don't re-seed) —
