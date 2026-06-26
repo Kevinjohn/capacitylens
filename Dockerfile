@@ -28,15 +28,16 @@ RUN npm ci
 
 # ---------------------------------------------------------------------------
 # Stage 2 — build: compile the client SPA. VITE_CAPACITYLENS_API is inlined at
-# build time, so it MUST be set here. The client composes `${API_BASE}/api/...`,
-# so the value is the deployed ORIGIN (NOT "/api" — that would double the prefix
-# to /api/api/...). Default targets the web service's published host port; pass
-# --build-arg VITE_CAPACITYLENS_API=https://your.host for a real deploy.
+# build time. EMPTY (the default) = SERVER MODE against the SAME ORIGIN: the client
+# composes `${API_BASE}/api/...` -> a relative `/api/...` that nginx (the web stage)
+# reverse-proxies to the api service, so it works on ANY host with no per-host
+# rebuild. Pass --build-arg VITE_CAPACITYLENS_API=https://your.host ONLY to point the
+# SPA at a DIFFERENT origin (the ORIGIN, NOT "/api" — that would double to /api/api/...).
 # ---------------------------------------------------------------------------
 FROM deps AS build
 WORKDIR /app
 
-ARG VITE_CAPACITYLENS_API=http://localhost:8080
+ARG VITE_CAPACITYLENS_API=""
 ARG VITE_CAPACITYLENS_BUILD_SHA=""
 ARG VITE_CAPACITYLENS_FEEDBACK_MAILTO=""
 ENV VITE_CAPACITYLENS_API=${VITE_CAPACITYLENS_API}
