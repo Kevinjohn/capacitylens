@@ -155,6 +155,8 @@ export function attachPersistence(
   //
   // SEQUENCE on a switch to `newId`:
   //   (a) AWAIT any in-flight save so a PRIOR account's write can't land against the NEW snapshot;
+  //  (a′) FLUSH (not drop) the OLD account's PENDING debounced edits while data AND the snapshot are
+  //       both STILL account A → the diff is A-vs-A (correct), landed BEFORE (b) reseeds to B;
   //   (b) adapter.loadAll(newId) → returns the new slice AND re-seeds the adapter's lastSynced to it;
   //   (c) replaceAll(newSlice) → `data` becomes the new account (guarded by loadingSlice so the data
   //       subscription doesn't treat it as an edit and push a spurious save);
@@ -168,10 +170,25 @@ export function attachPersistence(
         const newId = state.activeAccountId
         if (newId === lastActiveAccountId) return
         lastActiveAccountId = newId
-        // Null (dropped to the picker) loads nothing — the picker shows accountSummaries, and the
-        // next non-null pick will hydrate. Cancel any in-flight switch so its late load can't seed.
+        // Null (dropped to the picker / sign-out) loads nothing — the picker shows accountSummaries,
+        // and the next non-null pick will hydrate. Cancel any in-flight switch so its late load can't
+        // seed. Still FLUSH the OLD account's pending debounced edits first (same data-loss edge as a
+        // real A→B switch): data and the snapshot are both still account A here, so the flush diffs
+        // A-vs-A correctly. No loadAll follows, so there's no later snapshot reseed to race.
         if (newId === null) {
-          switchToken += 1
+          const myToken = ++switchToken
+          void (async () => {
+            if (inFlightSave) await inFlightSave
+            if (myToken !== switchToken) return // a newer switch superseded this one
+            if (timer) {
+              clearTimeout(timer)
+              timer = null
+            }
+            if (pending) {
+              save(pending)
+              if (inFlightSave) await inFlightSave
+            }
+          })()
           return
         }
         const myToken = ++switchToken
@@ -179,12 +196,25 @@ export function attachPersistence(
           // (a) Let a prior account's save settle before we re-seed the snapshot.
           if (inFlightSave) await inFlightSave
           if (myToken !== switchToken) return // a newer switch superseded this one
-          // Cancel a pending debounced write for the OLD account — it must not flush post-switch.
+          // (a′) FLUSH (don't drop) the OLD account's PENDING debounced edits before we re-seed.
+          // The debounce timer can still hold account A's last edit; if we merely cleared it (the
+          // old behaviour) those edits would be LOST on a switch within the debounce window. Flush
+          // NOW — while data===A AND the adapter's lastSynced snapshot===A — so `save()` diffs A
+          // against A's snapshot (correct A-only ops) and POSTs them, BEFORE loadAll(newId) reseeds
+          // the snapshot to B. Awaiting the flush keeps the no-cross-account-window invariant: there
+          // is never a moment where a diff could cross accounts. A flush failure surfaces via the
+          // normal persistError path (save's onError) and we still proceed — strictly better than
+          // silently dropping the edits. Always cancel the timer first so the queued debounced save
+          // can't also fire post-switch (which WOULD diff against B's snapshot).
           if (timer) {
             clearTimeout(timer)
             timer = null
           }
-          pending = null
+          if (pending) {
+            save(pending) // sets inFlightSave synchronously; pending is consumed inside save()
+            if (inFlightSave) await inFlightSave
+            if (myToken !== switchToken) return // a newer switch superseded this one mid-flush
+          }
           try {
             // (b) Load the new slice; loadAll(newId) re-seeds the adapter's diff snapshot to it.
             const slice = await adapter.loadAll(newId)

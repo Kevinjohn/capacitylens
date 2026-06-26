@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { attachPersistence, bootstrap } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
+import { ServerSyncAdapter } from './ServerSyncAdapter'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { useStore } from '../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
@@ -203,6 +204,77 @@ describe('account-switch orchestrator (P1.13, server mode)', () => {
     useStore.getState().addClient({ name: 'New Client', color: '#222222' })
     await new Promise((r) => setTimeout(r, 5))
     expect(saveAll).toHaveBeenCalledTimes(1)
+    detach()
+  })
+
+  it("FLUSHES (does not drop) account A's pending debounced edits before loading B's slice", async () => {
+    // Regression guard for the data-loss edge (P1.13): a user edits account A and switches to B
+    // WITHIN the debounce window. The orchestrator used to clearTimeout + pending=null, silently
+    // DROPPING A's last edit. It must instead FLUSH that pending write while data===A AND the diff
+    // snapshot===A (so the diff is A-vs-A, correct), landing it BEFORE B's slice load reseeds the
+    // snapshot to B — never a cross-account diff. Uses the REAL ServerSyncAdapter so the actual
+    // diff/snapshot logic runs against a fake fetch; we assert on the wire traffic.
+    const aSlice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', name: 'Alpha', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    const bSlice = {
+      ...emptyAppData(),
+      accounts: [{ id: 'b1', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    type Wire = {
+      url: string
+      ops?: Array<{ method: string; table: string; id: string; accountId?: string; row?: { accountId?: string } }>
+    }
+    const wire: Wire[] = []
+    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const u = String(url)
+      if (u.includes('/api/state')) {
+        wire.push({ url: u })
+        return new Response(JSON.stringify(u.includes('accountId=b1') ? bSlice : aSlice), { status: 200 })
+      }
+      // /api/batch — capture the ops carried on the wire.
+      const body = JSON.parse(String(init?.body)) as { ops: Wire['ops'] }
+      wire.push({ url: u, ops: body.ops })
+      return new Response('{}', { status: 200 })
+    })
+    const adapter = new ServerSyncAdapter('http://api.test', fetchImpl as unknown as typeof fetch)
+
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([
+      { id: 'a1', name: 'Alpha', role: 'owner' },
+      { id: 'b1', name: 'Beta', role: 'owner' },
+    ])
+    const detach = attachPersistence(useStore, adapter, 300, undefined, undefined, true) // genuinely debounced
+
+    // Pick A → orchestrator hydrates A's slice (snapshot := A).
+    useStore.getState().setActiveAccount('a1')
+    await new Promise((r) => setTimeout(r, 5))
+    expect(useStore.getState().activeAccountId).toBe('a1')
+
+    // Genuine edit to A → DEBOUNCED (not yet on the wire). Capture its id to find it later.
+    const edited = useStore.getState().addClient({ name: 'A only', color: '#222222' })
+    expect(wire.some((w) => w.ops)).toBe(false) // nothing flushed yet — still inside the 300ms window
+
+    // Switch to B BEFORE the debounce timer fires → must FLUSH A's edit, then load B.
+    useStore.getState().setActiveAccount('b1')
+    await new Promise((r) => setTimeout(r, 20)) // < 300ms, so a dropped edit would NOT have its timer fire
+
+    // A's edit reached the adapter (flushed, not dropped): a batch carrying A's client (a PUT, so
+    // its accountId rides on the row — DELETEs carry a top-level accountId, PUTs carry the full row).
+    const carriesA = (o: NonNullable<Wire['ops']>[number]) => o.row?.accountId === 'a1' || o.accountId === 'a1'
+    const aBatchIdx = wire.findIndex((w) => w.ops?.some((o) => o.id === edited.id && carriesA(o)))
+    expect(aBatchIdx).toBeGreaterThanOrEqual(0)
+    // And it landed BEFORE B's slice load (no window where a diff could cross accounts).
+    const bLoadIdx = wire.findIndex((w) => w.url.includes('accountId=b1'))
+    expect(bLoadIdx).toBeGreaterThanOrEqual(0)
+    expect(aBatchIdx).toBeLessThan(bLoadIdx)
+
+    // After B loaded, NO batch carries A's ops (no cross-account diff B-vs-A).
+    const afterB = wire.slice(bLoadIdx)
+    expect(afterB.some((w) => w.ops?.some(carriesA))).toBe(false)
+    expect(useStore.getState().activeAccountId).toBe('b1')
     detach()
   })
 
