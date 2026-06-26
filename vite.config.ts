@@ -1,11 +1,26 @@
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { fileURLToPath } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // Paraglide (inlang) i18n (P1.5.1) — compile-time, type-safe messages. The plugin re-runs the
+    // message compiler into ./src/paraglide on dev/build (the package scripts also precompile so a
+    // bare `tsc -b`/`vitest` finds the output). strategy = ['globalVariable','baseLocale']: locale is
+    // account-scoped + client-only (set from Account.language via src/i18n), so it lives in a global
+    // variable with NO page reload — NOT a cookie (which would imply a server round-trip / reload).
+    // baseLocale is the fallback. English-only today; the seam is in place for later locales (P1.5.2+).
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/paraglide',
+      strategy: ['globalVariable', 'baseLocale'],
+    }),
+  ],
   resolve: {
     alias: {
       '@capacitylens/shared': fileURLToPath(new URL('./shared/src', import.meta.url)),
@@ -37,6 +52,8 @@ export default defineConfig({
         'src/main.tsx',
         'src/router.tsx',
         'src/vite-env.d.ts',
+        // Paraglide-generated message/runtime code (P1.5.1) — not hand-written, not under test.
+        'src/paraglide/**',
       ],
     },
   },

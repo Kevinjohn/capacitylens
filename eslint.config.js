@@ -6,7 +6,16 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results', '**/node_modules', '.claude/worktrees/**']),
+  globalIgnores([
+    'dist',
+    'coverage',
+    'playwright-report',
+    'test-results',
+    '**/node_modules',
+    '.claude/worktrees/**',
+    // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.
+    'src/paraglide',
+  ]),
 
   // Baseline for every TS file in every package (web, shared, server).
   {
