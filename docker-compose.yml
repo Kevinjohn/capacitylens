@@ -1,0 +1,72 @@
+# CapacityLens — one reproducible deployment: the API server + the SPA, built
+# from the single multi-stage Dockerfile (targets `api` and `web`).
+#
+#   web  (nginx)  : serves the built SPA, reverse-proxies /api -> api
+#   api  (Node 24): the Fastify daemon, SQLite DB + backups on named volumes
+#
+# Runtime config comes from a .env file you create from .env.example (compose
+# auto-loads .env from this directory). `docker compose up --build` serves the
+# app at http://localhost:8080 in server mode against a persisted DB.
+#
+# NOTE: the live `docker compose up` smoke is documented in P0.5.2 — it was not
+# run in the build sandbox (no Docker available there).
+
+services:
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    # SQLite DB and the (optional) backups dir live INSIDE the mounted volumes
+    # so data persists across container rebuilds. CAPACITYLENS_HOST=0.0.0.0 is
+    # baked into the api image (compose-network reachability for nginx).
+    environment:
+      PORT: "8787"
+      CAPACITYLENS_DB: /data/capacitylens.db
+      CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR:-/backups}
+      # Same-origin via the nginx proxy -> CORS stays fail-closed. Override only
+      # if you expose the API on a different origin.
+      CAPACITYLENS_CORS_ORIGIN: ${CAPACITYLENS_CORS_ORIGIN:-}
+      CAPACITYLENS_LOG: ${CAPACITYLENS_LOG:-1}
+      CAPACITYLENS_HEALTH_DEEP: ${CAPACITYLENS_HEALTH_DEEP:-1}
+      CAPACITYLENS_RATE_LIMIT: ${CAPACITYLENS_RATE_LIMIT:-300}
+      CAPACITYLENS_OPTIMISTIC_CONCURRENCY: ${CAPACITYLENS_OPTIMISTIC_CONCURRENCY:-}
+      CAPACITYLENS_BACKUP_INTERVAL_MIN: ${CAPACITYLENS_BACKUP_INTERVAL_MIN:-}
+      CAPACITYLENS_BACKUP_KEEP: ${CAPACITYLENS_BACKUP_KEEP:-}
+      # Auth is OFF by default; set CAPACITYLENS_AUTH (+ BETTER_AUTH_*) in .env to
+      # turn it on. Passed through verbatim so an unset value stays unset.
+      CAPACITYLENS_AUTH: ${CAPACITYLENS_AUTH:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
+      CAPACITYLENS_SSO_PROVIDER_ID: ${CAPACITYLENS_SSO_PROVIDER_ID:-}
+      CAPACITYLENS_SSO_CLIENT_ID: ${CAPACITYLENS_SSO_CLIENT_ID:-}
+      CAPACITYLENS_SSO_CLIENT_SECRET: ${CAPACITYLENS_SSO_CLIENT_SECRET:-}
+      CAPACITYLENS_SSO_DISCOVERY_URL: ${CAPACITYLENS_SSO_DISCOVERY_URL:-}
+      CAPACITYLENS_SSO_AUTHORIZATION_URL: ${CAPACITYLENS_SSO_AUTHORIZATION_URL:-}
+      CAPACITYLENS_SSO_TOKEN_URL: ${CAPACITYLENS_SSO_TOKEN_URL:-}
+      CAPACITYLENS_SSO_SCOPES: ${CAPACITYLENS_SSO_SCOPES:-}
+    volumes:
+      - capacitylens-db:/data
+      - capacitylens-backups:/backups
+    expose:
+      - "8787"
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        # Inlined into the SPA at build time. The client appends /api itself, so
+        # this is the ORIGIN, not "/api". Default = the published host port below.
+        VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-http://localhost:8080}
+        VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
+        VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+volumes:
+  capacitylens-db:
+  capacitylens-backups:

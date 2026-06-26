@@ -45,6 +45,18 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   local mode says this erases your only copy. A clear failure surfaces via `setNotice(…, 'error')`
   (user-triggered, so don't swallow).
 
+## Deployment / self-host
+- **One reproducible image, two services from one multi-stage Dockerfile** (Node 24 for
+  build+`api`, `nginx:alpine` for `web`). `web` serves the built Vite SPA and reverse-proxies
+  `/api/*` -> the `api` service (same-origin, so CORS stays fail-closed); `api` runs the
+  Fastify daemon (`tsx server/src/index.ts`) with `CAPACITYLENS_HOST=0.0.0.0`, SQLite DB +
+  backups on named volumes, HEALTHCHECK on `/api/health`. The server stays API-only — the SPA
+  is NOT served by it (no `@fastify/static`).
+- **`VITE_CAPACITYLENS_API` is the backend ORIGIN, never `/api`.** The client composes
+  `${API_BASE}/api/...`, so `/api` would double-prefix and `""` disables server mode; build it
+  as the published origin (compose default `http://localhost:8080`). `.env.example` documents
+  every runtime env var (server + client) with accurate defaults.
+
 ## Import — repair, don't reject
 - **Forms reject; import + server strip/repair.** Import sanitises per record (clean text,
   clamp hours, fresh id when missing), drops dangling **required** FKs (mirrors cascade) and
