@@ -68,6 +68,18 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   the auth-off refusal to a warning (never silences it). The in-repo deliverable is the guard +
   `docs/production-posture.md`; the actual deploy (TLS cert, nginx header delivery, uptime) is
   operator-side at go-live (`docs/production-plan.md`, `docs/runbook.md`).
+- **Backups + deep-health are already-shipped, env-gated-OFF mechanisms (P3.2).** `server/src/backup.ts`
+  (`CAPACITYLENS_BACKUP_DIR` unset ⇒ no-op; WAL-safe `node:sqlite` `backup()` / `VACUUM INTO`
+  snapshots `capacitylens-<stamp>.db` on boot + every `CAPACITYLENS_BACKUP_INTERVAL_MIN`, pruned to
+  `CAPACITYLENS_BACKUP_KEEP`) and the deep `/api/health` probe (`CAPACITYLENS_HEALTH_DEEP=1` ⇒
+  `{ok,db,audit}` / 503, default shallow `{ok:true}`) — both OFF by default. **"uptime" is purely
+  operational** (an external monitor hits `/api/health`); there is no in-repo uptime client. P3.2 was
+  therefore a recognise + test-lock + doc cycle: it added the deep-health `audit:'degraded'` soft-signal
+  test-lock and a no-live-host local-verify recipe in `docs/production-posture.md`, and fully rebranded
+  the stale `docs/runbook.md` (it still used dead `FLOATY_*` env names + a `floaty-<stamp>.db` restore
+  path that never matched `backup.ts` — a real operator footgun, now `CAPACITYLENS_*` /
+  `capacitylens-<stamp>.db`). Live-host parts (real uptime-service wiring, on-droplet scheduled backups,
+  on-host restore) stay operator-side.
 
 ## Import — repair, don't reject
 - **Forms reject; import + server strip/repair.** Import sanitises per record (clean text,

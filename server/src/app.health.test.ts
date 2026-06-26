@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildApp } from './app'
 import { openDb } from './db'
+import type { AuditSink } from './audit'
 
 // P1.4 (flag CAPACITYLENS_HEALTH_DEEP → opts.healthDeep): ON makes /api/health prove the DB
 // answers a trivial read; OFF keeps today's unconditional { ok: true } — the exact body
@@ -14,6 +15,18 @@ describe('CAPACITYLENS_HEALTH_DEEP on', () => {
     const res = await app.inject({ method: 'GET', url: '/api/health' })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ ok: true, db: true, audit: 'ok' })
+  })
+
+  it('reports audit: degraded (still 200, db: true) when the audit sink has latched degraded', async () => {
+    // P3.2: a degraded audit sink is a SOFT signal — the DB still answers, so the server stays
+    // healthy (200, db:true); only the `audit` field flips to 'degraded' so an external uptime
+    // monitor can see the latched write failure without the server lying healthy OR going 503.
+    // The fake matches the real AuditSink contract (append + the degraded latch).
+    const degradedSink: AuditSink = { append: () => false, degraded: true }
+    const app = buildApp(openDb(':memory:'), { healthDeep: true, audit: degradedSink })
+    const res = await app.inject({ method: 'GET', url: '/api/health' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ ok: true, db: true, audit: 'degraded' })
   })
 
   it('returns 503 { ok: false } when the DB read throws', async () => {

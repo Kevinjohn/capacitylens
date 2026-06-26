@@ -1,4 +1,4 @@
-# Floaty — operations runbook (controlled demo)
+# CapacityLens — operations runbook (controlled demo)
 
 One page: how to deploy, watch, back up, restore, reset, and roll back the hosted demo.
 Flags and their droplet values live in the **flag register** in
@@ -10,19 +10,19 @@ the plan's Phase 2.
 > **small-saas-agency-resource-alpha.kevinjohngallagher.com** (DigitalOcean + Forge,
 > zero-downtime releases — app at `current/`, web root `current/dist`). What's actually wired —
 > this **supersedes the Basic-Auth / per-tester-Account instructions below**:
-> - **Server:** a Forge **Background process** named `floaty-server` runs
->   `/home/forge/floaty-data/run-server.sh` (a wrapper that `cd current && exec npm start -w
->   floaty-server` with `NODE_ENV=production` + the droplet flags). `FLOATY_DB=/home/forge/floaty-data/floaty.db`.
+> - **Server:** a Forge **Background process** named `capacitylens-server` runs
+>   `/home/forge/capacitylens-data/run-server.sh` (a wrapper that `cd current && exec npm start -w
+>   capacitylens-server` with `NODE_ENV=production` + the droplet flags). `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`.
 > - **Nginx:** `location /api/ → 127.0.0.1:8787` added via Forge's Nginx editor (no trailing
 >   slash on `proxy_pass`, so the `/api` prefix is preserved).
-> - **Deploy script (Forge):** `git pull` → `npm ci --include=dev` → `export VITE_FLOATY_API` +
->   `VITE_FLOATY_BUILD_SHA` → `npm run build`. **`NODE_ENV=development` is kept for alpha** (flip
+> - **Deploy script (Forge):** `git pull` → `npm ci --include=dev` → `export VITE_CAPACITYLENS_API` +
+>   `VITE_CAPACITYLENS_BUILD_SHA` → `npm run build`. **`NODE_ENV=development` is kept for alpha** (flip
 >   to `production` before beta).
-> - **No auth this round (owner):** no Nginx Basic Auth, `FLOATY_AUTH` off — the dataset is
+> - **No auth this round (owner):** no Nginx Basic Auth, `CAPACITYLENS_AUTH` off — the dataset is
 >   shared and OPEN. Wherever this runbook says `curl -u` / htpasswd / per-tester creds, **that
 >   gate does not exist yet**. **No per-tester Accounts** either — testers share the seeded Accounts.
 > - **Deploy gotcha:** the daemon runs from the rotating `current/` symlink, so a **server-code**
->   change (`server/`) needs a manual restart of the `floaty-server` Background process in Forge
+>   change (`server/`) needs a manual restart of the `capacitylens-server` Background process in Forge
 >   after the deploy; client/`dist` changes go live on the symlink swap automatically.
 > - **Not yet done (Phase 2 remainders):** Nginx security headers, cache-control, droplet restore drill.
 
@@ -36,30 +36,30 @@ then push to `main` → Forge deploy script
 ```sh
 nvm use                       # .nvmrc pins Node 24
 npm ci
-export VITE_FLOATY_API="https://<site>"                      # server mode — REQUIRED
-export VITE_FLOATY_BUILD_SHA="$(git rev-parse --short HEAD)" # build stamp
-export VITE_FLOATY_FEEDBACK_MAILTO="<owner address>"         # Send-feedback link
+export VITE_CAPACITYLENS_API="https://<site>"                      # server mode — REQUIRED
+export VITE_CAPACITYLENS_BUILD_SHA="$(git rev-parse --short HEAD)" # build stamp
+export VITE_CAPACITYLENS_FEEDBACK_MAILTO="<owner address>"         # Send-feedback link
 npm run build                 # → dist/
 # restart the daemon (Forge daemon panel does this; CLI equivalent:)
 # forge daemon:restart <id>   — daemon runs: npm start --workspace=server
 ```
 
 **Verify after every deploy:** Settings shows `build <sha> · server`. A build missing
-`VITE_FLOATY_API` silently reverts to localStorage and otherwise looks identical — the
+`VITE_CAPACITYLENS_API` silently reverts to localStorage and otherwise looks identical — the
 stamp is the tell (`· local` = bad build).
 
 ## Logs
 
-- Daemon stdout (Forge daemon log): with `FLOATY_LOG=1` every request is one JSON line
-  (method/path/status/latency, pino) plus `floaty-server: backup written …` lines hourly.
+- Daemon stdout (Forge daemon log): with `CAPACITYLENS_LOG=1` every request is one JSON line
+  (method/path/status/latency, pino) plus `capacitylens-server: backup written …` lines hourly.
 - Nginx access log: per-tester Basic Auth usernames — who was on when.
 - 500s appear in the daemon log with the real error; the HTTP body stays generic.
 
-## Backups (FLOATY_BACKUP_DIR)
+## Backups (CAPACITYLENS_BACKUP_DIR)
 
-The daemon snapshots `floaty.db` online (WAL-safe — never `cp` the live file) into
-`/home/forge/floaty-data/backups/floaty-<YYYYMMDD-HHmmss>.db`: once at boot, then every
-`FLOATY_BACKUP_INTERVAL_MIN` (60), keeping the newest `FLOATY_BACKUP_KEEP` (48) — RPO ≤ 1 h.
+The daemon snapshots `capacitylens.db` online (WAL-safe — never `cp` the live file) into
+`/home/forge/capacitylens-data/backups/capacitylens-<YYYYMMDD-HHmmss>.db`: once at boot, then every
+`CAPACITYLENS_BACKUP_INTERVAL_MIN` (60), keeping the newest `CAPACITYLENS_BACKUP_KEEP` (48) — RPO ≤ 1 h.
 
 ## Restore (P4.2 — drill performed 2026-06-13, exact sequence)
 
@@ -67,8 +67,8 @@ The daemon snapshots `floaty.db` online (WAL-safe — never `cp` the live file) 
 # 1. stop the daemon (Forge panel, or kill -TERM <pid> — it drains and exits 0)
 # 2. copy the chosen snapshot over the live file; remove WAL sidecars (stale ones from a
 #    crashed daemon would replay old frames over the restored file)
-cp /home/forge/floaty-data/backups/floaty-<stamp>.db /home/forge/floaty-data/floaty.db
-rm -f /home/forge/floaty-data/floaty.db-wal /home/forge/floaty-data/floaty.db-shm
+cp /home/forge/capacitylens-data/backups/capacitylens-<stamp>.db /home/forge/capacitylens-data/capacitylens.db
+rm -f /home/forge/capacitylens-data/capacitylens.db-wal /home/forge/capacitylens-data/capacitylens.db-shm
 # 3. start the daemon; verify in the app (or: curl -su <user> https://<site>/api/state)
 ```
 
@@ -81,16 +81,16 @@ never been restored is a hope, not a backup.
 Take a named pre-session snapshot, restore it afterwards (the restore sequence above):
 
 ```sh
-sqlite3 /home/forge/floaty-data/floaty.db ".backup /home/forge/floaty-data/backups/pre-session-<date>.db"
+sqlite3 /home/forge/capacitylens-data/capacitylens.db ".backup /home/forge/capacitylens-data/backups/pre-session-<date>.db"
 ```
 
-This replaces any temptation to enable `FLOATY_ALLOW_RESET` in production — which the
+This replaces any temptation to enable `CAPACITYLENS_ALLOW_RESET` in production — which the
 boot-guard refuses anyway (the daemon will not start with it under `NODE_ENV=production`).
 
 ## Monitoring (P4.4)
 
 - Uptime check (Forge monitor / UptimeRobot) **with Basic Auth creds** on:
-  `https://<site>/api/health` (with `FLOATY_HEALTH_DEEP=1` a 200 `{ok,db:true}` proves the
+  `https://<site>/api/health` (with `CAPACITYLENS_HEALTH_DEEP=1` a 200 `{ok,db:true}` proves the
   DB answers; 503 `{ok:false}` = DB broken while the process lives) — and the SPA root.
 - Droplet disk alert sized against backup retention (48 × DB size + WAL headroom; the DB
   is KB–MB scale, so any sane threshold works — set it when confirming disk headroom).
@@ -122,7 +122,7 @@ AccountPicker next to the seeded companies, with 12 resources / 11 clients / 12 
 
 ## Testers (P5.1 / P5.3 / Phase 2 #3)
 
-- **Access:** one htpasswd entry per tester (`htpasswd /etc/nginx/.htpasswd-floaty <name>`)
+- **Access:** one htpasswd entry per tester (`htpasswd /etc/nginx/.htpasswd-capacitylens <name>`)
   — attribution in access logs, per-person revocation. Remove a line to revoke.
 - **One Account (company) per tester**, created in the UI after deploy, plus the Cohesion
   import — makes last-writer-wins collisions rare by construction; the AccountPicker
@@ -138,14 +138,14 @@ AccountPicker next to the seeded companies, with 12 resources / 11 clients / 12 
 
 ## Rollback (data decision, not just a redeploy)
 
-Rebuilding without `VITE_FLOATY_API` returns the app to browser-local storage but
+Rebuilding without `VITE_CAPACITYLENS_API` returns the app to browser-local storage but
 **strands the server data** (nothing migrates back). Before flipping:
 
 ```sh
-curl -su <user> https://<site>/api/state > floaty-server-export-$(date +%F).json
+curl -su <user> https://<site>/api/state > capacitylens-server-export-$(date +%F).json
 ```
 
-Then remove the `VITE_FLOATY_API`/`VITE_FLOATY_BUILD_SHA` exports from the deploy script
+Then remove the `VITE_CAPACITYLENS_API`/`VITE_CAPACITYLENS_BUILD_SHA` exports from the deploy script
 and redeploy. Server-mode rollback to a good state without leaving server mode = the
 restore sequence above.
 
@@ -157,14 +157,14 @@ it under `production`; the guard has its own tests):
 
 ```sh
 # 1. server with the droplet's flags + reset for the specs (fresh temp DB)
-cd server && rm -f .rehearsal.db* && PORT=8787 FLOATY_DB=.rehearsal.db FLOATY_ALLOW_RESET=1 \
-  FLOATY_LOG=1 FLOATY_HEALTH_DEEP=1 FLOATY_RATE_LIMIT=300 FLOATY_BACKUP_DIR=/tmp/floaty-rehearsal-backups \
+cd server && rm -f .rehearsal.db* && PORT=8787 CAPACITYLENS_DB=.rehearsal.db CAPACITYLENS_ALLOW_RESET=1 \
+  CAPACITYLENS_LOG=1 CAPACITYLENS_HEALTH_DEEP=1 CAPACITYLENS_RATE_LIMIT=300 CAPACITYLENS_BACKUP_DIR=/tmp/capacitylens-rehearsal-backups \
   npm start &
 # 2. production build pointing at the proxy origin, served behind a local /api proxy
-VITE_FLOATY_API=http://127.0.0.1:4173 VITE_FLOATY_BUILD_SHA=$(git rev-parse --short HEAD) npm run build
+VITE_CAPACITYLENS_API=http://127.0.0.1:4173 VITE_CAPACITYLENS_BUILD_SHA=$(git rev-parse --short HEAD) npm run build
 node scripts/serve-dist.mjs &        # dist/ on :4173, /api/* → 127.0.0.1:8787
 # 3. the db-backed e2e specs against the production-shaped stack
-FLOATY_REHEARSAL_URL=http://127.0.0.1:4173 npx playwright test --project=rehearsal
+CAPACITYLENS_REHEARSAL_URL=http://127.0.0.1:4173 npx playwright test --project=rehearsal
 ```
 
 ## Launch checklist
