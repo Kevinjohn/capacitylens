@@ -17,6 +17,12 @@ import { parseBackupConfig, startBackups } from './backup'
 //                                   the API is NOT open to every site by default.
 //   CAPACITYLENS_OPTIMISTIC_CONCURRENCY   '1' to reject stale overwrites (409) instead of
 //                                   last-writer-wins.
+//   CAPACITYLENS_HTTPS                    '1' when the public origin is real HTTPS — enables
+//                                   the HSTS header. Default off: HSTS is invalid/harmful
+//                                   over plain HTTP, and this server usually runs HTTP behind
+//                                   a TLS-terminating proxy. The other baseline security
+//                                   headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
+//                                   are always on, independent of this flag.
 //   CAPACITYLENS_LOG                      '1' for structured per-request JSON logs (pino) and
 //                                   500-errors through the request logger. Default off =
 //                                   today's logging (startup line + console.error on 500s).
@@ -81,6 +87,9 @@ const host = process.env.CAPACITYLENS_HOST ?? '127.0.0.1'
 const allowReset = process.env.CAPACITYLENS_ALLOW_RESET === '1'
 const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS
 const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY === '1'
+// HSTS only — gated OFF by default (HSTS over plain HTTP is harmful; this server usually
+// runs HTTP behind a TLS proxy). The other helmet baseline headers are on regardless.
+const https = process.env.CAPACITYLENS_HTTPS === '1'
 const log = process.env.CAPACITYLENS_LOG === '1'
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === '1'
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT)
@@ -135,6 +144,7 @@ const app = buildApp(db, {
   allowReset,
   corsOrigin,
   optimisticConcurrency,
+  https,
   log,
   healthDeep,
   rateLimit,
