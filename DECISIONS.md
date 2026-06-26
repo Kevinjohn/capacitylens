@@ -80,6 +80,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   path that never matched `backup.ts` — a real operator footgun, now `CAPACITYLENS_*` /
   `capacitylens-<stamp>.db`). Live-host parts (real uptime-service wiring, on-droplet scheduled backups,
   on-host restore) stay operator-side.
+- **The restore drill is a reproducible test, not a one-off (P3.3).** `server/src/restore.drill.test.ts`
+  runs the full backup → post-snapshot edit → disaster (corrupt the live DB file) → restore (copy the
+  snapshot over it + remove the `-wal`/`-shm` sidecars) → verify cycle on every `gate:server`, mirroring
+  the manual sequence in `docs/runbook.md`'s Restore section. It proves recovery non-vacuously in both
+  directions: opening the corrupted DB throws (the loss is real), then after restore the seeded
+  `'Studio North'` is back AND a `'POST-SNAPSHOT-EDIT'` made after the snapshot is gone (point-in-time RPO
+  — the file was genuinely replaced, not repaired in place). A backup that's never been restored is a hope,
+  not a backup — so the restore PATH is continuously verified in-repo; the **on-droplet** restore re-run
+  before testers remains the operator's pre-go-live step.
 
 ## Import — repair, don't reject
 - **Forms reject; import + server strip/repair.** Import sanitises per record (clean text,

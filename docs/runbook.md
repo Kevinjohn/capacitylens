@@ -76,6 +76,12 @@ Drill verification: an edit made after the snapshot is gone post-restore; seeded
 intact. **Re-run this drill once on the droplet before testers arrive** — a backup that's
 never been restored is a hope, not a backup.
 
+This drill is now also codified as an automated, reproducible test — `server/src/restore.drill.test.ts`
+— that runs on every `npm run gate:server`: it backs up an on-disk DB, simulates loss by corrupting
+the live file, restores via the sequence above, and verifies the seeded data is recovered while the
+post-snapshot edit is gone. So the restore PATH is continuously verified; the **on-droplet** re-run
+above remains the operator's pre-go-live step.
+
 ## Demo reset between testing sessions (P4.3)
 
 Take a named pre-session snapshot, restore it afterwards (the restore sequence above):
