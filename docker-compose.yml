@@ -56,9 +56,12 @@ services:
       context: .
       target: web
       args:
-        # Inlined into the SPA at build time. The client appends /api itself, so
-        # this is the ORIGIN, not "/api". Default = the published host port below.
-        VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-http://localhost:8080}
+        # Inlined into the SPA at build time. EMPTY (the default) = server mode
+        # against the SAME ORIGIN — nginx proxies /api to the api service, so it
+        # works on any host with no per-host rebuild. Set to an ORIGIN (not "/api")
+        # only to point the SPA at a different host. Empty no longer means
+        # localStorage; build with VITE_CAPACITYLENS_DEMO=1 for the localStorage demo.
+        VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
         VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
     restart: unless-stopped
