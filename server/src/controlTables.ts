@@ -1,14 +1,16 @@
 import type { Role } from '@capacitylens/shared/domain/access'
 import type { Db } from './db'
 
-// Server-CONTROL tables — the user↔account binding (membership) and its roles. These mirror Better
-// Auth's own user/session/account tables (see auth.ts): they live in the same SQLite file but are
-// DELIBERATELY OUTSIDE the AppData drift path. `account_members` is intentionally absent from
-// shared AppData / SCOPED_KEYS, tables.ts TABLES / CREATE_ORDER / SCOPED_ORDER, KNOWN_KEYS, the seed
-// fixtures, sanitizeImportedRecord, loadState, the generic /api/:entity CRUD, and import/export. It
-// is reached ONLY through the helpers below, which permissioned endpoints (P1.2 / P1.5) wrap — never
-// through the entity machinery. Keeping it off that path is the whole point: if it were AppData it
-// would leak through generic CRUD and the state read/export.
+// Server-CONTROL tables — the user↔account binding (membership + its roles) AND the single-use
+// invite links that mint such memberships (P1.9). These mirror Better Auth's own user/session/
+// account tables (see auth.ts): they live in the same SQLite file but are DELIBERATELY OUTSIDE the
+// AppData drift path. BOTH `account_members` AND `invites` are intentionally absent from shared
+// AppData / SCOPED_KEYS, tables.ts TABLES / CREATE_ORDER / SCOPED_ORDER, KNOWN_KEYS, the seed
+// fixtures, sanitizeImportedRecord, loadState, the generic /api/:entity CRUD, and import/export. They
+// are reached ONLY through the helpers below, which permissioned endpoints (P1.2 / P1.5 / P1.9) wrap
+// — never through the entity machinery. Keeping them off that path is the whole point: if either were
+// AppData it would leak through generic CRUD and the state read/export (an invite leak would hand out
+// a live, role-bearing token).
 
 /**
  * The lifecycle status of one membership row.
@@ -57,10 +59,15 @@ const isKnownRole = (value: unknown): value is Role =>
  * by-`userId` index (P1.2's listAccounts: "which accounts can this login see?") and a
  * by-`accountId` index (member-management listing: "who is in this account?").
  *
- * No FOREIGN KEY to `accounts(id)` BY DESIGN: this is a control-plane table that must stay
- * decoupled from the AppData cascade — it must never be dragged into the entity drift path, and
- * membership is managed by dedicated permissioned endpoints, not by the AppData delete cascade. It
- * therefore carries no FK, so the caller's `PRAGMA foreign_keys` state is irrelevant to it.
+ * Also creates `invites(token PK, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)`
+ * (P1.9) — the single-use, expiring invite links that mint a membership on accept — with a
+ * by-`accountId` index (list an account's outstanding invites).
+ *
+ * No FOREIGN KEY to `accounts(id)` on EITHER table BY DESIGN: these are control-plane tables that
+ * must stay decoupled from the AppData cascade — they must never be dragged into the entity drift
+ * path, and membership/invites are managed by dedicated permissioned endpoints, not by the AppData
+ * delete cascade. They therefore carry no FK, so the caller's `PRAGMA foreign_keys` state is
+ * irrelevant to them.
  *
  * @param db  The open SQLite handle.
  */
@@ -76,6 +83,16 @@ export function ensureControlTables(db: Db): void {
     );
     CREATE INDEX IF NOT EXISTS idx_account_members_userId ON account_members(userId);
     CREATE INDEX IF NOT EXISTS idx_account_members_accountId ON account_members(accountId);
+    CREATE TABLE IF NOT EXISTS invites (
+      token TEXT NOT NULL PRIMARY KEY,
+      accountId TEXT NOT NULL,
+      role TEXT NOT NULL,
+      preauthEmail TEXT,            -- NULLABLE; P1.10 (email-preauth) uses it; P1.9 always writes NULL
+      expiresAt TEXT NOT NULL,
+      usedAt TEXT,                  -- NULL = unused; set once on accept (single-use)
+      createdAt TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);
   `)
 }
 
@@ -159,4 +176,124 @@ export function listMembershipsForUser(db: Db, userId: string): AccountMember[] 
       createdAt: r.createdAt,
     }
   })
+}
+
+/**
+ * One row of the `invites` control table (P1.9): a single-use, expiring link that, when accepted by
+ * a signed-in caller, binds {@link role} to that caller's membership of {@link accountId}.
+ *
+ * @property token         The opaque, unguessable invite secret — the link's `:token` segment AND
+ *   the table's PRIMARY KEY. Treat it like a password: never log it.
+ * @property accountId     The account a successful accept joins the caller to.
+ * @property role          The {@link Role} the accept binds (see shared/domain/access for semantics).
+ * @property preauthEmail  An OPTIONAL pre-authorised email. `null` in P1.9 (any signed-in caller may
+ *   accept); P1.10 will require the caller's verified email to match this when non-null.
+ * @property expiresAt     ISO-8601 instant after which the invite is rejected (410).
+ * @property usedAt        ISO-8601 instant the invite was consumed, or `null` while unused. A
+ *   non-null value is the single-use marker — a second accept is rejected (409).
+ * @property createdAt     ISO-8601 timestamp the invite was minted.
+ *
+ * This is a CONTROL-table type, never an AppData entity; it never flows through the entity drift path.
+ */
+export interface Invite {
+  token: string
+  accountId: string
+  role: Role
+  preauthEmail: string | null
+  expiresAt: string
+  usedAt: string | null
+  createdAt: string
+}
+
+/**
+ * Persist a new invite. The write the create endpoint (POST /api/invites) uses after generating the
+ * token + computing the TTL.
+ *
+ * @param db      The open SQLite handle.
+ * @param invite  The invite to insert (token is its PRIMARY KEY).
+ * @throws Error  If `invite.role` is not a known {@link Role} — a bad role is a programming/integrity
+ *   fault, not a recoverable request condition, so fail LOUD (mirrors {@link upsertMember}) rather
+ *   than silently coercing it and minting an invite that grants the wrong access level.
+ */
+export function createInvite(db: Db, invite: Invite): void {
+  if (!isKnownRole(invite.role)) {
+    throw new Error(
+      `createInvite: unknown role ${JSON.stringify(invite.role)} — expected one of ${KNOWN_ROLES.join(', ')}.`,
+    )
+  }
+  db.prepare(
+    `INSERT INTO invites (token, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    invite.token,
+    invite.accountId,
+    invite.role,
+    invite.preauthEmail,
+    invite.expiresAt,
+    invite.usedAt,
+    invite.createdAt,
+  )
+}
+
+/**
+ * Resolve one invite by its token, or `null` if no such token exists. The lookup the accept endpoint
+ * (POST /api/invites/:token/accept) uses before validating used/expired and binding the membership.
+ *
+ * @param db     The open SQLite handle.
+ * @param token  The invite token (the link's `:token` segment).
+ * @returns The {@link Invite}, or `null` when no row has that token.
+ */
+export function getInvite(db: Db, token: string): Invite | null {
+  const row = db
+    .prepare(
+      `SELECT token, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites WHERE token = ?`,
+    )
+    .get(token) as
+    | {
+        token: string
+        accountId: string
+        role: string
+        preauthEmail: string | null
+        expiresAt: string
+        usedAt: string | null
+        createdAt: string
+      }
+    | undefined
+  if (!row) return null
+  // Map the row explicitly (mirrors upsertMember/listMembershipsForUser's row→object discipline) so
+  // the returned object carries the precise Role union, not the raw TEXT column. A stored role that
+  // is not a known Role is a control-table integrity fault (every write goes through createInvite's
+  // guard) — fail LOUD rather than hand back a mistyped, access-granting role.
+  if (!isKnownRole(row.role)) {
+    throw new Error(
+      `getInvite: stored role ${JSON.stringify(row.role)} for token is not a known role — control table corrupted.`,
+    )
+  }
+  return {
+    token: row.token,
+    accountId: row.accountId,
+    role: row.role,
+    // Coerce SQLite's nullable cols to a real `null` (node:sqlite yields null already, but pin the
+    // contract so the type is honest and a future driver change can't leak `undefined`).
+    preauthEmail: row.preauthEmail ?? null,
+    expiresAt: row.expiresAt,
+    usedAt: row.usedAt ?? null,
+    createdAt: row.createdAt,
+  }
+}
+
+/**
+ * Mark an invite consumed — the single-use stamp the accept endpoint runs (in the SAME transaction
+ * as the membership it mints, so the bind and the consume commit together or not at all).
+ *
+ * The `AND usedAt IS NULL` clause is the single-use SQL BACKSTOP: even if two accepts race past the
+ * handler's `usedAt !== null` check, only the first UPDATE matches an unused row, so the token can be
+ * consumed at most once. (The handler's check is the friendly 409; this is the hard guarantee.)
+ *
+ * @param db      The open SQLite handle.
+ * @param token   The invite token to consume.
+ * @param usedAt  The ISO-8601 instant to stamp as the consumption time.
+ */
+export function markInviteUsed(db: Db, token: string, usedAt: string): void {
+  db.prepare(`UPDATE invites SET usedAt = ? WHERE token = ? AND usedAt IS NULL`).run(usedAt, token)
 }
