@@ -12,36 +12,40 @@ import { MembersSection } from './MembersSection'
 import { supportedTimeZones } from '../../lib/timezones'
 import { cn } from '@/lib/utils'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
+import { m } from '@/i18n'
 import type { ThemePref } from '../../lib/theme'
 import type { SchedulingMode } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
 
-const WEEK_START_OPTIONS: { value: 0 | 1; label: string }[] = [
-  { value: 1, label: 'Monday' },
-  { value: 0, label: 'Sunday' },
+// Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
+// the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
+// load-time locale; the getter defers it to render so an account/locale switch re-resolves the text.
+const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
+  { value: 1, label: () => m.settings_week_start_monday() },
+  { value: 0, label: () => m.settings_week_start_sunday() },
 ]
 
-const THEME_OPTIONS: { value: ThemePref; label: string }[] = [
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
-  { value: 'system', label: 'Match system' },
+const THEME_OPTIONS: { value: ThemePref; label: () => string }[] = [
+  { value: 'light', label: () => m.settings_theme_light() },
+  { value: 'dark', label: () => m.settings_theme_dark() },
+  { value: 'system', label: () => m.settings_theme_system() },
 ]
 
-const SCHEDULING_OPTIONS: { value: SchedulingMode; label: string }[] = [
-  { value: 'hourly', label: 'Hours' },
-  { value: 'days', label: 'Days' },
-  { value: 'blocks', label: 'Blocks' },
+const SCHEDULING_OPTIONS: { value: SchedulingMode; label: () => string }[] = [
+  { value: 'hourly', label: () => m.settings_scheduling_option_hours() },
+  { value: 'days', label: () => m.settings_scheduling_option_days() },
+  { value: 'blocks', label: () => m.settings_scheduling_option_blocks() },
 ]
 
-const UTILIZATION_OPTIONS: { key: 'showTotal' | 'showDiscipline' | 'showPersonal'; label: string }[] = [
-  { key: 'showTotal', label: 'Show Total Utilisation' },
-  { key: 'showDiscipline', label: 'Show Discipline Utilisation' },
-  { key: 'showPersonal', label: 'Show Personal Utilisation' },
+const UTILIZATION_OPTIONS: { key: 'showTotal' | 'showDiscipline' | 'showPersonal'; label: () => string }[] = [
+  { key: 'showTotal', label: () => m.settings_utilisation_show_total() },
+  { key: 'showDiscipline', label: () => m.settings_utilisation_show_discipline() },
+  { key: 'showPersonal', label: () => m.settings_utilisation_show_personal() },
 ]
 
-const BAR_LABEL_OPTIONS: { key: 'showClient' | 'showProject'; label: string }[] = [
-  { key: 'showClient', label: 'Show client name' },
-  { key: 'showProject', label: 'Show project name' },
+const BAR_LABEL_OPTIONS: { key: 'showClient' | 'showProject'; label: () => string }[] = [
+  { key: 'showClient', label: () => m.settings_bar_labels_show_client() },
+  { key: 'showProject', label: () => m.settings_bar_labels_show_project() },
 ]
 
 // The on/off switch row shared by the Allocation bars and Utilisation sections.
@@ -142,7 +146,7 @@ export function SettingsView() {
     if (!trimmed) return
     // The Save button is disabled while unchanged, so no redundant equality guard here.
     updateAccount(activeAccount.id, { name: trimmed })
-    setNotice('Company name updated.')
+    setNotice(m.settings_company_name_updated())
   }
 
   const nameUnchanged = name.trim() === activeAccount.name
@@ -150,13 +154,13 @@ export function SettingsView() {
   const feedback = feedbackMailto()
 
   return (
-    <ListPage title="Settings">
+    <ListPage title={m.settings_title()}>
       <div className="space-y-6">
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink">Company</h2>
+          <h2 className="mb-3 text-sm font-semibold text-ink">{m.settings_company_heading()}</h2>
           <div className="space-y-3">
             <TextField
-              label="Company name"
+              label={m.settings_company_name_label()}
               value={name}
               onChange={setName}
               invalid={errorField === 'name'}
@@ -165,59 +169,57 @@ export function SettingsView() {
             <FieldError id={errorId}>{error}</FieldError>
             <div className="flex justify-end">
               <Button onClick={saveName} disabled={nameUnchanged}>
-                Save
+                {m.settings_save()}
               </Button>
             </div>
           </div>
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Scheduling</h2>
-          <p className="mb-2 text-xs text-muted">How allocations are entered.</p>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_scheduling_heading()}</h2>
+          <p className="mb-2 text-xs text-muted">{m.settings_scheduling_intro()}</p>
           <ul className="mb-3 list-disc space-y-1 pl-4 text-xs text-muted">
             <li>
-              <strong>Hours</strong> asks for hours/day across a start and end date.
+              <strong>{m.settings_scheduling_hours_strong()}</strong>{m.settings_scheduling_hours_rest()}
             </li>
             <li>
-              <strong>Days</strong> asks for a start, days of work, and days over — the end date follows from
-              how thinly the work is spread.
+              <strong>{m.settings_scheduling_days_strong()}</strong>{m.settings_scheduling_days_rest()}
             </li>
             <li>
-              <strong>Blocks</strong> asks only for a start and days over — a pure booking with no load, so
-              utilisation is ignored.
+              <strong>{m.settings_scheduling_blocks_strong()}</strong>{m.settings_scheduling_blocks_rest()}
             </li>
           </ul>
           <SegmentedControl
-            ariaLabel="Scheduling input"
+            ariaLabel={m.settings_scheduling_aria()}
             value={schedulingMode}
             onChange={(value) => updateAccount(activeAccount.id, { schedulingMode: value })}
-            options={SCHEDULING_OPTIONS}
+            options={SCHEDULING_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
           />
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Calendar</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_calendar_heading()}</h2>
           <p className="mb-1 text-xs text-muted">
-            Applies to the whole team — sets which day starts the week and the time zone used to determine "today".
+            {m.settings_calendar_intro()}
           </p>
           {/* P1.14: language/week-start/time zone are captured when the company is created and FROZEN
               thereafter (the server returns 409 on a change). Disabled here, not removed, so the
               chosen values stay visible. */}
-          <p className="mb-3 text-xs text-muted">Set when the company was created and can't be changed.</p>
+          <p className="mb-3 text-xs text-muted">{m.settings_calendar_frozen_hint()}</p>
           <div className="space-y-3">
             <div>
-              <p className="mb-1.5 text-xs font-medium text-ink">Week starts on</p>
+              <p className="mb-1.5 text-xs font-medium text-ink">{m.settings_week_start_label()}</p>
               <SegmentedControl
-                ariaLabel="Week starts on"
+                ariaLabel={m.settings_week_start_label()}
                 value={weekStartsOn}
                 onChange={(value) => updateAccount(activeAccount.id, { weekStartsOn: value })}
-                options={WEEK_START_OPTIONS}
+                options={WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
                 disabled
               />
             </div>
             <div>
               <label htmlFor="timezone-select" className="mb-1.5 block text-xs font-medium text-ink">
-                Timezone
+                {m.settings_timezone_label()}
               </label>
               <select
                 id="timezone-select"
@@ -228,7 +230,7 @@ export function SettingsView() {
               >
                 {tzOptions.map((tz) => (
                   <option key={tz} value={tz}>
-                    {tz === 'Etc/GMT' ? 'GMT' : tz}
+                    {tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz}
                   </option>
                 ))}
               </select>
@@ -236,22 +238,20 @@ export function SettingsView() {
             <div>
               {/* Language is English-only until P1.5.1 (Paraglide); a read-only row, frozen like the
                   two above. Shown so the company's chosen language is visible even though it can't change. */}
-              <p className="mb-1.5 text-xs font-medium text-ink">Language</p>
-              <p className="text-sm text-muted" data-testid="settings-language">English</p>
+              <p className="mb-1.5 text-xs font-medium text-ink">{m.settings_language_label()}</p>
+              <p className="text-sm text-muted" data-testid="settings-language">{m.settings_language_value()}</p>
             </div>
           </div>
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Disciplines</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_disciplines_heading()}</h2>
           <p className="mb-3 text-xs text-muted">
-            Group people by discipline across the app. Turn this off if your team doesn't use
-            disciplines — they're then hidden from the schedule, resource form and navigation. Your
-            existing discipline data is kept and reappears if you turn it back on.
+            {m.settings_disciplines_intro()}
           </p>
           <div className="divide-y divide-line">
             <ToggleRow
-              label="Use disciplines"
+              label={m.settings_disciplines_toggle()}
               on={disciplinesEnabled}
               onToggle={() => updateAccount(activeAccount.id, { disciplinesEnabled: !disciplinesEnabled })}
             />
@@ -259,21 +259,18 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Schedule</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_schedule_heading()}</h2>
           <p className="mb-3 text-xs text-muted">
-            How the week grid is drawn — applies to this browser. Minimise weekends shrinks the
-            Saturday and Sunday columns so the working week dominates the view. Weekend work still
-            shows; the columns just narrow. Snap to week start keeps the first day of the week pinned
-            to the left edge so a stray scroll doesn't nudge the view onto a mid-week day.
+            {m.settings_schedule_intro()}
           </p>
           <div className="divide-y divide-line">
             <ToggleRow
-              label="Minimise weekends"
+              label={m.settings_schedule_minimise_weekends()}
               on={minimiseWeekends}
               onToggle={() => setMinimiseWeekends(!minimiseWeekends)}
             />
             <ToggleRow
-              label="Snap to week start"
+              label={m.settings_schedule_snap_week_start()}
               on={snapToWeekStart}
               onToggle={() => setSnapToWeekStart(!snapToWeekStart)}
             />
@@ -281,15 +278,13 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Placeholders</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_placeholders_heading()}</h2>
           <p className="mb-3 text-xs text-muted">
-            Placeholders are unfilled "slots" you can pencil in before a person is assigned —
-            set per company. Off by default; when off they're hidden everywhere (the
-            schedule, the assignee picker and the Resources list) but their data is kept.
+            {m.settings_placeholders_intro()}
           </p>
           <div className="divide-y divide-line">
             <ToggleRow
-              label="Show placeholders"
+              label={m.settings_placeholders_toggle()}
               on={placeholdersEnabled}
               onToggle={() => updateAccount(activeAccount.id, { placeholdersEnabled: !placeholdersEnabled })}
             />
@@ -297,17 +292,16 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">External</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_external_heading()}</h2>
           {/* Explainer copy (editable, shared with the Resources-tab External section — see
               lib/externalCopy.ts). Set per company; off by default. */}
           <p className="mb-3 max-w-prose text-xs text-muted">{EXTERNAL_EXPLAINER}</p>
           <p className="mb-3 text-xs text-muted">
-            Set per company. Off by default; when off externals are hidden everywhere (the
-            schedule, the assignee picker and the Resources list) but their data is kept.
+            {m.settings_external_intro()}
           </p>
           <div className="divide-y divide-line">
             <ToggleRow
-              label="Show external resources"
+              label={m.settings_external_toggle()}
               on={externalEnabled}
               onToggle={() => updateAccount(activeAccount.id, { externalEnabled: !externalEnabled })}
             />
@@ -315,15 +309,15 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Allocation bars</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_bar_labels_heading()}</h2>
           <p className="mb-3 text-xs text-muted">
-            What each bar on the schedule shows before the activity name — applies to this browser.
+            {m.settings_bar_labels_intro()}
           </p>
           <div className="divide-y divide-line">
             {BAR_LABEL_OPTIONS.map((opt) => (
               <ToggleRow
                 key={opt.key}
-                label={opt.label}
+                label={opt.label()}
                 on={barLabelPrefs[opt.key]}
                 onToggle={() => setBarLabelPref(opt.key, !barLabelPrefs[opt.key])}
               />
@@ -332,16 +326,16 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Utilisation</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_utilisation_heading()}</h2>
           <p className="mb-3 text-xs text-muted">
-            Which utilisation figures appear on the scheduler.
+            {m.settings_utilisation_intro()}
           </p>
           <div className="divide-y divide-line">
             {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
             {UTILIZATION_OPTIONS.filter((opt) => disciplinesEnabled || opt.key !== 'showDiscipline').map((opt) => (
               <ToggleRow
                 key={opt.key}
-                label={opt.label}
+                label={opt.label()}
                 on={utilizationPrefs[opt.key]}
                 onToggle={() => setUtilizationPref(opt.key, !utilizationPrefs[opt.key])}
               />
@@ -350,32 +344,37 @@ export function SettingsView() {
         </section>
 
         <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">Appearance</h2>
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_appearance_heading()}</h2>
           <p className="mb-3 text-xs text-muted">
-            Theme — applies to this browser. “Match system” follows your operating system.
+            {m.settings_appearance_intro()}
           </p>
-          <SegmentedControl ariaLabel="Theme" value={theme} onChange={setTheme} options={THEME_OPTIONS} />
+          <SegmentedControl
+            ariaLabel={m.settings_appearance_aria()}
+            value={theme}
+            onChange={setTheme}
+            options={THEME_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
+          />
         </section>
 
         {/* Local data — a destructive maintenance action, kept near the bottom with danger
             styling so it can't be hit by accident. Wipes everything CapacityLens stores in THIS
             browser (data blob + device prefs); the wording + outcome depend on server vs local. */}
         <section className="rounded border border-danger/40 bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-danger">Local data</h2>
+          <h2 className="mb-1 text-sm font-semibold text-danger">{m.settings_local_data_heading()}</h2>
           <p className="mb-3 max-w-prose text-xs text-muted">
             {serverMode
               ? `Clears the ${APP_NAME} data and settings cached in this browser. Your account data lives in the database and is safe — the app reloads from there. This cannot be undone for this browser.`
               : `Permanently clears the ${APP_NAME} data and settings stored in this browser. In local mode this is your only copy, so this erases your data. This cannot be undone.`}
           </p>
           <Button variant="danger" testId="clear-local-storage" onClick={() => setConfirmingClear(true)}>
-            Clear local storage
+            {m.settings_clear_storage_button()}
           </Button>
         </section>
 
         {confirmingClear && (
           <ConfirmDialog
-            title="Clear local storage?"
-            confirmLabel="Clear local storage"
+            title={m.settings_clear_storage_confirm_title()}
+            confirmLabel={m.settings_clear_storage_button()}
             message={
               serverMode
                 ? `This permanently clears the ${APP_NAME} data and settings stored in THIS browser, and cannot be undone. On this hosted site your data lives in the database and is safe — the app will reload and re-load it from there.`
@@ -390,11 +389,11 @@ export function SettingsView() {
             reported by the server). Auth off and local mode render nothing here. */}
         {authMode !== 'off' && (
           <section className="rounded border border-line bg-surface p-4">
-            <h2 className="mb-1 text-sm font-semibold text-ink">Account</h2>
+            <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_account_heading()}</h2>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-muted">Signed in as {user?.email ?? user?.name ?? 'unknown'}</p>
               <Button variant="ghost" onClick={() => void signOut()}>
-                Sign out
+                {m.settings_account_sign_out()}
               </Button>
             </div>
           </section>
@@ -417,7 +416,7 @@ export function SettingsView() {
                 href={feedback}
                 className="underline underline-offset-2 hover:text-ink"
               >
-                Send feedback
+                {m.settings_feedback_link()}
               </a>
             )}
           </p>

@@ -218,6 +218,14 @@ was created and can't be changed."*, and the server rejects a direct change to a
 (`language`/`weekStartsOn`/`timezone`) with **409**. Company **name** and **disciplines** remain
 editable. (English-only until Paraglide; the value persists as `'en'` on the Account.)
 
+> **i18n note (P1.5.2).** Every Settings + Members label/heading/button/placeholder/hint quoted in
+> this file is now rendered from a Paraglide message key (`settings_*` in `messages/en.json`) rather
+> than an inline literal — the **visible English text is char-identical**, so all selectors here (by
+> text / role-name / `data-testid`) are unchanged. Role labels (Owner/Admin/Editor/Viewer) and the
+> week-start/theme/scheduling option lists resolve their labels at render. Interpolated copy (the
+> server-vs-local clear-storage / "Signed in as …" / status-suffixed error toasts) is deferred to the
+> later toasts/errors i18n area; its visible text is likewise unchanged.
+
 **Placeholders (per-account, default OFF).** Settings → **Placeholders** has a single switch
 **Show placeholders** (`role="switch"`, accessible name `Show placeholders`), **off** by default.
 It's a **per-account** setting (`placeholdersEnabled` on the Account, absent = off, toggled via
