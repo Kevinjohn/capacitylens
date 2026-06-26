@@ -423,6 +423,18 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** the no-arg whole `/api/state` read
   (→ P1.13), and `manageMembers`/`manageInvites`/`transferOwnership` (no routes yet — matrix-only in
   access.test.ts).
+- **Constrained org-creation — `POST /api/orgs` (P1.8).** The ATOMIC org-create path, distinct from
+  the generic `POST /api/accounts` (which stays OPEN for the un-migrated onboarding client and only
+  writes the bare account row — closing it is deferred to P1.13). Allowed iff ANY of: **zero accounts**
+  (first-run bootstrap), **OFF mode** (trusted-local), the caller is an **ACTIVE Owner/Admin of SOME
+  existing account** (`can(role,'manageMembers')` = admin tier), or a matching
+  **`x-capacitylens-bootstrap-token`** header (`CAPACITYLENS_BOOTSTRAP_TOKEN`, env, OFF by default —
+  an unset/empty token never matches; constant-time + length-checked compare). Otherwise **403** —
+  a stranger cannot create an org once any account exists, absent a token. On success it creates, in
+  ONE `tx`, the **account + its built-in Internal client + an Owner membership** for the caller (no
+  double-Internal: the account is brand-new, so minting one here is the only one — unlike the generic
+  account write, whose Internal arrives via the client's separate sync). Body validated/repaired like
+  the generic account create (`sanitizeWrite`/`validateWrite`); id server-minted when omitted.
 - **Time-off `note` is owner/admin-only, redacted SERVER-SIDE (P1.6).** `readSlice` takes a REQUIRED
   `{ includeTimeOffNote }` (no silent default — every caller decides); `false` STRIPS the `note` key
   from every time-off row before it leaves the server, so it's never serialized for an Editor/Viewer.
