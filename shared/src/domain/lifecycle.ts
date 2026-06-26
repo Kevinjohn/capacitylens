@@ -19,7 +19,7 @@
 // exactly why those predicates are exported separately, so a caller can gate an affordance without a
 // try/catch (mirrors access.ts's `can*` predicates).
 
-import type { ISOTimestamp } from '../types/entities'
+import type { ISOTimestamp, Resource } from '../types/entities'
 
 /**
  * The three DERIVED lifecycle states an entity can be read as. There is no stored `state` column —
@@ -227,6 +227,63 @@ export function softDelete<T extends LifecycleFields>(entity: T, nowISO: ISOTime
     throw new Error(`Cannot delete: entity must be archived first (is ${lifecycleStatus(entity)}).`)
   }
   return { ...entity, deletedAt: nowISO }
+}
+
+// The fallback tag used when a resource id is empty or yields no alphanumerics — so an
+// {@link obfuscateResource} token is NEVER a bare `Removed person #` with an empty marker. Constant
+// (not random) to keep the helper deterministic; `0000` reads clearly as "no usable id".
+const ANON_FALLBACK_TAG = '0000'
+
+/**
+ * Derive a short, STABLE tag from a resource id for the anonymised soft-delete token. PURE: a
+ * function of the id string only — no Date, no Math.random.
+ *
+ * FORMAT CHOICE (documented): strip every non-alphanumeric character (so a UUID's hyphens go) and
+ * take the FIRST 4 of what remains — i.e. the UUID's leading hex. Short, opaque, and deterministic.
+ * If the id is empty or has no alphanumerics, fall back to {@link ANON_FALLBACK_TAG} so the token is
+ * never left with an empty marker. NON-exported: an internal detail of {@link obfuscateResource}, not
+ * a public contract.
+ */
+function shortResourceTag(id: string): string {
+  const tag = id.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4)
+  return tag.length > 0 ? tag : ANON_FALLBACK_TAG
+}
+
+/**
+ * Scrub a Resource's PII when it becomes a soft-delete tombstone — the resource-PII-erasure step of
+ * the privacy/data-lifecycle. Returns a NEW Resource with `name` replaced by a deterministic
+ * anonymised token; the input is NOT mutated and EVERY non-PII field flows through unchanged.
+ *
+ * WHY: a soft-deleted row is retained for the {@link PURGE_MIN_AGE_DAYS} grace window, but it must
+ * carry NO original personal data while it waits to be purged. A Resource TODAY has NO email and NO
+ * SSO link — its ONLY PII is `name`, so that is all there is to scrub. `role` is a job label
+ * ("Senior Designer"), NOT PII — it is RETAINED, as are id/accountId/kind/disciplineId/employmentType/
+ * workingHoursPerDay/workingDays/projectId/color and the lifecycle tombstones (archivedAt/deletedAt)
+ * and audit timestamps (createdAt/updatedAt).
+ *
+ * The token is `Removed person #<tag>`, where `<tag>` is a short stable marker from the id (see
+ * {@link shortResourceTag}) — derived from the id so the transform is PURE and testable (no clock, no
+ * randomness). The scrub is UNCONDITIONAL across every {@link Resource} kind: a nameless placeholder
+ * still gets the token (never left undefined), and for an `external` resource — where `name` holds the
+ * COMPANY identifier, also PII to erase — the company name is replaced too. A soft-deleted row must
+ * read clearly as removed and retain no original `name` whatever it once held.
+ *
+ * INVARIANT: no original `name` survives the call; the token is deterministic from the id (same id ⇒
+ * same token); the input is untouched (immutable — spread + override, a different reference returned).
+ *
+ * STANDALONE: this is a transform, NOT a transition — it does NOT call {@link softDelete} or set any
+ * tombstone. The wiring (P2.5, the server soft-delete route) COMPOSES `softDelete` + `obfuscateResource`;
+ * keeping them separate lets each be tested in isolation.
+ *
+ * FORWARD NOTE: when the parked "resource login" feature later adds `email`/`ssoUserId` to
+ * {@link Resource} (per CapacityLens.md P2.3), EXTEND this to scrub `email` and unlink `ssoUserId` here
+ * too — those are the MEMBER-erasure fields (P2.6) that don't exist on a Resource yet.
+ *
+ * @param resource - the Resource being soft-deleted (any kind: person / placeholder / external).
+ * @returns a NEW Resource identical to the input except `name` is the anonymised token.
+ */
+export function obfuscateResource(resource: Resource): Resource {
+  return { ...resource, name: `Removed person #${shortResourceTag(resource.id)}` }
 }
 
 // NOTE: there is deliberately NO `purge(entity)` function. Purge is a HARD row-delete done

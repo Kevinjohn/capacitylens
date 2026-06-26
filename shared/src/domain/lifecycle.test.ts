@@ -8,9 +8,11 @@ import {
   archive,
   unarchive,
   softDelete,
+  obfuscateResource,
   PURGE_MIN_AGE_DAYS,
 } from './lifecycle'
 import type { LifecycleState, LifecycleFields } from './lifecycle'
+import type { Resource } from '../types/entities'
 
 // These tests are an INDEPENDENT oracle of the P2.2 lifecycle state machine: the expected states /
 // booleans below are hand-derived from the contract (deletedAt wins; archive needs active; delete +
@@ -202,5 +204,107 @@ describe('canPurge — deleted + age ≥ 30d, fail-closed', () => {
 describe('constants', () => {
   it('PURGE_MIN_AGE_DAYS === 30', () => {
     expect(PURGE_MIN_AGE_DAYS).toBe(30)
+  })
+})
+
+describe('obfuscateResource — scrub a Resource\'s PII at soft-delete (pure, immutable)', () => {
+  // A full, valid sample Resource so the preservation assertions check the REAL field set. The
+  // id's leading hex ('a1b2') is the source of the deterministic token tag. Each call returns a
+  // fresh object (its own workingDays array) so the immutability checks aren't fooled by aliasing.
+  const makeResource = (over: Partial<Resource> = {}): Resource => ({
+    id: 'a1b2c3d4-0000-4000-8000-000000000000',
+    accountId: 'acc-1',
+    kind: 'person',
+    name: 'Ada Lovelace',
+    role: 'Senior Designer',
+    disciplineId: 'disc-1',
+    employmentType: 'permanent',
+    workingHoursPerDay: 8,
+    workingDays: [1, 2, 3, 4, 5],
+    projectId: undefined,
+    color: '#3b82f6',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-02-01T00:00:00.000Z',
+    archivedAt: T_ARCH,
+    deletedAt: T_DEL,
+    ...over,
+  })
+
+  it("scrubs a named person's name → 'Removed person #…', original name gone", () => {
+    const result = obfuscateResource(makeResource())
+    expect(result.name?.startsWith('Removed person #')).toBe(true)
+    expect(result.name).not.toContain('Ada Lovelace')
+    expect(result.name).not.toContain('Ada')
+  })
+
+  it('preserves EVERY non-PII field unchanged (role is NOT PII)', () => {
+    const input = makeResource()
+    const result = obfuscateResource(input)
+    expect(result.id).toBe(input.id)
+    expect(result.accountId).toBe(input.accountId)
+    expect(result.kind).toBe(input.kind)
+    expect(result.role).toBe('Senior Designer') // a job label, retained
+    expect(result.disciplineId).toBe(input.disciplineId)
+    expect(result.employmentType).toBe(input.employmentType)
+    expect(result.workingHoursPerDay).toBe(input.workingHoursPerDay)
+    expect(result.workingDays).toEqual(input.workingDays)
+    expect(result.projectId).toBe(input.projectId)
+    expect(result.color).toBe(input.color)
+    expect(result.createdAt).toBe(input.createdAt)
+    expect(result.updatedAt).toBe(input.updatedAt)
+    expect(result.archivedAt).toBe(input.archivedAt)
+    expect(result.deletedAt).toBe(input.deletedAt)
+  })
+
+  it('does NOT mutate the input and returns a NEW reference (immutability)', () => {
+    const input = makeResource()
+    const snapshot = structuredClone(input)
+    const result = obfuscateResource(input)
+    expect(input).toEqual(snapshot) // input deep-unchanged (name still 'Ada Lovelace')
+    expect(input.name).toBe('Ada Lovelace')
+    expect(result).not.toBe(input) // different object
+  })
+
+  it('is DETERMINISTIC: same id ⇒ identical token across two calls', () => {
+    const a = obfuscateResource(makeResource())
+    const b = obfuscateResource(makeResource())
+    expect(a.name).toBe(b.name)
+  })
+
+  it('different ids ⇒ different tokens (first-4 hex differ)', () => {
+    const a = obfuscateResource(makeResource({ id: 'a1b2c3d4-0000-4000-8000-000000000000' }))
+    const b = obfuscateResource(makeResource({ id: 'ffff0000-0000-4000-8000-000000000000' }))
+    expect(a.name).not.toBe(b.name)
+  })
+
+  it('handles a NAMELESS placeholder (name undefined) → token set, non-empty', () => {
+    const result = obfuscateResource(makeResource({ kind: 'placeholder', name: undefined }))
+    expect(result.name).toBeDefined()
+    expect(result.name?.startsWith('Removed person #')).toBe(true)
+    expect(result.name).not.toBe('Removed person #') // a real tag, not bare
+  })
+
+  it('handles an EXTERNAL resource: the COMPANY name is gone, replaced by the token', () => {
+    const result = obfuscateResource(makeResource({ kind: 'external', name: 'Acme Print Co' }))
+    expect(result.name).not.toContain('Acme')
+    expect(result.name?.startsWith('Removed person #')).toBe(true)
+  })
+
+  it("never leaves a bare 'Removed person #' — the tag is non-empty for a normal UUID id", () => {
+    const result = obfuscateResource(makeResource())
+    const tag = result.name?.replace('Removed person #', '')
+    expect(tag).toBe('a1b2') // first-4 alphanumerics of the id
+    expect(tag?.length).toBeGreaterThan(0)
+  })
+
+  // ANON_FALLBACK_TAG branch of shortResourceTag(id): when the id yields NO alphanumerics to
+  // derive a tag from, the token falls back to the documented '0000' rather than leaving a bare
+  // 'Removed person #'. Both an empty id and an all-punctuation id must hit that same fallback.
+  it("empty id ⇒ fallback tag '0000' (no alphanumerics to derive from)", () => {
+    expect(obfuscateResource(makeResource({ id: '' })).name).toBe('Removed person #0000')
+  })
+
+  it("id with only non-alphanumerics ('----') ⇒ fallback tag '0000'", () => {
+    expect(obfuscateResource(makeResource({ id: '----' })).name).toBe('Removed person #0000')
   })
 })

@@ -125,6 +125,33 @@ describe('NO PII (2) — the #1 invariant', () => {
   })
 })
 
+describe('NO resource PII in the audit log (2b) — P2.3 acceptance', () => {
+  it("a resource's name VALUE never reaches the audit file, but 'name' IS in changedFields", async () => {
+    const { app, file, lines } = fileApp()
+    // A name unique enough to grep for unambiguously across the whole raw file.
+    const SENTINEL = 'ZZSENTINELPERSON_DELETE_ME'
+    await post(app, 'accounts', account('a1')) // FK parent for the resource
+    const createIdx = lines().length // the resource create line lands here
+    // Create an audited resource carrying the sentinel as its NAME (the only resource PII today).
+    expect((await post(app, 'resources', { ...person('r1', 'a1'), name: SENTINEL })).statusCode).toBe(201)
+    // A second audited mutation (a non-PII PATCH) so there's more than one line to scan.
+    const patch = await call(app, { method: 'PATCH', url: '/api/resources/r1', payload: body({ role: 'Lead Designer' }) })
+    expect(patch.statusCode).toBe(200)
+
+    // The RAW audit JSONL must NEVER contain the name VALUE — on any line.
+    const raw = readFileSync(file, 'utf8')
+    expect(raw).not.toContain(SENTINEL)
+
+    // ...yet the create line DID capture the field — 'name' is recorded as a changedFields KEY (the
+    // name of the field, never its value): the audit saw the create and stored only the key.
+    const rec = lines()[createIdx]
+    expect(rec.entity).toBe('resources')
+    expect(rec.id).toBe('r1')
+    expect(rec.changedFields).toContain('name')
+    expect(rec.changedFields).not.toContain(SENTINEL)
+  })
+})
+
 describe('PATCH changedFields = exactly the body keys (3)', () => {
   it('records the PATCH req.body keys, NOT the merged row', async () => {
     const { app, lines } = fileApp()
