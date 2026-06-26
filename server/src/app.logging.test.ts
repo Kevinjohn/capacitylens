@@ -40,6 +40,44 @@ describe('CAPACITYLENS_LOG on', () => {
   })
 })
 
+describe('CAPACITYLENS_LOG redaction (P0.5.5)', () => {
+  // The meaningful proof: pino's redact (remove:true) strips these EXACT paths. Default
+  // serializers don't log headers, so we emit a record carrying the redacted paths directly
+  // with sentinel secrets, then assert the secrets are gone but the line WAS emitted.
+  it('removes authorization/cookie/set-cookie values from records carrying those paths', async () => {
+    const { lines, stream } = capture()
+    const app = buildApp(openDb(':memory:'), { log: true, logStream: stream })
+    app.log.info(
+      {
+        req: { headers: { authorization: 'SENTINEL_AUTH_TOKEN', cookie: 'SENTINEL_COOKIE' } },
+        res: { headers: { 'set-cookie': 'SENTINEL_SETCOOKIE' } },
+      },
+      'probe',
+    )
+    const out = lines.join('')
+    expect(out).toContain('"msg":"probe"') // the line WAS emitted (can't pass by logging nothing)
+    expect(out).not.toContain('SENTINEL_AUTH_TOKEN')
+    expect(out).not.toContain('SENTINEL_COOKIE')
+    expect(out).not.toContain('SENTINEL_SETCOOKIE')
+  })
+
+  // End-to-end: a real request carrying secret headers. They don't appear because default
+  // serializers don't log headers — this guards against a future serializer change leaking them.
+  it('keeps authorization/cookie headers off the request log lines', async () => {
+    const { lines, stream } = capture()
+    const app = buildApp(openDb(':memory:'), { log: true, logStream: stream })
+    await app.inject({
+      method: 'GET',
+      url: '/api/health',
+      headers: { authorization: 'Bearer SENTINEL_AUTH', cookie: 'session=SENTINEL_C' },
+    })
+    const out = lines.join('')
+    expect(out).toContain('"url":"/api/health"') // the request was logged
+    expect(out).not.toContain('SENTINEL_AUTH')
+    expect(out).not.toContain('SENTINEL_C')
+  })
+})
+
 describe('CAPACITYLENS_LOG off (default)', () => {
   it('emits no request logs at all', async () => {
     const { lines, stream } = capture()

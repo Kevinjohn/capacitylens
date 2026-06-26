@@ -95,6 +95,19 @@ export interface AppOptions {
   https?: boolean
 }
 
+// P0.5.5: NEVER let a secret reach the logs. pino strips these exact paths from every record
+// when logging is on; remove:true DELETES the key (so the value is gone entirely, not printed as
+// "[Redacted]"). DEFENSE-IN-DEPTH: Fastify's default req/res serializers don't log headers at all
+// (req → method/url/hostname/remoteAddress; res → statusCode/responseTime), so today nothing here
+// would emit these — but the moment a custom serializer logs headers, or someone logs a raw req/res,
+// this is the backstop that keeps Authorization / Cookie / Set-Cookie out of stdout. If such a
+// serializer is ever added, extend this list to cover any new path it surfaces.
+const LOG_REDACT_PATHS = [
+  'req.headers.authorization',
+  'req.headers.cookie',
+  'res.headers["set-cookie"]',
+]
+
 /** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
  *  unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit). */
 export function parseRateLimit(raw: string | undefined): number {
@@ -199,8 +212,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const app = Fastify({
     bodyLimit: BODY_LIMIT,
     // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
-    // Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
-    logger: logOn ? (opts.logStream ? { stream: opts.logStream } : true) : false,
+    // ON always attaches the redact config (both branches) so a secret can never reach the
+    // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
+    logger: logOn
+      ? { ...(opts.logStream ? { stream: opts.logStream } : {}), redact: { paths: LOG_REDACT_PATHS, remove: true } }
+      : false,
   })
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
