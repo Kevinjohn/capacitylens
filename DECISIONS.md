@@ -446,6 +446,29 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   + delete-company backup reflect the ACTIVE working set (archived/soft-deleted live in the server DB; a
   COMPLETE per-tenant export is P2.6). In LOCAL mode the export is the whole device blob (complete).
   `ImportExport` deliberately keeps the RAW `useScopedData` so it never applies the view filter.
+- **Lifecycle wiring — server-authoritative, two-half (P2.5).** The Active→Archived→Soft-deleted→Purged
+  transitions are wired to BOTH halves from the ONE pure machine (`shared/src/domain/lifecycle.ts`);
+  callers NEVER re-derive. **Server (P2.5a):** four dedicated routes `POST /api/:entity/:id/{archive,
+  unarchive,delete,purge}` (entity ∈ resources|clients|projects) enforce the interlocks SERVER-SIDE —
+  archive/unarchive/delete = `'write'` (editor+), purge = `'purge'` (admin+) AND `canPurge` (≥30-day
+  tombstone) → 409 otherwise; delete refused unless archived → 409; a RESOURCE delete composes
+  `obfuscateResource(softDelete(...))` so the tombstone name is scrubbed + persisted; purge cascades via
+  `integrity.ts`. Every route reads with `{includeTimeOffNote:true, includeInactive:true}` before
+  `replaceAccountSlice` (a whole-slice rewrite would else erase sibling tombstones / time-off notes).
+  `GET /api/state?includeInactive=1` is the admin read, gated admin/`'purge'` tier when auth ON (403
+  else; OFF allows). **Client (P2.5b):** lifecycle mutations are SERVER-AUTHORITATIVE — in SERVER mode
+  the UI calls the dedicated routes via `useLifecycleActions` then RELOADS the active slice
+  (`ServerSyncAdapter.loadAll` re-seeds the snapshot, so the diff-sync stays a no-op); in LOCAL/OFF mode
+  the store actions (`archiveEntity`/`unarchiveEntity`/`softDeleteEntity`/`purgeEntity`) mutate the local
+  blob via the SAME pure helpers (and `softDeleteEntity` scrubs a resource name locally). This was chosen
+  OVER routing archive/soft-delete through the mode-agnostic `/api/batch` diff path BECAUSE batch is a
+  plain `'write'` upsert that would BYPASS the server-side interlocks + obfuscation. The admin "Archived
+  & deleted" view lives in Settings (`ArchivedSection`, local source = `useInactiveScopedData`, server
+  source = the includeInactive fetch with MembersSection-style 403-self-hide). The list **Delete
+  affordance became Archive** — immediate hard-delete is REMOVED (the old `deleteResource`/`deleteClient`/
+  `deleteProject` store actions were deleted as a lifecycle bypass); the only physical removal is purge
+  (admin, ≥30 days). Purge's client `canPurge` gate is a button affordance only — the server clock
+  re-check is authoritative, and a 409/403 surfaces as a notice (never crashes).
 - **The two read endpoints + per-account hydration (P1.4 / P1.13).** `GET /api/accounts` (OFF =
   ALL accounts `{id,name,role:'owner'}`, NO membership gate — branched before membership for the OFF
   guarantee; auth-on = `listAccounts` = the caller's memberships). `GET /api/state?accountId=` returns

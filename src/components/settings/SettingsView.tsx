@@ -9,6 +9,7 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
 import { MembersSection } from './MembersSection'
+import { ArchivedSection } from './ArchivedSection'
 import { supportedTimeZones } from '../../lib/timezones'
 import { cn } from '@/lib/utils'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
@@ -403,6 +404,12 @@ export function SettingsView() {
             self-gates further (a 403 on the members read hides it for a viewer/editor). OFF/local mode
             renders nothing. */}
         {authMode !== 'off' && <MembersSection />}
+
+        {/* Archived & deleted (P2.5b) — the admin view of the data-lifecycle. Unlike Members it ALSO
+            shows in LOCAL mode (everyone is owner locally); in SERVER mode it self-gates on a 403 from
+            the inactive read (admin tier). Rendered unconditionally; the section decides its own
+            visibility. */}
+        <ArchivedSection />
 
         {/* Build provenance footer (P1.7) + feedback link (P5.2) — only in builds the
             deploy script stamps; absent (today's Settings exactly) when both env vars

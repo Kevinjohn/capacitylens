@@ -28,22 +28,17 @@ describe('built-in Internal client in the store', () => {
     expect(internalClientFor(s().data.clients, a.id)!.name).toBe('Internal')
   })
 
-  it('rejects deleting the built-in Internal client', () => {
-    const a = s().addAccount({ name: 'Acme Co', color: '#6366f1' })
-    s().setActiveAccount(a.id)
-    const internal = internalClientFor(s().data.clients, a.id)!
-    expect(() => s().deleteClient(internal.id)).toThrow(/built in/i)
-    expect(internalClientFor(s().data.clients, a.id)).toBeDefined()
-  })
+  // The builtin Internal client's protection from REMOVAL is now exercised through the lifecycle
+  // actions (archive/softDelete/purge all throw "built in") in useStore.lifecycle.test.ts — there is
+  // no immediate deleteClient action anymore. This file keeps the RENAME guard, which is the
+  // updateClient concern that stays here.
 
-  it('still allows renaming and deleting a normal client', () => {
+  it('still allows renaming a normal client', () => {
     const a = s().addAccount({ name: 'Acme Co', color: '#6366f1' })
     s().setActiveAccount(a.id)
     const c = s().addClient({ name: 'Globex', color: '#3b82f6' })
     s().updateClient(c.id, { name: 'Globex 2' })
     expect(s().data.clients.find((x) => x.id === c.id)!.name).toBe('Globex 2')
-    s().deleteClient(c.id)
-    expect(s().data.clients.some((x) => x.id === c.id)).toBe(false)
   })
 
   it('addClient cannot create a SECOND builtin — the flag is stripped (one Internal per account)', () => {

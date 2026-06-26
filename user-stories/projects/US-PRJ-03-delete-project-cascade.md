@@ -1,24 +1,38 @@
-# US-PRJ-03 — Delete a project (cascade; placeholder unbound, not deleted)
+# US-PRJ-03 — Archive a project (hide from the schedule) and undo
 
-**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "deletes a project and cascades its activities, restorable with undo"
+**Area:** Projects · **Persona:** Studio manager · **Linked E2E:** `e2e/projects.spec.ts` → "archiving a project hides it from the list, restorable with undo"
 
 ## Goal
-Remove a project and have its phases, activities and allocations go with it, while any placeholder bound to it is **unbound but kept**.
+Remove a project from the active views **reversibly** — archive it (with a clear warning and one-step
+undo) so the project and its phases/activities/allocations are retained and it can be restored, or
+later permanently deleted from Settings → Archived & deleted.
 
 ## Why
-When a project is cancelled, the manager wants it and all its scheduled work gone in one step — but a placeholder is a hiring slot, not project data, so it must survive (just unbound). The action is destructive, so it's undoable.
+When a project pauses or is cancelled, the manager wants it off the schedule in one step — but without
+destroying its scheduled work. Archiving hides the project from the active views while keeping its
+data; soft-delete and permanent removal (which DO cascade to phases/activities/allocations and unbind
+placeholders) are separate, later steps reached from Settings → Archived & deleted. Archiving is
+reversible, so the action is undoable.
 
 ## How (end-to-end)
-**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project Lightning** has phases (*Discovery*, *Build*), activities (*Wireframes*, *Visual Design*, *CMS Review*) and allocations; the **Senior Designer** placeholder (`r-ph-designer`) is bound to it.
-1. On the **Project Lightning** row, click the **Delete** (trash) icon. The "Delete project?" confirmation dialog opens.
-2. Read the dialog: it warns the delete cascades and is undoable — "You can undo this with ⌘Z."
-3. Click **Delete** to confirm. The dialog closes.
-4. Visit **Activities**, **Resources**, and the **Schedule** (`/`, **Jump to date** → `2026-06-01`) to inspect the result.
-5. Press **⌘Z** (Undo) to reverse the deletion.
+**Precondition:** Seeded app open; click **Projects** in the sidebar (`/projects`). **Project
+Lightning** has phases (*Discovery*, *Build*), activities (*Wireframes*, *Visual Design*, *CMS
+Review*) and allocations.
+1. On the **Project Lightning** row, click the **Archive Project Lightning** (trash) icon. The
+   "Archive project?" confirmation dialog opens.
+2. Read the dialog: it explains the project will be hidden from the schedule and can be restored or
+   permanently deleted from **Settings → Archived & deleted**.
+3. Click **Archive** to confirm. The dialog closes and **Project Lightning** leaves the Projects list.
+4. Press **⌘Z** (Undo, LOCAL mode) to reverse the archive — Project Lightning returns to the list.
 
 ## Acceptance criteria
-- ✅ The confirmation dialog is titled **Delete project?** and warns the delete cascades and is undoable ("You can undo this with ⌘Z.").
-- ✅ After confirming, **Project Lightning** is gone from Projects; its phases (*Discovery*, *Build*) are gone; its activities (*Wireframes*, *Visual Design*, *CMS Review*) are gone from Activities; its allocation bars are gone from the schedule.
-- ✅ The **Senior Designer** placeholder still exists as a resource — it is now **unbound**, **not deleted**.
-- ✅ *Acme Inc.* still exists as a client (deleting a project does not delete its client); *Brand Themes* is untouched.
-- ✅ Pressing **⌘Z** restores the project, its phases, activities and allocations, and re-binds the **Senior Designer** placeholder to it.
+- ✅ The confirmation dialog is titled **Archive project?** and explains the project is hidden from the
+  schedule and is restorable from Settings → Archived & deleted.
+- ✅ After confirming, **Project Lightning** is gone from the Projects management list (archived, not
+  destroyed).
+- ✅ The project, its phases, activities and allocations are **retained** in the data — archiving
+  filters each row by its OWN status (it does not cascade-delete the children).
+- ✅ Archived projects surface in **Settings → Archived & deleted**, where they can be restored or
+  (after soft-delete + the 30-day grace) permanently deleted.
+- ✅ (LOCAL mode) Pressing **⌘Z** restores the project to the active list; in server mode, **Restore**
+  from Settings → Archived & deleted brings it back.

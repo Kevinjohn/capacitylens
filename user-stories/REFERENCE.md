@@ -420,6 +420,11 @@ Mouse hover sets the active option; mouse click selects.
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
 (Settings → Calendar's read-only Language row — **English**; both frozen, P1.14),
 `clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
+`archived-section` (Settings → Archived & deleted; shows in local mode and for admins on an auth-on
+server, self-hidden on a 403), `archived-row` (one per archived resource/client/project; carries a
+**Restore <name>** + **Delete <name>** button), `deleted-row` (one per soft-deleted tombstone; carries
+`archived-purge` — the **Permanently delete <name>** button, disabled with a locked hint until the
+30-day grace elapses, purge-tier/admin-only),
 `view-only` (sidebar-footer "View only" badge — shown ONLY for a Viewer on an auth-on, server-backed
 deploy; absent in the default OFF/local deploy and for any non-viewer role),
 `build-stamp` (Settings footer; only rendered when the build sets
@@ -471,12 +476,54 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
   A non-active entity is one with `archivedAt` set (archived) or `deletedAt` set (soft-deleted); the
   hide is applied by the shared `activeOnly` projection in both the client view seam
   (`useActiveScopedData`) and the server per-account read (`GET /api/state?accountId=` →
-  `includeInactive:false`). *No tester-visible archive affordance exists yet* — the **server
-  lifecycle routes** (below) land in P2.5a; the **client admin UI** that drives them is P2.5b, so the
-  **"archived vanishes" end-to-end story is deferred to P2.5b** (the unit, scheduler-model and server
-  `readSlice` + `app.lifecycle` tests are the load-bearing coverage for P2.4/P2.5a).
+  `includeInactive:false`). The tester-facing affordances are: each management list's **per-row
+  archive** action (Resources / Clients / Projects — see below) and the **Settings → Archived &
+  deleted** admin view (see below) that restores / deletes / permanently-deletes them. The server
+  lifecycle routes (below) enforce the same machine server-side. The **"archived vanishes"
+  end-to-end story is `e2e/archived.spec.ts`** (LOCAL mode).
 
-### Server lifecycle routes (P2.5a — no client UI yet)
+### List archive affordance (P2.5b)
+
+On the **Resources**, **Clients** and **Projects** management lists, the per-row destructive action
+is **Archive** (not a hard delete — the simplest coherent flow; soft-delete + permanent delete are
+reached later from Settings → Archived & deleted). The row's icon button has the accessible name
+**"Archive <name>"** (e.g. *Archive Alex Rivera*); clicking it opens a confirm dialog (title
+**"Archive resource?" / "Archive client?" / "Archive project?"**, body *"Archive '<name>'? … You can
+restore it or permanently delete it from Settings → Archived & deleted."*, confirm button
+**"Archive"**). Confirming hides the row from the list **and** from the schedule (it becomes
+archived), but the record + its children are **retained** (archiving is reversible, unlike the old
+cascade-delete). The affordance is gated by `useCanEdit` (a Viewer sees nothing). In **server mode**
+the row POSTs `POST /api/:entity/:id/archive {accountId}` and reloads the active slice; in
+**local/OFF mode** it calls the store's `archiveEntity`. Built-in **Internal** client has no archive
+button (it's hidden from the Clients list and the store/server backstop it). Hook:
+`src/hooks/useLifecycleActions.ts` (the shared server/local dispatch).
+
+### Settings → Archived & deleted (P2.5b)
+
+Settings gains an **"Archived & deleted"** section (heading `Archived & deleted`,
+`data-testid="archived-section"`) — the admin view of the data-lifecycle, the counterpart to the
+normal active-only views. Unlike Members it **also shows in LOCAL mode** (everyone is owner locally);
+in **server mode** it self-gates by trying the `GET /api/state?accountId=…&includeInactive=1` read and
+rendering **nothing** if the server replies **403** (a non-admin — the inactive read is purge-tier).
+The inactive-row **source** is the store (`useInactiveScopedData`) in local mode and that
+`includeInactive=1` fetch in server mode. Rows are partitioned into two groups:
+- **Archived** (`data-testid="archived-row"`, one per archived resource/client/project) — each shows
+  the entity name + a type tag (Resource / Client / Project) and two actions: **Restore** (aria
+  *"Restore <name>"* → unarchive, back to active) and **Delete** (aria *"Delete <name>"* → a confirm
+  dialog *"Delete this item?"*, then soft-delete: it moves to the Deleted group and a resource's name
+  is scrubbed to *"Removed person #…"*).
+- **Deleted** (`data-testid="deleted-row"`, one per soft-deleted tombstone) — shows the (for a
+  resource, already-obfuscated *"Removed person #…"*) name + type tag and a **Delete permanently**
+  button (`data-testid="archived-purge"`, aria *"Permanently delete <name>"*). It is **disabled** with
+  the hint *"Can be permanently deleted 30 days after deletion"* until the tombstone is ≥ 30 days old;
+  once eligible it's enabled and a strong confirm dialog (*"Permanently delete?"*, confirm *"Delete
+  permanently"*) is required. The permanent-delete button is **purge-tier (admin+)**: it is shown only
+  when the caller may purge (always in OFF/local; admin+ on an auth-on server) — the server 403 is the
+  backstop. There is **no Restore on a tombstone**. An **empty state** (*"Nothing archived or
+  deleted."*) shows when nothing is inactive. The component is
+  `src/components/settings/ArchivedSection.tsx`; spec `e2e/archived.spec.ts`.
+
+### Server lifecycle routes (P2.5a)
 
 The Active → Archived → Soft-deleted → Purged data-lifecycle is enforced **server-side** by four
 dedicated action routes (entity ∈ `resources` | `clients` | `projects` **only** — any other entity is

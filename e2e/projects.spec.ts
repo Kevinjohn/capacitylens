@@ -23,17 +23,16 @@ test.describe('Projects', () => {
     await expect(page.getByTestId('project-row').filter({ hasText: 'Brand Refresh' })).toBeVisible()
   })
 
-  test('deletes a project and cascades its activities, restorable with undo', async ({ page }) => {
+  // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
+  // a hard cascade-delete). Archiving is undoable via the local store.
+  test('archiving a project hides it from the list, restorable with undo', async ({ page }) => {
     await openApp(page, 'Studio North', '/projects')
-    await page.getByTestId('project-row').filter({ hasText: 'Project Lightning' }).getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('dialog', { name: 'Delete project?' }).getByRole('button', { name: 'Delete' }).click()
+    await page.getByTestId('project-row').filter({ hasText: 'Project Lightning' }).getByRole('button', { name: 'Archive Project Lightning' }).click()
+    await page.getByRole('dialog', { name: 'Archive project?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('project-row').filter({ hasText: 'Project Lightning' })).toHaveCount(0)
 
-    // Its activities are gone.
-    await page.getByRole('link', { name: 'Activities' }).click()
-    await expect(page.getByTestId('activity-row').filter({ hasText: 'Wireframes' })).toHaveCount(0)
-
+    // Undo restores the archived project to the active list.
     await page.keyboard.press('Meta+z')
-    await expect(page.getByTestId('activity-row').filter({ hasText: 'Wireframes' })).toBeVisible()
+    await expect(page.getByTestId('project-row').filter({ hasText: 'Project Lightning' })).toBeVisible()
   })
 })

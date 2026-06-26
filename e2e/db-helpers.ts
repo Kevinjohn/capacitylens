@@ -15,8 +15,12 @@ export async function resetServer(request: APIRequestContext, withSeed = true): 
   expect(res.ok()).toBeTruthy()
 }
 
-/** The whole server state, for assertions that bypass the UI. */
-export async function serverState(request: APIRequestContext): Promise<Record<string, { id: string; name?: string }[]>> {
+/** The whole server state, for assertions that bypass the UI. Rows expose the lifecycle tombstone
+ *  fields (archivedAt/deletedAt) too, so a test can prove an archive RETAINED the row rather than
+ *  hard-deleting it (P2.5b). */
+export async function serverState(
+  request: APIRequestContext,
+): Promise<Record<string, { id: string; name?: string; archivedAt?: string; deletedAt?: string }[]>> {
   const res = await request.get(`${API}/api/state`)
   expect(res.ok()).toBeTruthy()
   return res.json()

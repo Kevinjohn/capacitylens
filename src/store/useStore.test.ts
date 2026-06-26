@@ -36,23 +36,6 @@ describe('store CRUD', () => {
     expect(updated.updatedAt >= r.updatedAt).toBe(true)
   })
 
-  it('cascades client deletion through projects, activities and allocations', () => {
-    const client = s().addClient({ name: 'Acme', color: '#1' })
-    const project = s().addProject({ name: 'P', clientId: client.id, color: '#2' })
-    const activity = s().addActivity({ name: 'T', kind: 'project', projectId: project.id })
-    const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
-    s().addAllocation({ resourceId: r.id, activityId: activity.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
-    expect(s().data.allocations).toHaveLength(1)
-
-    s().deleteClient(client.id)
-    const d = s().data
-    expect(d.clients).toHaveLength(0)
-    expect(d.projects).toHaveLength(0)
-    expect(d.activities).toHaveLength(0)
-    expect(d.allocations).toHaveLength(0)
-    expect(d.resources).toHaveLength(1) // resources are not deleted
-  })
-
   it('rejects assigning a placeholder to an activity outside its bound project', () => {
     const client = s().addClient({ name: 'Acme', color: '#1' })
     const p1 = s().addProject({ name: 'P1', clientId: client.id, color: '#2' })

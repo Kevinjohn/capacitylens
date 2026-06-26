@@ -157,75 +157,83 @@ describe('ResourceList display', () => {
   })
 })
 
-describe('ResourceList delete flow', () => {
-  it('shows a confirm dialog when Delete is clicked and cancelling keeps the resource', async () => {
+// P2.5b: the per-row "Delete" affordance now ARCHIVES (the simplest coherent flow — soft-delete is
+// reached LATER from Settings → Archived & deleted on an archived row). LOCAL mode here, so it calls
+// the store's archiveEntity: the row gets `archivedAt` set (still in `data`) and vanishes from this
+// list (which reads useActiveScopedData → active-only). The button + confirm copy read "Archive".
+describe('ResourceList archive flow', () => {
+  it('shows an Archive confirm dialog and cancelling keeps the resource visible', async () => {
     const user = userEvent.setup()
     useStore.getState().addResource(personDraft('Alice'))
     render(<ResourceList />)
 
     expect(screen.getByText('Alice')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive Alice' }))
 
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent(/Delete resource\?/i)
+    expect(dialog).toHaveTextContent(/Archive resource\?/i)
     expect(dialog).toHaveTextContent(/Alice/i)
 
-    // Cancel keeps the resource
+    // Cancel keeps the resource active + visible.
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(useStore.getState().data.resources).toHaveLength(1)
+    expect(useStore.getState().data.resources[0].archivedAt).toBeUndefined()
     expect(screen.getByText('Alice')).toBeInTheDocument()
   })
 
-  it('deletes a resource after confirming', async () => {
+  it('archives a resource after confirming (kept in data, hidden from the list)', async () => {
     const user = userEvent.setup()
     useStore.getState().addResource(personDraft('Alice'))
     render(<ResourceList />)
 
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive Alice' }))
     const dialog = screen.getByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
-    expect(useStore.getState().data.resources).toHaveLength(0)
+    // Still in the data (archived, not destroyed) but hidden from the active-only list.
+    expect(useStore.getState().data.resources).toHaveLength(1)
+    expect(useStore.getState().data.resources[0].archivedAt).toBeTruthy()
     expect(screen.queryByText('Alice')).not.toBeInTheDocument()
   })
 
-  it('deletes the correct resource when multiple exist', async () => {
+  it('archives the correct resource when multiple exist', async () => {
     const user = userEvent.setup()
     useStore.getState().addResource(personDraft('Alice'))
     useStore.getState().addResource(personDraft('Bob'))
     render(<ResourceList />)
 
-    // Find the Bob row and click its Delete button
+    // Find the Bob row and click its Archive button.
     const rows = screen.getAllByTestId('resource-row')
     const bobRow = rows.find((r) => within(r).queryByText('Bob'))!
-    await user.click(within(bobRow).getByRole('button', { name: 'Delete' }))
+    await user.click(within(bobRow).getByRole('button', { name: 'Archive Bob' }))
 
     const dialog = screen.getByRole('dialog')
     expect(dialog).toHaveTextContent(/Bob/i)
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
-    expect(useStore.getState().data.resources).toHaveLength(1)
-    expect(useStore.getState().data.resources[0].name).toBe('Alice')
+    // Alice stays active + visible; Bob is archived (still in data) and gone from the list.
+    const bob = useStore.getState().data.resources.find((r) => r.name === 'Bob')!
+    expect(bob.archivedAt).toBeTruthy()
     expect(screen.getByText('Alice')).toBeInTheDocument()
     expect(screen.queryByText('Bob')).not.toBeInTheDocument()
   })
 
-  it('deletes a freelancer resource', async () => {
+  it('archives a freelancer resource', async () => {
     const user = userEvent.setup()
     useStore.getState().addResource(freelancerDraft('Bob'))
     render(<ResourceList />)
 
     expect(screen.getByText('Bob')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive Bob' }))
     const dialog = screen.getByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
-    expect(useStore.getState().data.resources).toHaveLength(0)
+    expect(useStore.getState().data.resources[0].archivedAt).toBeTruthy()
     expect(screen.queryByText('Bob')).not.toBeInTheDocument()
   })
 
-  it('deletes a placeholder resource', async () => {
+  it('archives a placeholder resource', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     const project = useStore.getState().addProject({ name: 'ProjectX', clientId: client.id, color: '#222' })
@@ -246,14 +254,14 @@ describe('ResourceList delete flow', () => {
     expect(screen.getByText(/Senior Designer/)).toBeInTheDocument()
     expect(screen.getByText('placeholder')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive Placeholder' }))
     const dialog = screen.getByRole('dialog')
     // The confirm dialog names the placeholder by its DISPLAY name ("Placeholder"), matching the
     // row above it — not its role ("Senior Designer"), which would read inconsistently.
-    expect(dialog).toHaveTextContent(/Delete "Placeholder"/i)
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    expect(dialog).toHaveTextContent(/Archive "Placeholder"/i)
+    await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
-    expect(useStore.getState().data.resources).toHaveLength(0)
+    expect(useStore.getState().data.resources[0].archivedAt).toBeTruthy()
     expect(screen.queryByText('Placeholder')).not.toBeInTheDocument()
     expect(screen.queryByText('placeholder')).not.toBeInTheDocument()
   })

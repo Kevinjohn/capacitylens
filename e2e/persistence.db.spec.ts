@@ -53,7 +53,9 @@ test.describe('database-backed persistence', () => {
     await expect(row).toBeVisible()
 
     await row.getByRole('button', { name: 'Edit' }).click()
-    await page.getByLabel('Name').fill('Renamed Co')
+    // Scope the field to the Edit dialog: the row's "Archive Rename Me Co" button (P2.5b) also matches
+    // a bare getByLabel('Name') — "Re*name* Me Co" contains "Name" — so an unscoped lookup is ambiguous.
+    await page.getByRole('dialog').getByLabel('Name').fill('Renamed Co')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('client-row').filter({ hasText: 'Renamed Co' })).toBeVisible()
     await settle(page)
@@ -64,7 +66,12 @@ test.describe('database-backed persistence', () => {
     await expect(page.getByTestId('client-row').filter({ hasText: 'Rename Me Co' })).toHaveCount(0)
   })
 
-  test('delete + reload: a removed client stays gone', async ({ page, request }) => {
+  // P2.5b: the per-row destructive action ARCHIVES (server-authoritative — the UI POSTs the dedicated
+  // /api/clients/:id/archive route, then reloads the active slice). An archived client is RETAINED in
+  // the DB (the archive route sets archivedAt; it is NOT a hard delete), but it is HIDDEN from the
+  // active views (useActiveScopedData) and STAYS hidden across a reload — the real server round-trip
+  // this proves: UI archive → POST .../archive → reload → still absent from the active list.
+  test('archive + reload: an archived client is retained in the DB but hidden from the active view', async ({ page, request }) => {
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
@@ -74,16 +81,20 @@ test.describe('database-backed persistence', () => {
     await expect(row).toBeVisible()
     await settle(page)
 
-    await row.getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('dialog', { name: 'Delete client?' }).getByRole('button', { name: 'Delete' }).click()
+    await row.getByRole('button', { name: 'Archive Doomed Co' }).click()
+    await page.getByRole('dialog', { name: 'Archive client?' }).getByRole('button', { name: 'Archive', exact: true }).click()
+    // Gone from the active UI list (the archive route ran + the post-archive reload re-hydrated).
     await expect(page.getByTestId('client-row').filter({ hasText: 'Doomed Co' })).toHaveCount(0)
 
+    // It is RETAINED in the DB but now carries archivedAt (the archive route, not a hard delete).
     await expect
-      .poll(async () => (await serverState(request)).clients.some((c) => c.name === 'Doomed Co'), {
-        timeout: 10_000,
-      })
-      .toBe(false)
+      .poll(
+        async () => (await serverState(request)).clients.find((c) => c.name === 'Doomed Co')?.archivedAt ?? null,
+        { timeout: 10_000 },
+      )
+      .toBeTruthy()
 
+    // A reload re-hydrates from the DB's ACTIVE slice, so the archived client stays out of the list.
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByTestId('client-row').filter({ hasText: 'Doomed Co' })).toHaveCount(0)

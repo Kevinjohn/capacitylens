@@ -11,6 +11,7 @@ import { ExternalForm } from '../external/ExternalForm'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
 import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
+import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
 
 export function ResourceList() {
@@ -26,7 +27,10 @@ export function ResourceList() {
   // section (rows + "Add external party" affordance) doesn't render; existing externals stay in the
   // data untouched and reappear when re-enabled (Settings → External).
   const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
-  const del = useStore((s) => s.deleteResource)
+  // The per-row action now ARCHIVES (soft-delete is reached LATER from Settings → Archived & deleted
+  // on an archived row). `archive` branches server/local in useLifecycleActions — and crucially, in
+  // SERVER mode it reloads the active slice so the archived row vanishes from this list + the schedule.
+  const { archive } = useLifecycleActions()
   const { editing, setEditing, confirming, setConfirming } = useCrudListState<Resource>()
   // External rows get their OWN create/edit/confirm state + the trimmed ExternalForm (no capacity
   // fields), kept separate from the person/placeholder triple above so the two modals never collide.
@@ -62,7 +66,7 @@ export function ResourceList() {
       </span>
       <span className="flex gap-2">
         <EditButton onClick={() => setEditing(r)} />
-        <DeleteButton onClick={() => setConfirming(r)} />
+        <DeleteButton label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })} onClick={() => setConfirming(r)} />
       </span>
     </li>
   )
@@ -143,7 +147,7 @@ export function ResourceList() {
                   </span>
                   <span className="flex gap-2">
                     <EditButton onClick={() => ext.setEditing(r)} />
-                    <DeleteButton onClick={() => ext.setConfirming(r)} />
+                    <DeleteButton label={m.list_resources_archive_aria({ name: r.name ?? r.role })} onClick={() => ext.setConfirming(r)} />
                   </span>
                 </li>
               ))}
@@ -156,25 +160,28 @@ export function ResourceList() {
       {editing && <ResourceForm resource={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title={m.list_resources_delete_title()}
-          message={m.list_resources_delete_message({ name: resourceDisplayName(confirming) })}
+          title={m.list_resources_archive_title()}
+          message={m.list_resources_archive_message({ name: resourceDisplayName(confirming) })}
+          confirmLabel={m.list_archive()}
           onConfirm={() => {
-            del(confirming.id)
+            void archive('resources', confirming.id)
             setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}
         />
       )}
 
-      {/* External create/edit reuse the trimmed ExternalForm; delete reuses the resource cascade. */}
+      {/* External create/edit reuse the trimmed ExternalForm; the row action archives (soft-delete is
+          reached later from Settings → Archived & deleted). */}
       {ext.creating && <ExternalForm onClose={() => ext.setCreating(false)} />}
       {ext.editing && <ExternalForm resource={ext.editing} onClose={() => ext.setEditing(null)} />}
       {ext.confirming && (
         <ConfirmDialog
-          title={m.list_resources_external_delete_title()}
-          message={m.list_resources_external_delete_message({ name: ext.confirming.name ?? ext.confirming.role })}
+          title={m.list_resources_archive_title()}
+          message={m.list_resources_archive_message({ name: ext.confirming.name ?? ext.confirming.role })}
+          confirmLabel={m.list_archive()}
           onConfirm={() => {
-            del(ext.confirming!.id)
+            void archive('resources', ext.confirming!.id)
             ext.setConfirming(null)
           }}
           onCancel={() => ext.setConfirming(null)}

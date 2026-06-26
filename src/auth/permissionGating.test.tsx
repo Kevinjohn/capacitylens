@@ -121,8 +121,11 @@ describe('store viewer guard (defense-in-depth) no-ops a viewer mutation', () =>
     useStore.getState().updateResource(seeded.id, { name: 'Renamed' })
     expect(useStore.getState().data.resources[0].name).toBe('Seeded') // unchanged
 
-    useStore.getState().deleteResource(seeded.id)
+    // Removal is now the lifecycle path (archive → soft-delete → purge); a viewer's archive must no-op
+    // too. The row stays present and active (the lifecycle suite covers the full archive/delete/purge set).
+    useStore.getState().archiveEntity('resources', seeded.id)
     expect(useStore.getState().data.resources).toHaveLength(1) // still there
+    expect(useStore.getState().data.resources[0].archivedAt).toBeUndefined() // not archived — viewer no-op
 
     // The viewer's add returned a non-persisted entity (its id isn't in state) — contained no-op.
     expect(useStore.getState().data.resources.some((x) => x.id === r.id)).toBe(false)

@@ -1,16 +1,18 @@
-import { useStore } from '../../store/useStore'
 import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
 import type { Project } from '@capacitylens/shared/types/entities'
+import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
 
 export function ProjectList() {
   const data = useActiveScopedData()
   const projects = data.projects
   const clients = data.clients
-  const del = useStore((s) => s.deleteProject)
+  // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
+  // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
+  const { archive } = useLifecycleActions()
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Project>()
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? m.list_projects_no_client()
@@ -36,7 +38,7 @@ export function ProjectList() {
               </span>
               <span className="flex gap-2">
                 <EditButton onClick={() => setEditing(p)} />
-                <DeleteButton onClick={() => setConfirming(p)} />
+                <DeleteButton label={m.list_projects_archive_aria({ name: p.name })} onClick={() => setConfirming(p)} />
               </span>
             </li>
           ))}
@@ -47,10 +49,11 @@ export function ProjectList() {
       {editing && <ProjectForm project={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title={m.list_projects_delete_title()}
-          message={m.list_projects_delete_message({ name: confirming.name })}
+          title={m.list_projects_archive_title()}
+          message={m.list_projects_archive_message({ name: confirming.name })}
+          confirmLabel={m.list_archive()}
           onConfirm={() => {
-            del(confirming.id)
+            void archive('projects', confirming.id)
             setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}

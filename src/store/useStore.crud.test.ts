@@ -30,21 +30,20 @@ describe('store CRUD covers every entity', () => {
     expect(s().data.disciplines).toHaveLength(0)
   })
 
-  it('clients: add / update / delete', () => {
+  // Clients/projects/resources have NO immediate hard-delete action — removal goes through the
+  // Active → Archived → Soft-deleted → Purged lifecycle (see useStore.lifecycle.test.ts). These
+  // cover the add/update half of their CRUD; the lifecycle suite covers their removal.
+  it('clients: add / update', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     s().updateClient(c.id, { name: 'Acme 2' })
     expect(s().data.clients[0].name).toBe('Acme 2')
-    s().deleteClient(c.id)
-    expect(s().data.clients).toHaveLength(0)
   })
 
-  it('projects: add / update / delete', () => {
+  it('projects: add / update', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     s().updateProject(p.id, { name: 'P2' })
     expect(s().data.projects[0].name).toBe('P2')
-    s().deleteProject(p.id)
-    expect(s().data.projects).toHaveLength(0)
   })
 
   it('phases: add / update / delete (activities survive)', () => {
@@ -113,12 +112,10 @@ describe('store CRUD covers every entity', () => {
     expect(s().data.activities[0].projectId).toBe(p1.id) // unchanged — the bad patch didn't land
   })
 
-  it('resources: add / update / delete', () => {
+  it('resources: add / update', () => {
     const r = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
     s().updateResource(r.id, { role: 'Lead' })
     expect(s().data.resources[0].role).toBe('Lead')
-    s().deleteResource(r.id)
-    expect(s().data.resources).toHaveLength(0)
   })
 
   it('allocations: add / update / delete', () => {

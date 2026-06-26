@@ -55,39 +55,42 @@ describe('ProjectList', () => {
     expect(projects[0].clientId).toBe(client.id)
   })
 
-  it('shows the cascade ConfirmDialog when delete is clicked', async () => {
+  // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
+  // Settings → Archived & deleted). LOCAL mode here → archiveEntity: the project gets `archivedAt`
+  // set (its activities are RETAINED — reversible) and vanishes from this active-only list.
+  it('shows the Archive ConfirmDialog when the archive button is clicked', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
     useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
 
     render(<ProjectList />)
 
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive Doomed Project' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Delete project?' })
+    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
     expect(dialog).toBeInTheDocument()
-    expect(dialog).toHaveTextContent(/Delete "Doomed Project"/)
-    expect(dialog).toHaveTextContent(/phases, activities and allocations/)
+    expect(dialog).toHaveTextContent(/Archive "Doomed Project"/)
+    expect(dialog).toHaveTextContent(/Archived & deleted/)
   })
 
-  it('cancels deletion and keeps the project', async () => {
+  it('cancels archival and keeps the project active', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
     useStore.getState().addProject({ name: 'Kept Project', clientId: client.id, color: '#ec4899' })
 
     render(<ProjectList />)
 
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive Kept Project' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Delete project?' })
+    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(useStore.getState().data.projects).toHaveLength(1)
+    expect(useStore.getState().data.projects[0].archivedAt).toBeUndefined()
     expect(screen.getByText('Kept Project')).toBeInTheDocument()
   })
 
-  it('confirms deletion and removes the project from the list and store', async () => {
+  it('confirms archival and hides the project from the list (kept in the store)', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Doomed Project', clientId: client.id, color: '#ec4899' })
@@ -95,14 +98,16 @@ describe('ProjectList', () => {
 
     render(<ProjectList />)
 
-    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await user.click(screen.getByRole('button', { name: 'Archive Doomed Project' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Delete project?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    expect(useStore.getState().data.projects).toHaveLength(0)
-    expect(useStore.getState().data.activities).toHaveLength(0)
+    // Retained in the data (archived, reversible), but gone from the active-only list.
+    expect(useStore.getState().data.projects).toHaveLength(1)
+    expect(useStore.getState().data.projects[0].archivedAt).toBeTruthy()
+    expect(useStore.getState().data.activities).toHaveLength(1)
     expect(screen.queryByText('Doomed Project')).not.toBeInTheDocument()
     expect(screen.getByText('No projects yet.')).toBeInTheDocument()
   })
