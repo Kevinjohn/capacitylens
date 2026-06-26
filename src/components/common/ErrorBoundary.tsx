@@ -1,20 +1,21 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import { useRouteError } from 'react-router-dom'
 import { errorMessage } from '../../lib/errorMessage'
+import { m } from '@/i18n'
 
 /** The branded "something broke — reload" recovery screen, shared by the top-level
  *  class boundary and the router's errorElement so both render identically. */
 export function ErrorFallback({ message }: { message?: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-      <h1 className="text-xl font-semibold">Something went wrong</h1>
-      <p className="max-w-md text-sm text-muted">{message || 'An unexpected error occurred.'}</p>
+      <h1 className="text-xl font-semibold">{m.boundary_title()}</h1>
+      <p className="max-w-md text-sm text-muted">{message || m.boundary_message()}</p>
       <button
         type="button"
         className="rounded-md bg-brand-strong px-3 py-1.5 text-sm font-medium text-white"
         onClick={() => window.location.reload()}
       >
-        Reload
+        {m.boundary_reload()}
       </button>
     </div>
   )

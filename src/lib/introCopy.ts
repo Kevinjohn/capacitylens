@@ -11,30 +11,34 @@
 // Preserve the em-dash "—" exactly as below.
 // NOTE: "tasks" in para 2 is generic English ("track tasks, tickets, or deadlines"), NOT the renamed
 // Activity domain concept — keep it verbatim.
+//
+// i18n (P1.5.2): the copy now resolves through Paraglide messages (`@/i18n`). Each export is a GETTER
+// (`() => …`), not a pre-resolved constant — the AppShell LINKS pattern — so the text re-resolves at
+// render with the active account's locale rather than freezing to the import-time locale. The brand
+// name flows in as the `{app}` placeholder (still single-sourced via APP_NAME).
 
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { m } from '@/i18n'
 
 /** The page heading. */
-export const INTRO_HEADING = `Welcome to ${APP_NAME}`
+export const introHeading = () => m.intro_welcome({ app: APP_NAME })
 
 /** Paragraph 1, split around the bold "resourcing tool" phrase. */
-export const INTRO_PARA_1 = {
-  before: `${APP_NAME} is a `,
-  strong: 'resourcing tool',
-  after: ' — it helps you see who\'s working on what, and who has capacity.',
-} as const
+export const introPara1 = () => ({
+  before: m.intro_p1_before({ app: APP_NAME }),
+  strong: m.intro_p1_strong(),
+  after: m.intro_p1_after(),
+})
 
 /** Paragraph 2, split around the bold "not a project management tool" phrase. */
-export const INTRO_PARA_2 = {
-  before: `${APP_NAME} is `,
-  strong: 'not a project management tool',
-  after:
-    '. It won\'t track tasks, tickets, or deadlines for you. It answers a simpler question: ' +
-    'where are your people\'s hours going, and where is there room?',
-} as const
+export const introPara2 = () => ({
+  before: m.intro_p2_before({ app: APP_NAME }),
+  strong: m.intro_p2_strong(),
+  after: m.intro_p2_after(),
+})
 
 /** Paragraph 3 — no emphasis. */
-export const INTRO_PARA_3 = 'Keep it light. Plan your people, not your paperwork.'
+export const introPara3 = () => m.intro_p3()
 
 /** The continue button's label. */
-export const INTRO_CONTINUE_LABEL = 'Continue'
+export const introContinueLabel = () => m.intro_continue()
