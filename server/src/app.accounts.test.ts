@@ -88,6 +88,9 @@ const PASSWORD_ENV = {
   CAPACITYLENS_AUTH: 'password',
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
   BETTER_AUTH_URL: 'http://localhost:8787',
+  // P1.7: open email signup is closed by DEFAULT; these fixtures create test users via
+  // sign-up/email, so re-open it explicitly until the invite flow (P1.9/P1.10) exists.
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
 }
 
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
