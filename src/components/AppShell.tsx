@@ -18,7 +18,7 @@ import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { cn } from '@/lib/utils'
-import { APP_NAME } from '@capacitylens/shared/brand'
+import { m, syncLocaleFromAccount } from '@/i18n'
 
 const LINKS: [string, string, IconName][] = [
   ['/', 'Schedule', 'calendar'],
@@ -80,6 +80,18 @@ export function AppShell() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
   const setSidebarOpen = useStore((s) => s.setSidebarOpen)
   const [paletteOpen, setPaletteOpen] = useState(false)
+
+  // i18n seam (P1.5.1): the active company's UI language drives the Paraglide runtime. Read it from
+  // the FULL account in `data.accounts` (the loaded tenant slice) — `accountSummaries` is only a
+  // one-frame gap-filler in server mode and carries no `language`. Absent ⇒ baseLocale ('en').
+  const activeLanguage = accounts.find((a) => a.id === activeAccountId)?.language
+
+  // Apply that language to the Paraglide runtime. Account-scoped + client-only (no page reload — see
+  // src/i18n), so it re-applies whenever the active account (or its language) changes. English-only
+  // today; this is the single wiring point for future locales.
+  useEffect(() => {
+    syncLocaleFromAccount(activeLanguage)
+  }, [activeLanguage])
 
   // Warn before a tab close / refresh would discard an open form's unsaved edits.
   useEffect(() => {
@@ -262,7 +274,13 @@ export function AppShell() {
             </TooltipTrigger>
             <TooltipContent>{sidebarOpen ? 'Collapse menu' : 'Expand menu'}</TooltipContent>
           </Tooltip>
-          {sidebarOpen && <div className="text-xl font-bold text-brand">{APP_NAME}</div>}
+          {/* i18n demonstrator (P1.5.1): the sidebar wordmark reads the brand through the typed
+              Paraglide message `m.app_name()` (single key in messages/en.json, value == APP_NAME from
+              shared/brand, so this is visibly identical and respects the brand single-source — P0.0).
+              This is the ONE real render that references the message in type-checked code: delete the
+              `app_name` key and recompile and `m.app_name` vanishes → tsc/build fails. That is the
+              compile-time-safety acceptance, made real at a live UI site. */}
+          {sidebarOpen && <div className="text-xl font-bold text-brand">{m.app_name()}</div>}
         </div>
         {sidebarOpen ? (
           <>

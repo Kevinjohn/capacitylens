@@ -123,6 +123,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   asymmetry — the disabled UI never sends a changed frozen field). Creation (no existing row) and
   `/api/orgs` (P1.8 insert-only) are EXEMPT. `name`/`disciplinesEnabled`/`schedulingMode`/colour/
   placeholders/external stay MUTABLE.
+- **i18n is Paraglide (inlang), compile-time, English-only (P1.5.1).** Messages are typed functions
+  compiled from `messages/<locale>.json` (source of truth, committed alongside `project.inlang/`)
+  into the **gitignored** `src/paraglide/` — a removed/renamed key is a **tsc/build error**, not a
+  runtime miss (compile-before-tsc: `paraglide:compile` is prefixed into build/gate/test/dev; the app
+  tsconfig sets `allowJs` so tsc reads the generated JSDoc types). Components read `m` from the single
+  `src/i18n` seam (never `@/paraglide` directly); `syncLocaleFromAccount` maps `Account.language` →
+  `setLocale(reload:false)` (account-scoped + client-only — Vite `globalVariable` strategy, no cookie/
+  reload). `baseLocale` 'en', `locales` ['en']; UI-string migration is P1.5.2. The demonstrator key
+  `app_name` equals `APP_NAME` (no brand drift — P0.0).
 - **Disciplines are optional (account-level)** — `disciplinesEnabled` on the Account (absent =
   true; Settings → Disciplines). Off hides disciplines across the WHOLE UI (nav + `/disciplines`
   route guard, resource-form field, schedule grouping + filter, Resources list, command palette,

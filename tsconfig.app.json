@@ -8,6 +8,13 @@
     "skipLibCheck": true,
     "strict": true,
 
+    /* Paraglide (inlang) i18n (P1.5.1) emits its message/runtime modules as .js with JSDoc types
+       (src/paraglide, generated + gitignored). allowJs lets tsc READ those JSDoc types — without it
+       the imports resolve to `any` and the whole compile-time-safety point (a removed message key
+       becoming a tsc error) is lost. The only .js under src is this generated output; checkJs stays
+       off so the generated code is type-PROVIDING, not itself type-checked. */
+    "allowJs": true,
+
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,

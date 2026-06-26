@@ -33,6 +33,10 @@ coverage/
 # Design/competitor reference scraps — not app assets
 /_input/
 
+# Paraglide (inlang) generated i18n output (P1.5.1) — compiled from project.inlang + messages/
+# on dev/build/test/gate (those scripts precompile); the committed source is the input, this isn't.
+src/paraglide/
+
 # Build artifacts (incremental TS, local SQLite DB + WAL/SHM)
 *.tsbuildinfo
 *.db
