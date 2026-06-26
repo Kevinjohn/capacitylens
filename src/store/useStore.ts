@@ -21,6 +21,7 @@ import {
   remapAndValidateImport,
 } from '@capacitylens/shared/domain/mutations'
 import { archive, canPurge, obfuscateResource, softDelete, unarchive } from '@capacitylens/shared/domain/lifecycle'
+import { m } from '@/i18n'
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
@@ -449,7 +450,7 @@ export const useStore = create<StoreState>()((set, get) => {
   // throw would read as corruption and could crash a drag handler), we just refuse + inform.
   const blockedByViewer = (): boolean => {
     if (get().activeRole !== 'viewer') return false
-    get().setNotice("Read-only — you don't have edit access.", 'error')
+    get().setNotice(m.notice_viewer_read_only(), 'error')
     return true
   }
 
@@ -561,7 +562,7 @@ export const useStore = create<StoreState>()((set, get) => {
         !get().accountSummaries.some((a) => a.id === id)
       ) {
         console.warn(`setActiveAccount: no company with id ${JSON.stringify(id)} — returning to the picker`)
-        get().setNotice('That company no longer exists.', 'error')
+        get().setNotice(m.notice_company_not_found(), 'error')
         id = null
       }
       set((s) => {
@@ -979,7 +980,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
       // notice and no-op rather than throw (the throw idiom is reserved for tenancy/integrity bugs).
       if (!canPurge(existing, todayISO())) {
-        get().setNotice('This can only be permanently deleted 30 days after deletion.', 'error')
+        get().setNotice(m.notice_purge_grace_window(), 'error')
         return
       }
       // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the

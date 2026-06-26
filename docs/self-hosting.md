@@ -4,7 +4,7 @@ This is the end-to-end guide for running your own CapacityLens — including **w
 authentication**. If you have Docker and a host to put it on, you can follow this page from
 top to bottom and end up with a working, persistent, optionally-authenticated deployment.
 
-CapacityLens is a Float-style agency resource scheduler (a helicopter view of who's busy,
+CapacityLens is an agency resource & capacity scheduler (a helicopter view of who's busy,
 free, or overworked, at week granularity). Self-hosting gives you **one reproducible image**,
 your data in a **SQLite** file on a volume you control, and a **privacy-first** posture: no
 email infrastructure, no telemetry, no third-party analytics. You own the box and the data.

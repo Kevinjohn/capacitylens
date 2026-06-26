@@ -32,7 +32,7 @@
 | Testing & QE | 8/10 | 551 unit + 89 E2E, coverage proportionate to risk; **no visual-regression baseline** despite "screenshots are the visual oracle"; tenant-switch flow has zero E2E |
 | Security & integrity | 8/10 | Zero XSS sinks, parameterised SQL, layered import; posture honestly documented; Stage C remains the hard gate before any public exposure |
 | Scalability (analysed inline) | 7/10 | localStorage model holds ~2–3 years for a 25-person agency; model rebuild is the first frame-budget ceiling; mitigations are cheap and known |
-| Product strategy | 7/10 | Docs/decision system is a genuine asset; product is thin exactly where Float monetises: **no money, no reporting, no collaboration workflow** |
+| Product strategy | 7/10 | Docs/decision system is a genuine asset; product is thin exactly where the incumbent monetises: **no money, no reporting, no collaboration workflow** |
 
 **The single most important sentence in this report:** the marginal hour now buys more in product gaps (reports, money, phases, booking status) than in further hardening — but ~4 days of targeted hardening first (Sprint 0 below) converts several classes of silent future data loss into compile/test failures and makes the month's UI work safe to ship fast.
 
@@ -158,7 +158,7 @@ Findings **refuted** by verification (claimed by reviewers, killed by skeptics):
 
 Ordered by leverage. Effort is for the assumed team (1 designer, 2–3 devs, shared QA): S=days, M=~1 week, L=~2 weeks, XL=more.
 
-**F1. Reports & utilisation analytics (M-L).** A `/reports` route: utilisation by person/discipline/client/project over an arbitrary date range (past *and* future — today the past is unreachable beyond 28 days of scroll), capacity vs booked vs time-off, CSV export. *Why first:* it's the #1 thing Float monetises, the product review's top gap, and it's pure aggregation over existing capacity code — no schema risk, high demo value. Lazy-load any chart lib. Touches: new route + selectors over `scopedTables()`; reuse `capacityAdvisory` math; opportunity to do the per-day bucketing (2.9).
+**F1. Reports & utilisation analytics (M-L).** A `/reports` route: utilisation by person/discipline/client/project over an arbitrary date range (past *and* future — today the past is unreachable beyond 28 days of scroll), capacity vs booked vs time-off, CSV export. *Why first:* it's the #1 thing the incumbent monetises, the product review's top gap, and it's pure aggregation over existing capacity code — no schema risk, high demo value. Lazy-load any chart lib. Touches: new route + selectors over `scopedTables()`; reuse `capacityAdvisory` math; opportunity to do the per-day bucketing (2.9).
 
 **F2. Money: rates, budgets, burn (M, schema-first).** Optional `hourlyRate` (cost and/or charge) on Resource, optional `budget` (hours and/or money) on Project; budget burn-down on the project list and in reports. *Why:* second-biggest market gap; schema lands early (with the new fixture/exhaustiveness discipline from Sprint 0 proving itself), UI follows. Sets up freelancer cost differentiation (F5). Needs: migrate bump + forward-version guard first.
 

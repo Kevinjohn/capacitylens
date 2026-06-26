@@ -1,4 +1,4 @@
-# CapacityLens (working title)
+# CapacityLens
 
 A local-first resource scheduler — an agency resource & capacity planner that runs in the browser.
 By default there's no backend and no login: your data lives in `localStorage` and
@@ -83,8 +83,9 @@ npm run e2e:all      # e2e:browsers PLUS the Chromium-only db/auth server specs 
 ```
 
 The `server/` workspace is kept out of the root `gate` (it needs Node's `node:sqlite`, no
-browser build); run it separately with `gate:server`. Run all three locally before pushing — hosted CI is
-optional and not enabled here. Node 24+ (`.nvmrc`).
+browser build); run it separately with `gate:server`. **There is no automated CI** — the green gate
+is enforced locally by contributors and again at review, so run all three locally and push only with
+them green. Node 24+ (`.nvmrc`).
 
 `e2e` is Chromium by default (the fast inner loop). Cross-engine coverage of the core localStorage
 specs is opt-in: `e2e:webkit` / `e2e:firefox` run a single engine, and **`e2e:browsers` runs the

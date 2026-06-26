@@ -17,7 +17,7 @@ export interface BarColorMaps {
   resources: Map<ID, Resource>
 }
 
-// Bars are coloured by their project (matching Float), falling back to the
+// Bars are coloured by their project, falling back to the
 // client colour, then the resource colour, then a neutral grey — so a bar is
 // always visible even if some relation is missing.
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {

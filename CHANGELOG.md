@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Floaty are recorded here. The format follows
+All notable changes to CapacityLens are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and the project uses
 [Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
 new features and **patch** versions carry fixes.
@@ -190,7 +190,7 @@ A cosmetic preview of the planned sign-in step.
   flow. It is **not** real authentication — there's no password and no popup; clicking the
   account just continues. You stay "signed in" across reloads, with **Sign out** on the picker
   and in the sidebar to return to it. It never appears when the optional real login wall
-  (`FLOATY_AUTH`) is enabled.
+  (`CAPACITYLENS_AUTH`, formerly `FLOATY_AUTH`) is enabled.
 
 ## [0.4.0] — 2026-06-16
 

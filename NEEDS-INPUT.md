@@ -40,7 +40,7 @@ Open product questions to revisit with the owner. Don't silently resolve these â
 ## Resolved (owner-confirmed, 2026-06-11)
 - **Scope: deliberately small.** Budgets/money, timesheets, hour-granularity tracking, and mobile
   views are **non-goals** â€” the product is a helicopter who's-busy view for small agencies with
-  rotating freelancers, not a Float feature-parity build. (Promoted to DECISIONS.md.)
+  rotating freelancers, not a feature-parity build of any incumbent. (Promoted to DECISIONS.md.)
 - **localStorage is demo-only.** Server cutover is planned within ~a week (of 2026-06-11), so
   multi-tab localStorage clobbering and related local-mode findings are accepted, not scheduled.
 

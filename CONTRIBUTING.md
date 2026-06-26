@@ -35,7 +35,9 @@ the device. See `README.md` for more on running it and `server/README.md` for th
 
 ## The green gate (verify before opening a PR)
 
-Run these locally; a PR is expected to land them green. Hosted CI may also enforce them.
+Run these locally before opening a PR — they are how the green gate is enforced. **There is no
+automated CI**: this project deliberately runs the gate locally (and again at review), so a PR is
+expected to land every applicable gate green on the contributor's own machine. Don't push red.
 
 ```bash
 npm run gate         # tsc -b && eslint . && vitest run && vite build  — the core gate, run on EVERY PR

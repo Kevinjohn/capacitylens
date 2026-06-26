@@ -8,6 +8,7 @@ import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
 import { cn } from '@/lib/utils'
+import { m } from '@/i18n'
 import type { Weekday } from '@capacitylens/shared/types/entities'
 
 // Form fields slice of the shared kit (re-exported from ./ui). The text/number/date
@@ -48,7 +49,7 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
     <span className={labelClass}>
       {label}
       {required && (
-        <span className="text-danger" title="Required" aria-hidden>
+        <span className="text-danger" title={m.field_required()} aria-hidden>
           {' *'}
         </span>
       )}

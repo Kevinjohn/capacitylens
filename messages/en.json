@@ -543,5 +543,9 @@
   "intro_p2_strong": "not a project management tool",
   "intro_p2_after": ". It won't track tasks, tickets, or deadlines for you. It answers a simpler question: where are your people's hours going, and where is there room?",
   "intro_p3": "Keep it light. Plan your people, not your paperwork.",
-  "intro_continue": "Continue"
+  "intro_continue": "Continue",
+  "notice_viewer_read_only": "Read-only — you don't have edit access.",
+  "notice_company_not_found": "That company no longer exists.",
+  "notice_purge_grace_window": "This can only be permanently deleted 30 days after deletion.",
+  "field_required": "Required"
 }
