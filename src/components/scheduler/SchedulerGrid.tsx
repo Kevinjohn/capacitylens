@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEK_SNAP_IDLE_MS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
@@ -50,7 +50,7 @@ type ModalState =
  */
 export function SchedulerGrid() {
   const navigate = useNavigate()
-  const data = useScopedData()
+  const data = useActiveScopedData()
   // Viewer read-only (P1.12): when the active account's role is a viewer, the grid is display-only —
   // no row "+" create, no lane draw-to-create, no bar edit/drag/resize (the bar gating lives in
   // AllocationBar; the draw/create gating is the conditional onDraw/onEdit + the hidden "+" below).

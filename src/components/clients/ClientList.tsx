@@ -1,5 +1,5 @@
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
@@ -12,9 +12,9 @@ export function ClientList() {
   // activities bucket under it; it can own real projects), NOT a user-managed client — so it is HIDDEN
   // from this management list. It stays a REAL, persisted client everywhere it's actually used:
   // selectable in ProjectForm's client picker, a "Filter by client" option in the scheduler, and a
-  // Clients entry in the command palette (all of which read `useScopedData().clients` directly, not
-  // this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
-  const clients = useScopedData().clients.filter((c) => !isBuiltinClient(c))
+  // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
+  // not this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
+  const clients = useActiveScopedData().clients.filter((c) => !isBuiltinClient(c))
   const deleteClient = useStore((s) => s.deleteClient)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Client>()
 

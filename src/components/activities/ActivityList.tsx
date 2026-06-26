@@ -1,5 +1,5 @@
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ActivityForm } from './ActivityForm'
@@ -7,7 +7,7 @@ import type { Activity } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
 
 export function ActivityList() {
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const activities = data.activities
   const projects = data.projects
   const clients = data.clients

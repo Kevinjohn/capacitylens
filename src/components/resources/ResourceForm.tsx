@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { disciplinesEnabledFor } from '../../store/selectors'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateText, validateWorkingDays } from '../../lib/validation'
@@ -38,7 +38,7 @@ import type { EmploymentType, Resource, ResourceKind, Weekday } from '@capacityl
 export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?: Resource; kind?: ResourceKind; onClose: () => void }) {
   const add = useStore((s) => s.addResource)
   const update = useStore((s) => s.updateResource)
-  const data = useScopedData()
+  const data = useActiveScopedData()
   // When the account doesn't use disciplines, hide the picker. Any existing disciplineId
   // on an edited resource is left untouched (the field just isn't shown).
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))

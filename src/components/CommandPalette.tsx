@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, emptyFilters } from '../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../store/selectors'
-import { useScopedData } from '../store/useScopedData'
+import { useActiveScopedData } from '../store/useScopedData'
 import { fuzzyFilter } from '../lib/fuzzy'
 import { resourceDisplayName } from '../lib/metadata'
 import { isValidISODate } from '@capacitylens/shared/lib/integrity'
@@ -36,7 +36,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const goToDate = useStore((s) => s.goToDate)
   const jumpToResource = useStore((s) => s.jumpToResource)
   const setFilters = useStore((s) => s.setFilters)
-  const data = useScopedData()
+  const data = useActiveScopedData()
   // Scoped `data` has accounts blanked, so read the discipline flag from the full store.
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   // Per-account view pref (default OFF): when off, placeholders are not offered as jump targets.
@@ -241,7 +241,7 @@ function buildItems({
   onClose,
 }: {
   query: string
-  data: ReturnType<typeof useScopedData>
+  data: ReturnType<typeof useActiveScopedData>
   disciplinesEnabled: boolean
   placeholdersEnabled: boolean
   externalEnabled: boolean

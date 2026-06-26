@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { parseDate, todayISO } from '@capacitylens/shared/lib/dateMath'
 import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, MAX_SPAN_DAYS, spanDays } from '@capacitylens/shared/lib/schedulingDays'
 import { externalEnabledFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
@@ -42,7 +42,7 @@ type AllocationModalProps =
 
 export function AllocationModal(props: AllocationModalProps) {
   const { onClose } = props
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const addAllocation = useStore((s) => s.addAllocation)
   const updateAllocation = useStore((s) => s.updateAllocation)
   const deleteAllocation = useStore((s) => s.deleteAllocation)

@@ -9,10 +9,12 @@ import {
   unarchive,
   softDelete,
   obfuscateResource,
+  activeOnly,
   PURGE_MIN_AGE_DAYS,
 } from './lifecycle'
 import type { LifecycleState, LifecycleFields } from './lifecycle'
-import type { Resource } from '../types/entities'
+import { emptyAppData } from '../types/entities'
+import type { AppData, Resource } from '../types/entities'
 
 // These tests are an INDEPENDENT oracle of the P2.2 lifecycle state machine: the expected states /
 // booleans below are hand-derived from the contract (deletedAt wins; archive needs active; delete +
@@ -306,5 +308,91 @@ describe('obfuscateResource — scrub a Resource\'s PII at soft-delete (pure, im
 
   it("id with only non-alphanumerics ('----') ⇒ fallback tag '0000'", () => {
     expect(obfuscateResource(makeResource({ id: '----' })).name).toBe('Removed person #0000')
+  })
+})
+
+describe('activeOnly — VIEW/read projection that drops non-active resources/clients/projects (pure, immutable)', () => {
+  // A small AppData with a deliberate MIX in each lifecycle-bearing table: one active, one archived
+  // (archivedAt only), one soft-deleted (deletedAt set). The non-lifecycle tables carry a row each so
+  // we can assert they pass through byte-for-byte (no lifecycle field ⇒ never filtered). Field shapes
+  // need only satisfy the array element types loosely — the projection reads ONLY the tombstones.
+  const A = 'acct-1'
+  function mixedData(): AppData {
+    return {
+      ...emptyAppData(),
+      // accounts has no lifecycle field — pass-through.
+      accounts: [{ id: A, name: 'Studio', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH }],
+      disciplines: [{ id: 'd1', accountId: A, name: 'Design', sortOrder: 0, createdAt: T_ARCH, updatedAt: T_ARCH }],
+      resources: [
+        { id: 'r-active', accountId: A, kind: 'person', name: 'Active', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'r-archived', accountId: A, kind: 'person', name: 'Archived', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, archivedAt: T_ARCH },
+        { id: 'r-deleted', accountId: A, kind: 'person', name: 'Deleted', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, archivedAt: T_ARCH, deletedAt: T_DEL },
+      ],
+      clients: [
+        { id: 'c-active', accountId: A, name: 'Active Co', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'c-archived', accountId: A, name: 'Archived Co', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, archivedAt: T_ARCH },
+        { id: 'c-deleted', accountId: A, name: 'Deleted Co', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, deletedAt: T_DEL },
+      ],
+      projects: [
+        { id: 'p-active', accountId: A, name: 'Active P', clientId: 'c-active', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'p-archived', accountId: A, name: 'Archived P', clientId: 'c-active', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, archivedAt: T_ARCH },
+        { id: 'p-deleted', accountId: A, name: 'Deleted P', clientId: 'c-active', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, deletedAt: T_DEL },
+      ],
+      // Non-lifecycle child tables — carry a row each to prove pass-through.
+      phases: [{ id: 'ph1', accountId: A, name: 'Build', projectId: 'p-active', createdAt: T_ARCH, updatedAt: T_ARCH }],
+      activities: [{ id: 'act1', accountId: A, name: 'Activity', kind: 'project', projectId: 'p-active', createdAt: T_ARCH, updatedAt: T_ARCH }],
+      allocations: [{ id: 'al1', accountId: A, resourceId: 'r-active', activityId: 'act1', startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', createdAt: T_ARCH, updatedAt: T_ARCH }],
+      timeOff: [{ id: 'to1', accountId: A, resourceId: 'r-active', startDate: '2026-02-01', endDate: '2026-02-03', type: 'holiday', createdAt: T_ARCH, updatedAt: T_ARCH }],
+    }
+  }
+
+  it('DROPS archived AND soft-deleted resources/clients/projects; KEEPS the active ones', () => {
+    const out = activeOnly(mixedData())
+    expect(out.resources.map((r) => r.id)).toEqual(['r-active'])
+    expect(out.clients.map((c) => c.id)).toEqual(['c-active'])
+    expect(out.projects.map((p) => p.id)).toEqual(['p-active'])
+  })
+
+  it('passes phases/activities/allocations/timeOff/disciplines/accounts through UNTOUCHED (no lifecycle field)', () => {
+    const input = mixedData()
+    const out = activeOnly(input)
+    // Same rows, same references — these tables are never filtered (the design INVARIANT).
+    expect(out.phases).toBe(input.phases)
+    expect(out.activities).toBe(input.activities)
+    expect(out.allocations).toBe(input.allocations)
+    expect(out.timeOff).toBe(input.timeOff)
+    expect(out.disciplines).toBe(input.disciplines)
+    expect(out.accounts).toBe(input.accounts)
+  })
+
+  it('does NOT mutate the input (deep-equal the original) and returns a NEW object', () => {
+    const input = mixedData()
+    const snapshot = structuredClone(input)
+    const out = activeOnly(input)
+    expect(input).toEqual(snapshot) // input deep-unchanged — every archived/deleted row still present
+    expect(input.resources).toHaveLength(3)
+    expect(input.clients).toHaveLength(3)
+    expect(input.projects).toHaveLength(3)
+    expect(out).not.toBe(input) // a fresh AppData reference
+  })
+
+  it('an all-active dataset is preserved (every row kept, every table present)', () => {
+    const input = mixedData()
+    // Strip the non-active rows so everything left is active.
+    input.resources = input.resources.filter((r) => r.id === 'r-active')
+    input.clients = input.clients.filter((c) => c.id === 'c-active')
+    input.projects = input.projects.filter((p) => p.id === 'p-active')
+    const out = activeOnly(input)
+    expect(out.resources).toHaveLength(1)
+    expect(out.clients).toHaveLength(1)
+    expect(out.projects).toHaveLength(1)
+    expect(Object.keys(out).sort()).toEqual(Object.keys(emptyAppData()).sort())
+  })
+
+  it('an empty dataset projects to an empty dataset (no throw)', () => {
+    const out = activeOnly(emptyAppData())
+    expect(out.resources).toEqual([])
+    expect(out.clients).toEqual([])
+    expect(out.projects).toEqual([])
   })
 })

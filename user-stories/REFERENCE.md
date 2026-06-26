@@ -465,6 +465,15 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
   tab (with explainer copy + an `Add external party` button) and the band appears on the schedule. When
   off they're hidden everywhere (schedule band, assignee picker, command palette, Resources tab) but
   their data is kept. The old standalone `/external` route now **redirects to `/resources`**.
+- **Archived & soft-deleted resources/clients/projects are hidden from all normal views** (the
+  scheduler, the management lists, the forms' option-pickers, and the command palette) — they remain
+  in the DB **and in export**, and will surface in the **P2.5 admin "Archived & deleted" view** (P2.4).
+  A non-active entity is one with `archivedAt` set (archived) or `deletedAt` set (soft-deleted); the
+  hide is applied by the shared `activeOnly` projection in both the client view seam
+  (`useActiveScopedData`) and the server per-account read (`GET /api/state?accountId=` →
+  `includeInactive:false`). *No tester-visible archive affordance exists yet* — archiving/deleting is
+  driven by the P2.5 admin UI, so the **"archived vanishes" end-to-end story is deferred to P2.5**
+  (the unit, scheduler-model and server `readSlice` tests are the load-bearing coverage for P2.4).
 - **Cascade deletes:** deleting a client removes its projects → activities → allocations;
   deleting a project removes its phases/activities/allocations and *unbinds* (does not delete)
   placeholders; deleting an activity removes its allocations; deleting a resource removes its

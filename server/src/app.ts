@@ -682,7 +682,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
         const role = authMode === 'off' ? null : resolveRole(db, req.user!, accountId)
         const includeTimeOffNote = authMode === 'off' || (role !== null && canSeeTimeOffNote(role))
-        return store.readSlice(accountId, { includeTimeOffNote })
+        // P2.4: the NORMAL app read HIDES archived/soft-deleted resources/clients/projects — pass
+        // includeInactive:false so readSlice drops them server-side (the same rule the client views
+        // apply via useActiveScopedData). P2.5's admin "Archived & deleted" read will pass true here.
+        return store.readSlice(accountId, { includeTimeOffNote, includeInactive: false })
       }
       // No ?accountId=. The auth-on cross-tenant whole-read is now CLOSED (P1.13 — the P1.4
       // carry-forward): a logged-in user must hydrate PER ACCOUNT via ?accountId= (the client picker

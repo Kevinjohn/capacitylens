@@ -3,7 +3,7 @@ import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { disciplinesEnabledFor } from '../../store/selectors'
-import { useScopedData } from '../../store/useScopedData'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
 import { Button } from '../common/ui'
 import { controlBase, selectChevronClass, selectChevronStyle } from '../common/controls'
@@ -75,7 +75,7 @@ export function SchedulerToolbar() {
   const filters = useStore((s) => s.ui.filters)
   const setFilters = useStore((s) => s.setFilters)
   const clearFilters = useStore((s) => s.clearFilters)
-  const data = useScopedData()
+  const data = useActiveScopedData()
   const disciplines = data.disciplines
   const clients = data.clients
   const projects = data.projects
