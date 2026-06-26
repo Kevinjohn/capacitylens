@@ -1,8 +1,11 @@
 # capacitylens-server
 
-SQLite-backed, entity-level REST API for CapacityLens — the optional database backend
-behind the `PersistenceAdapter` seam. The default app still runs on `localStorage`;
-this server is opt-in via the `VITE_CAPACITYLENS_API` env var on the web app.
+SQLite-backed, entity-level REST API for CapacityLens — the **default** database backend
+behind the `PersistenceAdapter` seam. This is what `npm run dev` (at the repo root) now starts
+alongside the web app, and what an unconfigured build talks to over a same-origin `/api`. (The
+in-browser `localStorage` build is the explicit opt-out — an `VITE_CAPACITYLENS_DEMO=1` demo
+preview.) `VITE_CAPACITYLENS_API` on the web app only **overrides the backend origin** (e.g. point
+it at a remote API) — it does not turn the server on, since the server is already the default.
 
 It deliberately imports the **same** pure domain-core the client uses — the
 `@capacitylens/shared` workspace package (`@capacitylens/shared/domain/mutations`,
@@ -17,6 +20,11 @@ rules are literally the client's code, not a re-implementation that can drift.
 
 ## Run
 
+The usual path is **`npm run dev` at the repo root**, which starts this API on `:8787` *and* the Vite
+web app together (wiring a same-origin `/api` proxy) — you don't run the server by hand for normal
+full-stack dev. The standalone instructions below are for running **just** the API (e.g. against a
+separately served front end, or for poking the endpoints directly).
+
 Install from the **repo root** — this is an npm workspace, so the root install is
 what links `@capacitylens/shared` into both the web app and this server:
 
@@ -25,10 +33,11 @@ npm install            # at the repo root, not inside server/
 npm run dev --workspace=server   # http://localhost:8787, seeds a never-initialised DB on first boot
 ```
 
-Point the web app at it (from the repo root):
+To point a Vite-only web app (`npm run dev:web`, run separately) at a standalone API on a non-default
+origin, set the override (from the repo root):
 
 ```bash
-VITE_CAPACITYLENS_API=http://localhost:8787 npm run dev
+VITE_CAPACITYLENS_API=http://localhost:8787 npm run dev:web
 ```
 
 ## Scripts
