@@ -5,6 +5,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { Button, FieldError, SelectField } from '../common/ui'
+import { m } from '@/i18n'
 import {
   canManageMemberRole,
   canRemoveMember,
@@ -38,19 +39,23 @@ interface InviteSummary {
   createdAt: string
 }
 
-const ALL_ROLE_OPTIONS: { value: Role; label: string }[] = [
-  { value: 'owner', label: 'Owner' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'editor', label: 'Editor' },
-  { value: 'viewer', label: 'Viewer' },
+// Each role's label is a GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS
+// pattern, P1.5.2): this list is module-scope, so resolving `m.key()` here would freeze the label to
+// the load-time locale. The getter defers it to render — roleOptions() calls each at its call site.
+const ALL_ROLE_OPTIONS: { value: Role; label: () => string }[] = [
+  { value: 'owner', label: () => m.settings_role_owner() },
+  { value: 'admin', label: () => m.settings_role_admin() },
+  { value: 'editor', label: () => m.settings_role_editor() },
+  { value: 'viewer', label: () => m.settings_role_viewer() },
 ]
 
 // Role options offered to the actor: the `owner` option is present ONLY for an owner (an admin must
 // never be offered to grant/assign owner — the pure guards reject it, but hiding it keeps the UI
-// honest). Mirrors the server's owner-grant guard.
+// honest). Mirrors the server's owner-grant guard. Labels are resolved here (render time, via the
+// getters) so the returned options carry ready-to-render strings.
 function roleOptions(myRole: Role | undefined): { value: Role; label: string }[] {
-  if (myRole === 'owner') return ALL_ROLE_OPTIONS
-  return ALL_ROLE_OPTIONS.filter((o) => o.value !== 'owner')
+  const opts = myRole === 'owner' ? ALL_ROLE_OPTIONS : ALL_ROLE_OPTIONS.filter((o) => o.value !== 'owner')
+  return opts.map((o) => ({ value: o.value, label: o.label() }))
 }
 
 function labelFor(m: Member): string {
@@ -222,9 +227,9 @@ export function MembersSection() {
 
   return (
     <section className="rounded border border-line bg-surface p-4" data-testid="members-section">
-      <h2 className="mb-1 text-sm font-semibold text-ink">Members</h2>
+      <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_members_heading()}</h2>
       <p className="mb-3 text-xs text-muted">
-        Manage who can access this company. Invite people, change a member's role, or remove them.
+        {m.settings_members_intro()}
       </p>
 
       <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>
@@ -232,29 +237,31 @@ export function MembersSection() {
       {/* Members list */}
       <div className="mb-4 divide-y divide-line">
         {members && members.length === 0 && (
-          <p className="py-2 text-sm text-muted">No members yet.</p>
+          <p className="py-2 text-sm text-muted">{m.settings_members_empty()}</p>
         )}
-        {members?.map((m) => {
+        {members?.map((mem) => {
+          // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2);
+          // shadowing it here would make `m.settings_*()` resolve against the Member object instead.
           // "May the actor touch this row's role at all?" — canManageMemberRole gates per
           // (actor,target,next); a row is editable iff the actor may set it to ANY non-current role
           // they'd be offered. The owner option is hidden for an admin (roleOptions), so the relevant
           // question is "may the actor manage this target": admin+ AND (target not owner OR actor owner).
           // We ask canManageMemberRole with a representative next-role to reuse the single-sourced guard.
-          const mayTouch = !!myRole && canManageMemberRole(myRole, m.role, m.role === 'owner' ? 'admin' : 'editor')
-          const isSoleOwner = m.role === 'owner' && ownerCount <= 1
-          const mayRemove = !!myRole && canRemoveMember(myRole, m.role) && !isSoleOwner
+          const mayTouch = !!myRole && canManageMemberRole(myRole, mem.role, mem.role === 'owner' ? 'admin' : 'editor')
+          const isSoleOwner = mem.role === 'owner' && ownerCount <= 1
+          const mayRemove = !!myRole && canRemoveMember(myRole, mem.role) && !isSoleOwner
           // Demote of the sole owner is also blocked client-side (mirror the server last-owner rule).
           const roleSelectDisabled = isSoleOwner
           return (
             <div
-              key={m.userId}
+              key={mem.userId}
               className="flex flex-wrap items-center justify-between gap-2 py-2"
               data-testid="member-row"
             >
               <div className="min-w-0">
-                <span className="text-sm text-ink">{labelFor(m)}</span>
-                {m.isSelf && <span className="ml-1 text-xs text-muted">(you)</span>}
-                <span className="ml-2 text-xs text-muted">· {m.status}</span>
+                <span className="text-sm text-ink">{labelFor(mem)}</span>
+                {mem.isSelf && <span className="ml-1 text-xs text-muted">{m.settings_member_you()}</span>}
+                <span className="ml-2 text-xs text-muted">· {mem.status}</span>
               </div>
               <div className="flex items-center gap-2">
                 {mayTouch ? (
@@ -262,23 +269,23 @@ export function MembersSection() {
                     <SelectField
                       // A generic accessible name (not the member's email) keeps the SelectField's own
                       // FieldLabel from duplicating the row's name text; the row scopes which member.
-                      label="Member role"
-                      value={m.role}
-                      onChange={(v) => void changeRole(m, v as Role)}
+                      label={m.settings_member_role_label()}
+                      value={mem.role}
+                      onChange={(v) => void changeRole(mem, v as Role)}
                       options={roleOptions(myRole)}
                       disabled={roleSelectDisabled}
                     />
                   </span>
                 ) : (
-                  <span className="text-sm capitalize text-muted">{m.role}</span>
+                  <span className="text-sm capitalize text-muted">{mem.role}</span>
                 )}
                 {mayRemove && (
-                  <Button variant="danger" testId="member-remove" onClick={() => void removeMember(m)}>
-                    Remove
+                  <Button variant="danger" testId="member-remove" onClick={() => void removeMember(mem)}>
+                    {m.settings_member_remove()}
                   </Button>
                 )}
                 {isSoleOwner && (
-                  <span className="text-xs text-muted">Sole owner — protected</span>
+                  <span className="text-xs text-muted">{m.settings_member_sole_owner_protected()}</span>
                 )}
               </div>
             </div>
@@ -288,14 +295,14 @@ export function MembersSection() {
 
       {/* Invite form */}
       <div className="mb-4 space-y-2 rounded border border-line p-3">
-        <h3 className="text-xs font-semibold text-ink">Invite someone</h3>
+        <h3 className="text-xs font-semibold text-ink">{m.settings_invite_heading()}</h3>
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-32">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink">Role</span>
+              <span className="mb-1 block text-xs font-medium text-ink">{m.settings_invite_role_label()}</span>
               <select
                 data-testid="invite-role"
-                aria-label="Invite role"
+                aria-label={m.settings_invite_role_aria()}
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as Role)}
                 className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
@@ -310,20 +317,20 @@ export function MembersSection() {
           </div>
           <div className="min-w-48 flex-1">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink">Pre-authorise email (optional)</span>
+              <span className="mb-1 block text-xs font-medium text-ink">{m.settings_invite_preauth_label()}</span>
               <input
                 data-testid="invite-preauth"
-                aria-label="Pre-authorise email"
+                aria-label={m.settings_invite_preauth_aria()}
                 type="email"
                 value={invitePreauth}
                 onChange={(e) => setInvitePreauth(e.target.value)}
-                placeholder="name@example.com"
+                placeholder={m.settings_invite_preauth_placeholder()}
                 className="w-full rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
               />
             </label>
           </div>
           <Button testId="invite-submit" onClick={() => void submitInvite()}>
-            Create invite
+            {m.settings_invite_submit()}
           </Button>
         </div>
         <FieldError id={errorId}>{errorField === 'invite' ? error : null}</FieldError>
@@ -333,7 +340,7 @@ export function MembersSection() {
               {mintedLink}
             </code>
             <Button variant="ghost" onClick={() => copyLink(mintedLink)}>
-              Copy
+              {m.settings_invite_copy()}
             </Button>
           </div>
         )}
@@ -342,7 +349,7 @@ export function MembersSection() {
       {/* Outstanding invites */}
       {invites.length > 0 && (
         <div>
-          <h3 className="mb-1 text-xs font-semibold text-ink">Outstanding invites</h3>
+          <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
           <div className="divide-y divide-line">
             {invites.map((inv) => (
               <div
@@ -356,7 +363,7 @@ export function MembersSection() {
                   {inv.usedAt ? ' · used' : ` · expires ${inv.expiresAt.slice(0, 10)}`}
                 </span>
                 <Button variant="ghost" testId="invite-revoke" onClick={() => void revokeInvite(inv.id)}>
-                  Revoke
+                  {m.settings_invite_revoke()}
                 </Button>
               </div>
             ))}
