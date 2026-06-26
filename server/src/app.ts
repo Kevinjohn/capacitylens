@@ -730,6 +730,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // cannot pull tombstones. OFF mode is trusted-local ⇒ always allowed. A non-admin who asks for
         // the flag gets 403 (not a silent fall-back to the active-only read — surface the refusal so the
         // client knows the admin view is off-limits, mirroring authorize's explicit 403).
+        //
+        // P2.6 COMPLETE PER-TENANT EXPORT. This same admin/'purge'-gated `?includeInactive=1` read IS
+        // the roadmap's "complete per-tenant backup": exactly ONE account's slice (the accountId guard
+        // above), retaining archived + soft-deleted rows so nothing is silently dropped from the backup
+        // — UNLIKE the client's active-only "Export JSON" (P2.4), which projects via activeOnly and so
+        // omits tombstones. The server-control tables (account_members / invites / Better Auth user|
+        // session|account) are STRUCTURALLY excluded: readSlice only ever reads `accounts` + the scoped
+        // tables, never the control plane, so membership/invite secrets/PII can never ride the export.
+        // Locked by app.export.test.ts. Doc-only note — no behaviour change to this route.
         const wantsInactive = (req.query as { includeInactive?: string }).includeInactive === '1'
         if (wantsInactive && authMode !== 'off' && !(role !== null && can(role, 'purge'))) {
           return reply.code(403).send({ error: 'Forbidden.' })
