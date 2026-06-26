@@ -5,7 +5,10 @@ behind the `PersistenceAdapter` seam. This is what `npm run dev` (at the repo ro
 alongside the web app, and what an unconfigured build talks to over a same-origin `/api`. (The
 in-browser `localStorage` build is the explicit opt-out — an `VITE_CAPACITYLENS_DEMO=1` demo
 preview.) `VITE_CAPACITYLENS_API` on the web app only **overrides the backend origin** (e.g. point
-it at a remote API) — it does not turn the server on, since the server is already the default.
+it at a remote API) — it does not turn the server on, since the server is already the default. So a
+deploy with **no** same-origin `/api` backend (a static host with no API) must instead build the
+demo (`VITE_CAPACITYLENS_DEMO=1`) — a backend-less server build boots into a "can't reach the server"
+screen.
 
 It deliberately imports the **same** pure domain-core the client uses — the
 `@capacitylens/shared` workspace package (`@capacitylens/shared/domain/mutations`,

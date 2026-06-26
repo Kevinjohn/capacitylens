@@ -62,6 +62,9 @@ services:
         # only to point the SPA at a different host. Empty no longer means
         # localStorage; build with VITE_CAPACITYLENS_DEMO=1 for the localStorage demo.
         VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
+        # Set VITE_CAPACITYLENS_DEMO=1 in .env to build the localStorage demo image
+        # (no backend; wins over the API var). Empty = the default server build above.
+        VITE_CAPACITYLENS_DEMO: ${VITE_CAPACITYLENS_DEMO:-}
         VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
         VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
     restart: unless-stopped

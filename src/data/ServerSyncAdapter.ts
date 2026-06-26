@@ -81,13 +81,17 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         return empty
       }
       if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
+      // An HTML body — the SPA-fallback index.html or a proxy error page, a REACHABLE case now an
+      // empty-env server-default build can hit a backend-less same-origin host — starts with '<', so
+      // native res.json() runs JSON.parse and REJECTS with a SyntaxError. That rejection is caught
+      // below and mapped to LoadError('unavailable') → the connection-error screen; it does NOT reach
+      // migrate(). So migrate() only ever sees a body that already parsed as JSON.
       const json: unknown = await res.json()
-      // migrate() is TOLERANT: it coerces a malformed/non-CapacityLens object to an EMPTY AppData rather
-      // than throwing. So a 200 carrying a non-CapacityLens body (a proxy HTML error page, a truncated
-      // response) hydrates EMPTY and sets lastSynced=empty here — accepted because in server mode
-      // the SERVER is the source of truth (there's nothing local to overwrite). If a suspicious
-      // 200 should instead be a hard failure, reuse the shared hasNonArrayKnownTable guard before
-      // migrate and throw LoadError('unavailable').
+      // migrate() is TOLERANT of a PARSED-but-malformed/non-CapacityLens object: it coerces it to an
+      // EMPTY AppData rather than throwing. So a 200 carrying valid JSON of the wrong shape hydrates
+      // EMPTY and sets lastSynced=empty here — accepted because in server mode the SERVER is the source
+      // of truth (there's nothing local to overwrite). If such a 200 should instead be a hard failure,
+      // reuse the shared hasNonArrayKnownTable guard before migrate and throw LoadError('unavailable').
       const data = migrate(json)
       // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
       // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
