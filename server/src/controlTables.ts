@@ -283,6 +283,72 @@ export function getInvite(db: Db, token: string): Invite | null {
 }
 
 /**
+ * Normalize an email for preauth comparison: trim + lowercase. Both the stored `preauthEmail`
+ * (normalized once at create time) and the caller's verified email (normalized at accept time) pass
+ * through this, so the match is always normalized-vs-normalized — case and surrounding whitespace
+ * never cause a legitimate match to slip through (or, worse, a near-miss to bind the wrong account).
+ *
+ * Pure: no I/O. Deliberately NOT a full RFC validator — local-parts are case-sensitive in the
+ * abstract, but in practice every mail provider folds them, and the IdP-returned verified address is
+ * the trust anchor here, so casefolding is the right comparison for binding.
+ *
+ * @param email  The raw email (from a request body, or from an IdP-asserted session user).
+ * @returns The trimmed, lowercased form used for storage and comparison.
+ */
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase()
+}
+
+/**
+ * May this signed-in principal accept this invite? The PURE security-matrix decision behind the
+ * accept endpoint's email-preauth gate (P1.10) — extracted so the matrix is deterministically
+ * unit-testable without spinning up a session/DB.
+ *
+ * - `preauthEmail === null` → `true` (a LINK invite: any signed-in caller may accept — P1.9
+ *   behaviour, preserved).
+ * - `preauthEmail !== null` → `true` ONLY iff BOTH hold:
+ *     1. `user.emailVerified === true` — an unverified (or unverifiable-provider) principal NEVER
+ *        binds a preauth invite (Decision: providers that omit verification ⇒ treat as unverified).
+ *     2. `normalizeEmail(user.email) === preauthEmail` — the stored `preauthEmail` is ALREADY
+ *        normalized (at create time), so this compares normalized-vs-normalized.
+ *
+ * Pure: no I/O, no session lookup — the caller passes the already-resolved principal. A `false`
+ * result MUST translate to a 403 that binds nothing and consumes nothing (the invite stays live for
+ * the genuinely-matching caller). Nothing is ever emailed.
+ *
+ * @param preauthEmail  The invite's pre-authorised email (already normalized), or `null` for a link
+ *   invite.
+ * @param user          The resolved signed-in principal — its IdP-asserted `email` and the
+ *   load-bearing `emailVerified` flag.
+ * @returns `true` if this principal may accept this invite, `false` otherwise.
+ */
+export function preauthInviteAllows(
+  preauthEmail: string | null,
+  user: { email: string; emailVerified: boolean },
+): boolean {
+  if (preauthEmail === null) return true // link invite: any signed-in caller (P1.9)
+  // Email-preauth invite: bind ONLY for a VERIFIED principal whose verified email matches exactly.
+  // Both sides are normalized (preauthEmail at create, user.email here), so the compare is exact.
+  return user.emailVerified === true && normalizeEmail(user.email) === preauthEmail
+}
+
+/**
+ * A light, deterministic email-shape check for the create endpoint — a single `@` separating a
+ * non-empty local part from a non-empty domain. DELIBERATELY not a full RFC 5322 validator: its only
+ * job is to reject obvious junk (no `@`, empty side, multiple `@`) before storing a preauth email, so
+ * a malformed value can't mint an invite that could never bind. The trust anchor for the actual
+ * binding is the IdP-asserted verified email at accept time, not this check.
+ *
+ * @param email  The (already trimmed) candidate email.
+ * @returns `true` if it has a single `@` with non-empty local + domain parts.
+ */
+export function looksLikeEmail(email: string): boolean {
+  const at = email.indexOf('@')
+  // Exactly one '@', and it is neither the first nor the last character.
+  return at > 0 && at === email.lastIndexOf('@') && at < email.length - 1
+}
+
+/**
  * Mark an invite consumed — the single-use stamp the accept endpoint runs (in the SAME transaction
  * as the membership it mints, so the bind and the consume commit together or not at all).
  *

@@ -450,7 +450,17 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   backstop against a race). Client `/invite/:token` (lazy `InviteAccept`) is a top-level route OUTSIDE
   AppShell's tenant gate but INSIDE `AuthProvider`, so an unauthenticated visit shows the login first
   and the post-login reload lands on the same URL (the token survives the wall). Create-UI is deferred
-  to P1.11, email-preauth to P1.10.
+  to P1.11.
+- **Email-pre-authorise invites (P1.10).** `POST /api/invites` accepts an OPTIONAL `preauthEmail`:
+  a non-empty, email-shaped value (`looksLikeEmail`) is stored NORMALIZED (`normalizeEmail` =
+  trim+lowercase), malformed → 400, absent/empty → `null` (a P1.9 link invite). The accept route gates
+  a preauth invite via the PURE `preauthInviteAllows(preauthEmail, user)` (controlTables.ts, unit-
+  tested): `null` → any signed-in caller (P1.9 preserved); non-null → bind ONLY iff
+  `emailVerified === true` AND `normalizeEmail(user.email)` matches — a wrong-email OR unverified-but-
+  matching caller is **403, nothing bound, invite NOT consumed** (stays live for the right caller).
+  Providers that omit verification ⇒ treated as unverified (no preauth bind; link path still works).
+  **OFF mode SKIPS the gate** (trusted-local — DEMO_USER binds as for any invite). Nothing is ever
+  emailed: the admin still distributes the link; `preauthEmail` only narrows who may redeem it.
 - **Time-off `note` is owner/admin-only, redacted SERVER-SIDE (P1.6).** `readSlice` takes a REQUIRED
   `{ includeTimeOffNote }` (no silent default — every caller decides); `false` STRIPS the `note` key
   from every time-off row before it leaves the server, so it's never serialized for an Editor/Viewer.

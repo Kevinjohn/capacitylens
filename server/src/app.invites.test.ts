@@ -2,7 +2,13 @@ import { describe, it, expect } from 'vitest'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, loadState, type Db } from './db'
-import { createInvite, getInvite, upsertMember } from './controlTables'
+import {
+  createInvite,
+  getInvite,
+  upsertMember,
+  normalizeEmail,
+  preauthInviteAllows,
+} from './controlTables'
 import { resolveRole } from './membership'
 import { authFromEnv, runAuthMigrations, DEMO_USER } from './auth'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
@@ -65,6 +71,16 @@ async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: st
   const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
   expect(me.statusCode).toBe(200)
   return { cookie, userId: me.json().user.id as string }
+}
+
+/**
+ * Flip a Better Auth user's `emailVerified` flag directly in the DB (the `user` table; column is an
+ * INTEGER 0/1). A fresh email+password sign-up is unverified (P1.7a), so this is how the P1.10 tests
+ * obtain a VERIFIED principal: the NEXT getSession reads the live user row (Better Auth joins it
+ * fresh), so normalizeSessionUser then reports emailVerified=true.
+ */
+function verifyUserEmail(db: Db, email: string): void {
+  db.prepare(`UPDATE user SET emailVerified = 1 WHERE email = ?`).run(email)
 }
 
 const createInviteReq = (
@@ -236,6 +252,203 @@ describe('invites — OFF mode (trusted-local)', () => {
     const res = await acceptReq(app, token)
     expect(res.statusCode).toBe(200)
     expect(resolveRole(db, { id: DEMO_USER.id } as never, 'a1')).toBe('editor')
+    expect(getInvite(db, token)!.usedAt).not.toBeNull()
+  })
+})
+
+// P1.10 — email-pre-authorise. The pure decision matrix (preauthInviteAllows + normalizeEmail) is
+// unit-tested deterministically below; the integration block then proves the create-store-normalize
+// path and every accept outcome (link binds, wrong-email 403, unverified-match 403, verified-match
+// 200, OFF skip) end-to-end, asserting that a 403 never consumes the single-use invite.
+
+describe('P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)', () => {
+  it('normalizeEmail trims and lowercases', () => {
+    expect(normalizeEmail('  Alice@Example.COM ')).toBe('alice@example.com')
+    expect(normalizeEmail('bob@host')).toBe('bob@host')
+    expect(normalizeEmail('ALREADY@LOWER.io ')).toBe('already@lower.io')
+  })
+
+  it('null preauth → true for ANY signed-in caller (link invite — even unverified)', () => {
+    expect(preauthInviteAllows(null, { email: 'anyone@x.io', emailVerified: false })).toBe(true)
+    expect(preauthInviteAllows(null, { email: 'anyone@x.io', emailVerified: true })).toBe(true)
+  })
+
+  it('preauth + verified + EXACT (normalized) match → true (case/whitespace folded by store-time normalize)', () => {
+    // preauthEmail is stored ALREADY normalized; the user email is normalized inside the helper, so a
+    // differently-cased / padded live email still matches the normalized stored value.
+    const stored = normalizeEmail('Carol@Example.com') // = 'carol@example.com'
+    expect(preauthInviteAllows(stored, { email: 'Carol@Example.com', emailVerified: true })).toBe(true)
+    expect(preauthInviteAllows(stored, { email: '  CAROL@EXAMPLE.COM ', emailVerified: true })).toBe(
+      true,
+    )
+  })
+
+  it('preauth + verified + DIFFERENT email → false', () => {
+    const stored = normalizeEmail('carol@example.com')
+    expect(preauthInviteAllows(stored, { email: 'dave@example.com', emailVerified: true })).toBe(false)
+  })
+
+  it('preauth + UNVERIFIED + matching email → false (omitted-verification providers ⇒ unverified)', () => {
+    const stored = normalizeEmail('carol@example.com')
+    expect(preauthInviteAllows(stored, { email: 'carol@example.com', emailVerified: false })).toBe(
+      false,
+    )
+  })
+})
+
+describe('POST /api/invites (P1.10 create) — preauthEmail', () => {
+  it('create with preauthEmail → 201; getInvite stores the NORMALIZED value; 201 echoes it', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'owner@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+
+    const res = await createInviteReq(
+      app,
+      { accountId: 'a1', role: 'editor', preauthEmail: '  Friend@Example.COM ' },
+      { cookie },
+    )
+    expect(res.statusCode).toBe(201)
+    const body = res.json() as { token: string; preauthEmail: string }
+    expect(body.preauthEmail).toBe('friend@example.com') // echoed normalized
+    expect(getInvite(db, body.token)!.preauthEmail).toBe('friend@example.com') // stored normalized
+  })
+
+  it('empty/whitespace preauthEmail → stored null (link invite, unchanged P1.9 behaviour)', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'owner2@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+
+    const res = await createInviteReq(
+      app,
+      { accountId: 'a1', role: 'editor', preauthEmail: '   ' },
+      { cookie },
+    )
+    expect(res.statusCode).toBe(201)
+    const body = res.json() as { token: string; preauthEmail: string | null }
+    expect(body.preauthEmail).toBeNull()
+    expect(getInvite(db, body.token)!.preauthEmail).toBeNull()
+  })
+
+  it('a malformed preauthEmail → 400 (no row minted)', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'owner3@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+
+    for (const bad of ['not-an-email', 'two@@at.io', '@nolocal.io', 'nodomain@']) {
+      const res = await createInviteReq(
+        app,
+        { accountId: 'a1', role: 'editor', preauthEmail: bad },
+        { cookie },
+      )
+      expect(res.statusCode, `"${bad}" rejected`).toBe(400)
+    }
+  })
+})
+
+describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
+  it('a LINK invite (preauthEmail null) still binds any signed-in caller — P1.9 regression', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const a = await signUp(app, 'link-inviter@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: a.userId, role: 'owner', status: 'active', createdAt: TS })
+    const created = await createInviteReq(app, { accountId: 'a1', role: 'editor' }, { cookie: a.cookie })
+    const token = (created.json() as { token: string }).token
+
+    // Joiner is an ordinary, unverified fresh sign-up — a link invite does not care.
+    const b = await signUp(app, 'link-joiner@capacitylens.dev')
+    const res = await acceptReq(app, token, { cookie: b.cookie })
+    expect(res.statusCode).toBe(200)
+    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('editor')
+  })
+
+  it('preauth + WRONG email → 403; membership NOT created; invite NOT consumed (usedAt stays null)', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const a = await signUp(app, 'pa-inviter@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: a.userId, role: 'owner', status: 'active', createdAt: TS })
+    const created = await createInviteReq(
+      app,
+      { accountId: 'a1', role: 'editor', preauthEmail: 'expected@capacitylens.dev' },
+      { cookie: a.cookie },
+    )
+    const token = (created.json() as { token: string }).token
+
+    // Wrong-email caller, even if verified, is rejected.
+    const b = await signUp(app, 'wrong@capacitylens.dev')
+    verifyUserEmail(db, 'wrong@capacitylens.dev')
+    const res = await acceptReq(app, token, { cookie: b.cookie })
+    expect(res.statusCode).toBe(403)
+    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBeNull() // no bind
+    expect(getInvite(db, token)!.usedAt).toBeNull() // NOT consumed — still live for the right caller
+  })
+
+  it('preauth + matching email but UNVERIFIED → 403; not consumed (fresh sign-up is unverified)', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const a = await signUp(app, 'pa-inviter2@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: a.userId, role: 'owner', status: 'active', createdAt: TS })
+    const created = await createInviteReq(
+      app,
+      { accountId: 'a1', role: 'editor', preauthEmail: 'newhire@capacitylens.dev' },
+      { cookie: a.cookie },
+    )
+    const token = (created.json() as { token: string }).token
+
+    // Matching email, but a fresh email+password sign-up is unverified (P1.7a) — gate denies.
+    const b = await signUp(app, 'newhire@capacitylens.dev')
+    const res = await acceptReq(app, token, { cookie: b.cookie })
+    expect(res.statusCode).toBe(403)
+    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBeNull()
+    expect(getInvite(db, token)!.usedAt).toBeNull()
+  })
+
+  it('preauth + matching VERIFIED email → 200; role bound; usedAt set (end-to-end)', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const a = await signUp(app, 'pa-inviter3@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: a.userId, role: 'owner', status: 'active', createdAt: TS })
+    const created = await createInviteReq(
+      app,
+      { accountId: 'a1', role: 'editor', preauthEmail: 'verified@capacitylens.dev' },
+      { cookie: a.cookie },
+    )
+    const token = (created.json() as { token: string }).token
+
+    // Sign up, then flip emailVerified in the live user row; the NEXT getSession reads it fresh, so
+    // the principal the accept handler sees is verified (proves the verified-match → bind path E2E).
+    const b = await signUp(app, 'verified@capacitylens.dev')
+    verifyUserEmail(db, 'verified@capacitylens.dev')
+    // Sanity: /api/auth/me now reports the verified flag (confirms getSession reflects the row).
+    const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie: b.cookie } })
+    expect(me.json().user.emailVerified).toBe(true)
+
+    const res = await acceptReq(app, token, { cookie: b.cookie })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ accountId: 'a1', role: 'editor' })
+    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('editor')
+    expect(getInvite(db, token)!.usedAt).not.toBeNull()
+  })
+
+  it('OFF mode skips the preauth check — a preauth invite binds DEMO_USER (trusted-local)', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db) // authMode defaults to 'off'
+    seedOne(db)
+
+    // Even a preauth invite for an unrelated email binds DEMO_USER in off (the gate is skipped).
+    const created = await createInviteReq(app, {
+      accountId: 'a1',
+      role: 'admin',
+      preauthEmail: 'someone-else@capacitylens.dev',
+    })
+    expect(created.statusCode).toBe(201)
+    const token = (created.json() as { token: string }).token
+
+    const res = await acceptReq(app, token)
+    expect(res.statusCode).toBe(200)
+    expect(resolveRole(db, { id: DEMO_USER.id } as never, 'a1')).toBe('admin')
     expect(getInvite(db, token)!.usedAt).not.toBeNull()
   })
 })
