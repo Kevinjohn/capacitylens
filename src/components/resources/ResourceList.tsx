@@ -8,7 +8,7 @@ import { Separator } from '../ui/separator'
 import { resourceDisplayName } from '../../lib/metadata'
 import { ResourceForm } from './ResourceForm'
 import { ExternalForm } from '../external/ExternalForm'
-import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
+import { externalExplainer } from '../../lib/externalCopy'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
 import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
@@ -127,7 +127,7 @@ export function ResourceList() {
             <AddButton label={m.list_resources_add_external()} onClick={() => ext.setCreating(true)} />
           </div>
           {/* Explainer copy (editable, shared with Settings → External — see lib/externalCopy.ts). */}
-          <p className="mb-4 max-w-prose text-sm text-muted">{EXTERNAL_EXPLAINER}</p>
+          <p className="mb-4 max-w-prose text-sm text-muted">{externalExplainer()}</p>
           {externals.length === 0 ? (
             <EmptyState
               icon="people"

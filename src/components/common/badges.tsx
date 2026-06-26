@@ -2,6 +2,7 @@ import { isTemporary } from '@capacitylens/shared/lib/integrity'
 import { ensureBarColors } from '@capacitylens/shared/lib/color'
 import type { Resource } from '@capacitylens/shared/types/entities'
 import { Badge } from '../ui/badge'
+import { m } from '@/i18n'
 
 // Colour, avatar & resource-badge slice of the shared kit (re-exported from ./ui).
 // Colours come from semantic tokens (see index.css), so everything adapts to dark mode.
@@ -19,7 +20,7 @@ export function TemporaryTag({ resource }: { resource: Resource }) {
   // pill stays the small marker it was when re-introduced.
   return (
     <Badge variant="warn" className="rounded-sm px-1 py-0 text-[9px] leading-[13px] font-semibold uppercase">
-      Temp
+      {m.badge_temporary()}
     </Badge>
   )
 }

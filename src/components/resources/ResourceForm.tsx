@@ -17,7 +17,7 @@ import {
   WeekdayPicker,
   type Option,
 } from '../common/ui'
-import { EMPLOYMENT_TYPE_OPTIONS } from '../../lib/metadata'
+import { employmentTypeOptions } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { EmploymentType, Resource, ResourceKind, Weekday } from '@capacitylens/shared/types/entities'
 
@@ -142,7 +142,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
           label={m.form_resource_employment_label()}
           value={employmentType}
           onChange={(v) => setEmploymentType(v as EmploymentType)}
-          options={EMPLOYMENT_TYPE_OPTIONS}
+          options={employmentTypeOptions()}
         />
       )}
       {isPlaceholder && (

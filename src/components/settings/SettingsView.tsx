@@ -12,7 +12,7 @@ import { MembersSection } from './MembersSection'
 import { ArchivedSection } from './ArchivedSection'
 import { supportedTimeZones } from '../../lib/timezones'
 import { cn } from '@/lib/utils'
-import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
+import { externalExplainer } from '../../lib/externalCopy'
 import { m } from '@/i18n'
 import type { ThemePref } from '../../lib/theme'
 import type { SchedulingMode } from '@capacitylens/shared/types/entities'
@@ -296,7 +296,7 @@ export function SettingsView() {
           <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_external_heading()}</h2>
           {/* Explainer copy (editable, shared with the Resources-tab External section — see
               lib/externalCopy.ts). Set per company; off by default. */}
-          <p className="mb-3 max-w-prose text-xs text-muted">{EXTERNAL_EXPLAINER}</p>
+          <p className="mb-3 max-w-prose text-xs text-muted">{externalExplainer()}</p>
           <p className="mb-3 text-xs text-muted">
             {m.settings_external_intro()}
           </p>

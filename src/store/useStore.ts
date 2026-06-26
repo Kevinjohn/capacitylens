@@ -20,7 +20,7 @@ import {
   findOwned as findOwnedIn,
   remapAndValidateImport,
 } from '@capacitylens/shared/domain/mutations'
-import { archive, canPurge, obfuscateResource, softDelete, unarchive } from '@capacitylens/shared/domain/lifecycle'
+import { archive, canPurge, obfuscateResource, PURGE_MIN_AGE_DAYS, softDelete, unarchive } from '@capacitylens/shared/domain/lifecycle'
 import { m } from '@/i18n'
 import {
   defaultSidebarOpen,
@@ -980,7 +980,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
       // notice and no-op rather than throw (the throw idiom is reserved for tenancy/integrity bugs).
       if (!canPurge(existing, todayISO())) {
-        get().setNotice(m.notice_purge_grace_window(), 'error')
+        get().setNotice(m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }), 'error')
         return
       }
       // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the

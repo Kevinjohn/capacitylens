@@ -24,7 +24,7 @@ import {
 } from '../common/ui'
 import { inputClass } from '../common/controls'
 import { capacityAdvisory } from '../../lib/capacity'
-import { ALLOCATION_STATUS_OPTIONS, resourceDisplayName } from '../../lib/metadata'
+import { allocationStatusOptions, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
 import type { AllocationStatus, ISODate } from '@capacitylens/shared/types/entities'
 
@@ -467,7 +467,7 @@ export function AllocationModal(props: AllocationModalProps) {
           <NumberField label={m.form_allocation_hours_per_day_label()} value={hoursPerDay} onChange={setHoursPerDay} min={0} max={MAX_HOURS_PER_DAY} required invalid={errorField === 'hours'} describedById={errorId} />
         </>
       )}
-      <SelectField label={m.form_allocation_status_label()} value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
+      <SelectField label={m.form_allocation_status_label()} value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={allocationStatusOptions()} />
       <TextAreaField label={m.form_allocation_note_label()} value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
 
       {/* Externals have no working week — their booking is a literal start/end span, so the weekend

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { validateName, validateHex, validateWorkingDays, validateText, VALIDATION } from './validation'
+import { validateName, validateHex, validateWorkingDays, validateText, validationMessages } from './validation'
 
 describe('validateName', () => {
   it('returns the trimmed value for a clean name', () => {
@@ -10,12 +10,12 @@ describe('validateName', () => {
   it('fails an empty/whitespace name', () => {
     const fail = vi.fn()
     expect(validateName('   ', fail)).toBeNull()
-    expect(fail).toHaveBeenCalledWith('name', VALIDATION.nameRequired)
+    expect(fail).toHaveBeenCalledWith('name', validationMessages().nameRequired)
   })
   it('rejects emoji / control junk', () => {
     const fail = vi.fn()
     expect(validateName(`Bad ${String.fromCodePoint(0x1f4a9)}`, fail)).toBeNull()
-    expect(fail).toHaveBeenCalledWith('name', VALIDATION.textInvalid)
+    expect(fail).toHaveBeenCalledWith('name', validationMessages().textInvalid)
   })
 })
 
@@ -32,7 +32,7 @@ describe('validateHex', () => {
     const fail = vi.fn()
     expect(validateHex('#3b82f6', fail)).toBe(true)
     expect(validateHex('nope', fail)).toBe(false)
-    expect(fail).toHaveBeenCalledWith('color', VALIDATION.hexInvalid)
+    expect(fail).toHaveBeenCalledWith('color', validationMessages().hexInvalid)
   })
 })
 
@@ -45,6 +45,6 @@ describe('validateWorkingDays', () => {
   it('fails on an empty set and reports the field', () => {
     const fail = vi.fn()
     expect(validateWorkingDays([], fail)).toBe(false)
-    expect(fail).toHaveBeenCalledWith('workingDays', VALIDATION.workingDaysRequired)
+    expect(fail).toHaveBeenCalledWith('workingDays', validationMessages().workingDaysRequired)
   })
 })

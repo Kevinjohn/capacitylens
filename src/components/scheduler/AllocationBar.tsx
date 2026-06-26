@@ -10,7 +10,7 @@ import { ensureBarColors } from '@capacitylens/shared/lib/color'
 import { capacityAdvisory } from '../../lib/capacity'
 import { parseDate } from '@capacitylens/shared/lib/dateMath'
 import { schedulingModeFor } from '../../store/selectors'
-import { ALLOCATION_STATUS_LABELS } from '../../lib/metadata'
+import { allocationStatusLabels } from '../../lib/metadata'
 import { LAYOUT } from './layout'
 import { computeGesture, reconcileReassignedHours, snappedBarGeometry, volumePreservingHoursClamped } from './allocationDrag'
 import type { ColumnGeometry } from './columnGeometry'
@@ -519,7 +519,7 @@ export const AllocationBar = memo(function AllocationBar({
             )}
             <div className="text-muted">
               {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
-              {hideHours ? '' : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} · {ALLOCATION_STATUS_LABELS[bar.allocation.status]}
+              {hideHours ? '' : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} · {allocationStatusLabels()[bar.allocation.status]}
             </div>
             {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted">{bar.allocation.note}</div>}
             <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">

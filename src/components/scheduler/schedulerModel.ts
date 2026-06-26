@@ -1,7 +1,7 @@
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
 import { capacityForWindow, dayCapacity, utilization as utilizationOf } from '../../lib/capacity'
 import { resolveBarColor } from '@capacitylens/shared/lib/color'
-import { TIME_OFF_TYPE_LABELS, resourceDisplayName } from '../../lib/metadata'
+import { timeOffTypeLabels, resourceDisplayName } from '../../lib/metadata'
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
 import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
 import { internalClientFor } from '@capacitylens/shared/data/internalClient'
@@ -271,7 +271,7 @@ export function buildSchedulerModel(
               id: t.id,
               x: geom.xForDateInGeom(t.startDate),
               width: geom.widthForDates(t.startDate, t.endDate),
-              label: TIME_OFF_TYPE_LABELS[t.type],
+              label: timeOffTypeLabels()[t.type],
               note: t.note,
             }))
         // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the

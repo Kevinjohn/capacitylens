@@ -8,7 +8,7 @@ import { errorMessage } from '../../lib/errorMessage'
 import { Button, ConfirmDialog } from '../common/ui'
 import { m } from '@/i18n'
 import { can } from '@capacitylens/shared/domain/access'
-import { canPurge, lifecycleStatus } from '@capacitylens/shared/domain/lifecycle'
+import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from '@capacitylens/shared/domain/lifecycle'
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import type { AppData, Client, Project, Resource } from '@capacitylens/shared/types/entities'
 
@@ -211,7 +211,7 @@ export function ArchivedSection() {
                     <div className="flex items-center gap-2">
                       {!purgeable && (
                         <span id={hintId} className="text-xs text-muted">
-                          {m.settings_archived_purge_locked_hint()}
+                          {m.settings_archived_purge_locked_hint({ days: PURGE_MIN_AGE_DAYS })}
                         </span>
                       )}
                       <Button

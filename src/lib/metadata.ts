@@ -1,9 +1,14 @@
 import type { AllocationStatus, EmploymentType, Resource, ResourceKind, TimeOffType } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
-// Single source of truth for enum presentation. The `Record<Enum, string>` maps
-// are exhaustive by type — add a union member without a label and tsc fails — and
-// the <select> option arrays are DERIVED from them, so there's nothing to keep in
-// sync. (Enum *unions* stay in types/entities.ts; only their labels live here.)
+// Single source of truth for enum presentation. The label maps are exhaustive by type — add a union
+// member without a label and tsc fails — and the <select> option arrays are DERIVED from them, so
+// there's nothing to keep in sync. (Enum *unions* stay in types/entities.ts; only their labels here.)
+//
+// i18n: each map and option list is a FUNCTION (not a module const) so it resolves the active
+// locale at CALL time. The runtime switches locale without a reload (syncLocaleFromAccount), so a
+// const captured at module load would freeze the boot-time language; calling `m.*()` lazily here is
+// what keeps an account/locale switch live across every select and label render.
 
 export interface LabelOption {
   value: string
@@ -14,29 +19,37 @@ function toOptions(labels: Record<string, string>): LabelOption[] {
   return Object.entries(labels).map(([value, label]) => ({ value, label }))
 }
 
-export const ALLOCATION_STATUS_LABELS: Record<AllocationStatus, string> = {
-  confirmed: 'Confirmed',
-  tentative: 'Tentative',
-  completed: 'Completed',
+export function allocationStatusLabels(): Record<AllocationStatus, string> {
+  return {
+    confirmed: m.enum_allocation_status_confirmed(),
+    tentative: m.enum_allocation_status_tentative(),
+    completed: m.enum_allocation_status_completed(),
+  }
 }
 
-export const EMPLOYMENT_TYPE_LABELS: Record<EmploymentType, string> = {
-  permanent: 'Permanent',
-  freelancer: 'Freelancer',
-  contractor: 'Contractor',
+export function employmentTypeLabels(): Record<EmploymentType, string> {
+  return {
+    permanent: m.enum_employment_type_permanent(),
+    freelancer: m.enum_employment_type_freelancer(),
+    contractor: m.enum_employment_type_contractor(),
+  }
 }
 
-export const RESOURCE_KIND_LABELS: Record<ResourceKind, string> = {
-  person: 'Person',
-  placeholder: 'Placeholder',
-  external: 'External / 3rd party',
+export function resourceKindLabels(): Record<ResourceKind, string> {
+  return {
+    person: m.enum_resource_kind_person(),
+    placeholder: m.enum_resource_kind_placeholder(),
+    external: m.enum_resource_kind_external(),
+  }
 }
 
-export const TIME_OFF_TYPE_LABELS: Record<TimeOffType, string> = {
-  holiday: 'Holiday',
-  sick: 'Sick',
-  unpaid: 'Unpaid',
-  other: 'Other',
+export function timeOffTypeLabels(): Record<TimeOffType, string> {
+  return {
+    holiday: m.enum_time_off_type_holiday(),
+    sick: m.enum_time_off_type_sick(),
+    unpaid: m.enum_time_off_type_unpaid(),
+    other: m.enum_time_off_type_other(),
+  }
 }
 
 /** Primary display name for a placeholder ("slot") resource: the literal word "Placeholder"
@@ -46,7 +59,7 @@ export const TIME_OFF_TYPE_LABELS: Record<TimeOffType, string> = {
  *  palette and the Resources list can't drift on what a placeholder is called. The placeholder
  *  feature is gated behind the per-account `placeholdersEnabled` setting on the Account (default off). */
 export function placeholderDisplayName(): string {
-  return 'Placeholder'
+  return m.placeholder_display_name()
 }
 
 /** The display name for ANY resource: the literal word "Placeholder" for a placeholder ("slot")
@@ -59,7 +72,15 @@ export function resourceDisplayName(r: Resource): string {
   return r.kind === 'placeholder' ? placeholderDisplayName() : (r.name ?? r.role)
 }
 
-export const ALLOCATION_STATUS_OPTIONS = toOptions(ALLOCATION_STATUS_LABELS)
-export const EMPLOYMENT_TYPE_OPTIONS = toOptions(EMPLOYMENT_TYPE_LABELS)
-export const RESOURCE_KIND_OPTIONS = toOptions(RESOURCE_KIND_LABELS)
-export const TIME_OFF_TYPE_OPTIONS = toOptions(TIME_OFF_TYPE_LABELS)
+export function allocationStatusOptions(): LabelOption[] {
+  return toOptions(allocationStatusLabels())
+}
+export function employmentTypeOptions(): LabelOption[] {
+  return toOptions(employmentTypeLabels())
+}
+export function resourceKindOptions(): LabelOption[] {
+  return toOptions(resourceKindLabels())
+}
+export function timeOffTypeOptions(): LabelOption[] {
+  return toOptions(timeOffTypeLabels())
+}

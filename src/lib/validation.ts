@@ -1,16 +1,24 @@
 import { isHexColor } from '@capacitylens/shared/lib/color'
 import { hasDisallowedChars, MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
+import { m } from '@/i18n'
 
 // Shared form-validation copy + helpers. Centralised so the same message isn't
 // re-typed in every form (it was duplicated ~15 times across the CRUD forms).
-
-export const VALIDATION = {
-  nameRequired: 'Name is required.',
-  hexInvalid: 'Enter a valid 6-digit hex colour, e.g. #3b82f6.',
-  textInvalid: 'Remove emoji or special characters.',
-  textTooLong: 'This is too long.',
-  workingDaysRequired: 'Select at least one working day.',
-} as const
+//
+// i18n: the copy resolves through Paraglide (`@/i18n`). This is a GETTER (not a const object) so each
+// message re-resolves the active locale at validation time — a const captured at module load would
+// freeze the import-time language (the locale can switch without reload). Mirrors metadata.ts /
+// introCopy.ts. The validators below call `m.*()` directly; this getter is the catalogue view used by
+// tests + any caller that wants the whole set.
+export function validationMessages() {
+  return {
+    nameRequired: m.validation_name_required(),
+    hexInvalid: m.validation_hex_invalid(),
+    textInvalid: m.validation_text_invalid(),
+    textTooLong: m.validation_text_too_long(),
+    workingDaysRequired: m.validation_working_days_required(),
+  }
+}
 
 type Fail = (field: string, message: string) => void
 
@@ -36,7 +44,7 @@ export function validateText(value: string, fail: Fail, options: TextOptions = {
   const {
     field = 'name',
     required = true,
-    requiredMessage = VALIDATION.nameRequired,
+    requiredMessage = m.validation_name_required(),
     multiline = false,
     maxLength = multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH,
   } = options
@@ -53,11 +61,11 @@ export function validateText(value: string, fail: Fail, options: TextOptions = {
   // input keeps it that way. Outcome-identical: an over-long string fails either way, and only a
   // string that's BOTH over-long AND has junk changes message (now "too long" — caps win first).
   if (trimmed.length > maxLength) {
-    fail(field, VALIDATION.textTooLong)
+    fail(field, m.validation_text_too_long())
     return null
   }
   if (hasDisallowedChars(trimmed, { multiline })) {
-    fail(field, VALIDATION.textInvalid)
+    fail(field, m.validation_text_invalid())
     return null
   }
   return trimmed
@@ -71,7 +79,7 @@ export function validateName(value: string, fail: Fail, field = 'name'): string 
 /** Require a 6-digit hex colour. Returns true if valid, else calls fail() and returns false. */
 export function validateHex(value: string, fail: Fail, field = 'color'): boolean {
   if (!isHexColor(value)) {
-    fail(field, VALIDATION.hexInvalid)
+    fail(field, m.validation_hex_invalid())
     return false
   }
   return true
@@ -82,7 +90,7 @@ export function validateHex(value: string, fail: Fail, field = 'color'): boolean
  *  import path repairs an empty set, but the form is the only path that could persist one. */
 export function validateWorkingDays(days: number[], fail: Fail, field = 'workingDays'): boolean {
   if (!Array.isArray(days) || days.length === 0) {
-    fail(field, VALIDATION.workingDaysRequired)
+    fail(field, m.validation_working_days_required())
     return false
   }
   return true

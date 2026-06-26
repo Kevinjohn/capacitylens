@@ -61,7 +61,7 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
 export function RequiredLegend() {
   return (
     <p className="text-xs text-muted">
-      <span className="font-medium text-danger">*</span> Required field
+      <span className="font-medium text-danger">*</span> {m.field_required_legend()}
     </p>
   )
 }
@@ -361,7 +361,7 @@ export function ColorField({
               onClick={() => setOpen((o) => !o)}
               aria-haspopup="true"
               aria-expanded={open}
-              aria-label={`${label} (${colorName(value)})`}
+              aria-label={m.swatch_trigger_label({ label, color: colorName(value) })}
               aria-invalid={invalid || undefined}
               aria-describedby={invalid ? describedById : undefined}
               className={cn(selectClass(invalid), selectChevronClass, 'flex items-center gap-2 text-left')}
@@ -387,7 +387,7 @@ export function ColorField({
             <PopoverContent
               portal={false}
               role="group"
-              aria-label={`${label} swatches`}
+              aria-label={m.swatch_group_label({ label })}
               side="top"
               align="start"
               sideOffset={4}
@@ -438,15 +438,31 @@ export function ColorField({
   )
 }
 
-const WEEKDAYS: { day: Weekday; label: string }[] = [
-  { day: 1, label: 'Mon' },
-  { day: 2, label: 'Tue' },
-  { day: 3, label: 'Wed' },
-  { day: 4, label: 'Thu' },
-  { day: 5, label: 'Fri' },
-  { day: 6, label: 'Sat' },
-  { day: 0, label: 'Sun' },
-]
+// Picker order: Monday-first, Sunday last. The 3-letter LABELS resolve through Paraglide at render
+// (weekdayShortLabel) so they localise AND follow a locale switch without a reload (mirrors
+// metadata.ts) — and each label doubles as the chip's accessible name, so a screen-reader user hears
+// the localised day too. Kept separate from the model order so the order isn't re-stated per locale.
+const WEEKDAY_ORDER: Weekday[] = [1, 2, 3, 4, 5, 6, 0]
+
+/** The localised 3-letter label for a weekday (Sun=0 … Sat=6). Exhaustive over Weekday. */
+function weekdayShortLabel(day: Weekday): string {
+  switch (day) {
+    case 1:
+      return m.weekday_short_mon()
+    case 2:
+      return m.weekday_short_tue()
+    case 3:
+      return m.weekday_short_wed()
+    case 4:
+      return m.weekday_short_thu()
+    case 5:
+      return m.weekday_short_fri()
+    case 6:
+      return m.weekday_short_sat()
+    case 0:
+      return m.weekday_short_sun()
+  }
+}
 
 export function WeekdayPicker({ label, value, onChange }: { label: string; value: Weekday[]; onChange: (v: Weekday[]) => void }) {
   const toggle = (day: Weekday) => {
@@ -461,7 +477,8 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
     <fieldset className="block">
       <legend className={labelClass}>{label}</legend>
       <div className="flex flex-wrap gap-2">
-        {WEEKDAYS.map(({ day, label: dl }) => {
+        {WEEKDAY_ORDER.map((day) => {
+          const dl = weekdayShortLabel(day)
           const on = value.includes(day)
           return (
             <button
