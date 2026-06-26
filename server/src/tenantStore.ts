@@ -34,8 +34,12 @@ export interface TenantStore {
   /**
    * Read ONLY `accountId`'s slice of AppData (every AppData key present; arrays may be empty). An
    * unknown id yields an empty slice (`accounts: []` + empty scoped arrays), never a throw.
+   *
+   * `opts.includeTimeOffNote` is REQUIRED (P1.6) — the caller must decide whether the owner/admin-only
+   * time-off `note` is included. When `false`, `note` is redacted from every time-off row server-side
+   * (see {@link readSlice} in db.ts), so it never reaches an Editor/Viewer client.
    */
-  readSlice(accountId: string): AppData
+  readSlice(accountId: string, opts: { includeTimeOffNote: boolean }): AppData
   /**
    * Replace `accountId`'s scoped rows with the rows for that account in `next`. Affects ONLY that
    * account's scoped tables; the global `accounts` row and every other account are left untouched.
@@ -56,7 +60,7 @@ export interface TenantStore {
  */
 export function sqliteTenantStore(db: Db): TenantStore {
   return {
-    readSlice: (accountId) => readSlice(db, accountId),
+    readSlice: (accountId, opts) => readSlice(db, accountId, opts),
     write: (accountId, next) => replaceAccountSlice(db, accountId, next),
   }
 }

@@ -197,11 +197,24 @@ export function loadState(db: Db): AppData {
  * client is a 0-row read, not a corruption signal). Rows are mapped through the SAME `fromRow` codec
  * {@link loadState} uses, so optional/json columns round-trip identically.
  *
+ * FIELD-LEVEL REDACTION (P1.6): `opts.includeTimeOffNote` is REQUIRED — there is no silent default, so
+ * every caller must DECIDE the visibility of the owner/admin-only time-off `note` (the access rule
+ * lives in `canSeeTimeOffNote`, shared/domain/access). When `false`, the `note` key is STRIPPED from every returned `timeOff`
+ * row HERE, server-side — so an Editor/Viewer's read can never serialize the note onto the wire. When
+ * `true`, the note is returned as stored. This is a payload-narrowing rule, not a request gate: the
+ * read is already authorized; this only decides which columns leave the server.
+ *
  * @param db         The open SQLite handle.
  * @param accountId  The account whose slice to read.
+ * @param opts.includeTimeOffNote  REQUIRED. `true` keeps each time-off `note`; `false` strips it
+ *                                 (owner/admin-only field — redacted before it leaves the server).
  * @returns An AppData containing ONLY `accountId`'s data (every key present; arrays may be empty).
  */
-export function readSlice(db: Db, accountId: string): AppData {
+export function readSlice(
+  db: Db,
+  accountId: string,
+  opts: { includeTimeOffNote: boolean },
+): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
   const accountsSpec = TABLES['accounts']
@@ -216,6 +229,13 @@ export function readSlice(db: Db, accountId: string): AppData {
       .prepare(`SELECT * FROM ${table} WHERE accountId = ?`)
       .all(accountId)
       .map((r) => fromRow(spec, r))
+  }
+  // P1.6 field-level redaction: drop the owner/admin-only `note` from every time-off row when the
+  // caller may not see it. Delete the KEY (so the optional field is absent, matching its TimeOff
+  // shape — not a null), and do it on the built objects BEFORE returning so the note is never
+  // serialized for an Editor/Viewer read.
+  if (!opts.includeTimeOffNote) {
+    for (const row of data['timeOff']) delete (row as Record<string, unknown>).note
   }
   return data as unknown as AppData
 }

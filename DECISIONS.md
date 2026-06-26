@@ -409,6 +409,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** the no-arg whole `/api/state` read
   (→ P1.13), and `manageMembers`/`manageInvites`/`transferOwnership` (no routes yet — matrix-only in
   access.test.ts).
+- **Time-off `note` is owner/admin-only, redacted SERVER-SIDE (P1.6).** `readSlice` takes a REQUIRED
+  `{ includeTimeOffNote }` (no silent default — every caller decides); `false` STRIPS the `note` key
+  from every time-off row before it leaves the server, so it's never serialized for an Editor/Viewer.
+  `GET /api/state?accountId=` computes it as `authMode === 'off' || canSeeTimeOffNote(role)` (OFF =
+  trusted-local include; auth-on: owner/admin include, editor/viewer omit) AFTER `authorize('read')`.
+  The no-arg whole `/api/state` read is left UNredacted (deferred P1.13 — moot while it already
+  returns everything to any authed user). `app.authz.test.ts` asserts the sentinel note is absent from
+  the raw response BODY for editor/viewer (proof of server-side redaction).
 - **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
   headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
   (`default-src`/`connect-src`/`base-uri 'self'`, `frame-ancestors 'none'`, `object-src 'none'`),
