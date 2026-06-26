@@ -7,6 +7,32 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-06-26
+
+Server-backed persistence is now the default everywhere; the in-browser localStorage build
+becomes an explicit, named demo.
+
+### Changed
+- **Server-backed by default.** An unconfigured build now runs in server mode against a
+  same-origin `/api` (the deployed product already did this). `VITE_CAPACITYLENS_API` now only
+  *overrides* the backend origin rather than switching the server on, and an empty value means
+  "same-origin", not "localStorage". The in-browser localStorage app is demoted to an explicit
+  opt-in.
+- **`npm run dev` is now full-stack.** It boots the SQLite API (`:8787`) and the web app
+  (`:5173`) together through a dev proxy, and requires **Node 24** (`node:sqlite`).
+  `npm run dev:web` is the previous Vite-only, server-mode command.
+- **Docker / Compose default to a portable same-origin server build.** An empty
+  `VITE_CAPACITYLENS_API` now builds an image that works on any host with no per-host rebuild
+  (nginx proxies `/api` same-origin); the demo image is built with `VITE_CAPACITYLENS_DEMO=1`.
+
+### Added
+- **`VITE_CAPACITYLENS_DEMO=1` demo build** — the only route to the zero-setup, no-backend,
+  no-login in-browser localStorage app (the old default). It wins over `VITE_CAPACITYLENS_API`
+  when both are set. A build served without a same-origin `/api` backend (a static host,
+  `vite preview`) must use this flag, or it boots into a "can't reach the server" state.
+- **`npm run dev:demo`** — a Vite-only localStorage preview (no server, no Node 24) for a
+  zero-setup look at the app.
+
 ## [0.10.2] — 2026-06-25
 
 The Time off list reads at a glance — who's away, from when, and for how long.
