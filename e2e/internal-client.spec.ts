@@ -7,11 +7,12 @@ test.describe('Internal client', () => {
     await openApp(page, 'Studio North', '/clients')
     // Internal is a behind-the-scenes data anchor — it does NOT appear in the management list…
     await expect(page.getByTestId('client-row').filter({ hasText: 'Internal' })).toHaveCount(0)
-    // …while normal clients are listed with their Edit/Delete affordances.
+    // …while normal clients are listed with their Edit/Archive affordances (P2.5b: the row's
+    // destructive action archives — Internal has no such row, so it can't be archived from here).
     const acmeRow = page.getByTestId('client-row').filter({ hasText: 'Acme' })
     await expect(acmeRow).toBeVisible()
     await expect(acmeRow.getByRole('button', { name: 'Edit' })).toBeVisible()
-    await expect(acmeRow.getByRole('button', { name: 'Delete' })).toBeVisible()
+    await expect(acmeRow.getByRole('button', { name: 'Archive Acme Inc.' })).toBeVisible()
 
     // It is still SELECTABLE as a project's client in ProjectForm's client picker (name chosen
     // WITHOUT "Internal" in it, so the client-label assertion below can't pass by accident).

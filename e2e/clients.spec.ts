@@ -42,18 +42,17 @@ test.describe('Clients', () => {
     await expect(page.getByLabel('Project').getByRole('option', { name: /Acme Worldwide \/ Project Lightning/ })).toBeAttached()
   })
 
-  test('deletes a client and cascades to its projects, restorable with undo', async ({ page }) => {
+  // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
+  // a hard cascade-delete). Its projects keep their OWN active status (archiving filters by each row's
+  // own status, it does not cascade), so they stay visible; archiving is undoable via the local store.
+  test('archiving a client hides it from the list, restorable with undo', async ({ page }) => {
     await openApp(page, 'Studio North', '/clients')
-    await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('dialog', { name: 'Delete client?' }).getByRole('button', { name: 'Delete' }).click()
+    await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Archive Acme Inc.' }).click()
+    await page.getByRole('dialog', { name: 'Archive client?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' })).toHaveCount(0)
 
-    // Its project is gone too.
-    await page.getByRole('link', { name: 'Projects' }).click()
-    await expect(page.getByTestId('project-row').filter({ hasText: 'Project Lightning' })).toHaveCount(0)
-
-    // Undo restores client + project.
+    // Undo restores the archived client to the active list.
     await page.keyboard.press('Meta+z')
-    await expect(page.getByTestId('project-row').filter({ hasText: 'Project Lightning' })).toBeVisible()
+    await expect(page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' })).toBeVisible()
   })
 })

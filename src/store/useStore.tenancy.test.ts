@@ -41,9 +41,14 @@ describe('ownership guard on update/delete', () => {
     expect(s().data.clients.find((c) => c.id === 'cB')!.name).toBe('B Client')
   })
 
-  it('refuses to delete a row owned by another account (no cascade either)', () => {
-    expect(() => s().deleteProject('pB')).toThrow()
-    expect(s().data.projects.find((p) => p.id === 'pB')).toBeDefined()
+  it('refuses to archive a row owned by another account (cross-account lifecycle throw, no cascade)', () => {
+    // The removal path is now the lifecycle machine (archive → soft-delete → purge), not an immediate
+    // hard-delete. A lifecycle action targeting a row OWNED BY ANOTHER ACCOUNT is a tenancy violation:
+    // findOwned THROWS a display-safe message (a cross-account id, unlike a stale/non-existent one).
+    // The foreign row stays untouched (still active) and nothing cascades.
+    expect(() => s().archiveEntity('projects', 'pB')).toThrow()
+    const proj = s().data.projects.find((p) => p.id === 'pB')!
+    expect(proj.archivedAt).toBeUndefined() // unchanged — not archived across the tenant boundary
     expect(s().data.activities.find((t) => t.id === 'tB')).toBeDefined()
   })
 
@@ -54,7 +59,7 @@ describe('ownership guard on update/delete', () => {
     expect(() => s().updateAllocation('gone', { status: 'tentative' })).not.toThrow()
     expect(() => s().deleteAllocation('gone')).not.toThrow()
     expect(() => s().updateClient('gone', { name: 'x' })).not.toThrow()
-    expect(() => s().deleteProject('gone')).not.toThrow()
+    expect(() => s().archiveEntity('projects', 'gone')).not.toThrow()
     expect(() => s().updateTimeOff('gone', { type: 'sick' })).not.toThrow()
   })
 

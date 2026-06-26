@@ -157,13 +157,15 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     await expect(lane.getByTestId('timeoff-block')).toHaveCount(0)
   })
 
-  test('deleting an external party is undoable', async ({ page }) => {
+  // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
+  // a hard delete). Archiving is undoable via the local store.
+  test('archiving an external party is undoable', async ({ page }) => {
     await openApp(page)
     await enableExternal(page)
     await page.getByRole('link', { name: 'Resources' }).click()
 
-    await page.getByTestId('external-row').filter({ hasText: 'Dog Eat Cog' }).getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+    await page.getByTestId('external-row').filter({ hasText: 'Dog Eat Cog' }).getByRole('button', { name: 'Archive Dog Eat Cog' }).click()
+    await page.getByRole('dialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('external-row').filter({ hasText: 'Dog Eat Cog' })).toHaveCount(0)
 
     await page.keyboard.press('Meta+z')

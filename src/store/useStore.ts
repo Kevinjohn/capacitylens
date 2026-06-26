@@ -20,6 +20,7 @@ import {
   findOwned as findOwnedIn,
   remapAndValidateImport,
 } from '@capacitylens/shared/domain/mutations'
+import { archive, canPurge, obfuscateResource, softDelete, unarchive } from '@capacitylens/shared/domain/lifecycle'
 import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
@@ -73,6 +74,13 @@ import type {
 // runtime (see addClient/updateClient).
 export type Draft<T extends Entity> = Omit<T, 'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin'>
 export type Patch<T extends Entity> = Partial<Draft<T>>
+
+// The three entity tables that carry the lifecycle tombstones (`archivedAt`/`deletedAt`, P2.1) and so
+// can travel the Active → Archived → Soft-deleted → Purged machine (`shared/src/domain/lifecycle.ts`).
+// MIRRORS the server's lifecycle-route entity union so the LOCAL store actions below and the server's
+// dedicated routes (P2.5a) operate over the IDENTICAL set — phases/activities/allocations/timeOff/
+// disciplines/accounts have no tombstone and are deliberately excluded.
+export type LifecycleEntity = 'resources' | 'clients' | 'projects'
 
 /** A transient toast message + severity. */
 export interface Notice {
@@ -316,15 +324,12 @@ export interface StoreState {
 
   addResource: (input: Draft<Resource>) => Resource
   updateResource: (id: ID, patch: Patch<Resource>) => void
-  deleteResource: (id: ID) => void
 
   addClient: (input: Draft<Client>) => Client
   updateClient: (id: ID, patch: Patch<Client>) => void
-  deleteClient: (id: ID) => void
 
   addProject: (input: Draft<Project>) => Project
   updateProject: (id: ID, patch: Patch<Project>) => void
-  deleteProject: (id: ID) => void
 
   addPhase: (input: Draft<Phase>) => Phase
   updatePhase: (id: ID, patch: Patch<Phase>) => void
@@ -341,6 +346,32 @@ export interface StoreState {
   addTimeOff: (input: Draft<TimeOff>) => TimeOff
   updateTimeOff: (id: ID, patch: Patch<TimeOff>) => void
   deleteTimeOff: (id: ID) => void
+
+  // --- Data-lifecycle (P2.5b): the Active → Archived → Soft-deleted → Purged machine for the three
+  // tombstone-carrying tables (resources / clients / projects). These are the LOCAL/OFF-mode path —
+  // they mutate the local `data` blob through the same mutate()/undo machinery as the CRUD above. In
+  // SERVER mode the UI instead calls the dedicated routes (POST /api/:entity/:id/{archive,unarchive,
+  // delete,purge}, P2.5a) directly, so the admin view only invokes these in local mode. They COMPOSE
+  // the pure shared lifecycle helpers (shared/src/domain/lifecycle.ts) — the transition logic and the
+  // soft-delete obfuscation string are NEVER re-derived here. Same contract as the CRUD: undoable,
+  // viewer-no-op, stale-id-no-op, and the transition THROWS a display-safe Error on an invalid source
+  // state (the UI gates with the can* predicates first; the throw is the defense-in-depth backstop).
+  /** Archive an entity (active → archived). LOCAL-mode path; surface-not-swallow — `archive` throws
+   *  if the row isn't active. @param entity which tombstone table. @param id the row to archive. */
+  archiveEntity: (entity: LifecycleEntity, id: ID) => void
+  /** Un-archive an entity (archived → active). LOCAL-mode path; `unarchive` throws if the row isn't
+   *  archived. @param entity which tombstone table. @param id the row to restore. */
+  unarchiveEntity: (entity: LifecycleEntity, id: ID) => void
+  /** Soft-delete an entity (archived → deleted tombstone). LOCAL-mode path; `softDelete` throws unless
+   *  the row is archived first (the lifecycle requires prior archival). For a `resources` row the
+   *  tombstone's `name` is ALSO scrubbed via the shared `obfuscateResource` — the local copy retains
+   *  no original PII while it awaits purge. @param entity which tombstone table. @param id the row. */
+  softDeleteEntity: (entity: LifecycleEntity, id: ID) => void
+  /** Hard-purge a soft-deleted tombstone (physically remove + cascade its children). LOCAL-mode path.
+   *  Enforces the {@link PURGE_MIN_AGE_DAYS} grace window via `canPurge`: if the tombstone is too young
+   *  it does NOT mutate and surfaces an error notice instead of throwing (a refused affordance, not a
+   *  bug). @param entity which tombstone table. @param id the tombstone to purge. */
+  purgeEntity: (entity: LifecycleEntity, id: ID) => void
 
   setZoom: (zoom: WeeksZoom) => void
   setOriginDate: (date: ISODate) => void
@@ -714,11 +745,6 @@ export const useStore = create<StoreState>()((set, get) => {
           : patch
       mutate((d) => ({ ...d, resources: updateById(d.resources, id, safePatch) }))
     },
-    deleteResource: (id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'resources', id)) return
-      mutate((d) => deleteResourceCascade(d, id))
-    },
 
     addClient: (input) => {
       // STORE-STRIP enforcement point (1) of the single-Internal invariant — see the canonical doc in
@@ -750,14 +776,6 @@ export const useStore = create<StoreState>()((set, get) => {
       delete safePatch.builtin
       mutate((d) => ({ ...d, clients: updateById(d.clients, id, safePatch as Patch<Client>) }))
     },
-    deleteClient: (id) => {
-      if (blockedByViewer()) return
-      const existing = findOwned(get().data, 'clients', id)
-      if (!existing) return
-      // The built-in Internal client cannot be deleted — every account must keep exactly one.
-      if (isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be deleted.')
-      mutate((d) => deleteClientCascade(d, id))
-    },
 
     addProject: (input) => {
       const accountId = requireAccount()
@@ -774,11 +792,6 @@ export const useStore = create<StoreState>()((set, get) => {
       if (!existing) return
       assertScopedRefs(get().data, existing.accountId, 'projects', patch)
       mutate((d) => ({ ...d, projects: updateById(d.projects, id, patch) }))
-    },
-    deleteProject: (id) => {
-      if (blockedByViewer()) return
-      if (!findOwned(get().data, 'projects', id)) return
-      mutate((d) => deleteProjectCascade(d, id))
     },
 
     addPhase: (input) => {
@@ -898,6 +911,86 @@ export const useStore = create<StoreState>()((set, get) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, 'timeOff', id)) return
       mutate((d) => ({ ...d, timeOff: d.timeOff.filter((t) => t.id !== id) }))
+    },
+
+    // --- Data-lifecycle actions (P2.5b LOCAL-mode path). See the StoreState block above for the
+    // shared contract. Active → Archived → Soft-deleted → Purged is the ONLY removal path for the three
+    // tombstone-carrying tables (resources / clients / projects); there is no immediate hard-delete
+    // action for them — a physical row removal happens only at the END of the lifecycle, in purgeEntity,
+    // which composes the shared delete*Cascade so the tombstone AND its children go together (a
+    // resource's allocations/time-off; a client's projects/activities/allocations; a project's
+    // phases/activities/allocations). Single-sourced from shared/lib/integrity.ts so the purge cascade
+    // can't drift from the cascade the other tables' delete* actions use.
+    archiveEntity: (entity, id) => {
+      if (blockedByViewer()) return
+      if (!findOwned(get().data, entity, id)) return
+      // Reject the built-in Internal client — a fixed bucket that may not be archived (mirrors the
+      // builtin guard in updateClient/purgeEntity). Throw a display-safe message; the caller surfaces.
+      if (entity === 'clients') {
+        const existing = findOwned(get().data, 'clients', id)
+        if (existing && isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be archived.')
+      }
+      // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
+      // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
+      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => (e.id === id ? { ...archive(e, touch()), updatedAt: touch() } : e)) }))
+    },
+    unarchiveEntity: (entity, id) => {
+      if (blockedByViewer()) return
+      if (!findOwned(get().data, entity, id)) return
+      // No builtin guard: the Internal client can never reach 'archived' (archiveEntity rejects it), so
+      // unarchive() would throw 'not archived' anyway. unarchive() THROWS if the row isn't archived.
+      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => (e.id === id ? { ...unarchive(e), updatedAt: touch() } : e)) }))
+    },
+    softDeleteEntity: (entity, id) => {
+      if (blockedByViewer()) return
+      if (!findOwned(get().data, entity, id)) return
+      // The Internal client can never be 'archived' (so softDelete would throw), but guard explicitly
+      // for a display-safe message and parity with the delete path.
+      if (entity === 'clients') {
+        const existing = findOwned(get().data, 'clients', id)
+        if (existing && isBuiltinClient(existing)) throw new Error('The Internal client is built in and cannot be deleted.')
+      }
+      // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
+      // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
+      // string is single-sourced from lifecycle.ts — never hand-written here).
+      mutate((d) => ({
+        ...d,
+        [entity]: d[entity].map((e) => {
+          if (e.id !== id) return e
+          const t = softDelete(e, touch())
+          return entity === 'resources'
+            ? { ...obfuscateResource(t as Resource), updatedAt: touch() }
+            : { ...t, updatedAt: touch() }
+        }),
+      }))
+    },
+    purgeEntity: (entity, id) => {
+      if (blockedByViewer()) return
+      const existing = findOwned(get().data, entity, id)
+      if (!existing) return
+      // The built-in Internal client cannot be purged — every account must keep exactly one. Re-fetch
+      // with the literal 'clients' key so the narrowed Client type satisfies isBuiltinClient (matches
+      // archiveEntity/softDeleteEntity).
+      if (entity === 'clients') {
+        const client = findOwned(get().data, 'clients', id)
+        if (client && isBuiltinClient(client)) throw new Error('The Internal client is built in and cannot be deleted.')
+      }
+      // Enforce the grace window: canPurge is false unless this is a soft-deleted tombstone aged at
+      // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
+      // notice and no-op rather than throw (the throw idiom is reserved for tenancy/integrity bugs).
+      if (!canPurge(existing, todayISO())) {
+        get().setNotice('This can only be permanently deleted 30 days after deletion.', 'error')
+        return
+      }
+      // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the
+      // regular delete* actions use (single-sourced from shared/lib/integrity.ts — no drift).
+      const cascade =
+        entity === 'resources'
+          ? deleteResourceCascade
+          : entity === 'clients'
+            ? deleteClientCascade
+            : deleteProjectCascade
+      mutate((d) => cascade(d, id))
     },
 
     setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom } })),

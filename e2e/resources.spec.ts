@@ -58,7 +58,9 @@ test.describe('Resources', () => {
     await expect(page.getByText('Lead Developer')).toBeVisible()
   })
 
-  test('deleting a resource cascades to its allocations and time off, and undo restores them', async ({ page }) => {
+  // P2.5b: the per-row destructive action ARCHIVES (hidden from list + schedule, fully retained),
+  // not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
+  test('archiving a resource hides it from the list + schedule, and undo restores it', async ({ page }) => {
     await openApp(page)
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByLabel('Jump to date').fill('2026-06-01')
@@ -66,11 +68,11 @@ test.describe('Resources', () => {
     expect(await tylerBars.count()).toBeGreaterThan(0)
 
     await page.getByRole('link', { name: 'Resources' }).click()
-    await page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' }).getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Delete' }).click()
+    await page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' }).getByRole('button', { name: 'Archive Tyler Nix' }).click()
+    await page.getByRole('dialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' })).toHaveCount(0)
 
-    // Undo restores the resource (and, on the schedule, its bars + time off).
+    // Undo restores the resource (back to active → reappears in the list + schedule).
     await page.keyboard.press('Meta+z')
     await expect(page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' })).toBeVisible()
   })

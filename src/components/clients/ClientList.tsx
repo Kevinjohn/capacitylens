@@ -1,10 +1,10 @@
-import { useStore } from '../../store/useStore'
 import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
 import type { Client } from '@capacitylens/shared/types/entities'
+import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
 
 export function ClientList() {
@@ -15,7 +15,9 @@ export function ClientList() {
   // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
   // not this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
   const clients = useActiveScopedData().clients.filter((c) => !isBuiltinClient(c))
-  const deleteClient = useStore((s) => s.deleteClient)
+  // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
+  // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
+  const { archive } = useLifecycleActions()
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Client>()
 
   return (
@@ -38,7 +40,7 @@ export function ClientList() {
               </span>
               <span className="flex gap-2">
                 <EditButton onClick={() => setEditing(c)} />
-                <DeleteButton onClick={() => setConfirming(c)} />
+                <DeleteButton label={m.list_clients_archive_aria({ name: c.name })} onClick={() => setConfirming(c)} />
               </span>
             </li>
           ))}
@@ -49,10 +51,11 @@ export function ClientList() {
       {editing && <ClientForm client={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title={m.list_clients_delete_title()}
-          message={m.list_clients_delete_message({ name: confirming.name })}
+          title={m.list_clients_archive_title()}
+          message={m.list_clients_archive_message({ name: confirming.name })}
+          confirmLabel={m.list_archive()}
           onConfirm={() => {
-            deleteClient(confirming.id)
+            void archive('clients', confirming.id)
             setConfirming(null)
           }}
           onCancel={() => setConfirming(null)}

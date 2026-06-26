@@ -84,10 +84,12 @@ test('a confirm dialog (dark) danger button has no serious or critical violation
   await page.addInitScript(() => localStorage.setItem('capacitylens/theme', 'dark'))
   await openApp(page, 'Studio North', '/clients')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Delete' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Delete client?' })
+  // P2.5b: the row's destructive action archives; the confirm dialog's "Archive" button is still the
+  // danger variant (ConfirmDialog renders confirm as danger regardless of label), so this scan covers it.
+  await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Archive Acme Inc.' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Archive client?' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Delete' })).toBeVisible() // the danger-variant confirm button
+  await expect(dialog.getByRole('button', { name: 'Archive', exact: true })).toBeVisible() // the danger-variant confirm button
   await page.waitForTimeout(350) // let the entrance animation settle (mid-fade colours read as false low-contrast)
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
   const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
