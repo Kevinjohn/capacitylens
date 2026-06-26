@@ -82,6 +82,9 @@ const COLS_clients = [
   // absent → NULL → omitted on read, matching the client object. True only for the built-in
   // Internal pseudo-client (one per account).
   { name: 'builtin', json: true, optional: true },
+  // Lifecycle timestamps (P2.1) — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
+  { name: 'archivedAt', optional: true },
+  { name: 'deletedAt', optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -100,6 +103,9 @@ const COLS_projects = [
   { name: 'name' },
   { name: 'clientId' },
   { name: 'color' },
+  // Lifecycle timestamps (P2.1) — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
+  { name: 'archivedAt', optional: true },
+  { name: 'deletedAt', optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -123,6 +129,9 @@ const COLS_resources = [
   { name: 'workingDays', json: true },
   { name: 'projectId', optional: true },
   { name: 'color' },
+  // Lifecycle timestamps (P2.1) — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
+  { name: 'archivedAt', optional: true },
+  { name: 'deletedAt', optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -271,6 +280,7 @@ CREATE TABLE IF NOT EXISTS clients (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   name TEXT NOT NULL, color TEXT NOT NULL, builtin TEXT,
+  archivedAt TEXT, deletedAt TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS disciplines (
@@ -285,6 +295,7 @@ CREATE TABLE IF NOT EXISTS projects (
   name TEXT NOT NULL,
   clientId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
   color TEXT NOT NULL,
+  archivedAt TEXT, deletedAt TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS phases (
@@ -303,6 +314,7 @@ CREATE TABLE IF NOT EXISTS resources (
   workingDays TEXT NOT NULL,
   projectId TEXT REFERENCES projects(id) ON DELETE SET NULL,
   color TEXT NOT NULL,
+  archivedAt TEXT, deletedAt TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS activities (

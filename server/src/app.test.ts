@@ -897,7 +897,7 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     expect((await state(app)).accounts[0]).toEqual(FIXTURE_ACCOUNT)
   })
 
-  it('client: every field round-trips', async () => {
+  it('client: every field round-trips (including lifecycle archivedAt/deletedAt)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', FIXTURE_ACCOUNT)
     expect((await post(app, 'clients', FIXTURE_CLIENT)).statusCode).toBe(201)
@@ -911,7 +911,7 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     expect((await state(app)).disciplines[0]).toEqual(FIXTURE_DISCIPLINE)
   })
 
-  it('project: every field round-trips', async () => {
+  it('project: every field round-trips (including lifecycle archivedAt/deletedAt)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', FIXTURE_ACCOUNT)
     await post(app, 'clients', FIXTURE_CLIENT)
@@ -928,7 +928,7 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     expect((await state(app)).phases[0]).toEqual(FIXTURE_PHASE)
   })
 
-  it('resource: every field round-trips (including optional name/disciplineId/projectId + json workingDays)', async () => {
+  it('resource: every field round-trips (including optional name/disciplineId/projectId + json workingDays + lifecycle archivedAt/deletedAt)', async () => {
     const { app } = freshApp()
     await seedFixtureDeps(app)
     expect((await post(app, 'resources', FIXTURE_RESOURCE)).statusCode).toBe(201)

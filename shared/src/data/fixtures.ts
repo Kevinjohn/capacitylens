@@ -34,6 +34,10 @@ export const FIXTURE_CLIENT: Client = {
   // JSON column, omitted when absent). The built-in Internal client owns real projects, so a project
   // (FIXTURE_PROJECT) pointing at it is valid.
   builtin: true,
+  // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
+  // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
+  archivedAt: TS1,
+  deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
 }
@@ -54,6 +58,10 @@ export const FIXTURE_PROJECT: Project = {
   name: 'Fixture Project',
   clientId: 'fix-c1',
   color: '#112233',
+  // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
+  // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
+  archivedAt: TS1,
+  deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
 }
@@ -79,6 +87,10 @@ export const FIXTURE_RESOURCE: Resource = {
   workingDays: [1, 2, 3],
   projectId: 'fix-p1',
   color: '#445566',
+  // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
+  // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
+  archivedAt: TS1,
+  deletedAt: TS2,
   createdAt: TS1,
   updatedAt: TS2,
 }
