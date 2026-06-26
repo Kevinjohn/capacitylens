@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResourceList } from './ResourceList'
@@ -161,7 +161,14 @@ describe('ResourceList display', () => {
 // reached LATER from Settings → Archived & deleted on an archived row). LOCAL mode here, so it calls
 // the store's archiveEntity: the row gets `archivedAt` set (still in `data`) and vanishes from this
 // list (which reads useActiveScopedData → active-only). The button + confirm copy read "Archive".
+// DEMO mode here → the archive affordance dispatches the store's archiveEntity directly (no fetch,
+// no reload): the resource gets `archivedAt` set and vanishes from the active-only list. Server is
+// the app default now, so we opt into demo (VITE_CAPACITYLENS_DEMO=1) for the local-mutation path
+// these assertions check. isServerConfigured() reads the env per dispatch, so a stub here is enough.
 describe('ResourceList archive flow', () => {
+  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'))
+  afterEach(() => vi.unstubAllEnvs())
+
   it('shows an Archive confirm dialog and cancelling keeps the resource visible', async () => {
     const user = userEvent.setup()
     useStore.getState().addResource(personDraft('Alice'))

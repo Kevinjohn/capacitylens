@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ClientList } from './ClientList'
@@ -28,10 +28,14 @@ describe('ClientList empty state', () => {
 })
 
 // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
-// Settings → Archived & deleted). LOCAL mode here → the store's archiveEntity: the client gets
+// Settings → Archived & deleted). DEMO mode here → the store's archiveEntity: the client gets
 // `archivedAt` set (its projects/activities are RETAINED — archiving is reversible, unlike the old
-// cascade-delete) and vanishes from this active-only list.
+// cascade-delete) and vanishes from this active-only list. Server is the app default now, so we opt
+// into demo (VITE_CAPACITYLENS_DEMO=1) for the local-mutation path; the env is read per dispatch.
 describe('ClientList archive flow', () => {
+  beforeEach(() => vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1'))
+  afterEach(() => vi.unstubAllEnvs())
+
   it('confirms before archiving and keeps the client + its children in the data', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })

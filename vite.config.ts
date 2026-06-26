@@ -35,7 +35,21 @@ export default defineConfig({
   // strictPort: if 5173 is already taken (a stale server here, or a sibling repo —
   // floaty-schedule / delivery-diary claim the same port), FAIL LOUDLY instead of
   // silently starting on 5174 while the browser stares at the wrong port's white page.
-  server: { host: '127.0.0.1', port: 5173, strictPort: true },
+  server: {
+    host: '127.0.0.1',
+    port: 5173,
+    strictPort: true,
+    // Dev-only /api proxy for the full-stack `npm run dev` (scripts/dev-fullstack.mjs): the app
+    // talks to a same-origin /api and Vite forwards it to the SQLite server on :8787 (one rule
+    // also covers /api/auth/*). Irrelevant to the demo build (no /api calls) and to prod (nginx
+    // does this); ignored by `vite build`. Stays in lockstep with the launcher via the same env var.
+    proxy: {
+      '/api': {
+        target: `http://localhost:${process.env.CAPACITYLENS_DEV_API_PORT ?? 8787}`,
+        changeOrigin: true,
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

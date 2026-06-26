@@ -10,11 +10,12 @@ promote a call **here** only when future work must respect it, and edit the line
 promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 
 ## Architecture
-- **Local-first by default.** No backend, no login; data is one `AppData` blob in
-  `localStorage` (`capacitylens/v3`).
-- **Optional server behind one seam.** A Node + `node:sqlite` REST API (`server/`, off by
-  default, `VITE_CAPACITYLENS_API=…`) plugs into the same `PersistenceAdapter`; nothing else changes.
-  Server mode is last-writer-wins, no per-user isolation.
+- **Server-backed by default.** An empty env means the SAME-ORIGIN server (relative `/api`); a Node +
+  `node:sqlite` REST API (`server/`) plugs into the `PersistenceAdapter`. `VITE_CAPACITYLENS_API=…`
+  overrides the backend origin. Server mode is last-writer-wins, no per-user isolation.
+- **The in-browser localStorage build is an explicit demo opt-in.** `VITE_CAPACITYLENS_DEMO=1` is the
+  ONLY route to localStorage (the old default): no backend, no login, data is one `AppData` blob in
+  `localStorage` (`capacitylens/v3`). `npm run dev:demo` is the Vite-only localStorage preview.
 - **Multi-tenant by Account.** Every entity carries `accountId`; you pick a company on load
   (`AccountPicker`) and `activeAccountId` is never persisted. Scoped access goes through the
   `useScopedData` / `scopedTables()` seam.

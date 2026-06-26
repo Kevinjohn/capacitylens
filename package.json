@@ -9,7 +9,9 @@
   },
   "scripts": {
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
-    "dev": "npm run paraglide:compile && vite",
+    "dev": "node scripts/dev-fullstack.mjs",
+    "dev:web": "npm run paraglide:compile && vite",
+    "dev:demo": "npm run paraglide:compile && VITE_CAPACITYLENS_DEMO=1 vite",
     "build": "npm run paraglide:compile && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

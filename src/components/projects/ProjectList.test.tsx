@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectList } from './ProjectList'
@@ -8,7 +8,13 @@ import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../../te
 beforeEach(() => {
   resetStoreWithAccount()
   useStore.getState().clearFilters()
+  // Server is the app default now; the archive-flow tests below assert the LOCAL store-mutation path
+  // (no fetch/reload), so opt into the demo build. isServerConfigured() reads the env per dispatch,
+  // and the non-archive tests here don't touch persistence mode, so a file-wide stub is harmless.
+  vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1')
 })
+
+afterEach(() => vi.unstubAllEnvs())
 
 describe('ProjectList', () => {
   it('shows empty state when there are no projects', () => {
@@ -56,7 +62,7 @@ describe('ProjectList', () => {
   })
 
   // P2.5b: the per-row "Delete" affordance now ARCHIVES (soft-delete is reached later from
-  // Settings → Archived & deleted). LOCAL mode here → archiveEntity: the project gets `archivedAt`
+  // Settings → Archived & deleted). DEMO mode here → archiveEntity: the project gets `archivedAt`
   // set (its activities are RETAINED — reversible) and vanishes from this active-only list.
   it('shows the Archive ConfirmDialog when the archive button is clicked', async () => {
     const user = userEvent.setup()

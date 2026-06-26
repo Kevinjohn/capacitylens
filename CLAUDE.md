@@ -7,17 +7,19 @@ Allocations across Clients → Projects → Activities, multi-tenant by Account)
 for small agencies with rotating freelancers. Budgets/money, timesheets, hour-granularity
 workflows and mobile views are non-goals; don't propose them. This is the **original** repo
 (CapacityLens); `../floaty-schedule` (shift rota) and `../delivery-diary` (deliverables tracker)
-re-target this same setup to new domains. No backend or login by default; an **optional**
-SQLite-backed API plugs in behind the persistence seam.
+re-target this same setup to new domains. Server-backed by default (empty env = same-origin SQLite
+API); the in-browser localStorage build is an explicit `VITE_CAPACITYLENS_DEMO=1` demo opt-in.
 
 ## Architecture in one breath
 `shared/` (`@capacitylens/shared`) = pure domain core (types, validation, integrity, cascade,
 import-remap, migrate, seed), imported by both app and server so they can't drift.
 `src/store/useStore.ts` (Zustand) = the orchestrator (owns ids/timestamps, undo/redo);
 `src/components/scheduler/` builds the week-grid view-model (unit-tested). Persistence is
-local-first behind `PersistenceAdapter` (`localStorage` key `capacitylens/v3`); the optional Node +
-`node:sqlite` `server/` drops in behind that seam when `VITE_CAPACITYLENS_API` is set. Scoped access
-goes through the `useScopedData` / `scopedTables()` seam.
+server-backed by default behind `PersistenceAdapter`: an empty env = the same-origin Node + `node:sqlite`
+`server/` (relative `/api`), `VITE_CAPACITYLENS_API` overrides the origin, and `VITE_CAPACITYLENS_DEMO=1`
+is the only route to the in-browser `localStorage` build (key `capacitylens/v3`). `npm run dev` is now
+full-stack (server :8787 + web :5173, needs Node 24); `npm run dev:demo` is the Vite-only localStorage
+preview. Scoped access goes through the `useScopedData` / `scopedTables()` seam.
 
 ## Load-bearing invariants (don't break)
 - **Multi-tenant by Account.** Every entity carries `accountId`; `activeAccountId` is picked on

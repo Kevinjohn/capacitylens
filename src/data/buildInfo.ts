@@ -1,8 +1,8 @@
 // Build provenance for tester bug reports (production plan P1.7), read from the build-time
 // env like apiConfig. The deploy script sets VITE_CAPACITYLENS_BUILD_SHA; a build without it (dev
-// server, plain local build) renders no stamp at all. The mode suffix exists because a build
-// missing VITE_CAPACITYLENS_API silently reverts to localStorage and otherwise looks identical —
-// the stamp is how the post-deploy smoke test proves the deploy really is in server mode.
+// server, plain local build) renders no stamp at all. The mode suffix exists because the demo
+// (localStorage) build looks otherwise identical to a real server deploy — the stamp is how the
+// post-deploy smoke test proves the deploy really is in server mode, not the demo build.
 
 import { isServerConfigured } from './apiConfig'
 import { APP_NAME } from '@capacitylens/shared/brand'
@@ -12,7 +12,7 @@ import { APP_NAME } from '@capacitylens/shared/brand'
 export function buildStamp(): string | null {
   const sha = (import.meta.env.VITE_CAPACITYLENS_BUILD_SHA ?? '').trim()
   if (!sha) return null
-  return `build ${sha} · ${isServerConfigured() ? 'server' : 'local'}`
+  return `build ${sha} · ${isServerConfigured() ? 'server' : 'demo'}`
 }
 
 /** The Settings "Send feedback" mailto href (P5.2, flag VITE_CAPACITYLENS_FEEDBACK_MAILTO), or
