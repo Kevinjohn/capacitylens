@@ -56,6 +56,18 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   `${API_BASE}/api/...`, so `/api` would double-prefix and `""` disables server mode; build it
   as the published origin (compose default `http://localhost:8080`). `.env.example` documents
   every runtime env var (server + client) with accurate defaults.
+- **`NODE_ENV=production` retires the dev/open posture (boot interlock, P3.1).** A pure
+  `evaluateProductionPosture(env)` (`server/src/productionGuard.ts`) is consulted at boot:
+  it is a **no-op unless `NODE_ENV==='production'`** (dev / e2e / self-host keep the open
+  auth-off posture as a first-class supported mode — the load-bearing self-hoster guarantee),
+  but in production **refuses to start when auth is OFF** (the demo dataset would be
+  world-readable+writable), and **warns loudly** (still boots) on HSTS-off (`CAPACITYLENS_HTTPS!=1`,
+  expected when TLS terminates at a proxy) and open self-signup. Like `bootGuard.resetForbidden`
+  it is a deliberate fail-closed safety interlock, **not** behind an opt-in flag; the only escape
+  is the explicit, off-by-default `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1`, which **downgrades**
+  the auth-off refusal to a warning (never silences it). The in-repo deliverable is the guard +
+  `docs/production-posture.md`; the actual deploy (TLS cert, nginx header delivery, uptime) is
+  operator-side at go-live (`docs/production-plan.md`, `docs/runbook.md`).
 
 ## Import — repair, don't reject
 - **Forms reject; import + server strip/repair.** Import sanitises per record (clean text,

@@ -3,6 +3,7 @@ import { openDb, seedIfUninitialized, type Db } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
+import { evaluateProductionPosture } from './productionGuard'
 import { authFromEnv, runAuthMigrations, AuthConfigError } from './auth'
 import { parseBackupConfig, startBackups } from './backup'
 import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
@@ -13,6 +14,11 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //   CAPACITYLENS_HOST                     listen host (default 127.0.0.1, localhost-only).
 //                                   Set to 0.0.0.0 to deliberately expose on the LAN.
 //   CAPACITYLENS_ALLOW_RESET              '1' to expose POST /api/test/reset (dev/E2E only)
+//   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION off by default; set to '1' ONLY to deliberately run
+//                                   the open/demo (auth-off) posture under NODE_ENV=production.
+//                                   Otherwise auth-off in production refuses to boot — the
+//                                   demo dataset would be world-readable/writable (see
+//                                   productionGuard.ts).
 //   CAPACITYLENS_CORS_ORIGIN              CORS allow-list, comma-separated, or '*' to allow
 //                                   any origin. Defaults to the local dev origins so
 //                                   the API is NOT open to every site by default.
@@ -144,6 +150,20 @@ try {
     process.exit(1)
   }
   throw err
+}
+
+// Production-posture interlock (P3.1): once NODE_ENV=production, the dev/open posture must be retired
+// — running auth OFF in production would expose the demo dataset. Refuse on fatal posture violations,
+// warn loudly on the softer ones. No-op outside production (see productionGuard.ts).
+const posture = evaluateProductionPosture(process.env)
+for (const w of posture.warnings) {
+  console.warn(`capacitylens-server: production posture warning — ${w}`)
+}
+if (posture.refusals.length > 0) {
+  console.error(
+    `capacitylens-server: refusing to start — production posture:\n${posture.refusals.map((r) => `  - ${r}`).join('\n')}`,
+  )
+  process.exit(1)
 }
 // Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them), then seed
 // a never-initialised DB. Both are boot preconditions — a failure must crash legibly, not limp on.
