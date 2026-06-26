@@ -1,4 +1,19 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
-  "app_name": "CapacityLens"
+  "app_name": "CapacityLens",
+  "nav_skip_to_content": "Skip to content",
+  "nav_schedule": "Schedule",
+  "nav_resources": "Resources",
+  "nav_disciplines": "Disciplines",
+  "nav_clients": "Clients",
+  "nav_projects": "Projects",
+  "nav_activities": "Activities",
+  "nav_timeoff": "Time off",
+  "nav_settings": "Settings",
+  "nav_collapse_menu": "Collapse menu",
+  "nav_expand_menu": "Expand menu",
+  "nav_switch_company": "Switch company",
+  "nav_sign_out": "Sign out",
+  "nav_view_only": "View only",
+  "nav_view_only_title": "You have read-only access to this company."
 }

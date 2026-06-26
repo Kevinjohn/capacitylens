@@ -132,6 +132,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   `setLocale(reload:false)` (account-scoped + client-only — Vite `globalVariable` strategy, no cookie/
   reload). `baseLocale` 'en', `locales` ['en']; UI-string migration is P1.5.2. The demonstrator key
   `app_name` equals `APP_NAME` (no brand drift — P0.0).
+- **i18n key convention (established P1.5.2 area 1).** Message keys are **snake_case, area-namespaced**
+  (`nav_*`, `settings_*`, …); the value IS the source English (each migration sweep extracts literals
+  with **character-identical** English values — no visible change). A missing/typo'd key is a
+  **tsc/build error** (per the P1.5.1 guarantee), so call sites stay honest. Resolve `m.key()` at
+  **render**, never at module load — a module-scope literal (e.g. an array of nav labels) must use a
+  getter (`() => m.key()`) so the account-scoped locale switch re-resolves on the next render rather
+  than freezing to the import-time locale. The UI-string migration runs area-by-area (P1.5.2:
+  nav/sidebar → Settings → scheduler → dialogs/forms → lists → toasts/errors).
 - **Disciplines are optional (account-level)** — `disciplinesEnabled` on the Account (absent =
   true; Settings → Disciplines). Off hides disciplines across the WHOLE UI (nav + `/disciplines`
   route guard, resource-form field, schedule grouping + filter, Resources list, command palette,

@@ -20,18 +20,27 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { cn } from '@/lib/utils'
 import { m, syncLocaleFromAccount } from '@/i18n'
 
-const LINKS: [string, string, IconName][] = [
-  ['/', 'Schedule', 'calendar'],
-  ['/resources', 'Resources', 'people'],
+/**
+ * A nav destination: `[route, labelFn, icon]`. The label is a **getter** (`() => m.nav_x()`), not a
+ * pre-resolved string, so each destination's text is resolved at RENDER (inside the `navLinks.map`
+ * sites below) rather than at module load. That matters for i18n (P1.5.2): `LINKS` is module-scope,
+ * and calling `m.nav_x()` here would freeze the label to the locale active at import — the getter
+ * defers it to render so a locale switch (account change) re-resolves the text on the next render.
+ */
+type NavLinkDef = [to: string, label: () => string, icon: IconName]
+
+const LINKS: NavLinkDef[] = [
+  ['/', () => m.nav_schedule(), 'calendar'],
+  ['/resources', () => m.nav_resources(), 'people'],
   // External / 3rd parties moved INTO the Resources tab behind a per-account setting
   // (`externalEnabled` on the Account, default off — Settings → External). They no longer have their
   // own nav link; the old /external route redirects to /resources for saved bookmarks.
-  ['/disciplines', 'Disciplines', 'tag'],
-  ['/clients', 'Clients', 'briefcase'],
-  ['/projects', 'Projects', 'folder'],
-  ['/activities', 'Activities', 'clipboard-check'],
-  ['/timeoff', 'Time off', 'sun'],
-  ['/settings', 'Settings', 'sliders'],
+  ['/disciplines', () => m.nav_disciplines(), 'tag'],
+  ['/clients', () => m.nav_clients(), 'briefcase'],
+  ['/projects', () => m.nav_projects(), 'folder'],
+  ['/activities', () => m.nav_activities(), 'clipboard-check'],
+  ['/timeoff', () => m.nav_timeoff(), 'sun'],
+  ['/settings', () => m.nav_settings(), 'sliders'],
 ]
 
 export function AppShell() {
@@ -242,7 +251,7 @@ export function AppShell() {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2 focus:text-ink focus:shadow focus:ring-2 focus:ring-brand"
       >
-        Skip to content
+        {m.nav_skip_to_content()}
       </a>
       <nav className={cn(sidebarOpen ? 'w-48' : 'w-14', 'flex shrink-0 flex-col border-r border-line bg-surface p-2')}>
         {/* The collapse/expand toggle sits FIRST and at the same left inset (px-2) as every
@@ -266,13 +275,13 @@ export function AppShell() {
                 type="button"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 aria-expanded={sidebarOpen}
-                aria-label={sidebarOpen ? 'Collapse menu' : 'Expand menu'}
+                aria-label={sidebarOpen ? m.nav_collapse_menu() : m.nav_expand_menu()}
                 className="flex items-center rounded-md px-2 py-1.5 text-muted hover:bg-canvas hover:text-ink"
               >
                 <Icon name="panel-left" />
               </button>
             </TooltipTrigger>
-            <TooltipContent>{sidebarOpen ? 'Collapse menu' : 'Expand menu'}</TooltipContent>
+            <TooltipContent>{sidebarOpen ? m.nav_collapse_menu() : m.nav_expand_menu()}</TooltipContent>
           </Tooltip>
           {/* i18n demonstrator (P1.5.1): the sidebar wordmark reads the brand through the typed
               Paraglide message `m.app_name()` (single key in messages/en.json, value == APP_NAME from
@@ -297,7 +306,7 @@ export function AppShell() {
                     }
                   >
                     <Icon name={icon} className="shrink-0 text-muted" />
-                    {label}
+                    {label()}
                   </NavLink>
                 </li>
               ))}
@@ -321,7 +330,7 @@ export function AppShell() {
                   onClick={() => setActiveAccount(null)}
                   className="mt-0.5 block text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
                 >
-                  Switch company
+                  {m.nav_switch_company()}
                 </button>
                 {/* Demo "Sign out" — only when the real auth seam is off (it owns sign-out
                     otherwise, via Settings). `signOutDemo` drops the active company AND the
@@ -333,7 +342,7 @@ export function AppShell() {
                     onClick={signOutDemo}
                     className="mt-1 block text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
                   >
-                    Sign out
+                    {m.nav_sign_out()}
                   </button>
                 )}
               </div>
@@ -369,7 +378,7 @@ export function AppShell() {
                   type="button"
                   tabIndex={-1}
                   aria-hidden="true"
-                  data-label={label}
+                  data-label={label()}
                   data-testid="nav-rail-item"
                   onClick={() => setSidebarOpen(true)}
                   /* h-8 matches an expanded nav row's height (text-sm line + py-1.5), so the
@@ -383,7 +392,7 @@ export function AppShell() {
                   aria-hidden="true"
                   className="pointer-events-none absolute left-full top-1/2 z-50 ml-1 -translate-y-1/2 whitespace-nowrap rounded bg-elevated px-2 py-1 text-xs font-medium text-ink opacity-0 shadow-pop ring-1 ring-line transition-opacity group-hover/rail:opacity-100"
                 >
-                  {label}
+                  {label()}
                 </span>
               </li>
             ))}
@@ -456,10 +465,10 @@ function ViewOnlyBadge() {
     <span
       data-testid="view-only"
       className="mt-1 inline-flex items-center gap-1 rounded bg-canvas px-1.5 py-0.5 text-2xs font-medium text-muted ring-1 ring-line"
-      title="You have read-only access to this company."
+      title={m.nav_view_only_title()}
     >
       <Icon name="eye" size={11} aria-hidden />
-      View only
+      {m.nav_view_only()}
     </span>
   )
 }
