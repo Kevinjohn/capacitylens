@@ -117,6 +117,42 @@ Be honest about what this proves: it verifies the **config contract**, not the l
 green run here says the process will refuse the wrong env and accept the right one — it says
 nothing about whether your TLS certificate, proxy, or host are actually up.
 
+### Backups & monitoring (also no live host)
+
+The two operational signals — periodic DB snapshots and deep health — are likewise
+**configuration you can confirm from a laptop**, no server / domain / TLS / Docker needed. Both are
+**OFF by default**; the env names below are exactly as read by
+[`server/src/backup.ts`](../server/src/backup.ts) and the `/api/health` route in
+[`server/src/app.ts`](../server/src/app.ts) (and listed in [`.env.example`](../.env.example)).
+
+```sh
+# from the repo root; a throwaway DB + a throwaway backup dir keep your real data untouched
+BACKUPS=$(mktemp -d)
+CAPACITYLENS_DB=:memory: \
+CAPACITYLENS_BACKUP_DIR="$BACKUPS" \
+CAPACITYLENS_BACKUP_INTERVAL_MIN=1 \
+CAPACITYLENS_HEALTH_DEEP=1 \
+PORT=8787 \
+npm start --workspace=server
+```
+
+- **Backups on boot.** `CAPACITYLENS_BACKUP_DIR` set ⇒ a snapshot is taken **immediately on start**
+  (then every `CAPACITYLENS_BACKUP_INTERVAL_MIN`; default 60, set low here to watch a second one
+  land in ~1 minute). A `capacitylens-<YYYYMMDD-HHmmss>.db` file appears in `$BACKUPS`, and the
+  server logs `capacitylens-server: backup written <path>`. Confirm with `ls "$BACKUPS"`. Retention
+  is `CAPACITYLENS_BACKUP_KEEP` (default 48, oldest pruned).
+- **Deep health on.** With `CAPACITYLENS_HEALTH_DEEP=1`, `curl http://localhost:8787/api/health`
+  returns `{ "ok": true, "db": true, "audit": "ok" }` (the DB probe ran; `audit` reports the sink
+  state — `"degraded"` if an audit write has latched a failure, still a 200 because that is a soft
+  signal). **Without** the flag (the default, omit it), the same URL returns exactly `{ "ok": true }`
+  — the shallow shape the Playwright `webServer` probe depends on.
+
+Same honesty caveat as above: this verifies the **config / behaviour** (backups fire, deep health
+probes the DB), not a live deploy. For the operator-side wiring — an external uptime monitor
+actually polling `/api/health`, snapshots running and retained on the host over time, and the
+on-host **restore drill** — see [`docs/runbook.md`](runbook.md)'s **Backups**, **Monitoring**, and
+**Restore** sections (cross-linked below).
+
 ---
 
 ## Out of scope here (operator-side at go-live)
