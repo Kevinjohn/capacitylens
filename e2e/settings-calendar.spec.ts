@@ -4,39 +4,41 @@ import { openApp } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
-test.describe('Calendar settings', () => {
-  test('week-start and timezone controls are rendered with defaults', async ({ page }) => {
+// P1.14 inverted this contract: week-start and time zone used to be EDITABLE in Settings; they are
+// now CAPTURED at company creation and FROZEN thereafter (the server returns 409 on a change). These
+// tests assert the now-frozen behaviour — the controls render their chosen values but are disabled —
+// so the coverage is preserved, not deleted. (The create-company capture is in onboarding.spec.ts;
+// the server 409 in onboarding.db.spec.ts.)
+test.describe('Calendar settings (frozen after creation)', () => {
+  test('week-start and timezone render the chosen values but are disabled', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
 
-    // Default is Monday — check the radio state
+    // The seeded company starts Monday / GMT — the values still SHOW.
     const mondayBtn = page.getByRole('radio', { name: 'Monday' })
     const sundayBtn = page.getByRole('radio', { name: 'Sunday' })
     await expect(mondayBtn).toHaveAttribute('aria-checked', 'true')
     await expect(sundayBtn).toHaveAttribute('aria-checked', 'false')
-
-    // Default timezone is GMT
     const tzSelect = page.getByLabel('Timezone')
-    await expect(tzSelect).toBeVisible()
     await expect(tzSelect).toHaveValue('Etc/GMT')
+
+    // …but every control is disabled (the freeze).
+    await expect(mondayBtn).toBeDisabled()
+    await expect(sundayBtn).toBeDisabled()
+    await expect(tzSelect).toBeDisabled()
+
+    // A read-only Language row + the explainer make the freeze legible.
+    await expect(page.getByTestId('settings-language')).toHaveText('English')
+    await expect(page.getByText(/Set when the company was created and can't be changed/i)).toBeVisible()
   })
 
-  test('week-start setting persists when switching to Sunday', async ({ page }) => {
+  test('clicking a disabled week-start segment cannot change the selection', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
-
     const mondayBtn = page.getByRole('radio', { name: 'Monday' })
     const sundayBtn = page.getByRole('radio', { name: 'Sunday' })
-
-    // Switch to Sunday
-    await sundayBtn.click()
-    await expect(sundayBtn).toHaveAttribute('aria-checked', 'true')
-    await expect(mondayBtn).toHaveAttribute('aria-checked', 'false')
-  })
-
-  test('timezone setting can be changed', async ({ page }) => {
-    await openApp(page, 'Studio North', '/settings')
-    const tzSelect = page.getByLabel('Timezone')
-    await tzSelect.selectOption('Europe/London')
-    await expect(tzSelect).toHaveValue('Europe/London')
+    // force past the disabled-pointer guard; the value must still not move.
+    await sundayBtn.click({ force: true })
+    await expect(mondayBtn).toHaveAttribute('aria-checked', 'true')
+    await expect(sundayBtn).toHaveAttribute('aria-checked', 'false')
   })
 
   test('Settings page passes axe accessibility check', async ({ page }) => {

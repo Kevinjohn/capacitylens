@@ -141,15 +141,26 @@ test.describe('Snap to week start', () => {
   })
 
   test('with a Sunday week-start, the free-scroll snap floors to Sunday (not a hardcoded Monday)', async ({ page }) => {
-    // Switch the account week-start to Sunday, then open the schedule. With the snap ON, a free nudge
-    // must floor onto a SUNDAY — guarding against a hardcoded-Monday floor. weekStartsOn is account
-    // data; the snap pref is device-global (default ON), so we only flip the calendar radio here.
-    await openApp(page, 'Studio North', '/settings')
-    await page.getByRole('radio', { name: 'Sunday' }).click()
-    await expect(page.getByRole('radio', { name: 'Sunday' })).toHaveAttribute('aria-checked', 'true')
-    // Turn "Minimise weekends" OFF too: with it on, a week-start Sunday is a (collapsed) weekend
-    // labelled "S", which is indistinguishable from a Saturday and makes the nudge column-width
-    // probe unreliable. Off → the Sunday reads a full "Sun" and every column is the same width.
+    // weekStartsOn is FROZEN after creation (P1.14), so it can no longer be flipped in Settings;
+    // capture Sunday at company creation via the onboarding form instead. With the snap ON, a free
+    // nudge must then floor onto a SUNDAY — guarding against a hardcoded-Monday floor. (The snap pref
+    // is device-global, default ON, so it needs no setup here.)
+    await openApp(page, 'Studio North', '/settings') // land in the app first
+    await page.getByRole('button', { name: 'Switch company' }).click()
+    await page.getByRole('button', { name: 'New company' }).click()
+    await page.getByLabel('Company name').fill('Sunday Co')
+    await page.getByRole('radio', { name: 'Sunday' }).click() // capture the Sunday week-start
+    await page.getByRole('button', { name: 'Create company' }).click()
+    // A post-create intro may precede the app; click through if it's up.
+    const introContinue = page.getByTestId('intro-continue')
+    const appMain = page.locator('#main')
+    await introContinue.or(appMain).first().waitFor()
+    if (await introContinue.isVisible()) await introContinue.click()
+
+    // Turn "Minimise weekends" OFF (device pref): with it on, a week-start Sunday is a (collapsed)
+    // weekend labelled "S", indistinguishable from a Saturday, making the column-width probe
+    // unreliable. Off → the Sunday reads a full "Sun" and every column is the same width.
+    await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByRole('switch', { name: 'Minimise weekends' }).click()
 
     await page.getByRole('link', { name: 'Schedule' }).click()

@@ -30,6 +30,7 @@ export function SegmentedControl<T extends string | number>({
   ariaLabel,
   ariaLabelledby,
   className,
+  disabled = false,
 }: {
   value: T
   onChange: (value: T) => void
@@ -44,6 +45,12 @@ export function SegmentedControl<T extends string | number>({
    * sites pass none.
    */
   className?: string
+  /**
+   * When true, every segment is a disabled button (native `disabled` + `aria-disabled`, muted +
+   * cursor-not-allowed) so the selected value is shown but can't change. Used for the FROZEN
+   * week-start control in Settings (P1.14). Default false — other call sites are unaffected.
+   */
+  disabled?: boolean
 }) {
   return (
     <div
@@ -60,10 +67,13 @@ export function SegmentedControl<T extends string | number>({
             type="button"
             role="radio"
             aria-checked={selected}
+            disabled={disabled}
+            aria-disabled={disabled || undefined}
             onClick={() => onChange(opt.value)}
             className={cn(
               'rounded px-3 py-1.5 text-sm font-medium transition',
               selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink',
+              disabled && 'cursor-not-allowed opacity-60 hover:text-muted',
             )}
           >
             {opt.label}

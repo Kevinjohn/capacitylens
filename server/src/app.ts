@@ -206,6 +206,36 @@ interface BatchOp {
 const ownsRow = (existing: { accountId?: unknown } | undefined, accountId: unknown): boolean =>
   !existing || existing.accountId === accountId
 
+// The three Account fields that are SET once, at company creation, and FROZEN thereafter (P1.14):
+// language, week-start and time zone are calendar/locale facts the whole team relies on, so the
+// app captures them in the create-company form and disables them in Settings. The server is the
+// real boundary — the disabled UI is only UX.
+const IMMUTABLE_ACCOUNT_FIELDS = ['language', 'weekStartsOn', 'timezone'] as const
+
+/**
+ * True when an accounts write would CHANGE a frozen field (P1.14) — the violation signal the
+ * PUT/PATCH/batch handlers turn into a 409 (per-route) / 400 (batch).
+ *
+ * Reports a violation ONLY when `existing` is defined AND, for some frozen field, the field is
+ * PRESENT in `incoming` AND its incoming value differs from the stored one. Two deliberate rules:
+ *  - Change, not presence: the sync adapter re-sends the WHOLE row on any edit (e.g. a rename),
+ *    so an unchanged frozen value MUST pass — only a real change is a violation.
+ *  - No existing row → creation, when these values are legitimately SET → never a violation.
+ *
+ * @param existing the stored row (undefined on a create — always passes)
+ * @param incoming the wire body whose frozen fields are checked (the PUT body / PATCH req.body —
+ *   NOT a merged row, which would already have overwritten `existing` and so never detect a change)
+ */
+function accountFieldsFrozen(
+  existing: Record<string, unknown> | undefined,
+  incoming: Record<string, unknown>,
+): boolean {
+  if (!existing) return false
+  return IMMUTABLE_ACCOUNT_FIELDS.some(
+    (field) => field in incoming && incoming[field] !== existing[field],
+  )
+}
+
 // Resolve the Access-Control-Allow-Origin value for a request. '*' echoes the
 // wildcard; an allow-list reflects the request's Origin only when it's on the list
 // (and otherwise sends no ACAO header, so the browser blocks the cross-origin call).
@@ -999,6 +1029,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (!ownsRow(existing, body.accountId)) {
           return reply.code(409).send({ error: 'That record belongs to a different company.' })
         }
+        // language/weekStartsOn/timezone are FROZEN after creation (P1.14). Compare the PUT body
+        // (NOT a merged row) against the stored row: a changed frozen field is a 409; an unchanged
+        // one passes (the sync adapter re-sends the whole row on any edit). accounts-only.
+        if (entity === 'accounts' && accountFieldsFrozen(existing, body)) {
+          return reply.code(409).send({
+            error: 'Language, week start and time zone are set when the company is created and cannot be changed.',
+          })
+        }
         // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row.
         if (
           opts.optimisticConcurrency &&
@@ -1036,6 +1074,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
         if (!ownsRow(existing, merged.accountId)) {
           return reply.code(409).send({ error: 'That record belongs to a different company.' })
+        }
+        // language/weekStartsOn/timezone are FROZEN after creation (P1.14). Compare the INCOMING
+        // req.body against the stored row — NOT `merged`, which already overwrote `existing` with
+        // the patch and would therefore never detect a change. accounts-only.
+        if (entity === 'accounts' && accountFieldsFrozen(existing, req.body as Record<string, unknown>)) {
+          return reply.code(409).send({
+            error: 'Language, week start and time zone are set when the company is created and cannot be changed.',
+          })
         }
         validateWrite(loadState(db), entity, merged)
         upsertRow(db, entity, merged)
@@ -1135,6 +1181,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               const existing = getRow(db, table, id)
               if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
                 throw new ValidationError('That record belongs to a different company.')
+              }
+              // language/weekStartsOn/timezone are FROZEN after creation (P1.14). DOCUMENTED
+              // ASYMMETRY: the per-route PUT/PATCH return 409 (what the acceptance asserts), but a
+              // ValidationError in the batch maps to 400 — the batch is the INTERNAL sync path, and
+              // the disabled Settings UI never sends a changed frozen field, so a violation here is
+              // a malformed client, not a user action. accounts-only.
+              if (table === 'accounts' && accountFieldsFrozen(existing, row as Record<string, unknown>)) {
+                throw new ValidationError(
+                  'Language, week start and time zone are set when the company is created and cannot be changed.',
+                )
               }
               const clean = sanitizeWrite(table, row as Record<string, unknown>)
               validateWrite(loadState(db), table, clean)

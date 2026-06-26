@@ -84,6 +84,29 @@ describe('AccountPicker create + open + delete', () => {
     expect(useStore.getState().activeAccountId).toBe(created.id)
   })
 
+  it('captures week-start, timezone and language at creation and passes them to addAccount (P1.14)', async () => {
+    const user = userEvent.setup()
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    // The three frozen-after-creation fields render with concrete defaults.
+    expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
+    const tz = screen.getByLabelText('Timezone') as HTMLSelectElement
+    expect(tz.value).toBe('Etc/GMT')
+    expect(screen.getByTestId('create-language')).toHaveTextContent('English')
+
+    // Change the two editable-at-creation ones, then create.
+    await user.click(screen.getByRole('radio', { name: 'Sunday' }))
+    await user.selectOptions(tz, 'Europe/London')
+    await user.type(screen.getByLabelText('Company name'), 'Frozen Co')
+    await user.click(screen.getByRole('button', { name: 'Create company' }))
+
+    const created = useStore.getState().data.accounts.find((a) => a.name === 'Frozen Co')!
+    expect(created.weekStartsOn).toBe(0)
+    expect(created.timezone).toBe('Europe/London')
+    expect(created.language).toBe('en')
+  })
+
   it('validates a blank name', async () => {
     const user = userEvent.setup()
     render(<AccountPicker />)
