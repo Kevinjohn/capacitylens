@@ -340,6 +340,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **CSP:** `object-src`/`base-uri` ship in `index.html`; a full `script-src` policy belongs in
   a host response header, not the app — **not yet added at the host** (Phase 2 edge-hardening
   remainder, see `docs/production-plan.md`).
+- **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
+  headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
+  (`default-src`/`connect-src`/`base-uri 'self'`, `frame-ancestors 'none'`, `object-src 'none'`),
+  `Referrer-Policy: no-referrer`, and `X-Frame-Options: DENY`. **HSTS is the one header gated
+  OFF by default** behind `AppOptions.https` / `CAPACITYLENS_HTTPS=1` — HSTS is invalid/harmful
+  over plain HTTP, and this server usually runs HTTP behind a TLS-terminating proxy, so the
+  operator opts in only once real HTTPS fronts the public origin.
 
 ## Performance (and standing non-goals)
 - **Row virtualization** is implemented (spacer windowing, pure window math; off-screen rows

@@ -1,5 +1,6 @@
 import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
+import helmetPlugin from '@fastify/helmet'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { DEMO_USER, type Auth, type AuthMode, type SessionUser } from './auth'
 
@@ -83,6 +84,15 @@ export interface AppOptions {
    *  no-auth, last-writer-wins by design (see the plan). Turn on once real
    *  multi-user auth + client conflict-resolution land. */
   optimisticConcurrency?: boolean
+  /** CAPACITYLENS_HTTPS=1 — the API is reached over HTTPS, so HSTS is safe to emit.
+   *  Default false: HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is
+   *  actively HARMFUL over plain HTTP — a browser that caches an HSTS directive received
+   *  on http:// would force https:// on a host that has no TLS, breaking it. This server
+   *  typically runs HTTP behind a TLS-terminating proxy (Nginx), so the operator must
+   *  OPT IN once TLS truly fronts the public origin. Off ⇒ helmet emits no HSTS header;
+   *  all other helmet baseline headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
+   *  are on regardless, as they are pure improvements with no HTTPS precondition. */
+  https?: boolean
 }
 
 /** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
@@ -215,6 +225,44 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       return reply.code(fwStatus).send({ error: err instanceof Error ? err.message : 'Bad request' })
     }
     return sendFail(reply, err)
+  })
+
+  // Baseline security headers (P0.5.3, @fastify/helmet): ON by default — these are pure
+  // hardening with no precondition, for an API server that returns JSON only (the SPA is
+  // served by Nginx, not here). Registered EARLY, before route plugins, so its onRequest
+  // hook decorates every response. helmet defaults already give us nosniff
+  // (X-Content-Type-Options) and X-Frame-Options: DENY (frameguard) for legacy browsers; we
+  // add a strict, minimal CSP whose frame-ancestors 'none' is the modern clickjacking guard,
+  // and a no-referrer Referrer-Policy. The CSP carries EXACTLY five directives (default/connect/
+  // base-uri 'self', frame-ancestors 'none', object-src 'none') — useDefaults:false below keeps
+  // helmet from merging its defaults (script-src/style-src 'unsafe-inline'/img-src/etc.), since
+  // nothing here loads scripts or styles. HSTS is the ONE header
+  // gated OFF by default — see opts.https: it is only valid over real HTTPS, and this server
+  // usually runs HTTP behind a TLS proxy, so the operator opts in via CAPACITYLENS_HTTPS=1.
+  void app.register(helmetPlugin, {
+    contentSecurityPolicy: {
+      // useDefaults:false — we emit EXACTLY these directives, nothing merged in. This is a
+      // JSON-only API (no script/style/img sources are ever needed), so helmet's defaults
+      // (script-src/style-src 'unsafe-inline'/img-src/font-src/form-action/upgrade-insecure-
+      // requests) would only ship surface this server never uses. Leaving useDefaults at its
+      // true default silently merged all of that — including 'unsafe-inline' and upgrade-
+      // insecure-requests — past the explicit set below; this pins the wire CSP to the minimal set.
+      useDefaults: false,
+      directives: {
+        'default-src': ["'self'"],
+        'connect-src': ["'self'"],
+        'frame-ancestors': ["'none'"],
+        'base-uri': ["'self'"],
+        'object-src': ["'none'"],
+      },
+    },
+    referrerPolicy: { policy: 'no-referrer' },
+    // X-Frame-Options: DENY for legacy browsers (helmet's default is SAMEORIGIN); the modern
+    // equivalent is the CSP frame-ancestors 'none' above. This API is never framed, so DENY.
+    frameguard: { action: 'deny' },
+    // OFF over HTTP (the default deploy: HTTP behind a TLS-terminating proxy); only emitted
+    // when the operator asserts real HTTPS fronts the origin (opts.https / CAPACITYLENS_HTTPS=1).
+    hsts: opts.https === true ? { maxAge: 15552000, includeSubDomains: true } : false,
   })
 
   // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
