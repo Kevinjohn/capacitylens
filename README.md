@@ -1,10 +1,11 @@
 # CapacityLens
 
-A local-first resource scheduler — an agency resource & capacity planner that runs in the browser.
-By default there's no backend and no login: your data lives in `localStorage` and
-never leaves the device. An **optional** SQLite-backed API can be switched on (see
-below) when you want a shared, server-persisted dataset — the app talks to it
-through the same persistence seam, so nothing else changes.
+A server-backed resource scheduler — an agency resource & capacity planner that runs in the browser.
+By default it talks to a same-origin SQLite-backed API for a shared, server-persisted dataset; even
+with no `VITE_CAPACITYLENS_API` set, the build runs in server mode (the client calls a relative
+`/api`). The in-browser **demo** build is an explicit opt-in (`VITE_CAPACITYLENS_DEMO=1`): zero setup,
+no database and no login, with your data living in `localStorage` and never leaving the device. Both
+modes talk through the same persistence seam, so nothing else about the app changes.
 
 **Deliberately small.** CapacityLens replaces the resourcing spreadsheet: a helicopter view of
 who's busy, who's free, who's overworked — week by week, for small agencies with a few
@@ -21,15 +22,30 @@ See **[CHANGELOG.md](CHANGELOG.md)** for release notes (currently **v0.10.2**).
 
 ```bash
 npm install
-npm run dev
+npm run dev        # FULL-STACK: SQLite API (:8787) + Vite (:5173) via a dev /api proxy
 ```
 
+> **`npm run dev` needs Node 24.** It is now a full-stack launcher: it boots the `node:sqlite`
+> SQLite API on **:8787** alongside Vite on **:5173** and wires a Vite dev proxy so the app talks to
+> a same-origin `/api` (exactly like production behind nginx). Node's built-in `node:sqlite` is the
+> hard floor — on Node < 24 the API fails to start (and `npm run dev` refuses to come up half-stack).
+> If you just want a zero-setup preview with **no backend and no Node 24**, use:
+>
+> ```bash
+> npm run dev:demo   # Vite-only localStorage DEMO build (VITE_CAPACITYLENS_DEMO=1)
+> ```
+>
+> A third script, `npm run dev:web`, is Vite-only **server mode** (the old `dev`) — it talks to a
+> same-origin or explicit API you run yourself.
+
 Open **the URL Vite prints** (`http://127.0.0.1:5173/`) and pick **Studio North** at the
-account picker to land on the seeded demo data. The dev server binds IPv4 loopback with a
-**strict port**: if 5173 is already taken (a stale server, or a sibling repo — floaty-schedule
-and delivery-diary claim the same port), Vite exits with an error instead of silently starting
-on 5174 — kill the squatter (`lsof -nP -iTCP:5173 -sTCP:LISTEN`) rather than browsing a port
-nothing answers; that mismatch looks like a blank white page with an empty console.
+account picker to land on the seeded data. On `npm run dev` that seed comes from **SQLite** (the
+server seeds a fresh DB on its first boot); the `dev:demo` build seeds `localStorage` instead. The
+dev server binds IPv4 loopback with a **strict port**: if 5173 is already taken (a stale server, or a
+sibling repo — floaty-schedule and delivery-diary claim the same port), Vite exits with an error
+instead of silently starting on 5174 — kill the squatter (`lsof -nP -iTCP:5173 -sTCP:LISTEN`) rather
+than browsing a port nothing answers; that mismatch looks like a blank white page with an empty
+console. (The full-stack launcher likewise refuses to start if **:8787** is already held.)
 
 If the page instead sticks on **"Loading… / JavaScript isn't running"**, the browser is
 blocking scripts for the site (per-site JavaScript setting or a content-blocker extension —
@@ -46,9 +62,11 @@ E2E. Organised as an npm workspace:
 - **`shared/`** — `@capacitylens/shared`: the pure, environment-agnostic domain core
   (types, validation, integrity, cascade, import remap, migrate, seed) shared by the
   app and the server.
-- **`server/`** — an optional Node + `node:sqlite` REST API behind the same
-  `PersistenceAdapter` seam. Off by default; see `server/README.md`. Enable it with
-  `VITE_CAPACITYLENS_API=http://localhost:8787 npm run dev`.
+- **`server/`** — the **default** backend: a Node + `node:sqlite` REST API behind the same
+  `PersistenceAdapter` seam, started automatically by `npm run dev` (see `server/README.md`).
+  A build with no `VITE_CAPACITYLENS_API` talks to it at a same-origin `/api`;
+  `VITE_CAPACITYLENS_API=<origin>` only **overrides the backend origin** (e.g. a remote API) — it's
+  not an on-switch, since the server is already the default.
 
 ## Data model
 
@@ -74,7 +92,7 @@ The canonical type definitions live in `shared/src/types/entities.ts`.
 
 ```bash
 npm run gate         # tsc -b && eslint . && vitest run && vite build
-npm run gate:server  # type-check + test the optional server/ workspace
+npm run gate:server  # type-check + test the server/ workspace (the default backend)
 npm run e2e          # Playwright on Chromium (boots its own dev server)
 npm run e2e:webkit   # the core specs on Safari/WebKit (opt-in; Vite-only, no Node 24)
 npm run e2e:firefox  # the core specs on Firefox/Gecko (opt-in; Vite-only, no Node 24)
@@ -87,10 +105,11 @@ browser build); run it separately with `gate:server`. **There is no automated CI
 is enforced locally by contributors and again at review, so run all three locally and push only with
 them green. Node 24+ (`.nvmrc`).
 
-`e2e` is Chromium by default (the fast inner loop). Cross-engine coverage of the core localStorage
-specs is opt-in: `e2e:webkit` / `e2e:firefox` run a single engine, and **`e2e:browsers` runs the
-core specs on all three** (Chromium + WebKit, then Firefox). All of these boot **only** the Vite dev
-server, so they need neither the SQLite/auth servers nor Node 24 and run anywhere the app builds.
+`e2e` is Chromium by default (the fast inner loop). The core specs run against the **demo/localStorage
+build** (Vite-only, via `dev:demo`). Cross-engine coverage of them is opt-in: `e2e:webkit` /
+`e2e:firefox` run a single engine, and **`e2e:browsers` runs the core specs on all three** (Chromium +
+WebKit, then Firefox). All of these boot **only** the Vite dev server, so they need neither the
+SQLite/auth servers nor Node 24 and run anywhere the app builds.
 `e2e:all` is the superset — `e2e:browsers` plus the Chromium-only db/auth server specs (so it needs
 the servers + Node 24). In both `e2e:browsers` and `e2e:all`, WebKit runs first and Firefox second,
 both always run, and the run fails if either engine fails. The db-backed/auth-backed specs stay
@@ -110,4 +129,4 @@ Chromium-only (they exercise server round-trips, not cross-engine rendering).
 - **`CLAUDE.md`** — working notes for the AI pair.
 - **`user-stories/REFERENCE.md`** — routes / labels / `data-testid`s / seed data, the single source
   of truth the E2E specs lean on.
-- **`server/README.md`** — how to run and reason about the optional API.
+- **`server/README.md`** — how to run and reason about the default backend.
