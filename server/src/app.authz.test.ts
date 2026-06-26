@@ -19,13 +19,44 @@ const meta = () => ({ createdAt: TS, updatedAt: TS })
 const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
 const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
 const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
+const person = (id: string, accountId: string) => ({
+  id,
+  accountId,
+  kind: 'person',
+  role: 'Designer',
+  employmentType: 'permanent',
+  workingHoursPerDay: 8,
+  workingDays: [1, 2, 3, 4, 5],
+  color: '#3b82f6',
+  ...meta(),
+})
+const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
+  id,
+  accountId,
+  resourceId,
+  startDate: '2026-02-01',
+  endDate: '2026-02-03',
+  type: 'vacation',
+  ...(note !== undefined ? { note } : {}),
+  ...meta(),
+})
 
-/** Two accounts a1/a2, each with a client + project, seeded directly via insertAll (parent-first). */
+// P1.6: a recognizable sentinel for a1's time-off note. Asserting it is ABSENT from the raw response
+// BODY (not just the parsed key) is what proves the redaction is SERVER-SIDE — the note never serialized.
+const SENTINEL_TIMEOFF_NOTE = 'SENTINEL_TIMEOFF_NOTE'
+
+/**
+ * Two accounts a1/a2, seeded directly via insertAll (parent-first). a1 additionally carries a
+ * resource + a time-off row whose `note` is {@link SENTINEL_TIMEOFF_NOTE}, so the P1.6 redaction
+ * suite can assert owner/admin SEE it and editor/viewer do NOT.
+ */
 function seedTwo(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>
   d.accounts = [account('a1'), account('a2')]
   d.clients = [client('c1', 'a1'), client('c2', 'a2')]
   d.projects = [project('p1', 'a1', 'c1'), project('p2', 'a2', 'c2')]
+  d.resources = [person('r1', 'a1')]
+  d.timeOff = [timeOff('to1', 'a1', 'r1', SENTINEL_TIMEOFF_NOTE)]
   insertAll(db, d as unknown as AppData)
 }
 
@@ -217,6 +248,53 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     // 201: account creation is NOT gated (there is no createAccount Action) so a fresh user can
     // bootstrap their first company — see the P1.5 account-lifecycle deferral in app.ts.
     expect(res.statusCode).toBe(201)
+  })
+})
+
+describe('P1.6 time-off note redaction — owner/admin see it; editor/viewer never receive it', () => {
+  // a1 carries a time-off row whose note === SENTINEL_TIMEOFF_NOTE (see seedTwo). The note is
+  // owner/admin-only (canSeeTimeOffNote), redacted SERVER-SIDE in the scoped read. For editor/viewer
+  // we assert BOTH the parsed `note` is absent AND the sentinel appears NOWHERE in the raw body — the
+  // latter is what proves the redaction is server-side (the string was never serialized), not a
+  // client-side hide.
+  const noteOf = (res: LightMyRequestResponse): string | undefined =>
+    (res.json().timeOff[0] as { note?: string }).note
+
+  it.each(['owner', 'admin'] as const)('%s of a1: scoped read INCLUDES the note', async (role) => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+
+    const res = await getState(app, 'a1', cookie)
+    expect(res.statusCode).toBe(200)
+    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE)
+    expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE)
+  })
+
+  it.each(['editor', 'viewer'] as const)('%s of a1: note ABSENT and sentinel not in the raw body', async (role) => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, `${role}-note@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+
+    const res = await getState(app, 'a1', cookie)
+    expect(res.statusCode).toBe(200)
+    expect(res.json().timeOff.length).toBe(1) // the row is returned…
+    expect('note' in (res.json().timeOff[0] as object)).toBe(false) // …minus its note key
+    expect(noteOf(res)).toBeUndefined()
+    // The clincher: the sentinel was never serialized onto the wire (server-side redaction).
+    expect(res.body).not.toContain(SENTINEL_TIMEOFF_NOTE)
+  })
+
+  it('OFF mode (trusted-local): scoped read INCLUDES the note', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db) // no authMode ⇒ OFF
+    seedTwo(db)
+    const res = await getState(app, 'a1') // no cookie needed in OFF
+    expect(res.statusCode).toBe(200)
+    expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE)
+    expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE)
   })
 })
 

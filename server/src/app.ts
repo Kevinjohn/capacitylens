@@ -32,7 +32,7 @@ import {
 } from './db'
 import { sqliteTenantStore } from './tenantStore'
 import { listAccounts, resolveRole } from './membership'
-import { can, type Action } from '@capacitylens/shared/domain/access'
+import { can, canSeeTimeOffNote, type Action } from '@capacitylens/shared/domain/access'
 import { tx } from './txn'
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
@@ -517,13 +517,22 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // single source of truth: OFF mode short-circuits to allow-all (trusted-local), auth-on
         // requires membership (read = any member, via can()) and 403s a non-member.
         if (!authorize(req, reply, accountId, 'read')) return
-        return store.readSlice(accountId)
+        // P1.6 field-level redaction: the time-off `note` is owner/admin-only. Decide visibility from
+        // the caller's role and redact it SERVER-SIDE so it never serializes for an Editor/Viewer.
+        // OFF mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
+        // resolveRole is non-null here (authorize('read') already proved membership); the `role !==
+        // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
+        const role = authMode === 'off' ? null : resolveRole(db, req.user!, accountId)
+        const includeTimeOffNote = authMode === 'off' || (role !== null && canSeeTimeOffNote(role))
+        return store.readSlice(accountId, { includeTimeOffNote })
       }
       // No ?accountId=. Legacy whole read, retained for the OFF client AND the not-yet-migrated
       // auth-on client. NOTE: in auth-on this currently returns ALL tenants to any authenticated
       // user — a cross-tenant whole-read that MUST be closed once the client is migrated to pass
       // accountId (P1.13) and requirePermission lands (P1.5). Auth-on is not the default/shipped
       // posture; remove this whole-read path at P1.13.
+      // P1.6 note: this no-arg whole read does NOT redact the time-off `note` — moot while the path
+      // already returns everything to any authed user; redaction lands when P1.13 closes the read.
       return loadState(db)
     })
 

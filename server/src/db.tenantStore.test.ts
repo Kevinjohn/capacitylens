@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
-import { openDb, insertAll, loadState, readSlice } from './db'
+import { openDb, insertAll, loadState, readSlice, type Db } from './db'
 import { sqliteTenantStore } from './tenantStore'
 
 // P1.4: prove the per-account scoped read primitive (readSlice) + the TenantStore seam isolate one
@@ -45,15 +45,21 @@ const allocation = (id: string, accountId: string, resourceId: string, activityI
   ignoreWeekends: true,
   ...meta(),
 })
-const timeOff = (id: string, accountId: string, resourceId: string) => ({
+const timeOff = (id: string, accountId: string, resourceId: string, note?: string) => ({
   id,
   accountId,
   resourceId,
   startDate: '2026-02-01',
   endDate: '2026-02-03',
   type: 'vacation',
+  // optional, owner/admin-only note — exercises the P1.6 field-redaction in readSlice.
+  ...(note !== undefined ? { note } : {}),
   ...meta(),
 })
+
+/** All readSlice calls below pass includeTimeOffNote (REQUIRED, P1.6); the isolation tests want the
+ *  full slice, so they pass `true`. The redaction itself is asserted in its own describe block. */
+const FULL = { includeTimeOffNote: true } as const
 
 /** A full two-account dataset: a1 and a2 each carry rows in every scoped table. */
 function seedTwoAccounts(): AppData {
@@ -76,7 +82,7 @@ describe('readSlice — tenant isolation', () => {
   it('returns ONLY the requested account in every table (a1)', () => {
     const db = openDb(':memory:')
     insertAll(db, seedTwoAccounts())
-    const slice = readSlice(db, 'a1')
+    const slice = readSlice(db, 'a1', FULL)
     expect(slice.accounts.map((a) => a.id)).toEqual(['a1'])
     for (const key of SCOPED_KEYS) {
       const rows = slice[key]
@@ -89,7 +95,7 @@ describe('readSlice — tenant isolation', () => {
   it('is symmetric for a2 (no a1 rows leak)', () => {
     const db = openDb(':memory:')
     insertAll(db, seedTwoAccounts())
-    const slice = readSlice(db, 'a2')
+    const slice = readSlice(db, 'a2', FULL)
     expect(slice.accounts.map((a) => a.id)).toEqual(['a2'])
     for (const key of SCOPED_KEYS) {
       expect(slice[key].every((r) => (r as { accountId: string }).accountId === 'a2')).toBe(true)
@@ -100,7 +106,7 @@ describe('readSlice — tenant isolation', () => {
   it('unknown accountId → empty slice (accounts:[], every scoped array empty), no throw', () => {
     const db = openDb(':memory:')
     insertAll(db, seedTwoAccounts())
-    const slice = readSlice(db, 'does-not-exist')
+    const slice = readSlice(db, 'does-not-exist', FULL)
     expect(slice.accounts).toEqual([])
     for (const key of SCOPED_KEYS) expect(slice[key]).toEqual([])
     // Result has EVERY AppData key present (starts from emptyAppData), not a partial object.
@@ -110,7 +116,7 @@ describe('readSlice — tenant isolation', () => {
   it('round-trips optional + json columns through the codec', () => {
     const db = openDb(':memory:')
     insertAll(db, seedTwoAccounts())
-    const slice = readSlice(db, 'a1')
+    const slice = readSlice(db, 'a1', FULL)
     // workingDays json + omitted optionals survive exactly (deep-equals the seeded object).
     expect(slice.resources[0]).toEqual(person('r1', 'a1', 'd1'))
     // optional note + json ignoreWeekends survive.
@@ -122,8 +128,8 @@ describe('sqliteTenantStore', () => {
   it('readSlice(id) equals the standalone readSlice(db, id)', () => {
     const db = openDb(':memory:')
     insertAll(db, seedTwoAccounts())
-    const storeSlice = sqliteTenantStore(db).readSlice('a1')
-    expect(storeSlice).toEqual(readSlice(db, 'a1'))
+    const storeSlice = sqliteTenantStore(db).readSlice('a1', FULL)
+    expect(storeSlice).toEqual(readSlice(db, 'a1', FULL))
   })
 
   it('write(id, slice) replaces ONLY that account; the other account is untouched', () => {
@@ -142,12 +148,12 @@ describe('sqliteTenantStore', () => {
     next.allocations = [allocation('al1b', 'a1', 'r1', 'act1')] // a NEW allocation id; old al1 must be gone
     store.write('a1', next as unknown as AppData)
 
-    const a1 = store.readSlice('a1')
+    const a1 = store.readSlice('a1', FULL)
     expect(a1.allocations.map((r) => r.id)).toEqual(['al1b']) // a1's scoped rows were REPLACED
     expect(a1.phases).toEqual([]) // dropped phase ph1
 
     // a2 is fully intact — write touched ONLY a1's scoped rows.
-    const a2 = store.readSlice('a2')
+    const a2 = store.readSlice('a2', FULL)
     expect(a2.accounts.map((a) => a.id)).toEqual(['a2'])
     for (const key of SCOPED_KEYS) {
       expect(a2[key].length).toBe(1)
@@ -155,5 +161,29 @@ describe('sqliteTenantStore', () => {
     }
     // The global accounts row for a2 still loads from the whole tree.
     expect(loadState(db).accounts.map((a) => a.id).sort()).toEqual(['a1', 'a2'])
+  })
+})
+
+describe('readSlice — P1.6 time-off note redaction', () => {
+  // Seed a1 with a time-off row carrying a note; the standalone primitive decides note visibility
+  // from the REQUIRED includeTimeOffNote flag (the route maps it to canSeeTimeOffNote(role)).
+  const NOTE = 'PRIVATE_TIMEOFF_NOTE'
+  function seedWithNote(): Db {
+    const db = openDb(':memory:')
+    const d = seedTwoAccounts() as unknown as Record<string, unknown[]>
+    d.timeOff = [timeOff('to1', 'a1', 'r1', NOTE)]
+    insertAll(db, d as unknown as AppData)
+    return db
+  }
+
+  it('includeTimeOffNote:true keeps the note', () => {
+    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: true })
+    expect((slice.timeOff[0] as { note?: string }).note).toBe(NOTE)
+  })
+
+  it('includeTimeOffNote:false STRIPS the note key (absent, not null)', () => {
+    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: false })
+    expect('note' in slice.timeOff[0]).toBe(false)
+    expect((slice.timeOff[0] as { note?: string }).note).toBeUndefined()
   })
 })
