@@ -1,0 +1,51 @@
+# Keep the Docker build context small and reproducible. node_modules are
+# reinstalled inside the image via `npm ci` (lockfile-pinned), and dist/ is
+# produced by the build stage — never copy host artifacts in.
+
+# Dependencies (reinstalled in-image from package-lock.json)
+**/node_modules
+
+# Build output (produced by the Dockerfile build stage)
+dist
+**/*.tsbuildinfo
+
+# Version control / CI
+.git
+.gitignore
+.github
+
+# Local SQLite databases + WAL/SHM sidecars (the image must not bake in data)
+*.db
+*.db-wal
+*.db-shm
+**/*.db
+**/*.db-wal
+**/*.db-shm
+
+# Agent / loop scratch and state (never part of a build)
+.claude
+*-state.json
+CapacityLens.md
+loop-workflow.md
+flow-review.md
+floaty-copy.md
+shadcn-branch-plan.md
+audit-followup-state.json
+
+# Local env files (secrets live outside the image; compose reads .env at runtime)
+.env
+.env.*
+!.env.example
+
+# Test / tooling artifacts
+playwright-report
+test-results
+coverage
+.vscode
+.idea
+.DS_Store
+
+# Docker files themselves don't belong in the context they describe
+Dockerfile
+docker-compose.yml
+.dockerignore
