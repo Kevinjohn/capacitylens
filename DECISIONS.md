@@ -392,6 +392,23 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   whole-read) — closing it was attempted then reverted because the un-migrated client still hydrates
   via no-arg `/api/state`; it closes at P1.13 (client passes accountId) + P1.5 (requirePermission).
   Auth-on is not the default/shipped posture.
+- **`requirePermission` — the auth-on route gate (P1.5).** An `authorize(req, reply, accountId,
+  action)` seam in `buildApp` (app.ts): **OFF = NO-OP allow-all on its FIRST line** (resolveRole/can
+  never run — `req.user` is DEMO_USER; the #1 invariant), auth-on = `resolveRole` → null (non-member)
+  or `can(role, action)` false (low tier) → 403 `{ error: 'Forbidden.' }` (no 401/503 — requireUser
+  handled those upstream). GATED: `GET /api/state?accountId=` (read), scoped `POST/PUT/PATCH/DELETE
+  /api/:entity` + `POST /api/import` (write, each via the accountId it already derives), and `POST
+  /api/batch` (PRE-SCAN before the tx — a mixed allowed+denied-account batch is rejected WHOLE, one
+  403, NO partial write). All prior ownsRow/immutability/404/400 guards stay. Cross-tenant scoped
+  read AND write are now 403 in auth-on. **Account hard-delete is gated `'purge'` (admin+)** on BOTH
+  vectors — the direct `DELETE /api/accounts/:id` route AND the batch `{method:'DELETE',table:'accounts'}`
+  op (the client's delete-company path) — resolving the caller's role against the account's OWN id;
+  a delete CASCADES (total tenant destruction), so the CREATE exemption does not extend to it. Account
+  `POST /api/accounts` (and batch PUT on accounts) **stays OPEN** (new-user onboarding has no membership
+  and there is no `createAccount` Action). This is an interim gate pending P2.5/P2.6's full
+  archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** the no-arg whole `/api/state` read
+  (→ P1.13), and `manageMembers`/`manageInvites`/`transferOwnership` (no routes yet — matrix-only in
+  access.test.ts).
 - **API security headers (@fastify/helmet, P0.5.3):** the Fastify server emits baseline
   headers ON by default — `nosniff`, a strict minimal CSP for this JSON-only API
   (`default-src`/`connect-src`/`base-uri 'self'`, `frame-ancestors 'none'`, `object-src 'none'`),
