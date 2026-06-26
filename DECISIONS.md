@@ -453,6 +453,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** `transferOwnership` (no route yet —
   matrix-only in access.test.ts). The no-arg whole `/api/state` read is now CLOSED in auth-on (P1.13);
   `manageMembers`/`manageInvites` routes landed in P1.11.
+- **Open shared dataset RETIRED in the hosted posture (P1.17, Phase-1 capstone).** The HOSTED (auth-on)
+  posture serves **ZERO unauthenticated `/api` access**: the root-level `requireUser` preHandler 401s
+  `{ error: 'Sign in to continue.' }` for every `/api/*` request EXCEPT `/api/health` (uptime monitor)
+  and `/api/auth/*` (the login machinery; `/api/auth/me` answers its own 401 with `{ authMode, error }`).
+  Pinned by the consolidated 401-MATRIX in `app.retire-open-dataset.test.ts` (table-driven over every
+  route family, incl. `POST /api/test/reset` built with `allowReset:true` to prove requireUser 401s
+  BEFORE the allowReset check). **OFF = trusted-local self-hoster default UNCHANGED** — the open dataset
+  IS the deliberate default deploy (unauthenticated reads served, DEMO_USER); P1.17 did NOT flip the
+  auth-off-by-default invariant, only closed the hosted door.
 - **Constrained org-creation — `POST /api/orgs` (P1.8).** The ATOMIC org-create path, distinct from
   the generic `POST /api/accounts` (which stays OPEN for the un-migrated onboarding client and only
   writes the bare account row — closing it is deferred to P1.13). Allowed iff ANY of: **zero accounts**

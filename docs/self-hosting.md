@@ -124,6 +124,12 @@ Authentication is **off by default**. With `CAPACITYLENS_AUTH` unset or `off`, t
 read, and there's no extra attack surface. Turning auth on is purely a matter of environment
 variables; no code changes.
 
+A **multi-agency hosted** instance (one server shared by separate organisations) **must run auth on**
+(`CAPACITYLENS_AUTH=password` or `sso`): with auth on there is **no unauthenticated `/api` access**
+— every API request except `/api/health` and `/api/auth/*` requires a signed-in session. A
+**single-agency-on-a-box** deployment may run auth **off** (the trusted-local default), where the
+whole dataset is intentionally open to anyone who can reach the server.
+
 There are two modes: **`password`** (email + password) and **`sso`** (a single OIDC/OAuth2
 identity provider). **Both** require:
 
