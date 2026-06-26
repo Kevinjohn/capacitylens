@@ -37,7 +37,10 @@ import {
   createInvite,
   getInvite,
   listMembershipsForUser,
+  looksLikeEmail,
   markInviteUsed,
+  normalizeEmail,
+  preauthInviteAllows,
   upsertMember,
   type Invite,
 } from './controlTables'
@@ -664,14 +667,40 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // is minted as DEMO_USER's act), auth-on requires admin-tier membership of `accountId` (a
     // cross-tenant stranger → 403). The token is a 32-byte CSPRNG value, base64url-encoded; it is the
     // ONLY secret here, so it is NEVER logged (it's returned in the body to the authorised caller and
-    // nowhere else). preauthEmail is null in P1.9 (email-preauth is P1.10).
+    // nowhere else).
+    //
+    // P1.10 — an optional `preauthEmail` may be attached: a non-empty, email-shaped value is stored
+    // NORMALIZED (trim+lowercase) and turns this into a pre-authorised invite that the accept route
+    // binds ONLY for a caller whose VERIFIED email matches it (see preauthInviteAllows). Absent/empty
+    // ⇒ stored as null ⇒ a P1.9 link invite (any signed-in caller may accept). Nothing is ever
+    // emailed — the admin still hands out the link; preauthEmail only narrows who may redeem it.
     app.post('/api/invites', (req, reply) => {
-      const body = (req.body ?? {}) as { accountId?: unknown; role?: unknown; expiresAt?: unknown }
+      const body = (req.body ?? {}) as {
+        accountId?: unknown
+        role?: unknown
+        expiresAt?: unknown
+        preauthEmail?: unknown
+      }
       if (typeof body.accountId !== 'string' || body.accountId.length === 0) {
         return reply.code(400).send({ error: 'accountId must be a non-empty string.' })
       }
       if (!isKnownRole(body.role)) {
         return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
+      }
+      // Resolve the optional preauthEmail BEFORE the gate's side-effect-free check is fine, but do the
+      // 400 shape-reject here too so a malformed email never reaches the write. A non-string, or a
+      // string that is empty after trim ⇒ link invite (null). A non-empty value MUST look like an
+      // email (single '@', non-empty local+domain) — junk is a 400, never silently dropped (that
+      // would mint a link invite the admin didn't intend, widening who may accept).
+      let preauthEmail: string | null = null
+      if (typeof body.preauthEmail === 'string') {
+        const trimmed = body.preauthEmail.trim()
+        if (trimmed.length > 0) {
+          if (!looksLikeEmail(trimmed)) {
+            return reply.code(400).send({ error: 'preauthEmail must be a valid email address.' })
+          }
+          preauthEmail = normalizeEmail(trimmed) // store normalized so accept compares normalized↔normalized
+        }
       }
       // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
       if (!authorize(req, reply, body.accountId, 'manageInvites')) return
@@ -690,14 +719,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           token,
           accountId: body.accountId,
           role: body.role,
-          preauthEmail: null, // P1.9: no email pre-authorisation; any signed-in caller may accept
+          // null ⇒ P1.9 link invite (any signed-in caller); a normalized email ⇒ P1.10 preauth.
+          preauthEmail,
           expiresAt,
           usedAt: null,
           createdAt: now,
         }
         createInvite(db, invite)
-        // Echo back exactly what the caller needs to build the link — NOT createdAt/usedAt/preauth.
-        return reply.code(201).send({ token, accountId: invite.accountId, role: invite.role, expiresAt })
+        // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
+        // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
+        // already-authorised admin — it is never exposed on any read path (invites are off AppData).
+        return reply
+          .code(201)
+          .send({ token, accountId: invite.accountId, role: invite.role, expiresAt, preauthEmail })
       } catch (err) {
         return sendFail(reply, err)
       }
@@ -706,10 +740,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // Invite ACCEPT (P1.9): a signed-in caller redeems a link, binding the invited role to THEIR
     // membership. NO authorize() call — the membership is the OUTPUT of this route, not a precondition
     // (requireUser upstream already proved a real session, or attached DEMO_USER in OFF mode). The
-    // token-state checks ARE the gate: unknown → 404, already-used → 409, expired → 410. (preauthEmail
-    // is null in P1.9, so there is deliberately no email-match branch here — that lands in P1.10.) On
-    // success the membership upsert and the single-use stamp commit in ONE transaction (atomic bind),
-    // and markInviteUsed's `usedAt IS NULL` clause double-guards single-use against a concurrent race.
+    // token-state checks ARE the gate: unknown → 404, already-used → 409, expired → 410. P1.10 adds an
+    // email-preauth gate AFTER those and BEFORE the bind: a non-null preauthEmail binds ONLY for a
+    // VERIFIED caller whose verified email matches (else 403, nothing bound, nothing consumed). A null
+    // preauthEmail is the P1.9 link path (any signed-in caller). On success the membership upsert and
+    // the single-use stamp commit in ONE transaction (atomic bind), and markInviteUsed's
+    // `usedAt IS NULL` clause double-guards single-use against a concurrent race.
     app.post('/api/invites/:token/accept', (req, reply) => {
       const { token } = req.params as { token: string }
       try {
@@ -720,6 +756,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         }
         if (Date.now() > Date.parse(invite.expiresAt)) {
           return reply.code(410).send({ error: 'This invite has expired.' })
+        }
+        // P1.10 email-preauth gate. OFF mode (trusted-local) SKIPS it entirely — mirroring authorize's
+        // OFF allow-all no-op and P1.9's OFF behaviour: there is no real verified session in off
+        // (req.user is the synthetic DEMO_USER), so a preauth invite simply binds DEMO_USER as any
+        // other invite would. Auth-on: the pure preauthInviteAllows decides — a non-null preauthEmail
+        // requires emailVerified===true AND an exact (normalized) email match; a wrong-email OR an
+        // unverified-but-matching caller is 403 with NO bind and NO mutation, so usedAt stays null and
+        // the genuinely-matching caller can still accept later (single-use is NOT consumed by a 403).
+        if (authMode !== 'off' && !preauthInviteAllows(invite.preauthEmail, req.user!)) {
+          return reply
+            .code(403)
+            .send({ error: 'This invite is reserved for a different (verified) account.' })
         }
         const now = new Date().toISOString()
         // Atomic: the membership and the consume commit together or roll back together — a half-applied
