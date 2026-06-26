@@ -11,6 +11,7 @@ import { ExternalForm } from '../external/ExternalForm'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
 import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
 export function ResourceList() {
   const data = useScopedData()
@@ -53,10 +54,10 @@ export function ResourceList() {
         <ColorSwatch color={swatchColor(r)} />
         <span className="font-medium">{resourceDisplayName(r)}</span>
         {r.kind === 'placeholder' && (
-          <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">placeholder</span>
+          <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">{m.list_resources_placeholder_badge()}</span>
         )}
         <span className="text-sm text-muted">
-          {` · ${r.role}${disciplinesEnabled ? ` · ${disciplineName(r.disciplineId)}` : ''} · ${r.workingHoursPerDay}h/day`}
+          {` · ${r.role}${disciplinesEnabled ? ` · ${disciplineName(r.disciplineId)}` : ''} · ${m.list_resources_hours_per_day({ hours: r.workingHoursPerDay })}`}
         </span>
       </span>
       <span className="flex gap-2">
@@ -83,11 +84,11 @@ export function ResourceList() {
     )
 
   return (
-    <ListPage title="Resources" addLabel="Add resource" onAdd={() => setCreatingKind('person')}>
-      {box(people, 'No resources yet.', {
+    <ListPage title={m.list_resources_title()} addLabel={m.list_resources_add()} onAdd={() => setCreatingKind('person')}>
+      {box(people, m.list_resources_empty(), {
         icon: 'people',
-        description: 'Resources are the people you schedule work for.',
-        action: { label: 'Add your first resource', onClick: () => setCreatingKind('person'), icon: 'plus' },
+        description: m.list_resources_empty_desc(),
+        action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind('person'), icon: 'plus' },
       })}
 
       {/* The whole placeholder feature is behind the per-account `placeholdersEnabled` pref
@@ -100,10 +101,10 @@ export function ResourceList() {
               adds a visual divider without a spurious separator in the accessibility tree. */}
           <Separator className="mt-8" />
           <div className="mb-4 mt-8 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Placeholders</h2>
-            <AddButton label="Add placeholder" onClick={() => setCreatingKind('placeholder')} />
+            <h2 className="text-lg font-semibold">{m.list_resources_placeholders_heading()}</h2>
+            <AddButton label={m.list_resources_add_placeholder()} onClick={() => setCreatingKind('placeholder')} />
           </div>
-          {box(placeholders, 'No placeholders yet.')}
+          {box(placeholders, m.list_resources_placeholders_empty())}
         </>
       )}
 
@@ -117,19 +118,19 @@ export function ResourceList() {
           <Separator className="mt-8" />
           <div className="mb-2 mt-8 flex items-center justify-between">
             <h2 id="external-heading" className="text-lg font-semibold">
-              External
+              {m.list_resources_external_heading()}
             </h2>
-            <AddButton label="Add external party" onClick={() => ext.setCreating(true)} />
+            <AddButton label={m.list_resources_add_external()} onClick={() => ext.setCreating(true)} />
           </div>
           {/* Explainer copy (editable, shared with Settings → External — see lib/externalCopy.ts). */}
           <p className="mb-4 max-w-prose text-sm text-muted">{EXTERNAL_EXPLAINER}</p>
           {externals.length === 0 ? (
             <EmptyState
               icon="people"
-              description="External parties are third-party suppliers you book without tracking their capacity."
-              action={{ label: 'Add an external party', onClick: () => ext.setCreating(true), icon: 'plus' }}
+              description={m.list_resources_external_empty_desc()}
+              action={{ label: m.list_resources_external_empty_action(), onClick: () => ext.setCreating(true), icon: 'plus' }}
             >
-              No external parties yet.
+              {m.list_resources_external_empty()}
             </EmptyState>
           ) : (
             <ul className="divide-y divide-line rounded border border-line bg-surface">
@@ -155,8 +156,8 @@ export function ResourceList() {
       {editing && <ResourceForm resource={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title="Delete resource?"
-          message={`Delete "${resourceDisplayName(confirming)}" and all of their allocations and time off? You can undo this with ⌘Z.`}
+          title={m.list_resources_delete_title()}
+          message={m.list_resources_delete_message({ name: resourceDisplayName(confirming) })}
           onConfirm={() => {
             del(confirming.id)
             setConfirming(null)
@@ -170,8 +171,8 @@ export function ResourceList() {
       {ext.editing && <ExternalForm resource={ext.editing} onClose={() => ext.setEditing(null)} />}
       {ext.confirming && (
         <ConfirmDialog
-          title="Delete external party?"
-          message={`Delete "${ext.confirming.name ?? ext.confirming.role}" and all of its allocations? You can undo this with ⌘Z.`}
+          title={m.list_resources_external_delete_title()}
+          message={m.list_resources_external_delete_message({ name: ext.confirming.name ?? ext.confirming.role })}
           onConfirm={() => {
             del(ext.confirming!.id)
             ext.setConfirming(null)

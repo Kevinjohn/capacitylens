@@ -1,6 +1,7 @@
 import { format } from 'date-fns'
 import { daysInclusive, parseDate } from '@capacitylens/shared/lib/dateMath'
 import type { ISODate } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
 // Human-readable date presentation for at-a-glance lists (e.g. the Time-off list), where a
 // reader wants "which days, how long" — not a machine date. Pure display formatting only; the
@@ -30,5 +31,5 @@ export function formatShortDate(date: ISODate): string {
  */
 export function formatDayCount(start: ISODate, end: ISODate): string {
   const n = Math.max(0, daysInclusive(start, end))
-  return `${n} ${n === 1 ? 'day' : 'days'}`
+  return n === 1 ? m.list_timeoff_days_one({ count: n }) : m.list_timeoff_days_other({ count: n })
 }

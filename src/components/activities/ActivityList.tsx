@@ -4,6 +4,7 @@ import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ActivityForm } from './ActivityForm'
 import type { Activity } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
 export function ActivityList() {
   const data = useScopedData()
@@ -16,9 +17,9 @@ export function ActivityList() {
   // A project-less activity (internal/repeatable) is bucketed under the account's built-in
   // Internal client for display — so its label reads "Internal", not "(no project)".
   const projectLabel = (id: string | undefined) => {
-    if (!id) return 'Internal'
+    if (!id) return m.list_activities_internal_label()
     const p = projects.find((x) => x.id === id)
-    if (!p) return 'Internal'
+    if (!p) return m.list_activities_internal_label()
     const c = clients.find((x) => x.id === p.clientId)
     return c ? `${c.name} / ${p.name}` : p.name
   }
@@ -73,31 +74,31 @@ export function ActivityList() {
     )
 
   return (
-    <ListPage title="Activities" addLabel="Add activity" onAdd={() => setCreating(true)}>
+    <ListPage title={m.list_activities_title()} addLabel={m.list_activities_add()} onAdd={() => setCreating(true)}>
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Internal activities</h2>
+        <h2 className="text-lg font-semibold">{m.list_activities_internal_heading()}</h2>
       </div>
-      {box(internalActivities, false, 'No internal activities yet.', 'internal-activities', {
-        description: 'Activities are the work you allocate — project, internal or repeatable.',
-        action: { label: 'Add your first activity', onClick: () => setCreating(true), icon: 'plus' },
+      {box(internalActivities, false, m.list_activities_internal_empty(), 'internal-activities', {
+        description: m.list_activities_empty_desc(),
+        action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true), icon: 'plus' },
       })}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Repeatable activities</h2>
+        <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
       </div>
-      {box(repeatableActivities, false, 'No repeatable activities yet.', 'repeatable-activities')}
+      {box(repeatableActivities, false, m.list_activities_repeatable_empty(), 'repeatable-activities')}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Project activities</h2>
+        <h2 className="text-lg font-semibold">{m.list_activities_project_heading()}</h2>
       </div>
-      {box(projectActivities, true, 'No project activities yet.', 'project-activities')}
+      {box(projectActivities, true, m.list_activities_project_empty(), 'project-activities')}
 
       {creating && <ActivityForm onClose={() => setCreating(false)} />}
       {editing && <ActivityForm activity={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title="Delete activity?"
-          message={`Delete "${confirming.name}" and any allocations of it?`}
+          title={m.list_activities_delete_title()}
+          message={m.list_activities_delete_message({ name: confirming.name })}
           onConfirm={() => {
             del(confirming.id)
             setConfirming(null)

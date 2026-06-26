@@ -7,6 +7,7 @@ import { resourceDisplayName } from '../../lib/metadata'
 import { formatShortDate, formatDayCount } from '../../lib/dateDisplay'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '@capacitylens/shared/types/entities'
+import { m } from '@/i18n'
 
 export function TimeOffList() {
   const data = useScopedData()
@@ -25,18 +26,18 @@ export function TimeOffList() {
 
   const resourceName = (id: string) => {
     const r = resources.find((x) => x.id === id)
-    return r ? resourceDisplayName(r) : '(unknown)'
+    return r ? resourceDisplayName(r) : m.list_timeoff_unknown_resource()
   }
 
   return (
-    <ListPage title="Time off" addLabel="Add time off" onAdd={() => setCreating(true)}>
+    <ListPage title={m.list_timeoff_title()} addLabel={m.list_timeoff_add()} onAdd={() => setCreating(true)}>
       {timeOff.length === 0 ? (
         <EmptyState
           icon="calendar"
-          description="Book holidays and other time away so the schedule shows real availability."
-          action={{ label: 'Book time off', onClick: () => setCreating(true), icon: 'plus' }}
+          description={m.list_timeoff_empty_desc()}
+          action={{ label: m.list_timeoff_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
         >
-          No time off booked.
+          {m.list_timeoff_empty()}
         </EmptyState>
       ) : (
         <ul className="divide-y divide-line rounded border border-line bg-surface">
@@ -65,8 +66,8 @@ export function TimeOffList() {
       {editing && <TimeOffForm timeOff={editing} onClose={() => setEditing(null)} />}
       {confirming && (
         <ConfirmDialog
-          title="Delete time off?"
-          message="Remove this time-off entry?"
+          title={m.list_timeoff_delete_title()}
+          message={m.list_timeoff_delete_message()}
           onConfirm={() => {
             del(confirming.id)
             setConfirming(null)
