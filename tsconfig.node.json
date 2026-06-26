@@ -21,5 +21,12 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts"]
+  // vite.config.ts and the ONE src test that reads files off disk both legitimately use node's
+  // `node:*` modules. Type-checking them HERE (where `"types": ["node"]` already lives) — rather
+  // than via a `/// <reference types="node" />` triple-slash inside the test — keeps `@types/node`'s
+  // globals (`process`, `Buffer`, `NodeJS.*`) out of the app program (tsconfig.app.json), whose
+  // `"types": ["vite/client"]` deliberately excludes them to keep the browser bundle's type surface
+  // honest. (Vitest still discovers the test via its own `src/**/*.test.ts` glob in vite.config.ts —
+  // tsconfig project membership only governs type-checking, not test collection.)
+  "include": ["vite.config.ts", "src/test/privacy-posture.test.ts"]
 }
