@@ -435,6 +435,22 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   double-Internal: the account is brand-new, so minting one here is the only one — unlike the generic
   account write, whose Internal arrives via the client's separate sync). Body validated/repaired like
   the generic account create (`sanitizeWrite`/`validateWrite`); id server-minted when omitted.
+- **Invites are single-use, expiring links on a CONTROL table (P1.9).** `invites(token PK, accountId,
+  role, preauthEmail?, expiresAt, usedAt?, createdAt)` lives in `controlTables.ts` (idx on accountId,
+  no FK) and follows the SAME AppData-exclusion invariant as `account_members` — never in shared
+  AppData/`SCOPED_KEYS`, `TABLES`, `KNOWN_KEYS`, fixtures, `loadState`, generic CRUD, or import/export
+  (a leak would hand out a live, role-bearing token); reached ONLY via `createInvite`/`getInvite`/
+  `markInviteUsed`. **`POST /api/invites`** (create) is gated `'manageInvites'` (admin+ of that
+  account, via `authorize`; OFF = allow-all), mints a `randomBytes(32).toString('base64url')` token
+  with a 7-day default TTL (a future ISO `expiresAt` in the body overrides; junk/past degrades to the
+  default), `preauthEmail: null` (email-preauth is P1.10), and never logs the token. **`POST
+  /api/invites/:token/accept`** has NO `authorize` (membership is the OUTPUT): unknown→404, used→409,
+  expired→410; on success it `upsertMember` + `markInviteUsed` in ONE `tx` (atomic bind), and single-
+  use is DOUBLE-guarded (handler's `usedAt !== null` check + the SQL `UPDATE … WHERE usedAt IS NULL`
+  backstop against a race). Client `/invite/:token` (lazy `InviteAccept`) is a top-level route OUTSIDE
+  AppShell's tenant gate but INSIDE `AuthProvider`, so an unauthenticated visit shows the login first
+  and the post-login reload lands on the same URL (the token survives the wall). Create-UI is deferred
+  to P1.11, email-preauth to P1.10.
 - **Time-off `note` is owner/admin-only, redacted SERVER-SIDE (P1.6).** `readSlice` takes a REQUIRED
   `{ includeTimeOffNote }` (no silent default — every caller decides); `false` STRIPS the `note` key
   from every time-off row before it leaves the server, so it's never serialized for an Editor/Viewer.

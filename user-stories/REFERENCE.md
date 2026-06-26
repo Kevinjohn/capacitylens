@@ -266,6 +266,20 @@ no login screen exists, Settings has no Account section, and local mode makes **
 request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
+**Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
+carries a pre-set role for one company. Opening `/invite/<token>` shows the **Accept invite**
+screen (heading `Accept invite`). In a server deploy with auth on, an **unauthenticated** visit
+hits the login wall first (the `Sign in` screen above); after signing in, the app returns to the
+same `/invite/<token>` URL and the accept runs automatically — so the token survives the login.
+A **valid** link binds the signed-in user to that company with the invited role and shows a
+*"You've joined this company as `<role>`"* success with a **Continue** link into the app (which
+opens the joined company). A **used** link shows *"This invite has already been used."*; an
+**expired** link shows *"This invite has expired."*; an **unknown** token shows *"Invite not
+found."* Invites are server-only: in local mode (no `VITE_CAPACITYLENS_API`) the page shows a
+short *"Invite links work only when CapacityLens is connected to a server."* note and makes no
+request. The link page is `src/components/invites/InviteAccept.tsx`; the create UI is a later
+phase (links are minted via the API for now). Spec `e2e/invite.auth.spec.ts`.
+
 **Demo sign-in (cosmetic; not real auth).** In the default (auth-off) deploy, a Google-style
 *"Choose an account"* screen (heading `Choose an account`; the **Jordan Avery** account row,
 `data-testid="fake-sign-in"`; a "Use another account" row) is shown **before** the company

@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto'
+import { randomBytes, timingSafeEqual } from 'node:crypto'
 import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
 import helmetPlugin from '@fastify/helmet'
@@ -33,8 +33,15 @@ import {
 } from './db'
 import { sqliteTenantStore } from './tenantStore'
 import { listAccounts, resolveRole } from './membership'
-import { listMembershipsForUser, upsertMember } from './controlTables'
-import { can, canSeeTimeOffNote, type Action } from '@capacitylens/shared/domain/access'
+import {
+  createInvite,
+  getInvite,
+  listMembershipsForUser,
+  markInviteUsed,
+  upsertMember,
+  type Invite,
+} from './controlTables'
+import { can, canSeeTimeOffNote, type Action, type Role } from '@capacitylens/shared/domain/access'
 import { tx } from './txn'
 import { newId } from '@capacitylens/shared/lib/id'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
@@ -42,6 +49,11 @@ import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024
+
+/** Default invite lifetime (P1.9): a link with no explicit `expiresAt` in the create body expires
+ *  7 days after it is minted. A short-ish default keeps a leaked/forgotten link from staying live
+ *  indefinitely; a caller can shorten it via the body's `expiresAt`. */
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 // Fail-CLOSED CORS default: only the local Vite dev/e2e origins may make cross-origin
 // browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
@@ -145,6 +157,13 @@ function toWebHeaders(raw: FastifyRequest['headers']): Headers {
 
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
   Object.prototype.hasOwnProperty.call(TABLES, entity)
+
+// Request-validation guard for the invite-create role (P1.9). A bad/missing role is a CALLER fault
+// (400), distinct from createInvite's loud throw (a 500-tier integrity backstop for a role that
+// somehow slipped past here). Mirrors the closed Role vocabulary in shared/domain/access.
+const INVITE_ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer']
+const isKnownRole = (value: unknown): value is Role =>
+  typeof value === 'string' && (INVITE_ROLES as readonly string[]).includes(value)
 
 // A table is "scoped" (tenant-owned) when it carries an accountId column — every table
 // except top-level `accounts`. Scoped deletes must assert ownership via accountId.
@@ -634,6 +653,88 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           })
         })
         return reply.code(201).send(accountRow)
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // Invite CREATE (P1.9): mint a single-use, expiring link that pre-sets a role for `accountId`.
+    // Body: { accountId, role, expiresAt? }. GATED 'manageInvites' (admin+ of THAT account) via the
+    // same authorize seam every permissioned route uses — OFF mode is the allow-all no-op (the token
+    // is minted as DEMO_USER's act), auth-on requires admin-tier membership of `accountId` (a
+    // cross-tenant stranger → 403). The token is a 32-byte CSPRNG value, base64url-encoded; it is the
+    // ONLY secret here, so it is NEVER logged (it's returned in the body to the authorised caller and
+    // nowhere else). preauthEmail is null in P1.9 (email-preauth is P1.10).
+    app.post('/api/invites', (req, reply) => {
+      const body = (req.body ?? {}) as { accountId?: unknown; role?: unknown; expiresAt?: unknown }
+      if (typeof body.accountId !== 'string' || body.accountId.length === 0) {
+        return reply.code(400).send({ error: 'accountId must be a non-empty string.' })
+      }
+      if (!isKnownRole(body.role)) {
+        return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
+      }
+      // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
+      if (!authorize(req, reply, body.accountId, 'manageInvites')) return
+      // Honour a caller-supplied expiresAt ONLY when it parses to a FUTURE instant; otherwise fall
+      // back to the 7-day default. A junk/past expiresAt silently degrading to the default (rather
+      // than 400) keeps a malformed value from minting a born-expired link.
+      const parsed = typeof body.expiresAt === 'string' ? Date.parse(body.expiresAt) : NaN
+      const expiresAt =
+        Number.isFinite(parsed) && parsed > Date.now()
+          ? new Date(parsed).toISOString()
+          : new Date(Date.now() + INVITE_TTL_MS).toISOString()
+      const token = randomBytes(32).toString('base64url')
+      const now = new Date().toISOString()
+      try {
+        const invite: Invite = {
+          token,
+          accountId: body.accountId,
+          role: body.role,
+          preauthEmail: null, // P1.9: no email pre-authorisation; any signed-in caller may accept
+          expiresAt,
+          usedAt: null,
+          createdAt: now,
+        }
+        createInvite(db, invite)
+        // Echo back exactly what the caller needs to build the link — NOT createdAt/usedAt/preauth.
+        return reply.code(201).send({ token, accountId: invite.accountId, role: invite.role, expiresAt })
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // Invite ACCEPT (P1.9): a signed-in caller redeems a link, binding the invited role to THEIR
+    // membership. NO authorize() call — the membership is the OUTPUT of this route, not a precondition
+    // (requireUser upstream already proved a real session, or attached DEMO_USER in OFF mode). The
+    // token-state checks ARE the gate: unknown → 404, already-used → 409, expired → 410. (preauthEmail
+    // is null in P1.9, so there is deliberately no email-match branch here — that lands in P1.10.) On
+    // success the membership upsert and the single-use stamp commit in ONE transaction (atomic bind),
+    // and markInviteUsed's `usedAt IS NULL` clause double-guards single-use against a concurrent race.
+    app.post('/api/invites/:token/accept', (req, reply) => {
+      const { token } = req.params as { token: string }
+      try {
+        const invite = getInvite(db, token)
+        if (!invite) return reply.code(404).send({ error: 'Invite not found.' })
+        if (invite.usedAt !== null) {
+          return reply.code(409).send({ error: 'This invite has already been used.' })
+        }
+        if (Date.now() > Date.parse(invite.expiresAt)) {
+          return reply.code(410).send({ error: 'This invite has expired.' })
+        }
+        const now = new Date().toISOString()
+        // Atomic: the membership and the consume commit together or roll back together — a half-applied
+        // accept (role bound but token still live, or token consumed with no membership) is impossible.
+        tx(db, () => {
+          upsertMember(db, {
+            accountId: invite.accountId,
+            userId: req.user!.id,
+            role: invite.role,
+            status: 'active',
+            createdAt: now,
+          })
+          markInviteUsed(db, invite.token, now)
+        })
+        return reply.code(200).send({ accountId: invite.accountId, role: invite.role })
       } catch (err) {
         return sendFail(reply, err)
       }
