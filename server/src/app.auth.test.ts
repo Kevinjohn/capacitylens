@@ -34,6 +34,10 @@ const PASSWORD_ENV = {
   CAPACITYLENS_AUTH: 'password',
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
   BETTER_AUTH_URL: 'http://localhost:8787',
+  // P1.7: open email self-registration is CLOSED by default (disableSignUp). These existing
+  // fixtures create users via sign-up/email, so re-open it here until invites (P1.9/P1.10).
+  // The default-closed posture is asserted in its own describe block below with NO flag.
+  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
 }
 
 const SSO_ENV = {
@@ -134,6 +138,96 @@ describe('CAPACITYLENS_AUTH sso', () => {
     const body = res.json() as { url: string; redirect: boolean }
     expect(body.redirect).toBe(true)
     expect(body.url.startsWith('http://idp.test/authorize')).toBe(true)
+  })
+})
+
+// P1.7 — native social providers wired from env. Assert against the resolved betterAuth
+// options (auth.options is the exact object we passed; see better-auth createBetterAuth),
+// which is the robust introspection point in this version (1.6.20).
+describe('social providers (P1.7)', () => {
+  const SOCIAL_ENV = {
+    ...PASSWORD_ENV,
+    CAPACITYLENS_GOOGLE_CLIENT_ID: 'google-id',
+    CAPACITYLENS_GOOGLE_CLIENT_SECRET: 'google-secret',
+    CAPACITYLENS_MICROSOFT_CLIENT_ID: 'ms-id',
+    CAPACITYLENS_MICROSOFT_CLIENT_SECRET: 'ms-secret',
+    CAPACITYLENS_GITHUB_CLIENT_ID: 'gh-id',
+    CAPACITYLENS_GITHUB_CLIENT_SECRET: 'gh-secret',
+  }
+
+  it('inits all three (Google/Microsoft/GitHub) from env without throwing', () => {
+    const { auth } = authFromEnv(openDb(':memory:'), SOCIAL_ENV)
+    const social = auth!.options.socialProviders ?? {}
+    expect(Object.keys(social).sort()).toEqual(['github', 'google', 'microsoft'])
+    expect(social.google).toMatchObject({ clientId: 'google-id', clientSecret: 'google-secret' })
+    expect(social.github).toMatchObject({ clientId: 'gh-id', clientSecret: 'gh-secret' })
+    // Microsoft tenantId defaults to 'common' when not pinned.
+    expect(social.microsoft).toMatchObject({ clientId: 'ms-id', clientSecret: 'ms-secret', tenantId: 'common' })
+  })
+
+  it('honours an explicit Microsoft tenant id', () => {
+    const { auth } = authFromEnv(openDb(':memory:'), {
+      ...SOCIAL_ENV,
+      CAPACITYLENS_MICROSOFT_TENANT_ID: 'tenant-123',
+    })
+    expect(auth!.options.socialProviders?.microsoft).toMatchObject({ tenantId: 'tenant-123' })
+  })
+
+  it('does NOT configure a provider when its env is absent (fail-closed-absent)', () => {
+    // Only Google set; Microsoft/GitHub must be absent, and a half-set provider (id only)
+    // is NOT configured.
+    const { auth } = authFromEnv(openDb(':memory:'), {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_GOOGLE_CLIENT_ID: 'google-id',
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: 'google-secret',
+      CAPACITYLENS_GITHUB_CLIENT_ID: 'gh-id-only', // secret missing on purpose
+    })
+    const social = auth!.options.socialProviders ?? {}
+    expect(Object.keys(social)).toEqual(['google'])
+    expect(social.github).toBeUndefined()
+    expect(social.microsoft).toBeUndefined()
+  })
+
+  it('is empty (no providers) when no social env is set', () => {
+    const { auth } = authFromEnv(openDb(':memory:'), PASSWORD_ENV)
+    expect(Object.keys(auth!.options.socialProviders ?? {})).toEqual([])
+  })
+})
+
+// P1.7 — open email self-registration is CLOSED by default (the secure default). The flag
+// CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 is an interim escape until invites (P1.9/P1.10).
+describe('closed self-registration (P1.7)', () => {
+  /** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
+  const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV }
+  delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP
+
+  const signUp = (app: FastifyInstance) =>
+    call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'late@capacitylens.dev', password: 'password-123', name: 'Late' },
+    })
+
+  it('rejects POST /api/auth/sign-up/email by DEFAULT (400, disableSignUp on)', async () => {
+    const app = await appWithAuth(CLOSED_ENV)
+    const res = await signUp(app)
+    // Better Auth returns 400 BAD_REQUEST (EMAIL_PASSWORD_SIGN_UP_DISABLED) when disableSignUp.
+    expect(res.statusCode).toBe(400)
+    expect(cookiesOf(res)).not.toContain('better-auth.session_token')
+  })
+
+  it('allows sign-up only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1', async () => {
+    const app = await appWithAuth({ ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    const res = await signUp(app)
+    expect(res.statusCode).toBe(200)
+    expect(cookiesOf(res)).toContain('better-auth.session_token')
+  })
+
+  it('sets disableSignUp on the resolved options to mirror the flag', () => {
+    const open = authFromEnv(openDb(':memory:'), { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    const closed = authFromEnv(openDb(':memory:'), CLOSED_ENV)
+    expect(open.auth!.options.emailAndPassword?.disableSignUp).toBe(false)
+    expect(closed.auth!.options.emailAndPassword?.disableSignUp).toBe(true)
   })
 })
 

@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth'
 import type { BetterAuthOptions } from 'better-auth'
+import type { SocialProviders } from 'better-auth/social-providers'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
 import { getMigrations } from 'better-auth/db/migration'
 import type { Db } from './db'
@@ -71,6 +72,33 @@ function required(env: Env, key: string, context: string): string {
   return value
 }
 
+/** Native social sign-in providers, assembled purely from env (P1.7). Each of Google /
+ *  Microsoft / GitHub is ADDITIVE and FAIL-CLOSED-ABSENT: a provider is only configured
+ *  when BOTH its client id and secret are present, so an unset provider is simply not
+ *  offered (no half-configured provider, no boot refusal). These are independent of the
+ *  'sso' genericOAuth plugin — they coexist with it in auth-on modes. Social sign-in is the
+ *  primary path (email+password is the secondary fallback); NEW-USER invite-gating of a
+ *  social sign-in is DEFERRED to P1.9/P1.10 (no invite mechanism exists yet), so today a
+ *  configured provider can create a user — the secure default holds because out of the box
+ *  no provider env is set AND email self-registration is closed (see authFromEnv). */
+function socialProvidersFromEnv(env: Env): SocialProviders {
+  const providers: SocialProviders = {}
+  const { CAPACITYLENS_GOOGLE_CLIENT_ID: gId, CAPACITYLENS_GOOGLE_CLIENT_SECRET: gSecret } = env
+  if (gId && gSecret) providers.google = { clientId: gId, clientSecret: gSecret }
+  const { CAPACITYLENS_MICROSOFT_CLIENT_ID: msId, CAPACITYLENS_MICROSOFT_CLIENT_SECRET: msSecret } = env
+  if (msId && msSecret) {
+    // tenantId defaults to 'common' (multi-tenant) when not pinned to a single Entra tenant.
+    providers.microsoft = {
+      clientId: msId,
+      clientSecret: msSecret,
+      tenantId: env.CAPACITYLENS_MICROSOFT_TENANT_ID || 'common',
+    }
+  }
+  const { CAPACITYLENS_GITHUB_CLIENT_ID: ghId, CAPACITYLENS_GITHUB_CLIENT_SECRET: ghSecret } = env
+  if (ghId && ghSecret) providers.github = { clientId: ghId, clientSecret: ghSecret }
+  return providers
+}
+
 /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
  *  env beyond CAPACITYLENS_AUTH itself is read. `trustedOrigins` should be the same browser
  *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
@@ -120,12 +148,23 @@ export function authFromEnv(
     )
   }
 
+  // SECURE DEFAULT (P1.7): self-service signup is closed / invite-only by design (Decisions —
+  // social SSO is the primary path; email+password a secondary fallback). disableSignUp is
+  // therefore ON unless CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'. That flag is an INTERIM
+  // trusted-instance/dev escape that re-opens open email self-registration until the invite
+  // flow (P1.9/P1.10) provides the proper gated path; OFF by default = open registration
+  // impossible (POST /api/auth/sign-up/email returns 400 EMAIL_PASSWORD_SIGN_UP_DISABLED).
+  const allowOpenSignup = env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'
+
   const auth = betterAuth({
     database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
     secret,
     baseURL,
     basePath: '/api/auth',
-    emailAndPassword: { enabled: mode === 'password' },
+    emailAndPassword: { enabled: mode === 'password', disableSignUp: !allowOpenSignup },
+    // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
+    // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
+    socialProviders: socialProvidersFromEnv(env),
     plugins,
     trustedOrigins: opts.trustedOrigins,
     telemetry: { enabled: false },

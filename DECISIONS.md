@@ -343,6 +343,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   (app.ts `requireUser` + `/api/auth/me`) depends ONLY on this port, never Better Auth directly.
   Load-bearing contract: **null = no session → 401; a thrown error = auth-backend failure → 503**
   (never swallowed to null). The OFF guarantee holds — off mode builds no adapter at all.
+- **Social sign-in is env-driven + additive (P1.7).** `betterAuth` gets native Google/Microsoft/GitHub
+  `socialProviders` from `CAPACITYLENS_<PROVIDER>_CLIENT_ID/_SECRET` — each configured ONLY when both
+  are set (fail-closed-absent; Microsoft `tenantId` defaults to `common`). They coexist with the
+  generic OIDC (`sso`) plugin; the mode enum + OFF guarantee are untouched.
+- **Open self-registration is CLOSED by default (P1.7).** `emailAndPassword.disableSignUp` is ON unless
+  `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1` (default off → `POST /api/auth/sign-up/email` returns 400). Self-service
+  signup is invite-only by design; that flag is an INTERIM trusted-instance/dev escape until the invite
+  flow lands. **Social NEW-USER invite-gating is deferred to P1.9/P1.10** (no invite mechanism yet).
 - **CSP:** `object-src`/`base-uri` ship in `index.html`; a full `script-src` policy belongs in
   a host response header, not the app — **not yet added at the host** (Phase 2 edge-hardening
   remainder, see `docs/production-plan.md`).
