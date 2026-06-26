@@ -68,6 +68,11 @@ import {
   upsertMember,
   type Invite,
 } from './controlTables'
+// P2.6b per-tenant DELETE + member-PII erasure — the SINGLE permissioned path that wipes an account's
+// PII everywhere (scoped AppData via FK cascade, the control tables, AND Better Auth user/account/session).
+// Called ONLY from the two 'purge'-gated delete vectors below. eraseAccount opens its own tx; the batch
+// (already inside tx) uses eraseAccountInTx (node:sqlite has no nested BEGIN).
+import { eraseAccount, eraseAccountInTx } from './erasure'
 import {
   can,
   canManageMemberRole,
@@ -1470,7 +1475,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // short-circuits to allow so the default deploy can still delete companies.
           if (!authorize(req, reply, id, 'purge')) return
         }
-        deleteRow(db, entity, id) // idempotent
+        // P2.6b: an account hard-delete is a TENANT ERASURE, not a bare row delete. eraseAccount drops
+        // the account (FK-cascading its scoped AppData) AND sweeps the control tables + Better Auth PII
+        // for any sole-member, all in one transaction. A scoped delete stays the plain idempotent
+        // deleteRow (its accountId-scoped cascade is sufficient; no PII to erase).
+        if (entity === 'accounts') eraseAccount(db, id)
+        else deleteRow(db, entity, id) // idempotent
         // P1.15 audit (post-commit). A delete carries no field set → changedFields = []. accountId
         // is the asserted owner for a scoped table, else the (accounts) row's own id.
         audit(reply, {
@@ -1563,7 +1573,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   throw new ValidationError('That record belongs to a different company.')
                 }
               }
-              deleteRow(db, table, id)
+              // P2.6b: an account DELETE in the batch is a TENANT ERASURE (control tables + Better Auth
+              // PII), same as the direct route. We are ALREADY inside tx() here, so call eraseAccountInTx
+              // (NOT eraseAccount — node:sqlite has no nested BEGIN). Scoped deletes stay plain deleteRow.
+              if (table === 'accounts') eraseAccountInTx(db, id)
+              else deleteRow(db, table, id)
             } else {
               throw new ValidationError(`Unknown op method: ${String(method)}`)
             }

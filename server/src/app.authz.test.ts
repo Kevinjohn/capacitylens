@@ -363,10 +363,13 @@ describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vecto
 
     const res = await deleteAccount(app, 'purgeMe', cookie)
     expect(res.statusCode).toBe(204)
-    // The membership row is still present, so a read resolves a role but the account is gone → empty.
-    const after = await getState(app, 'purgeMe', cookie)
-    expect(after.statusCode).toBe(200)
-    expect(after.json().accounts).toEqual([])
+    // P2.6b: this is now a TENANT ERASURE, not a bare row delete. The caller is the SOLE member, so the
+    // erasure also scrubs their PII and KILLS their session — their cookie no longer authenticates, so a
+    // read-back as them is 401 (not 200). "Account gone" is therefore asserted on observable DB state
+    // directly: the accounts row, the membership row, and the member's auth session are all removed.
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeMe'`).get() as { n: number }).n).toBe(0)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeMe'`).get() as { n: number }).n).toBe(0)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0)
   })
 
   it('admin of an account: batch accounts-DELETE op → 2xx (account gone)', async () => {
@@ -377,8 +380,12 @@ describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vecto
 
     const res = await batchDeleteAccount(app, 'purgeBatch', cookie)
     expect(res.statusCode).toBe(200)
-    const after = await getState(app, 'purgeBatch', cookie)
-    expect(after.json().accounts).toEqual([])
+    // P2.6b: the batch accounts-DELETE is the SAME tenant erasure as the direct route — the sole
+    // member's session is killed, so a read-back as them no longer authenticates. Assert "account gone"
+    // on observable DB state directly (the erasure is fully exercised by app.erasure.test.ts).
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeBatch'`).get() as { n: number }).n).toBe(0)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeBatch'`).get() as { n: number }).n).toBe(0)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0)
   })
 })
 

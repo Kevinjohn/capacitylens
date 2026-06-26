@@ -273,6 +273,40 @@ export function removeMember(db: Db, accountId: string, userId: string): void {
 }
 
 /**
+ * Remove EVERY membership row of one account in a single statement — the bulk revoke the per-tenant
+ * erasure (P2.6b) runs when an account is hard-deleted. Mirrors {@link removeMember} but drops all of
+ * the account's rows at once: `account_members` carries NO FK to `accounts` (see {@link ensureControlTables}),
+ * so the AppData delete-cascade never reaches it — this is what stops the membership rows leaking when
+ * the account row goes.
+ *
+ * IDEMPOTENT: an account with no members is a no-op. The `accountId = ?` predicate is the CROSS-TENANT
+ * guard — it can only ever delete rows of the named account, never another tenant's memberships.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose memberships to remove entirely.
+ */
+export function removeAllMembersForAccount(db: Db, accountId: string): void {
+  db.prepare(`DELETE FROM account_members WHERE accountId = ?`).run(accountId)
+}
+
+/**
+ * Revoke EVERY outstanding invite of one account in a single statement — the bulk revoke the per-tenant
+ * erasure (P2.6b) runs when an account is hard-deleted. Mirrors {@link revokeInvite} but drops all of
+ * the account's invites at once: `invites` carries NO FK to `accounts` (see {@link ensureControlTables}),
+ * so the AppData delete-cascade never reaches it — without this an erased account leaves live,
+ * role-bearing invite tokens behind.
+ *
+ * IDEMPOTENT: an account with no invites is a no-op. The `accountId = ?` predicate is the CROSS-TENANT
+ * guard — it can only ever delete invites of the named account.
+ *
+ * @param db         The open SQLite handle.
+ * @param accountId  The account whose invites to revoke entirely.
+ */
+export function removeAllInvitesForAccount(db: Db, accountId: string): void {
+  db.prepare(`DELETE FROM invites WHERE accountId = ?`).run(accountId)
+}
+
+/**
  * Resolve display identity (name + email) for a set of user ids — the ONLY place the member-management
  * code reads Better Auth's `user` table, and ONLY to render an AUTHORIZED admin's member list. The
  * `user` table lives in the same SQLite file as the control tables (see auth.ts); this reads `name`
