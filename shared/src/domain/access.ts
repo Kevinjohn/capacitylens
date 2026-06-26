@@ -113,6 +113,85 @@ export function can(role: Role, action: Action): boolean {
 }
 
 /**
+ * Is `role` at or above the minimum tier `min` in the strict role hierarchy
+ * (viewer ⊂ editor ⊂ admin ⊂ owner)? The pure tier-comparison primitive the member-management
+ * guards below build on, single-sourced from {@link ROLE_RANK} so "and up" never drifts from the
+ * matrix the {@link can} matrix already encodes.
+ *
+ * PURE: no I/O, no session — just the two roles. Fail-closed at an untyped boundary: an unrecognised
+ * role makes a rank `undefined`, and any comparison with `undefined` is `false` — so it denies rather
+ * than falls open (mirrors {@link can}).
+ *
+ * @param role - the role being tested.
+ * @param min  - the minimum tier `role` must reach.
+ * @returns `true` iff `ROLE_RANK[role] >= ROLE_RANK[min]`; `false` otherwise (incl. unknown roles).
+ */
+export function isAtLeast(role: Role, min: Role): boolean {
+  const have = ROLE_RANK[role]
+  const need = ROLE_RANK[min]
+  if (have === undefined || need === undefined) return false
+  return have >= need
+}
+
+/**
+ * May `actorRole` change a member's role from `targetRole` to `nextRole`? The PURE policy behind
+ * member-management role edits (P1.11) — single-sourced HERE so the client affordance and the server
+ * route guard decide identically and cannot drift (the client uses it to hide controls; the server
+ * is the backstop that actually enforces it).
+ *
+ * Rules (deny by default):
+ * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
+ * - NO admin→owner GRANT: only an owner may grant the `owner` role (`nextRole === 'owner'` requires
+ *   `actorRole === 'owner'`). This closes the privilege-escalation path of an admin minting an owner.
+ * - An admin may NOT touch an OWNER: changing an existing owner's role requires the actor be an owner
+ *   (`targetRole === 'owner'` requires `actorRole === 'owner'`).
+ *
+ * NOT enforced here (needs DB I/O, so it lives server-side): the LAST-OWNER protection — refusing to
+ * demote the sole remaining owner (a row count). This guard is the pure who-may-touch-whom matrix;
+ * the count-based "can't strand the account ownerless" rule is enforced in the server route.
+ *
+ * PURE: no I/O, no session — just the three roles.
+ *
+ * @param actorRole  - the acting member's role.
+ * @param targetRole - the role the target member currently holds.
+ * @param nextRole   - the role the actor wants to set.
+ * @returns `true` iff the role change is permitted by the pure matrix; `false` otherwise.
+ */
+export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
+  if (!can(actorRole, 'manageMembers')) return false
+  // No admin→owner grant: only an owner may mint another owner.
+  if (nextRole === 'owner' && actorRole !== 'owner') return false
+  // An admin cannot touch an existing owner (only an owner may change an owner's role).
+  if (targetRole === 'owner' && actorRole !== 'owner') return false
+  return true
+}
+
+/**
+ * May `actorRole` remove (revoke) a member holding `targetRole`? The PURE policy behind member
+ * removal (P1.11) — single-sourced HERE alongside {@link canManageMemberRole} for the same
+ * no-drift reason (client hides the control, server enforces it).
+ *
+ * Rules (deny by default):
+ * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
+ * - An admin may NOT remove an OWNER (`targetRole === 'owner'` requires `actorRole === 'owner'`).
+ *
+ * NOT enforced here (needs DB I/O): the LAST-OWNER protection — refusing to remove the sole remaining
+ * owner. That count-based rule lives in the server route; this is the pure who-may-remove-whom matrix.
+ *
+ * PURE: no I/O, no session — just the two roles.
+ *
+ * @param actorRole  - the acting member's role.
+ * @param targetRole - the role the member being removed currently holds.
+ * @returns `true` iff the removal is permitted by the pure matrix; `false` otherwise.
+ */
+export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
+  if (!can(actorRole, 'manageMembers')) return false
+  // An admin cannot remove an owner (only an owner may remove an owner).
+  if (targetRole === 'owner' && actorRole !== 'owner') return false
+  return true
+}
+
+/**
  * Field-level visibility rule: only an owner or admin may see a time-off entry's `note`.
  *
  * Kept SEPARATE from the {@link Action} matrix on purpose — this is a *field-visibility* rule

@@ -8,6 +8,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
+import { MembersSection } from './MembersSection'
 import { cn } from '@/lib/utils'
 import { EXTERNAL_EXPLAINER } from '../../lib/externalCopy'
 import type { ThemePref } from '../../lib/theme'
@@ -396,6 +397,11 @@ export function SettingsView() {
             </div>
           </section>
         )}
+
+        {/* Member management (P1.11) — only on an auth-enabled, server-backed deploy, and the section
+            self-gates further (a 403 on the members read hides it for a viewer/editor). OFF/local mode
+            renders nothing. */}
+        {authMode !== 'off' && <MembersSection />}
 
         {/* Build provenance footer (P1.7) + feedback link (P5.2) — only in builds the
             deploy script stamps; absent (today's Settings exactly) when both env vars

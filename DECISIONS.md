@@ -449,8 +449,8 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   use is DOUBLE-guarded (handler's `usedAt !== null` check + the SQL `UPDATE … WHERE usedAt IS NULL`
   backstop against a race). Client `/invite/:token` (lazy `InviteAccept`) is a top-level route OUTSIDE
   AppShell's tenant gate but INSIDE `AuthProvider`, so an unauthenticated visit shows the login first
-  and the post-login reload lands on the same URL (the token survives the wall). Create-UI is deferred
-  to P1.11.
+  and the post-login reload lands on the same URL (the token survives the wall). Create-UI lands in
+  P1.11 (the Settings → Members section).
 - **Email-pre-authorise invites (P1.10).** `POST /api/invites` accepts an OPTIONAL `preauthEmail`:
   a non-empty, email-shaped value (`looksLikeEmail`) is stored NORMALIZED (`normalizeEmail` =
   trim+lowercase), malformed → 400, absent/empty → `null` (a P1.9 link invite). The accept route gates
@@ -461,6 +461,24 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   Providers that omit verification ⇒ treated as unverified (no preauth bind; link path still works).
   **OFF mode SKIPS the gate** (trusted-local — DEMO_USER binds as for any invite). Nothing is ever
   emailed: the admin still distributes the link; `preauthEmail` only narrows who may redeem it.
+- **Member management is Owner/Admin-only, with pure guards + server last-owner backstop (P1.11).**
+  Five endpoints, each gated via `authorize` (cross-tenant → 403): `GET/PATCH/DELETE
+  /api/accounts/:accountId/members/*` (`manageMembers`) and `GET/DELETE
+  /api/accounts/:accountId/invites/*` (`manageInvites`). Two PURE guards in `shared/domain/access.ts`
+  single-source the who-may-touch-whom matrix for BOTH client affordance and server route:
+  `canManageMemberRole(actor, target, next)` and `canRemoveMember(actor, target)` — both require
+  `manageMembers`, both forbid an admin from GRANTING owner (`next==='owner'` ⇒ actor owner) or
+  TOUCHING an owner (`target==='owner'` ⇒ actor owner). The **last-owner protection** (never
+  demote/remove the sole `countOwners<=1` active owner) is enforced **server-side only** (needs DB
+  I/O). The **owner-grant guard** is also applied to `POST /api/invites` (an `owner` invite requires
+  an owner caller), closing the admin→owner escalation via the invite path. Invites gain a
+  **NON-SECRET `id`** so the bearer `token` stays write-once (minted + returned once, never read
+  back): list/revoke key on `id`, and `listInvitesForAccount` NEVER returns the token. `getUsersByIds`
+  reads Better Auth's `user` table for member-row display (name/email) — the ONLY such read, and only
+  for an authorized admin. Client `MembersSection` (Settings, auth-on + server) self-gates: a 403 on
+  the members read renders nothing (so a viewer/editor never sees it); owner-only affordances are
+  hidden for an admin and the sole owner is protected. OFF mode hides the UI and the endpoints return
+  empty lists / inert no-ops.
 - **Time-off `note` is owner/admin-only, redacted SERVER-SIDE (P1.6).** `readSlice` takes a REQUIRED
   `{ includeTimeOffNote }` (no silent default — every caller decides); `false` STRIPS the `note` key
   from every time-off row before it leaves the server, so it's never serialized for an Editor/Viewer.

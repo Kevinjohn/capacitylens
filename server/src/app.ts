@@ -34,17 +34,32 @@ import {
 import { sqliteTenantStore } from './tenantStore'
 import { listAccounts, resolveRole } from './membership'
 import {
+  countOwners,
   createInvite,
   getInvite,
+  getMemberRole,
+  getUsersByIds,
+  listInvitesForAccount,
+  listMembersForAccount,
   listMembershipsForUser,
   looksLikeEmail,
   markInviteUsed,
+  newInviteId,
   normalizeEmail,
   preauthInviteAllows,
+  removeMember,
+  revokeInvite,
   upsertMember,
   type Invite,
 } from './controlTables'
-import { can, canSeeTimeOffNote, type Action, type Role } from '@capacitylens/shared/domain/access'
+import {
+  can,
+  canManageMemberRole,
+  canRemoveMember,
+  canSeeTimeOffNote,
+  type Action,
+  type Role,
+} from '@capacitylens/shared/domain/access'
 import { tx } from './txn'
 import { newId } from '@capacitylens/shared/lib/id'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
@@ -704,6 +719,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
       // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
       if (!authorize(req, reply, body.accountId, 'manageInvites')) return
+      // OWNER-GRANT GUARD (P1.11): minting an `owner` invite is an ownership grant, so it requires the
+      // caller be owner-tier — an admin (who passes manageInvites) must NOT be able to escalate to
+      // owner by inviting one. This closes the admin→owner escalation via the invite path, mirroring
+      // the pure canManageMemberRole "no admin→owner grant" rule on the direct role-change route. OFF
+      // mode (trusted-local) skips it like every other gate — req.user is DEMO_USER, not a real owner.
+      if (body.role === 'owner' && authMode !== 'off' && resolveRole(db, req.user!, body.accountId) !== 'owner') {
+        return reply.code(403).send({ error: 'Only an owner can invite an owner.' })
+      }
       // Honour a caller-supplied expiresAt ONLY when it parses to a FUTURE instant; otherwise fall
       // back to the 7-day default. A junk/past expiresAt silently degrading to the default (rather
       // than 400) keeps a malformed value from minting a born-expired link.
@@ -717,6 +740,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       try {
         const invite: Invite = {
           token,
+          // Non-secret handle (P1.11) — list/revoke key on this; the token stays write-once.
+          id: newInviteId(),
           accountId: body.accountId,
           role: body.role,
           // null ⇒ P1.9 link invite (any signed-in caller); a normalized email ⇒ P1.10 preauth.
@@ -783,6 +808,129 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           markInviteUsed(db, invite.token, now)
         })
         return reply.code(200).send({ accountId: invite.accountId, role: invite.role })
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // ── Member management (P1.11) ────────────────────────────────────────────────────────────────
+    // Owner/Admin list / change-role / revoke members of THEIR account, plus list / revoke outstanding
+    // invites. Every route gates through the SAME authorize seam (cross-tenant → 403 automatically):
+    // members under 'manageMembers', invites under 'manageInvites' (both admin-tier). The pure shared
+    // guards (canManageMemberRole / canRemoveMember) decide who-may-touch-whom (no admin→owner grant,
+    // admin can't touch an owner); the server ADDS the count-based LAST-OWNER protection (countOwners),
+    // which needs DB I/O and so can't live in the pure layer. OFF mode (trusted-local) has no real
+    // member model, so the list routes return empty and the mutate routes are inert no-ops — the UI is
+    // hidden in OFF anyway, but the endpoints must not crash if called.
+
+    // LIST members. Joins the membership rows with Better Auth user identity (name/email, read ONLY
+    // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
+    // role from it). A missing name/email degrades to null — never a throw.
+    app.get('/api/accounts/:accountId/members', (req, reply) => {
+      const { accountId } = req.params as { accountId: string }
+      if (!authorize(req, reply, accountId, 'manageMembers')) return
+      // OFF mode: no real member model (req.user is DEMO_USER, membership is unread) — return empty so
+      // the shape is honest and nothing crashes. The UI is hidden in OFF, so this is belt-and-braces.
+      if (authMode === 'off') return { members: [] }
+      const members = listMembersForAccount(db, accountId)
+      const identities = getUsersByIds(db, members.map((m) => m.userId))
+      return {
+        members: members.map((m) => {
+          const who = identities.get(m.userId)
+          return {
+            userId: m.userId,
+            role: m.role,
+            status: m.status,
+            createdAt: m.createdAt,
+            name: who?.name ?? null,
+            email: who?.email ?? null,
+            isSelf: m.userId === req.user!.id,
+          }
+        }),
+      }
+    })
+
+    // CHANGE a member's role. Body { role }. 400 bad role; 404 non-member; 403 by the pure guard
+    // (no admin→owner grant, admin can't touch an owner); 403 LAST-OWNER (demoting the sole owner).
+    app.patch('/api/accounts/:accountId/members/:userId', (req, reply) => {
+      const { accountId, userId } = req.params as { accountId: string; userId: string }
+      const body = (req.body ?? {}) as { role?: unknown }
+      if (!isKnownRole(body.role)) {
+        return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
+      }
+      const nextRole = body.role
+      if (!authorize(req, reply, accountId, 'manageMembers')) return
+      try {
+        const targetRole = getMemberRole(db, accountId, userId)
+        if (targetRole === null) return reply.code(404).send({ error: 'Not a member of this account.' })
+        // OFF mode short-circuited authorize to allow-all, so resolveRole would be null — but OFF has
+        // no real actor role to evaluate the pure guard against. The UI is hidden in OFF; treat a
+        // mutate call as a harmless no-op rather than crash on a null actor role.
+        if (authMode === 'off') return reply.code(200).send({ userId, role: nextRole })
+        const actorRole = resolveRole(db, req.user!, accountId)! // non-null: authorize proved membership
+        if (!canManageMemberRole(actorRole, targetRole, nextRole)) {
+          return reply.code(403).send({ error: 'Forbidden.' })
+        }
+        // LAST-OWNER backstop (needs DB I/O, so not in the pure guard): never demote the sole owner.
+        if (targetRole === 'owner' && nextRole !== 'owner' && countOwners(db, accountId) <= 1) {
+          return reply.code(403).send({ error: 'An account must keep at least one owner.' })
+        }
+        upsertMember(db, {
+          accountId,
+          userId,
+          role: nextRole,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+        })
+        return reply.code(200).send({ userId, role: nextRole })
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // REVOKE a member. 404 non-member; 403 by the pure guard (admin can't remove an owner); 403
+    // LAST-OWNER (removing the sole owner). 204 on success.
+    app.delete('/api/accounts/:accountId/members/:userId', (req, reply) => {
+      const { accountId, userId } = req.params as { accountId: string; userId: string }
+      if (!authorize(req, reply, accountId, 'manageMembers')) return
+      try {
+        const targetRole = getMemberRole(db, accountId, userId)
+        if (targetRole === null) return reply.code(404).send({ error: 'Not a member of this account.' })
+        if (authMode === 'off') {
+          // OFF: no real actor role; the UI is hidden — a revoke is an inert no-op (don't crash).
+          return reply.code(204).send()
+        }
+        const actorRole = resolveRole(db, req.user!, accountId)! // non-null: authorize proved membership
+        if (!canRemoveMember(actorRole, targetRole)) {
+          return reply.code(403).send({ error: 'Forbidden.' })
+        }
+        if (targetRole === 'owner' && countOwners(db, accountId) <= 1) {
+          return reply.code(403).send({ error: 'An account must keep at least one owner.' })
+        }
+        removeMember(db, accountId, userId)
+        return reply.code(204).send()
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // LIST outstanding invites — NO token in the response (it's a write-once bearer secret; see
+    // listInvitesForAccount). Gated 'manageInvites'. OFF → empty.
+    app.get('/api/accounts/:accountId/invites', (req, reply) => {
+      const { accountId } = req.params as { accountId: string }
+      if (!authorize(req, reply, accountId, 'manageInvites')) return
+      if (authMode === 'off') return { invites: [] }
+      return { invites: listInvitesForAccount(db, accountId) }
+    })
+
+    // REVOKE an invite by its non-secret id. Idempotent + scoped by accountId (cross-tenant guard);
+    // 204 regardless of whether a row existed (don't leak existence). Gated 'manageInvites'.
+    app.delete('/api/accounts/:accountId/invites/:id', (req, reply) => {
+      const { accountId, id } = req.params as { accountId: string; id: string }
+      if (!authorize(req, reply, accountId, 'manageInvites')) return
+      try {
+        revokeInvite(db, accountId, id) // idempotent; accountId predicate is the cross-tenant guard
+        return reply.code(204).send()
       } catch (err) {
         return sendFail(reply, err)
       }
