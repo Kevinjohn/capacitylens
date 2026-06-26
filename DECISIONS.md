@@ -337,6 +337,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   `authMode` is the only auth flag — no client-side flag exists.
 - **Session ≠ isolation.** Turning `CAPACITYLENS_AUTH` on gates requests, but `accountId` stays
   client-asserted (`ownsRow` is defense-in-depth) until Stage C derives it from the session.
+- **`AuthAdapter` is the single session-verify seam (P0.5.8).** `server/src/authAdapter.ts` defines
+  the provider-neutral port `AuthAdapter { verifySession(headers): Promise<SessionUser | null> }`;
+  `betterAuthAdapter` is the default impl (wraps Better Auth `getSession`). Everything above auth
+  (app.ts `requireUser` + `/api/auth/me`) depends ONLY on this port, never Better Auth directly.
+  Load-bearing contract: **null = no session → 401; a thrown error = auth-backend failure → 503**
+  (never swallowed to null). The OFF guarantee holds — off mode builds no adapter at all.
 - **CSP:** `object-src`/`base-uri` ship in `index.html`; a full `script-src` policy belongs in
   a host response header, not the app — **not yet added at the host** (Phase 2 edge-hardening
   remainder, see `docs/production-plan.md`).

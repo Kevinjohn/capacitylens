@@ -3,6 +3,7 @@ import rateLimitPlugin from '@fastify/rate-limit'
 import helmetPlugin from '@fastify/helmet'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { DEMO_USER, type Auth, type AuthMode, type SessionUser } from './auth'
+import { betterAuthAdapter, type AuthAdapter } from './authAdapter'
 
 // The identity requireUser attaches to every gated request (P3.2). Session/identity
 // plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
@@ -208,6 +209,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   if (authMode !== 'off' && !auth) {
     throw new Error(`buildApp: authMode '${authMode}' requires a Better Auth instance (opts.auth)`)
   }
+  // P0.5.8: build the provider-neutral session-verify port ONCE. requireUser + /api/auth/me
+  // depend only on this AuthAdapter, never on Better Auth directly. In 'off' mode no adapter
+  // is built (and `auth` is already null), so Better Auth is never touched — the OFF guarantee.
+  const authAdapter: AuthAdapter | null = auth ? betterAuthAdapter(auth) : null
   const logOn = opts.log === true
   const app = Fastify({
     bodyLimit: BODY_LIMIT,
@@ -317,9 +322,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       return
     }
     try {
-      const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
-      if (!session) return reply.code(401).send({ error: 'Sign in to continue.' })
-      req.user = session.user
+      const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
+      if (!user) return reply.code(401).send({ error: 'Sign in to continue.' })
+      req.user = user
     } catch (e) {
       // The auth backend (Better Auth / its DB) FAILED — this is NOT "no session". CRITICAL: do
       // not fall through leaving req.user null while letting the handler run (that would serve an
@@ -389,9 +394,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.get('/api/auth/me', async (req, reply) => {
       if (authMode === 'off') return { authMode, user: DEMO_USER }
       try {
-        const session = await auth!.api.getSession({ headers: toWebHeaders(req.headers) })
-        if (!session) return reply.code(401).send({ authMode, error: 'Sign in to continue.' })
-        return { authMode, user: session.user }
+        const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
+        if (!user) return reply.code(401).send({ authMode, error: 'Sign in to continue.' })
+        return { authMode, user }
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
         // (the client can tell "temporarily unavailable" from a 401 "bad/again credentials") rather
