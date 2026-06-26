@@ -345,6 +345,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Green gate** = `npm run gate` (`tsc -b` + `eslint .` + `vitest run` + `vite build`) **and**
   `npm run e2e` (`playwright test`). The `server/` workspace is out of the root gate;
   `npm run gate:server` covers it. Node 24+ (`.nvmrc` + `engines`) — `node:sqlite` unflagged.
+- **No GitHub Actions CI — the local green gate is the enforcement mechanism.** CI was
+  deliberately removed (`5b324020`, "run the gate locally instead") and the gate runs on demand.
+  The CapacityLens open-source plan's **P0.6 ("Restore CI")** wants a `.github/workflows/ci.yml`
+  back for the *public* repo so external PRs are checked — but that is **parked pending an explicit
+  go-ahead**: re-adding it would resume ~6-min Actions runs on every push/PR, undoing the recent
+  deliberate removal and contradicting the standing "no Actions CI, merge via local gate" posture
+  the build loop runs under. Revisit when ready for the public launch (then re-add the workflow and
+  switch the loop's merge step to wait on required checks).
 - **Cross-browser E2E is opt-in; Chromium is the default loop.** `npm run e2e` runs the
   chromium/db-backed/auth-backed projects on Chromium. `npm run e2e:webkit` and `npm run e2e:firefox`
   re-run the **core localStorage specs on WebKit/Safari** and **Firefox/Gecko** respectively (a
