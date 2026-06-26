@@ -7,6 +7,7 @@ import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, MAX_SP
 import { externalEnabledFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
 import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity'
 import { validateText } from '../../lib/validation'
+import { m } from '@/i18n'
 import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 import {
   AddButton,
@@ -160,13 +161,17 @@ export function AllocationModal(props: AllocationModalProps) {
     .map((r) => ({
       value: r.id,
       label: `${resourceDisplayName(r)}${
-        r.kind === 'placeholder' ? ' (slot)' : r.kind === 'external' ? ' (external)' : ''
+        r.kind === 'placeholder'
+          ? m.form_allocation_resource_slot_suffix()
+          : r.kind === 'external'
+            ? m.form_allocation_resource_external_suffix()
+            : ''
       }`,
     }))
   // "No project" lets you pick project-less activities (internal + repeatable). A placeholder is
   // offered only its bound project plus this option (it can take project-less activities too).
   const projectOptions: Option[] = [
-    { value: '', label: 'No project (internal / repeatable)' },
+    { value: '', label: m.form_no_project_internal_repeatable() },
     ...data.projects
       .filter((p) => (lockedProjectId ? p.id === lockedProjectId : true))
       .map((p) => {
@@ -196,7 +201,7 @@ export function AllocationModal(props: AllocationModalProps) {
     // bound to the chosen project. Was a silent no-op on a blank name — give feedback.
     const cleanActivityName = validateText(newActivityName, fail, {
       field: 'newactivity',
-      requiredMessage: 'Enter a name for the new activity.',
+      requiredMessage: m.form_allocation_err_new_activity_name(),
     })
     if (cleanActivityName === null) return
     const activity = projectId
@@ -208,51 +213,51 @@ export function AllocationModal(props: AllocationModalProps) {
 
   const submit = () => {
     if (!resourceId) {
-      fail('resource', 'Choose a resource.')
+      fail('resource', m.form_allocation_err_choose_resource())
       return
     }
     if (!activityId) {
-      fail('activity', 'Choose (or add) an activity.')
+      fail('activity', m.form_allocation_err_choose_activity())
       return
     }
     if (isExternal) {
       // External is a plain span: start + end, no hours (hoursPerDay persists as 0).
       if (!startDate || !endDate) {
-        fail('dates', 'Start and end dates are required.')
+        fail('dates', m.form_allocation_err_dates_required())
         return
       }
       if (endDate < startDate) {
-        fail('dates', 'End date cannot be before the start date.')
+        fail('dates', m.form_allocation_err_end_before_start())
         return
       }
     } else if (isBlocks) {
       // A block is just a span: start + days over (>= 1, so always valid). The end
       // date is derived and load is ignored, so there's nothing else to validate.
       if (!startDate) {
-        fail('dates', 'Start date is required.')
+        fail('dates', m.form_allocation_err_start_required())
         return
       }
     } else if (isDays) {
       // End date is derived, so it can never be reversed; only the start is typed.
       if (!startDate) {
-        fail('dates', 'Start date is required.')
+        fail('dates', m.form_allocation_err_start_required())
         return
       }
       if (!(daysOfWork > 0)) {
-        fail('daysOfWork', 'Days of work must be greater than 0.')
+        fail('daysOfWork', m.form_allocation_err_days_of_work_gt_zero())
         return
       }
     } else {
       if (!startDate || !endDate) {
-        fail('dates', 'Start and end dates are required.')
+        fail('dates', m.form_allocation_err_dates_required())
         return
       }
       if (endDate < startDate) {
-        fail('dates', 'End date cannot be before the start date.')
+        fail('dates', m.form_allocation_err_end_before_start())
         return
       }
       if (!(hoursPerDay > 0)) {
-        fail('hours', 'Hours per day must be greater than 0.')
+        fail('hours', m.form_allocation_err_hours_gt_zero())
         return
       }
     }
@@ -265,9 +270,9 @@ export function AllocationModal(props: AllocationModalProps) {
     // what saves, failing to the field the user can act on in each mode.
     if (!isExternal && !isBlocks && !(Number.isFinite(effHoursPerDay) && effHoursPerDay > 0 && effHoursPerDay <= MAX_HOURS_PER_DAY)) {
       if (isDays) {
-        fail('daysOfWork', `That’s more than ${MAX_HOURS_PER_DAY}h a day. Increase “Days over” or reduce “Days of work”.`)
+        fail('daysOfWork', m.form_allocation_err_days_over_max({ max: MAX_HOURS_PER_DAY }))
       } else {
-        fail('hours', `Hours per day can’t exceed ${MAX_HOURS_PER_DAY}.`)
+        fail('hours', m.form_allocation_err_hours_over_max({ max: MAX_HOURS_PER_DAY }))
       }
       return
     }
@@ -290,7 +295,7 @@ export function AllocationModal(props: AllocationModalProps) {
       else addAllocation({ resourceId, ...fields })
       onClose()
     } catch (e) {
-      fail(null, e instanceof Error ? e.message : 'Could not save this allocation.')
+      fail(null, e instanceof Error ? e.message : m.form_allocation_err_save_failed())
     }
   }
 
@@ -314,13 +319,13 @@ export function AllocationModal(props: AllocationModalProps) {
       })
       onClose()
     } catch (e) {
-      fail(null, e instanceof Error ? e.message : 'Could not save this allocation.')
+      fail(null, e instanceof Error ? e.message : m.form_allocation_err_save_failed())
     }
   }
 
   // In create mode the assignee is already chosen (the user clicked the + next to
   // their row), so we drop the Assignee select and name them in the title instead.
-  const createName = create ? (initialResource ? resourceDisplayName(initialResource) : 'resource') : undefined
+  const createName = create ? (initialResource ? resourceDisplayName(initialResource) : m.form_allocation_advisory_resource_name()) : undefined
 
   // Non-blocking capacity advisory (DECISIONS.md: "advisory at allocation time"). The drag-move
   // path shows this as a post-commit toast; surface it HERE too — on the create/edit surface that
@@ -333,20 +338,30 @@ export function AllocationModal(props: AllocationModalProps) {
     const resourceTimeOff = data.timeOff.filter((t) => t.resourceId === resourceId)
     const { overDays, timeOffDays } = capacityAdvisory(selectedResource, others, resourceTimeOff, startDate, effEndDate, effHoursPerDay, ignoreWeekends)
     const bits: string[] = []
-    if (overDays) bits.push(`over capacity on ${overDays} ${overDays === 1 ? 'day' : 'days'}`)
-    if (timeOffDays) bits.push(`on time off for ${timeOffDays} ${timeOffDays === 1 ? 'day' : 'days'}`)
-    return bits.length ? bits.join(' and ') : null
+    if (overDays)
+      bits.push(
+        overDays === 1
+          ? m.form_allocation_advisory_over_capacity_one({ count: overDays })
+          : m.form_allocation_advisory_over_capacity_other({ count: overDays }),
+      )
+    if (timeOffDays)
+      bits.push(
+        timeOffDays === 1
+          ? m.form_allocation_advisory_timeoff_one({ count: timeOffDays })
+          : m.form_allocation_advisory_timeoff_other({ count: timeOffDays }),
+      )
+    return bits.length ? bits.join(m.form_allocation_advisory_join()) : null
   })()
 
   return (
     <Modal
       title={
         editing ? (
-          'Edit allocation'
+          m.form_allocation_edit_title()
         ) : createName ? (
-          <>New allocation for <strong>{createName}</strong></>
+          <>{m.form_allocation_new_for({ name: '' })}<strong>{createName}</strong></>
         ) : (
-          'New allocation'
+          m.form_allocation_new_title()
         )
       }
       onClose={onClose}
@@ -356,104 +371,104 @@ export function AllocationModal(props: AllocationModalProps) {
           {editing && (
             <>
               <Button variant="danger" onClick={() => { deleteAllocation(editing.id); onClose() }}>
-                Delete
+                {m.form_delete()}
               </Button>
               <Button variant="ghost" onClick={onDuplicate}>
-                Duplicate
+                {m.form_allocation_duplicate()}
               </Button>
             </>
           )}
           <span className="flex-1" />
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
       {!create && (
-        <SelectField label="Assignee" value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder="— Select resource —" required invalid={errorField === 'resource'} describedById={errorId} />
+        <SelectField label={m.form_allocation_assignee_label()} value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder={m.form_allocation_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
       )}
-      {isPlaceholder && <p className="text-xs text-muted">Placeholder — locked to its bound project.</p>}
+      {isPlaceholder && <p className="text-xs text-muted">{m.form_allocation_placeholder_locked()}</p>}
 
       <SelectField
-        label="Project"
+        label={m.form_allocation_project_label()}
         value={projectId}
         onChange={onProjectChange}
         options={projectOptions}
       />
-      <SelectField label="Activity" value={activityId} onChange={setActivityId} options={activityOptions} placeholder="— Select activity —" required invalid={errorField === 'activity'} describedById={errorId} />
+      <SelectField label={m.form_allocation_activity_label()} value={activityId} onChange={setActivityId} options={activityOptions} placeholder={m.form_allocation_select_activity_placeholder()} required invalid={errorField === 'activity'} describedById={errorId} />
       <div className="flex gap-2">
         <input
           className={inputClass}
           value={newActivityName}
           maxLength={MAX_NAME_LENGTH}
-          placeholder={projectId ? '…or add a new activity' : '…or add a new repeatable activity'}
-          aria-label="New activity name"
+          placeholder={projectId ? m.form_allocation_new_activity_placeholder() : m.form_allocation_new_repeatable_activity_placeholder()}
+          aria-label={m.form_allocation_new_activity_aria()}
           aria-invalid={errorField === 'newactivity' || undefined}
           onChange={(e) => setNewActivityName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddActivity() } }}
         />
-        <AddButton label="Add activity" variant="ghost" onClick={onAddActivity} />
+        <AddButton label={m.form_allocation_add_activity()} variant="ghost" onClick={onAddActivity} />
       </div>
 
       {isExternal ? (
         <div className="flex gap-2">
           <div className="flex-1">
-            <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+            <DateField label={m.form_allocation_start_date_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
           </div>
           <div className="flex-1">
-            <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
+            <DateField label={m.form_allocation_end_label()} value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
           </div>
         </div>
       ) : isBlocks ? (
         <>
           <div className="flex gap-2">
             <div className="flex-1">
-              <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+              <DateField label={m.form_allocation_start_date_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
+              <NumberField label={m.form_allocation_days_over_label()} value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
             </div>
           </div>
           {startDate && endDateHint && (
-            <p className="text-xs text-muted">Ends {endDateHint}</p>
+            <p className="text-xs text-muted">{m.form_allocation_ends_hint({ date: endDateHint })}</p>
           )}
         </>
       ) : isDays ? (
         <>
           <div className="flex gap-2">
             <div className="flex-1">
-              <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+              <DateField label={m.form_allocation_start_date_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <NumberField label="Days of work" value={daysOfWork} onChange={setDaysOfWork} min={0} step={0.5} required invalid={errorField === 'daysOfWork'} describedById={errorId} />
+              <NumberField label={m.form_allocation_days_of_work_label()} value={daysOfWork} onChange={setDaysOfWork} min={0} step={0.5} required invalid={errorField === 'daysOfWork'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <NumberField label="Days over" value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
+              <NumberField label={m.form_allocation_days_over_label()} value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
             </div>
           </div>
           {startDate && endDateHint && (
-            <p className="text-xs text-muted">Ends {endDateHint} · {round2(effHoursPerDay)}h/day</p>
+            <p className="text-xs text-muted">{m.form_allocation_ends_hint_hours({ date: endDateHint, hours: round2(effHoursPerDay) })}</p>
           )}
         </>
       ) : (
         <>
           <div className="flex gap-2">
             <div className="flex-1">
-              <DateField label="Start Date" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+              <DateField label={m.form_allocation_start_date_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
+              <DateField label={m.form_allocation_end_label()} value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
           </div>
 
-          <NumberField label="Hours / day" value={hoursPerDay} onChange={setHoursPerDay} min={0} max={MAX_HOURS_PER_DAY} required invalid={errorField === 'hours'} describedById={errorId} />
+          <NumberField label={m.form_allocation_hours_per_day_label()} value={hoursPerDay} onChange={setHoursPerDay} min={0} max={MAX_HOURS_PER_DAY} required invalid={errorField === 'hours'} describedById={errorId} />
         </>
       )}
-      <SelectField label="Status" value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
-      <TextAreaField label="Note" value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
+      <SelectField label={m.form_allocation_status_label()} value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={ALLOCATION_STATUS_OPTIONS} />
+      <TextAreaField label={m.form_allocation_note_label()} value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
 
       {/* Externals have no working week — their booking is a literal start/end span, so the weekend
           toggle is meaningless and hidden (they store ignoreWeekends: true). */}
@@ -465,11 +480,11 @@ export function AllocationModal(props: AllocationModalProps) {
             checked={ignoreWeekends}
             onChange={(e) => setIgnoreWeekends(e.target.checked)}
           />
-          <span>Include weekends as working days</span>
+          <span>{m.form_allocation_include_weekends()}</span>
         </label>
       )}
 
-      {advisory && <Callout>This allocation is {advisory}. Saving is still allowed.</Callout>}
+      {advisory && <Callout>{m.form_allocation_advisory({ advisory })}</Callout>}
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

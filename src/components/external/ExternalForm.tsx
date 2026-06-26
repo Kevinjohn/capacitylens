@@ -3,6 +3,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateText } from '../../lib/validation'
+import { m } from '@/i18n'
 import { Button, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { externalCapacityDefaults } from '@capacitylens/shared/types/entities'
@@ -26,7 +27,7 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
     const cleanName = validateText(name, fail, {
       field: 'name',
       required: true,
-      requiredMessage: 'Company name is required.',
+      requiredMessage: m.form_external_err_company_required(),
     })
     if (cleanName === null) return
     const cleanRole = validateText(role, fail, { field: 'role', required: false })
@@ -52,21 +53,21 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
 
   return (
     <Modal
-      title={`${resource ? 'Edit' : 'Add'} external party`}
+      title={resource ? m.form_external_edit_title() : m.form_external_add_title()}
       onClose={onClose}
       onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
-      <TextField label="Company" value={name} onChange={setName} required invalid={errorField === 'name'} describedById={errorId} />
-      <TextField label="Descriptor" value={role} onChange={setRole} placeholder="e.g. Print, Overflow dev" invalid={errorField === 'role'} describedById={errorId} />
+      <TextField label={m.form_external_company_label()} value={name} onChange={setName} required invalid={errorField === 'name'} describedById={errorId} />
+      <TextField label={m.form_external_descriptor_label()} value={role} onChange={setRole} placeholder={m.form_external_descriptor_placeholder()} invalid={errorField === 'role'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

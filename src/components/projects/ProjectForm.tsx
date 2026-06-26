@@ -6,6 +6,7 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { validateProjectClient } from '@capacitylens/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
+import { m } from '@/i18n'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, SelectField, TextField, type Option } from '../common/ui'
 import type { Project } from '@capacitylens/shared/types/entities'
 
@@ -46,22 +47,22 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
 
   return (
     <Modal
-      title={project ? 'Edit project' : 'Add project'}
+      title={project ? m.form_project_edit_title() : m.form_project_add_title()}
       onClose={onClose}
       onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
-      <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
-      <SelectField label="Client" value={clientId} onChange={setClientId} options={clientOptions} placeholder="— Select client —" required invalid={errorField === 'client'} describedById={errorId} />
-      <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      <TextField label={m.form_project_name_label()} value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
+      <SelectField label={m.form_project_client_label()} value={clientId} onChange={setClientId} options={clientOptions} placeholder={m.form_project_select_client_placeholder()} required invalid={errorField === 'client'} describedById={errorId} />
+      <ColorField label={m.form_project_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

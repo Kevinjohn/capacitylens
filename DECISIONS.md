@@ -139,7 +139,17 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   **render**, never at module load — a module-scope literal (e.g. an array of nav labels) must use a
   getter (`() => m.key()`) so the account-scoped locale switch re-resolves on the next render rather
   than freezing to the import-time locale. The UI-string migration runs area-by-area (P1.5.2:
-  nav/sidebar → Settings → scheduler → dialogs/forms → lists → toasts/errors).
+  nav/sidebar → Settings → scheduler → dialogs/forms → lists → toasts/errors). **Dialogs/forms
+  (P1.5.2 area 4)** use `form_*` for form/dialog chrome — per-entity-prefixed where it clarifies
+  (`form_resource_name_label`, `form_allocation_*`, `form_timeoff_*`, `form_external_*`) — and
+  `dialog_*` for whole-dialog copy (`dialog_delete_company_*`); the command palette uses `palette_*`.
+  A single shared key is reused ONLY when the English string is identical AND it's the same action:
+  `form_save`/`form_cancel`/`form_delete`/`form_add`/`form_edit` cover the Save/Cancel/Delete/Add/Edit
+  buttons across every form/dialog. Interpolated titles/confirms are parameterized
+  (`form_allocation_new_for({name})`, `dialog_delete_company_confirm_label({name})`,
+  `palette_no_results({query})`); singular/plural advisory pairs are `_one`/`_other` selected in JS.
+  Transient `setNotice`/toast strings inside a dialog (e.g. the unsaved-changes guard) are NOT swept
+  here — they belong to area 6 (toasts/errors).
 - **Disciplines are optional (account-level)** — `disciplinesEnabled` on the Account (absent =
   true; Settings → Disciplines). Off hides disciplines across the WHOLE UI (nav + `/disciplines`
   route guard, resource-form field, schedule grouping + filter, Resources list, command palette,

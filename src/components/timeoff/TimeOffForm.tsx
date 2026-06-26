@@ -4,6 +4,7 @@ import { placeholdersEnabledFor } from '../../store/selectors'
 import { useScopedData } from '../../store/useScopedData'
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
+import { m } from '@/i18n'
 import { Button, DateField, FieldError, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
 import { TIME_OFF_TYPE_OPTIONS, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
@@ -54,15 +55,15 @@ export function TimeOffForm({
     // write boundary too rather than persist an orphan time-off the schedule never renders.
     const chosen = resources.find((r) => r.id === resourceId)
     if (!chosen || isExternalResource(chosen)) {
-      fail('resource', 'Choose a resource.')
+      fail('resource', m.form_timeoff_err_choose_resource())
       return
     }
     if (!startDate || !endDate) {
-      fail('dates', 'Start and end dates are required.')
+      fail('dates', m.form_timeoff_err_dates_required())
       return
     }
     if (endDate < startDate) {
-      fail('dates', 'End date cannot be before the start date.')
+      fail('dates', m.form_timeoff_err_end_before_start())
       return
     }
     const cleanNote = validateText(note, fail, { field: 'note', required: false, multiline: true })
@@ -73,30 +74,30 @@ export function TimeOffForm({
       else add(patch)
       onClose()
     } catch (e) {
-      fail(null, e instanceof Error ? e.message : 'Could not save this time off.')
+      fail(null, e instanceof Error ? e.message : m.form_timeoff_err_save_failed())
     }
   }
 
   return (
     <Modal
-      title={timeOff ? 'Edit time off' : 'Add time off'}
+      title={timeOff ? m.form_timeoff_edit_title() : m.form_timeoff_add_title()}
       onClose={onClose}
       onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
-      <SelectField label="Resource" value={resourceId} onChange={setResourceId} options={resourceOptions} placeholder="— Select resource —" required invalid={errorField === 'resource'} describedById={errorId} />
-      <DateField label="Start" value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
-      <DateField label="End" value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
-      <SelectField label="Type" value={type} onChange={(v) => setType(v as TimeOffType)} options={TIME_OFF_TYPE_OPTIONS} />
-      <TextAreaField label="Note" value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
+      <SelectField label={m.form_timeoff_resource_label()} value={resourceId} onChange={setResourceId} options={resourceOptions} placeholder={m.form_timeoff_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
+      <DateField label={m.form_timeoff_start_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
+      <DateField label={m.form_timeoff_end_label()} value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
+      <SelectField label={m.form_timeoff_type_label()} value={type} onChange={(v) => setType(v as TimeOffType)} options={TIME_OFF_TYPE_OPTIONS} />
+      <TextAreaField label={m.form_timeoff_note_label()} value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

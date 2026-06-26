@@ -4,6 +4,7 @@ import { useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
+import { m } from '@/i18n'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { Discipline } from '@capacitylens/shared/types/entities'
@@ -41,21 +42,21 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
 
   return (
     <Modal
-      title={discipline ? 'Edit discipline' : 'Add discipline'}
+      title={discipline ? m.form_discipline_edit_title() : m.form_discipline_add_title()}
       onClose={onClose}
       onSubmit={submit}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {m.form_cancel()}
           </Button>
-          <Button type="submit">Save</Button>
+          <Button type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <RequiredLegend />
-      <TextField label="Name" value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
-      <ColorField label="Colour" value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      <TextField label={m.form_discipline_name_label()} value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
+      <ColorField label={m.form_discipline_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )
