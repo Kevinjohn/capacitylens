@@ -156,7 +156,7 @@ export function attachPersistence(
   // In SERVER mode only: when the active account changes to a NON-NULL id, hydrate THAT account's
   // slice and re-seed the adapter's diff snapshot to it ATOMICALLY, so a save can never diff one
   // account's data against another's snapshot (which would emit DELETEs for account A + PUTs for
-  // account B → cross-account data loss). In LOCAL/OFF mode this is INERT — `data` already holds all
+  // account B → cross-account data loss). In the DEMO build / OFF this is INERT — `data` already holds all
   // accounts, so a switch is a pure view change with nothing to load.
   //
   // SEQUENCE on a switch to `newId`:
@@ -327,9 +327,10 @@ export interface BootstrapOptions {
   /** Called after a persistence write succeeds — lets the caller clear a prior
    *  error state once saving recovers (e.g. the server comes back). */
   onSuccess?: () => void
-  /** True when a backend is configured (VITE_CAPACITYLENS_API set). Enables the per-account switch
+  /** True when a backend is in use — server mode (the default; false only in the demo build,
+   *  VITE_CAPACITYLENS_DEMO=1). Enables the per-account switch
    *  orchestrator (P1.13): a tenant pick hydrates that account's slice via `loadAll(accountId)` and
-   *  re-seeds the diff snapshot atomically. Local mode (false) leaves the orchestrator inert — `data`
+   *  re-seeds the diff snapshot atomically. The demo build (false) leaves the orchestrator inert — `data`
    *  already holds all accounts, so a switch is a pure view change. */
   serverMode?: boolean
 }

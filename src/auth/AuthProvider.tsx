@@ -4,8 +4,8 @@ import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { useStore } from '../store/useStore'
 import { AuthContext, type AuthMode, type AuthUser } from './authContext'
 
-// Auth boundary (production plan P3.3). In LOCAL mode (no VITE_CAPACITYLENS_API) this is a
-// pure pass-through that performs NO fetch at all. In server mode it asks
+// Auth boundary (production plan P3.3). In the demo build (VITE_CAPACITYLENS_DEMO=1) this is a
+// pure pass-through that performs NO fetch at all. In server mode (the default) it asks
 // GET /api/auth/me once at boot: authMode 'off' (the default deploy) renders the app
 // exactly as today; a 401 replaces everything with the LoginScreen. The screen is a
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
@@ -66,8 +66,8 @@ async function fetchAuthStatus(): Promise<Status> {
 /**
  * Boot-time auth boundary.
  *
- * - LOCAL mode (no VITE_CAPACITYLENS_API): a pure pass-through — performs ZERO fetches, renders children.
- * - SERVER mode: asks GET /api/auth/me ONCE at boot. authMode 'off' (the default deploy) renders
+ * - DEMO mode (VITE_CAPACITYLENS_DEMO=1): a pure pass-through — performs ZERO fetches, renders children.
+ * - SERVER mode (the default): asks GET /api/auth/me ONCE at boot. authMode 'off' (the default deploy) renders
  *   the app as today; a 401 swaps in the lazy LoginScreen; any OTHER failure ALSO renders the app
  *   (deliberate — persistError / ConnectionError describe a broken server better than a dead end).
  * - Re-checks on `persistError` so an expired session (a 401 on a write) swaps to the login screen
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const persistError = useStore((s) => s.persistError)
 
   useEffect(() => {
-    if (!serverMode) return // local mode: no auth request, ever
+    if (!serverMode) return // demo build: no auth request, ever
     void fetchAuthStatus().then(setStatus)
   }, [serverMode])
 

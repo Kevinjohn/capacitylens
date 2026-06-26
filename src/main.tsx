@@ -28,7 +28,7 @@ watchSystemTheme(() => useStore.getState().theme)
 void bootstrap(useStore, persistenceAdapter, {
   seedIfEmpty: seed(),
   // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
-  // re-seeds the diff snapshot atomically (the switch orchestrator). Local mode leaves it inert.
+  // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
   serverMode: isServerConfigured(),
   onError: () => useStore.getState().setPersistError(true),
   // Recovery: once a write lands again (e.g. the server comes back), take the
@@ -55,7 +55,7 @@ if (!rootEl) throw new Error(`${APP_NAME} mount node #root not found in index.ht
 createRoot(rootEl).render(
   <StrictMode>
     <ErrorBoundary>
-      {/* Auth boundary (P3.3): local mode and auth-off deploys pass straight through;
+      {/* Auth boundary (P3.3): the demo build and auth-off deploys pass straight through;
           only an auth-enabled server (CAPACITYLENS_AUTH=password|sso) can swap in the login
           screen. Wraps the router so a 401 walls off the whole app, picker included. */}
       <AuthProvider>

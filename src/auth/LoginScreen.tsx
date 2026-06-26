@@ -8,7 +8,7 @@ import { m } from '@/i18n'
 
 // The flag-gated login wall (production plan P3.3; US-NAV-10). Only ever rendered when
 // the server reports authMode 'password' or 'sso' AND there is no session — the default
-// deploy (auth off) and local mode never see it. Driven by Better Auth's React client;
+// deploy (auth off) and the demo build never see it. Driven by Better Auth's React client;
 // no sign-up form this round (accounts are created via the API by whoever runs the demo).
 
 export function LoginScreen({

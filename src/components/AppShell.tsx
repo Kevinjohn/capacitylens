@@ -44,7 +44,7 @@ const LINKS: NavLinkDef[] = [
 ]
 
 export function AppShell() {
-  // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, local mode
+  // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, the demo build
   // derives from data.accounts. Mounted at the TOP so it runs before (and during) the tenant gate
   // below — the picker needs the list before any account is chosen. A side-effect hook, renders nothing.
   useAccountSummaries()

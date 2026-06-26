@@ -7,12 +7,12 @@ import type { Role } from '@capacitylens/shared/domain/access'
 // The AccountPicker's data source (production plan P1.13). It populates `store.accountSummaries` — the
 // list of accounts the login may OPEN — from the right source for the deploy:
 //
-//   - SERVER mode (VITE_CAPACITYLENS_API set, OFF *or* auth-on): fetch `GET /api/accounts`. Auth-on
+//   - SERVER mode (the default, OFF *or* auth-on): fetch `GET /api/accounts`. Auth-on
 //     returns ONLY the caller's memberships; OFF returns every account tagged role:'owner'. Either way
 //     the picker lists exactly what the server says this login may open — and the no-arg whole-state
 //     read is closed in auth-on, so this is the ONLY way the client learns the account list.
-//   - LOCAL mode (no server): derive the summaries from `data.accounts` (NO fetch) — so local
-//     behaviour is byte-identical to today (the picker shows the local companies the store holds).
+//   - DEMO build (VITE_CAPACITYLENS_DEMO=1, no server): derive the summaries from `data.accounts` (NO
+//     fetch) — the picker shows the local companies the store holds.
 //
 // MIRRORS PermissionProvider's idiom exactly: an in-effect async IIFE with a cancellation flag, every
 // setState behind the await, an UNTRUSTED-shape guard on the server body (a bad entry is dropped, not
@@ -43,7 +43,7 @@ function toSummary(entry: unknown): AccountSummary | null {
  * - SERVER mode: fetch `GET /api/accounts` once on mount (re-keyed on the active account so a sign-in
  *   or account switch re-pulls a fresh list). On any failure the existing list is LEFT AS-IS (a
  *   transient blip shouldn't blank the picker); a fully-off-spec body yields an empty list.
- * - LOCAL mode: derive the list from `data.accounts` on every change (no fetch).
+ * - DEMO build: derive the list from `data.accounts` on every change (no fetch).
  *
  * Renders nothing — it's a side-effect hook mounted high in the tree (alongside the auth providers).
  */
@@ -51,15 +51,15 @@ export function useAccountSummaries(): void {
   const serverMode = isServerConfigured()
   const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   // Re-key the server fetch on the active account so a switch / sign-in re-pulls the list (a freshly
-  // accepted invite or a just-created org then appears). Harmless in local mode (that branch ignores it).
+  // accepted invite or a just-created org then appears). Harmless in the demo build (that branch ignores it).
   const activeAccountId = useStore((s) => s.activeAccountId)
-  // Local mode reads the accounts straight off the store; selecting the array keeps the derive effect
+  // The demo build reads the accounts straight off the store; selecting the array keeps the derive effect
   // reactive to add/delete. (In server mode `data.accounts` holds only the active slice, so this is
   // NOT the picker source there — the fetch is.)
   const localAccounts = useStore((s) => s.data.accounts)
 
   useEffect(() => {
-    if (!serverMode) return // local mode handled by the derive effect below
+    if (!serverMode) return // demo build handled by the derive effect below
     let cancelled = false
     void (async () => {
       try {
@@ -85,7 +85,7 @@ export function useAccountSummaries(): void {
 
   useEffect(() => {
     if (serverMode) return // server mode is driven by the fetch above, not the local derive
-    // LOCAL mode: the picker's list IS the store's accounts (tagged owner = full access, mirroring the
+    // DEMO build: the picker's list IS the store's accounts (tagged owner = full access, mirroring the
     // server's OFF wire shape so the pure `can` keeps local fully editable). Kept in lockstep on every
     // add/delete so the picker reflects changes without a fetch.
     setAccountSummaries(localAccounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const })))

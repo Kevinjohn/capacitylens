@@ -109,8 +109,8 @@ export function SettingsView() {
 
   // "Clear local storage" — a destructive, user-triggered wipe of everything CapacityLens keeps in THIS
   // browser (the persisted AppData + every device-global pref). The copy adapts to where the real
-  // data lives: in server mode (VITE_CAPACITYLENS_API set) the DB is the source of truth and the reload
-  // re-hydrates from it, so the local wipe is non-destructive to account data; in local mode this
+  // data lives: in server mode (the default) the DB is the source of truth and the reload
+  // re-hydrates from it, so the local wipe is non-destructive to account data; in the demo build this
   // erases the only copy. The reload re-initialises the app from whichever source applies.
   const [confirmingClear, setConfirmingClear] = useState(false)
   const serverMode = isServerConfigured()
@@ -126,7 +126,7 @@ export function SettingsView() {
       return
     }
     // Reload so the app re-initialises from scratch — from the server DB in server mode, or an
-    // empty/seeded dataset in local mode. (No setConfirmingClear here: the page is going away.)
+    // empty/seeded dataset in the demo build. (No setConfirmingClear here: the page is going away.)
     window.location.reload()
   }
 
@@ -387,7 +387,7 @@ export function SettingsView() {
         )}
 
         {/* Account section (P3.3) — only on an auth-enabled deploy (authMode ≠ off, as
-            reported by the server). Auth off and local mode render nothing here. */}
+            reported by the server). Auth off and the demo build render nothing here. */}
         {authMode !== 'off' && (
           <section className="rounded border border-line bg-surface p-4">
             <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_account_heading()}</h2>
@@ -401,12 +401,12 @@ export function SettingsView() {
         )}
 
         {/* Member management (P1.11) — only on an auth-enabled, server-backed deploy, and the section
-            self-gates further (a 403 on the members read hides it for a viewer/editor). OFF/local mode
+            self-gates further (a 403 on the members read hides it for a viewer/editor). OFF/demo mode
             renders nothing. */}
         {authMode !== 'off' && <MembersSection />}
 
         {/* Archived & deleted (P2.5b) — the admin view of the data-lifecycle. Unlike Members it ALSO
-            shows in LOCAL mode (everyone is owner locally); in SERVER mode it self-gates on a 403 from
+            shows in the DEMO build (everyone is owner locally); in SERVER mode it self-gates on a 403 from
             the inactive read (admin tier). Rendered unconditionally; the section decides its own
             visibility. */}
         <ArchivedSection />

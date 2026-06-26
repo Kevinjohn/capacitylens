@@ -135,7 +135,7 @@ export function AccountPicker() {
             <li className="rounded-lg border border-dashed bg-surface px-4 py-8 text-center text-sm text-muted">
               {/* Empty list has two meanings (P1.13): in server/auth-on mode the login simply has NO
                   memberships yet, so guide them to ask an admin (they may still create their own org
-                  below); in local/OFF mode there are no companies on this device yet. One copy covers
+                  below); in the demo/OFF build there are no companies on this device yet. One copy covers
                   both honestly — "create your first one" still applies (the New company button is below). */}
               {m.picker_empty()}
             </li>

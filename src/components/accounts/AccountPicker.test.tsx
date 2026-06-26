@@ -8,7 +8,7 @@ import { useStore } from '../../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
 
-/** Seed the picker's server-sourced list (P1.13) from the store's accounts — mirrors local-mode
+/** Seed the picker's server-sourced list (P1.13) from the store's accounts — mirrors the demo build's
  *  derivation (useAccountSummaries), which these unit tests don't mount. The picker now lists from
  *  accountSummaries, NOT data.accounts, so any test that seeds accounts must seed summaries too. */
 function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {

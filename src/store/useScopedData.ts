@@ -47,14 +47,14 @@ export function useActiveScopedData(): AppData {
  * soft-deleted) WITHOUT the active-only projection, so the admin view can partition the rows by
  * `lifecycleStatus(e)` and list the archived / deleted ones the normal views hide.
  *
- * This is the LOCAL/OFF-mode source of those rows: in local mode the store's `data` blob already holds
+ * This is the DEMO-build / OFF source of those rows: in the demo build the store's `data` blob already holds
  * the archived/deleted rows (the lifecycle store actions mutate it in place), so the raw scoped slice
  * IS the full picture.
  *
- * SERVER MODE NOTE: when `VITE_CAPACITYLENS_API` is set, the per-account read narrows to ACTIVE rows
+ * SERVER MODE NOTE: in server mode (the default), the per-account read narrows to ACTIVE rows
  * only (`activeOnly` runs server-side in `readSlice`'s default branch), so the store's `data` holds NO
  * archived/deleted rows. The admin view must instead fetch them with `?includeInactive=1` — that fetch
- * (and its wiring to this hook) is the NEXT subagent's job; this hook is only the local-mode half.
+ * (and its wiring to this hook) is the NEXT subagent's job; this hook is only the demo-build half.
  * Returns {@link useScopedData} unchanged today (a thin, clearly-named wrapper), kept distinct from
  * `useScopedData` so the admin view's intent reads at the call site and a future server-mode change
  * lands in ONE place.

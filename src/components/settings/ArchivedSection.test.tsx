@@ -8,11 +8,11 @@ import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData, Client, Project, Resource } from '@capacitylens/shared/types/entities'
 
 // ArchivedSection is the Settings → "Archived & deleted" admin view (P2.5b). These tests cover the
-// DEFAULT (local) mode: it reads the inactive rows straight from the store (useInactiveScopedData),
+// demo build (no server): it reads the inactive rows straight from the store (useInactiveScopedData),
 // always renders (everyone is owner locally), and drives the store's lifecycle actions. The last
 // test mocks fetch + flips server mode on to prove the 403-self-hide.
 
-// apiConfig is mocked with a MUTABLE server flag so most tests run in local mode (false) while the
+// apiConfig is mocked with a MUTABLE server flag so most tests run in the demo build (false) while the
 // final self-hide test flips it to true. `API_BASE` is set so the server-mode fetch URL is well-formed.
 // The flag lives in a vi.hoisted() box (the mock factory is hoisted above plain `let`s, so a bare
 // variable would throw "Cannot access before initialization"); the mocked isServerConfigured READS it
@@ -72,14 +72,14 @@ function seed(data: Partial<AppData>): void {
 }
 
 beforeEach(() => {
-  cfg.serverOn = false // local mode by default; the self-hide test flips it on.
+  cfg.serverOn = false // demo build by default; the self-hide test flips it on.
   seed({})
 })
 afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('ArchivedSection — local mode (store source)', () => {
+describe('ArchivedSection — demo build (store source)', () => {
   it('renders an empty state when nothing is archived or deleted', () => {
     seed({ resources: [resource({})] }) // one ACTIVE resource → not listed
     render(<ArchivedSection />)

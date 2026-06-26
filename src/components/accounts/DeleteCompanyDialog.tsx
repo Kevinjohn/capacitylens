@@ -19,7 +19,7 @@ import type { ID } from '@capacitylens/shared/types/entities'
 // (acceptable — you delete the company you're in, and type-to-confirm is the real guard).
 // LIFECYCLE NOTE (P2.4): in SERVER mode the loaded slice is active-only (the per-account read hides
 // archived/soft-deleted rows), so this pre-delete backup omits them; they live in the server DB and a
-// COMPLETE per-tenant export is P2.6. In LOCAL mode the slice is the whole blob, so it is complete.
+// COMPLETE per-tenant export is P2.6. In the DEMO build the slice is the whole blob, so it is complete.
 export function DeleteCompanyDialog({
   account,
   onConfirm,

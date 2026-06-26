@@ -278,18 +278,18 @@ describe('account-switch orchestrator (P1.13, server mode)', () => {
     detach()
   })
 
-  it('is INERT in local mode — a switch does NOT call loadAll(accountId)', async () => {
+  it('is INERT in the demo build — a switch does NOT call loadAll(accountId)', async () => {
     const loadAll = vi.fn(async () => emptyAppData())
     const saveAll = vi.fn().mockResolvedValue(undefined)
     const adapter: PersistenceAdapter = { loadAll, saveAll }
 
     useStore.getState().replaceAll(makeLocalTwoAccounts())
     useStore.getState().setActiveAccount('a1')
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false) // local mode
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false) // demo build
 
     useStore.getState().setActiveAccount('a2')
     await new Promise((r) => setTimeout(r, 5))
-    // Local mode: data already holds all accounts, so the orchestrator never fetches a slice.
+    // Demo build: data already holds all accounts, so the orchestrator never fetches a slice.
     expect(loadAll).not.toHaveBeenCalled()
     detach()
   })
@@ -410,11 +410,11 @@ describe('refresh-on-focus (P1.16, server mode)', () => {
     detach()
   })
 
-  it('is INERT in local mode — focus does NOT call loadAll', async () => {
+  it('is INERT in the demo build — focus does NOT call loadAll', async () => {
     const { adapter, loadAll } = recordingAdapter(a2Slice())
     useStore.getState().replaceAll(makeLocalTwoAccounts())
     useStore.getState().setActiveAccount('a1')
-    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false) // local mode
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, false) // demo build
     loadAll.mockClear()
 
     window.dispatchEvent(new Event('focus'))

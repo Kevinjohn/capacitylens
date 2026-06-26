@@ -27,7 +27,7 @@ type State =
   | { kind: 'working' }
   | { kind: 'joined'; accountId: string; role: string }
   | { kind: 'error'; message: string }
-  | { kind: 'local' } // no server configured — invites are a server-mode feature
+  | { kind: 'local' } // the demo build (no server) — invites are a server-mode feature
 
 // Map the accept endpoint's status codes to the surfaced message. 404/409/410 are the documented
 // invite outcomes (unknown / already-used / expired); the server's JSON `{ error }` body carries a
@@ -46,15 +46,15 @@ function messageForStatus(status: number, bodyError: string | undefined): string
  *
  * In server mode it POSTs the accept endpoint once on mount and renders one of: a "you've joined"
  * success (with a continue link to the app, after switching the active company to the joined
- * account), the matching error for a 404/409/410/401, or a generic failure. In OFF/local mode (no
- * `VITE_CAPACITYLENS_API`) there is no server to accept against, so it shows a short "invites require
+ * account), the matching error for a 404/409/410/401, or a generic failure. In the demo build
+ * (VITE_CAPACITYLENS_DEMO=1) there is no server to accept against, so it shows a short "invites require
  * server mode" note and makes no request. Surface-not-swallow: every failure path lands on a visible
  * message; nothing is silently dropped.
  */
 export function InviteAccept() {
   const { token } = useParams<{ token: string }>()
   const setActiveAccount = useStore((s) => s.setActiveAccount)
-  // The initial render already encodes the no-fetch outcomes (local mode; a missing token — which the
+  // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
   // `/invite/:token` route shouldn't even match, but is handled defensively), so the effect never has
   // to setState synchronously: it only ever sets state from an async fetch callback.
   const [state, setState] = useState<State>(() => {
@@ -70,7 +70,7 @@ export function InviteAccept() {
   const fired = useRef(false)
 
   useEffect(() => {
-    if (!isServerConfigured() || !token) return // local mode / no token: nothing to accept against
+    if (!isServerConfigured() || !token) return // demo build / no token: nothing to accept against
     if (fired.current) return
     fired.current = true
 
