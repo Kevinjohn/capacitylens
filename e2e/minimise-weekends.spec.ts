@@ -110,6 +110,17 @@ test.describe('Minimise weekends', () => {
     expect(weekend.width).toBeLessThan(weekday.width)
   })
 
+  // WCAG 2.5.8 (Target Size, AA): the preference switch must be ≥24×24px. The unit test in
+  // SettingsView.test.tsx can only assert the h-6 class (jsdom runs no layout), so this measures the
+  // REAL rendered geometry the build ships — a class rename that drops below 24px is caught here.
+  test('the preference switch renders at least 24px tall (WCAG 2.5.8 target size)', async ({ page }) => {
+    await openApp(page, 'Studio North', '/settings')
+    const sw = page.getByRole('switch', { name: 'Minimise weekends' })
+    const b = await box(sw)
+    expect(b.height).toBeGreaterThanOrEqual(24)
+    expect(b.width).toBeGreaterThanOrEqual(24) // a non-degenerate target in both dimensions
+  })
+
   test('toggling it off in Settings restores full-width Sat/Sun columns', async ({ page }) => {
     await openApp(page, 'Studio North', '/settings')
     const toggle = page.getByRole('switch', { name: 'Minimise weekends' })

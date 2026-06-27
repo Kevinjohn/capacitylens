@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { resolveBarColor, readableTextColor, contrastRatio, ensureBarColors, isHexColor } from '@capacitylens/shared/lib/color'
-import { DEFAULT_COLORS } from './palette'
+import { DEFAULT_COLORS, SWATCHES } from './palette'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 
@@ -85,6 +85,90 @@ describe('isHexColor', () => {
     expect(isHexColor('#abc')).toBe(false)
     expect(isHexColor('3b82f6')).toBe(false)
     expect(isHexColor('rgb(0,0,0)')).toBe(false)
+  })
+})
+
+// Design-token contrast guard. The hex values mirror the `--c-*` tokens in src/index.css; CSS
+// custom properties aren't resolvable in jsdom, so we pin the values here and FAIL the gate if the
+// token is edited below AA without updating its inline ratio comment. --c-faint was 4.43:1 on the
+// canvas (sub-AA) and is darkened to #677080 to clear 4.5:1 on BOTH the canvas and the white surface
+// (WCAG 1.4.3 / SC 1.4.3, normal small text). See the token comment in src/index.css.
+describe('design-token contrast (--c-faint, WCAG 1.4.3 AA)', () => {
+  const FAINT_LIGHT = '#677080'
+  const CANVAS_LIGHT = '#f4f5f8' // --c-base
+  const SURFACE_LIGHT = '#ffffff' // --c-surface (= --c-elevated)
+  const FAINT_DARK = '#8b93a3'
+  const CANVAS_DARK = '#0e1016'
+  const SURFACE_DARK = '#161922'
+  const ELEVATED_DARK = '#1d212c'
+
+  it('clears 4.5:1 on the light canvas AND surface', () => {
+    expect(contrastRatio(FAINT_LIGHT, CANVAS_LIGHT)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(FAINT_LIGHT, SURFACE_LIGHT)).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('the dark-theme faint stays AA on every dark ground', () => {
+    expect(contrastRatio(FAINT_DARK, CANVAS_DARK)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(FAINT_DARK, SURFACE_DARK)).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio(FAINT_DARK, ELEVATED_DARK)).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+// AllocationBar focus indicator — the dual-tone ring (WCAG 1.4.11, Non-text Contrast ≥3:1). The two
+// ring colours below mirror --c-focus-ink / --c-focus-halo in src/index.css (jsdom can't resolve CSS
+// vars, so pin them here and FAIL the gate if the CSS changes without updating these). The ring is a
+// near-BLACK edge + a near-WHITE edge straddling the bar's outer border, BOTH adjacent to whatever is
+// behind the bar. The conformance claim: against EVERY adjacency, in BOTH themes, AT LEAST ONE of the
+// two edges clears 3:1 — so the indicator never disappears, including on the over-capacity cell red.
+//
+// This guard FAILS the prior single-halo approach: that used ONE light edge (white in light / near-
+// white #e7eaf0 in dark). On the LIGHT over-cell rose (#fb9ea1) white reads only ~2.0:1, so a
+// single-light-edge max would be <3 and this assertion would fail; the dark edge (#1c2230) rescues it
+// at ~7.95:1. (The brand indigo outline, kept as an identity layer, is NOT counted here.)
+describe('AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)', () => {
+  const RING_INK = '#1c2230' // --c-focus-ink (near-black edge — wins on pale grounds)
+  const RING_HALO = '#ffffff' // --c-focus-halo (near-white edge — wins on dark grounds)
+
+  // Backgrounds the focus ring can sit adjacent to, in BOTH themes. The over-cell + weekend hexes are
+  // the sRGB resolution of the index.css `color-mix(in oklab, …)` tokens (verified to the rgb values
+  // the token comments cite), pinned here because jsdom can't resolve color-mix.
+  const ADJACENCIES: Record<string, string> = {
+    // --c-danger-cell: light = color-mix(in oklab, #e11d48 50%, white); dark = color-mix(#fb7185 60%, #0e1016)
+    'over-cell (light)': '#fb9ea1', // ≈ rgb(251,158,161) — pale rose: white reads ~2:1, the DARK edge wins
+    'over-cell (dark)': '#934956', //  ≈ rgb(147,73,86)  — deep red:  the LIGHT edge wins
+    'canvas (light) --c-base': '#f4f5f8',
+    'canvas (dark) --c-base': '#0e1016',
+    'surface (light) --c-surface': '#ffffff',
+    'surface (dark) --c-surface': '#161922',
+    // --c-weekend: light = color-mix(#1c2230 8%, #ffffff); dark = color-mix(#e7eaf0 7%, #161922)
+    'weekend (light)': '#eaebed',
+    'weekend (dark)': '#22252e',
+  }
+
+  // The palest + darkest discipline swatches (read live from the palette, so a palette edit can't make
+  // this stale): the extreme grounds an opaque bar fill can be. Palest = highest contrast vs black ink;
+  // darkest = highest contrast vs white halo.
+  const palest = [...SWATCHES].sort((a, b) => contrastRatio(b, '#000000') - contrastRatio(a, '#000000'))[0]
+  const darkest = [...SWATCHES].sort((a, b) => contrastRatio(b, '#ffffff') - contrastRatio(a, '#ffffff'))[0]
+  ADJACENCIES['palest swatch'] = palest
+  ADJACENCIES['darkest swatch'] = darkest
+
+  for (const [name, bg] of Object.entries(ADJACENCIES)) {
+    it(`at least one ring edge clears 3:1 against ${name} (${bg})`, () => {
+      const best = Math.max(contrastRatio(RING_INK, bg), contrastRatio(RING_HALO, bg))
+      expect(best).toBeGreaterThanOrEqual(3.0)
+    })
+  }
+
+  it('the dark edge (not white) is what carries the light over-cell — the old single light halo failed here', () => {
+    // White-only (the retired single-halo approach) is sub-3 on the pale light over-cell; the pairing rescues it.
+    expect(contrastRatio(RING_HALO, '#fb9ea1')).toBeLessThan(3.0)
+    expect(contrastRatio(RING_INK, '#fb9ea1')).toBeGreaterThanOrEqual(3.0)
+  })
+
+  it('the light edge (not black) is what carries the dark over-cell', () => {
+    expect(contrastRatio(RING_INK, '#934956')).toBeLessThan(3.0)
+    expect(contrastRatio(RING_HALO, '#934956')).toBeGreaterThanOrEqual(3.0)
   })
 })
 
