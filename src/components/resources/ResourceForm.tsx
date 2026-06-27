@@ -149,7 +149,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
         <SelectField label={m.form_resource_bound_project_label()} value={projectId} onChange={setProjectId} options={projectOptions} placeholder={m.form_resource_select_project_placeholder()} required invalid={errorField === 'projectId'} describedById={errorId} />
       )}
       <NumberField label={m.form_resource_working_hours_label()} value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
-      <WeekdayPicker label={m.form_resource_working_days_label()} value={workingDays} onChange={setWorkingDays} />
+      <WeekdayPicker label={m.form_resource_working_days_label()} value={workingDays} onChange={setWorkingDays} invalid={errorField === 'workingDays'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>
   )

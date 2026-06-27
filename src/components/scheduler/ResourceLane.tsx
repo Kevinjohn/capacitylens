@@ -1,5 +1,4 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import { m } from '@/i18n'
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath'
 import { useStore } from '../../store/useStore'
 import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
@@ -260,7 +259,9 @@ export const ResourceLane = memo(function ResourceLane({
           <div
             key={`o-${d}`}
             data-testid="over-marker"
-            title={m.scheduler_over_marker_title()}
+            // No `title` here: this element is pointer-events-none, so a hover/focus tooltip on it is
+            // unreachable (does nothing). The over-capacity signal is carried accessibly by the per-row
+            // sr-only summary (SchedulerGrid's `scheduler_sr_over_capacity_*`) instead.
             className="pointer-events-none absolute top-0 h-full border-t-[3px] border-danger bg-danger-cell"
             style={{ left: geom.x(i), width: geom.widthOf(i) }}
           />
@@ -272,7 +273,9 @@ export const ResourceLane = memo(function ResourceLane({
         <div
           key={b.id}
           data-testid="timeoff-block"
-          title={b.note ?? b.label}
+          // No `title` here: this block is pointer-events-none, so a hover tooltip on it is unreachable.
+          // The specific label is instead carried for AT by the sr-only span below — which survives even
+          // when the block is too narrow (<=44px) for the VISIBLE uppercase label to fit.
           // `scheduler-timeoff-block` is the semantic hook the time-off draw-mode CSS glows
           // (index.css), keyed by class — NOT by `data-testid` (which stays test-only selection).
           className="scheduler-timeoff-block pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted"
@@ -283,7 +286,11 @@ export const ResourceLane = memo(function ResourceLane({
               'repeating-linear-gradient(45deg, color-mix(in oklab, var(--color-faint) 28%, transparent) 0 5px, transparent 5px 10px)',
           }}
         >
-          {b.width > 44 ? b.label : ''}
+          {/* The specific time-off label is always available to AT (it's dropped from the VISIBLE label
+              below at narrow widths). The per-row sr-only summary only counts time-off periods; this
+              names them. aria-hidden on the visible label so the name isn't read twice when it IS shown. */}
+          <span className="sr-only">{b.label}</span>
+          <span aria-hidden>{b.width > 44 ? b.label : ''}</span>
         </div>
       ))}
 

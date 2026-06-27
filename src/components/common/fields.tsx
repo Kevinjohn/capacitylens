@@ -464,7 +464,21 @@ function weekdayShortLabel(day: Weekday): string {
   }
 }
 
-export function WeekdayPicker({ label, value, onChange }: { label: string; value: Weekday[]; onChange: (v: Weekday[]) => void }) {
+export function WeekdayPicker({
+  label,
+  value,
+  onChange,
+  invalid,
+  describedById,
+}: {
+  label: string
+  value: Weekday[]
+  onChange: (v: Weekday[]) => void
+  // Mirror the sibling fields (TextField/SelectField/NumberField): mark the GROUP errored so the
+  // required-error (no day selected) re-announces when a SR navigates to the fieldset (WCAG 3.3.1).
+  invalid?: boolean
+  describedById?: string
+}) {
   const toggle = (day: Weekday) => {
     onChange(value.includes(day) ? value.filter((d) => d !== day) : [...value, day])
   }
@@ -474,7 +488,7 @@ export function WeekdayPicker({ label, value, onChange }: { label: string; value
     // and aria-pressed reflects it directly. Plain buttons keep every chip individually
     // Tab-reachable — a roving-tabindex toolbar would put only ONE of the seven in the tab
     // order, regressing keyboard reach for no gain (capacitylens drives the model, not Radix).
-    <fieldset className="block">
+    <fieldset className="block" aria-invalid={invalid || undefined} aria-describedby={invalid ? describedById : undefined}>
       <legend className={labelClass}>{label}</legend>
       <div className="flex flex-wrap gap-2">
         {WEEKDAY_ORDER.map((day) => {

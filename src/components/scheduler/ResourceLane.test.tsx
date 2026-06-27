@@ -109,6 +109,22 @@ describe('ResourceLane rendering', () => {
     expect(screen.getByTestId('timeoff-block')).toBeInTheDocument()
   })
 
+  it('keeps the time-off label available to AT even when too narrow for the visible label (WCAG 1.3.1)', () => {
+    // A 30px block drops the VISIBLE uppercase label (<=44px), but the sr-only span must still name it.
+    renderLane({ timeOff: [{ id: 'to1', x: 0, width: 30, label: 'Holiday' }] })
+    const block = screen.getByTestId('timeoff-block')
+    // The specific label survives in an sr-only span (not just dropped to AT).
+    expect(block).toHaveTextContent('Holiday')
+    expect(block.querySelector('.sr-only')?.textContent).toBe('Holiday')
+    // The dead pointer-events-none `title` is gone — it was unreachable, so it conveyed nothing.
+    expect(block).not.toHaveAttribute('title')
+  })
+
+  it('drops the dead pointer-events-none title from the over-marker', () => {
+    renderLane()
+    expect(screen.getByTestId('over-marker')).not.toHaveAttribute('title')
+  })
+
   it('renders an allocation-bar for the bar layout', () => {
     renderLane()
     expect(screen.getByTestId('allocation-bar')).toBeInTheDocument()

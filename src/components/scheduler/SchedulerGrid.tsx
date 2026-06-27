@@ -544,6 +544,14 @@ export function SchedulerGrid() {
                 ? m.scheduler_sr_timeoff_other({ count: timeOff.length })
                 : m.scheduler_sr_timeoff_one({ count: timeOff.length })
               : ''}
+            {/* The visible utilisation % (right column) conveys its meaning only via a `title` on a
+                non-interactive span, which AT may not expose — fold it into this summary so a SR hears
+                it (WCAG 1.3.1). This is the per-PERSON, visible-window utilisation signal — kept
+                separate from the over-marker count above and the `overSoon` flag; mirrors exactly the
+                visible figure's gate (showPersonal + capacity-tracked). */}
+            {utilizationPrefs.showPersonal && isCapacityTracked(resource)
+              ? m.scheduler_sr_utilisation({ percent: Math.round(util * 100), span: visibleWeeksLabel })
+              : ''}
             {bars.length === 1 ? m.scheduler_sr_allocations_one({ count: bars.length }) : m.scheduler_sr_allocations_other({ count: bars.length })}
           </span>
           {/* Avatar + identity, vertically centred within the FIRST lane band
