@@ -69,6 +69,14 @@ export function InviteAccept() {
   // after an unmount is a no-op in React 18+, not a warning — no abort/cancel flag is needed here).
   const fired = useRef(false)
 
+  // Per-route document.title (WCAG 2.4.2). This route renders OUTSIDE AppShell (see router.tsx), so
+  // it isn't covered by the shell's nav-driven title effect — set it here from the same `invite_title`
+  // message the heading uses ("Accept invite"), so the tab/history/bookmark reads descriptively rather
+  // than index.html's static brand. `APP_NAME` keeps the brand single-sourced (see shared/brand).
+  useEffect(() => {
+    document.title = `${m.invite_title()} · ${APP_NAME}`
+  }, [])
+
   useEffect(() => {
     if (!isServerConfigured() || !token) return // demo build / no token: nothing to accept against
     if (fired.current) return

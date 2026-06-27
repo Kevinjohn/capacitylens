@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState, type CSSProperties } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { Toaster, toast } from 'sonner'
 import { useStore } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
@@ -18,6 +18,7 @@ import { Icon, type IconName } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { cn } from '@/lib/utils'
+import { APP_NAME } from '@capacitylens/shared/brand'
 import { m, syncLocaleFromAccount } from '@/i18n'
 
 /**
@@ -101,6 +102,21 @@ export function AppShell() {
   useEffect(() => {
     syncLocaleFromAccount(activeLanguage)
   }, [activeLanguage])
+
+  // Per-route document.title (WCAG 2.4.2 Page Titled). A SPA never reloads, so without this every
+  // route shares index.html's static "CapacityLens" title — identical in the tab, history and
+  // bookmarks. Derive the page label from the SAME `LINKS` table the sidebar renders (`m.nav_*`
+  // getters), so the title can't drift from the nav and tracks a locale switch for free: this effect
+  // re-runs on `pathname` AND `activeLanguage` (the locale source above), so changing the active
+  // company's language re-resolves the title alongside the visible nav. An unmatched path (none today
+  // — the invite route lives outside this shell and titles itself; this is the defensive default)
+  // falls back to the bare brand. `APP_NAME` keeps the brand single-sourced (no literal "CapacityLens"
+  // — see shared/brand).
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const match = LINKS.find(([to]) => to === pathname)
+    document.title = match ? `${match[1]()} · ${APP_NAME}` : APP_NAME
+  }, [pathname, activeLanguage])
 
   // Warn before a tab close / refresh would discard an open form's unsaved edits.
   useEffect(() => {
