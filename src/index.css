@@ -75,11 +75,16 @@
   --c-weekend: color-mix(in oklab, var(--c-ink) 8%, var(--c-surface)); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
   --c-ink: #1c2230;
   --c-muted: #5b6472;
-  --c-faint: #6b7280; /* darkened from #98a1b1 to clear WCAG AA (~4.5:1) for small text */
+  --c-faint: #677080; /* darkened one step from #6b7280 (which was 4.43:1 on --c-base, sub-AA): now 4.58:1 on the canvas, 4.99:1 on --c-surface — clears WCAG AA (4.5:1) for small text on BOTH grounds */
   --c-brand: #6366f1;
   --c-brand-strong: #4f46e5;
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 14%, white);
   --c-brand-soft-ink: var(--c-brand-strong);
+  /* Dual-tone allocation-bar focus ring (WCAG 1.4.11) — see `.scheduler-bar:focus-visible`. A fixed
+     near-black + near-white pair (NOT theme-swapped): together they cover both light and dark grounds,
+     so at least one edge clears 3:1 against every adjacency in both themes. Pinned in color.test.ts. */
+  --c-focus-ink: #1c2230; /* near-black edge — wins on pale grounds (light over-cell, pale swatches, light canvas) */
+  --c-focus-halo: #ffffff; /* near-white edge — wins on dark grounds (dark over-cell, dark swatches, dark canvas) */
   --c-danger: #e11d48;
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 13%, white);
   --c-danger-soft-ink: #be123c; /* a step darker than --c-danger to clear AA on the tint */
@@ -308,6 +313,28 @@ input[type="radio"] {
    stable ref across the toggle (see BarsLayer's TSDoc). Amber (the `warn` token) reads as
    "out / away", distinct from brand (indigo) and over (red). This is a first-pass treatment;
    the visual is expected to be refined later. */
+/* Allocation-bar focus indicator — a DUAL-TONE ring (WCAG 1.4.11, Non-text Contrast ≥3:1).
+   A single-edge indicator can't pass: the bar can sit on an over-capacity day whose cell is a PALE
+   rose in light (--c-danger-cell ≈ rgb(251,158,161), where white reads ~2:1) but a DEEP red in dark
+   (≈ rgb(147,73,86), where a dark edge reads ~2.5:1) — opposite requirements. So the indicator pairs
+   a near-BLACK edge (#1c2230) and a near-WHITE edge (#ffffff), BOTH straddling the bar's outer border
+   (positive-spread box-shadow, no offset → both adjacent to the background, NOT inside the opaque
+   fill). Against ANY adjacency at least one edge clears 3:1: the dark edge wins on the pale light
+   over-cell / pale swatches / light canvas+weekend, the light edge wins on the dark over-cell / dark
+   swatches / dark canvas+weekend. The fixed pair covers both extremes, so it needs no theme variant.
+   Pinned + asserted in src/lib/color.test.ts ("AllocationBar focus ring …"). The indigo (--color-brand)
+   outline is an IDENTITY layer only — conformance comes from the dark+light pair, not from it.
+   box-shadow is NOT clipped by the bar's own overflow-hidden. On focus this box-shadow overrides the
+   resting `ring-1 ring-black/5` + `shadow-sm` (box-shadow is one property, not additive) — intentional:
+   the bold focus ring replaces the faint resting ring while focused. */
+.scheduler-bar:focus-visible {
+  outline: 2px solid var(--color-brand); /* identity layer (indigo) — NOT relied on for contrast */
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 1px var(--c-focus-ink), /* near-black edge — wins on pale grounds */
+    0 0 0 3px var(--c-focus-halo); /* near-white edge — wins on dark grounds */
+}
+
 [data-draw-mode="timeoff"] .scheduler-bar {
   opacity: 0.2;
   /* Drop the discipline colour to a flat neutral so backgrounded work reads as inert filler,

@@ -60,11 +60,15 @@ function ToggleRow({ label, on, onToggle }: { label: string; on: boolean; onTogg
         aria-checked={on}
         aria-label={label}
         onClick={onToggle}
-        className={cn('relative h-5 w-9 shrink-0 rounded-full transition', on ? 'bg-brand' : 'bg-line')}
+        // WCAG 2.5.8 (Target Size, AA): the switch must be ≥24×24px. h-6 (24px) hits the floor
+        // exactly; w-10 keeps a balanced pill. Thumb travel is recomputed for the new geometry —
+        // a 20px (h-5) thumb inset 2px (top-0.5) slides between left-0.5 (off) and left-[18px]
+        // (on = track 40 − thumb 20 − inset 2), so the 2px gap stays symmetric in both states.
+        className={cn('relative h-6 w-10 shrink-0 rounded-full transition', on ? 'bg-brand' : 'bg-line')}
       >
         <span
           className={cn(
-            'absolute top-0.5 h-4 w-4 rounded-full bg-surface shadow transition-all',
+            'absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all',
             on ? 'left-[18px]' : 'left-0.5',
           )}
         />

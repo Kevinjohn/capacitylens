@@ -190,6 +190,23 @@ describe('SettingsView — Schedule (minimise weekends)', () => {
   })
 })
 
+describe('SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)', () => {
+  // The preferences toggle is a shared <ToggleRow> button; every preference switch (Minimise
+  // weekends, Snap, Show placeholders, …) renders the same one, so checking one covers all.
+  // jsdom doesn't run layout, so getBoundingClientRect() is 0×0 here — assert the height UTILITY
+  // that resolves to ≥24px instead (h-6 = 1.5rem = 24px), which is what the build ships. The REAL
+  // rendered ≥24px geometry is measured in e2e/minimise-weekends.spec.ts (Playwright boundingBox).
+  it('renders the role="switch" control at the h-6 (24px) target-size floor', () => {
+    render(<SettingsView />)
+    const sw = screen.getByRole('switch', { name: 'Minimise weekends' })
+    // h-6 (1.5rem = 24px) hits the 24px minimum exactly; h-5 (20px) was 4px under and failed 2.5.8.
+    expect(sw).toHaveClass('h-6')
+    expect(sw).not.toHaveClass('h-5')
+    // Width is at least the height — a non-degenerate target (pill is wider than tall).
+    expect(sw).toHaveClass('w-10')
+  })
+})
+
 describe('SettingsView — Clear local storage', () => {
   // The action calls window.location.reload(); jsdom's reload is non-configurable, so we replace
   // the whole location with a stub carrying a spy (restored after each test).

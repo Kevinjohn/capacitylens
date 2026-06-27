@@ -505,9 +505,17 @@ export const AllocationBar = memo(function AllocationBar({
               }
             : undefined
         }
-        // `scheduler-bar` is the semantic hook the time-off draw-mode CSS recedes (index.css);
-        // it styles by this class, NOT by `data-testid` (which stays test-only selection).
-        className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${dragging ? 'shadow-lg ring-black/10' : ''}`}
+        // `scheduler-bar` is the semantic hook for BOTH the time-off draw-mode recede AND the
+        // focus indicator (index.css `.scheduler-bar:focus-visible`); the app styles by this class,
+        // NOT by `data-testid` (which stays test-only selection). The focus indicator is a DUAL-TONE
+        // ring (WCAG 1.4.11): a single edge can't pass because the over-capacity cell is a PALE rose
+        // in light (needs a dark edge) but a DEEP red in dark (needs a light edge) — opposite
+        // requirements — so a near-black + near-white pair straddles the bar's outer border, and at
+        // least one always clears 3:1 against any adjacency in both themes. See the CSS rule + the
+        // pinned regression in src/lib/color.test.ts. Defined in CSS (not Tailwind utilities here); on
+        // focus this box-shadow overrides the resting `ring-1 ring-black/5` (intentional — the bold focus
+        // ring replaces the faint resting ring while focused).
+        className={`scheduler-bar group absolute flex select-none items-center overflow-hidden rounded-md text-xs font-medium shadow-sm ring-1 ring-black/5 transition-[box-shadow,transform] hover:shadow-md ${dragging ? 'shadow-lg ring-black/10' : ''}`}
         style={{
           left: insetLeft,
           width: insetWidth,
