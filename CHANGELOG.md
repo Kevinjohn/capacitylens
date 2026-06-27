@@ -10,6 +10,39 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-06-27
+
+A WCAG 2.2 AA accessibility pass that remediates every finding from a deep audit (#116–#123).
+No behaviour change for existing flows — the focus is screen-reader, keyboard, contrast, and
+reflow conformance, each shipped with a regression test.
+
+### Fixed
+- **Modal containment (1.3.1).** The shared modal renders through a portal, so the allocation
+  editor is no longer an invalid child of the schedule's `role="grid"` (the one axe-critical the
+  audit found).
+- **Page titles (2.4.2).** Each route sets a descriptive `<Label> · CapacityLens` title instead
+  of the static brand on every page.
+- **Reflow + focus (1.4.10, 2.4.11).** The scheduler toolbar wraps at 320px, and a focused
+  allocation bar scrolls clear of the sticky header / left column (the scroll-margin tracks the
+  real two-tier header height).
+- **Contrast (1.4.11, 1.4.3).** The allocation-bar focus ring is now a dual-tone (dark + light)
+  ring that clears 3:1 against any background — including the over-capacity red — in both themes;
+  the `--c-faint` token was darkened to clear AA on the canvas.
+- **Target size (2.5.8).** Preferences toggles are now ≥ 24px.
+- **Grid semantics (1.3.1).** The timeline grid honestly exposes its two columns
+  (`aria-colcount` / `aria-colindex`, a named timeline cell).
+- **Screen-reader text (1.1.1, 1.3.1).** Allocation labels read humanised status and formatted
+  dates, announce a note when present, never drop a narrow time-off label, and surface the per-row
+  utilisation to assistive tech.
+- **Form errors (3.3.1).** The login fields and the working-days picker bind their errors to the
+  controls (`aria-describedby` / `aria-invalid`).
+
+### Added
+- A polite live region announces the resulting over-capacity after a keyboard-driven allocation
+  move/resize (4.1.3).
+- A `warning` toast tone for data-mutating advisories (e.g. clamped hours) that persists until
+  dismissed instead of auto-closing after 4s (2.2.1).
+
 ## [0.12.0] — 2026-06-27
 
 A repo-wide clarity sweep over documentation, inline comments, and variable names. No
@@ -318,7 +351,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/floaty-v1/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/Kevinjohn/floaty-v1/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.13.0
 [0.12.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.12.0
 [0.11.0]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.11.0
 [0.10.2]: https://github.com/Kevinjohn/floaty-v1/releases/tag/v0.10.2
