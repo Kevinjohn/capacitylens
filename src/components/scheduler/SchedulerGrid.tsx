@@ -80,6 +80,13 @@ export function SchedulerGrid() {
   const clearFilters = useStore((s) => s.clearFilters)
   const [modal, setModal] = useState<ModalState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // The sticky date-header row. Its rendered height is NOT LAYOUT.headerHeight (44 is only a
+  // min-height FLOOR): the two-tier header (month band + week/day band) renders taller — ~51px at
+  // zoom 4, ~67px at zoom 2, and more again when the user bumps their font size. We measure the
+  // ACTUAL height and publish it (--sched-sticky-top) so a focused near-top bar's scroll-margin-top
+  // reserves the real chrome, not the floor (WCAG 2.4.11). See stickyHeaderHeight below.
+  const headerRef = useRef<HTMLDivElement>(null)
+  const [stickyHeaderHeight, setStickyHeaderHeight] = useState(LAYOUT.headerHeight)
   const didScroll = useRef(false)
   const [timelineWidth, setTimelineWidth] = useState(0)
   const [timelineHeight, setTimelineHeight] = useState(0) // viewport height for row virtualization
@@ -130,6 +137,26 @@ export function SchedulerGrid() {
       cancelAnimationFrame(raf)
       ro.disconnect()
     }
+  }, [])
+
+  // Measure the sticky date-header's ACTUAL rendered height and publish it as a CSS variable
+  // (--sched-sticky-top on the scroll container, read by every AllocationBar's scroll-margin-top).
+  // LAYOUT.headerHeight (44) is only the row's min-height FLOOR; the two-tier header renders taller
+  // (~51px at zoom 4, ~67px at zoom 2, more again at a larger font size), so a focused near-top bar
+  // that reserved only 44px would land partly behind the header (WCAG 2.4.11 Focus Not Obscured).
+  // The height changes only on a zoom flip / font-size change (rare), so a ResizeObserver here is
+  // not a hot path; it's measured pre-paint (useLayoutEffect) so the var is correct on the first
+  // frame, and the observer is disconnected on unmount. jsdom reports offsetHeight 0 → we keep the
+  // headerHeight floor (the var still resolves to a sane value).
+  useLayoutEffect(() => {
+    const el = headerRef.current
+    if (!el) return
+    const measure = () => setStickyHeaderHeight(el.offsetHeight || LAYOUT.headerHeight)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
   }, [])
 
   const avail = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth
@@ -634,13 +661,18 @@ export function SchedulerGrid() {
       aria-label={m.scheduler_grid_aria()}
       aria-rowcount={items.length + 1}
       onScroll={onScroll}
+      // Publish the measured sticky-header height so each AllocationBar's scroll-margin-top reserves
+      // the REAL chrome on focus (WCAG 2.4.11), tracking the two-tier header's actual rendered height
+      // (zoom/font-size dependent) instead of the LAYOUT.headerHeight floor. Cast: a CSS custom
+      // property isn't in React's CSSProperties type.
+      style={{ ['--sched-sticky-top' as string]: `${stickyHeaderHeight}px` }}
     >
       {/* min-w-max: this is a flex item of the flex-col scroll container, so the
           default align-items:stretch would clamp its width to the container's cross
           size (the viewport), leaving the wide DateHeader to overflow and only the
           first ~2 weeks painted. Sizing to content makes header + rows span the full
           timeline and scroll together. Same reason on the rowgroup below. */}
-      <div role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
+      <div ref={headerRef} role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
         <div
           role="columnheader"
           className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"

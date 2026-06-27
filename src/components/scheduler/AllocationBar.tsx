@@ -457,6 +457,20 @@ export const AllocationBar = memo(function AllocationBar({
           border: tentative ? `1px dashed ${ink}` : undefined,
           transform: translateY ? `translateY(${translateY}px)` : undefined,
           zIndex: dragging ? 50 : undefined,
+          // WCAG 2.4.11 (Focus Not Obscured): on focus the browser scrolls this bar into view, but
+          // the grid's sticky date header (top, z-20) and sticky utilisation column (left, z-30)
+          // overlap the scroll viewport — without a margin a near-edge bar lands fully behind them.
+          // scroll-margin reserves the sticky chrome's footprint so scroll-into-view stops the
+          // focused bar clear of both.
+          // - TOP: the date header is a TWO-TIER header whose REAL rendered height (~51px at zoom 4,
+          //   ~67px at zoom 2, more at a larger font size) exceeds LAYOUT.headerHeight (44 — only a
+          //   min-height floor). So we track the height SchedulerGrid measures and publishes as
+          //   --sched-sticky-top (44px fallback before the first measure / in jsdom), NOT the
+          //   constant, or a near-top bar would land partly behind the header.
+          // - LEFT: the utilisation column is a genuine compile-time width (LAYOUT.leftColWidth),
+          //   so the constant is exact here.
+          scrollMarginTop: 'var(--sched-sticky-top, 44px)',
+          scrollMarginLeft: LAYOUT.leftColWidth,
           // Viewer (P1.12): a display-only bar shows the default cursor (nothing to grab) and lets
           // touch-scroll through (no drag to win over it).
           cursor: !canEdit ? 'default' : dragging ? 'grabbing' : 'grab',

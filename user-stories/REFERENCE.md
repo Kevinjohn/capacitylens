@@ -411,7 +411,9 @@ Mouse hover sets the active option; mouse click selects.
 
 ## `data-testid`s (for automated checks)
 
-`scheduler-grid`, `scheduler-row`, `discipline-group`, `resource-lane`,
+`scheduler-grid`, `scheduler-toolbar` (the two-row scheduler chrome wrapper — title/nav/zoom/draw
+row + filters row; the WCAG 1.4.10 reflow check asserts it doesn't overflow at 320 CSS px),
+`scheduler-row`, `discipline-group`, `resource-lane`,
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
