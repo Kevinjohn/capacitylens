@@ -246,6 +246,99 @@ describe('AllocationBar interactions', () => {
     })
   })
 
+  // WCAG 4.1.3: a keyboard nudge that changes over-capacity must announce the recomputed outcome
+  // for the affected resource via the store's polite live region (srAnnouncement). Pointer drags
+  // (sighted feedback) must NOT announce. The announced over-count reuses the per-day over-marker
+  // signal (allocated > available) — NOT the visible-window % or the overSoon flag.
+  describe('keyboard edit announces the recomputed capacity (a11y live region)', () => {
+    // Resource works Mon–Fri @ 8h. June 2026: 06-01 Mon … 06-05 Fri.
+    // Allocation A is FIXED on Wed 06-03. Bar B starts on Mon–Tue (no overlap → 0 over days);
+    // ArrowRight slides B to Tue–Wed so Wed reads 16h vs 8h available = 1 over day.
+    function seedConflictPair() {
+      const st = useStore.getState()
+      const c = st.addClient({ name: 'Acme', color: '#1' })
+      const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+      const t = st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id })
+      const r = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+      st.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-03', endDate: '2026-06-03', hoursPerDay: 8, status: 'confirmed' })
+      const b = st.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+      return b
+    }
+
+    it('announces the over-capacity outcome when a nudge flips a day to over, and "no conflicts" when it resolves', () => {
+      const b = seedConflictPair()
+      const { rerender } = render(<AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      expect(useStore.getState().srAnnouncement).toBeNull() // nothing announced before any edit
+
+      // ArrowRight: B 06-01..06-02 → 06-02..06-03, overlapping A on Wed → 1 over day.
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
+      let moved = useStore.getState().data.allocations.find((x) => x.id === b.id)!
+      expect([moved.startDate, moved.endDate]).toEqual(['2026-06-02', '2026-06-03'])
+      const over = useStore.getState().srAnnouncement!
+      expect(over.text).toBe('Ty now over capacity on 1 day.')
+
+      // ArrowLeft: back to 06-01..06-02, overlap gone → announce no conflicts (and a NEW seq so an
+      // identical message would still re-announce — the seq must strictly rise).
+      rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowLeft' })
+      moved = useStore.getState().data.allocations.find((x) => x.id === b.id)!
+      expect([moved.startDate, moved.endDate]).toEqual(['2026-06-01', '2026-06-02'])
+      const clear = useStore.getState().srAnnouncement!
+      expect(clear.text).toBe('Ty: no capacity conflicts.')
+      expect(clear.seq).toBeGreaterThan(over.seq)
+    })
+
+    // Window-alignment (the major review finding): the spoken count must equal the RENDERED per-row
+    // sr-only summary, which counts over-days only WITHIN the visible timeline window
+    // (`dayStates.filter(d => d.over)`, built across `visibleRange(ui)`). So an over-day OUTSIDE that
+    // window — scrolled out of view — must NOT be counted by the announcement. Here the conflict pair
+    // sits in September while the visible window is pinned to early June; the recomputed over-day at
+    // 09-02 is off-window, so the announcement must read "no conflicts" (it would say "1 day" if it
+    // re-scanned the resource's full span instead of clamping to the window).
+    it('does NOT count an over-day OUTSIDE the visible window (spoken count == rendered row summary)', () => {
+      // Pin a deterministic, narrow visible window to early June, independent of "today".
+      useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } })) // [2026-06-01 .. 2026-06-14]
+      const st = useStore.getState()
+      const c = st.addClient({ name: 'Acme', color: '#1' })
+      const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+      const t = st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id })
+      const r = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+      // A fixed on Wed 2026-09-02; B starts Tue 09-01 (no overlap). ArrowRight slides B onto 09-02 →
+      // a REAL over-day (16h vs 8h), but 09-02 is far OUTSIDE the [06-01..06-14] visible window.
+      st.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-09-02', endDate: '2026-09-02', hoursPerDay: 8, status: 'confirmed' })
+      const b = st.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-09-01', endDate: '2026-09-01', hoursPerDay: 8, status: 'confirmed' })
+
+      const { rerender } = render(<AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' })
+      const moved = useStore.getState().data.allocations.find((x) => x.id === b.id)!
+      expect([moved.startDate, moved.endDate]).toEqual(['2026-09-02', '2026-09-02']) // the conflict really happened…
+      // …but it's off-window, so the announcement counts ZERO over-days — matching the rendered row.
+      expect(useStore.getState().srAnnouncement!.text).toBe('Ty: no capacity conflicts.')
+
+      // Sanity: widen the window to include September and the SAME edit now speaks the over-day,
+      // proving the divergence was purely the window clamp (the over-marker signal is unchanged).
+      useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 120 } })) // now covers 09-02
+      rerender(<AllocationBar bar={barFor(moved)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowLeft' }) // 09-02 → 09-01, no overlap
+      rerender(<AllocationBar bar={barFor(useStore.getState().data.allocations.find((x) => x.id === b.id)!)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight' }) // back onto 09-02 → over again
+      expect(useStore.getState().srAnnouncement!.text).toBe('Ty now over capacity on 1 day.')
+    })
+
+    it('does NOT announce on a pointer drag (sighted feedback — would be noise)', () => {
+      const a = seedAllocation()
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      const bar = screen.getByTestId('allocation-bar')
+
+      fireEvent.pointerDown(bar, { clientX: 50, button: 0 })
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true }))
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }))
+
+      expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe('2026-06-02') // moved
+      expect(useStore.getState().srAnnouncement).toBeNull() // but the live region stayed silent
+    })
+  })
+
   it('pins the dragged row (draggingAllocationId) on the first move and clears it on commit', () => {
     const a = seedAllocation()
     render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)

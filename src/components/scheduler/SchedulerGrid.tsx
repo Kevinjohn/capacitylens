@@ -78,6 +78,11 @@ export function SchedulerGrid() {
   const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
   const toggleGroup = useStore((s) => s.toggleGroup)
   const clearFilters = useStore((s) => s.clearFilters)
+  // WCAG 4.1.3: the latest screen-reader capacity announcement, set by AllocationBar after a
+  // KEYBOARD-committed move/resize. Rendered ONCE below in a polite aria-live region. It changes
+  // only on a keyboard edit (not a scroll/zoom/modal/render), so subscribing here adds no hot-path
+  // re-render; pointer drags never set it, so they stay silent for screen readers (sighted feedback).
+  const srAnnouncement = useStore((s) => s.srAnnouncement)
   const [modal, setModal] = useState<ModalState | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   // The sticky date-header row. Its rendered height is NOT LAYOUT.headerHeight (44 is only a
@@ -638,132 +643,154 @@ export function SchedulerGrid() {
   }
 
   return (
-    <div
-      ref={scrollRef}
-      /* overscroll-x-contain: hitting the timeline's left edge must NOT chain into the
-         page — on macOS that overscroll is the browser's back-swipe, which nukes the app. */
-      className="relative flex h-full flex-col overflow-auto overscroll-x-contain"
-      data-testid="scheduler-grid"
-      /* Signals the active draw mode to CSS: in "timeoff" mode the stylesheet fades the
-         work bars back and makes booked time-off glow, so the toolbar toggle gives an
-         immediate, whole-grid response (it otherwise read as a dead button). This VISUAL
-         re-skin is a single attribute toggle — purely a CSS reflow, no React re-render of any
-         lane or bar. A toggle DOES re-render THIS grid (it subscribes to `s.ui`), but every prop
-         it passes each ResourceLane is held stable across a toggle (the model/geom props don't
-         depend on drawMode, and `onDraw`/`onEdit` are memoised below to NOT close over it), so the
-         memoised lanes — and their bars — bail. (The parallel `inert` BEHAVIOUR — bars
-         non-interactive + off the tab/a11y tree — is set on each lane's bars layer, not here; see
-         ResourceLane's BarsLayer. That layer DOES re-render on toggle — it's the one component that
-         subscribes to the mode — but it's a single thin DOM write that hands its bars unchanged
-         refs, so the memoised bars bail too.) */
-      data-draw-mode={ui.drawMode}
-      role="grid"
-      aria-label={m.scheduler_grid_aria()}
-      aria-rowcount={items.length + 1}
-      onScroll={onScroll}
-      // Publish the measured sticky-header height so each AllocationBar's scroll-margin-top reserves
-      // the REAL chrome on focus (WCAG 2.4.11), tracking the two-tier header's actual rendered height
-      // (zoom/font-size dependent) instead of the LAYOUT.headerHeight floor. Cast: a CSS custom
-      // property isn't in React's CSSProperties type.
-      style={{ ['--sched-sticky-top' as string]: `${stickyHeaderHeight}px` }}
-    >
-      {/* min-w-max: this is a flex item of the flex-col scroll container, so the
-          default align-items:stretch would clamp its width to the container's cross
-          size (the viewport), leaving the wide DateHeader to overflow and only the
-          first ~2 weeks painted. Sizing to content makes header + rows span the full
-          timeline and scroll together. Same reason on the rowgroup below. */}
-      <div ref={headerRef} role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
-        <div
-          role="columnheader"
-          className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
-          style={{ width: LAYOUT.leftColWidth }}
-        >
-          {utilizationPrefs.showTotal && (
-            <>
-              <span
-                className="text-2xs font-medium uppercase tracking-wide text-faint"
-                title={m.scheduler_total_util_title({ span: visibleWeeksLabel })}
-              >
-                {/* The headline % follows the VISIBLE range, so the label tracks the selected zoom
-                    span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
-                {m.scheduler_total_util_label({ count: ui.zoom })}
-              </span>
-              <span data-testid="overall-utilization" className="text-sm font-semibold">
-                {overallUtil}%
-              </span>
-            </>
-          )}
-        </div>
-        <DateHeader days={days} dayWidth={dayWidth} geom={geom} weekStartsOn={calendarWeekStartsOn} today={today} />
-      </div>
-
-      {model.length === 0 && (
-        // Empty body, below the still-rendered toolbar + date header, centring the shared EmptyState
-        // (the same icon/heading/subtext/CTA pattern the entity lists use). The grid scrolls
-        // horizontally (its header is min-w-max), so this must be sticky left-0 + bounded to the
-        // measured viewport width (timelineWidth) or the centred card drifts off-screen with the
-        // scroll — and it must be a DIRECT child of the overflow-auto grid for sticky to pin (nested
-        // inside the wide row it did not). role=grid > row > gridcell keeps the a11y tree valid.
-        <div
-          role="row"
-          data-testid="scheduler-empty"
-          className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
-          style={{ width: timelineWidth || LAYOUT.leftColWidth }}
-        >
-          <div role="gridcell" className="flex items-center justify-center">
-            {filtersActive ? (
-              // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
-              // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
-              // empty — without a focusable child, axe flags scrollable-region-focusable.
-              <EmptyState
-                icon="sliders"
-                description={m.scheduler_empty_filtered_desc()}
-                action={{ label: m.scheduler_empty_clear_filters(), onClick: () => clearFilters() }}
-              >
-                {m.scheduler_empty_filtered_title()}
-              </EmptyState>
-            ) : (
-              <EmptyState
-                icon="people"
-                description={m.scheduler_empty_desc()}
-                action={{ label: m.scheduler_empty_go_resources(), onClick: () => void navigate('/resources') }}
-              >
-                {m.scheduler_empty_title()}
-              </EmptyState>
+    // h-full passthrough wrapper: holds the scrolling role="grid" plus its sibling live region.
+    // The grid must own ONLY row/rowgroup children (WCAG aria-required-children), so the polite
+    // status region lives HERE, a sibling of the grid — not inside it. It's sr-only (position:
+    // absolute, zero layout), so this wrapper adds no visual change and the grid's h-full still
+    // resolves against the same definite height it did before.
+    <div className="h-full">
+      <div
+        ref={scrollRef}
+        /* overscroll-x-contain: hitting the timeline's left edge must NOT chain into the
+           page — on macOS that overscroll is the browser's back-swipe, which nukes the app. */
+        className="relative flex h-full flex-col overflow-auto overscroll-x-contain"
+        data-testid="scheduler-grid"
+        /* Signals the active draw mode to CSS: in "timeoff" mode the stylesheet fades the
+           work bars back and makes booked time-off glow, so the toolbar toggle gives an
+           immediate, whole-grid response (it otherwise read as a dead button). This VISUAL
+           re-skin is a single attribute toggle — purely a CSS reflow, no React re-render of any
+           lane or bar. A toggle DOES re-render THIS grid (it subscribes to `s.ui`), but every prop
+           it passes each ResourceLane is held stable across a toggle (the model/geom props don't
+           depend on drawMode, and `onDraw`/`onEdit` are memoised below to NOT close over it), so the
+           memoised lanes — and their bars — bail. (The parallel `inert` BEHAVIOUR — bars
+           non-interactive + off the tab/a11y tree — is set on each lane's bars layer, not here; see
+           ResourceLane's BarsLayer. That layer DOES re-render on toggle — it's the one component that
+           subscribes to the mode — but it's a single thin DOM write that hands its bars unchanged
+           refs, so the memoised bars bail too.) */
+        data-draw-mode={ui.drawMode}
+        role="grid"
+        aria-label={m.scheduler_grid_aria()}
+        aria-rowcount={items.length + 1}
+        onScroll={onScroll}
+        // Publish the measured sticky-header height so each AllocationBar's scroll-margin-top reserves
+        // the REAL chrome on focus (WCAG 2.4.11), tracking the two-tier header's actual rendered height
+        // (zoom/font-size dependent) instead of the LAYOUT.headerHeight floor. Cast: a CSS custom
+        // property isn't in React's CSSProperties type.
+        style={{ ['--sched-sticky-top' as string]: `${stickyHeaderHeight}px` }}
+      >
+        {/* min-w-max: this is a flex item of the flex-col scroll container, so the
+            default align-items:stretch would clamp its width to the container's cross
+            size (the viewport), leaving the wide DateHeader to overflow and only the
+            first ~2 weeks painted. Sizing to content makes header + rows span the full
+            timeline and scroll together. Same reason on the rowgroup below. */}
+        <div ref={headerRef} role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
+          <div
+            role="columnheader"
+            className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
+            style={{ width: LAYOUT.leftColWidth }}
+          >
+            {utilizationPrefs.showTotal && (
+              <>
+                <span
+                  className="text-2xs font-medium uppercase tracking-wide text-faint"
+                  title={m.scheduler_total_util_title({ span: visibleWeeksLabel })}
+                >
+                  {/* The headline % follows the VISIBLE range, so the label tracks the selected zoom
+                      span (1/2/4/6/8 weeks) rather than naming a fixed "next 2w". */}
+                  {m.scheduler_total_util_label({ count: ui.zoom })}
+                </span>
+                <span data-testid="overall-utilization" className="text-sm font-semibold">
+                  {overallUtil}%
+                </span>
+              </>
             )}
           </div>
+          <DateHeader days={days} dayWidth={dayWidth} geom={geom} weekStartsOn={calendarWeekStartsOn} today={today} />
         </div>
-      )}
 
-      {items.length > 0 && (
-        <div role="rowgroup" className="min-w-max shrink-0">
-          {/* Spacer reserving the scroll height of the rows above the rendered slice. */}
-          {topPad > 0 && <div aria-hidden style={{ height: topPad }} />}
-          {visible.map((item, i) => {
-            // aria-rowindex is 1-based and global: header is 1, so items start at 2.
-            const rowIndex = first + i + 2
-            return item.kind === 'group'
-              ? renderGroupHeader(item.group, rowIndex, `g-${item.group.key}`)
-              : renderRow(item.group, item.row, rowIndex, `r-${item.row.resource.id}`)
-          })}
-          {bottomPad > 0 && <div aria-hidden style={{ height: bottomPad }} />}
-        </div>
-      )}
+        {model.length === 0 && (
+          // Empty body, below the still-rendered toolbar + date header, centring the shared EmptyState
+          // (the same icon/heading/subtext/CTA pattern the entity lists use). The grid scrolls
+          // horizontally (its header is min-w-max), so this must be sticky left-0 + bounded to the
+          // measured viewport width (timelineWidth) or the centred card drifts off-screen with the
+          // scroll — and it must be a DIRECT child of the overflow-auto grid for sticky to pin (nested
+          // inside the wide row it did not). role=grid > row > gridcell keeps the a11y tree valid.
+          <div
+            role="row"
+            data-testid="scheduler-empty"
+            className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
+            style={{ width: timelineWidth || LAYOUT.leftColWidth }}
+          >
+            <div role="gridcell" className="flex items-center justify-center">
+              {filtersActive ? (
+                // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
+                // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
+                // empty — without a focusable child, axe flags scrollable-region-focusable.
+                <EmptyState
+                  icon="sliders"
+                  description={m.scheduler_empty_filtered_desc()}
+                  action={{ label: m.scheduler_empty_clear_filters(), onClick: () => clearFilters() }}
+                >
+                  {m.scheduler_empty_filtered_title()}
+                </EmptyState>
+              ) : (
+                <EmptyState
+                  icon="people"
+                  description={m.scheduler_empty_desc()}
+                  action={{ label: m.scheduler_empty_go_resources(), onClick: () => void navigate('/resources') }}
+                >
+                  {m.scheduler_empty_title()}
+                </EmptyState>
+              )}
+            </div>
+          </div>
+        )}
 
-      {modal &&
-        (modal.kind === 'edit' ? (
-          <AllocationModal allocationId={modal.allocationId} onClose={() => setModal(null)} />
-        ) : modal.kind === 'timeoff' ? (
-          <TimeOffForm
-            defaults={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
-            onClose={() => setModal(null)}
-          />
-        ) : (
-          <AllocationModal
-            create={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
-            onClose={() => setModal(null)}
-          />
-        ))}
+        {items.length > 0 && (
+          <div role="rowgroup" className="min-w-max shrink-0">
+            {/* Spacer reserving the scroll height of the rows above the rendered slice. */}
+            {topPad > 0 && <div aria-hidden style={{ height: topPad }} />}
+            {visible.map((item, i) => {
+              // aria-rowindex is 1-based and global: header is 1, so items start at 2.
+              const rowIndex = first + i + 2
+              return item.kind === 'group'
+                ? renderGroupHeader(item.group, rowIndex, `g-${item.group.key}`)
+                : renderRow(item.group, item.row, rowIndex, `r-${item.row.resource.id}`)
+            })}
+            {bottomPad > 0 && <div aria-hidden style={{ height: bottomPad }} />}
+          </div>
+        )}
+
+        {modal &&
+          (modal.kind === 'edit' ? (
+            <AllocationModal allocationId={modal.allocationId} onClose={() => setModal(null)} />
+          ) : modal.kind === 'timeoff' ? (
+            <TimeOffForm
+              defaults={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+              onClose={() => setModal(null)}
+            />
+          ) : (
+            <AllocationModal
+              create={{ resourceId: modal.resourceId, startDate: modal.startDate, endDate: modal.endDate }}
+              onClose={() => setModal(null)}
+            />
+          ))}
+      </div>
+
+      {/* WCAG 4.1.3 (Status Messages): the SINGLE scheduler live region. A keyboard move/resize on a
+          bar recomputes over-capacity and silently mutates the per-row sr-only summary while focus
+          stays on the bar — this polite region speaks the recomputed outcome for the affected
+          resource so a screen-reader user gets feedback on their own edit. `polite` (not assertive)
+          so it never interrupts; `aria-atomic` so the whole message is read, not a diff. Fired ONLY
+          from AllocationBar's keyboard path (pointer drags stay silent — sighted feedback). The
+          inner span is KEYED on `seq` so React replaces the node and the SAME text re-announces (an
+          aria-live region re-reads only on a content change). Visually hidden (sr-only).
+          It is a SIBLING of role="grid" (a grid may own only row/rowgroup children — WCAG
+          aria-required-children — and role="status" is neither), kept mounted unconditionally
+          alongside the grid so an announcement always lands. */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true" data-testid="scheduler-live-region">
+        {srAnnouncement && <span key={srAnnouncement.seq}>{srAnnouncement.text}</span>}
+      </div>
     </div>
   )
 }

@@ -211,6 +211,15 @@ export interface StoreState {
    *  two can't desync. 'info' auto-dismisses; 'error' persists until dismissed (an error
    *  that vanishes before it's read is useless). Null = no notice. */
   notice: Notice | null
+  /** Latest screen-reader capacity announcement (WCAG 4.1.3) + a monotonically-rising `seq`.
+   *  A keyboard-committed allocation edit (move/resize) recomputes over-capacity, which mutates the
+   *  silent per-row sr-only summary while focus stays on the bar — leaving a screen-reader user with
+   *  NO feedback that their own edit flipped a day to over. AllocationBar fires `announceCapacity`
+   *  AFTER such an edit; SchedulerGrid renders ONE polite aria-live region from this. The `seq`
+   *  guarantees re-announcement even when consecutive edits yield the SAME text (an aria-live region
+   *  re-reads only on a content change). Transient: never persisted, never on the undo stack. POINTER
+   *  drags do NOT set this — they give sighted feedback and would be noise for everyone. Null = none yet. */
+  srAnnouncement: { text: string; seq: number } | null
   /** True while an open form has unsaved edits — drives the unsaved-changes guards
    *  (modal backdrop/Escape, beforeunload). Set by the Modal, never persisted. */
   dirtyForm: boolean
@@ -277,6 +286,11 @@ export interface StoreState {
   setLoadError: (v: boolean) => void
   setConnectionError: (v: boolean) => void
   setNotice: (message: string | null, tone?: 'info' | 'error') => void
+  /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
+   *  so the SAME text re-announces (an aria-live region re-reads only on a content change). Call
+   *  ONLY after a successful KEYBOARD-committed allocation edit — pointer drags give sighted
+   *  feedback and must not announce. Transient, never persisted/undone. */
+  announceCapacity: (text: string) => void
   setDirtyForm: (v: boolean) => void
   /** Mark/clear the allocation being dragged (drives the grid's drag-pin). */
   setDraggingAllocation: (id: ID | null) => void
@@ -487,6 +501,7 @@ export const useStore = create<StoreState>()((set, get) => {
     loadError: false,
     connectionError: false,
     notice: null,
+    srAnnouncement: null,
     dirtyForm: false,
     draggingAllocationId: null,
     theme: readStoredTheme(),
@@ -626,6 +641,9 @@ export const useStore = create<StoreState>()((set, get) => {
     setLoadError: (v) => set({ loadError: v }),
     setConnectionError: (v) => set({ connectionError: v }),
     setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
+    // Plain set (NOT mutate): transient a11y signal, must never land on the undo/redo stack.
+    // Bump seq off the PREVIOUS announcement so identical consecutive text still re-announces.
+    announceCapacity: (text) => set((s) => ({ srAnnouncement: { text, seq: (s.srAnnouncement?.seq ?? 0) + 1 } })),
     setDirtyForm: (v) => set({ dirtyForm: v }),
     // Plain set (NOT mutate): transient UI, must never land on the undo/redo stack.
     setDraggingAllocation: (id) => set({ draggingAllocationId: id }),

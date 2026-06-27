@@ -415,6 +415,10 @@ Mouse hover sets the active option; mouse click selects.
 row + filters row; the WCAG 1.4.10 reflow check asserts it doesn't overflow at 320 CSS px),
 `scheduler-row`, `discipline-group`, `resource-lane`,
 `allocation-bar`, `resize-start`, `resize-end`, `over-marker`, `unavailable-day`,
+`scheduler-live-region` (a grid-level visually-hidden `role="status"` `aria-live="polite"` region —
+WCAG 4.1.3; announces the recomputed over-capacity outcome for a resource AFTER a KEYBOARD move/resize
+on one of its bars, e.g. "Ty now over capacity on 1 day." or "Ty: no capacity conflicts." Pointer drags
+stay silent — they give sighted feedback),
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),

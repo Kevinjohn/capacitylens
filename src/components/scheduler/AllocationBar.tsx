@@ -7,10 +7,10 @@ import { useCanEdit } from '../../auth/permissionContext'
 import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DragMode } from '../../lib/gestureMath'
 import { ensureBarColors } from '@capacitylens/shared/lib/color'
-import { capacityAdvisory } from '../../lib/capacity'
-import { parseDate } from '@capacitylens/shared/lib/dateMath'
-import { schedulingModeFor } from '../../store/selectors'
-import { allocationStatusLabels } from '../../lib/metadata'
+import { capacityAdvisory, dayCapacity } from '../../lib/capacity'
+import { eachDayISO, parseDate } from '@capacitylens/shared/lib/dateMath'
+import { schedulingModeFor, visibleRange } from '../../store/selectors'
+import { allocationStatusLabels, resourceDisplayName } from '../../lib/metadata'
 import { LAYOUT } from './layout'
 import { computeGesture, reconcileReassignedHours, snappedBarGeometry, volumePreservingHoursClamped } from './allocationDrag'
 import type { ColumnGeometry } from './columnGeometry'
@@ -46,6 +46,57 @@ function laneAt(lanes: LaneSnapshot[], clientX: number, clientY: number): LaneSn
     if (clientY >= r.top && clientY <= r.bottom && clientX >= r.left && clientX <= r.right) return l
   }
   return null
+}
+
+/**
+ * The screen-reader announcement for `resourceId`'s capacity AFTER a keyboard-committed edit
+ * (WCAG 4.1.3). Reuses the EXACT per-day over-marker signal (`dayCapacity(...).over` — a day where
+ * `allocated > available`, weekend-aware) so the spoken count matches the red over-cell, NOT the
+ * visible-window utilisation % nor the fixed-14-day `overSoon` flag (the three signals stay
+ * separate — see CLAUDE.md).
+ *
+ * The scan is clamped to the SAME visible timeline window the per-row sr-only summary counts over —
+ * `visibleRange(ui)` = `[originDate .. originDate + rangeDays - 1]`, the very range SchedulerGrid
+ * turns into `days` and `schedulerModel` turns into `dayStates`. The summary counts
+ * `dayStates.filter(d => d.over)`, i.e. over-days only WITHIN that window, so the spoken count must
+ * intersect the resource's allocation span with that window — otherwise an over-day scrolled OUT of
+ * view would be spoken but not rendered, and the two would contradict. An external/capacity-free row
+ * never reads as over. Reads the store imperatively at call time — pure given that snapshot.
+ */
+function capacityAnnouncement(resourceId: ID): string {
+  const { data, ui } = useStore.getState()
+  const resource = data.resources.find((r) => r.id === resourceId)
+  // External parties carry no capacity — there is no over/under to report; speak nothing.
+  if (!resource || !isCapacityTracked(resource)) return ''
+  const name = resourceDisplayName(resource)
+  const allocs = data.allocations.filter((a) => a.resourceId === resourceId)
+  if (allocs.length === 0) return m.scheduler_sr_announce_clear({ name })
+  // The over-marker spans every day the resource has work; bound the scan to that union extent…
+  const timeOff = data.timeOff.filter((t) => t.resourceId === resourceId)
+  let start = allocs[0]!.startDate
+  let end = allocs[0]!.endDate
+  for (const a of allocs) {
+    if (a.startDate < start) start = a.startDate
+    if (a.endDate > end) end = a.endDate
+  }
+  // …then CLAMP that span to the visible timeline window — the per-row sr-only summary counts over
+  // `dayStates` (built across exactly this range), so an over-day outside the window is RENDERED-out
+  // and must be SPOKEN-out too, or the count contradicts the row. ISO dates compare lexicographically.
+  const { start: winStart, end: winEnd } = visibleRange(ui)
+  if (start < winStart) start = winStart
+  if (end > winEnd) end = winEnd
+  // Empty intersection (the whole span sits outside the window): nothing visible is over → "clear".
+  if (start > end) return m.scheduler_sr_announce_clear({ name })
+  // SAME over rule the per-row sr-only summary and the red over-cell use (dayCapacity().over).
+  const overDays = eachDayISO(start, end).reduce(
+    (n, d) => n + (dayCapacity(resource, d, allocs, timeOff).over ? 1 : 0),
+    0,
+  )
+  return overDays === 0
+    ? m.scheduler_sr_announce_clear({ name })
+    : overDays === 1
+      ? m.scheduler_sr_announce_over_one({ name, count: overDays })
+      : m.scheduler_sr_announce_over_other({ name, count: overDays })
 }
 
 /**
@@ -92,6 +143,10 @@ export const AllocationBar = memo(function AllocationBar({
   const canEdit = useCanEdit()
   const updateAllocation = useStore((s) => s.updateAllocation)
   const setNotice = useStore((s) => s.setNotice)
+  // WCAG 4.1.3: announce the recomputed over-capacity outcome of a KEYBOARD edit to the grid's
+  // polite aria-live region. Only the keyboard path (`nudge`) calls this — a pointer drag gives
+  // sighted feedback, so announcing there would be redundant noise for everyone.
+  const announceCapacity = useStore((s) => s.announceCapacity)
   const setDraggingAllocation = useStore((s) => s.setDraggingAllocation)
   // NB: the bar does NOT subscribe to the draw mode. In "Time off" mode the work bars must go
   // fully inert — not tab-stops, no hover popover, pointer events falling THROUGH to the lane so
@@ -357,6 +412,14 @@ export const AllocationBar = memo(function AllocationBar({
       // Surface a clamp the same non-blocking way the pointer commit does — the bar would
       // otherwise just show the capped figure with no hint the volume was truncated.
       if (rescale?.clamped) setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY }))
+      // WCAG 4.1.3 (Status Messages): a keyboard nudge can flip a day to over-capacity, but the
+      // per-row sr-only over-capacity summary mutates SILENTLY while focus stays on this bar — a
+      // screen-reader user gets no feedback that their own edit changed capacity. Announce the
+      // recomputed outcome for the affected resource via the grid's polite aria-live region.
+      // Read the store imperatively (getState, not a subscription) so this stays off the render
+      // path, exactly like the pointer commit's advisory. A keyboard nudge never reassigns rows,
+      // so the affected resource is always this bar's own `resourceId`.
+      announceCapacity(capacityAnnouncement(resourceId))
     } catch (e) {
       // Integrity rejected the keyboard move/resize (e.g. into an illegal slot). Surface it the
       // same way the pointer-drag commit path does (onCommit above) — a silent no-op left the bar
