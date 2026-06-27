@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 // Radix Dialog via the `radix-ui` umbrella (same idiom as src/components/ui/*), which
 // re-exports @radix-ui/react-dialog at the identical version — one Radix import surface.
 import { Dialog as DialogPrimitive } from 'radix-ui'
@@ -204,10 +205,18 @@ export function Modal({
   // hideOthers), which would hide the page BEHIND the dialog from the a11y tree — but capacitylens
   // shows hints like RotateHint OVER content that must stay readable (mobile.spec relies on
   // the sign-in heading staying findable). So we keep capacitylens's own light-touch modal
-  // semantics: a plain backdrop div (rendered INLINE, no Portal, so it's container.firstChild
-  // and the panel's parentElement) and the manual Tab-trap below. CapacityLens's dismiss/restore
-  // behaviours — which stock Radix does NOT reproduce — are layered on top; Radix's competing
-  // paths are neutralised (see each handler).
+  // semantics: a plain backdrop div (Radix's Overlay renders null in non-modal mode) wrapping the
+  // panel, and the manual Tab-trap below. CapacityLens's dismiss/restore behaviours — which stock
+  // Radix does NOT reproduce — are layered on top; Radix's competing paths are neutralised (see
+  // each handler).
+  //
+  // The whole shell is PORTALLED to document.body (see the return). Callers mount the Modal as a
+  // direct child of role="grid" (SchedulerGrid's `{modal && …}`) or of other ARIA-roled containers;
+  // an in-DOM role="dialog" descendant of a grid is invalid ARIA (a grid may only own row/rowgroup
+  // — axe critical `aria-required-children`). Rendering through a portal makes the dialog a child of
+  // <body>, so it's no longer a DOM descendant of whatever roled element opened it. This relocates
+  // WHERE it renders only; the panel's backdrop-parent relationship the ColorField press-swallow +
+  // unit tests read is unchanged (the portal target is body, but the backdrop still wraps the Content).
   const panelRef = useRef<HTMLDivElement>(null)
   const downOnBackdropRef = useRef(false)
   const setNotice = useStore((s) => s.setNotice)
@@ -314,15 +323,21 @@ export function Modal({
     return () => restoreFocus(previouslyFocused)
   }, [])
 
-  return (
+  // Portal the entire shell to <body> so the role="dialog" subtree is never a DOM descendant of an
+  // ARIA-roled opener (e.g. SchedulerGrid's role="grid", which may only own row/rowgroup — an owned
+  // dialog is axe-critical aria-required-children). The app is client-only, so document.body always
+  // exists by the time a Modal mounts; no SSR guard needed, but target body explicitly. The portal
+  // changes only WHERE the tree lands — the backdrop still wraps the Content (so the panel's
+  // parentElement is the backdrop, as the press-swallow logic and tests expect).
+  return createPortal(
     // Controlled + always-open while mounted (callers gate with {isOpen && <Modal/>}).
     // modal={false}: see the shell note above. onOpenChange only fires if some path slips
     // past the neutralised Radix dismissals; route it through the same guard so it can never
     // bypass the dirty check.
     <DialogPrimitive.Root open modal={false} onOpenChange={(next) => { if (!next) requestCloseRef.current() }}>
       {/* Plain backdrop div (not DialogPrimitive.Overlay — that renders null in non-modal
-          mode). Rendered INLINE (no Portal) so it's container.firstChild and the panel's
-          parentElement — the contract ColorField + the tests rely on. */}
+          mode). It wraps the panel, so the dialog's parentElement is this backdrop — the
+          contract ColorField press-swallow + the unit tests rely on. */}
       <div
         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm animate-[capacitylens-fade_0.15s_ease-out]"
         // Close only when the press both STARTS and ENDS on the backdrop — a drag that
@@ -381,7 +396,8 @@ export function Modal({
           </form>
         </DialogPrimitive.Content>
       </div>
-    </DialogPrimitive.Root>
+    </DialogPrimitive.Root>,
+    document.body,
   )
 }
 

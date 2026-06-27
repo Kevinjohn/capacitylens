@@ -65,6 +65,38 @@ test('scheduler in time-off draw mode (dark) has no serious or critical violatio
   expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
 })
 
+// The allocation editor opens from INSIDE the scheduler's role="grid" (SchedulerGrid's
+// `{modal && …}`). The shared Modal portals to <body> so its role="dialog" subtree is NOT a DOM
+// descendant of the grid — an owned dialog would be axe-critical `aria-required-children` (a grid
+// may only own row/rowgroup). This scan opens that editor and locks the portal in: a regression to
+// inline rendering would re-nest the dialog under the grid and trip the critical in BOTH themes.
+// Selector mirrors allocation.spec / accessibility.spec: the 'Wireframes' seed bar is visible at 4w
+// with scroll reset; clicking it opens the "Edit allocation" dialog.
+async function openAllocationEditor(page: import('@playwright/test').Page): Promise<void> {
+  await openApp(page)
+  await page.getByRole('button', { name: '4w', exact: true }).click()
+  await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
+  await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first().click()
+  await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible()
+  await page.waitForTimeout(350) // let the entrance animation settle (mid-fade reads as false low-contrast)
+}
+
+test('the allocation editor modal has no serious or critical violations', async ({ page }) => {
+  await openAllocationEditor(page)
+  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+})
+
+test('the allocation editor modal (dark) has no serious or critical violations', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('capacitylens/theme', 'dark'))
+  await openAllocationEditor(page)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
+  const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+  expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+})
+
 test('a resource form modal has no serious or critical violations', async ({ page }) => {
   await openApp(page, 'Studio North', '/resources')
   await page.getByRole('button', { name: 'Add resource' }).click()
