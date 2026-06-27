@@ -330,7 +330,14 @@ export const AllocationBar = memo(function AllocationBar({
         // which only happens on a move — so on any clamped path reconciledHours === hours; the
         // `clamped` flag alone is the signal.
         const cap = clamped ? m.scheduler_cap_fragment({ max: MAX_HOURS_PER_DAY }) : ''
-        setNotice(`${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${cap}${m.scheduler_toast_undo_hint()}`)
+        // A clamp truncated work (silent data loss), so this confirmation must NOT auto-dismiss on
+        // the fixed 4s info timer — it's the sole signal of the loss (WCAG 2.2.1). Raise the SAME
+        // (single) toast to 'warning' so it persists with a close affordance; an unclamped move/
+        // reassign stays a transient 'info' confirmation.
+        setNotice(
+          `${reassignTo ? m.scheduler_toast_reassigned() : m.scheduler_toast_moved()}${advisory}.${cap}${m.scheduler_toast_undo_hint()}`,
+          clamped ? 'warning' : 'info',
+        )
       } catch (e) {
         // Reassignment rejected (e.g. a placeholder bound to another project): keep the
         // allocation on its source resource and apply just the date move, recomputed against
@@ -410,8 +417,10 @@ export const AllocationBar = memo(function AllocationBar({
     try {
       updateAllocation(bar.allocation.id, { ...next, ...hoursPatch })
       // Surface a clamp the same non-blocking way the pointer commit does — the bar would
-      // otherwise just show the capped figure with no hint the volume was truncated.
-      if (rescale?.clamped) setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY }))
+      // otherwise just show the capped figure with no hint the volume was truncated. This toast is
+      // raised ONLY on a clamp, so it always reports silent data loss: tone 'warning' so it persists
+      // with a close affordance instead of auto-dismissing on the fixed 4s timer (WCAG 2.2.1).
+      if (rescale?.clamped) setNotice(m.scheduler_toast_capped({ max: MAX_HOURS_PER_DAY }), 'warning')
       // WCAG 4.1.3 (Status Messages): a keyboard nudge can flip a day to over-capacity, but the
       // per-row sr-only over-capacity summary mutates SILENTLY while focus stays on this bar — a
       // screen-reader user gets no feedback that their own edit changed capacity. Announce the

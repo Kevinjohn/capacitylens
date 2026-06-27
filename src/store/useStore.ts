@@ -83,10 +83,21 @@ export type Patch<T extends Entity> = Partial<Draft<T>>
 // disciplines/accounts have no tombstone and are deliberately excluded.
 export type LifecycleEntity = 'resources' | 'clients' | 'projects'
 
-/** A transient toast message + severity. */
+/**
+ * A toast message + severity. Three tones, mapped to two dismissal behaviours by the AppShell
+ * bridge (see the `notice` field below and AppShell's Sonner effect):
+ *  - `'info'`    — a TRANSIENT confirmation (e.g. "Allocation moved"); auto-dismisses after ~4s.
+ *  - `'warning'` — a non-error advisory the user MUST notice because it reports a DATA-MUTATING
+ *    side-effect (e.g. a days-mode resize whose derived hours were CLAMPED, truncating work).
+ *    Persists until dismissed (no fixed short timer) WITH a close affordance — WCAG 2.2.1 Timing
+ *    Adjustable: a fixed 4s timer on the sole signal of a silent truncation fails Level A. Styled
+ *    on the neutral surface (NOT the danger affordance), since the operation SUCCEEDED.
+ *  - `'error'`   — a failure; persists until dismissed (an error that vanishes unread is useless)
+ *    and carries the danger `.toast-error` accent.
+ */
 export interface Notice {
   message: string
-  tone: 'info' | 'error'
+  tone: 'info' | 'warning' | 'error'
 }
 
 /**
@@ -207,9 +218,11 @@ export interface StoreState {
    *  and a connection-error screen offers a retry. Clearing local storage (the
    *  StorageRecovery path) can't recover a server-backed app, so the two are kept apart. */
   connectionError: boolean
-  /** Transient user message (e.g. a rejected drag) + its severity, as ONE value so the
-   *  two can't desync. 'info' auto-dismisses; 'error' persists until dismissed (an error
-   *  that vanishes before it's read is useless). Null = no notice. */
+  /** User message (e.g. a rejected drag, or a clamp advisory) + its severity, as ONE value so the
+   *  two can't desync. 'info' auto-dismisses (~4s); 'warning' and 'error' persist until dismissed —
+   *  'warning' for a data-mutating advisory the user must notice (a fixed short timer on it fails
+   *  WCAG 2.2.1), 'error' for a failure (an error that vanishes before it's read is useless). See
+   *  {@link Notice}. Null = no notice. */
   notice: Notice | null
   /** Latest screen-reader capacity announcement (WCAG 4.1.3) + a monotonically-rising `seq`.
    *  A keyboard-committed allocation edit (move/resize) recomputes over-capacity, which mutates the
@@ -285,7 +298,7 @@ export interface StoreState {
   setPersistError: (v: boolean) => void
   setLoadError: (v: boolean) => void
   setConnectionError: (v: boolean) => void
-  setNotice: (message: string | null, tone?: 'info' | 'error') => void
+  setNotice: (message: string | null, tone?: 'info' | 'warning' | 'error') => void
   /** Announce a capacity outcome to the grid's polite aria-live region (WCAG 4.1.3). Bumps `seq`
    *  so the SAME text re-announces (an aria-live region re-reads only on a content change). Call
    *  ONLY after a successful KEYBOARD-committed allocation edit — pointer drags give sighted
@@ -641,6 +654,8 @@ export const useStore = create<StoreState>()((set, get) => {
     setLoadError: (v) => set({ loadError: v }),
     setConnectionError: (v) => set({ connectionError: v }),
     setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
+    // ^ Tone → dismissal behaviour is owned by the AppShell→Sonner bridge: 'info' auto-dismisses
+    //   (~4s), 'warning'/'error' persist (duration: Infinity) with a close button. See {@link Notice}.
     // Plain set (NOT mutate): transient a11y signal, must never land on the undo/redo stack.
     // Bump seq off the PREVIOUS announcement so identical consecutive text still re-announces.
     announceCapacity: (text) => set((s) => ({ srAnnouncement: { text, seq: (s.srAnnouncement?.seq ?? 0) + 1 } })),

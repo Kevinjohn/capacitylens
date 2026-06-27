@@ -131,10 +131,16 @@ export function AppShell() {
 
   // Bridge the store's `notice` → a Sonner toast. The store API (setNotice/notice) is the
   // single source of truth (used at ~47 sites); this effect is the only thing that turns it
-  // into UI. Info toasts auto-dismiss after 4s (Sonner's `duration` owns the timer — no
-  // hand-rolled setTimeout); error toasts persist until dismissed (an error that vanishes
-  // before it's read is useless). Either way, dismissal/auto-close calls `clear()` so the
-  // store stays in sync with what's on screen.
+  // into UI. Tone drives the timer (Sonner's `duration` owns it — no hand-rolled setTimeout):
+  //  - 'info'    auto-dismisses after 4s (a transient confirmation).
+  //  - 'warning' persists (duration: Infinity) on the NEUTRAL surface — a non-error advisory the
+  //    user must notice because it reports a data-mutating side-effect (a clamped/truncated resize).
+  //    A fixed 4s timer on the sole signal of a silent truncation fails WCAG 2.2.1 (Timing
+  //    Adjustable, Level A), so it stays until dismissed. The <Toaster closeButton> gives it a
+  //    visible Close affordance. NOT raised via toast.error → no danger `.toast-error` accent: the
+  //    edit SUCCEEDED, so it must not read as a failure.
+  //  - 'error'   persists (an error that vanishes before it's read is useless) WITH the danger accent.
+  // Either way, dismissal/auto-close calls `clear()` so the store stays in sync with what's on screen.
   //
   // Teardown: the cleanup `toast.dismiss(id)` removes this toast whenever `notice` changes or
   // clears, so a new notice REPLACES the old one — never a duplicate/stale toast.
@@ -150,10 +156,15 @@ export function AppShell() {
     const clear = () => {
       if (useStore.getState().notice === thisNotice) setNotice(null)
     }
+    // A 'warning' persists like an 'error' (duration: Infinity, no auto-close timer) but stays on
+    // the neutral surface (plain toast(), not toast.error) so a successful-but-truncated edit doesn't
+    // read as a failure. Only an 'info' keeps the 4s auto-dismiss + its onAutoClose clear.
     const id =
       thisNotice.tone === 'error'
         ? toast.error(thisNotice.message, { duration: Infinity, onDismiss: clear })
-        : toast(thisNotice.message, { duration: 4000, onDismiss: clear, onAutoClose: clear })
+        : thisNotice.tone === 'warning'
+          ? toast(thisNotice.message, { duration: Infinity, onDismiss: clear })
+          : toast(thisNotice.message, { duration: 4000, onDismiss: clear, onAutoClose: clear })
     return () => {
       toast.dismiss(id)
     }
