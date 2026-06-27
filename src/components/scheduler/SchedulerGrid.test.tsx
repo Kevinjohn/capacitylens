@@ -67,6 +67,13 @@ describe('SchedulerGrid', () => {
     expect(screen.getByText(/1 allocation\./)).toBeInTheDocument() // sr-only row summary
   })
 
+  it('folds the per-row utilisation % into the sr-only summary (WCAG 1.3.1)', () => {
+    renderGrid()
+    // The utilisation % is otherwise only a `title` on a non-interactive span (AT may not expose it);
+    // the sr-only summary must carry it, using the "Utilisation" term and the visible-window phrasing.
+    expect(screen.getByText(/% utilisation over the visible/)).toBeInTheDocument()
+  })
+
   it('marks over-allocated days and shows a utilization figure', () => {
     // Tyler has 8h on 06-01..06-02; add 4h more on 06-01 -> 12h > 8h available.
     useStore.getState().addAllocation({

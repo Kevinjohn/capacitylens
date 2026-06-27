@@ -469,16 +469,22 @@ export const AllocationBar = memo(function AllocationBar({
             ? m.scheduler_bar_aria_editor({
                 label: labelText,
                 hours: hideHours ? '' : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
-                status: bar.allocation.status,
-                start: bar.allocation.startDate,
-                end: bar.allocation.endDate,
+                // Speak the HUMANISED status + 'd MMM' dates the popover already shows — a SR must hear
+                // "Tentative … 1 Jun to 5 Jun", not the raw enum + ISO ("tentative … 2026-06-01").
+                status: allocationStatusLabels()[bar.allocation.status],
+                start: fmt(bar.allocation.startDate),
+                end: fmt(bar.allocation.endDate),
+                // The visible "•" note dot (below) is otherwise lost to AT; surface its PRESENCE here
+                // (the note CONTENT lives in the edit modal). Empty when there's no note.
+                note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : '',
               })
             : m.scheduler_bar_aria_viewer({
                 label: labelText,
                 hours: hideHours ? '' : m.scheduler_bar_aria_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) }),
-                status: bar.allocation.status,
-                start: bar.allocation.startDate,
-                end: bar.allocation.endDate,
+                status: allocationStatusLabels()[bar.allocation.status],
+                start: fmt(bar.allocation.startDate),
+                end: fmt(bar.allocation.endDate),
+                note: bar.allocation.note ? m.scheduler_bar_aria_has_note() : '',
               })
         }
         onPointerDown={

@@ -145,6 +145,34 @@ describe('AllocationBar client/project context', () => {
   })
 })
 
+describe('AllocationBar accessible name (status / dates / note)', () => {
+  it('speaks the HUMANISED status and FORMATTED dates, not the raw enum + ISO (WCAG 1.1.1)', () => {
+    const bar = makeBar(makeAllocation({ status: 'tentative', startDate: '2026-06-01', endDate: '2026-06-05' }))
+    render(<AllocationBar bar={bar} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+
+    const label = screen.getByTestId('allocation-bar').getAttribute('aria-label') ?? ''
+    // Humanised status (allocationStatusLabels) + 'd MMM' dates — matches the hover popover.
+    expect(label).toContain('Tentative')
+    expect(label).toContain('1 Jun')
+    expect(label).toContain('5 Jun')
+    // The raw enum + ISO must NOT leak into the accessible name.
+    expect(label).not.toContain('tentative')
+    expect(label).not.toContain('2026-06-01')
+  })
+
+  it('appends a "has note" cue when the allocation carries a note (WCAG 1.1.1)', () => {
+    const withNote = makeBar(makeAllocation({ note: 'Call the client first' }))
+    render(<AllocationBar bar={withNote} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+    expect(screen.getByTestId('allocation-bar').getAttribute('aria-label')).toContain('has note')
+  })
+
+  it('omits the "has note" cue when there is no note', () => {
+    const noNote = makeBar(makeAllocation())
+    render(<AllocationBar bar={noNote} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+    expect(screen.getByTestId('allocation-bar').getAttribute('aria-label')).not.toContain('has note')
+  })
+})
+
 describe('AllocationBar click interaction', () => {
   it('calls onEdit when pointerDown and pointerUp occur at the same clientX (no movement)', () => {
     const allocation = makeAllocation()

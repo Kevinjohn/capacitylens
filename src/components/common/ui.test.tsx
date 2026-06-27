@@ -629,6 +629,24 @@ describe('WeekdayPicker', () => {
     // Mon is day 1 — should be removed
     expect(onChange).toHaveBeenCalledWith([2, 3, 4, 5])
   })
+
+  it('does NOT set aria-invalid/aria-describedby on the fieldset when valid', () => {
+    const { container } = render(
+      <WeekdayPicker label="Working days" value={[1, 2, 3, 4, 5]} onChange={vi.fn()} />,
+    )
+    const fieldset = container.querySelector('fieldset')!
+    expect(fieldset).not.toHaveAttribute('aria-invalid')
+    expect(fieldset).not.toHaveAttribute('aria-describedby')
+  })
+
+  it('marks the GROUP errored (aria-invalid + aria-describedby) when invalid, mirroring sibling fields (WCAG 3.3.1)', () => {
+    const { container } = render(
+      <WeekdayPicker label="Working days" value={[]} onChange={vi.fn()} invalid describedById="err-1" />,
+    )
+    const fieldset = container.querySelector('fieldset')!
+    expect(fieldset).toHaveAttribute('aria-invalid', 'true')
+    expect(fieldset).toHaveAttribute('aria-describedby', 'err-1')
+  })
 })
 
 // ─── TemporaryTag ──────────────────────────────────────────────────────────

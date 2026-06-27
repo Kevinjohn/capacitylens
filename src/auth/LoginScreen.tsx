@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button, FieldError } from '../components/common/ui'
 import { inputClass } from '../components/common/controls'
@@ -22,6 +22,12 @@ export function LoginScreen({
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Stable ids so each input can point at the shared error message (WCAG 3.3.1). A sign-in
+  // failure is form-level (not field-specific), so we describe BOTH inputs by the one error and
+  // skip aria-invalid — describedby is what re-announces the reason as the user navigates back.
+  const emailId = useId()
+  const passwordId = useId()
+  const errorId = useId()
 
   const signInWithPassword = async (e: FormEvent) => {
     e.preventDefault()
@@ -81,25 +87,31 @@ export function LoginScreen({
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-ink">{m.login_email()}</span>
                 <input
+                  id={emailId}
                   className={inputClass}
                   type="email"
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  // Describe by the form-level error only while it's showing, so the reason is
+                  // re-announced when focus returns to this field (WCAG 3.3.1).
+                  aria-describedby={error ? errorId : undefined}
                   autoFocus
                 />
               </label>
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-ink">{m.login_password()}</span>
                 <input
+                  id={passwordId}
                   className={inputClass}
                   type="password"
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-describedby={error ? errorId : undefined}
                 />
               </label>
-              <FieldError>{error}</FieldError>
+              <FieldError id={errorId}>{error}</FieldError>
               <div className="flex justify-end">
                 <Button type="submit" disabled={busy}>
                   {m.login_sign_in()}
