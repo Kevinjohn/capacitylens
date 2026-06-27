@@ -55,6 +55,7 @@ function renderLane(overrides: Partial<Parameters<typeof ResourceLane>[0]> = {})
   render(
     <ResourceLane
       resourceId="r1"
+      ariaLabel="Resource one timeline"
       days={DAYS}
       dayStates={DAY_STATES}
       timeOff={TIME_OFF_BLOCKS}

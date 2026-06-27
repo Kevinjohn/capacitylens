@@ -65,7 +65,10 @@ export const DateHeader = memo(function DateHeader({
   const weeks = useMemo(() => weekBlocks(days, weekStartsOn), [days, weekStartsOn])
 
   return (
-    <div role="columnheader" aria-label={m.scheduler_dates_aria()} className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
+    /* Column 2 of the scheduler grid: the timeline date header (col 1 is the sticky utilisation
+       column header in SchedulerGrid). aria-colindex=2 matches the gridcells/rowheaders below so the
+       grid's declared 2-column structure (aria-colcount=2) is consistent (WCAG 1.3.1). */
+    <div role="columnheader" aria-colindex={2} aria-label={m.scheduler_dates_aria()} className="relative flex h-full shrink-0 flex-col" style={{ width: totalWidth }}>
       {/* Month tier — padding-driven height (not a fixed px) so it scales with font size.
           Each month's LABEL is position:sticky, pinned to the left edge of the visible
           timeline (left = leftColWidth, just past the sticky utilisation column), so the
