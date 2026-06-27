@@ -218,7 +218,12 @@ describe('AllocationBar interactions', () => {
       const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
       expect(after.endDate).toBe('2026-06-01') // collapsed to a single day
       expect(after.hoursPerDay).toBe(24) // clamped at the cap
-      expect(useStore.getState().notice?.message).toMatch(/capped at 24h\/day/i)
+      const notice = useStore.getState().notice
+      expect(notice?.message).toMatch(/capped at 24h\/day/i)
+      // WCAG 2.2.1: the clamp truncated work, and this toast is the SOLE signal of that silent loss.
+      // It must be raised with the PERSISTENT 'warning' tone (AppShell → duration: Infinity + close
+      // button), NOT the transient 'info' tone that auto-dismisses on the fixed 4s timer.
+      expect(notice?.tone).toBe('warning')
     })
 
     it('does NOT show the cap notice on a normal in-range resize', () => {
@@ -231,7 +236,55 @@ describe('AllocationBar interactions', () => {
       fireEvent.keyDown(screen.getByTestId('allocation-bar'), { key: 'ArrowRight', shiftKey: true })
       const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
       expect(after.hoursPerDay).toBe(6) // rescaled, in range
+      // No clamp → no cap notice at all here (a keyboard nudge only raises a toast on a clamp), proving
+      // the persistent 'warning' treatment is scoped to the truncation case and didn't leak onto every
+      // resize — transient confirmations elsewhere stay 'info' (~4s auto-dismiss).
       expect(useStore.getState().notice?.message ?? '').not.toMatch(/capped/i)
+    })
+
+    it('raises the PERSISTENT warning tone when a POINTER shrink-resize clamps the work volume', () => {
+      // Mirror of the keyboard clamp test, for the POINTER path (the OTHER clamp site, in onCommit).
+      // The cap advisory rides on the post-commit confirmation toast there; on a clamp that single
+      // toast must persist (tone 'warning') so the truncation isn't auto-dismissed on the 4s timer.
+      enableDays()
+      const st = useStore.getState()
+      const c = st.addClient({ name: 'Acme', color: '#1' })
+      const p = st.addProject({ name: 'P', clientId: c.id, color: '#2' })
+      const t = st.addActivity({ name: 'Wires', kind: 'project', projectId: p.id })
+      const r = st.addResource({ kind: 'person', name: 'Ty', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3' })
+      // Mon 06-01..Tue 06-02 = 2 working days at 24h/day = 48h. Dragging the end grip inward to a
+      // single day needs 48h/day — clamped to 24, half the volume lost.
+      const a = st.addAllocation({ resourceId: r.id, activityId: t.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 24, status: 'confirmed' })
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+
+      // Drag the end grip left by ~one day (96px → 48px) to collapse 2 → 1 working day.
+      fireEvent.pointerDown(screen.getByTestId('resize-end'), { clientX: 96, button: 0 })
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 48, bubbles: true }))
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 48, bubbles: true }))
+
+      const after = useStore.getState().data.allocations.find((x) => x.id === a.id)!
+      expect(after.endDate).toBe('2026-06-01') // collapsed to a single day
+      expect(after.hoursPerDay).toBe(24) // clamped at the cap
+      const notice = useStore.getState().notice
+      expect(notice?.message).toMatch(/capped at 24h\/day/i)
+      expect(notice?.tone).toBe('warning') // WCAG 2.2.1: persists, not the 4s-auto-dismiss 'info'
+    })
+
+    it('keeps the POINTER move confirmation TRANSIENT (info) when nothing is clamped', () => {
+      // Guards that the 'warning' treatment is scoped to the clamp: a normal pointer move still
+      // emits the "Allocation moved …" confirmation as a transient 'info' toast (~4s auto-dismiss),
+      // so we didn't make every confirmation persistent.
+      enableDays()
+      const a = seedAllocation() // 8h over 3 days; a plain move clamps nothing
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+
+      fireEvent.pointerDown(screen.getByTestId('allocation-bar'), { clientX: 50, button: 0 })
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 98, bubbles: true })) // +1 day
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 98, bubbles: true }))
+
+      const notice = useStore.getState().notice
+      expect(notice?.message ?? '').not.toMatch(/capped/i)
+      expect(notice?.tone).toBe('info') // transient confirmation — auto-dismisses on the 4s timer
     })
 
     it('hourly mode keeps hours/day fixed on resize (regression guard)', () => {

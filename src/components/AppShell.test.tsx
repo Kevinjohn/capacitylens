@@ -346,6 +346,47 @@ describe('AppShell transient notice', () => {
     }
   })
 
+  it('keeps a WARNING notice on screen past the 4s info window, on the NEUTRAL surface (WCAG 2.2.1)', async () => {
+    // The 'warning' tone (e.g. the clamped-hours/data-truncation advisory) must inherit the
+    // persistent (duration: Infinity) treatment like an error — a fixed 4s timer on the sole signal
+    // of a silent truncation fails WCAG 2.2.1 — but must NOT carry the danger `.toast-error` accent,
+    // since the edit SUCCEEDED. Same fake-timer technique as the info-vs-error test above.
+    vi.useFakeTimers()
+    try {
+      renderAppShell()
+
+      act(() => {
+        useStore.getState().setNotice('Work volume was capped at 24h/day.', 'warning')
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50) // let Sonner mount/portal the toast
+      })
+      const message = screen.getByText(/capped at 24h\/day/)
+      const toastEl = message.closest('[data-sonner-toast]')
+      expect(toastEl).not.toBeNull()
+      // NEUTRAL surface: not raised via toast.error, so no danger accent (unlike the error tone).
+      expect(toastEl).not.toHaveClass('toast-error')
+
+      // Persists well past where an INFO toast (4000ms) would have auto-dismissed.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(4500)
+      })
+      expect(screen.getByText(/capped at 24h\/day/)).toBeInTheDocument()
+      expect(useStore.getState().notice?.tone).toBe('warning')
+
+      // Still dismissible via the close button; dismissal clears the store in lock-step.
+      act(() => {
+        screen.getByRole('button', { name: 'Close toast' }).click()
+      })
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500)
+      })
+      expect(useStore.getState().notice).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('rapidly replacing notice A with B leaves B intact (no stale-clear race)', async () => {
     // REGRESSION for the Phase-5 stale-clear race: rapidly swapping notice A→B (e.g. two drags
     // in quick succession) must NOT let A's deferred programmatic dismiss wipe B. When the bridge
