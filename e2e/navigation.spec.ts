@@ -38,6 +38,26 @@ test.describe('Navigation & shell', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
   })
 
+  // WCAG 2.4.2 (Page Titled): each route sets a descriptive document.title of "<nav label> · CapacityLens",
+  // derived from the SAME nav labels — so the tab/history/bookmark differs per page rather than the
+  // static "CapacityLens" index.html sets. Assert a couple of routes are distinct AND descriptive.
+  test('each route sets a descriptive, distinct document.title', async ({ page }) => {
+    await openApp(page)
+    // The index route reads as the scheduler's nav label, not the bare brand.
+    await expect(page).toHaveTitle('Schedule · CapacityLens')
+
+    await page.getByRole('link', { name: 'Resources', exact: true }).click()
+    await expect(page).toHaveTitle('Resources · CapacityLens')
+
+    await page.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page).toHaveTitle('Settings · CapacityLens')
+
+    // Distinct from the static fallback and from each other (the bug was every route == "CapacityLens").
+    await page.getByRole('link', { name: 'Schedule', exact: true }).click()
+    await expect(page).toHaveTitle('Schedule · CapacityLens')
+    await expect(page).not.toHaveTitle('CapacityLens')
+  })
+
   test('the active section is marked aria-current', async ({ page }) => {
     await openApp(page)
     await page.getByRole('link', { name: 'Resources' }).click()
