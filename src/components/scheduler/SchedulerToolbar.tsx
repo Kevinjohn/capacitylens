@@ -144,8 +144,12 @@ export function SchedulerToolbar() {
   }
 
   return (
-    <div className="@container border-b border-line bg-surface">
-      <div className="flex items-center gap-2 px-4 py-2">
+    <div data-testid="scheduler-toolbar" className="@container border-b border-line bg-surface">
+      {/* flex-wrap (mirrors the filters row below): at ~320 CSS px the title + nav + date + zoom +
+          draw + undo/redo would otherwise pack onto one non-wrapping line and force horizontal
+          scroll, failing WCAG 1.4.10 Reflow. Wrapping lets the chrome reflow into stacked lines
+          instead. The gap/padding are unchanged, so wider viewports look identical. */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
         </div>

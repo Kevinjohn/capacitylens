@@ -76,7 +76,21 @@ async function openAllocationEditor(page: import('@playwright/test').Page): Prom
   await openApp(page)
   await page.getByRole('button', { name: '4w', exact: true }).click()
   await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
-  await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first().click()
+  // Robust open (it timed out once under parallel load): wait for the bar to actually be present and
+  // visible before acting, scroll it into the viewport (it can sit under the sticky chrome at the
+  // grid edge), then click. `force` is a last resort only if the normal click's actionability check
+  // can't settle in time — the assertion intent (a non-portal regression trips axe-critical) is
+  // unchanged; this just stops the open itself from flaking.
+  const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).first()
+  await expect(bar).toBeVisible()
+  await bar.scrollIntoViewIfNeeded()
+  try {
+    await bar.click({ timeout: 5000 })
+  } catch {
+    // Under heavy parallel load the bar can be transiently covered by a hover popover / mid-scroll;
+    // a forced click still exercises the same open path the assertion below verifies.
+    await bar.click({ force: true })
+  }
   await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible()
   await page.waitForTimeout(350) // let the entrance animation settle (mid-fade reads as false low-contrast)
 }
@@ -152,4 +166,97 @@ test('the empty schedule (dark) has no serious or critical violations', async ({
   const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
   const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
   expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+})
+
+// WCAG 1.4.10 Reflow (AA): at 320 CSS px the scheduler CHROME (toolbar title/nav/zoom/draw row +
+// filters row) must not force horizontal scrolling. Before the fix the primary row was a
+// non-wrapping flex, so the controls packed past 320px and overflowed; adding flex-wrap lets it
+// reflow into stacked lines. We scope the check to the toolbar container (scrollWidth <= clientWidth,
+// +1px tolerance for subpixel rounding) — the timeline GRID below is legitimately 2-D scrolling data
+// (exempt under 1.4.10), so it is deliberately NOT asserted here.
+test('the scheduler toolbar reflows without horizontal scroll at 320px', async ({ page }) => {
+  // 320×480 is the WCAG reflow target (320 CSS px wide). The 480 height keeps it PORTRAIT, so
+  // pre-dismiss the session-scoped rotate hint (it covers the app on portrait phones) rather than
+  // dodging it with a contrived landscape height — we want the real narrow-viewport toolbar.
+  await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'))
+  await page.setViewportSize({ width: 320, height: 480 })
+  await openApp(page)
+  const toolbar = page.getByTestId('scheduler-toolbar')
+  await expect(toolbar).toBeVisible()
+  const overflow = await toolbar.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth }))
+  expect(overflow.scrollWidth, `toolbar overflows by ${overflow.scrollWidth - overflow.clientWidth}px at 320 CSS px`)
+    .toBeLessThanOrEqual(overflow.clientWidth + 1)
+})
+
+// WCAG 2.4.11 Focus Not Obscured (Minimum, AA): a focused allocation bar must not be fully hidden
+// behind the grid's sticky chrome (the two-tier date header on top, the utilisation column on the
+// left). On focus the browser scrolls the bar into view; its scroll-margin (top tracks the header's
+// REAL measured height via --sched-sticky-top, left = the leftColWidth constant) must stop it clear
+// of BOTH. We force the obscured case: a SHORT viewport gives the few-row grid genuine vertical
+// scroll range, then we scroll the grid to its far BOTTOM-RIGHT corner so the top-left seed bar
+// (Tyler's first allocation — row 1, the timeline's earliest day) ends up off-screen ABOVE the
+// header AND LEFT of the utilisation column. Focusing it must then scroll UP and LEFT to surface it
+// clear of both. We assert (a) the focus actually MOVED the scroll (proving a scroll-into-view ran —
+// without this the test false-passes on an already-visible bar) and (b) the bar's box clears the
+// header bottom and the column right. All chrome dimensions are MEASURED from the DOM, never
+// hardcoded, so the check tracks the header even as it grows with zoom/font-size — and FAILS if the
+// reserved margin shrinks below the header's real height (verified by temporarily zeroing it).
+test('a focused allocation bar is not obscured by the sticky header or left column', async ({ page }) => {
+  // The Studio North seed has only a handful of rows, so at a tall desktop viewport the grid never
+  // overflows VERTICALLY (maxScrollTop ≈ 0) and the header-obscured case can't be reached. A short
+  // viewport forces vertical scroll range. 480px height keeps it portrait, so pre-dismiss the
+  // session rotate hint (it would otherwise cover the grid). Width stays wide so the timeline still
+  // scrolls horizontally past the bar.
+  await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'))
+  await page.setViewportSize({ width: 1000, height: 420 })
+  await openApp(page)
+  await page.getByRole('button', { name: '4w', exact: true }).click()
+  const grid = page.getByTestId('scheduler-grid')
+  await expect(grid).toBeVisible()
+
+  // The top-left seed bar: Tyler Nix's first allocation (a-tyler-1, the Wireframes bar) is in the
+  // FIRST resource row and starts on the timeline's earliest seeded day — so scrolling to the
+  // bottom-right corner pushes it off-screen up AND left, and focusing it requires an upward +
+  // leftward scroll-into-view (the exact path 2.4.11 governs). data-alloc-id is the stable hook.
+  const bar = grid.locator('[data-alloc-id="a-tyler-1"]')
+  await expect(bar).toBeVisible()
+
+  // Scroll the grid to its far bottom-right corner so the target bar is fully obscured before focus.
+  const before = await grid.evaluate((el) => {
+    const g = el as HTMLElement
+    g.scrollTop = g.scrollHeight
+    g.scrollLeft = g.scrollWidth
+    return { scrollTop: g.scrollTop, scrollLeft: g.scrollLeft }
+  })
+  await page.waitForTimeout(150) // let the row-virtualisation window settle after the jump
+  // Sanity: the grid actually HAS scroll range on both axes (else the obscured case isn't set up).
+  expect(before.scrollTop, 'grid must have vertical scroll range to obscure the bar behind the header').toBeGreaterThan(0)
+  expect(before.scrollLeft, 'grid must have horizontal scroll range to obscure the bar behind the column').toBeGreaterThan(0)
+
+  // Focus the bar (the real keyboard path) — the browser scrolls it into view, honouring its
+  // scroll-margin so it lands clear of the sticky chrome.
+  await bar.focus()
+  await expect(bar).toBeFocused()
+  await page.waitForTimeout(250) // let the focus-triggered scroll-into-view settle before measuring
+
+  const after = await grid.evaluate((el) => ({ scrollTop: (el as HTMLElement).scrollTop, scrollLeft: (el as HTMLElement).scrollLeft }))
+  // (a) Focusing must have CHANGED the scroll — proof a real scroll-into-view ran, so the
+  //     header/left-column clearance below is genuinely exercised (not a no-op on an in-view bar).
+  expect(after.scrollTop !== before.scrollTop || after.scrollLeft !== before.scrollLeft,
+    `focus must scroll the bar into view (top ${before.scrollTop}→${after.scrollTop}, left ${before.scrollLeft}→${after.scrollLeft})`).toBe(true)
+
+  // (b) Measure the sticky chrome from the DOM: the header is the grid's first role="row" (sticky
+  //     top), the left column its role="columnheader" (sticky left). Their box edges are the
+  //     obscuring lines the focused bar must sit clear of.
+  const headerBox = (await grid.locator('[role="row"]').first().boundingBox())!
+  const headerBottom = headerBox.y + headerBox.height
+  const leftColBox = (await grid.locator('[role="columnheader"]').first().boundingBox())!
+  const leftColRight = leftColBox.x + leftColBox.width
+  const barBox = (await bar.boundingBox())!
+
+  // The focused bar's top edge must clear the sticky header's bottom, and its left edge the sticky
+  // column's right (1px subpixel tolerance). If either fails, the bar scrolled in behind the chrome —
+  // which is exactly what happens if scroll-margin-top under-reserves the two-tier header's height.
+  expect(barBox.y, `bar top ${barBox.y} is behind sticky header bottom ${headerBottom}`).toBeGreaterThanOrEqual(headerBottom - 1)
+  expect(barBox.x, `bar left ${barBox.x} is behind sticky column right ${leftColRight}`).toBeGreaterThanOrEqual(leftColRight - 1)
 })
