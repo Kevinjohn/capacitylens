@@ -468,7 +468,7 @@ export function SchedulerGrid() {
       className="flex border-y border-line-soft bg-surface"
       style={{ height: LAYOUT.groupHeaderHeight }}
     >
-      <div role="rowheader" className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
+      <div role="rowheader" aria-colindex={1} className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
         <button
           type="button"
           onClick={() => toggleGroup(group.key)}
@@ -487,7 +487,7 @@ export function SchedulerGrid() {
           <span className="truncate text-ink">{group.title}</span>
         </button>
       </div>
-      <div role="gridcell" className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
+      <div role="gridcell" aria-colindex={2} className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
         {ui.collapsedGroups.includes(group.key)
           ? m.scheduler_group_hidden({ count: group.rows.length })
           : group.external
@@ -519,6 +519,7 @@ export function SchedulerGrid() {
       >
         <div
           role="rowheader"
+          aria-colindex={1}
           className={`sticky left-0 z-10 flex shrink-0 items-start gap-2 border-r border-line bg-surface ps-3 ${
             resource.kind === 'placeholder' ? 'hatch-lines' : ''
           }`}
@@ -621,6 +622,10 @@ export function SchedulerGrid() {
 
         <ResourceLane
           resourceId={resource.id}
+          // Accessible name for the lane's role="gridcell" (col 2): the timeline cell was
+          // previously unnamed. "<name> timeline" names it without duplicating the rowheader's
+          // sr-only capacity summary, so the cell reads honestly in the column structure (WCAG 1.3.1).
+          ariaLabel={m.scheduler_lane_aria({ name: resourceDisplayName(resource) })}
           days={days}
           dayStates={dayStates}
           timeOff={timeOff}
@@ -670,6 +675,13 @@ export function SchedulerGrid() {
         data-draw-mode={ui.drawMode}
         role="grid"
         aria-label={m.scheduler_grid_aria()}
+        // Two-column grid (WCAG 1.3.1): col 1 = the sticky left resource/utilisation column
+        // (every row's rowheader / the header's columnheader), col 2 = the timeline lane
+        // (the gridcell / the DateHeader columnheader). aria-colcount declares that structure so
+        // the grid honestly exposes the columns it implies; every left cell carries aria-colindex=1
+        // and every right cell aria-colindex=2 below. (Keyboard nav is on the bars — role="button",
+        // not the cells — so these indices are pure structure, not a focus model.)
+        aria-colcount={2}
         aria-rowcount={items.length + 1}
         onScroll={onScroll}
         // Publish the measured sticky-header height so each AllocationBar's scroll-margin-top reserves
@@ -686,6 +698,7 @@ export function SchedulerGrid() {
         <div ref={headerRef} role="row" aria-rowindex={1} className="sticky top-0 z-20 flex min-w-max shrink-0 border-b border-line-soft bg-surface" style={{ minHeight: LAYOUT.headerHeight }}>
           <div
             role="columnheader"
+            aria-colindex={1}
             className="sticky left-0 z-30 flex shrink-0 flex-col justify-center border-r border-line bg-surface px-3"
             style={{ width: LAYOUT.leftColWidth }}
           >
@@ -721,7 +734,7 @@ export function SchedulerGrid() {
             className="sticky left-0 z-[1] flex min-h-0 flex-1 items-center justify-center p-8"
             style={{ width: timelineWidth || LAYOUT.leftColWidth }}
           >
-            <div role="gridcell" className="flex items-center justify-center">
+            <div role="gridcell" aria-colindex={1} aria-colspan={2} className="flex items-center justify-center">
               {filtersActive ? (
                 // Heading text is pinned EXACTLY by filters.spec.ts + US-FIL-07. The Clear-filters CTA
                 // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when

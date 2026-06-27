@@ -45,8 +45,17 @@ test.describe('Keyboard & accessibility', () => {
 
   test('the scheduler exposes grid roles and an sr-only per-row capacity summary', async ({ page }) => {
     await openApp(page)
-    await expect(page.getByRole('grid', { name: 'Resource schedule' })).toBeVisible()
+    const grid = page.getByRole('grid', { name: 'Resource schedule' })
+    await expect(grid).toBeVisible()
+    // The grid honestly declares its 2-column structure (WCAG 1.3.1): col 1 = the sticky
+    // resource/utilisation column, col 2 = the timeline lane.
+    await expect(grid).toHaveAttribute('aria-colcount', '2')
     await expect(page.getByRole('rowheader', { name: /Tyler Nix/ })).toBeVisible()
+    // The lane cell (col 2) carries an accessible name ("<name> timeline") so it isn't an
+    // unnamed gridcell, and exposes aria-colindex=2 to match the declared columns.
+    const lane = page.getByRole('gridcell', { name: /Tyler Nix timeline/ })
+    await expect(lane).toBeVisible()
+    await expect(lane).toHaveAttribute('aria-colindex', '2')
     await expect(page.getByText(/\d+ allocation/).first()).toBeAttached() // sr-only summary
   })
 

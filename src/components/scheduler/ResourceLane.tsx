@@ -66,6 +66,7 @@ const BarsLayer = memo(function BarsLayer({
 // props are stable model-derived values; onEdit/onDraw are stabilised in SchedulerGrid.
 export const ResourceLane = memo(function ResourceLane({
   resourceId,
+  ariaLabel,
   days,
   dayStates,
   timeOff,
@@ -81,6 +82,10 @@ export const ResourceLane = memo(function ResourceLane({
   onDraw,
 }: {
   resourceId: ID
+  /** Accessible name for the lane's role="gridcell" (e.g. "Tyler Nix timeline"). The cell is
+   *  column 2 of the grid; naming it keeps the 2-column structure honest (WCAG 1.3.1) without
+   *  echoing the rowheader's sr-only capacity summary. */
+  ariaLabel: string
   days: ISODate[]
   dayStates: DayState[]
   timeOff: TimeOffBlock[]
@@ -194,6 +199,8 @@ export const ResourceLane = memo(function ResourceLane({
       data-testid="resource-lane"
       data-resource-id={resourceId}
       role="gridcell"
+      aria-colindex={2}
+      aria-label={ariaLabel}
       className="relative shrink-0 transition-colors"
       style={{ width: geom.totalWidth, height: rowHeight }}
       onPointerDown={onPointerDown}

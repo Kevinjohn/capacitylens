@@ -137,6 +137,7 @@
   "scheduler_show_unallocated": "Show unallocated",
   "scheduler_clear": "Clear",
   "scheduler_dates_aria": "Dates",
+  "scheduler_lane_aria": "{name} timeline",
   "scheduler_weekday_narrow_weekend": "S",
   "scheduler_over_marker_title": "Over capacity",
   "scheduler_grid_aria": "Resource schedule",
