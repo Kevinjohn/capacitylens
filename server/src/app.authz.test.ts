@@ -389,6 +389,76 @@ describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vecto
   })
 })
 
+describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just DELETE', () => {
+  // The scoped tables carry accountId and pass through the isScopedTable() authorize gate; `accounts`
+  // does NOT (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
+  // mode / feature toggles) needs its OWN gate — else any signed-in user could rewrite another tenant's
+  // company settings. An UPDATE (existing row) requires membership + write tier; a CREATE (no existing
+  // row) stays OPEN per the onboarding exemption. OFF mode stays allow-all. (Regression for the
+  // cross-tenant account-write gap — see decisions-log.)
+
+  const putAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+    call(app, { method: 'PUT', url: `/api/accounts/${id}`, payload: account(id), headers: cookie ? { cookie } : {} })
+  const patchAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+    call(app, { method: 'PATCH', url: `/api/accounts/${id}`, payload: { name: 'Renamed' }, headers: cookie ? { cookie } : {} })
+  const batchPutAccount = (app: FastifyInstance, id: string, cookie?: string) =>
+    call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: { ops: [{ method: 'PUT', table: 'accounts', id, row: account(id) }] },
+      headers: cookie ? { cookie } : {},
+    })
+
+  it('non-member (signed in): PUT / PATCH / batch-PUT updating a1 → 403', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie } = await signUp(app, 'acct-stranger@capacitylens.dev') // NO membership
+    expect((await putAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    expect((await patchAccount(app, 'a1', cookie)).statusCode).toBe(403)
+    expect((await batchPutAccount(app, 'a1', cookie)).statusCode).toBe(403)
+  })
+
+  it('cross-account: a member of a1 only, updating a2 → 403 (all three vectors)', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, 'acct-a1only@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
+    expect((await putAccount(app, 'a2', cookie)).statusCode).toBe(403)
+    expect((await patchAccount(app, 'a2', cookie)).statusCode).toBe(403)
+    expect((await batchPutAccount(app, 'a2', cookie)).statusCode).toBe(403)
+  })
+
+  it('viewer of a1: account update → 403 (write tier); editor of a1: → 2xx', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const viewer = await signUp(app, 'acct-viewer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: viewer.userId, role: 'viewer', status: 'active', createdAt: TS })
+    expect((await patchAccount(app, 'a1', viewer.cookie)).statusCode).toBe(403)
+
+    const editor = await signUp(app, 'acct-editor@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: editor.userId, role: 'editor', status: 'active', createdAt: TS })
+    expect((await putAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
+    expect((await patchAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
+    expect((await batchPutAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
+  })
+
+  it('CREATE stays open: a non-member may PUT / batch-PUT a NEW account (no existing row) → 2xx', async () => {
+    const { app } = await appWithAuth()
+    const { cookie } = await signUp(app, 'acct-onboard@capacitylens.dev') // no membership
+    expect((await putAccount(app, 'brandNew1', cookie)).statusCode).toBe(200)
+    expect((await batchPutAccount(app, 'brandNew2', cookie)).statusCode).toBe(200)
+  })
+
+  it('OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db) // OFF
+    seedTwo(db)
+    expect((await putAccount(app, 'a1')).statusCode).toBe(200)
+    expect((await patchAccount(app, 'a1')).statusCode).toBe(200)
+    expect((await batchPutAccount(app, 'a1')).statusCode).toBe(200)
+  })
+})
+
 describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)', () => {
   // No authMode ⇒ OFF (trusted-local). Every read/write succeeds, INCLUDING cross-account ids —
   // authorize() short-circuits to true on its first line, so resolveRole/can never run.

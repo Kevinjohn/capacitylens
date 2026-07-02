@@ -7,10 +7,12 @@ test.use({ reducedMotion: 'reduce' })
 // (CAPACITYLENS_AUTH=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
 // invites admin B + editor C (both accept via the API). Then, as B (admin), we drive the Settings →
 // Members UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
-// revoke it. We assert the owner option is ABSENT for B in the UI, and at the API layer that B cannot
-// grant owner (PATCH …members/<C> {role:'owner'} → 403), cannot touch owner A (→ 403), that the sole
-// owner A cannot remove themselves (→ 403), and — the cross-tenant headline — that B cannot read
-// ANOTHER account's members (→ 403). Browser-agnostic (no UA branching).
+// revoke it. We assert the owner option AND the "Make owner" transfer affordance are ABSENT for B in
+// the UI, and at the API layer that B cannot grant owner (PATCH …members/<C> {role:'owner'} → 403),
+// cannot touch owner A (→ 403), cannot transfer ownership (→ 403), that the sole owner A cannot remove
+// themselves (→ 403), and — the cross-tenant headline — that B cannot read ANOTHER account's members
+// (→ 403). Finally owner A hands ownership to C (→ 200; C becomes owner, A steps down to admin).
+// Browser-agnostic (no UA branching).
 
 const API = 'http://localhost:8887'
 const PASSWORD = 'demo-password-123'
@@ -93,6 +95,12 @@ test.describe('member management (CAPACITYLENS_AUTH=password)', () => {
       data: { role: 'editor' },
     })
     expect(touchOwner.status()).toBe(403)
+    // B cannot transfer ownership — it is owner-only, one rank above admin.
+    const adminTransfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+      headers: { cookie: admin.cookie },
+      data: { toUserId: editor.userId },
+    })
+    expect(adminTransfer.status()).toBe(403)
     // Owner A (the sole owner) cannot remove themselves — last-owner protection.
     const selfRemove = await request.delete(`${API}/api/accounts/${accountId}/members/${owner.userId}`, {
       headers: { cookie: owner.cookie },
@@ -131,6 +139,8 @@ test.describe('member management (CAPACITYLENS_AUTH=password)', () => {
     // The invite role picker offers NO owner option for an admin.
     const inviteOwnerOption = page.locator('[data-testid="invite-role"] option[value="owner"]')
     await expect(inviteOwnerOption).toHaveCount(0)
+    // Nor a "Make owner" button on any row — transfer of ownership is owner-only, invisible to B.
+    await expect(page.getByTestId('member-make-owner')).toHaveCount(0)
 
     // B changes C from editor → viewer through the UI (C's row has a role select).
     const editorRow = rows.filter({ hasText: EDITOR })
@@ -158,5 +168,25 @@ test.describe('member management (CAPACITYLENS_AUTH=password)', () => {
     await expect(inviteRows).toHaveCount(3) // admin + editor (used) + the just-minted viewer
     await inviteRows.first().getByTestId('invite-revoke').click()
     await expect(inviteRows).toHaveCount(2)
+
+    // ── Owner-only transfer of ownership (API): B (admin) was refused above; the real owner A hands
+    // the account to C, atomically — C becomes owner and A steps down to admin. ─────────────────────
+    const transfer = await request.post(`${API}/api/accounts/${accountId}/transfer-ownership`, {
+      headers: { cookie: owner.cookie },
+      data: { toUserId: editor.userId },
+    })
+    expect(transfer.status()).toBe(200)
+    await expect
+      .poll(async () => {
+        const res = await request.get(`${API}/api/accounts/${accountId}/members`, {
+          headers: { cookie: owner.cookie }, // A is now an admin, but an admin may still list members
+        })
+        const members = (await res.json()).members as Array<{ userId: string; role: string }>
+        return [
+          members.find((m) => m.userId === editor.userId)?.role,
+          members.find((m) => m.userId === owner.userId)?.role,
+        ]
+      })
+      .toEqual(['owner', 'admin']) // C promoted, A demoted — exactly one owner throughout
   })
 })

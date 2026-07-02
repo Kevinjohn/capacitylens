@@ -891,17 +891,29 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     expect((await post(app, 'phases', FIXTURE_PHASE)).statusCode).toBe(201)
   }
 
+  // Generic writes (POST/PUT/PATCH/batch) STRIP lifecycle tombstones (the P2.1 write guard in
+  // sanitizeWrite): only the dedicated archive/delete routes may set archivedAt/deletedAt. So a fixture
+  // round-tripped through POST comes back MINUS its tombstones — those columns' persistence is covered
+  // by app.lifecycle.test.ts (archive/delete → includeInactive read). Stripping them here keeps this
+  // column-spec-gap check honest for every OTHER field on clients/projects/resources.
+  function stripTombstones<T extends { archivedAt?: string; deletedAt?: string }>(fixture: T): T {
+    const copy = { ...fixture }
+    delete copy.archivedAt
+    delete copy.deletedAt
+    return copy
+  }
+
   it('account: every field round-trips (including optional schedulingMode)', async () => {
     const { app } = freshApp()
     expect((await post(app, 'accounts', FIXTURE_ACCOUNT)).statusCode).toBe(201)
     expect((await state(app)).accounts[0]).toEqual(FIXTURE_ACCOUNT)
   })
 
-  it('client: every field round-trips (including lifecycle archivedAt/deletedAt)', async () => {
+  it('client: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', FIXTURE_ACCOUNT)
     expect((await post(app, 'clients', FIXTURE_CLIENT)).statusCode).toBe(201)
-    expect((await state(app)).clients[0]).toEqual(FIXTURE_CLIENT)
+    expect((await state(app)).clients[0]).toEqual(stripTombstones(FIXTURE_CLIENT))
   })
 
   it('discipline: every field round-trips (including optional color)', async () => {
@@ -911,12 +923,12 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     expect((await state(app)).disciplines[0]).toEqual(FIXTURE_DISCIPLINE)
   })
 
-  it('project: every field round-trips (including lifecycle archivedAt/deletedAt)', async () => {
+  it('project: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', FIXTURE_ACCOUNT)
     await post(app, 'clients', FIXTURE_CLIENT)
     expect((await post(app, 'projects', FIXTURE_PROJECT)).statusCode).toBe(201)
-    expect((await state(app)).projects[0]).toEqual(FIXTURE_PROJECT)
+    expect((await state(app)).projects[0]).toEqual(stripTombstones(FIXTURE_PROJECT))
   })
 
   it('phase: every field round-trips', async () => {
@@ -932,7 +944,7 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     const { app } = freshApp()
     await seedFixtureDeps(app)
     expect((await post(app, 'resources', FIXTURE_RESOURCE)).statusCode).toBe(201)
-    expect((await state(app)).resources[0]).toEqual(FIXTURE_RESOURCE)
+    expect((await state(app)).resources[0]).toEqual(stripTombstones(FIXTURE_RESOURCE))
   })
 
   it('external resource: kind + company name round-trip (no discipline/project binding)', async () => {

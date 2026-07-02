@@ -152,10 +152,23 @@ BETTER_AUTH_URL=https://capacity.example.com
 Then `docker compose up -d`. Better Auth creates its own tables (`user`, `session`, `account`,
 `verification`) inside the **same** SQLite file on first boot.
 
-> **Signup is invite-only by design.** Self-service public signup is intentionally **closed** —
-> CapacityLens has no email infrastructure (no verification mail, no password-reset mail), and
-> opening signup on a shared instance is a footgun. Full invite/admin user-management flows are
-> a **later** task. For now, treat `password` mode as a small, controlled set of accounts.
+> **Signup is invite-only by design — and `password` mode needs one manual step per new user.**
+> Self-service public signup is intentionally **closed** (`CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset):
+> CapacityLens has no email infrastructure (no verification or password-reset mail), so opening signup
+> on a shared instance is a footgun. Note that an **invite binds a role to an already-signed-in user**
+> — it does not, by itself, create a login — so in `password` mode there is no self-serve path for a
+> brand-new person to get in. Two options:
+>
+> 1. **Admin-provisioned credential (fine for a small team).** Briefly set
+>    `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1`, have the new person create their email + password account (or
+>    create it for them via `POST /api/auth/sign-up/email`), then turn the flag **back off**. Once they
+>    are signed in, they accept the invite link, which grants the role.
+> 2. **Use `sso` mode instead** (§4b). With SSO the identity provider creates the user on first
+>    sign-in, so an invite is all that's needed — no manual credential step. This is the smoother path
+>    for anything beyond a handful of password users.
+>
+> Full self-serve password onboarding (set-your-password-from-an-invite) needs email delivery, which is
+> a deliberate non-goal today — so treat `password` mode as a small, controlled set of accounts.
 
 ### 4b. `sso` mode — single OIDC/OAuth2 provider
 

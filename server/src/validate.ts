@@ -9,6 +9,7 @@ import { sanitizeImportedRecord, sanitizeAccount } from '@capacitylens/shared/li
 import { wouldAddSecondBuiltin } from '@capacitylens/shared/data/internalClient'
 import { isHexColor } from '@capacitylens/shared/lib/color'
 import { cleanText } from '@capacitylens/shared/lib/strings'
+import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
 import { SCHEDULING_MODES, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
 import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities'
 
@@ -59,8 +60,16 @@ const isScopedKey = (table: string): table is ScopedEntityKey =>
  *
  * Also rejects any row whose id is not a non-empty string — the single funnel all
  * write paths flow through, so no path can slip past the NULL-id guard.
+ *
+ * `existing` is the currently-stored row (from getRow) on an UPDATE — PUT/PATCH/batch pass it so
+ * the lifecycle tombstones can be PINNED to what's on disk (see the scoped branch); it is undefined
+ * on a CREATE (POST), which is why a new row always starts with its tombstones stripped (active).
  */
-export function sanitizeWrite(table: string, row: Record<string, unknown>): Record<string, unknown> {
+export function sanitizeWrite(
+  table: string,
+  row: Record<string, unknown>,
+  existing?: Record<string, unknown>,
+): Record<string, unknown> {
   assertIdPresent(row)
   const copy = { ...row }
   if (table === 'accounts') {
@@ -75,7 +84,32 @@ export function sanitizeWrite(table: string, row: Record<string, unknown>): Reco
     sanitizeAccount(copy)
     return copy
   }
-  if (isScopedKey(table)) return sanitizeImportedRecord(table, copy)
+  if (isScopedKey(table)) {
+    const cleaned = sanitizeImportedRecord(table, copy)
+    // Lifecycle tombstones (archivedAt/deletedAt, P2.1) are owned ONLY by the four dedicated
+    // archive/unarchive/delete/purge routes, which build rows via the pure lifecycle transitions +
+    // replaceAccountSlice and NEVER pass through sanitizeWrite. So across every GENERIC write
+    // (POST/PUT/PATCH/batch) they are IMMUTABLE in BOTH directions — PIN them to whatever is already
+    // stored (`existing`), ignoring the body:
+    //   • a crafted body can't SET a tombstone on an active row (which would bypass the
+    //     archived-before-delete interlock AND, for resources, the obfuscateResource name scrub,
+    //     leaving an un-scrubbed "deleted" row a back-dated deletedAt makes instantly purgeable); and
+    //   • an unrelated field-edit (e.g. PATCH {color}) can't CLEAR an existing tombstone — the PATCH
+    //     merges `existing` (carrying its real archivedAt) and THEN this funnel runs, so a blind strip
+    //     would let upsertRow NULL the column and silently RESURRECT an archived/soft-deleted row to
+    //     active. There is NO un-delete route anywhere (canUnarchive rejects a 'deleted' tombstone),
+    //     so this would manufacture a capability the product deliberately has none of.
+    // On a CREATE (existing === undefined) both fall through to the strip, so new rows start active.
+    // The IMPORT path is untouched: it uses sanitizeImportedRecord directly (not sanitizeWrite), so a
+    // legitimate export round-trips its tombstones. (accounts/disciplines carry no tombstones.)
+    if (isLifecycleEntityKey(table)) {
+      if (typeof existing?.archivedAt === 'string') cleaned.archivedAt = existing.archivedAt
+      else delete cleaned.archivedAt
+      if (typeof existing?.deletedAt === 'string') cleaned.deletedAt = existing.deletedAt
+      else delete cleaned.deletedAt
+    }
+    return cleaned
+  }
   return copy
 }
 
@@ -95,6 +129,19 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
   // builtin (matching id) is fine. (Thrown directly, outside the try below, so it isn't redundantly
   // re-tagged — it's already a ValidationError → 400.)
   if (table === 'clients') {
+    // The built-in Internal client is a per-account SINGLETON, and the direct API is the only write
+    // path that can set `builtin`. Two symmetric server-side guards:
+    //  (a) never ADD a second builtin to an account (wouldAddSecondBuiltin), and
+    //  (b) never UN-FLAG the existing builtin — a crafted PATCH `{builtin:false}` merges to `builtin`
+    //      absent (sanitizeImportedRecord drops a non-true builtin) and would otherwise strip the
+    //      singleton, orphaning the derived "project-less activities bucket under Internal" association
+    //      until the next boot backfill re-creates one. The web store never sends this (Draft<Client>
+    //      excludes builtin); it is purely a direct/crafted-request guard. Updating the SAME builtin
+    //      (matching id, builtin still true) is fine.
+    const existing = state.clients.find((c) => c.id === row.id)
+    if (existing?.builtin === true && row.builtin !== true) {
+      throw new ValidationError('The built-in Internal client cannot be converted to a regular client.')
+    }
     if (row.builtin === true && wouldAddSecondBuiltin(state.clients, row.accountId as string, row.id as string)) {
       throw new ValidationError('This company already has its built-in Internal client.')
     }

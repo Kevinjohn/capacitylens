@@ -397,5 +397,100 @@ describe('member endpoints — OFF mode (trusted-local)', () => {
     // A real member in OFF can be no-op'd without crashing.
     upsertMember(db, { accountId: 'a1', userId: 'demo', role: 'owner', status: 'active', createdAt: TS })
     expect((await patchRoleReq(app, 'a1', 'demo', 'admin')).statusCode).toBe(200)
+    // transfer-ownership in OFF is an inert no-op success too (no real owner model; the UI is hidden in
+    // OFF). Like the other OFF mutates above it returns 200 but writes NOTHING — no phantom member row is
+    // minted for the target, and the caller's existing row (demo, still 'owner' — the earlier patch was
+    // also inert) is left exactly as it was.
+    expect((await call(app, {
+      method: 'POST',
+      url: '/api/accounts/a1/transfer-ownership',
+      payload: { toUserId: 'somebody-else' },
+    })).statusCode).toBe(200)
+    expect(getMemberRole(db, 'a1', 'somebody-else')).toBeNull() // no phantom member minted
+    expect(getMemberRole(db, 'a1', 'demo')).toBe('owner') // untouched — the OFF branch writes nothing
+  })
+})
+
+describe('P1.11 transfer ownership — POST /api/accounts/:id/transfer-ownership (owner-only)', () => {
+  const transfer = (app: FastifyInstance, accountId: string, toUserId: string, cookie?: string) =>
+    call(app, {
+      method: 'POST',
+      url: `/api/accounts/${accountId}/transfer-ownership`,
+      payload: { toUserId },
+      headers: cookie ? { cookie } : {},
+    })
+
+  it('owner → existing member: target becomes owner, caller steps down to admin (atomic)', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const owner = await signUp(app, 'owner-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    const member = await signUp(app, 'member-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: member.userId, role: 'editor', status: 'active', createdAt: TS })
+
+    expect((await transfer(app, 'a1', member.userId, owner.cookie)).statusCode).toBe(200)
+    expect(getMemberRole(db, 'a1', member.userId)).toBe('owner')
+    expect(getMemberRole(db, 'a1', owner.userId)).toBe('admin')
+    // createdAt is the immutable JOIN timestamp — a transfer (a role change on both rows) must NOT
+    // reset it, else both users jump to the bottom of the createdAt-ordered member list and show the
+    // transfer moment as their "joined" date. Both must still read the original TS. (Code-review fix.)
+    const createdAtOf = (userId: string) =>
+      (db.prepare('SELECT createdAt FROM account_members WHERE accountId = ? AND userId = ?').get('a1', userId) as { createdAt: string }).createdAt
+    expect(createdAtOf(member.userId)).toBe(TS)
+    expect(createdAtOf(owner.userId)).toBe(TS)
+  })
+
+  it('admin cannot transfer ownership → 403 (transferOwnership is owner-only, above admin)', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const admin = await signUp(app, 'admin-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: admin.userId, role: 'admin', status: 'active', createdAt: TS })
+    const member = await signUp(app, 'member2-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: member.userId, role: 'editor', status: 'active', createdAt: TS })
+
+    expect((await transfer(app, 'a1', member.userId, admin.cookie)).statusCode).toBe(403)
+    expect(getMemberRole(db, 'a1', admin.userId)).toBe('admin') // unchanged
+    expect(getMemberRole(db, 'a1', member.userId)).toBe('editor')
+  })
+
+  it('target must be an existing member → 404; cannot transfer to self → 400 (both leave state intact)', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const owner = await signUp(app, 'owner2-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+
+    expect((await transfer(app, 'a1', 'ghost-user', owner.cookie)).statusCode).toBe(404)
+    expect((await transfer(app, 'a1', owner.userId, owner.cookie)).statusCode).toBe(400)
+    expect(getMemberRole(db, 'a1', owner.userId)).toBe('owner') // still the owner
+  })
+
+  it('a missing or empty toUserId is a 400 (shape check, before the role/owner logic)', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const owner = await signUp(app, 'owner-guard-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+
+    // Absent toUserId.
+    expect((await call(app, {
+      method: 'POST',
+      url: '/api/accounts/a1/transfer-ownership',
+      payload: {},
+      headers: { cookie: owner.cookie },
+    })).statusCode).toBe(400)
+    // Empty-string toUserId.
+    expect((await transfer(app, 'a1', '', owner.cookie)).statusCode).toBe(400)
+    expect(getMemberRole(db, 'a1', owner.userId)).toBe('owner') // still the owner; nothing changed
+  })
+
+  it('cross-tenant: an owner of a1 cannot transfer ownership within a2 → 403', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const a1owner = await signUp(app, 'a1owner-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: a1owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    const a2member = await signUp(app, 'a2member-xfer@capacitylens.dev')
+    upsertMember(db, { accountId: 'a2', userId: a2member.userId, role: 'editor', status: 'active', createdAt: TS })
+
+    expect((await transfer(app, 'a2', a2member.userId, a1owner.cookie)).statusCode).toBe(403)
+    expect(getMemberRole(db, 'a2', a2member.userId)).toBe('editor') // unchanged
   })
 })

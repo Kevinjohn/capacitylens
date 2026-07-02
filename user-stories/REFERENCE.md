@@ -310,7 +310,9 @@ self-gates by trying to read the member list and rendering **nothing** if the se
 (the default everywhere) or **local mode** the section is **absent**. It has three parts:
 - **Members list** — one row per member (`data-testid="member-row"`) showing name (email), role and
   status; the caller's own row is marked **(you)**. Each manageable row carries a **role select**
-  (`data-testid="member-role-select"`) and a **Remove** button (`data-testid="member-remove"`).
+  (`data-testid="member-role-select"`) and a **Remove** button (`data-testid="member-remove"`); an
+  **Owner** additionally sees a **Make owner** button (`data-testid="member-make-owner"`) on every
+  other, non-owner member's row (the atomic ownership hand-over — see below).
 - **Invite form** — a **role** picker (`data-testid="invite-role"`) + an optional **pre-authorise
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
@@ -324,7 +326,11 @@ What's **hidden for an Admin vs an Owner**: an Admin never sees the **owner** op
 role-change select nor the invite-role picker), and an **owner row** shows no role control and no
 Remove for an Admin (an Admin can't touch an owner). The **sole owner** is protected — its role
 select is disabled and Remove is hidden (the account must keep at least one owner; *"Sole owner —
-protected"* is shown). The Owner sees every affordance. The server is the backstop for all of this:
+protected"* is shown). The Owner sees every affordance. Only the Owner sees **Make owner**
+(`data-testid="member-make-owner"`) on another, non-owner member's row — the true atomic **transfer
+of ownership** (promote them to owner + step the caller down to admin in ONE server transaction),
+distinct from setting a role to *owner* via the select (which keeps the caller an owner too). An
+Admin never sees it. The server is the backstop for all of this:
 an Admin granting owner, touching an owner, or demoting/removing the last owner is **403** even if
 the UI is bypassed; revoking another account's invite is a no-op; reading another account's members
 is **403** (no cross-tenant leak).
@@ -333,7 +339,10 @@ The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; OFF
 `PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role, 404 non-member, 403 by the
 role/last-owner rules), `DELETE /api/accounts/:accountId/members/:userId` (204; 403 owner/last-owner),
 `GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
-`DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe). Creating an
+`DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe),
+`POST /api/accounts/:accountId/transfer-ownership {toUserId}` (owner-only; 400 missing/empty or
+self-target, 404 non-member target, 403 non-owner; OFF → inert 200 no-op — hands the account to an
+existing member and demotes the caller to admin atomically). Creating an
 **owner** invite via `POST /api/invites` requires the caller be an owner (admin → 403). The UI is
 `src/components/settings/MembersSection.tsx`; story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.

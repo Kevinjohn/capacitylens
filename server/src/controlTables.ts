@@ -117,9 +117,12 @@ function inviteHasColumn(db: Db, column: string): boolean {
 }
 
 /**
- * Insert a membership, or update the role/status/createdAt of an existing `(accountId, userId)`.
- * The idempotent write the permissioned member-management endpoints (P1.5) use: re-inviting an
- * existing member just changes their role rather than erroring on the PK conflict.
+ * Insert a membership, or update the role/status of an existing `(accountId, userId)`. `createdAt`
+ * is the JOIN timestamp and is **preserved** on a role/status change (it is set ONCE, on the first
+ * insert) — so a role change or ownership transfer never re-orders the member list (which sorts by
+ * createdAt) nor rewrites a member's displayed "joined" date. The idempotent write the permissioned
+ * member-management endpoints (P1.5) use: re-inviting an existing member just changes their role
+ * rather than erroring on the PK conflict.
  *
  * @param db      The open SQLite handle.
  * @param member  The membership to upsert.
@@ -138,7 +141,7 @@ export function upsertMember(db: Db, member: AccountMember): void {
     `INSERT INTO account_members (accountId, userId, role, status, createdAt)
      VALUES (?, ?, ?, ?, ?)
      ON CONFLICT(accountId, userId) DO UPDATE SET
-       role = excluded.role, status = excluded.status, createdAt = excluded.createdAt`,
+       role = excluded.role, status = excluded.status`,
   ).run(member.accountId, member.userId, member.role, member.status, member.createdAt)
 }
 

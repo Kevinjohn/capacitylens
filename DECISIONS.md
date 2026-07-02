@@ -229,8 +229,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   (so it survives import-remap). Seeded, created by `addAccount`, and ensured by `migrateV5toV6` +
   server `openDb` — all idempotent (one per account, never duplicated). **Protected, on every write path:**
   the store throws on renaming/deleting a builtin AND strips `builtin` from public client CRUD, and the
-  SERVER (`validateWrite`) rejects a direct API write that would add a SECOND builtin to an account — so the
-  one-per-account singleton holds even for a crafted request, not just the UI. **Selectable/bindable everywhere, but HIDDEN from the Clients
+  SERVER (`validateWrite`) rejects a direct API write that would either add a SECOND builtin to an account
+  OR un-flag the existing one (a crafted `builtin:false`) — so the one-per-account singleton holds even for
+  a crafted request, not just the UI. **Selectable/bindable everywhere, but HIDDEN from the Clients
   management list (owner, 2026-06-20):** it's a behind-the-scenes data anchor, not a user-managed
   client, so `ClientList` filters out `builtin` rows — but it stays a real, persisted client that is
   still selectable in ProjectForm's client picker, a "Filter by client" option, and a CommandPalette
@@ -546,11 +547,20 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   vectors — the direct `DELETE /api/accounts/:id` route AND the batch `{method:'DELETE',table:'accounts'}`
   op (the client's delete-company path) — resolving the caller's role against the account's OWN id;
   a delete CASCADES (total tenant destruction), so the CREATE exemption does not extend to it. Account
-  `POST /api/accounts` (and batch PUT on accounts) **stays OPEN** (new-user onboarding has no membership
-  and there is no `createAccount` Action). This is an interim gate pending P2.5/P2.6's full
-  archive→soft-delete→purge lifecycle. **DEFERRED (untouched):** `transferOwnership` (no route yet —
-  matrix-only in access.test.ts). The no-arg whole `/api/state` read is now CLOSED in auth-on (P1.13);
-  `manageMembers`/`manageInvites` routes landed in P1.11.
+  CREATE (`POST /api/accounts` + batch PUT of a NEW account) **stays OPEN** (new-user onboarding has no
+  membership and there is no `createAccount` Action), but an account UPDATE (PUT/PATCH/batch-PUT of an
+  EXISTING account) is now gated `'write'` — closing the cross-tenant account-settings write that
+  `accounts` (a non-scoped table, no `accountId` column) previously slipped past the scoped-write gate
+  (2026-07-02). **Generic writes also PIN lifecycle tombstones** (`archivedAt`/`deletedAt`, in
+  `sanitizeWrite`) to the stored row — so ONLY the dedicated archive/delete routes can SET one, AND an
+  unrelated field-edit (PATCH/PUT/batch) can't CLEAR one (a blind strip would silently resurrect an
+  archived/soft-deleted row — there is no un-delete route); the entity list is single-sourced as
+  `LIFECYCLE_ENTITY_KEYS` in shared. `validateWrite` refuses to un-flag the builtin Internal client.
+  This is an interim gate pending P2.5/P2.6's full
+  archive→soft-delete→purge lifecycle. `transferOwnership` **landed** as
+  `POST /api/accounts/:id/transfer-ownership` (owner-only; atomic promote-target + demote-caller-to-admin;
+  the target must be an existing member). The no-arg whole `/api/state` read is now CLOSED in auth-on
+  (P1.13); `manageMembers`/`manageInvites` routes landed in P1.11.
 - **Per-tenant export + delete-with-PII-erasure (P2.6).** EXPORT (P2.6a): the complete per-tenant backup
   is NOT a new route — it is the existing `GET /api/state?accountId=X&includeInactive=1` admin read (full
   slice incl archived+soft-deleted, admin/`'purge'` gated, control tables structurally excluded since

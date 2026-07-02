@@ -556,3 +556,122 @@ describe('P2.5a lifecycle — audit line (file sink, OFF mode)', () => {
     expect(readFileSync(file, 'utf8')).not.toContain(SENTINEL)
   })
 })
+
+describe('P2.1 write guards — generic writes cannot forge tombstones or un-flag the Internal client', () => {
+  // Two integrity guards keeping the GENERIC write path (POST/PUT/PATCH/batch) from bypassing the
+  // dedicated lifecycle routes: (1) sanitizeWrite PINS archivedAt/deletedAt to the stored row, so a
+  // crafted body can neither SET a tombstone on an active row (skipping the archived-first interlock +
+  // the resource-name PII scrub, and — with a back-dated deletedAt — making it instantly purgeable) NOR
+  // CLEAR an existing one via an unrelated edit (which would silently RESURRECT an archived/soft-deleted
+  // row — there is no un-delete route anywhere), and (2) validateWrite refuses to convert the built-in
+  // Internal client back to a regular one. OFF mode is used (authorize is a no-op there), so these prove
+  // the SANITIZE/VALIDATE layer itself, independent of the auth gate.
+
+  const offAppWith = (data: Partial<Record<string, unknown[]>>): { app: FastifyInstance; db: Db } => {
+    const db = openDb(':memory:')
+    const app = buildApp(db)
+    insertAll(db, { ...emptyAppData(), ...data } as unknown as AppData)
+    return { app, db }
+  }
+
+  const rowById = async (app: FastifyInstance, entity: 'resources' | 'clients', accountId: string, id: string) => {
+    const res = await readInactive(app, accountId) // includeInactive so a (wrongly) tombstoned row still shows
+    expect(res.statusCode).toBe(200)
+    return (res.json()[entity] as Array<{ id: string }>).find((e) => e.id === id) as Record<string, unknown> | undefined
+  }
+
+  it('PATCH cannot set deletedAt/archivedAt on a resource (stripped; row stays active)', async () => {
+    const { app } = offAppWith({ accounts: [account('a1')], resources: [person('r1', 'a1')] })
+    const res = await call(app, {
+      method: 'PATCH',
+      url: '/api/resources/r1',
+      payload: { deletedAt: '2020-01-01T00:00:00.000Z', archivedAt: '2020-01-01T00:00:00.000Z' },
+    })
+    expect(res.statusCode).toBe(200)
+    const r1 = await rowById(app, 'resources', 'a1', 'r1')
+    expect(r1?.deletedAt).toBeUndefined()
+    expect(r1?.archivedAt).toBeUndefined()
+    // Still ACTIVE: it appears in the DEFAULT (active-only) read too — the forged delete never took.
+    const active = await call(app, { method: 'GET', url: '/api/state?accountId=a1' })
+    expect((active.json().resources as Array<{ id: string }>).some((r) => r.id === 'r1')).toBe(true)
+  })
+
+  it('PUT cannot set deletedAt on a client (stripped)', async () => {
+    const { app } = offAppWith({ accounts: [account('a1')], clients: [client('c1', 'a1')] })
+    const res = await call(app, {
+      method: 'PUT',
+      url: '/api/clients/c1',
+      payload: client('c1', 'a1', { deletedAt: '2020-01-01T00:00:00.000Z' }),
+    })
+    expect(res.statusCode).toBe(200)
+    expect((await rowById(app, 'clients', 'a1', 'c1'))?.deletedAt).toBeUndefined()
+  })
+
+  it('PATCH {builtin:false} on the Internal client → 400 (cannot un-flag the singleton)', async () => {
+    const { app } = offAppWith({ accounts: [account('a1')], clients: [INTERNAL, client('c1', 'a1')] })
+    const res = await call(app, { method: 'PATCH', url: `/api/clients/${INTERNAL.id}`, payload: { builtin: false } })
+    expect(res.statusCode).toBe(400)
+    // The flag survived — the singleton is intact.
+    expect((await rowById(app, 'clients', 'a1', INTERNAL.id))?.builtin).toBe(true)
+    // A regular client still updates normally (control — the guard is surgical, not a blanket clients lock).
+    const ok = await call(app, { method: 'PATCH', url: '/api/clients/c1', payload: { name: 'Renamed' } })
+    expect(ok.statusCode).toBe(200)
+  })
+
+  // The OTHER direction of the pin (regression: the strip used to be blind, so an unrelated edit on a
+  // tombstoned row NULLed the tombstone and resurrected the row). archive/delete set the tombstone via
+  // the dedicated route; a subsequent generic edit must leave it intact.
+  it('PATCH of an unrelated field on an ARCHIVED resource preserves the tombstone (no resurrection)', async () => {
+    const { app } = offAppWith({ accounts: [account('a1')], resources: [person('r1', 'a1')] })
+    expect((await lifecycleAction(app, 'resources', 'r1', 'archive', 'a1')).statusCode).toBe(200)
+    // Edit an unrelated field — the body never mentions archivedAt, but the merge spreads the stored
+    // tombstone, and a blind strip would clear it. The pin keeps it.
+    const res = await call(app, { method: 'PATCH', url: '/api/resources/r1', payload: { role: 'Senior Designer' } })
+    expect(res.statusCode).toBe(200)
+    const r1 = await rowById(app, 'resources', 'a1', 'r1')
+    expect(typeof r1?.archivedAt).toBe('string') // tombstone survived the edit
+    expect(r1?.role).toBe('Senior Designer') // the legit field DID change
+    // Still ARCHIVED: absent from the DEFAULT (active-only) read — it was NOT resurrected.
+    const active = await call(app, { method: 'GET', url: '/api/state?accountId=a1' })
+    expect((active.json().resources as Array<{ id: string }>).some((r) => r.id === 'r1')).toBe(false)
+  })
+
+  it('PATCH of an unrelated field on a SOFT-DELETED client preserves BOTH tombstones (worst case: no un-delete route exists)', async () => {
+    const { app } = offAppWith({ accounts: [account('a1')], clients: [client('c1', 'a1')] })
+    // archived-first interlock, then soft-delete: the row now carries deletedAt (and archivedAt).
+    expect((await lifecycleAction(app, 'clients', 'c1', 'archive', 'a1')).statusCode).toBe(200)
+    expect((await lifecycleAction(app, 'clients', 'c1', 'delete', 'a1')).statusCode).toBe(200)
+    const before = await rowById(app, 'clients', 'a1', 'c1')
+    expect(typeof before?.deletedAt).toBe('string') // really soft-deleted
+
+    const res = await call(app, { method: 'PATCH', url: '/api/clients/c1', payload: { color: '#ff00ff' } })
+    expect(res.statusCode).toBe(200)
+    const after = await rowById(app, 'clients', 'a1', 'c1')
+    expect(after?.deletedAt).toBe(before?.deletedAt) // soft-delete tombstone intact
+    expect(after?.archivedAt).toBe(before?.archivedAt) // archive tombstone intact
+    expect(after?.color).toBe('#ff00ff') // the legit field DID change
+    // Still DELETED: absent from the DEFAULT (active-only) read — not resurrected.
+    const active = await call(app, { method: 'GET', url: '/api/state?accountId=a1' })
+    expect((active.json().clients as Array<{ id: string }>).some((c) => c.id === 'c1')).toBe(false)
+  })
+
+  it('PUT and batch-PUT with a body that OMITS the tombstone do not clear an existing one', async () => {
+    const { app } = offAppWith({ accounts: [account('a1')], resources: [person('rPut', 'a1'), person('rBatch', 'a1')] })
+    expect((await lifecycleAction(app, 'resources', 'rPut', 'archive', 'a1')).statusCode).toBe(200)
+    expect((await lifecycleAction(app, 'resources', 'rBatch', 'archive', 'a1')).statusCode).toBe(200)
+
+    // PUT the FULL row (person() omits archivedAt): pre-fix this NULLed the column; now it's pinned.
+    const put = await call(app, { method: 'PUT', url: '/api/resources/rPut', payload: person('rPut', 'a1', { role: 'Lead' }) })
+    expect(put.statusCode).toBe(200)
+    expect(typeof (await rowById(app, 'resources', 'a1', 'rPut'))?.archivedAt).toBe('string')
+
+    // Same via the batch sync path (the real client verb) — the changed call site is covered too.
+    const batch = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: { ops: [{ method: 'PUT', table: 'resources', id: 'rBatch', row: person('rBatch', 'a1', { role: 'Lead' }) }] },
+    })
+    expect(batch.statusCode).toBe(200)
+    expect(typeof (await rowById(app, 'resources', 'a1', 'rBatch'))?.archivedAt).toBe('string')
+  })
+})

@@ -5,7 +5,8 @@
 ## Goal
 Let an Owner or Admin manage who can access their company from Settings: see the member list, invite
 people (a link, optionally pre-authorised to one email), change a member's role, remove a member, and
-list/revoke outstanding invites. An Admin manages members but cannot do owner-only operations.
+list/revoke outstanding invites. An Owner can additionally **transfer ownership** to another member
+(handing the account over). An Admin manages members but cannot do owner-only operations.
 
 ## Why
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login),
@@ -35,8 +36,13 @@ accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
    (`data-testid="invite-link"`) with a **Copy** button.
 5. The new invite shows under **Outstanding invites** (`data-testid="invite-row"`); B clicks
    **Revoke** (`data-testid="invite-revoke"`) and the row goes away.
-6. B never sees an **owner** option (neither in a role select nor the invite-role picker), and owner
-   A's row shows **no** role control and **no** Remove (an Admin can't touch an owner).
+6. B never sees an **owner** option (neither in a role select nor the invite-role picker), no **Make
+   owner** button on any row (transfer of ownership is owner-only), and owner A's row shows **no**
+   role control and **no** Remove (an Admin can't touch an owner).
+7. **As A (owner)** — sign in as A (or drive the API): every other, non-owner member's row shows a
+   **Make owner** button (`data-testid="member-make-owner"`). Clicking it on **C** promotes C to
+   **owner** and steps A down to **admin** in one atomic server call; the account always keeps exactly
+   one owner. A cannot target themselves (400) or a non-member (404).
 
 ## Acceptance criteria
 - The **Members** section renders ONLY in server + auth-on mode, and only for an Owner/Admin: a
@@ -48,13 +54,18 @@ accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
   - the **owner** option is hidden for an Admin (role select and invite-role picker);
   - an **owner row** shows no role control and no Remove for an Admin;
   - the **sole owner** is protected — its role select is disabled, Remove is hidden, and
-    *"Sole owner — protected"* is shown (the account must keep ≥ 1 owner).
+    *"Sole owner — protected"* is shown (the account must keep ≥ 1 owner);
+  - **Make owner** (`data-testid="member-make-owner"`) is shown to an Owner on every other, non-owner
+    member's row and to nobody else; it POSTs `transfer-ownership`, atomically promoting the target to
+    owner and demoting the caller to admin.
 - The invite token is shown **once** at creation (`/invite/<token>`); the outstanding-invites list
   carries no token.
 - The server is the backstop regardless of the UI: an Admin granting owner, touching an owner, or
   demoting/removing the last owner is **403**; creating an `owner` invite as an Admin is **403**;
-  revoking another account's invite is a no-op; and reading another account's members is **403** (no
-  cross-tenant member leak).
+  transferring ownership as a non-owner is **403**, to a non-member is **404**, and to a missing/empty
+  or self target is **400**; revoking another account's invite is a no-op; and reading another
+  account's members is **403** (no cross-tenant member leak).
 - API routes: `GET /api/accounts/:accountId/members`, `PATCH …/members/:userId {role}`,
-  `DELETE …/members/:userId`, `GET /api/accounts/:accountId/invites` (no token),
-  `DELETE …/invites/:id`. OFF mode returns empty lists and inert mutates.
+  `DELETE …/members/:userId`, `POST …/transfer-ownership {toUserId}` (owner-only),
+  `GET /api/accounts/:accountId/invites` (no token), `DELETE …/invites/:id`. OFF mode returns empty
+  lists and inert mutates.

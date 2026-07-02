@@ -53,6 +53,20 @@ export interface LifecycleFields {
 }
 
 /**
+ * The entity tables that carry the lifecycle tombstones (archivedAt/deletedAt) and so run the
+ * archive/unarchive/soft-delete/purge routes. Single-sourced HERE (the pure module both app and
+ * server import) so the server's lifecycle-route allow-list (`isLifecycleEntity` in app.ts) and the
+ * `sanitizeWrite` tombstone-pin (validate.ts) can't drift apart — two hand-rolled copies of this set
+ * is exactly what silently rots if a 4th entity ever grows tombstones. Every other table
+ * (phases/activities/allocations/timeOff/disciplines/accounts) is deliberately OUT.
+ */
+export const LIFECYCLE_ENTITY_KEYS = ['resources', 'clients', 'projects'] as const
+export type LifecycleEntityKey = (typeof LIFECYCLE_ENTITY_KEYS)[number]
+/** Narrowing guard: is `e` one of the tombstone-carrying tables? */
+export const isLifecycleEntityKey = (e: string): e is LifecycleEntityKey =>
+  (LIFECYCLE_ENTITY_KEYS as readonly string[]).includes(e)
+
+/**
  * The minimum age (in days) a soft-deleted tombstone must reach before it may be HARD-purged
  * (Admin-only, server-side, P2.5). Per the CapacityLens Decisions data-lifecycle rule: a tombstone
  * is retained for a grace window before the row is physically removed, so an accidental delete is

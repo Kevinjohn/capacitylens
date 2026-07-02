@@ -175,6 +175,31 @@ export function MembersSection() {
     }
   }
 
+  // Transfer ownership to `mem` and step the caller down to admin (server-atomic, owner-only). The
+  // button is hidden unless the caller is the owner and `mem` is another, non-owner member. This is
+  // consequential and NOT caller-reversible (you become admin — only the new owner can hand it back),
+  // but it's immediate like removeMember above; the re-read reflects the new owner. `mem` is NOT `m`
+  // (the i18n catalogue). The server (transferOwnership gate) is the real backstop; this is courtesy UI.
+  const transferOwnership = async (mem: Member) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/transfer-ownership`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ toUserId: mem.userId }),
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        fail(null, body.error ?? m.settings_members_err_transfer({ status: res.status }))
+        return
+      }
+      setNotice(m.settings_members_ownership_transferred())
+      reload()
+    } catch (e) {
+      fail(null, m.settings_err_server({ error: errorMessage(e) }))
+    }
+  }
+
   const submitInvite = async () => {
     setMintedLink(null)
     const trimmed = invitePreauth.trim()
@@ -286,6 +311,14 @@ export function MembersSection() {
                 {mayRemove && (
                   <Button variant="danger" testId="member-remove" onClick={() => void removeMember(mem)}>
                     {m.settings_member_remove()}
+                  </Button>
+                )}
+                {/* Owner-only, non-self, non-owner target: the true atomic hand-over (promote them +
+                    demote me), distinct from the change-role dropdown's promote-to-owner (which keeps
+                    the caller an owner too). Hidden for everyone else; the server gate is the backstop. */}
+                {myRole === 'owner' && !mem.isSelf && mem.role !== 'owner' && (
+                  <Button variant="ghost" testId="member-make-owner" onClick={() => void transferOwnership(mem)}>
+                    {m.settings_member_make_owner()}
                   </Button>
                 )}
                 {isSoleOwner && (

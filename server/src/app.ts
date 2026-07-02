@@ -26,6 +26,8 @@ import {
   softDelete,
   canPurge,
   obfuscateResource,
+  isLifecycleEntityKey,
+  type LifecycleEntityKey,
 } from '@capacitylens/shared/domain/lifecycle'
 import {
   deleteResourceCascade,
@@ -230,10 +232,10 @@ const isScopedTable = (entity: keyof typeof TABLES): boolean =>
 // run the archive/unarchive/soft-delete/purge routes (P2.5a). A guard, not a free string compare, so a
 // lifecycle handler can `entity is LifecycleEntity`-narrow before indexing AppData[entity] — and any
 // other table (phases/activities/allocations/timeOff/disciplines/accounts) is a 404 on these routes.
-const LIFECYCLE_ENTITIES = { resources: 'resources', clients: 'clients', projects: 'projects' } as const
-type LifecycleEntity = keyof typeof LIFECYCLE_ENTITIES
-const isLifecycleEntity = (e: string): e is LifecycleEntity =>
-  Object.prototype.hasOwnProperty.call(LIFECYCLE_ENTITIES, e)
+// Single-sourced in shared (LIFECYCLE_ENTITY_KEYS) so this route allow-list and validate.ts's
+// sanitizeWrite tombstone-pin can't drift; aliased to the local names the handlers below already use.
+type LifecycleEntity = LifecycleEntityKey
+const isLifecycleEntity = isLifecycleEntityKey
 
 // The wire shape of one op in a POST /api/batch body (mirrors the client's syncOps.Op).
 interface BatchOp {
@@ -1080,6 +1082,44 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     })
 
+    // TRANSFER ownership (P1.11): hand the account to another EXISTING member and step the caller down
+    // to admin, atomically. Gated 'transferOwnership' — the ONE action above admin in the matrix, so a
+    // mere admin is 403 (authorize resolves the caller's role for this account). Body { toUserId }. The
+    // target must already be an active member (404 else) and not the caller (400 — you're already owner).
+    // Promote-target and demote-caller commit in ONE tx, so the account always retains an owner (the new
+    // one) and is never mid-flight ownerless — hence no separate last-owner backstop is needed. OFF mode
+    // (trusted-local) has no real owner model, so it is an inert no-op success (the UI is hidden in OFF).
+    app.post('/api/accounts/:accountId/transfer-ownership', (req, reply) => {
+      const { accountId } = req.params as { accountId: string }
+      const body = (req.body ?? {}) as { toUserId?: unknown }
+      if (typeof body.toUserId !== 'string' || body.toUserId.length === 0) {
+        return reply.code(400).send({ error: 'toUserId must be a non-empty string.' })
+      }
+      const toUserId = body.toUserId
+      if (!authorize(req, reply, accountId, 'transferOwnership')) return
+      if (toUserId === req.user!.id) {
+        return reply.code(400).send({ error: 'You are already the owner of this account.' })
+      }
+      try {
+        if (authMode === 'off') {
+          // OFF: no real member model (req.user is DEMO_USER) — inert no-op, matching the member routes.
+          return reply.code(200).send({ toUserId, role: 'owner' })
+        }
+        const targetRole = getMemberRole(db, accountId, toUserId)
+        if (targetRole === null) return reply.code(404).send({ error: 'Not a member of this account.' })
+        const now = new Date().toISOString()
+        // Atomic hand-over: promote the target and demote the caller together, so the account is never
+        // left without an owner and never transiently shows the caller as a non-owner mid-transfer.
+        tx(db, () => {
+          upsertMember(db, { accountId, userId: toUserId, role: 'owner', status: 'active', createdAt: now })
+          upsertMember(db, { accountId, userId: req.user!.id, role: 'admin', status: 'active', createdAt: now })
+        })
+        return reply.code(200).send({ toUserId, role: 'owner' })
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
     // LIST outstanding invites — NO token in the response (it's a write-once bearer secret; see
     // listInvitesForAccount). Gated 'manageInvites'. OFF → empty.
     app.get('/api/accounts/:accountId/invites', (req, reply) => {
@@ -1354,6 +1394,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (isScopedTable(entity) && !authorize(req, reply, body.accountId as string, 'write')) return
       try {
         const existing = getRow(db, entity, id)
+        // P1.5 account-write gate. `accounts` is NOT a scoped table (no accountId column), so the
+        // isScopedTable() gate above never runs for it — leaving a bare account UPDATE (rename / colour /
+        // schedulingMode / disciplines·placeholders·external toggles) ungated, i.e. cross-tenant writable
+        // by any signed-in user. An UPDATE (existing row) now requires membership + write tier for the
+        // account's OWN id, mirroring the DELETE route's accounts branch; a CREATE (no existing row) stays
+        // OPEN per the onboarding exemption. OFF mode: authorize no-ops to allow. (See decisions-log.)
+        if (entity === 'accounts' && existing && !authorize(req, reply, id, 'write')) return
         // accountId is immutable: a write must not move an EXISTING row to another account
         // (see ownsRow). The web store enforces this via findOwned; without the same guard a
         // crafted request could re-home a row and orphan its children across the tenant boundary.
@@ -1378,7 +1425,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         ) {
           return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
         }
-        const row = sanitizeWrite(entity, body)
+        const row = sanitizeWrite(entity, body, existing)
         validateWrite(loadState(db), entity, row)
         upsertRow(db, entity, row)
         // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
@@ -1406,7 +1453,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       try {
         const existing = getRow(db, entity, id)
         if (!existing) return reply.code(404).send({ error: 'Not found' })
-        const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id })
+        // P1.5 account-write gate (see the PUT route): `accounts` isn't scoped, so the merged-accountId
+        // authorize below never runs for it. A PATCH always targets an EXISTING row (404 above), so this
+        // is always an UPDATE → require membership + write tier for the account's own id. OFF: no-op allow.
+        if (entity === 'accounts' && !authorize(req, reply, id, 'write')) return
+        const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id }, existing)
         // P1.5 write gate (scoped tables): membership + write tier for the MERGED row's accountId
         // (the merge inherits the stored accountId unless the body overrides it — and an override is
         // then refused by the ownsRow immutability guard just below). After the 404 so a missing row
@@ -1528,6 +1579,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (!authorize(req, reply, op.id, 'purge')) return
           continue
         }
+        if (op?.table === 'accounts' && op.method === 'PUT') {
+          // A batch PUT on an EXISTING account is an UPDATE → gate 'write' (the same cross-tenant
+          // account-write guard the per-route PUT/PATCH now apply). Only look up a STRING id — a
+          // missing/non-string id would throw on the SQLite bind here, and is anyway left to the apply
+          // loop's own null-id validation (→ 400). A CREATE (no existing row) stays OPEN per the
+          // onboarding exemption and falls through to the non-scoped skip below.
+          if (typeof op.id === 'string' && getRow(db, 'accounts', op.id) && !authorize(req, reply, op.id, 'write')) return
+          continue
+        }
         if (typeof op?.table !== 'string' || !isKnownTable(op.table) || !isScopedTable(op.table)) continue
         const accountId = op.method === 'PUT' ? (op.row as { accountId?: string } | undefined)?.accountId : op.accountId
         if (!authorize(req, reply, accountId as string, 'write')) return
@@ -1560,7 +1620,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   'Language, week start and time zone are set when the company is created and cannot be changed.',
                 )
               }
-              const clean = sanitizeWrite(table, row as Record<string, unknown>)
+              const clean = sanitizeWrite(table, row as Record<string, unknown>, existing)
               validateWrite(loadState(db), table, clean)
               upsertRow(db, table, clean)
             } else if (method === 'DELETE') {

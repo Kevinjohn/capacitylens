@@ -177,6 +177,92 @@ describe('MembersSection — owner affordances', () => {
   })
 })
 
+describe('MembersSection — transfer ownership (Make owner)', () => {
+  it('an owner sees "Make owner" ONLY on non-self, non-owner rows', async () => {
+    const members: RawMember[] = [
+      { userId: 'me', role: 'owner', isSelf: true },
+      { userId: 'other', role: 'owner' }, // a second owner
+      { userId: 'ed', role: 'editor' },
+    ]
+    vi.stubGlobal('fetch', mockFetch(members))
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    const rows = screen.getAllByTestId('member-row')
+    const selfRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!
+    const ownerRow = rows.find((r) => within(r).queryByText(/other@x\.io/))!
+    const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!
+    // The atomic hand-over is offered on an eligible target (editor), not on the caller, not on
+    // another owner (that would be a no-op / meaningless).
+    expect(within(edRow).getByTestId('member-make-owner')).toBeInTheDocument()
+    expect(within(selfRow).queryByTestId('member-make-owner')).not.toBeInTheDocument()
+    expect(within(ownerRow).queryByTestId('member-make-owner')).not.toBeInTheDocument()
+  })
+
+  it('an admin NEVER sees "Make owner" (owner-only affordance)', async () => {
+    const members: RawMember[] = [
+      { userId: 'me', role: 'admin', isSelf: true },
+      { userId: 'ed', role: 'editor' },
+    ]
+    vi.stubGlobal('fetch', mockFetch(members))
+    renderSection()
+    await screen.findByTestId('members-section')
+    expect(screen.queryByTestId('member-make-owner')).not.toBeInTheDocument()
+  })
+
+  it('clicking "Make owner" POSTs the transfer for that member', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockFetch([
+      { userId: 'me', role: 'owner', isSelf: true },
+      { userId: 'ed', role: 'editor' },
+    ])
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    const edRow = screen.getAllByTestId('member-row').find((r) => within(r).queryByText(/ed@x\.io/))!
+    await user.click(within(edRow).getByTestId('member-make-owner'))
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/transfer-ownership`,
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ toUserId: 'ed' }) }),
+    )
+  })
+
+  it('surfaces the server error when a transfer is refused', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (u.endsWith('/members') && (!init || init.method === undefined || init.method === 'GET')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [
+              { userId: 'me', role: 'owner', status: 'active', createdAt: 'x', name: null, email: 'me@x.io', isSelf: true },
+              { userId: 'ed', role: 'editor', status: 'active', createdAt: 'x', name: null, email: 'ed@x.io', isSelf: false },
+            ],
+          }),
+        } as unknown as Response
+      }
+      if (u.endsWith('/invites') && (!init || init.method === undefined || init.method === 'GET')) {
+        return { ok: true, status: 200, json: async () => ({ invites: [] }) } as unknown as Response
+      }
+      if (u.endsWith('/transfer-ownership')) {
+        return { ok: false, status: 403, json: async () => ({ error: 'Only the owner can transfer ownership.' }) } as unknown as Response
+      }
+      return { ok: true, status: 204, json: async () => ({}) } as unknown as Response
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    const edRow = screen.getAllByTestId('member-row').find((r) => within(r).queryByText(/ed@x\.io/))!
+    await user.click(within(edRow).getByTestId('member-make-owner'))
+    // The server's own message is preferred over the generic fallback (body.error ?? …).
+    expect(await screen.findByText('Only the owner can transfer ownership.')).toBeInTheDocument()
+  })
+})
+
 describe('MembersSection — invite mint', () => {
   it('shows the invite link ONCE on a 201, built from the returned token', async () => {
     const user = userEvent.setup()
