@@ -36,6 +36,12 @@ services:
       # Auth is OFF by default; set CAPACITYLENS_AUTH (+ BETTER_AUTH_*) in .env to
       # turn it on. Passed through verbatim so an unset value stays unset.
       CAPACITYLENS_AUTH: ${CAPACITYLENS_AUTH:-}
+      # The api image bakes NODE_ENV=production, and the production-posture
+      # interlock (server/src/productionGuard.ts) refuses to boot with auth OFF
+      # unless you explicitly consent to an open instance. For the trusted-local
+      # no-login mode set this to "1" in .env; it is ignored once auth is on.
+      # Without it the api container restart-loops (`docker compose logs api`).
+      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: ${CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
       CAPACITYLENS_SSO_PROVIDER_ID: ${CAPACITYLENS_SSO_PROVIDER_ID:-}

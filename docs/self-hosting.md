@@ -45,11 +45,22 @@ cd capacitylens
 cp .env.example .env
 # edit .env — see §3 (for a real deploy you MUST set the public URL + a secret if auth is on)
 
+# Pick an access mode BEFORE first boot — the api container refuses to start without one:
+#   EITHER turn auth on (§4): CAPACITYLENS_AUTH=password|sso + BETTER_AUTH_SECRET/BETTER_AUTH_URL
+#   OR, for a trusted-local no-login instance, set in .env:
+#     CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1
+
 docker compose up --build -d
 ```
 
 Then open **<http://localhost:8080>** — that's the host port the `web` service publishes (it
 maps to nginx on port 80 inside the container; override with `WEB_PORT` in `.env`).
+
+> **The production-posture interlock.** The `api` image bakes `NODE_ENV=production`, and
+> `server/src/productionGuard.ts` refuses to boot with auth OFF under production unless you've
+> deliberately opted in via the flag above. Skip that step and the `api` container
+> **restart-loops** (`restart: unless-stopped`) instead of coming up — check
+> `docker compose logs api` for the "refusing to start" line.
 
 ### The two services
 
@@ -60,7 +71,11 @@ maps to nginx on port 80 inside the container; override with `WEB_PORT` in `.env
 
 Your data lives on two **named volumes**, so `docker compose up --build` (a rebuild) keeps it:
 
-- `capacitylens-db` → the SQLite database at `/data/capacitylens.db` (+ its WAL sidecars).
+- `capacitylens-db` → the SQLite database at `/data/capacitylens.db` (+ its WAL sidecars), and
+  the append-only audit log `capacitylens-audit.jsonl` alongside it. The audit log is **on by
+  default** (disable with `CAPACITYLENS_AUDIT=off`, relocate with `CAPACITYLENS_AUDIT_FILE`) and
+  self-rotates at `CAPACITYLENS_AUDIT_MAX_MB` (default 64 MB): the previous generation is kept as
+  `capacitylens-audit.jsonl.1`, bounding disk use at roughly 2× the cap.
 - `capacitylens-backups` → timed online snapshots at `/backups`.
 
 ### Build-time vs runtime config (important)
@@ -74,9 +89,12 @@ CapacityLens splits its configuration in two:
 
 The one that bites people: **`VITE_CAPACITYLENS_API`** is the backend **origin** the browser
 talks to (the client appends `/api` itself — so set the origin, **not** `/api`, or you'll get
-requests to `/api/api/...`). It defaults to `http://localhost:8080`, which is correct for the
-local quick start. To deploy on a real domain you must set it to your public origin **and
-rebuild**, because Vite bakes it into the JS bundle:
+requests to `/api/api/...`). It defaults to **empty**, which means SAME-ORIGIN server mode: the
+SPA calls a relative `/api`, and nginx proxies that to the `api` service — this works at
+whatever host/port serves the app with no per-host rebuild, including the local quick start. To
+deploy on a real domain you only need to set it if you're pointing the SPA at a **different**
+origin than the one serving it; when you do, you must rebuild, because Vite bakes it into the JS
+bundle:
 
 ```sh
 # in .env
@@ -95,8 +113,8 @@ Settings after deploying.
 ## 3. Environment configuration
 
 Every runtime variable the app and server actually read is enumerated in **`.env.example`**
-with its default and meaning — that file is the source of truth (~26 vars). Don't restate all
-of them here; copy it to `.env` and edit. The ones you should think about for a real deploy:
+with its default and meaning — that file is the source of truth. Don't restate all of them
+here; copy it to `.env` and edit. The ones you should think about for a real deploy:
 
 | Variable | When | What to set |
 | --- | --- | --- |
@@ -359,6 +377,13 @@ not a backup.
 - **"Refusing to start."** If `api` exits on boot, read the log line — the daemon fails loudly
   on misconfiguration (bad `CAPACITYLENS_AUTH` value, missing `BETTER_AUTH_SECRET` /
   `BETTER_AUTH_URL` with auth on, out-of-range `PORT`, etc.) instead of limping along.
+- **`api` container restart-loops / the SPA can't reach the server.** This is the
+  production-posture interlock (`server/src/productionGuard.ts`): the `api` image bakes
+  `NODE_ENV=production`, and the daemon refuses to boot with auth OFF under production unless
+  you've explicitly opted in. Fix: either enable auth ([§4](#4-enabling-authentication)) or set
+  `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` in `.env` for the trusted-local no-login mode, then
+  `docker compose up -d`. Confirm the cause with `docker compose logs api` — you'll see the
+  "refusing to start" line until it's fixed.
 - **`· local` instead of `· server`** in the Settings build stamp means the SPA was built
   without (or with the wrong) `VITE_CAPACITYLENS_API` and is using browser-local storage —
   fix the build arg and `docker compose build` (see [§2](#2-quick-start)).
