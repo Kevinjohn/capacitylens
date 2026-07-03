@@ -57,7 +57,7 @@ git pull origin $FORGE_SITE_BRANCH
 # devDependencies (vite, tsc, tailwind) and break the build with "vite: not found".
 npm ci --include=dev
 
-npm run build   # tsc -b && vite build  ->  dist/
+npm run build   # paraglide:compile && tsc -b && vite build  ->  dist/
 ```
 
 If the build still fails with `vite: not found` / `tsc: not found`, prepend

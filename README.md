@@ -97,9 +97,9 @@ The canonical type definitions live in `shared/src/types/entities.ts`.
 ## The green gate
 
 ```bash
-npm run gate         # tsc -b && eslint . && vitest run && vite build
+npm run gate         # paraglide:compile && tsc -b && eslint . && vitest run && vite build
 npm run gate:server  # type-check + test the server/ workspace (the default backend)
-npm run e2e          # Playwright on Chromium (boots its own dev server)
+npm run e2e          # Chromium: core + db-backed + auth-backed specs; boots 3 Vite + 2 API servers, needs Node 24
 npm run e2e:webkit   # the core specs on Safari/WebKit (opt-in; Vite-only, no Node 24)
 npm run e2e:firefox  # the core specs on Firefox/Gecko (opt-in; Vite-only, no Node 24)
 npm run e2e:browsers # the core specs on ALL 3 engines: Chromium + WebKit + Firefox (Vite-only, no Node 24)
@@ -111,15 +111,20 @@ browser build); run it separately with `gate:server`. **There is no automated CI
 is enforced locally by contributors and again at review, so run all three locally and push only with
 them green. Node 24+ (`.nvmrc`).
 
-`e2e` is Chromium by default (the fast inner loop). The core specs run against the **demo/localStorage
-build** (Vite-only, via `dev:demo`). Cross-engine coverage of them is opt-in: `e2e:webkit` /
-`e2e:firefox` run a single engine, and **`e2e:browsers` runs the core specs on all three** (Chromium +
-WebKit, then Firefox). All of these boot **only** the Vite dev server, so they need neither the
-SQLite/auth servers nor Node 24 and run anywhere the app builds.
+`e2e` is Chromium by default (the fast inner loop) — but a plain `npm run e2e` (no `--project`
+filter) runs **all three** Chromium-flavoured projects at once: `chromium` (the core specs),
+`db-backed`, and `auth-backed`. That boots three Vite dev servers plus the SQLite and auth API
+servers, so it needs **Node 24** even though "Chromium" is the headline. The core specs run
+against the **demo/localStorage build** (Vite-only, via `dev:demo`); the db-backed/auth-backed
+specs exercise real server round-trips. Cross-engine coverage of the **core specs only** is
+opt-in: `e2e:webkit` / `e2e:firefox` run a single engine, and **`e2e:browsers` runs the core specs
+on all three** (Chromium + WebKit, then Firefox). All of these boot **only** the Vite dev server,
+so they need neither the SQLite/auth servers nor Node 24 and run anywhere the app builds.
 `e2e:all` is the superset — `e2e:browsers` plus the Chromium-only db/auth server specs (so it needs
-the servers + Node 24). In both `e2e:browsers` and `e2e:all`, WebKit runs first and Firefox second,
-both always run, and the run fails if either engine fails. The db-backed/auth-backed specs stay
-Chromium-only (they exercise server round-trips, not cross-engine rendering).
+the servers + Node 24, same as plain `npm run e2e`). In both `e2e:browsers` and `e2e:all`, WebKit
+runs first and Firefox second, both always run, and the run fails if either engine fails. The
+db-backed/auth-backed specs stay Chromium-only (they exercise server round-trips, not cross-engine
+rendering).
 
 > **Stop `npm run dev` before running `npm run e2e`.** Both bind **:5173**, and e2e deliberately does
 > NOT reuse a running dev server (`reuseExistingServer: false`) — a reused server-mode dev server

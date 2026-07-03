@@ -2,6 +2,20 @@
 
 Open product questions to revisit with the owner. Don't silently resolve these — flag them.
 
+## Accepted for alpha (owner, 2026-07-03) — must clear BEFORE the repo goes public
+A pre-launch review (2026-07-03) found these; the owner explicitly accepted them for the current
+manual-demo alpha stage. They are tripwires, not resolutions — each must be cleared before the
+repository is made public:
+- Real client references ("Cohesion Labs", staff names in quoted booking notes, the partner
+  studio name) in NEEDS-INPUT.md, docs/production-plan.md, docs/runbook.md,
+  docs/decisions-log.md — scrub/anonymise all of them (including this line).
+- The live alpha domain published in DECISIONS.md and the ops docs while that instance runs open
+  (no auth) — scrub the URL AND lock down or tear down the host first.
+- The auth-off demo posture: the fake sign-in gate and auto-seeded demo dataset appear on ANY
+  auth-off server deploy, not just the demo build — revisit once real auth lands.
+- No 1:1 account-owner ↔ company isolation (Stage C auth work) — required before exposing
+  isolated user data publicly (already tracked under "Genuinely open").
+
 ## Resolved (owner-confirmed, 2026-06-24) — shadcn/ui adoption trade-offs
 - **SelectField stays a native `<select>`; WeekdayPicker stays plain `<button aria-pressed>` chips.**
   Both deferrals from the shadcn adoption were accepted by the owner as-is — "both acceptable

@@ -121,6 +121,23 @@ register with the droplet's values lives in `docs/production-plan.md`):
   (`capacitylens-<YYYYMMDD-HHmmss>.db`, one at boot then hourly). Off = no timer, no writes.
   - `CAPACITYLENS_BACKUP_INTERVAL_MIN` — cadence in minutes (default `60`).
   - `CAPACITYLENS_BACKUP_KEEP` — rolling retention count (default `48`, oldest pruned).
+- `CAPACITYLENS_HTTPS` — `1` when the public origin is real HTTPS: enables the HSTS header. Off
+  (default) is correct when TLS terminates at a reverse proxy (nginx/Forge) in front of plain
+  HTTP — HSTS over plain HTTP is invalid/harmful. The other baseline security headers (nosniff,
+  CSP, Referrer-Policy, X-Frame-Options) are always on regardless of this flag.
+- `CAPACITYLENS_BOOTSTRAP_TOKEN` — shared secret enabling constrained org-creation via
+  `POST /api/orgs` (sent as the `x-capacitylens-bootstrap-token` header) for a caller who isn't
+  yet an Owner/Admin of any account. Off by default (unset/empty = the token path never allows
+  — org-creation is then first-run-only, i.e. zero accounts, or an existing Owner/Admin).
+- `CAPACITYLENS_AUDIT` — append-only JSONL audit log of every AppData mutation (one line per
+  mutation: `{ts, userId, accountId, action, entity, id, changedFields}`; `changedFields` is
+  field NAMES only, never values, so no PII reaches the log). **ON by default** — the one
+  deliberate exception to "default OFF" in this list; set to `off` to disable. Server-mode only.
+  - `CAPACITYLENS_AUDIT_FILE` — the audit JSONL path (default: `capacitylens-audit.jsonl`
+    beside the DB; a `:memory:` DB falls back to a CWD-relative file).
+  - `CAPACITYLENS_AUDIT_MAX_MB` — rotation cap in MB, positive integer (default `64`): once the
+    file reaches this size it's rotated to `<file>.1` (the previous `.1` is replaced), bounding
+    disk use at roughly 2× the cap.
 - `CAPACITYLENS_AUTH` — `off`|`password`|`sso` (default `off`: Better Auth is never
   initialised — no auth tables, no `/api/auth/*` routes beyond the thin `/api/auth/me`,
   every request carries a synthetic demo identity). Any other value refuses to boot.

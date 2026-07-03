@@ -44,9 +44,9 @@ automated CI**: this project deliberately runs the gate locally (and again at re
 expected to land every applicable gate green on the contributor's own machine. Don't push red.
 
 ```bash
-npm run gate         # tsc -b && eslint . && vitest run && vite build  — the core gate, run on EVERY PR
+npm run gate         # paraglide:compile && tsc -b && eslint . && vitest run && vite build  — the core gate, run on EVERY PR
 npm run gate:server  # type-check + test the optional server/ workspace — run when you touch server/
-npm run e2e          # Playwright on Chromium (boots its own dev server) — run when you touch UI/flows
+npm run e2e          # Chromium: core + db-backed + auth-backed specs; boots 3 Vite + 2 API servers, needs Node 24 — run when you touch UI/flows
 ```
 
 Cross-engine Playwright coverage is **opt-in** (Vite-only, so no SQLite/auth server, no Node 24):

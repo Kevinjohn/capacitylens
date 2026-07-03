@@ -447,6 +447,12 @@ in their ON state.
   path first — that's the trigger firing.
 - **Postgres, Docker, multi-region.** The Forge daemon + SQLite file is the right
   size; Docker adds nothing on this host. Stage E stays parked.
+
+  > **Update (2026-07-03) — Docker superseded.** Full Docker support has since shipped
+  > (`Dockerfile`, `docker-compose.yml`, [`docs/self-hosting.md`](self-hosting.md)) as a
+  > separate, parallel deployment path — this doesn't change the Forge droplet call above, which
+  > is left verbatim as the record of what was decided for that host. Postgres and multi-region
+  > remain out of scope for either path.
 - **App-level signup, per-seat gating, mobile views.** Standing non-goals (light
   mobile affordances landed 2026-06-12 are the agreed exception — DECISIONS.md).
 
