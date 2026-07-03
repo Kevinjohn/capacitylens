@@ -92,6 +92,13 @@ import { type AuditRecord, type AuditSink, noopAuditSink } from './audit'
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024
 
+// Fastify defaults BOTH to 0 (disabled). The documented deploy fronts this server with Nginx,
+// which buffers/queues the client connection — 30s is generous headroom for that hop, and it's
+// the guard that protects the documented DIRECT-EXPOSURE mode (no reverse proxy) from a
+// slowloris-style slow-body/slow-read socket exhaustion attack that an unbounded timeout permits.
+const REQUEST_TIMEOUT_MS = 30_000
+const CONNECTION_TIMEOUT_MS = 30_000
+
 /** Default invite lifetime (P1.9): a link with no explicit `expiresAt` in the create body expires
  *  7 days after it is minted. A short-ish default keeps a leaked/forgotten link from staying live
  *  indefinitely; a caller can shorten it via the body's `expiresAt`. */
@@ -364,6 +371,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const logOn = opts.log === true
   const app = Fastify({
     bodyLimit: BODY_LIMIT,
+    requestTimeout: REQUEST_TIMEOUT_MS,
+    connectionTimeout: CONNECTION_TIMEOUT_MS,
     // CAPACITYLENS_LOG=1 turns on Fastify's bundled pino (JSON to stdout; no new dependency).
     // ON always attaches the redact config (both branches) so a secret can never reach the
     // logs — see LOG_REDACT_PATHS. Off ⇒ logger disabled entirely — today's behaviour, byte for byte.
@@ -1348,6 +1357,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.post('/api/:entity', (req, reply) => {
       const { entity } = req.params as { entity: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      // A missing/non-object body (no Content-Type, or a literal JSON `null`) would otherwise
+      // null-deref below — body.accountId! for a scoped table, or sanitizeWrite's assertIdPresent
+      // for accounts — BEFORE the try block can turn it into a classified response, surfacing as a
+      // misclassified 500. Reject it here with the same shape/status /api/batch and /api/import use
+      // for a bad body.
+      if (!req.body || typeof req.body !== 'object') {
+        return reply.code(400).send({ error: 'A request body is required.' })
+      }
       // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is DELIBERATELY NOT gated:
       // a freshly-signed-up auth-on user holds no membership yet and must be able to create their
       // first account (onboarding); there is no `createAccount` Action to require. This open create
@@ -1450,6 +1467,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.patch('/api/:entity/:id', (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      // Same guard as the generic POST — a missing/non-object body would otherwise null-deref
+      // inside accountFieldsFrozen's `field in incoming` check (entity === 'accounts'), which
+      // statusFor can't tell apart from an unexpected bug, so it would surface as a 500.
+      if (!req.body || typeof req.body !== 'object') {
+        return reply.code(400).send({ error: 'A request body is required.' })
+      }
       try {
         const existing = getRow(db, entity, id)
         if (!existing) return reply.code(404).send({ error: 'Not found' })

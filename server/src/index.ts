@@ -57,6 +57,12 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //                                   exception); set to 'off' to disable. Server-mode only.
 //   CAPACITYLENS_AUDIT_FILE               the audit JSONL path (default: capacitylens-audit.jsonl
 //                                   beside the DB; a ':memory:' DB falls back to a CWD-relative file).
+//   CAPACITYLENS_AUDIT_MAX_MB             size-based rotation cap for the audit JSONL, in
+//                                   megabytes (positive integer; default 64; junk/non-positive
+//                                   falls back to the default). At/above the cap, the current
+//                                   file is renamed to <file>.1 (replacing any existing .1)
+//                                   before the next line is appended, bounding on-disk usage to
+//                                   ~2x the cap. Only read when audit is on.
 //   CAPACITYLENS_AUTH                     off|password|sso (default off = no Better Auth at
 //                                   all; only the thin /api/auth/me exists). Any other
 //                                   value refuses to boot. When ≠ off:
@@ -88,6 +94,14 @@ function parsePort(raw: string | undefined): number {
     refuseToStart(`PORT must be an integer 1..65535, got ${JSON.stringify(raw)}.`)
   }
   return n
+}
+
+// Fail-SOFT numeric parse (mirrors parseBackupConfig's `positive`, not parsePort's refuseToStart):
+// this only bounds the audit log's on-disk size, not a security-relevant gate, so a missing/junk
+// value falls back to the documented 64 MiB default rather than refusing to boot.
+function parseAuditMaxMb(raw: string | undefined): number {
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 64
 }
 
 // Safety interlock before anything opens: the test-only reset route must be impossible
@@ -187,8 +201,9 @@ try {
 // doesn't depend on the app.log ordering. The append() is fail-never (see audit.ts) — a broken
 // sink latches `degraded` (deep-health surfaces it), never crashes the daemon or fails a request.
 const auditCfg = parseAuditConfig(process.env, dbPath)
+const auditMaxBytes = parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024
 const auditSink = auditCfg.enabled
-  ? fileAuditSink(auditCfg.file, (m) => console.error(m))
+  ? fileAuditSink(auditCfg.file, (m) => console.error(m), { maxBytes: auditMaxBytes })
   : noopAuditSink()
 
 const app = buildApp(db, {

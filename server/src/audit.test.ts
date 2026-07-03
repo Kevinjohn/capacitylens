@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
@@ -304,5 +304,86 @@ describe('noopAuditSink', () => {
     const sink = noopAuditSink()
     expect(sink.append({ ts: TS, userId: 'demo', accountId: 'a1', action: 'create', entity: 'accounts', id: 'a1', changedFields: [] })).toBe(true)
     expect(sink.degraded).toBe(false)
+  })
+})
+
+describe('size-based rotation (9) — bounds on-disk usage to ~2x maxBytes', () => {
+  const rec = (id: string): AuditRecord => ({
+    ts: TS,
+    userId: 'demo',
+    accountId: 'a1',
+    action: 'create',
+    entity: 'accounts',
+    id,
+    changedFields: ['name'],
+  })
+
+  it('rotates the PREVIOUS generation into .1 once the file reaches maxBytes, and keeps appending to a fresh file', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'capacitylens-audit-rotate-'))
+    const file = join(dir, 'audit.jsonl')
+    const log = vi.fn()
+    // maxBytes pinned to the size of exactly one line (every id here is 2 chars, so every line is
+    // the same length) — the SECOND append is therefore always the one that finds the cap reached.
+    const lineBytes = Buffer.byteLength(JSON.stringify(rec('r1')) + '\n', 'utf8')
+    const sink = fileAuditSink(file, log, { maxBytes: lineBytes })
+
+    expect(sink.append(rec('r1'))).toBe(true) // file didn't exist (size 0 < cap) — no rotation
+    expect(existsSync(`${file}.1`)).toBe(false)
+
+    expect(sink.append(rec('r2'))).toBe(true) // size(file) === cap → rotate before writing
+    expect(readFileSync(`${file}.1`, 'utf8')).toBe(JSON.stringify(rec('r1')) + '\n')
+    expect(readFileSync(file, 'utf8')).toBe(JSON.stringify(rec('r2')) + '\n')
+
+    // The fresh file is now ALSO at the cap, so a third append rotates again — proving appends
+    // keep landing in a genuinely fresh file each cycle, not erroring or wedging on a second rotation.
+    expect(sink.append(rec('r3'))).toBe(true)
+    expect(readFileSync(`${file}.1`, 'utf8')).toBe(JSON.stringify(rec('r2')) + '\n')
+    expect(readFileSync(file, 'utf8')).toBe(JSON.stringify(rec('r3')) + '\n')
+    expect(log).not.toHaveBeenCalled()
+    expect(sink.degraded).toBe(false)
+  })
+
+  it('replaces a pre-existing .1 that predates this sink (not merged, not appended to)', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'capacitylens-audit-rotate-'))
+    const file = join(dir, 'audit.jsonl')
+    writeFileSync(`${file}.1`, 'STALE_UNRELATED_CONTENT_FROM_A_PRIOR_GENERATION')
+    const log = vi.fn()
+    const lineBytes = Buffer.byteLength(JSON.stringify(rec('r1')) + '\n', 'utf8')
+    const sink = fileAuditSink(file, log, { maxBytes: lineBytes })
+
+    sink.append(rec('r1'))
+    sink.append(rec('r2')) // triggers the rotation
+    const rotated = readFileSync(`${file}.1`, 'utf8')
+    expect(rotated).not.toContain('STALE_UNRELATED_CONTENT_FROM_A_PRIOR_GENERATION')
+    expect(rotated).toBe(JSON.stringify(rec('r1')) + '\n')
+  })
+
+  it('defaults maxBytes to 64 MiB — an ordinary run of appends never rotates', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'capacitylens-audit-rotate-'))
+    const file = join(dir, 'audit.jsonl')
+    const sink = fileAuditSink(file, vi.fn()) // no opts — default applies
+    for (let i = 0; i < 50; i++) sink.append(rec(`r${i}`))
+    expect(existsSync(`${file}.1`)).toBe(false)
+  })
+
+  it('a rename failure (rotation) degrades the sink instead of throwing', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'capacitylens-audit-rotate-fail-'))
+    const file = join(dir, 'audit.jsonl')
+    const log = vi.fn()
+    const lineBytes = Buffer.byteLength(JSON.stringify(rec('r1')) + '\n', 'utf8')
+    const sink = fileAuditSink(file, log, { maxBytes: lineBytes })
+    expect(sink.append(rec('r1'))).toBe(true) // creates the file, under cap
+
+    // Pre-create a DIRECTORY at the rotation destination, so renameSync(file, `${file}.1`) fails
+    // with EISDIR (you cannot rename a file onto an existing directory) — a REAL fs failure, the
+    // same "no mocking" style the append-failure test above uses (directory-as-file for appendFileSync).
+    mkdirSync(`${file}.1`)
+
+    expect(() => sink.append(rec('r2'))).not.toThrow()
+    expect(sink.append(rec('r2'))).toBe(false)
+    expect(sink.degraded).toBe(true)
+    expect(log).toHaveBeenCalledTimes(1) // loggedOnce guard — no spam across repeated failures
+    const msg = log.mock.calls[0][0] as string
+    expect(msg).toContain('audit write FAILED')
   })
 })

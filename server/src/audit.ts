@@ -1,4 +1,4 @@
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, renameSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 // Append-only JSONL audit sink (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
@@ -57,28 +57,55 @@ export interface AuditSink {
   readonly degraded: boolean
 }
 
+/** fileAuditSink's rotation knob. */
+export interface FileAuditSinkOptions {
+  /** Rotate once the file reaches this size, in bytes. Default 64 MiB (see DEFAULT_MAX_BYTES) —
+   *  an unbounded JSONL append-forever log eventually fills the disk, which then fails SQLite
+   *  writes too, so this bounds it. */
+  maxBytes?: number
+}
+
+const DEFAULT_MAX_BYTES = 64 * 1024 * 1024 // 64 MiB
+
 /**
  * A file-backed sink: one `\n`-terminated `appendFileSync` per record. The single synchronous,
  * newline-terminated write is partial-line-safe for this single-process, single-writer server
  * (a torn line can't interleave with another writer). A write failure (disk full, bad path,
  * permissions) is caught, never thrown — it latches `degraded` and logs ONE redacted line.
  *
+ * Size-based rotation (bounds disk usage to ~2x `maxBytes`): before a write, if the file is
+ * already at/over the cap, it is renamed to `<file>.1` (replacing any prior `.1` — POSIX rename
+ * atomically replaces an existing destination) and a fresh file is started. Only ONE prior
+ * generation is kept; this is a disk-usage bound, not a retention/archival feature.
+ *
  * @param file the JSONL file to append to (created on first write by appendFileSync)
  * @param log  where the single redacted failure line goes (index.ts passes console.error)
+ * @param opts `maxBytes` — see FileAuditSinkOptions
  */
-export function fileAuditSink(file: string, log: (msg: string) => void): AuditSink {
+export function fileAuditSink(file: string, log: (msg: string) => void, opts: FileAuditSinkOptions = {}): AuditSink {
+  const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES
   let degraded = false
   let loggedOnce = false
   return {
     append(record: AuditRecord): boolean {
       try {
+        // statSync throws ENOENT before the very first write (no file yet) — that's size 0, not a
+        // failure, so it's swallowed here; any OTHER stat error (permissions, a broken mount) falls
+        // through to the catch below exactly like an append failure would.
+        let size = 0
+        try {
+          size = statSync(file).size
+        } catch (statErr) {
+          if ((statErr as NodeJS.ErrnoException).code !== 'ENOENT') throw statErr
+        }
+        if (size >= maxBytes) renameSync(file, `${file}.1`)
         appendFileSync(file, JSON.stringify(record) + '\n', 'utf8')
         return true
       } catch (err) {
-        // FAIL-NEVER: the mutation already committed — an audit write failure must not throw back
-        // into the request path. Latch degraded (deep-health surfaces it) and log ONCE, MESSAGE
-        // ONLY — never the record (it carries ids we keep off the failure log) — so a persistently
-        // broken sink can't flood stdout.
+        // FAIL-NEVER: the mutation already committed — an audit write failure (append, OR the
+        // stat/rename that guards rotation) must not throw back into the request path. Latch
+        // degraded (deep-health surfaces it) and log ONCE, MESSAGE ONLY — never the record (it
+        // carries ids we keep off the failure log) — so a persistently broken sink can't flood stdout.
         degraded = true
         if (!loggedOnce) {
           loggedOnce = true

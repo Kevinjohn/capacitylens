@@ -96,6 +96,19 @@ describe('health + state', () => {
   })
 })
 
+describe('request/connection timeouts (slowloris guard for the direct-exposure deploy)', () => {
+  it('bounds both requestTimeout and connectionTimeout — Fastify defaults both to 0 (disabled)', () => {
+    const { app } = freshApp()
+    // initialConfig's TS typing omits requestTimeout (a Fastify 5 typings gap — it's present at
+    // runtime, ajv-defaulted like every other init option), so assert against the raw Node server
+    // Fastify actually configures: requestTimeout is a direct assignment, connectionTimeout is
+    // applied via server.setTimeout() (which Node mirrors onto the `timeout` property).
+    expect(app.initialConfig.connectionTimeout).toBe(30_000)
+    expect(app.server.requestTimeout).toBe(30_000)
+    expect(app.server.timeout).toBe(30_000)
+  })
+})
+
 describe('CRUD round-trip', () => {
   it('creates every entity type and reads them back via /api/state', async () => {
     const { app } = freshApp()
@@ -876,6 +889,76 @@ describe('null-id rejection (POST/batch without id → 400)', () => {
     })
     expect(res.statusCode).toBe(400)
     expect((await state(app)).accounts).toHaveLength(0)
+  })
+})
+
+describe('absent/null request body on generic writes → 400, not 500', () => {
+  // POST /api/:entity used to dereference the body (body.accountId! for a scoped table,
+  // sanitizeWrite's assertIdPresent for accounts) BEFORE any 400 classification could run, so a
+  // missing/null body crashed as an unclassified TypeError → statusFor → 500. /api/batch and
+  // /api/import already guard `!body` this way; the generic routes now match.
+  it('POST /api/resources with no body/Content-Type is 400, not 500', async () => {
+    const { app } = freshApp()
+    const res = await call(app, { method: 'POST', url: '/api/resources' })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'A request body is required.' })
+  })
+
+  it('POST /api/resources with a literal JSON null body is 400, not 500', async () => {
+    const { app } = freshApp()
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/resources',
+      payload: 'null',
+      headers: { 'content-type': 'application/json' },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'A request body is required.' })
+  })
+
+  it('POST /api/accounts with no body/Content-Type is 400, not 500', async () => {
+    // Regression for the accounts branch specifically: it skips the scoped-table authorize
+    // dereference and instead crashed inside sanitizeWrite's assertIdPresent (row.id on null/undefined).
+    const { app } = freshApp()
+    const res = await call(app, { method: 'POST', url: '/api/accounts' })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'A request body is required.' })
+  })
+
+  it('POST /api/accounts with a literal JSON null body is 400, not 500', async () => {
+    const { app } = freshApp()
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/accounts',
+      payload: 'null',
+      headers: { 'content-type': 'application/json' },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'A request body is required.' })
+  })
+
+  // The sibling handler: PATCH /api/:entity/:id ran entirely inside a try/catch, but a null body
+  // still surfaced as 500 — accountFieldsFrozen's `field in incoming` throws on null, and the
+  // caught TypeError isn't a ValidationError/constraint-failed, so statusFor mapped it to 500.
+  it('PATCH /api/accounts/:id with a literal JSON null body is 400, not 500', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    const res = await call(app, {
+      method: 'PATCH',
+      url: '/api/accounts/a1',
+      payload: 'null',
+      headers: { 'content-type': 'application/json' },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'A request body is required.' })
+  })
+
+  it('PATCH /api/accounts/:id with no body/Content-Type is 400, not 500', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    const res = await call(app, { method: 'PATCH', url: '/api/accounts/a1' })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'A request body is required.' })
   })
 })
 
