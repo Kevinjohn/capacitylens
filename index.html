@@ -37,7 +37,9 @@
            carries the diagnosis instead of vanishing into a blank screen. -->
     <div id="root">
       <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 36rem; margin: 4rem auto; padding: 0 1.5rem; color: #64748b; line-height: 1.5">
-        <p style="font-weight: 600; color: #6366f1">CapacityLens</p>
+        <!-- Indigo-600, not the brand indigo-500: this renders on the pre-CSS white page,
+             where #6366f1 is 4.46:1 — under the 4.5:1 AA bar the axe e2e oracle enforces. -->
+        <p style="font-weight: 600; color: #4f46e5">CapacityLens</p>
         <p>Loading&hellip;</p>
         <p style="font-size: 0.875rem">
           If this message doesn't go away, JavaScript isn't running on this page —
