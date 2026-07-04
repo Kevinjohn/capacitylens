@@ -159,7 +159,13 @@ describe('SettingsView — Account section (auth)', () => {
     const signOut = vi.fn().mockResolvedValue(undefined)
     render(
       <AuthContext.Provider
-        value={{ authMode: 'password', user: { id: 'u1', email: 'tester@capacitylens.dev' }, signOut }}
+        value={{
+          authMode: 'password',
+          user: { id: 'u1', email: 'tester@capacitylens.dev' },
+          canCreateAccount: true,
+          multiAccount: true,
+          signOut,
+        }}
       >
         <SettingsView />
       </AuthContext.Provider>,

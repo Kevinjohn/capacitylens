@@ -62,6 +62,8 @@ function mockFetch(members: RawMember[] | { status: number }) {
 const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   authMode: 'password',
   user: { id: 'me', email: 'me@x.io' },
+  canCreateAccount: true,
+  multiAccount: true,
   signOut: async () => {},
   ...over,
 })

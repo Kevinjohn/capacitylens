@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
+import { useAuth } from '../../auth/authContext'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
@@ -46,6 +47,10 @@ export function AccountPicker() {
   // the post-"login" screen, so show who's "signed in" + a Sign out back to the demo gate.
   const demoAuthActive = useDemoAuthActive()
   const signOutDemo = useStore((s) => s.signOutDemo)
+  // Single-company-per-instance policy: hide the create affordance once the server reports the
+  // cap is reached (canCreateAccount: false). Fails open to `true` (see authContext.ts) whenever
+  // the fact is unavailable, so a self-hosted/demo build with no policy in place is unaffected.
+  const { canCreateAccount } = useAuth()
 
   const [creating, setCreating] = useState(false)
   const [name, setName] = useState('')
@@ -194,9 +199,15 @@ export function AccountPicker() {
             </div>
           </form>
         ) : (
-          <div className="mt-4">
-            <AddButton label={m.picker_new()} onClick={() => setCreating(true)} />
-          </div>
+          // Single-company-per-instance policy: the button itself disappears at the cap (a stricter
+          // read than disabling it — there's nothing useful to do once it's hidden). The zero-account
+          // empty state above needs no extra gating: zero accounts ⇒ the server always reports
+          // canCreateAccount: true (the bootstrap exemption).
+          canCreateAccount && (
+            <div className="mt-4">
+              <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />
+            </div>
+          )
         )}
 
         {confirming && (

@@ -1,12 +1,27 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
 import { AppShell } from '../AppShell'
 import { AccountPicker } from './AccountPicker'
+import { AuthContext } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
+
+/** Render `ui` inside an AuthContext fixed to `canCreateAccount` (single-company-per-instance
+ *  policy) — mirrors permissionGating.test.tsx's `withRole`. The other fields are fixed to the
+ *  same defaults the real context uses when the fact IS available (authMode off, no user). */
+function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
+  return render(
+    <AuthContext.Provider
+      value={{ authMode: 'off', user: null, canCreateAccount, multiAccount: canCreateAccount, signOut: async () => {} }}
+    >
+      {ui}
+    </AuthContext.Provider>,
+  )
+}
 
 /** Seed the picker's server-sourced list (P1.13) from the store's accounts — mirrors the demo build's
  *  derivation (useAccountSummaries), which these unit tests don't mount. The picker now lists from
@@ -184,11 +199,35 @@ describe('AccountPicker server-mode list (P1.13)', () => {
     expect(useStore.getState().activeAccountId).toBe('a2')
   })
 
-  it('shows the no-accounts help state when summaries are empty', () => {
+  it('shows the no-accounts help state when summaries are empty, AND the New company button (bootstrap exemption)', () => {
     useStore.getState().replaceAll(emptyAppData())
     useStore.getState().setAccountSummaries([])
     render(<AccountPicker />)
     expect(screen.getByText(/No companies yet/)).toBeInTheDocument()
     expect(screen.getByText(/ask an admin for an invite/)).toBeInTheDocument()
+    // Zero accounts ⇒ the server always reports canCreateAccount: true (no provider here, so the
+    // default context value applies — see authContext.ts's fail-open default).
+    expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
+  })
+})
+
+describe('AccountPicker — single-company-per-instance policy (canCreateAccount)', () => {
+  it('hides the "New company" button when the auth context reports the cap is reached', () => {
+    seedAccounts(makeAccount({ name: 'Studio North' }))
+    withCanCreateAccount(false, <AccountPicker />)
+    expect(screen.queryByTestId('new-company-button')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'New company' })).not.toBeInTheDocument()
+  })
+
+  it('shows the "New company" button when the auth context allows another company', () => {
+    seedAccounts(makeAccount({ name: 'Studio North' }))
+    withCanCreateAccount(true, <AccountPicker />)
+    expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
+  })
+
+  it('REGRESSION GUARD: no AuthContext provider (demo build / older callers) fails OPEN — button stays visible', () => {
+    seedAccounts(makeAccount({ name: 'Studio North' }))
+    render(<AccountPicker />)
+    expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
   })
 })

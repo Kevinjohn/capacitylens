@@ -28,12 +28,22 @@ If the app changes, update this file first, then the affected stories.
 4. Then the **company picker** (you choose a tenant on every load — `activeAccountId` is never
    persisted). Pick **Studio North** to see the seeded data these stories describe. (A second
    seeded company, *Loft Digital*, is near-empty.) While "signed in", the picker shows
-   *"Signed in as Jordan Avery"* with a **Sign out** link. **`New company`** opens an inline
-   create form (P1.14) that captures, besides name + colour, the three **frozen-after-creation**
-   fields: **Week starts on** (segmented Monday/Sunday, default Monday), **Timezone** (select,
-   default `GMT`), and **Language** (read-only **English** — `data-testid="create-language"`;
-   English-only until Paraglide). These three are set ONCE here and are then **disabled** in
-   Settings; the server rejects a later change with **409**.
+   *"Signed in as Jordan Avery"* with a **Sign out** link. **`New company`**
+   (`data-testid="new-company-button"`) opens an inline create form (P1.14) that captures, besides
+   name + colour, the three **frozen-after-creation** fields: **Week starts on** (segmented
+   Monday/Sunday, default Monday), **Timezone** (select, default `GMT`), and **Language**
+   (read-only **English** — `data-testid="create-language"`; English-only until Paraglide). These
+   three are set ONCE here and are then **disabled** in Settings; the server rejects a later
+   change with **409**.
+   **Single-company-per-instance policy:** a server-backed deploy defaults to ONE company
+   (`CAPACITYLENS_MULTI_ACCOUNT` unset) — once an account already exists, `GET /api/auth/me`
+   reports `canCreateAccount: false` and the **`New company`** button is HIDDEN entirely (not
+   merely disabled); a direct `POST /api/accounts` still 403s regardless, so this is UX only. The
+   button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
+   server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
+   the FIRST company), an older server that predates these fields, or a deploy with
+   `CAPACITYLENS_MULTI_ACCOUNT=1` set (the auth-backed stories' server runs this way, so its
+   picker always shows the button).
 5. Then a one-time **"What CapacityLens is" intro page** (heading `Welcome to CapacityLens`) — a minimal
    post-login explainer that CapacityLens is a resourcing tool, not a project-management tool. Click
    **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
@@ -94,6 +104,17 @@ phone's first contact). **Got it** (or Escape / backdrop) dismisses it for the s
 never appears on desktop viewports or in landscape.
 
 ## Seed data (first run)
+
+> This auto-seed is **DEMO-BUILD-ONLY** going forward (single-company-per-instance policy). A
+> real, server-backed instance (the default deploy) no longer auto-seeds from the client side —
+> `bootstrap()` (src/main.tsx) only passes a seed dataset in the demo build
+> (`VITE_CAPACITYLENS_DEMO=1`); a fresh server-backed instance lands on the empty
+> create-your-company picker instead of a fabricated "Studio North" (a pre-seeded two-company
+> instance would otherwise trip its own single-company cap on first boot). The two-company seed
+> described below happens only in: the demo build (`npm run dev:demo`, what these stories run
+> against), local dev tooling that opts in explicitly, and the db-backed E2E server's explicit
+> `POST /api/test/reset {seed:true}` (used by `e2e/db-helpers.ts`'s `resetServer()` — exempt from
+> the single-company cap so tests can still exercise a two-company picker).
 
 - **Accounts (companies):** **Studio North** (holds everything below — pick this one) and
   *Loft Digital* (a second tenant with one Design discipline and no work).
@@ -434,6 +455,9 @@ stay silent — they give sighted feedback),
 `intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
 (Settings → Calendar's read-only Language row — **English**; both frozen, P1.14),
+`new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
+once the server reports the single-company-per-instance cap is reached, i.e.
+`GET /api/auth/me`'s `canCreateAccount: false`),
 `clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
 `archived-section` (Settings → Archived & deleted; shows in local mode and for admins on an auth-on
 server, self-hidden on a 403), `archived-row` (one per archived resource/client/project; carries a

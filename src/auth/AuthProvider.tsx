@@ -14,8 +14,16 @@ const LoginScreen = lazy(() => import('./LoginScreen').then((m) => ({ default: m
 
 type Status =
   | { kind: 'checking' }
-  | { kind: 'pass'; authMode: AuthMode; user: AuthUser | null }
+  | { kind: 'pass'; authMode: AuthMode; user: AuthUser | null; canCreateAccount: boolean; multiAccount: boolean }
   | { kind: 'login'; authMode: 'password' | 'sso' }
+
+// A 'pass' Status that fails OPEN on the single-company-per-instance fields (see authContext.ts):
+// used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
+// wire (an off-spec body, a non-401 non-ok response, or a network failure) — the server 403 remains
+// the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
+function passOpen(authMode: AuthMode, user: AuthUser | null): Status {
+  return { kind: 'pass', authMode, user, canCreateAccount: true, multiAccount: true }
+}
 
 // Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server
 // is external input — we validate its shape rather than trusting an `as` cast.
@@ -24,6 +32,13 @@ function isAuthMode(v: unknown): v is AuthMode {
 }
 function isAuthUser(v: unknown): v is AuthUser {
   return typeof v === 'object' && v !== null && typeof (v as { id?: unknown }).id === 'string'
+}
+/** Reads a boolean field off the untrusted body, defaulting to `true` (fail-open) when it's
+ *  absent or not a boolean — covers an older server that predates these fields as well as a
+ *  malformed response. See `AuthContextValue.canCreateAccount` (authContext.ts) for why "unknown"
+ *  means "allowed": the server 403 is the authoritative enforcer, this only gates a UI affordance. */
+function boolFieldOr(v: unknown, fallback: boolean): boolean {
+  return typeof v === 'boolean' ? v : fallback
 }
 
 /** Ask the server who we are. Total: every failure shape maps to a Status — a 401 means
@@ -47,19 +62,30 @@ async function fetchAuthStatus(): Promise<Status> {
       const rawMode = (body as { authMode?: unknown } | null)?.authMode
       if (!isAuthMode(rawMode)) {
         console.warn('AuthProvider: /api/auth/me returned an unexpected authMode; treating as off', body)
-        return { kind: 'pass', authMode: 'off', user: null }
+        return passOpen('off', null)
       }
       const rawUser = (body as { user?: unknown } | null)?.user
-      return { kind: 'pass', authMode: rawMode, user: isAuthUser(rawUser) ? rawUser : null }
+      // Single-company-per-instance policy: the server computes both fields (multiAccount || zero
+      // accounts exist), fail-open to `true` when absent (an older server, or a response shape we
+      // don't recognise) — see boolFieldOr and AuthContextValue.canCreateAccount.
+      const canCreateAccount = boolFieldOr((body as { canCreateAccount?: unknown } | null)?.canCreateAccount, true)
+      const multiAccount = boolFieldOr((body as { multiAccount?: unknown } | null)?.multiAccount, true)
+      return {
+        kind: 'pass',
+        authMode: rawMode,
+        user: isAuthUser(rawUser) ? rawUser : null,
+        canCreateAccount,
+        multiAccount,
+      }
     }
-    return { kind: 'pass', authMode: 'off', user: null }
+    return passOpen('off', null)
   } catch (err) {
     // Deliberate fallback: ANY failure to resolve /me (server down, DNS, CORS, offline, unreadable
     // body) renders the APP rather than a dead end — the persistError / ConnectionError surfaces
     // describe a broken/unreachable server better than blocking here would. Not silent: warn so the
     // cause is discoverable when debugging a flaky server.
     console.warn('AuthProvider: /api/auth/me check failed; rendering the app as auth-off', err)
-    return { kind: 'pass', authMode: 'off', user: null }
+    return passOpen('off', null)
   }
 }
 
@@ -79,7 +105,8 @@ async function fetchAuthStatus(): Promise<Status> {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const serverMode = isServerConfigured()
   const [status, setStatus] = useState<Status>(
-    serverMode ? { kind: 'checking' } : { kind: 'pass', authMode: 'off', user: null },
+    // Demo build: no server, no cap — canCreateAccount/multiAccount fail open to true (passOpen).
+    serverMode ? { kind: 'checking' } : passOpen('off', null),
   )
   const persistError = useStore((s) => s.persistError)
 
@@ -126,7 +153,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
   }
   return (
-    <AuthContext.Provider value={{ authMode: status.authMode, user: status.user, signOut }}>
+    <AuthContext.Provider
+      value={{
+        authMode: status.authMode,
+        user: status.user,
+        canCreateAccount: status.canCreateAccount,
+        multiAccount: status.multiAccount,
+        signOut,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

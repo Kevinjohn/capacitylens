@@ -11,7 +11,7 @@ import { AuthProvider } from './auth/AuthProvider'
 import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { useStore } from './store/useStore'
 import { persistenceAdapter } from './data/storageAdapter'
-import { isServerConfigured } from './data/apiConfig'
+import { isDemoMode, isServerConfigured } from './data/apiConfig'
 import { bootstrap } from './data/persist'
 import { seed } from '@capacitylens/shared/data/seed'
 import { APP_NAME } from '@capacitylens/shared/brand'
@@ -26,7 +26,13 @@ watchSystemTheme(() => useStore.getState().theme)
 // Load (and seed on first run) before/while the app renders. The AppShell gates
 // content on `hydrated`, so there's no flash of empty data.
 void bootstrap(useStore, persistenceAdapter, {
-  seedIfEmpty: seed(),
+  // Auto-seed is a DEMO-BUILD-ONLY convenience (single-company-per-instance policy): the
+  // localStorage build has no server to own the data, so it seeds a demo dataset on first run.
+  // A server-backed instance (the default) must NOT auto-seed — the server owns its data, and a
+  // fresh real deploy now deliberately starts EMPTY at the create-your-company picker rather than
+  // fabricating a "Studio North". `undefined` here means bootstrap() only loads whatever the
+  // server already has (possibly nothing).
+  seedIfEmpty: isDemoMode() ? seed() : undefined,
   // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
   // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
   serverMode: isServerConfigured(),

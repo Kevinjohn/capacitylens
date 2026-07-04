@@ -19,7 +19,19 @@ async function freshProvider() {
   vi.resetModules()
   const { AuthProvider } = await import('./AuthProvider')
   const { useStore } = await import('../store/useStore')
-  return { AuthProvider, useStore }
+  // authContext must come from the SAME fresh module graph as AuthProvider (which imports it
+  // internally): a statically-imported useAuth from before vi.resetModules() would read the
+  // context object's DEFAULT value, not whatever this AuthProvider instance provides.
+  const { useAuth } = await import('./authContext')
+  return { AuthProvider, useStore, useAuth }
+}
+
+/** Renders the two single-company-per-instance fields off `useAuth()` as plain text, so a test can
+ *  assert on them without reaching into React internals. Takes the hook as a PROP (rather than a
+ *  static import) for the module-identity reason above. */
+function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean; multiAccount: boolean } }) {
+  const { canCreateAccount, multiAccount } = useAuth()
+  return <div>{`canCreateAccount:${canCreateAccount} multiAccount:${multiAccount}`}</div>
 }
 
 describe('AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)', () => {
@@ -112,5 +124,94 @@ describe('AuthProvider — server mode', () => {
     // A failed write raises the banner → the provider re-checks → 401 → login screen.
     act(() => useStore.getState().setPersistError(true))
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+  })
+})
+
+// Single-company-per-instance policy: GET /api/auth/me gains canCreateAccount/multiAccount
+// (server-computed: multiAccount || zero accounts exist). The client only ever HIDES the "New
+// company" affordance with these — the server 403 is the real enforcer — so every path where the
+// fact can't be trusted must fail OPEN (default true), never closed.
+describe('AuthProvider — canCreateAccount / multiAccount (single-company-per-instance policy)', () => {
+  it('parses canCreateAccount:false / multiAccount:false from a mocked /api/auth/me', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => me(200, { authMode: 'off', user: null, canCreateAccount: false, multiAccount: false })),
+    )
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <Probe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:false multiAccount:false')).toBeInTheDocument()
+  })
+
+  it('parses canCreateAccount:true / multiAccount:true from a mocked /api/auth/me', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => me(200, { authMode: 'off', user: null, canCreateAccount: true, multiAccount: true })),
+    )
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <Probe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+  })
+
+  it('defaults BOTH fields to true when an older server omits them from an otherwise-valid body', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(200, { authMode: 'off', user: null })))
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <Probe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+  })
+
+  it('defaults to true on a fetch failure (fail-open, mirrors the authMode-off fallback)', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))))
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <Probe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+  })
+
+  it('defaults to true on a 401 login response too (checked once past sign-in)', async () => {
+    // The login screen itself doesn't read these fields, but the NEXT check (a fresh boot after
+    // sign-in) must still fail open if that follow-up request errors — covered by the fetch-failure
+    // case above; this pins the 200-with-off-spec-authMode branch, the OTHER fail-open path.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(200, { authMode: 'bogus' })))
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <Probe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+  })
+
+  it('defaults to true in the demo build (no fetch at all)', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1')
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <Probe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+    expect(fetchSpy).not.toHaveBeenCalled()
   })
 })
