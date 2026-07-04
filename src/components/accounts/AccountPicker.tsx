@@ -116,7 +116,11 @@ export function AccountPicker() {
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
           <h1 className="text-lg font-semibold text-ink">{m.picker_title()}</h1>
-          <p className="text-sm text-muted">{m.picker_subtitle()}</p>
+          {/* At the single-company cap the create affordance is hidden (see below), so the
+              subtitle must not promise "or create a new one" — that copy would point at nothing. */}
+          <p className="text-sm text-muted">
+            {canCreateAccount ? m.picker_subtitle() : m.picker_subtitle_capped()}
+          </p>
         </div>
 
         <ul className="space-y-2">

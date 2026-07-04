@@ -217,12 +217,16 @@ describe('AccountPicker — single-company-per-instance policy (canCreateAccount
     withCanCreateAccount(false, <AccountPicker />)
     expect(screen.queryByTestId('new-company-button')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'New company' })).not.toBeInTheDocument()
+    // The subtitle must not promise a create affordance that isn't rendered.
+    expect(screen.getByText('Pick a company to plan.')).toBeInTheDocument()
+    expect(screen.queryByText('Pick a company to plan, or create a new one.')).not.toBeInTheDocument()
   })
 
   it('shows the "New company" button when the auth context allows another company', () => {
     seedAccounts(makeAccount({ name: 'Studio North' }))
     withCanCreateAccount(true, <AccountPicker />)
     expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
+    expect(screen.getByText('Pick a company to plan, or create a new one.')).toBeInTheDocument()
   })
 
   it('REGRESSION GUARD: no AuthContext provider (demo build / older callers) fails OPEN — button stays visible', () => {
