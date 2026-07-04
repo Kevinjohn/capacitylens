@@ -11,8 +11,11 @@ repository is made public:
   docs/decisions-log.md — scrub/anonymise all of them (including this line).
 - The live alpha domain published in DECISIONS.md and the ops docs while that instance runs open
   (no auth) — scrub the URL AND lock down or tear down the host first.
-- The auth-off demo posture: the fake sign-in gate and auto-seeded demo dataset appear on ANY
-  auth-off server deploy, not just the demo build — revisit once real auth lands.
+- The auth-off demo posture: the fake sign-in gate appears on ANY auth-off server deploy, not
+  just the demo build — revisit once real auth lands. (The other half of this item — the
+  auto-seeded demo dataset landing in real server DBs — was RESOLVED 2026-07-04: the boot seed is
+  now opt-in `CAPACITYLENS_SEED_DEMO=1`, and instances default to single-company —
+  `CAPACITYLENS_MULTI_ACCOUNT=1` to allow more. See DECISIONS.md › Architecture.)
 - No 1:1 account-owner ↔ company isolation (Stage C auth work) — required before exposing
   isolated user data publicly (already tracked under "Genuinely open").
 

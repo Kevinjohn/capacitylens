@@ -42,6 +42,12 @@ services:
       # no-login mode set this to "1" in .env; it is ignored once auth is on.
       # Without it the api container restart-loops (`docker compose logs api`).
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: ${CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION:-}
+      # Single-company-per-instance policy (see AppOptions.multiAccount): default
+      # off = one company; "1" allows more. SEED_DEMO=1 seeds the two-company demo
+      # dataset on a never-initialised DB (pair it with MULTI_ACCOUNT=1) — a fresh
+      # real instance starts EMPTY at the create-your-company screen.
+      CAPACITYLENS_MULTI_ACCOUNT: ${CAPACITYLENS_MULTI_ACCOUNT:-}
+      CAPACITYLENS_SEED_DEMO: ${CAPACITYLENS_SEED_DEMO:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
       CAPACITYLENS_SSO_PROVIDER_ID: ${CAPACITYLENS_SSO_PROVIDER_ID:-}

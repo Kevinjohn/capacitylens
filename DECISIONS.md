@@ -19,6 +19,13 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Multi-tenant by Account.** Every entity carries `accountId`; you pick a company on load
   (`AccountPicker`) and `activeAccountId` is never persisted. Scoped access goes through the
   `useScopedData` / `scopedTables()` seam.
+- **Single company per instance by default (owner, 2026-07-04).** The multi-tenant schema stays,
+  but a server refuses to CREATE a second `accounts` row (403 naming the fix) unless
+  `CAPACITYLENS_MULTI_ACCOUNT=1` — in EVERY auth mode (a deployment-shape policy, not authz; the
+  bootstrap token doesn't bypass it). Create-time only: an existing multi-company DB keeps
+  serving. `GET /api/auth/me` reports `canCreateAccount` and the picker hides "New company" at the
+  cap (fail-open when the fact is unavailable — the server is the enforcer). The demo build and
+  `npm run dev` are uncapped.
 - **Pure domain core is shared.** `shared/` (`@capacitylens/shared`) owns types, validation,
   integrity, cascade, import-remap, migrate, seed — imported by both app and server so they
   can't drift.
@@ -33,7 +40,9 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Debounced writes, flushed on unload** (`pagehide` + `visibilitychange→hidden`) so a tab
   close inside the debounce window doesn't drop the last edit.
 - **Seed once, gated on a persistent marker** (not emptiness) — clearing all data does NOT
-  re-seed.
+  re-seed. Since 2026-07-04 the server boot seed is also **opt-in** (`CAPACITYLENS_SEED_DEMO=1`;
+  `npm run dev` sets it): a fresh real server starts EMPTY at the create-your-company picker.
+  The localStorage demo build still self-seeds.
 - **Schema migrated on open** (introspection-gated, idempotent); `assertSchemaCurrent` throws
   loudly at startup on any required-column drift or `optional?`-vs-`NULL` mismatch, instead of
   failing silently on a later write.

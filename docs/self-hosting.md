@@ -54,13 +54,39 @@ docker compose up --build -d
 ```
 
 Then open **<http://localhost:8080>** — that's the host port the `web` service publishes (it
-maps to nginx on port 80 inside the container; override with `WEB_PORT` in `.env`).
+maps to nginx on port 80 inside the container; override with `WEB_PORT` in `.env`). A fresh
+instance starts **empty** — there's no seeded dataset out of the box. You'll land on the account
+picker's create-your-company screen: name your one company, pick its calendar defaults (timezone,
+week start), and you're in.
 
 > **The production-posture interlock.** The `api` image bakes `NODE_ENV=production`, and
 > `server/src/productionGuard.ts` refuses to boot with auth OFF under production unless you've
 > deliberately opted in via the flag above. Skip that step and the `api` container
 > **restart-loops** (`restart: unless-stopped`) instead of coming up — check
 > `docker compose logs api` for the "refusing to start" line.
+
+> **One company per instance (default).** CapacityLens is single-company-per-instance by
+> default: once your one company exists, creating a second one — from the account picker, or a
+> direct API call — is refused with:
+>
+> ```
+> This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.
+> ```
+>
+> This applies in every auth mode, including auth off, and is enforced only at **create time** —
+> an existing DB that already holds several companies (e.g. one seeded before you set the cap)
+> keeps working normally either way; updates and deletes are unaffected. To lift the cap, set
+> `CAPACITYLENS_MULTI_ACCOUNT=1`.
+>
+> Like the other runtime flags, `docker-compose.yml` forwards `CAPACITYLENS_MULTI_ACCOUNT` (and
+> `CAPACITYLENS_SEED_DEMO` below) from `.env` to the `api` container — set it in `.env` and
+> `docker compose up -d`.
+>
+> **`CAPACITYLENS_SEED_DEMO`** is a demo/throwaway-instance affordance, not something a real
+> deployment needs: set to `1`, it seeds the two-company demo dataset (Studio North + Loft
+> Digital) into a never-initialised DB at boot — which only makes sense together with
+> `CAPACITYLENS_MULTI_ACCOUNT=1`, since the seed ships two companies. Leave both unset for a real
+> deploy; a real instance is meant to start empty and grow from the one company you create.
 
 ### The two services
 

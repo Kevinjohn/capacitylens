@@ -33,7 +33,7 @@ what links `@capacitylens/shared` into both the web app and this server:
 
 ```bash
 npm install            # at the repo root, not inside server/
-npm run dev --workspace=server   # http://localhost:8787, seeds a never-initialised DB on first boot
+npm run dev --workspace=server   # http://localhost:8787, starts EMPTY unless CAPACITYLENS_SEED_DEMO=1
 ```
 
 To point a Vite-only web app (`npm run dev:web`, run separately) at a standalone API on a non-default
@@ -128,7 +128,23 @@ register with the droplet's values lives in `docs/production-plan.md`):
 - `CAPACITYLENS_BOOTSTRAP_TOKEN` — shared secret enabling constrained org-creation via
   `POST /api/orgs` (sent as the `x-capacitylens-bootstrap-token` header) for a caller who isn't
   yet an Owner/Admin of any account. Off by default (unset/empty = the token path never allows
-  — org-creation is then first-run-only, i.e. zero accounts, or an existing Owner/Admin).
+  — org-creation is then first-run-only, i.e. zero accounts, or an existing Owner/Admin). NOTE:
+  the token now presumes a multi-account instance — it only matters once
+  `CAPACITYLENS_MULTI_ACCOUNT` (below) is also on, since the single-company cap denies every
+  create, token or not, while the instance is capped to one company.
+- `CAPACITYLENS_MULTI_ACCOUNT` — `1` to allow more than one company (`accounts` row) on this
+  instance. **Default off: CapacityLens is single-company-per-instance** — once the `accounts`
+  table holds one row, every create-a-company vector (`POST /api/accounts`, `POST /api/orgs`, a
+  create-shaped PUT/batch-PUT) 403s with `This instance allows a single company. Set
+  CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.`, in EVERY auth mode including `off`. Enforcement is
+  create-time only — an existing DB with several companies (e.g. seeded before the cap existed)
+  keeps working either way; update/delete of an existing account is never affected.
+- `CAPACITYLENS_SEED_DEMO` — `1` to seed the two-company demo dataset (Studio North + Loft
+  Digital) on a never-initialised DB at boot. **Default off: a fresh server now starts EMPTY** —
+  the first-run experience is creating your one company at the account picker. Only makes sense
+  paired with `CAPACITYLENS_MULTI_ACCOUNT=1` (the seed ships two companies, which the
+  single-company cap would otherwise immediately contradict). `npm run dev` sets both via
+  `scripts/dev-fullstack.mjs`, so the dev experience is unchanged.
 - `CAPACITYLENS_AUDIT` — append-only JSONL audit log of every AppData mutation (one line per
   mutation: `{ts, userId, accountId, action, entity, id, changedFields}`; `changedFields` is
   field NAMES only, never values, so no PII reaches the log). **ON by default** — the one
