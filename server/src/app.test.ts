@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
-import { buildApp, statusFor } from './app'
+import { buildApp, statusFor, type AppOptions } from './app'
 import { ValidationError } from './validate'
 import { openDb } from './db'
 import {
@@ -26,8 +26,8 @@ import {
 const TS = '2026-01-01T00:00:00.000Z'
 const meta = () => ({ createdAt: TS, updatedAt: TS })
 
-function freshApp(allowReset = true): { app: FastifyInstance } {
-  return { app: buildApp(openDb(':memory:'), { allowReset }) }
+function freshApp(allowReset = true, extra: Partial<AppOptions> = {}): { app: FastifyInstance } {
+  return { app: buildApp(openDb(':memory:'), { allowReset, ...extra }) }
 }
 
 const account = (id: string) => ({ id, name: 'Studio', color: '#3b82f6', ...meta() })
@@ -457,7 +457,10 @@ describe('built-in Internal client is a per-account singleton on direct writes',
   })
 
   it('allows a builtin in EACH account independently', async () => {
-    const { app } = freshApp()
+    // multiAccount: true — this test deliberately creates a SECOND company on one instance, which
+    // the default single-company cap would otherwise 403 (see app.singleCompanyCap.test.ts for the
+    // cap's own coverage); this test is about per-account builtin scoping, not the cap.
+    const { app } = freshApp(true, { multiAccount: true })
     await post(app, 'accounts', account('a1'))
     await post(app, 'accounts', account('a2'))
     expect((await post(app, 'clients', { ...client('c-int-1', 'a1'), builtin: true })).statusCode).toBe(201)

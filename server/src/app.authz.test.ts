@@ -79,12 +79,14 @@ const PASSWORD_ENV = {
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
 }
 
-/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
-async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
+/** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed.
+ *  `multiAccount` defaults to the single-company-cap OFF default (false) — pass `true` for a test
+ *  that deliberately exercises a multi-company instance. */
+async function appWithAuth(opts: { multiAccount?: boolean } = {}): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
-  return { app: buildApp(db, { authMode: mode, auth }), db }
+  return { app: buildApp(db, { authMode: mode, auth, multiAccount: opts.multiAccount }), db }
 }
 
 /** Sign up a user, returning its session cookie + the resolved user id (from /api/auth/me). */
@@ -442,11 +444,41 @@ describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect((await batchPutAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
   })
 
-  it('CREATE stays open: a non-member may PUT / batch-PUT a NEW account (no existing row) → 2xx', async () => {
-    const { app } = await appWithAuth()
-    const { cookie } = await signUp(app, 'acct-onboard@capacitylens.dev') // no membership
-    expect((await putAccount(app, 'brandNew1', cookie)).statusCode).toBe(200)
-    expect((await batchPutAccount(app, 'brandNew2', cookie)).statusCode).toBe(200)
+  // The single-company cap (AppOptions.multiAccount, default off) sits IN FRONT of this "CREATE
+  // stays open" onboarding exemption: a CREATE is unconditionally open only while the instance is
+  // still at zero accounts (the bootstrap case); once any account exists, it needs multiAccount:true
+  // like every other create vector. Three cases pin the full behaviour:
+  it('(a) zero-account instance: a non-member may PUT / batch-PUT the FIRST account → 2xx (bootstrap survives)', async () => {
+    const put = await appWithAuth() // fresh db, zero accounts
+    const { cookie: putCookie } = await signUp(put.app, 'acct-onboard-put@capacitylens.dev') // no membership
+    expect((await putAccount(put.app, 'brandNew1', putCookie)).statusCode).toBe(200)
+
+    const batch = await appWithAuth() // separate fresh instance — also zero accounts
+    const { cookie: batchCookie } = await signUp(batch.app, 'acct-onboard-batch@capacitylens.dev')
+    expect((await batchPutAccount(batch.app, 'brandNew2', batchCookie)).statusCode).toBe(200)
+  })
+
+  it('(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 (single-company cap, not a generic Forbidden)', async () => {
+    const { app, db } = await appWithAuth() // multiAccount defaults to false
+    seedTwo(db) // a1 + a2 already exist
+    const { cookie } = await signUp(app, 'acct-onboard-cap@capacitylens.dev') // no membership
+    const CAP_MESSAGE = 'This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.'
+
+    const put = await putAccount(app, 'brandNew3', cookie)
+    expect(put.statusCode).toBe(403)
+    expect(put.json()).toEqual({ error: CAP_MESSAGE })
+
+    const batch = await batchPutAccount(app, 'brandNew4', cookie)
+    expect(batch.statusCode).toBe(403)
+    expect(batch.json()).toEqual({ error: CAP_MESSAGE })
+  })
+
+  it('(c) multiAccount: true restores the old CREATE-stays-open behaviour even with existing accounts', async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true })
+    seedTwo(db)
+    const { cookie } = await signUp(app, 'acct-onboard-multi@capacitylens.dev') // no membership
+    expect((await putAccount(app, 'brandNew5', cookie)).statusCode).toBe(200)
+    expect((await batchPutAccount(app, 'brandNew6', cookie)).statusCode).toBe(200)
   })
 
   it('OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)', async () => {

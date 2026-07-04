@@ -45,12 +45,17 @@ const PASSWORD_ENV = {
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
 }
 
-/** Build an auth-on (password) app over a fresh in-memory DB. `bootstrapToken` is optional. */
-async function appWithAuth(bootstrapToken?: string): Promise<{ app: FastifyInstance; db: Db }> {
+/** Build an auth-on (password) app over a fresh in-memory DB. `bootstrapToken` is optional.
+ *  `multiAccount` defaults to the single-company-cap OFF default (false); pass `true` for a test
+ *  that deliberately provisions a 2nd/3rd org on the SAME instance — the cap otherwise 403s any
+ *  create once ≥1 account exists, regardless of `allowed`'s authz outcome (see app.ts's GATE 0). */
+async function appWithAuth(
+  opts: { bootstrapToken?: string; multiAccount?: boolean } = {},
+): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
-  return { app: buildApp(db, { authMode: mode, auth, bootstrapToken }), db }
+  return { app: buildApp(db, { authMode: mode, auth, bootstrapToken: opts.bootstrapToken, multiAccount: opts.multiAccount }), db }
 }
 
 /** Sign up a user, returning its session cookie + the resolved user id (from /api/auth/me). */
@@ -85,7 +90,10 @@ function assertUsableOrg(db: Db, accountId: string, userId: string): void {
 
 describe('POST /api/orgs (P1.8) — auth-on', () => {
   it('zero-account bootstrap: a signed-up user creates the first org; a now-Owner can create a second', async () => {
-    const { app, db } = await appWithAuth()
+    // multiAccount: true — the SECOND create below is exactly what the single-company cap denies by
+    // default once any account exists (see the "default cap" describe block); this test is about the
+    // `allowed` authz matrix (owner-of-existing may provision more), so it opts out of the cap.
+    const { app, db } = await appWithAuth({ multiAccount: true })
     expect(loadState(db).accounts).toHaveLength(0) // first-run: no accounts
     const { cookie, userId } = await signUp(app, 'founder@capacitylens.dev')
 
@@ -112,7 +120,9 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
   })
 
   it('owner of an existing account is ALLOWED to create another (and becomes its Owner)', async () => {
-    const { app, db } = await appWithAuth()
+    // multiAccount: true — see the zero-account-bootstrap test's note; the cap has its own describe
+    // block below (this one is purely about the `allowed` authz tier).
+    const { app, db } = await appWithAuth({ multiAccount: true })
     seedOne(db)
     const { cookie, userId } = await signUp(app, 'owner@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
@@ -123,7 +133,8 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
   })
 
   it('admin of an existing account is ALLOWED (admin tier = manageMembers)', async () => {
-    const { app, db } = await appWithAuth()
+    // multiAccount: true — see the zero-account-bootstrap test's note.
+    const { app, db } = await appWithAuth({ multiAccount: true })
     seedOne(db)
     const { cookie, userId } = await signUp(app, 'admin@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
@@ -182,7 +193,9 @@ describe('POST /api/orgs (P1.8) — bootstrap token', () => {
   const TOKEN = 'a-very-long-random-bootstrap-token-value-0123456789'
 
   it('a member-less stranger with the MATCHING token may create an org once accounts exist', async () => {
-    const { app, db } = await appWithAuth(TOKEN)
+    // multiAccount: true — the token authorises WHO may create an org; it does NOT bypass the
+    // single-company cap (see the "default cap" describe block for the token-does-NOT-bypass case).
+    const { app, db } = await appWithAuth({ bootstrapToken: TOKEN, multiAccount: true })
     seedOne(db)
     const { cookie, userId } = await signUp(app, 'operator@capacitylens.dev')
 
@@ -192,7 +205,7 @@ describe('POST /api/orgs (P1.8) — bootstrap token', () => {
   })
 
   it('a WRONG token is 403; an ABSENT token is 403 (stranger, accounts exist)', async () => {
-    const { app, db } = await appWithAuth(TOKEN)
+    const { app, db } = await appWithAuth({ bootstrapToken: TOKEN })
     seedOne(db)
     const { cookie } = await signUp(app, 'wrong@capacitylens.dev')
 
@@ -217,7 +230,11 @@ describe('POST /api/orgs (P1.8) — bootstrap token', () => {
 describe('POST /api/orgs (P1.8) — OFF mode (trusted-local)', () => {
   it('org creation is allowed; account + Internal + Owner(demo) membership are created', async () => {
     const db = openDb(':memory:')
-    const app = buildApp(db) // authMode defaults to 'off'
+    // multiAccount: true — the single-company cap applies in EVERY auth mode INCLUDING off (it's a
+    // deployment-shape policy, not an authz rule; see the "default cap" describe block for the
+    // OFF-mode-does-NOT-bypass case). This test is about OFF's trusted-local authz no-op, so it
+    // opts out of the cap to keep exercising the pre-existing "an account already exists" scenario.
+    const app = buildApp(db, { multiAccount: true }) // authMode defaults to 'off'
     seedOne(db) // even with an account already present, OFF mode allows (trusted-local)
 
     const res = await createOrg(app, { name: 'Local Co' })
@@ -228,7 +245,10 @@ describe('POST /api/orgs (P1.8) — OFF mode (trusted-local)', () => {
 
 describe('POST /api/orgs (P1.8) — atomicity', () => {
   it('a failed insert rolls the WHOLE create back (no orphan account, client, or membership)', async () => {
-    const { app, db } = await appWithAuth()
+    // multiAccount: true — the "Dup Org" re-POST below is, from the cap's point of view, ANOTHER
+    // create attempt (accountCount is 1 after the first succeeds); without this the cap would 403
+    // it before the intended PRIMARY KEY conflict is ever reached, testing the wrong thing.
+    const { app, db } = await appWithAuth({ multiAccount: true })
     const { cookie, userId } = await signUp(app, 'rollback@capacitylens.dev')
 
     // First create succeeds and fixes the account id.
@@ -245,5 +265,56 @@ describe('POST /api/orgs (P1.8) — atomicity', () => {
     expect(after.accounts.map((a) => a.id).sort()).toEqual(before.accounts.map((a) => a.id).sort())
     expect(after.clients.filter((c) => c.accountId === id)).toHaveLength(1) // still exactly one Internal
     expect(resolveRole(db, { id: userId } as never, id)).toBe('owner') // membership unchanged
+  })
+})
+
+// Single-company cap (AppOptions.multiAccount, default false — see app.ts's GATE 0). Every test
+// above that provisions a 2nd/3rd org threads `multiAccount: true` to keep locking the `allowed`
+// authz matrix undisturbed; THIS block pins the cap itself: it denies a 2nd org create (via every
+// `allowed` path — owner, bootstrap token, OFF mode) with the actionable policy message, NOT the
+// generic 'Forbidden.', and never touches the first-run (zero-account) bootstrap.
+describe('POST /api/orgs (P1.8) — single-company cap (default multiAccount: false)', () => {
+  const CAP_MESSAGE = 'This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.'
+
+  it('first org on a zero-account instance still succeeds (201, unchanged)', async () => {
+    const { app } = await appWithAuth() // multiAccount defaults to false; zero accounts
+    const { cookie } = await signUp(app, 'first-org-cap@capacitylens.dev')
+    const res = await createOrg(app, { name: 'First Studio' }, { cookie })
+    expect(res.statusCode).toBe(201)
+  })
+
+  it('2nd org via an owner of an existing account -> 403 policy message, NOT 201', async () => {
+    const { app, db } = await appWithAuth() // multiAccount defaults to false
+    seedOne(db) // an account already exists
+    const { cookie, userId } = await signUp(app, 'owner-cap@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+
+    const res = await createOrg(app, { name: 'Second Studio' }, { cookie })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1']) // nothing created
+  })
+
+  it('2nd org via a MATCHING bootstrap token -> 403 policy message (the token authorises WHO, not WHETHER)', async () => {
+    const TOKEN = 'a-very-long-random-bootstrap-token-value-0123456789'
+    const { app, db } = await appWithAuth({ bootstrapToken: TOKEN }) // multiAccount defaults to false
+    seedOne(db)
+    const { cookie } = await signUp(app, 'operator-cap@capacitylens.dev')
+
+    const res = await createOrg(app, { name: 'Provisioned' }, { cookie, 'x-capacitylens-bootstrap-token': TOKEN })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1'])
+  })
+
+  it('2nd org in OFF mode -> 403 policy message (OFF is trusted-local for authz, but the cap is NOT an authz rule)', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db) // authMode defaults to 'off'; multiAccount defaults to false
+    seedOne(db)
+
+    const res = await createOrg(app, { name: 'Local Co 2' })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1'])
   })
 })

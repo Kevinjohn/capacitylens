@@ -24,6 +24,16 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //                                   the API is NOT open to every site by default.
 //   CAPACITYLENS_OPTIMISTIC_CONCURRENCY   '1' to reject stale overwrites (409) instead of
 //                                   last-writer-wins.
+//   CAPACITYLENS_MULTI_ACCOUNT             '1' to allow more than one company on this instance.
+//                                   Default off: CapacityLens is single-company-per-instance —
+//                                   once the accounts table holds one row, every create-a-company
+//                                   vector 403s (naming this flag) until you set it, in EVERY auth
+//                                   mode including off (see AppOptions.multiAccount in app.ts).
+//   CAPACITYLENS_SEED_DEMO                 '1' to seed the two-company demo dataset on a
+//                                   never-initialised DB. Default off: a fresh real server starts
+//                                   EMPTY (create-your-company first run) — the seed ships TWO
+//                                   companies, which is exactly why it can't stay default under
+//                                   the single-company cap above.
 //   CAPACITYLENS_HTTPS                    '1' when the public origin is real HTTPS — enables
 //                                   the HSTS header. Default off: HSTS is invalid/harmful
 //                                   over plain HTTP, and this server usually runs HTTP behind
@@ -121,6 +131,9 @@ const host = process.env.CAPACITYLENS_HOST ?? '127.0.0.1'
 const allowReset = process.env.CAPACITYLENS_ALLOW_RESET === '1'
 const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS
 const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY === '1'
+// Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
+// capped to the first company it creates until the operator deliberately opts in to more.
+const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === '1'
 // HSTS only — gated OFF by default (HSTS over plain HTTP is harmful; this server usually
 // runs HTTP behind a TLS proxy). The other helmet baseline headers are on regardless.
 const https = process.env.CAPACITYLENS_HTTPS === '1'
@@ -180,17 +193,26 @@ if (posture.refusals.length > 0) {
   )
   process.exit(1)
 }
-// Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them), then seed
-// a never-initialised DB. Both are boot preconditions — a failure must crash legibly, not limp on.
+// Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them), then
+// OPT-IN seed a never-initialised DB. Both are boot preconditions — a failure must crash legibly,
+// not limp on.
 //
-// Seed once on a NEVER-INITIALISED DB — the server owns first-run seeding so the client's
-// hasExisting()/seedIfEmpty path stays a no-op against a server backend. seedIfUninitialized
-// gates on the persistent `initialized` marker, NOT mere emptiness: a user who deletes all
-// their data leaves an empty-but-initialised DB and must NOT get the demo dataset re-seeded
-// on the next restart (matches /api/meta's isInitialized() check).
+// Demo seed is OPT-IN (CAPACITYLENS_SEED_DEMO=1), NOT automatic: the seed fixture ships TWO
+// companies, which the single-company cap (AppOptions.multiAccount, default off) would otherwise
+// immediately contradict on a fresh real deploy — a from-scratch server now starts EMPTY and the
+// operator creates their one company as the first-run bootstrap (POST /api/orgs / POST
+// /api/accounts, both open while the table is empty). Dev (scripts/dev-fullstack.mjs) sets this
+// flag (plus CAPACITYLENS_MULTI_ACCOUNT=1) so its batteries-included two-company fixture is
+// unaffected; the auth-e2e harness (server/package.json start:auth-e2e) provisions its orgs live
+// via POST /api/orgs instead of this seed, so it only needs CAPACITYLENS_MULTI_ACCOUNT=1.
+//
+// seedIfUninitialized gates on the persistent `initialized` marker, NOT mere emptiness: a user who
+// deletes all their data leaves an empty-but-initialised DB and must NOT get the demo dataset
+// re-seeded on the next restart (matches /api/meta's isInitialized() check) — that rule is
+// unchanged; this only adds a flag gate in FRONT of it.
 try {
   if (auth) await runAuthMigrations(auth)
-  seedIfUninitialized(db, seed())
+  if (process.env.CAPACITYLENS_SEED_DEMO === '1') seedIfUninitialized(db, seed())
 } catch (e) {
   refuseToStart(e instanceof Error ? e.message : String(e))
 }
@@ -210,6 +232,7 @@ const app = buildApp(db, {
   allowReset,
   corsOrigin,
   optimisticConcurrency,
+  multiAccount,
   https,
   log,
   healthDeep,

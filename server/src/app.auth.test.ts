@@ -62,7 +62,9 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
     const app = buildApp(openDb(':memory:'))
     const me = await call(app, { method: 'GET', url: '/api/auth/me' })
     expect(me.statusCode).toBe(200)
-    expect(me.json()).toEqual({ authMode: 'off', user: DEMO_USER })
+    // multiAccount/canCreateAccount (single-company cap capability flags): a fresh, empty DB and
+    // default opts (multiAccount unset) reports the flag off but creation still open (zero accounts).
+    expect(me.json()).toEqual({ authMode: 'off', user: DEMO_USER, multiAccount: false, canCreateAccount: true })
     // P1.7a: off is trusted-local, so the demo principal is verified with a clearly-local email.
     expect(me.json().user).toMatchObject({ email: 'demo@capacitylens.local', emailVerified: true })
     // A cookie-less write succeeds — no request that succeeds today may fail in off mode.

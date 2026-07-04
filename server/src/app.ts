@@ -153,6 +153,18 @@ export interface AppOptions {
    *  no-auth, last-writer-wins by design (see the plan). Turn on once real
    *  multi-user auth + client conflict-resolution land. */
   optimisticConcurrency?: boolean
+  /** CAPACITYLENS_MULTI_ACCOUNT=1 — allow more than one company (`accounts` row) to exist on this
+   *  instance. Default false: CapacityLens is deliberately single-company-per-instance (see
+   *  CLAUDE.md's product positioning) — once the `accounts` table holds ≥1 row, every vector that
+   *  would CREATE a new one (POST /api/accounts, a PUT/batch-PUT whose id has no existing row,
+   *  POST /api/orgs) is refused with a 403 naming this flag (see accountCreateCapped /
+   *  SINGLE_COMPANY_CAP_MESSAGE), REGARDLESS of authMode — even 'off', which is otherwise
+   *  trusted-local allow-all: this is a DEPLOYMENT-SHAPE policy, not an authz rule, so it gets no
+   *  off-mode bypass. It also does NOT bypass for the bootstrap token below — that decides WHO may
+   *  create an account, not WHETHER one may exist. UPDATE/PATCH/DELETE of an EXISTING account are
+   *  never affected: the cap is create-time only, so a genuinely multi-company instance (this flag
+   *  on, or a DB seeded before the cap existed) keeps serving normally. */
+  multiAccount?: boolean
   /** CAPACITYLENS_BOOTSTRAP_TOKEN (P1.8) — a shared secret that, when sent as the
    *  `x-capacitylens-bootstrap-token` request header on `POST /api/orgs`, authorises
    *  constrained org-creation even for a caller who is NOT yet an Owner/Admin of any
@@ -160,7 +172,10 @@ export interface AppOptions {
    *  has one). DEFAULT undefined = the token path is DISABLED: an unset/empty token can
    *  never match, so `POST /api/orgs` then allows ONLY first-run (zero accounts) or an
    *  existing Owner/Admin (or OFF mode). The compare is constant-time + length-checked so
-   *  it leaks neither the token's length nor its bytes by timing. */
+   *  it leaks neither the token's length nor its bytes by timing. NOTE: the token now
+   *  PRESUMES a multi-account instance — it only ever matters once opts.multiAccount is
+   *  also true, since the single-company cap above denies EVERY create (token or not)
+   *  while the instance is capped to one company. */
   bootstrapToken?: string
   /** CAPACITYLENS_HTTPS=1 — the API is reached over HTTPS, so HSTS is safe to emit.
    *  Default false: HSTS (Strict-Transport-Security) is ONLY valid over HTTPS and is
@@ -317,6 +332,29 @@ function bootstrapTokenMatches(configured: string | undefined, presented: unknow
   // length" (already observable from the response), not the secret's bytes.
   if (a.length !== b.length) return false
   return timingSafeEqual(a, b)
+}
+
+// Single-company-per-instance cap (owner policy — see AppOptions.multiAccount / CLAUDE.md). The
+// deployment defaults to hosting exactly ONE company; every route that could add a SECOND
+// `accounts` row shares this one predicate so the rule can't drift between POST/PUT/batch/orgs.
+const SINGLE_COMPANY_CAP_MESSAGE =
+  'This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.'
+
+/** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
+ *  before the cap existed; kept as one function so every enforcement point reads the identical
+ *  number (never re-derived ad hoc at each call site). */
+function countAccounts(db: Db): number {
+  return (db.prepare('SELECT COUNT(*) AS n FROM accounts').get() as { n: number }).n
+}
+
+/**
+ * True when creating a NEW `accounts` row right now would violate the single-company cap: the
+ * table already holds ≥1 row AND the instance has not opted into `multiAccount`. Callers MUST call
+ * this only for the CREATE case (no existing row) — an UPDATE/DELETE of an already-existing account
+ * is never capped; enforcement is create-time only, per AppOptions.multiAccount.
+ */
+function accountCreateCapped(db: Db, opts: AppOptions): boolean {
+  return !opts.multiAccount && countAccounts(db) > 0
 }
 
 // Map a thrown error to an HTTP status. Caller-fault errors — domain validation
@@ -656,11 +694,21 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // modes report the Better Auth session user, or 401 (with authMode, so the login
     // screen knows which form to show) when there is no session.
     app.get('/api/auth/me', async (req, reply) => {
-      if (authMode === 'off') return { authMode, user: DEMO_USER }
+      // Single-company cap capability flags (see AppOptions.multiAccount): the client's
+      // create-company entry point uses these to hide/disable itself instead of discovering the cap
+      // via a failed POST. Recomputed PER REQUEST (accountCount changes as companies are created) —
+      // never cached — and carried on BOTH success shapes (off + authed) so neither mode forks the
+      // client. The 401/503 shapes below are deliberately unchanged (no account facts for a caller
+      // who isn't authenticated / whose session state is unknown).
+      const capFields = {
+        multiAccount: opts.multiAccount === true,
+        canCreateAccount: opts.multiAccount === true || countAccounts(db) === 0,
+      }
+      if (authMode === 'off') return { authMode, user: DEMO_USER, ...capFields }
       try {
         const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
         if (!user) return reply.code(401).send({ authMode, error: 'Sign in to continue.' })
-        return { authMode, user }
+        return { authMode, user, ...capFields }
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
         // (the client can tell "temporarily unavailable" from a 401 "bad/again credentials") rather
@@ -790,8 +838,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // P1.13). Unlike that bare write, /api/orgs ALSO mints the account's built-in Internal client and
     // makes the caller its Owner, in ONE transaction.
     //
-    // AUTHORIZATION (computed BEFORE any write). Allowed iff ANY of:
-    //   (1) ZERO accounts exist — first-run bootstrap (anyone may create the very first org).
+    // AUTHORIZATION (computed BEFORE any write). Two SEPARATE gates, both must pass:
+    //
+    //   GATE 0 — the single-company cap (WHETHER a new company may exist at all; see
+    //   AppOptions.multiAccount). Checked FIRST, ahead of `allowed` below, so a denied caller sees
+    //   the actionable cap message rather than the generic 'Forbidden.' `allowed` would send. Not
+    //   bypassed by OFF mode or the bootstrap token — see the cap's own doc comment.
+    //
+    //   GATE 1 — `allowed` (WHO may create it, once GATE 0 permits). Allowed iff ANY of:
+    //   (1) ZERO accounts exist — first-run bootstrap (anyone may create the very first org; this
+    //       is also the only case GATE 0 lets through by default, so it's the common path).
     //   (2) OFF mode (trusted-local) — mirrors the authorize() OFF no-op; req.user is DEMO_USER.
     //   (3) auth-on: the caller is an ACTIVE Owner/Admin of SOME existing account (can(role,
     //       'manageMembers') = admin-tier) — an existing operator may provision more orgs.
@@ -802,6 +858,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // allow, so the token/membership branches are moot there.
     app.post('/api/orgs', (req, reply) => {
       const accountCount = (db.prepare('SELECT COUNT(*) AS n FROM accounts').get() as { n: number }).n
+      // GATE 0 — see the comment block above. `!opts.multiAccount && accountCount > 0` mirrors
+      // accountCreateCapped exactly (inlined here since accountCount is already in hand).
+      if (!opts.multiAccount && accountCount > 0) {
+        return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
+      }
       const allowed =
         accountCount === 0 || // (1) first-run bootstrap
         authMode === 'off' || // (2) trusted-local — req.user is DEMO_USER
@@ -1365,14 +1426,20 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!req.body || typeof req.body !== 'object') {
         return reply.code(400).send({ error: 'A request body is required.' })
       }
-      // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is DELIBERATELY NOT gated:
-      // a freshly-signed-up auth-on user holds no membership yet and must be able to create their
-      // first account (onboarding); there is no `createAccount` Action to require. This open create
-      // does NOT extend to DELETE — account hard-delete CASCADES (total tenant destruction) and IS
-      // now gated 'purge' (admin+) on BOTH vectors: the direct DELETE /api/accounts/:id route AND the
-      // batch accounts-DELETE op (see both below). The full archive→soft-delete→purge account
-      // lifecycle is P2.5/P2.6; this delete gate is the interim guard. (Batch PUT on accounts =
-      // create/update stays open for the same onboarding reason as this POST.)
+      // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is DELIBERATELY NOT
+      // membership-gated: a freshly-signed-up auth-on user holds no membership yet and must be able
+      // to create their first account (onboarding); there is no `createAccount` Action to require.
+      // This open create does NOT extend to DELETE — account hard-delete CASCADES (total tenant
+      // destruction) and IS gated 'purge' (admin+) on BOTH vectors: the direct DELETE
+      // /api/accounts/:id route AND the batch accounts-DELETE op (see both below). The full
+      // archive→soft-delete→purge account lifecycle is P2.5/P2.6; this delete gate is the interim
+      // guard. (Batch PUT on accounts = create/update stays open for the same onboarding reason as
+      // this POST.) The onboarding exemption is now BOUNDED by the single-company cap just below:
+      // it is unconditional only for the first-run (zero-account) case; once any account exists it
+      // requires opts.multiAccount, same as every other create vector.
+      if (entity === 'accounts' && accountCreateCapped(db, opts)) {
+        return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
+      }
       if (isScopedTable(entity)) {
         const body = req.body as { accountId?: string }
         if (!authorize(req, reply, body.accountId!, 'write')) return
@@ -1411,12 +1478,20 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (isScopedTable(entity) && !authorize(req, reply, body.accountId as string, 'write')) return
       try {
         const existing = getRow(db, entity, id)
+        // Single-company cap (create-time only, see accountCreateCapped): a CREATE here is `entity
+        // === 'accounts' && !existing` — no row at this id yet. Checked BEFORE the account-write
+        // gate below (which only ever fires for the UPDATE case, `existing` truthy) so the two never
+        // overlap. An UPDATE of an existing account is NEVER capped, regardless of multiAccount.
+        if (entity === 'accounts' && !existing && accountCreateCapped(db, opts)) {
+          return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
+        }
         // P1.5 account-write gate. `accounts` is NOT a scoped table (no accountId column), so the
         // isScopedTable() gate above never runs for it — leaving a bare account UPDATE (rename / colour /
         // schedulingMode / disciplines·placeholders·external toggles) ungated, i.e. cross-tenant writable
         // by any signed-in user. An UPDATE (existing row) now requires membership + write tier for the
         // account's OWN id, mirroring the DELETE route's accounts branch; a CREATE (no existing row) stays
-        // OPEN per the onboarding exemption. OFF mode: authorize no-ops to allow. (See decisions-log.)
+        // OPEN per the onboarding exemption (now bounded by the single-company cap just above). OFF
+        // mode: authorize no-ops to allow. (See decisions-log.)
         if (entity === 'accounts' && existing && !authorize(req, reply, id, 'write')) return
         // accountId is immutable: a write must not move an EXISTING row to another account
         // (see ownsRow). The web store enforces this via findOwned; without the same guard a
@@ -1595,20 +1670,32 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // scoped data), so it is gated 'purge' (admin+) against the account's own id BEFORE the
       // non-scoped skip — the same gate as the direct DELETE /api/accounts/:id route. An accounts
       // PUT (create/update) stays OPEN (onboarding: a membership-less new user mints their first
-      // account) and falls through to the skip. In OFF mode authorize short-circuits true, so the
-      // whole loop is a no-op pass (the default deploy can still delete companies via batch).
+      // account) and falls through to the skip, UNLESS it's a CREATE the single-company cap denies
+      // (accountCreateCapped) — that also fails the whole batch, see below. In OFF mode authorize
+      // short-circuits true, so the whole loop is a no-op pass for authz (the default deploy can
+      // still delete companies via batch); the cap check is NOT part of that no-op — it runs
+      // regardless of authMode.
       for (const op of ops) {
         if (op?.table === 'accounts' && op.method === 'DELETE') {
           if (!authorize(req, reply, op.id, 'purge')) return
           continue
         }
         if (op?.table === 'accounts' && op.method === 'PUT') {
-          // A batch PUT on an EXISTING account is an UPDATE → gate 'write' (the same cross-tenant
-          // account-write guard the per-route PUT/PATCH now apply). Only look up a STRING id — a
-          // missing/non-string id would throw on the SQLite bind here, and is anyway left to the apply
-          // loop's own null-id validation (→ 400). A CREATE (no existing row) stays OPEN per the
-          // onboarding exemption and falls through to the non-scoped skip below.
-          if (typeof op.id === 'string' && getRow(db, 'accounts', op.id) && !authorize(req, reply, op.id, 'write')) return
+          // Only look up a STRING id — a missing/non-string id would throw on the SQLite bind here,
+          // and is anyway left to the apply loop's own null-id validation (→ 400).
+          const existingAccount = typeof op.id === 'string' ? getRow(db, 'accounts', op.id) : undefined
+          if (existingAccount) {
+            // A batch PUT on an EXISTING account is an UPDATE → gate 'write' (the same cross-tenant
+            // account-write guard the per-route PUT/PATCH now apply). NEVER capped — enforcement is
+            // create-time only.
+            if (!authorize(req, reply, op.id, 'write')) return
+          } else if (accountCreateCapped(db, opts)) {
+            // A CREATE (no existing row) stays OPEN per the onboarding exemption ONLY while the
+            // single-company cap allows it (see accountCreateCapped). When it doesn't, fail the WHOLE
+            // batch — same one-403-no-partial-write semantics as every other pre-scan denial above.
+            reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
+            return
+          }
           continue
         }
         if (typeof op?.table !== 'string' || !isKnownTable(op.table) || !isScopedTable(op.table)) continue
@@ -1707,6 +1794,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // runs (shared/domain/mutations.remapAndValidateImport). Body: { accountId, data }.
     // `data` may be a raw export ({schemaVersion,data} or bare AppData); parseData
     // applies the shape guard + MAX_IMPORT_RECORDS cap + migration.
+    //
+    // EXEMPT from the single-company cap: replaceAccountSlice only ever rewrites SCOPED tables
+    // (accountId-carrying), never `accounts` itself — an import can only replace an EXISTING
+    // account's data, never insert a new top-level accounts row. So there is no create vector here
+    // for accountCreateCapped to gate.
     app.post('/api/import', (req, reply) => {
       const body = req.body as { accountId?: string; data?: unknown }
       if (!body || typeof body.accountId !== 'string') {
@@ -1749,6 +1841,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     })
 
     // Test-only: wipe (and optionally re-seed) so E2E/integration runs start clean.
+    //
+    // EXEMPT from the single-company cap: this is the raw insertAll test-only path (itself
+    // production-forbidden — see bootGuard/resetForbidden, and opts.allowReset just below), not an
+    // HTTP create vector the cap is meant to police. It's how e2e fixtures reach a known
+    // multi-company state (the demo seed ships TWO companies) without threading multiAccount
+    // through every spec.
     app.post('/api/test/reset', (req, reply) => {
       if (!opts.allowReset) return reply.code(403).send({ error: 'reset disabled' })
       const body = (req.body ?? {}) as { seed?: boolean }
