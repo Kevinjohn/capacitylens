@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html" class="active"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -49,7 +50,7 @@
         <li><a href="#component">Component tests</a></li>
         <li><a href="#unit">Pure unit tests</a></li>
         <li><a href="#playwright">The Playwright projects</a></li>
-        <li><a href="#cross-browser">Cross-browser: the opt-in Safari twin</a></li>
+        <li><a href="#cross-browser">Cross-browser: WebKit + Firefox, opt-in</a></li>
         <li><a href="#clock">The frozen clock</a></li>
         <li><a href="#oracles">The two oracles</a></li>
         <li><a href="#gate">The gate (optional CI)</a></li>
@@ -65,7 +66,7 @@
         <tr><td>Pure unit</td><td>Vitest (node/jsdom)</td><td><code>*.test.ts</code>, co-located</td><td>The shared core + pure view-model builders (<code>schedulerModel</code>, <code>integrity</code>, <code>virtualWindow</code>).</td></tr>
         <tr><td>Component</td><td>Vitest + Testing Library</td><td><code>*.test.tsx</code>, co-located</td><td>Forms, dialogs, lists, the palette — behaviour &amp; ARIA via the rendered DOM.</td></tr>
         <tr><td>Server integration</td><td>Vitest + <code>app.inject()</code></td><td><code>server/src/*.test.ts</code></td><td>Real Fastify app over a real <code>:memory:</code> SQLite DB; no mocks.</td></tr>
-        <tr><td>E2E</td><td>Playwright</td><td><code>e2e/*.spec.ts</code></td><td>The real app in a real browser — three stack flavours, optionally mirrored on WebKit/Safari (below).</td></tr>
+        <tr><td>E2E</td><td>Playwright</td><td><code>e2e/*.spec.ts</code></td><td>The real app in a real browser — three stack flavours on Chromium, with the core specs optionally mirrored on WebKit <em>and</em> Firefox (below).</td></tr>
       </tbody>
     </table>
     <p>Naming carries meaning: <code>.test.ts(x)</code> = Vitest, co-located; <code>.spec.ts</code> = Playwright
@@ -73,12 +74,19 @@
     specific Playwright project.</p>
 
     <h2 id="vitest">Vitest setup &amp; the fixture factories</h2>
-    <p>The setup file is minimal — jest-dom matchers and a cleanup between tests; no global mocks:</p>
+    <p>The setup file is small — jest-dom matchers, a cleanup between tests, and the two jsdom gap-fills that
+    cmdk (the command palette) needs. No behavioural mocks:</p>
     <div class="filename">src/test/setup.ts</div>
 <pre><code><span class="k">import</span> { afterEach } <span class="k">from</span> 'vitest'
 <span class="k">import</span> { cleanup } <span class="k">from</span> '@testing-library/react'
 <span class="k">import</span> '@testing-library/jest-dom/vitest'
-afterEach(() =&gt; { cleanup() })   <span class="c">// unmount trees + reset jsdom between tests</span></code></pre>
+afterEach(() =&gt; { cleanup() })   <span class="c">// unmount trees + reset jsdom between tests</span>
+
+<span class="c">// jsdom gap-fills, not mocks: cmdk measures itself with ResizeObserver and calls</span>
+<span class="c">// scrollIntoView — neither exists in jsdom. Inert stubs let the real component run.</span>
+<span class="k">class</span> <span class="t">ResizeObserverStub</span> { observe() {} unobserve() {} disconnect() {} }
+globalThis.ResizeObserver ??= <span class="t">ResizeObserverStub</span>
+Element.prototype.scrollIntoView ??= () =&gt; {}</code></pre>
     <p>Test data is built by <strong>factory functions with <code>Partial&lt;T&gt;</code> overrides</strong> in
     <code>src/test/fixtures.ts</code> — every factory has valid defaults; a test overrides only the field that
     matters. The canonical reset for any store test sets data <em>and</em> the active account in one call:</p>
@@ -132,16 +140,17 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
     </div>
 
     <h2 id="playwright">The Playwright projects</h2>
-    <p>One config, three stack flavours, selected by file suffix. The config also boots all the dev servers
-    it needs (three Vite instances + two server instances) with <code>reuseExistingServer</code> locally. A
-    fourth, opt-in <code>webkit</code> project mirrors <code>chromium</code> for Safari coverage — see the
-    next section.</p>
+    <p>One config, three always-on stack flavours selected by file suffix, plus three env-gated projects
+    (<code>webkit</code>, <code>firefox</code>, <code>rehearsal</code>). The config boots all the dev servers
+    it needs (three Vite instances + two API servers); the extra servers use <code>reuseExistingServer</code>
+    locally, but the base :5173 server deliberately <em>never</em> reuses — <code>npm run dev</code> holds
+    :5173 in <em>server</em> mode, and the suite must get the demo build, not whatever is squatting there.</p>
     <table>
       <thead><tr><th>Project</th><th>Matches</th><th>Stack under test</th></tr></thead>
       <tbody>
-        <tr><td><code>chromium</code></td><td><code>*.spec.ts</code> (ignores db/auth)</td><td>The default localStorage app on :5173.</td></tr>
+        <tr><td><code>chromium</code></td><td><code>*.spec.ts</code> (ignores db/auth)</td><td>The localStorage <strong>demo build</strong> (<code>npm run dev:demo</code>) on :5173 — self-seeding, no backend, so the core specs are hermetic. (It stopped being "the default app" when server-backed became the default; it is now the deliberate demo flavour.)</td></tr>
         <tr><td><code>db-backed</code></td><td><code>*.db.spec.ts</code></td><td>The SQLite server (:8787, reset-enabled, temp DB) + a Vite build with <code>VITE_CAPACITYLENS_API</code> on :5273 — exercises the real <code>ServerSyncAdapter</code>.</td></tr>
-        <tr><td><code>auth-backed</code></td><td><code>*.auth.spec.ts</code></td><td>A server booted with <code>CAPACITYLENS_AUTH=password</code> (fresh DB) + a Vite app on :5373 — the only place the flag-gated login screen exists.</td></tr>
+        <tr><td><code>auth-backed</code></td><td><code>*.auth.spec.ts</code></td><td>A server booted with <code>CAPACITYLENS_AUTH=password</code> (fresh DB, multi-account on) + a Vite app on :5373 — the only place the login screen exists. Covers login, invites, member management, viewer read-only.</td></tr>
       </tbody>
     </table>
     <p>Selector strategy in specs mirrors the component tests: <code>getByRole</code> &gt; <code>getByLabel</code>
@@ -151,35 +160,46 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
     <code>beforeEach</code> via the test-only reset endpoint, and can assert directly on
     <code>GET /api/state</code> to prove a write reached the DB.</p>
 
-    <h2 id="cross-browser">Cross-browser: the opt-in Safari twin</h2>
-    <p>Chromium is the default loop — fast, and where you live while building. <strong>Safari/WebKit coverage
-    is a separate, opt-in command</strong> so the inner loop stays quick. A fourth project, <code>webkit</code>,
-    mirrors <code>chromium</code> exactly (same <code>testIgnore</code> → the same core localStorage specs) but
-    runs on <code>devices['Desktop Safari']</code>:</p>
+    <h2 id="cross-browser">Cross-browser: WebKit + Firefox engine twins, opt-in</h2>
+    <p>Chromium is the default loop — fast, and where you live while building. <strong>Safari/WebKit and
+    Firefox/Gecko coverage are separate, opt-in commands</strong> so the inner loop stays quick. Two env-gated
+    projects, <code>webkit</code> and <code>firefox</code>, mirror <code>chromium</code> exactly (same
+    <code>testIgnore</code> → the same core demo-build specs) on <code>devices['Desktop Safari']</code> /
+    <code>devices['Desktop Firefox']</code>:</p>
     <table>
       <thead><tr><th>Command</th><th>Runs</th><th>Servers booted</th></tr></thead>
       <tbody>
         <tr><td><code>npm run e2e</code></td><td>chromium + db-backed + auth-backed (Chromium)</td><td>3 Vite + 2 servers</td></tr>
-        <tr><td><code>npm run e2e:webkit</code></td><td>the <code>webkit</code> project only</td><td><strong>Vite only</strong></td></tr>
-        <tr><td><code>npm run e2e:all</code></td><td>the whole matrix (Chromium + WebKit)</td><td>3 Vite + 2 servers</td></tr>
+        <tr><td><code>npm run e2e:webkit</code> / <code>npm run e2e:firefox</code></td><td>one engine twin, core specs</td><td><strong>Vite only</strong></td></tr>
+        <tr><td><code>npm run e2e:browsers</code></td><td>core specs on all three engines (Chromium + WebKit, then Firefox)</td><td><strong>Vite only</strong> — no SQLite/auth servers, no Node 24</td></tr>
+        <tr><td><code>npm run e2e:all</code></td><td>the superset: the full Chromium matrix + WebKit, then Firefox</td><td>3 Vite + 2 servers (first invocation)</td></tr>
       </tbody>
     </table>
-    <p>The trick that keeps <code>e2e:webkit</code> cheap: it sets <code>CAPACITYLENS_WEBKIT_ONLY</code>, which both
-    makes the <code>webkit</code> project exist <em>and</em> trims the config's <code>webServer</code> list to
-    just the :5173 Vite dev server. The core specs never touch the SQLite or auth servers, so the WebKit run
-    needs <strong>neither those servers nor Node 24</strong> — it runs anywhere the app builds.
-    (<code>e2e:all</code> sets <code>CAPACITYLENS_WEBKIT</code> instead: project on, full stack.) Both are env-gated
-    spreads in the <code>projects</code>/<code>webServer</code> arrays, exactly like the <code>rehearsal</code>
-    project — add a flavour the same way.</p>
+    <p>The trick that keeps the engine runs cheap: the <code>*_ONLY</code> flags (or
+    <code>CAPACITYLENS_VITE_ONLY</code>, which <code>e2e:browsers</code> sets) both make the engine project
+    exist <em>and</em> trim the config's <code>webServer</code> list to just the :5173 Vite dev server. The
+    core specs never touch the SQLite or auth servers, so an engine run needs <strong>neither those servers
+    nor Node 24</strong> — it runs anywhere the app builds. All the flags are env-gated spreads in the
+    <code>projects</code>/<code>webServer</code> arrays, exactly like the <code>rehearsal</code> project — add
+    a flavour the same way.</p>
+    <div class="callout why">
+      <span class="label">Why the multi-engine runs are two invocations, not a project dependency</span>
+      <p><code>scripts/e2e-browsers.mjs</code> and <code>e2e-all.mjs</code> each run Chromium(+WebKit) first,
+      then Firefox as a <em>separate, unconditional</em> invocation, failing if either fails. The obvious
+      alternative — a <code>firefox</code> project with <code>dependencies: ['webkit']</code> — was rejected
+      because Playwright <em>skips</em> a dependent project when its dependency fails: one WebKit red would
+      silently drop all Firefox coverage exactly when you most want the second data point. Sequencing in a
+      script keeps both engines always-run.</p>
+    </div>
     <div class="callout do">
-      <span class="label">Why only the core specs get a WebKit twin</span>
+      <span class="label">Why only the core specs get engine twins</span>
       <p>The db-backed and auth-backed specs exercise <em>server round-trips and the persistence seam</em>, not
-      Safari rendering — re-running them on WebKit would re-test browser-agnostic plumbing. The cross-browser
-      risk lives in the UI: pointer-drags, focus, <code>page.clock</code>, date <code>fill()</code>, and the
-      a11y oracle. Those <em>are</em> the core specs, and they pass on WebKit unchanged — which is the point:
-      <strong>keep specs browser-agnostic, never branch on user-agent.</strong> The portable-drag rule
-      (<code>page.mouse</code> with <code>steps</code>, not HTML5 <code>dragTo</code>) is what lets the same
-      gesture register on both engines.</p>
+      engine rendering — re-running them cross-engine would re-test browser-agnostic plumbing. The
+      cross-browser risk lives in the UI: pointer-drags, focus, <code>page.clock</code>, date
+      <code>fill()</code>, and the a11y oracle. Those <em>are</em> the core specs, and they pass on WebKit and
+      Firefox unchanged — which is the point: <strong>keep specs browser-agnostic, never branch on
+      user-agent.</strong> The portable-drag rule (<code>page.mouse</code> with <code>steps</code>, not HTML5
+      <code>dragTo</code>) is what lets the same gesture register on every engine.</p>
     </div>
 
     <h2 id="clock">The frozen clock — the single most important E2E decision</h2>
@@ -193,7 +213,11 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
 <span class="k">export async function</span> <span class="f">openApp</span>(page, company = 'Studio North', path = '/') {
   <span class="k">await</span> page.clock.setFixedTime(FIXED_NOW)   <span class="c">// MUST precede goto — app reads it on first render</span>
   <span class="k">await</span> page.goto(path)
+  <span class="c">// Two demo-build gates precede the picker, each guarded so a missing gate never hangs:</span>
+  <span class="c">// the cosmetic fake sign-in screen, then the one-time intro page (intro-continue).</span>
+  <span class="k">await</span> passFakeSignInIfPresent(page)
   <span class="k">await</span> page.getByRole('button', { name: company, exact: true }).click()  <span class="c">// exact: avoids "Delete Studio North"</span>
+  <span class="k">await</span> dismissIntroIfPresent(page)
 }</code></pre>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
@@ -210,9 +234,11 @@ it('hideTentative removes tentative bars, but capacity still counts them', () =&
     <p>The E2E suite captures real renders at key states (e.g. each zoom level) to <code>test-results/</code>
     for human inspection. They are the oracle for visual correctness; they are not pixel-compared automatically
     (no snapshot assertions) — they are looked at when a visual change is suspected.</p>
-    <h3>axe — the accessibility oracle</h3>
-    <p><code>@axe-core/playwright</code> runs on three scenarios and fails the suite on any serious/critical
-    WCAG violation:</p>
+    <h3>axe — the accessibility oracle (plus bespoke WCAG 2.2 tests)</h3>
+    <p><code>@axe-core/playwright</code> sweeps a broad scenario matrix — the scheduler, the time-off draw
+    mode, the allocation editor and resource form modals, the danger confirm-dialog, and the empty schedule,
+    each in light <em>and</em> dark where the theme changes the answer (13 tests today) — failing the suite on
+    any serious/critical violation:</p>
     <div class="filename">e2e/a11y.spec.ts (essence)</div>
 <pre><code><span class="k">const</span> WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 test.use({ reducedMotion: 'reduce' })   <span class="c">// sample SETTLED colours, not mid-fade</span>
@@ -220,9 +246,13 @@ test.use({ reducedMotion: 'reduce' })   <span class="c">// sample SETTLED colour
 <span class="k">async function</span> <span class="f">assertClean</span>(page) {
   <span class="k">const</span> results = <span class="k">await new</span> AxeBuilder({ page }).withTags(WCAG).analyze()
   <span class="k">const</span> blocking = results.violations.filter((v) =&gt; v.impact === 'serious' || v.impact === 'critical')
-  expect(blocking, JSON.stringify(blocking.map((v) =&gt; v.id), null, 2)).toEqual([])  <span class="c">// failure msg = the list</span>
-}
-<span class="c">// 1) light-mode scheduler  2) dark-mode (theme seeded via addInitScript)  3) a modal open</span></code></pre>
+  <span class="c">// failure msg = the violation ids + how many nodes each hits</span>
+  expect(blocking, JSON.stringify(blocking.map((v) =&gt; ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
+}</code></pre>
+    <p>WCAG <em>2.2</em> criteria that axe's tag set doesn't cover get <strong>bespoke E2E tests</strong> in
+    the same file: 1.4.10 Reflow (the toolbar must stack, not scroll, at a 320px viewport) and 2.4.11 Focus
+    Not Obscured (sticky chrome must not cover the focused element). The lesson generalises: the axe oracle is
+    necessary, not sufficient — page 06's WCAG table lists which conventions carry their own test.</p>
     <div class="callout do">
       <span class="label">Three details that make the a11y oracle reliable</span>
       <p>Dark mode is seeded by writing the theme key in <code>addInitScript</code> (it's a stored preference,
@@ -233,10 +263,11 @@ test.use({ reducedMotion: 'reduce' })   <span class="c">// sample SETTLED colour
 
     <h2 id="gate">The gate (and optional CI)</h2>
     <p>"Green" means three commands pass (recap from page 02): <code>npm run gate</code>
-    (<code>tsc -b</code> + <code>eslint</code> + <code>vitest</code> + <code>vite build</code>),
-    <code>npm run gate:server</code> (type-check + vitest in <code>server/</code>, separate because of
-    <code>node:sqlite</code>), and <code>npm run e2e</code>. <strong>These three are the merge bar, run
-    locally before pushing</strong> — they are plain npm scripts, so "green locally" is the whole bar.</p>
+    (<code>paraglide:compile</code> + <code>tsc -b</code> + <code>eslint</code> + <code>vitest</code> +
+    <code>vite build</code>), <code>npm run gate:server</code> (type-check + vitest in <code>server/</code>,
+    separate because of <code>node:sqlite</code>), and <code>npm run e2e</code>. <strong>These three are the
+    merge bar, run locally before pushing</strong> — they are plain npm scripts, so "green locally" is the
+    whole bar.</p>
     <div class="callout rule">
       <span class="label">House standard — CI is optional, off by default</span>
       <p>These repos do <strong>not</strong> enable GitHub Actions by default, to avoid Actions cost on private
@@ -282,7 +313,7 @@ test.use({ reducedMotion: 'reduce' })   <span class="c">// sample SETTLED colour
     </ul>
 
     <div class="pager">
-      <a href="07-server.html"><span class="dir">Previous</span>← 07 · Optional server</a>
+      <a href="12-auth-and-access.html"><span class="dir">Previous</span>← 12 · Auth &amp; access control</a>
       <a class="next" href="09-process-and-workflow.html"><span class="dir">Next</span>09 · Process &amp; workflow →</a>
     </div>
   </main>

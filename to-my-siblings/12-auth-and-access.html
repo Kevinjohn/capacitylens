@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>12 · Auth &amp; access control — CapacityLens Handbook</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">CapacityLens&nbsp;<span>Handbook</span></a>
+    <p class="tagline">The CapacityLens house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html" class="active"><span class="num">12</span>Auth &amp; access control</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Build / 12</div>
+      <p class="eyebrow">Build</p>
+      <h1>Auth &amp; access control</h1>
+      <p class="lead">Sessions, roles, memberships, invites, redaction, audit and erasure — the whole trust
+      layer, and the seams that keep it swappable and keep the auth-off deploy byte-identical. This page
+      exists because the layer is large; the <em>principles</em> it obeys are just two: everything hangs off a
+      narrow port, and OFF is a guarantee.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#modes">The three modes &amp; the OFF guarantee</a></li>
+        <li><a href="#port">The AuthAdapter port</a></li>
+        <li><a href="#principal">SessionUser, normalized</a></li>
+        <li><a href="#client">The client side</a></li>
+        <li><a href="#roles">Roles &amp; can()</a></li>
+        <li><a href="#control">Control tables</a></li>
+        <li><a href="#gate">requirePermission — the route gate</a></li>
+        <li><a href="#invites">Invites</a></li>
+        <li><a href="#members">Member management</a></li>
+        <li><a href="#viewer">Viewer read-only mode</a></li>
+        <li><a href="#redaction">Field redaction</a></li>
+        <li><a href="#erasure">Export &amp; erasure</a></li>
+        <li><a href="#cookies">Cookies, CSRF-adjacent details</a></li>
+        <li><a href="#flags">The auth flag sub-register</a></li>
+      </ul>
+    </div>
+
+    <h2 id="modes">The three modes, and the OFF guarantee</h2>
+    <p><code>CAPACITYLENS_AUTH</code> selects the mode at boot; an unknown value refuses to boot
+    (<code>AuthConfigError</code> — fail closed, never "accidentally open"):</p>
+    <table>
+      <thead><tr><th>Mode</th><th>What it is</th><th>Requires</th></tr></thead>
+      <tbody>
+        <tr><td><code>off</code> (default)</td><td>Trusted-local. No Better Auth constructed, no auth tables created, no login UI mounts; every request carries the synthetic <code>DEMO_USER</code> (<code>emailVerified: true</code>, a non-routable <code>demo@capacitylens.local</code>). The open dataset <em>is</em> the deliberate self-host default.</td><td>—</td></tr>
+        <tr><td><code>password</code></td><td>Email + password sessions. Self-registration is <strong>closed by default</strong> (<code>disableSignUp</code>) — membership arrives by invite; <code>CAPACITYLENS_ALLOW_OPEN_SIGNUP=1</code> is the interim trusted-instance escape.</td><td><code>BETTER_AUTH_SECRET</code> (≥ 32 chars) + <code>BETTER_AUTH_URL</code></td></tr>
+        <tr><td><code>sso</code></td><td>Generic OAuth2/OIDC via the Better Auth plugin, configured from <code>CAPACITYLENS_SSO_*</code> (discovery URL, or explicit authorization + token URLs).</td><td>The secret/URL pair + the SSO vars</td></tr>
+      </tbody>
+    </table>
+    <p>Native social providers (Google, Microsoft, GitHub) are <em>additive</em> in either on-mode: each is
+    configured only when both its <code>CAPACITYLENS_&lt;PROVIDER&gt;_CLIENT_ID</code> and
+    <code>_SECRET</code> are set — fail-closed-absent, no half-configured provider.</p>
+    <div class="callout rule">
+      <span class="label">The OFF guarantee (the #1 invariant of this whole page)</span>
+      <p>Auth off means <strong>byte-for-byte</strong> the pre-auth behaviour. Concretely: no adapter is built
+      at all; the route gate short-circuits to allow-all on its <em>first line</em>; the member endpoints
+      return empty lists / inert no-ops; the client's <code>AuthProvider</code> passes straight through. The
+      proof is the test suite: every pre-auth server and E2E test runs in off mode and must stay green. When
+      you add any auth feature, the first question is "what does this do in off mode?" and the answer must be
+      "nothing".</p>
+    </div>
+    <div class="callout warn">
+      <span class="label">…but production refuses an accidental OFF</span>
+      <p>Under <code>NODE_ENV=production</code> the posture interlock (page 07) refuses to boot with auth off —
+      the open dataset must be an explicit decision (<code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1</code>,
+      which downgrades the refusal to a loud warning). Dev, e2e and trusted-LAN self-hosting keep OFF as a
+      first-class supported mode.</p>
+    </div>
+
+    <h2 id="port">The <code>AuthAdapter</code> port — one method, one contract</h2>
+    <div class="filename">server/src/authAdapter.ts</div>
+<pre><code><span class="c">// The provider-neutral session-verify port. Everything above auth (requireUser,</span>
+<span class="c">// /api/auth/me) depends ONLY on this — never on Better Auth directly.</span>
+<span class="k">export interface</span> <span class="t">AuthAdapter</span> {
+  <span class="f">verifySession</span>(headers: <span class="t">IncomingHttpHeaders</span>): <span class="t">Promise</span>&lt;<span class="t">SessionUser</span> | null&gt;
+}
+<span class="c">// betterAuthAdapter wraps Better Auth's getSession. OFF mode builds NO adapter at all.</span></code></pre>
+    <div class="callout rule">
+      <span class="label">The null/throw contract</span>
+      <p><code>null</code> means "no session" → <strong>401</strong>. A <em>thrown</em> error means "the auth
+      backend failed" → <strong>503</strong> — never swallowed into null. Collapsing the two would turn an
+      auth outage into a silent mass logout, which is exactly the kind of quiet failure this codebase exists
+      to avoid. Swapping Better Auth for anything else is one new adapter behind this port.</p>
+    </div>
+    <p>In auth-on deployments, a root-level <code>requireUser</code> preHandler walls off <em>every</em>
+    <code>/api/*</code> route except <code>/api/health</code> (uptime) and <code>/api/auth/*</code> (the login
+    machinery; <code>/api/auth/me</code> answers its own 401 with <code>{ authMode, error }</code> so the
+    client can tell "not signed in" from "server broken"). This is pinned by a table-driven 401-matrix test
+    over every route family — the hosted posture serves <strong>zero</strong> unauthenticated app data.</p>
+
+    <h2 id="principal">SessionUser — the normalized principal</h2>
+    <p><code>{ id, email, emailVerified, name }</code>, with <code>email</code> and
+    <code>emailVerified</code> both <em>required</em>. <code>normalizeSessionUser</code> is the single
+    narrowing boundary from the provider's user object: a provider that omits verification is treated as
+    <strong>unverified</strong> (<code>?? false</code>) — no provider allow-list, just a safety net. This
+    matters because email-preauthorised invites bind only when <code>emailVerified === true</code>.</p>
+
+    <h2 id="client">The client side: two providers, no client-side auth flag</h2>
+    <ul>
+      <li><strong><code>AuthProvider</code></strong> (mounted in <code>main.tsx</code>, outside the router) asks
+      <code>GET /api/auth/me</code> once at boot. The server-reported <code>authMode</code> is the <em>only</em>
+      auth flag — there is no <code>VITE_*</code> auth var to drift from the server's reality. <code>off</code>
+      → pass-through; 401 → the lazy <code>LoginScreen</code>. It re-checks when a write later hits
+      <code>persistError</code>, so an expired session walls the app off instead of failing writes silently.
+      It also carries the capability facts (<code>canCreateAccount</code>, <code>multiAccount</code>) — parsed
+      fail-open, because the server is the enforcer.</li>
+      <li><strong><code>PermissionProvider</code></strong> (inside the shell, around the app body) resolves the
+      caller's role for the <em>active account</em> from <code>GET /api/accounts</code>. The load-bearing
+      default: <strong><code>role === null</code> → editable</strong> (OFF/local/not-fetched/no-provider all
+      behave like today); it fails <em>open</em> on a fetch blip because the server 403 backstops, and failing
+      closed could lock out a legitimate editor. The role resets on tenant switch so a prior account's role
+      can't leak.</li>
+      <li><strong>The cosmetic fake sign-in</strong> (demo polish) mounts <em>only</em> when
+      <code>authMode === 'off'</code>, so it can never stack with the real login wall. It is a device-global
+      flag, not auth — the real seam stays <code>src/auth/</code>.</li>
+    </ul>
+
+    <h2 id="roles">Roles &amp; <code>can()</code> — the single pure authority</h2>
+    <p>Both sides consume the same matrix from <code>shared/src/domain/access.ts</code> (page 04):
+    <code>Role = owner | admin | editor | viewer</code>, <code>Action = read | write | manageMembers |
+    manageInvites | purge | transferOwnership</code>, and one pure <code>can(role, action)</code> (no I/O, no
+    session, no clock). The matrix: read = any member; write = editor+; manage members/invites and purge =
+    admin+; ownership transfer = owner only. Writes that store a role validate it against the union and
+    <em>throw</em> on an unknown value — an access level is never silently coerced.</p>
+
+    <h2 id="control">Control tables — membership data is not app data</h2>
+    <div class="filename">server/src/controlTables.ts</div>
+<pre><code><span class="c">// account_members(accountId, userId, role, status, createdAt) — PK (accountId, userId)</span>
+<span class="c">// invites(token PK, id, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)</span>
+<span class="c">// No FK to AppData. Created idempotently by ensureControlTables(db) inside openDb —</span>
+<span class="c">// EVERY opened DB (incl. :memory: tests) has them, regardless of auth mode.</span></code></pre>
+    <div class="callout rule">
+      <span class="label">The exclusion invariant (principle 8)</span>
+      <p>Control tables are <strong>structurally excluded</strong> from the app-data universe: never in shared
+      <code>AppData</code>/<code>SCOPED_KEYS</code>, server <code>TABLES</code>/<code>CREATE_ORDER</code>/
+      <code>SCOPED_ORDER</code>, <code>KNOWN_KEYS</code>, fixtures, <code>sanitizeImportedRecord</code>,
+      <code>loadState</code>, generic <code>/api/:entity</code> CRUD, or import/export. They are reached
+      <em>only</em> through their own narrow accessors (<code>upsertMember</code>, <code>getMemberRole</code>,
+      <code>listMembershipsForUser</code>, <code>createInvite</code>…), which the permissioned endpoints wrap.
+      A leak would hand out live role-bearing tokens through a dataset export. Any future control table
+      (billing, quotas — the parked <code>entitlementsFor()</code> seam) follows the same rules.</p>
+    </div>
+
+    <h2 id="gate"><code>requirePermission</code> — the auth-on route gate</h2>
+    <p>One <code>authorize(req, reply, accountId, action)</code> seam in <code>buildApp</code>:</p>
+    <ul>
+      <li><strong>OFF = a no-op allow-all on its first line</strong> — <code>resolveRole</code>/<code>can</code> never run. (The #1 invariant, again.)</li>
+      <li>Auth-on: <code>resolveRole</code> → null (non-member) or <code>can(role, action)</code> false → <strong>403 <code>{ error: 'Forbidden.' }</code></strong>. No 401/503 here — <code>requireUser</code> handled those upstream.</li>
+      <li>Gated: the per-account read (<code>read</code>), every scoped write + import (<code>write</code>), and <code>POST /api/batch</code> with a <strong>pre-scan</strong> — a batch touching an unauthorized account is rejected <em>whole</em>, one 403, no partial write.</li>
+      <li>Account create stays open (new-user onboarding has no membership) — but the single-company cap still applies, account <em>update</em> is gated <code>write</code>, and account hard-delete is gated <code>purge</code> on both vectors (the direct route and the batch op) because a delete cascades total tenant destruction.</li>
+      <li>Per-account hydration completes the model: a signed-in user picks a tenant from their memberships and loads only that slice; the cross-tenant whole-read is closed (page 05, page 07).</li>
+    </ul>
+
+    <h2 id="invites">Invites — single-use, expiring, never emailed</h2>
+    <ul>
+      <li><strong>Create</strong> (<code>POST /api/invites</code>, admin+ via <code>manageInvites</code>): mints a <code>randomBytes(32)</code> base64url token, 7-day default TTL, optional <code>preauthEmail</code> (stored normalized; malformed → 400). An <code>owner</code>-role invite requires an owner caller — closing the admin→owner escalation. The token is never logged and never read back: invites carry a separate non-secret <code>id</code> for list/revoke, and the list endpoint never returns tokens.</li>
+      <li><strong>Accept</strong> (<code>POST /api/invites/:token/accept</code>, no <code>authorize</code> — membership is the <em>output</em>): unknown → 404, used → 409, expired → 410. Success upserts the membership and marks the invite used in one transaction; single-use is double-guarded (handler check + a <code>WHERE usedAt IS NULL</code> SQL backstop against a race).</li>
+      <li><strong>Preauth</strong>: a non-null <code>preauthEmail</code> binds only a caller whose verified email matches (<code>preauthInviteAllows</code>, pure + unit-tested); a wrong-email or unverified caller gets 403 and the invite <em>stays live</em> for the right person. Nothing is ever emailed — the admin distributes the link; preauth only narrows who may redeem it.</li>
+      <li><strong>The client route</strong> <code>/invite/:token</code> sits outside the tenant gate but inside <code>AuthProvider</code>, so an unauthenticated visit shows the login first and the post-login reload lands back on the same URL — the token survives the wall.</li>
+    </ul>
+
+    <h2 id="members">Member management — pure guards + a server-only backstop</h2>
+    <p>The Settings → Members section drives five endpoints (list/patch/remove members, list/revoke invites)
+    plus ownership transfer. The who-may-touch-whom rules are two <em>pure shared guards</em> used by both the
+    client affordances and the server routes — <code>canManageMemberRole(actor, target, next)</code> and
+    <code>canRemoveMember(actor, target)</code> (an admin may never grant owner or touch an owner). The one
+    rule that needs DB I/O — <strong>never demote or remove the sole active owner</strong> — is enforced
+    server-side only. <code>transferOwnership</code> is owner-only and atomic: promote target + demote caller
+    to admin in one step. The UI self-gates: a 403 on the members read renders nothing, so a viewer or editor
+    never sees the section.</p>
+
+    <h2 id="viewer">Viewer read-only mode — three layers, one authority</h2>
+    <table>
+      <thead><tr><th>Layer</th><th>What it does</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Server 403 (write = editor+)</td><td>Rejects the write.</td><td><strong>Authoritative.</strong></td></tr>
+        <tr><td>UI affordances (<code>useCanEdit()</code> = <code>can(role,'write')</code>)</td><td>Hides create/edit/delete buttons, scheduler draw/drag/resize, undo/redo; shows a "View only" badge.</td><td>UX.</td></tr>
+        <tr><td>Store guard (<code>blockedByViewer()</code>)</td><td>No-ops a viewer's mutations with a notice — inert unless <code>activeRole === 'viewer'</code> exactly; never throws.</td><td>Defence-in-depth.</td></tr>
+      </tbody>
+    </table>
+    <p>All three read the same pure <code>can()</code>, so they cannot disagree about what a viewer may do.</p>
+
+    <h2 id="redaction">Field redaction — the time-off note</h2>
+    <p>A time-off <code>note</code> can be sensitive ("surgery"), so it is <strong>redacted server-side</strong>
+    for editors and viewers: <code>readSlice</code> takes a <em>required</em>
+    <code>includeTimeOffNote</code> (every caller decides; no silent default), and <code>false</code> strips
+    the key before serialization — the note never crosses the wire to a role that may not see it.
+    <code>canSeeTimeOffNote(role)</code> (owner/admin) is the pure rule; a test asserts the sentinel note is
+    absent from the raw response body. Client-side hiding would not be redaction — the pattern to copy is
+    "sensitive fields leave the server only for roles allowed to read them".</p>
+
+    <h2 id="erasure">Per-tenant export &amp; delete-with-erasure</h2>
+    <ul>
+      <li><strong>Export</strong> is not a new route: the complete per-tenant backup is
+      <code>GET /api/state?accountId=X&amp;includeInactive=1</code> (admin-gated; archived + soft-deleted
+      included; control tables structurally excluded because <code>readSlice</code> never reads them).</li>
+      <li><strong>Account hard-delete routes through <code>erasure.ts</code></strong>, in one transaction:
+      delete the account (FK-cascades the scoped data) → bulk-delete its member rows and invites (they have no
+      FK, so they would otherwise leak) → for each affected user <em>with no remaining membership anywhere</em>,
+      scrub the auth <code>user</code> row (name → "Removed member", email → a globally-unique
+      <code>deleted-…@invalid</code>, image → null), unlink SSO, kill sessions. Multi-account members are
+      retained untouched. The batch vector reuses the outer transaction (<code>eraseAccountInTx</code> —
+      <code>node:sqlite</code> has no nested BEGIN).</li>
+      <li><strong>The deliberate consequence:</strong> deleting your <em>sole</em> account erases your own
+      identity and kills your session — the post-delete read-back is a 401, not an empty 200. "PII provably
+      erasable" applied to the last-membership case; irreversible by design.</li>
+    </ul>
+
+    <h2 id="cookies">Cookies &amp; session pinning</h2>
+    <p>The single <code>betterAuth({...})</code> call pins what a library default change could silently
+    re-tune: <code>sameSite: 'lax'</code> (<em>not</em> <code>strict</code> — strict drops the cookie on the
+    top-level OAuth redirect back from the IdP, breaking SSO; lax is safe for that callback),
+    <code>httpOnly: true</code>, <code>expiresIn: 7d</code> / <code>updateAge: 1d</code>, and
+    <code>useSecureCookies</code> tied to the <em>threaded</em> <code>https</code> flag (the same
+    <code>CAPACITYLENS_HTTPS</code> that gates HSTS — <code>auth.ts</code> never reads the env itself).
+    <code>Secure</code> must be false over plain HTTP or the browser drops the cookie and login loops — the
+    default deploy and the E2E are HTTP. Better Auth's telemetry is explicitly disabled
+    (<code>telemetry: { enabled: false }</code>) — part of the privacy proof (principle 14).</p>
+
+    <h2 id="flags">The auth flag sub-register</h2>
+    <table>
+      <thead><tr><th>Var</th><th>Default</th><th>Effect / failure behaviour</th></tr></thead>
+      <tbody>
+        <tr><td><code>CAPACITYLENS_AUTH</code></td><td><code>off</code></td><td><code>off|password|sso</code>; unknown → refuse to boot.</td></tr>
+        <tr><td><code>BETTER_AUTH_SECRET</code></td><td>—</td><td>Required when on; &lt; 32 chars → refuse to boot.</td></tr>
+        <tr><td><code>BETTER_AUTH_URL</code></td><td>—</td><td>Required when on; the public origin.</td></tr>
+        <tr><td><code>CAPACITYLENS_ALLOW_OPEN_SIGNUP</code></td><td>off</td><td><code>1</code> re-opens email self-registration (interim escape; invites are the design).</td></tr>
+        <tr><td><code>CAPACITYLENS_GOOGLE/_MICROSOFT/_GITHUB_CLIENT_ID+_SECRET</code> (+ <code>_TENANT_ID</code>)</td><td>off</td><td>Each social provider activates only when both halves are set (Microsoft tenant defaults to <code>common</code>).</td></tr>
+        <tr><td><code>CAPACITYLENS_SSO_PROVIDER_ID/_CLIENT_ID/_CLIENT_SECRET/_DISCOVERY_URL</code> (or <code>_AUTHORIZATION_URL</code>+<code>_TOKEN_URL</code>) / <code>_SCOPES</code></td><td>—</td><td>The generic OIDC config; missing required pieces → refuse to boot.</td></tr>
+        <tr><td><code>CAPACITYLENS_BOOTSTRAP_TOKEN</code></td><td>off</td><td>Header-matched escape for <code>POST /api/orgs</code>; unset/empty never matches; constant-time compare.</td></tr>
+        <tr><td><code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION</code></td><td>off</td><td>Downgrades the production auth-off boot refusal to a warning.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout do">
+      <span class="label">Porting this layer to a sibling</span>
+      <p>Copy it wholesale — it is domain-agnostic by construction. The parts that touch your domain are
+      exactly three: the <code>Role</code>/<code>Action</code> matrix (keep the shape, rename nothing), which
+      entities are lifecycle-managed, and which fields are role-redacted (CapacityLens has one: the time-off
+      note — find your sibling's equivalent). Everything else — the port, the control tables, invites, the
+      gate, erasure, the cookie pinning — transfers unchanged. Test it the same way too: the auth-backed E2E
+      project boots a real password-mode server (page 08), and the OFF guarantee is proven by the entire
+      pre-auth suite staying green.</p>
+    </div>
+
+    <div class="pager">
+      <a href="07-server.html"><span class="dir">Previous</span>← 07 · The server</a>
+      <a class="next" href="08-testing.html"><span class="dir">Next</span>08 · Testing &amp; the gate →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

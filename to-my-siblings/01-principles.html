@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -45,18 +46,22 @@
       <strong>On this page</strong>
       <ul>
         <li><a href="#small">1. Deliberately small</a></li>
-        <li><a href="#local">2. Local-first, server-optional</a></li>
+        <li><a href="#local">2. Server-backed by default, demo opt-in</a></li>
         <li><a href="#nodrift">3. One source of truth</a></li>
         <li><a href="#repair">4. Reject vs. repair</a></li>
         <li><a href="#driftproof">5. Drift-proof extension</a></li>
-        <li><a href="#tenancy">6. Multi-tenant by account</a></li>
-        <li><a href="#deviceglobal">7. Device-global vs. data</a></li>
-        <li><a href="#separate">8. Keep distinct signals distinct</a></li>
-        <li><a href="#oracles">9. Two oracles</a></li>
-        <li><a href="#flags">10. Flags off by default</a></li>
-        <li><a href="#docs">11. Decisions are docs</a></li>
-        <li><a href="#never-white">12. Never a silent white page</a></li>
-        <li><a href="#surface">13. Surface, never swallow</a></li>
+        <li><a href="#tenancy">6. Multi-tenant schema, single-company deploys</a></li>
+        <li><a href="#auth">7. Auth is a seam; OFF is a guarantee</a></li>
+        <li><a href="#controlplane">8. Control plane ≠ data plane</a></li>
+        <li><a href="#deviceglobal">9. Device-global vs. data</a></li>
+        <li><a href="#separate">10. Keep distinct signals distinct</a></li>
+        <li><a href="#oracles">11. Two oracles</a></li>
+        <li><a href="#flags">12. Flags off by default</a></li>
+        <li><a href="#i18n">13. Strings compile</a></li>
+        <li><a href="#privacy">14. Privacy is proven, not promised</a></li>
+        <li><a href="#docs">15. Decisions are docs</a></li>
+        <li><a href="#never-white">16. Never a silent white page</a></li>
+        <li><a href="#surface">17. Surface, never swallow</a></li>
       </ul>
     </div>
 
@@ -72,7 +77,7 @@
       <li>No timesheets.</li>
       <li>No hour-granularity workflows (week granularity is the grain).</li>
       <li>No mobile <em>views</em> (light mobile <em>affordances</em> are the single agreed exception).</li>
-      <li>No per-seat / per-feature gating.</li>
+      <li>No per-seat / per-feature gating (the entitlements seam exists but is parked, default-unlimited).</li>
     </ul>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
@@ -88,32 +93,48 @@
       can trust that the absence of timesheets is a decision, not an omission.</p>
     </div>
 
-    <h2 id="local">2. Local-first by default, server-optional behind one seam</h2>
+    <h2 id="local">2. Server-backed by default, one seam, demo build opt-in</h2>
     <p>
-      With zero configuration the app has <strong>no backend and no login</strong>. The whole dataset is one
-      <code>AppData</code> blob in <code>localStorage</code> (under a versioned key). It never leaves the
-      device. This is the default a new contributor, a demo, and the test suite all run against.
+      With zero configuration the app boots against the <strong>same-origin SQLite server</strong>: an empty
+      env means the client talks to a Node + <code>node:sqlite</code> REST API at the relative
+      <code>/api</code>. <code>VITE_CAPACITYLENS_API</code> overrides the backend <em>origin</em> (never
+      <code>/api</code> itself — the client composes <code>${API_BASE}/api/…</code>). <code>npm run dev</code>
+      is full-stack: one orchestrator boots the API on <code>:8787</code> and Vite on <code>:5173</code> with
+      an <code>/api</code> proxy between them.
     </p>
     <p>
-      An <strong>optional</strong> Node + <code>node:sqlite</code> REST API plugs in behind the same
-      <code>PersistenceAdapter</code> interface, switched on by a single build-time env var
-      (<code>VITE_CAPACITYLENS_API</code>). When it is on, the app talks to the server through that one seam and
-      <em>nothing else in the app changes</em>. Server mode is last-writer-wins with no per-user isolation —
-      a deliberate, documented posture, not an oversight.
+      The old default — the whole dataset as one <code>AppData</code> blob in <code>localStorage</code>, no
+      backend, no login — still exists, but as an <strong>explicit demo opt-in</strong>:
+      <code>VITE_CAPACITYLENS_DEMO=1</code> is the <em>only</em> route to the in-browser build (key
+      <code>capacitylens/v3</code>, self-seeding, <code>npm run dev:demo</code>). It is the preview build, the
+      cross-engine E2E target, and the zero-infrastructure demo — not the product's default posture.
     </p>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
-      <p>There is exactly one persistence seam — the <code>PersistenceAdapter</code> interface. Local storage
-      and server sync are two implementations of it. No component, store action, or selector may know which
-      one is active. Adding a third backend means adding a third implementation, never a second seam.</p>
+      <p>There is exactly one persistence seam — the <code>PersistenceAdapter</code> interface. The server
+      sync adapter and the localStorage adapter are two implementations of it, chosen by one ternary on
+      <code>isDemoMode()</code>. No component, store action, or selector may know which one is active.
+      Adding a third backend means adding a third implementation, never a second seam. And note the
+      selection logic: an <em>empty</em> <code>VITE_CAPACITYLENS_API</code> still means server mode
+      (same-origin) — only the demo flag selects localStorage.</p>
+    </div>
+    <div class="callout why">
+      <span class="label">Why the flip (and what survived it)</span>
+      <p>CapacityLens began local-first. When it grew real self-hosted deployments, real auth, and an
+      open-source posture, "the server is optional" stopped being true operationally — a team's data belongs
+      in a database with backups, not in one browser's storage. The flip inverted the <em>default</em>, not
+      the <em>architecture</em>: because everything already went through the adapter seam, flipping was a
+      one-ternary change plus documentation. That is the lesson to carry into a sibling — build the seam
+      first, and defaults stay cheap to change.</p>
     </div>
 
     <h2 id="nodrift">3. One source of truth, shared so it cannot drift</h2>
     <p>
       The pure domain core — types, validation, integrity rules, cascade-delete, import-remap, migration,
-      seed — lives in a workspace package (<code>@capacitylens/shared</code>) that is <strong>imported by both the
-      web app and the server</strong>. There is no second copy of the rules on the server. Server-side
-      validation is <em>literally the client's code running in Node</em>.
+      seed, the access matrix, the lifecycle machine — lives in a workspace package
+      (<code>@capacitylens/shared</code>) that is <strong>imported by both the web app and the
+      server</strong>. There is no second copy of the rules on the server. Server-side validation is
+      <em>literally the client's code running in Node</em>.
     </p>
     <div class="callout why">
       <span class="label">Why</span>
@@ -121,7 +142,9 @@
       server forgets to, and a hand-crafted request stores garbage. By making it physically the same module,
       drift is not "discouraged" — it is impossible. The package has <strong>no</strong> environment
       dependencies (no React, no DOM, no Zustand, no <code>localStorage</code>) precisely so it can run in
-      both places.</p>
+      both places. The same discipline now covers <em>permissions</em>: the pure
+      <code>can(role, action)</code> matrix lives in shared, so the server's route gate and the client's
+      affordance gating cannot disagree either.</p>
     </div>
 
     <h2 id="repair">4. Forms reject; import and the server strip/repair</h2>
@@ -163,55 +186,120 @@
       exactly where. Page <a href="03-architecture.html#extension">03</a> walks the whole path.</p>
     </div>
 
-    <h2 id="tenancy">6. Multi-tenant by account, through one read seam</h2>
+    <h2 id="tenancy">6. Multi-tenant schema, single-company deployments</h2>
     <p>
       Every domain entity carries an <code>accountId</code>. You pick a company on load; the dataset is scoped
       to it. The active account id is held in memory and <strong>never persisted</strong> — it is a runtime
       selection, not part of the data. All scoped reads go through one hook/function so a read filter, a write
       guard, and a cascade can never independently define "belongs to account X".
     </p>
+    <p>
+      The <em>deployment shape</em>, however, is deliberately narrower than the schema: a self-hosted instance
+      serves <strong>one company by default</strong>. The server refuses to create a second
+      <code>accounts</code> row (a 403 that names the fix) unless <code>CAPACITYLENS_MULTI_ACCOUNT=1</code> —
+      in every auth mode, create-time only (an existing multi-company DB keeps serving). The picker hides
+      "New company" at the cap; the demo build and <code>npm run dev</code> stay uncapped.
+    </p>
+    <div class="callout why">
+      <span class="label">Why keep the schema multi-tenant at all?</span>
+      <p>Because the schema is the expensive part and the cap is the cheap part. Multi-tenancy baked into
+      every entity, read seam, and cascade from day one means the hosted/multi-company future is a flag flip,
+      not a migration. Meanwhile the single-company default matches what a self-hoster actually wants, and
+      shrinks the blast radius of the open trust model. A sibling should copy both halves: schema
+      multi-tenant, deployment single-tenant by default.</p>
+    </div>
     <div class="callout warn">
-      <span class="label">Posture, stated honestly</span>
-      <p>In the current trust model, the account picker is <strong>convenience scoping, not a security
-      boundary</strong>. <code>accountId</code> is client-asserted; the server's ownership check is
-      defence-in-depth, not isolation. This is fine for a trusted demo and is documented as such — turning it
-      into a real boundary is a named future stage, not a default. Never expose isolated user data on this
-      model.</p>
+      <span class="label">Posture, stated honestly (two trust models)</span>
+      <p>With auth <strong>off</strong> (the trusted-local self-host default), the account picker is
+      convenience scoping, not a security boundary: <code>accountId</code> is client-asserted and the
+      server's ownership check is defence-in-depth. With auth <strong>on</strong>, the boundary is real:
+      every request needs a session, reads are membership-gated per account (a non-member gets 403), the
+      whole-dataset read is closed, and roles gate writes. Know which posture a deployment is in, and never
+      expose isolated user data on the OFF model.</p>
     </div>
 
-    <h2 id="deviceglobal">7. Device-global preferences are separate from the dataset</h2>
+    <h2 id="auth">7. Auth is a seam, and OFF is a guarantee</h2>
     <p>
-      Theme, utilisation display toggles, allocation-bar label toggles, and sidebar collapsed-state are
-      <strong>per-device preferences</strong>, not data. Each lives under its own <code>localStorage</code>
-      key and is excluded from <code>AppData</code> and from export/import.
+      Session auth (Better&nbsp;Auth: password and SSO modes, social providers, invites) exists — but the
+      whole stack hangs off two narrow seams, and the unset state is a contract, not an accident:
+    </p>
+    <ul>
+      <li><strong>One port for session verification.</strong> <code>AuthAdapter { verifySession(headers) }</code>
+      is the only thing the request pipeline knows about. <code>null</code> means no session → 401; a
+      <em>thrown</em> error means the auth backend failed → 503, never swallowed to "no session".</li>
+      <li><strong>One pure function for permissions.</strong> <code>can(role, action)</code> in shared is the
+      single access matrix, used by the server's route gate and the client's affordances alike.</li>
+      <li><strong>The OFF guarantee.</strong> <code>CAPACITYLENS_AUTH</code> unset/<code>off</code> means
+      byte-for-byte the trusted-local behaviour: no auth tables are created, no login UI mounts, the
+      permission gate short-circuits to allow-all on its first line. The server-reported
+      <code>authMode</code> is the only auth flag — there is no client-side auth env var to drift.</li>
+    </ul>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Everything above auth depends only on the port, never on Better&nbsp;Auth directly. Swapping the
+      provider is one adapter; and every auth feature must keep the OFF deploy inert — if a change makes
+      auth-off behave differently, it broke the guarantee. Page <a href="12-auth-and-access.html">12</a> is
+      the full mechanics.</p>
+    </div>
+
+    <h2 id="controlplane">8. Control plane ≠ data plane</h2>
+    <p>
+      Memberships and invites are <em>about</em> accounts, but they are not account <em>data</em>. They live
+      in their own control tables, created idempotently on every DB open, and are <strong>structurally
+      excluded</strong> from the app-data universe: never in <code>AppData</code>, the scoped-table lists, the
+      fixtures, generic CRUD, or import/export. They are reached only through their own narrow functions and
+      permissioned endpoints.
+    </p>
+    <div class="callout why">
+      <span class="label">Why</span>
+      <p>The generic entity plumbing is deliberately powerful — auto-ALTER columns, generic
+      <code>/api/:entity</code> CRUD, whole-dataset export. If an invites table ever entered that universe, a
+      dataset export would hand out live, role-bearing tokens, and a generic write could mint an owner. The
+      exclusion is an invariant with a test, not a habit. Any future control table (billing, quotas — see the
+      parked entitlements seam) follows the same rule.</p>
+    </div>
+
+    <h2 id="deviceglobal">9. Device-global preferences are separate from the dataset</h2>
+    <p>
+      Theme, utilisation display toggles, allocation-bar label toggles, sidebar collapsed-state,
+      weekend-minimise and week-snap prefs are <strong>per-device preferences</strong>, not data. Each lives
+      under its own <code>localStorage</code> key (all under the <code>capacitylens/</code> prefix) and is
+      excluded from <code>AppData</code> and from export/import.
     </p>
     <div class="callout why">
       <span class="label">Why</span>
       <p>If theme were in the dataset, importing a colleague's export would flip your colour scheme, and the
       server would sync your personal display choices to everyone. A preference about <em>this screen</em>
       belongs to the screen. The default theme is <strong>light</strong>; <code>system</code> follows the OS;
-      a flash-of-wrong-theme guard runs before first paint.</p>
+      a flash-of-wrong-theme guard runs before first paint. Account-level <em>settings</em> (timezone, week
+      start, scheduling mode, feature toggles like disciplines/placeholders/external) are the opposite: they
+      are shared data, on the Account entity, synced and exported.</p>
     </div>
 
-    <h2 id="separate">8. Keep conceptually distinct signals distinct</h2>
+    <h2 id="separate">10. Keep conceptually distinct signals distinct</h2>
     <p>
-      A recurring discipline: when two things <em>look</em> similar but answer <em>different questions</em>,
+      A recurring discipline: when things <em>look</em> similar but answer <em>different questions</em>,
       they get separate code paths and separate names, and merging them is explicitly forbidden. CapacityLens's
-      canonical example is its two "over-capacity" signals:
+      canonical example is its <strong>three</strong> over/utilisation signals:
     </p>
     <ul>
-      <li>The per-day <strong>over-marker</strong> flags <em>any</em> work on a zero-capacity day.</li>
-      <li><strong>Utilisation&nbsp;%</strong> is a working-day ratio over a fixed forward 14-day window from today.</li>
+      <li>The per-day <strong>over-marker</strong> flags any day where <code>allocated &gt; available</code>
+      (strictly greater — at-capacity is <em>not</em> over), across the whole timeline, weekend-aware.</li>
+      <li>The displayed <strong>utilisation&nbsp;%</strong> is a working-day ratio over the currently
+      <em>visible</em> window (the 1/2/4/8-week zoom span), recomputed day-quantized on zoom/pan.</li>
+      <li>The <strong><code>overSoon</code></strong> red flag is a working-day ratio over a <em>fixed</em>
+      forward 14-day window from today, zoom/pan-independent.</li>
     </ul>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>They answer different questions ("is anything booked on a day off?" vs. "how loaded is this person
-      this fortnight?") so they are never merged. Your sibling will have its own such pairs — find them, name
-      them distinctly, and write the "don't merge these" note where the next person will see it. Naming is
-      part of this: it is always "Utilisation", never "Load", everywhere in CapacityLens.</p>
+      in what I'm looking at?" vs. "is trouble coming in the next fortnight?") so they are never merged.
+      Your sibling will have its own such families — find them, name them distinctly, and write the "don't
+      merge these" note where the next person will see it. Naming is part of this: it is always
+      "Utilisation", never "Load", everywhere in CapacityLens.</p>
     </div>
 
-    <h2 id="oracles">9. Two oracles beyond "the tests pass"</h2>
+    <h2 id="oracles">11. Two oracles beyond "the tests pass"</h2>
     <p>
       Automated tests assert behaviour, not appearance — role and DOM assertions prove that a button does the
       thing, not that it looks right. Two additional oracles cover what assertions can't:
@@ -220,9 +308,13 @@
       <li><strong>Screenshots are the visual oracle.</strong> The E2E suite captures real renders at key states for human inspection.</li>
       <li><strong><code>@axe-core/playwright</code> is the accessibility oracle</strong>, run in light mode, dark mode, and with a modal open — failing the suite on any serious/critical WCAG violation.</li>
     </ul>
-    <p>Accessibility is therefore a gate, not an afterthought. See <a href="08-testing.html#oracles">Testing → The two oracles</a>.</p>
+    <p>Accessibility is therefore a gate, not an afterthought — and since the WCAG 2.2 AA pass it is a
+    <em>standard</em>, not just an absence of axe violations: per-route titles, portaled modals, live-region
+    announcements, 24px targets, a dual-tone focus ring. See
+    <a href="06-ui-conventions.html#a11y">UI → Accessibility</a> and
+    <a href="08-testing.html#oracles">Testing → The two oracles</a>.</p>
 
-    <h2 id="flags">10. Every behavioural change ships behind a flag, default OFF</h2>
+    <h2 id="flags">12. Every behavioural change ships behind a flag, default OFF</h2>
     <p>
       Production-hardening and new server behaviours are introduced behind environment flags whose
       <strong>unset state is byte-for-byte today's behaviour</strong>. The flags are <code>CAPACITYLENS_*</code> on
@@ -232,24 +324,66 @@
     </p>
     <div class="callout do">
       <span class="label">Do this</span>
-      <p>A handful of changes are deliberately <em>not</em> flagged — graceful shutdown, a production
-      safety-interlock, a Node version bump. The test is: would an "off" default <em>preserve a defect</em>?
-      If yes, don't flag it; fix it. Otherwise, flag it off. Document the exceptions with their rationale, as
-      CapacityLens does in its flag register.</p>
+      <p>A handful of changes are deliberately <em>not</em> flagged — and each is named with its rationale in
+      the flag register. Graceful shutdown and a Node version bump (an "off" default would preserve a
+      defect). The production posture interlock (in <code>NODE_ENV=production</code> the server <em>refuses
+      to boot</em> with auth off, because a world-writable dataset is never an acceptable accident; the only
+      escape is an explicit override flag that downgrades it to a loud warning). And the audit log, which is
+      <strong>on</strong> by default (<code>CAPACITYLENS_AUDIT !== 'off'</code>) — an accountability
+      mechanism you must opt <em>out</em> of. The test is: would an "off" default preserve a defect or an
+      unsafe silence? If yes, don't flag it; fix it. Otherwise, flag it off.</p>
     </div>
 
-    <h2 id="docs">11. Decisions are documentation, and documentation is cheap to keep</h2>
+    <h2 id="i18n">13. Strings compile; a missing key is a build error</h2>
+    <p>
+      i18n is <strong>Paraglide (inlang), compile-time, English-only for now</strong>. Messages live in
+      <code>messages/&lt;locale&gt;.json</code> (committed, the source of truth) and compile into typed
+      functions in a <em>gitignored</em> <code>src/paraglide/</code>; every build, test, and dev script runs
+      the compile first. Components import <code>m</code> from a single <code>src/i18n</code> seam — never
+      the generated package directly — and resolve keys at <em>render</em>, never at module load (a
+      module-scope label list uses a getter, so a locale switch re-resolves).
+    </p>
+    <div class="callout why">
+      <span class="label">Why compile-time</span>
+      <p>A runtime string lookup fails at runtime, on the one screen you didn't test, as a raw key leaking
+      into the UI. A compiled message is a typed function: a removed, renamed, or typo'd key is a
+      <code>tsc</code> error at the gate. The keys are snake_case and area-namespaced
+      (<code>nav_*</code>, <code>form_*</code>, <code>dialog_*</code>…), the value <em>is</em> the source
+      English, and a key is shared between call sites only when it is the same string <em>and the same
+      action</em>. Even the single-locale phase pays for itself: it forced every string through one seam,
+      which is the hard part of i18n — adding a language later is data, not surgery.</p>
+    </div>
+
+    <h2 id="privacy">14. Privacy is proven, not promised</h2>
+    <p>
+      The product phones home to no one — and that claim is <strong>enforced by tests, from both
+      ends</strong>. A dependency denylist test fails the gate if an analytics/telemetry/email package ever
+      enters the tree (exact names, including transitives via the lockfile); a server test asserts the CSP's
+      <code>connect-src 'self'</code> never widens, so the browser <em>cannot</em> be made to egress to a
+      third party. Better&nbsp;Auth's own telemetry is explicitly disabled; the product sends no email
+      (invites are links the admin distributes). The human-readable statement lives in
+      <code>docs/privacy.md</code>; the tests keep it honest.
+    </p>
+    <div class="callout do">
+      <span class="label">Do this in a sibling</span>
+      <p>Copy the pattern, not just the claim: any posture you advertise ("no tracking", "no egress", "your
+      data never leaves the box") should have a test that fails when it stops being true. A README sentence
+      rots; a gate assertion doesn't.</p>
+    </div>
+
+    <h2 id="docs">15. Decisions are documentation, and documentation is cheap to keep</h2>
     <p>The repo treats its own decisions as a first-class artifact, split by access pattern so keeping it current is nearly free:</p>
     <dl class="defs">
       <dt>DECISIONS.md</dt><dd>A slim, present-tense digest of the calls that still constrain the code. Read whole; short by design.</dd>
       <dt>docs/decisions-log.md</dt><dd>An append-only, dated history of every review/remediation round. Large — you grep it or tail it, never read it whole.</dd>
       <dt>NEEDS-INPUT.md</dt><dd>Open product questions. You <em>flag</em> these, you don't silently resolve them.</dd>
       <dt>CLAUDE.md</dt><dd>The short working-notes file loaded into the AI pair's context every session — the load-bearing invariants in one breath.</dd>
+      <dt>DEFENSIVE-CODING.md</dt><dd>The error-handling and commenting standard (see <a href="#surface">§17</a>). Short; followed on every change.</dd>
       <dt>user-stories/</dt><dd>Manual test scripts kept 1:1 with the Playwright specs, with one REFERENCE file as their single source of truth.</dd>
     </dl>
     <p>The full mechanics — how to log a decision in one line, when to promote it to the digest — are on page <a href="09-process-and-workflow.html">09</a>.</p>
 
-    <h2 id="never-white">12. A JS-less load is never a silent white page</h2>
+    <h2 id="never-white">16. A JS-less load is never a silent white page</h2>
     <p>
       A small but characteristic decision that captures the house attitude to failure. The entire app is
       JS-rendered, so a browser that blocks scripts would otherwise show a blank page with an empty console —
@@ -262,19 +396,20 @@
       <p>The instinct it encodes — <em>a failure should diagnose itself, never present as a mysterious
       blank</em> — recurs everywhere in this codebase: the dev server binds loudly rather than silently on the
       wrong port; the server throws at startup on schema drift rather than failing on a later write; load
-      errors route to a specific recovery screen rather than an empty app. Carry the instinct, not just the
-      placeholder.</p>
+      errors route to a specific recovery screen (server unreachable vs. corrupt local bytes are <em>two
+      different screens</em>) rather than an empty app. Carry the instinct, not just the placeholder.</p>
     </div>
 
-    <h2 id="surface">13. Surface, never swallow (and know where try/catch is harmful)</h2>
+    <h2 id="surface">17. Surface, never swallow (and know where try/catch is harmful)</h2>
     <p>
       The same self-diagnosing instinct, made into an error-handling rule. A <code>catch</code> exists only to
       do one of three things: <strong>re-throw with more context</strong>, <strong>route the error to a
-      visible surface</strong> (a form field error, a toast, a typed load-error that picks a recovery screen,
-      an HTTP status), or <strong>degrade to a documented default</strong> — and that last one <em>only</em>
-      for genuinely non-load-bearing state (device preferences). A <code>catch&nbsp;{}</code> that drops the
-      error, or one that replaces a specific, already-authored message with a generic one, is the anti-goal:
-      in a local-first app it turns a loud, fixable failure into invisible data corruption.
+      visible surface</strong> (a form field error, a Sonner toast via <code>setNotice</code>, a typed
+      load-error that picks a recovery screen, an HTTP status), or <strong>degrade to a documented
+      default</strong> — and that last one <em>only</em> for genuinely non-load-bearing state (device
+      preferences). A <code>catch&nbsp;{}</code> that drops the error, or one that replaces a specific,
+      already-authored message with a generic one, is the anti-goal: it turns a loud, fixable failure into
+      invisible data corruption.
     </p>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
@@ -282,8 +417,9 @@
       the <em>full chain</em> survives, not just a re-worded message. ESLint's
       <code>preserve-caught-error</code> enforces this for native errors; it does <strong>not</strong> fire on
       custom error classes or a bare <code>catch&nbsp;{}</code>, so make those carry the cause too (CapacityLens's
-      <code>LoadError</code> and <code>ValidationError</code> take an <code>ErrorOptions</code> and forward
-      it). <em>This convention came from a sibling repo — exactly the kind of lesson this handbook is for.</em></p>
+      <code>LoadError</code>, <code>ValidationError</code> and <code>AuthConfigError</code> take an
+      <code>ErrorOptions</code> and forward it). <em>This convention came from a sibling repo — exactly the
+      kind of lesson this handbook is for.</em></p>
     </div>
     <div class="callout warn">
       <span class="label">The half a naive sweep gets wrong</span>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>07 · Optional server — CapacityLens Handbook</title>
+<title>07 · The server — CapacityLens Handbook</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html" class="active"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html" class="active"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -35,10 +36,11 @@
     <div class="pagehead">
       <div class="crumb"><a href="index.html">Home</a> / Build / 07</div>
       <p class="eyebrow">Build</p>
-      <h1>The optional server</h1>
-      <p class="lead">An opt-in Fastify + <code>node:sqlite</code> REST API that plugs in behind the
-      persistence seam. It is deliberately a <strong>thin shell over the shared core</strong> — it owns
-      transport, storage, and ops concerns, and delegates every domain rule to the same code the client runs.</p>
+      <h1>The server</h1>
+      <p class="lead">The Fastify + <code>node:sqlite</code> REST API that is the app's <strong>default</strong>
+      persistence backend. It is deliberately a <strong>thin shell over the shared core</strong> — it owns
+      transport, storage, access control and ops concerns, and delegates every domain rule to the same code
+      the client runs. (The auth &amp; access-control layer gets its own page: <a href="12-auth-and-access.html">12</a>.)</p>
     </div>
 
     <div class="toc-mini">
@@ -47,51 +49,55 @@
         <li><a href="#stack">Stack &amp; the thin-shell rule</a></li>
         <li><a href="#app">App structure &amp; routes</a></li>
         <li><a href="#validate">Two-layer validation</a></li>
+        <li><a href="#tenantstore">TenantStore &amp; scoped reads</a></li>
         <li><a href="#tables">Auto-ALTER column specs</a></li>
         <li><a href="#codec">Row codec</a></li>
         <li><a href="#db">Connection &amp; migration</a></li>
-        <li><a href="#hardening">Hardening modules</a></li>
+        <li><a href="#alwayson">Always-on hardening</a></li>
+        <li><a href="#hardening">Flag-gated modules</a></li>
+        <li><a href="#singlecompany">The single-company cap</a></li>
         <li><a href="#env">Env vars</a></li>
         <li><a href="#http">HTTP &amp; error conventions</a></li>
       </ul>
     </div>
 
     <h2 id="stack">Stack &amp; the thin-shell rule</h2>
-    <p><strong>Fastify 5</strong> (with its bundled pino logger and <code>@fastify/rate-limit</code>),
-    <strong><code>node:sqlite</code></strong> (<code>DatabaseSync</code> + the online <code>backup</code> API) —
-    <em>no ORM, no driver library</em>. Node 24+ is required because <code>node:sqlite</code> needs no flag
-    there. The server runs its TypeScript directly via <code>tsx</code> (no build), and consumes
+    <p><strong>Fastify 5</strong> (with its bundled pino logger, <code>@fastify/helmet</code> and
+    <code>@fastify/rate-limit</code>), <strong><code>node:sqlite</code></strong> (<code>DatabaseSync</code> +
+    the online <code>backup</code> API) — <em>no ORM, no driver library</em> — and <strong>Better Auth</strong>
+    for the opt-in session layer. Node 24+ is required because <code>node:sqlite</code> needs no flag there.
+    The server runs its TypeScript directly via <code>tsx</code> (no build), and consumes
     <code>@capacitylens/shared</code> as a workspace dependency.</p>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>The server contains <strong>no copy of any domain rule</strong>. Validation, sanitisation, integrity,
-      cascade, and import all come from <code>@capacitylens/shared</code>. The server's job is HTTP + SQLite + ops.
-      When a request needs to validate, it calls the client's validators. "Server validation is client
-      validation" is structural here, not a goal.</p>
+      cascade, import, the permission matrix, and the lifecycle machine all come from
+      <code>@capacitylens/shared</code>. The server's job is HTTP + SQLite + sessions + ops. When a request
+      needs to validate, it calls the client's validators. "Server validation is client validation" is
+      structural here, not a goal.</p>
     </div>
-    <div class="filename">server/src/README + module comments capture the spirit</div>
-<pre><code><span class="c">// Imports the same pure domain-core the client uses — @capacitylens/shared/domain/mutations,</span>
-<span class="c">// @capacitylens/shared/data/{migrate,seed,transfer}, /types/entities, /lib/* — so server-side</span>
-<span class="c">// validation, integrity, cascade and import rules are literally the client's code.</span></code></pre>
 
     <h2 id="app">App structure &amp; the route table</h2>
     <p>The app is built by a factory, <code>buildApp(db, opts)</code>, returning a Fastify instance. The entry
     point calls it once; tests call it repeatedly against a <code>:memory:</code> DB via
     <code>app.inject()</code> (no separate HTTP client). Hooks register in a deliberate order, and routes live
-    in a child plugin so the rate-limit plugin's <code>onRoute</code> hook can attach to them.</p>
+    in a child plugin so the rate-limit plugin's <code>onRoute</code> hook can attach to them. The surface has
+    grown well beyond generic CRUD:</p>
     <table>
       <thead><tr><th>Method · Path</th><th>Purpose</th></tr></thead>
       <tbody>
-        <tr><td><code>GET /api/health</code></td><td>Liveness. Deep mode proves a DB read (200 <code>{ok,db:true}</code> / 503). Exempt from rate limiting. Used by Playwright's webServer probe.</td></tr>
-        <tr><td><code>GET /api/auth/me</code></td><td>Identity — exists in <em>every</em> mode so the client never forks. Off → the demo identity; on → the session user (401 if none).</td></tr>
-        <tr><td><code>GET /api/state</code></td><td>Whole <code>AppData</code> tree — backs the client's <code>loadAll()</code>.</td></tr>
+        <tr><td><code>GET /api/health</code></td><td>Liveness. Deep mode proves a DB read + surfaces <code>audit: 'ok'|'degraded'</code> (200/503). Exempt from rate limiting and from the auth wall. Used by Playwright's webServer probe and uptime monitors.</td></tr>
+        <tr><td><code>GET /api/auth/me</code></td><td>Identity + capabilities — exists in <em>every</em> mode so the client never forks. Reports <code>authMode</code>, the user, and the capability facts (<code>canCreateAccount</code>, <code>multiAccount</code>). Off → the demo identity; on → the session user (401 if none).</td></tr>
+        <tr><td><code>GET | POST /api/auth/*</code></td><td>Better Auth's own machinery (login, sign-up, OAuth callbacks) — mounted only when auth is on.</td></tr>
+        <tr><td><code>GET /api/accounts</code></td><td>The tenant list for the picker: off = all accounts; auth-on = the caller's memberships, each with its role.</td></tr>
+        <tr><td><code>GET /api/state?accountId=</code></td><td>One account's scoped slice — backs the client's per-account <code>loadAll(accountId)</code>. Membership-gated when auth is on; <code>?includeInactive=1</code> is the admin/export read (archived + soft-deleted included). The no-arg whole-tree read survives only in off mode (auth-on → 400).</td></tr>
         <tr><td><code>GET /api/meta</code></td><td><code>{ hasData }</code> from the init marker — backs <code>hasExisting()</code>.</td></tr>
-        <tr><td><code>POST /api/:entity</code></td><td>Create one row (201).</td></tr>
-        <tr><td><code>PUT /api/:entity/:id</code></td><td>Idempotent upsert. URL/body id must match; <code>ownsRow</code> check; optional optimistic-concurrency check.</td></tr>
-        <tr><td><code>PATCH /api/:entity/:id</code></td><td>True partial merge (<code>{...existing, ...body, id}</code>) then validate; 404 if absent.</td></tr>
-        <tr><td><code>DELETE /api/:entity/:id</code></td><td>Idempotent. Scoped tables require <code>?accountId=</code> (400 absent, 404 cross-account).</td></tr>
-        <tr><td><code>POST /api/batch</code></td><td><strong>The write path the sync adapter uses.</strong> <code>{ ops: [...] }</code> applied in one transaction, in op order.</td></tr>
+        <tr><td><code>POST /api/:entity</code> · <code>PUT/PATCH/DELETE /api/:entity/:id</code></td><td>Generic CRUD. PUT is an idempotent upsert (URL/body id must match; <code>ownsRow</code>; optional optimistic concurrency); PATCH is a true partial merge then validate; scoped DELETE requires <code>?accountId=</code>.</td></tr>
+        <tr><td><code>POST /api/batch</code></td><td><strong>The write path the sync adapter uses.</strong> <code>{ ops: [...] }</code> applied in one transaction, in op order; permission pre-scan rejects a mixed-tenant batch whole (page 12).</td></tr>
         <tr><td><code>POST /api/import</code></td><td><code>{ accountId, data }</code> → reuses <code>parseData</code> + <code>remapAndValidateImport</code> → replaces that account's slice.</td></tr>
+        <tr><td><code>POST /api/orgs</code></td><td>The <em>atomic</em> org-create path: account + its built-in Internal client + an Owner membership, one transaction. Gated by first-run / off-mode / admin-of-some-account / bootstrap token (page 12).</td></tr>
+        <tr><td><code>POST /api/:entity/:id/{archive,unarchive,delete,purge}</code></td><td>The lifecycle actions (resources/clients/projects) — the <em>only</em> routes that set or clear a tombstone; interlocks and role tiers enforced server-side (delete requires archived; purge requires admin + a 30-day tombstone).</td></tr>
+        <tr><td><code>POST /api/invites</code> · <code>POST /api/invites/:token/accept</code> · members/invites management under <code>/api/accounts/:accountId/…</code> · <code>POST /api/accounts/:id/transfer-ownership</code></td><td>The membership machinery — all on control tables, all permission-gated (page 12).</td></tr>
         <tr><td><code>POST /api/test/reset</code></td><td>Wipe (+ optional reseed). Gated by <code>CAPACITYLENS_ALLOW_RESET=1</code>; refused in production by a boot-guard.</td></tr>
       </tbody>
     </table>
@@ -109,7 +115,9 @@
     persist junk:</p>
     <div class="filename">server/src/validate.ts</div>
 <pre><code><span class="c">// Layer 1 — sanitizeWrite: requires a non-empty id, then repairs value-level fields</span>
-<span class="c">// using the SAME sanitiser the import path uses (one code path = parity).</span>
+<span class="c">// using the SAME sanitiser the import path uses (one code path = parity). It also PINS</span>
+<span class="c">// the lifecycle tombstones (archivedAt/deletedAt) to the stored row — only the dedicated</span>
+<span class="c">// lifecycle routes may set one, and an unrelated edit can't silently CLEAR one.</span>
 <span class="k">export function</span> <span class="f">sanitizeWrite</span>(table: string, row: <span class="t">Record</span>&lt;string, unknown&gt;) {
   assertIdPresent(row)                <span class="c">// 400 if id missing/null/'' — TEXT PRIMARY KEY would store NULL otherwise</span>
   <span class="k">const</span> copy = { ...row }            <span class="c">// never mutate input</span>
@@ -118,14 +126,32 @@
   <span class="k">return</span> copy
 }
 
-<span class="c">// Layer 2 — validateWrite: referential integrity + date ranges, via shared asserts.</span>
+<span class="c">// Layer 2 — validateWrite: referential integrity + date ranges, via shared asserts —</span>
+<span class="c">// plus the singleton guards (no second builtin Internal client; no un-flagging it).</span>
 <span class="c">// Any thrown Error becomes a ValidationError (so routes return 400, not 500).</span>
 <span class="k">export function</span> <span class="f">validateWrite</span>(state: <span class="t">AppData</span>, table: string, row: <span class="t">Record</span>&lt;string, unknown&gt;): void</code></pre>
     <p>The tenant guard, <code>ownsRow</code>, makes <code>accountId</code> immutable: a PUT/PATCH that tries to
     re-home a row to another account is <strong>409</strong>; a scoped DELETE without the owning
-    <code>accountId</code> is <strong>400</strong>, and against the wrong owner <strong>404</strong>. This is
-    defence-in-depth, not isolation (the account is still client-asserted — page 10's Stage C is where that
-    changes).</p>
+    <code>accountId</code> is <strong>400</strong>, and against the wrong owner <strong>404</strong>. On the
+    <em>write</em> path this is defence-in-depth (the account is still client-asserted); on the <em>read</em>
+    path, auth-on deployments now have real membership isolation via <code>readSlice</code> +
+    <code>authorize</code> (page 12). Account settings writes carry one more guard:
+    <code>accountFieldsFrozen</code> rejects a <em>change</em> to the frozen creation-time fields
+    (<code>language</code>, <code>timezone</code>, <code>weekStartsOn</code>) — per-route 409, batch 400.</p>
+
+    <h2 id="tenantstore">TenantStore — the scoped-read/write swap point</h2>
+    <div class="filename">server/src/tenantStore.ts</div>
+<pre><code><span class="k">export interface</span> <span class="t">TenantStore</span> {
+  <span class="f">readSlice</span>(accountId: <span class="t">ID</span>): <span class="t">AppData</span>   <span class="c">// per-account scoped read — WHERE accountId=? on all 8 tables</span>
+  <span class="f">write</span>(accountId: <span class="t">ID</span>, next: <span class="t">AppData</span>): void
+}
+<span class="k">export function</span> <span class="f">sqliteTenantStore</span>(db: <span class="t">Db</span>): <span class="t">TenantStore</span>   <span class="c">// the single implementation today</span></code></pre>
+    <p><code>readSlice</code> takes two <em>required</em> options so no caller gets a silent default:
+    <code>includeInactive</code> (lifecycle filtering — normal reads pass <code>false</code>, the admin/export
+    read passes <code>true</code>) and <code>includeTimeOffNote</code> (role-based field redaction — page 12).
+    The no-cross-tenant invariant (no unpredicated query) lives at this layer. A future per-agency-DB or
+    Postgres backend swaps in <em>here</em>, behind the interface, with no route change — this is the
+    documented answer to "when do we outgrow SQLite?".</p>
 
     <h2 id="tables">The auto-ALTER, compile-checked column specs</h2>
     <p>This is the server end of the entity-extension rails (page 03). Each table's columns are declared as a
@@ -160,6 +186,14 @@
       element shapes checked. Together they let <code>CheckColumns</code> compare names to entity keys exactly.
       Copy this idiom for any "list that must mirror a type".</p>
     </div>
+    <div class="callout dont">
+      <span class="label">Control tables and auth tables stay OUT of these lists</span>
+      <p>Better Auth's tables (<code>user</code>/<code>session</code>/…) and the control tables
+      (<code>account_members</code>, <code>invites</code> — own module, <code>controlTables.ts</code>) live in
+      the same SQLite file but are deliberately absent from <code>TABLES</code>/<code>CREATE_ORDER</code>/
+      <code>SCOPED_ORDER</code> and every other drift-proofing list, so they can never leak through generic
+      CRUD, <code>loadState</code>, or import/export. The exclusion is the invariant (principle 8).</p>
+    </div>
 
     <h2 id="codec">Row codec — arrays/booleans/optionals across the SQLite boundary</h2>
     <p>Pure functions translate between domain objects and SQLite rows, driven by the column specs:</p>
@@ -177,15 +211,18 @@
   <span class="k">const</span> db = <span class="k">new</span> DatabaseSync(path)
   db.exec('PRAGMA journal_mode = WAL;')   <span class="c">// concurrent reads; cp can't catch a torn write</span>
   db.exec('PRAGMA busy_timeout = 5000;')  <span class="c">// wait for a lock instead of throwing SQLITE_BUSY</span>
+  renameLegacyActivityTables(db)           <span class="c">// the Task→Activity rename, BEFORE the schema runs</span>
   db.exec(SCHEMA_SQL)                      <span class="c">// CREATE TABLE IF NOT EXISTS … (no-op on existing tables)</span>
   migrateSchema(db)                        <span class="c">// add any missing optional columns; rebuild activities if needed</span>
   assertSchemaCurrent(db)                  <span class="c">// LOUD startup throw on any required-column / NULL drift</span>
+  ensureControlTables(db)                  <span class="c">// account_members + invites — idempotent, EVERY DB incl. :memory:</span>
+  ensureInternalClients(db)                <span class="c">// the one-builtin-per-account invariant, backfilled</span>
   <span class="k">if</span> (!isInitialized(db) &amp;&amp; !isEmpty(loadState(db))) markInitialized(db)  <span class="c">// backfill pre-marker DBs</span>
   db.exec('PRAGMA foreign_keys = ON;')    <span class="c">// enforced AFTER migration (table rebuilds are FK-unsafe)</span>
   <span class="k">return</span> db
 }</code></pre>
     <div class="callout why">
-      <span class="label">Two principle-12 details</span>
+      <span class="label">Two fail-loud details</span>
       <p><code>assertSchemaCurrent</code> throws <em>at startup</em> on any column drift or
       <code>optional?</code>-vs-<code>NULL</code> mismatch, instead of failing silently on a later write — the
       same "fail loud, fail early" instinct as the dev-server port pin. And <code>foreign_keys</code> is turned
@@ -202,17 +239,29 @@
   db.exec('BEGIN')
   <span class="k">try</span> { fn(); db.exec('COMMIT') } <span class="k">catch</span> (e) { db.exec('ROLLBACK'); <span class="k">throw</span> e }
 }</code></pre>
+    <p>One <code>node:sqlite</code> trap the erasure code documents: there is <strong>no nested
+    BEGIN</strong> — a helper that must run inside an outer transaction gets an explicit
+    <code>…InTx</code> variant instead of opening its own (see <code>eraseAccountInTx</code>, page 12).</p>
 
-    <h2 id="hardening">Production-hardening modules — all flag-gated, default OFF</h2>
-    <p>Each lives in its own module, is enabled by an env flag, and its unset state is exactly today's
-    behaviour. The flag parsers are fail-closed.</p>
+    <h2 id="alwayson">Always-on hardening (no flag, by design)</h2>
+    <p>Not everything is flag-gated. These ship on because an "off" default would preserve an unsafe silence
+    (the principle-12 test); each is named with its rationale:</p>
     <dl class="defs">
-      <dt>auth.ts (Better Auth)</dt><dd><code>CAPACITYLENS_AUTH=off|password|sso</code>. <strong>Off</strong>: Better Auth is never initialised — no auth tables, no <code>/api/auth/*</code> routes beyond the thin <code>/api/auth/me</code>, and every request carries a synthetic <code>DEMO_USER</code>. Any unknown value refuses to boot. On modes require <code>BETTER_AUTH_SECRET</code> + <code>BETTER_AUTH_URL</code> (boot refusal if missing). The auth library's own tables live in the same SQLite file but are deliberately outside the entity drift-proofing lists (commented as such).</dd>
-      <dt>backup.ts</dt><dd><code>CAPACITYLENS_BACKUP_DIR</code> set → online <code>backup()</code> snapshots (<code>capacitylens-&lt;YYYYMMDD-HHmmss&gt;.db</code>) once at boot then hourly; prune to the newest <code>CAPACITYLENS_BACKUP_KEEP</code> (48). The timer is <code>unref()</code>'d (must not keep a draining process alive); failed snapshots log and continue. Unset → no timer, no filesystem writes.</dd>
-      <dt>bootGuard.ts</dt><dd><code>resetForbidden(env)</code> = <code>CAPACITYLENS_ALLOW_RESET==='1' &amp;&amp; NODE_ENV==='production'</code>. If true, the process exits 1 before listening — the destructive reset route can never be reachable in production.</dd>
-      <dt>shutdown.ts</dt><dd>On SIGTERM/SIGINT: <code>await app.close()</code> (drain in-flight) → <code>db.close()</code> → exit 0. A second signal force-exits 1. Injected <code>app</code>/<code>db</code>/<code>exit</code> make it unit-testable.</dd>
+      <dt>@fastify/helmet security headers</dt><dd>A strict minimal CSP for this JSON-only API (<code>default-src</code>/<code>connect-src</code>/<code>base-uri 'self'</code>, <code>frame-ancestors 'none'</code>, <code>object-src 'none'</code>), <code>nosniff</code>, <code>Referrer-Policy: no-referrer</code>, <code>X-Frame-Options: DENY</code>. The one exception is HSTS, gated behind <code>CAPACITYLENS_HTTPS=1</code> — HSTS over plain HTTP is harmful, and this server usually sits behind a TLS-terminating proxy. The <code>connect-src 'self'</code> line is also the privacy proof's server half (principle 14) — a test fails if it ever widens.</dd>
+      <dt>Request/connection timeouts</dt><dd><code>REQUEST_TIMEOUT_MS</code> = <code>CONNECTION_TIMEOUT_MS</code> = 30 s, always applied — a slow-loris connection or a hung handler can't pin a worker forever.</dd>
+      <dt>Null-body 400s</dt><dd>Generic POST/PATCH reject a missing or non-object body with <code>400 "A request body is required."</code> instead of a confusing downstream error.</dd>
+      <dt>The audit log (ON by default)</dt><dd>An append-only JSONL sink writes one line per app-data mutation at each route's commit point: <code>{ts,userId,accountId,action,entity,id,changedFields}</code>. <strong>The #1 invariant: <code>changedFields</code> is field <em>names</em> only</strong> — never a value, row or body, so no tenant data reaches a log line. <strong>Fail-never:</strong> <code>append</code> cannot throw; a broken sink never fails the request — it latches "degraded", logs one redacted line, sets an <code>x-capacitylens-audit-warning: true</code> response header, and deep health reports <code>audit:'degraded'</code> while keeping <code>ok: true</code>. Opt <em>out</em> with <code>CAPACITYLENS_AUDIT=off</code>; the file rotates at <code>CAPACITYLENS_AUDIT_MAX_MB</code> (64). Server-mode only — the sink is built in <code>index.ts</code>, and <code>buildApp</code> defaults to a no-op sink so tests are byte-identical.</dd>
+      <dt>The production posture interlock</dt><dd>A pure <code>evaluateProductionPosture(env)</code> consulted at boot: a no-op unless <code>NODE_ENV==='production'</code> (dev/e2e/self-host keep the open auth-off posture as a first-class mode), but in production it <strong>refuses to start with auth off</strong> (a world-writable dataset must be a decision, not an accident) and warns loudly on HSTS-off and open self-signup. The only escape is the explicit <code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1</code>, which downgrades the refusal to a warning — never silences it.</dd>
+      <dt>bootGuard / graceful shutdown</dt><dd><code>resetForbidden</code>: <code>CAPACITYLENS_ALLOW_RESET=1</code> + production = exit 1 before listening. Shutdown: SIGTERM/SIGINT → <code>app.close()</code> (drain) → <code>db.close()</code> → exit 0; a second signal force-exits 1.</dd>
+    </dl>
+
+    <h2 id="hardening">Flag-gated modules — default OFF, fail-closed parsing</h2>
+    <dl class="defs">
+      <dt>auth.ts (Better Auth)</dt><dd><code>CAPACITYLENS_AUTH=off|password|sso</code>. <strong>Off</strong> (the default): Better Auth is never initialised — no auth tables, no login machinery, every request carries the synthetic <code>DEMO_USER</code>. Any unknown value refuses to boot (<code>AuthConfigError</code>). On modes require <code>BETTER_AUTH_SECRET</code> (≥ 32 chars — boot refusal below) + <code>BETTER_AUTH_URL</code>. Full architecture on page 12.</dd>
+      <dt>backup.ts</dt><dd><code>CAPACITYLENS_BACKUP_DIR</code> set → online <code>backup()</code> snapshots (<code>capacitylens-&lt;YYYYMMDD-HHmmss&gt;.db</code>) once at boot then every <code>CAPACITYLENS_BACKUP_INTERVAL_MIN</code> (60); prune to the newest <code>CAPACITYLENS_BACKUP_KEEP</code> (48). The timer is <code>unref()</code>'d; failed snapshots log and continue. Unset → no timer, no filesystem writes.</dd>
       <dt>rate limit</dt><dd><code>CAPACITYLENS_RATE_LIMIT=&lt;n&gt;</code>, parsed by <code>/^\d+$/</code> (fail-closed: <code>0</code>/non-numeric/unset = off, plugin not registered). <code>/api/health</code> exempt. Behind the loopback proxy it trusts <code>X-Forwarded-For</code>; on a directly-exposed host it ignores it (spoofable).</dd>
-      <dt>logging / health-deep</dt><dd><code>CAPACITYLENS_LOG=1</code> → Fastify's bundled pino (JSON per request); off → startup line + <code>console.error</code> on 500s. <code>CAPACITYLENS_HEALTH_DEEP=1</code> → health proves a <code>SELECT 1</code>.</dd>
+      <dt>logging / health-deep</dt><dd><code>CAPACITYLENS_LOG=1</code> → Fastify's bundled pino (JSON per request; the invite-accept URL's bearer token is redacted by a request serializer — the only path-borne secret). <code>CAPACITYLENS_HEALTH_DEEP=1</code> → health proves a <code>SELECT 1</code> and surfaces the audit soft-signal.</dd>
+      <dt>optimistic concurrency</dt><dd><code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY=1</code> → a stale PUT is 409 instead of last-writer-wins.</dd>
     </dl>
     <div class="callout do">
       <span class="label">The OFF-guarantee, enforced by the test suite</span>
@@ -221,31 +270,49 @@
       every prior test passes unchanged.</p>
     </div>
 
-    <h2 id="env">Environment variables</h2>
+    <h2 id="singlecompany">The single-company cap (deployment shape, not authz)</h2>
+    <p>By default a server instance serves <strong>one company</strong>. <code>accountCreateCapped</code>
+    returns true when <code>CAPACITYLENS_MULTI_ACCOUNT</code> is off and any account exists; every create
+    vector — generic <code>POST /api/accounts</code>, a batch PUT of a new account, <code>POST /api/orgs</code>
+    — then 403s with <code>SINGLE_COMPANY_CAP_MESSAGE</code>, which names the fix (set the flag). It applies in
+    <em>every</em> auth mode (even the bootstrap token doesn't bypass it) because it is a deployment-shape
+    policy, not an authorization rule. Create-time only: an existing multi-company DB keeps serving.
+    <code>GET /api/auth/me</code> reports <code>canCreateAccount</code> so the picker can hide "New company" —
+    fail-open on the client, because the server is the enforcer. Dev (<code>npm run dev</code>) and the demo
+    build are uncapped.</p>
+
+    <h2 id="env">Environment variables (the server's half of the flag register)</h2>
     <table>
       <thead><tr><th>Var</th><th>Default</th><th>Meaning</th></tr></thead>
       <tbody>
-        <tr><td><code>CAPACITYLENS_DB</code></td><td><code>capacitylens.db</code></td><td>SQLite path (<code>:memory:</code> works).</td></tr>
-        <tr><td><code>PORT</code></td><td><code>8787</code></td><td>Listen port.</td></tr>
-        <tr><td><code>CAPACITYLENS_HOST</code></td><td><code>127.0.0.1</code></td><td>Listen host — localhost-only by default; <code>0.0.0.0</code> to expose.</td></tr>
-        <tr><td><code>CAPACITYLENS_CORS_ORIGIN</code></td><td>local dev origins</td><td>Allow-list (comma-sep) or <code>*</code>. Defaults so the API isn't open to every site.</td></tr>
-        <tr><td><code>CAPACITYLENS_ALLOW_RESET</code></td><td>off</td><td><code>1</code> exposes the reset route (dev/E2E only; boot-guard blocks it in prod).</td></tr>
-        <tr><td><code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code></td><td>off</td><td><code>1</code> rejects a stale overwrite with 409 instead of last-writer-wins.</td></tr>
-        <tr><td><code>CAPACITYLENS_LOG</code> · <code>CAPACITYLENS_HEALTH_DEEP</code> · <code>CAPACITYLENS_RATE_LIMIT</code></td><td>off</td><td>Logging / deep health / rate limit (page 10's flag register).</td></tr>
+        <tr><td><code>CAPACITYLENS_DB</code></td><td><code>capacitylens.db</code></td><td>SQLite path (<code>:memory:</code> works; compose mounts <code>/data/capacitylens.db</code>).</td></tr>
+        <tr><td><code>PORT</code> / <code>CAPACITYLENS_HOST</code></td><td><code>8787</code> / <code>127.0.0.1</code></td><td>Listen address — localhost-only by default; <code>0.0.0.0</code> to expose (Docker bakes it). <code>parsePort</code> refuses to boot on junk.</td></tr>
+        <tr><td><code>CAPACITYLENS_CORS_ORIGIN</code></td><td>local dev origins</td><td>Allow-list (comma-sep) or <code>*</code>. Fail-closed to localhost — a same-origin deploy leaves it unset.</td></tr>
+        <tr><td><code>CAPACITYLENS_MULTI_ACCOUNT</code></td><td>off</td><td><code>1</code> lifts the single-company cap.</td></tr>
+        <tr><td><code>CAPACITYLENS_SEED_DEMO</code></td><td>off</td><td><code>1</code> seeds the two-company demo on a never-initialised DB (dev sets it; production never).</td></tr>
+        <tr><td><code>CAPACITYLENS_AUTH</code> (+ <code>BETTER_AUTH_SECRET/URL</code>, <code>CAPACITYLENS_ALLOW_OPEN_SIGNUP</code>, social/SSO sets)</td><td><code>off</code></td><td>Auth mode &amp; its secrets — page 12 has the full sub-register.</td></tr>
+        <tr><td><code>CAPACITYLENS_AUDIT</code> (+ <code>_FILE</code>, <code>_MAX_MB</code>=64)</td><td><strong>on</strong></td><td>The audit log — the one deliberate opt-<em>out</em> flag.</td></tr>
+        <tr><td><code>CAPACITYLENS_HTTPS</code></td><td>off</td><td><code>1</code> emits HSTS and marks the session cookie <code>Secure</code> — only once real HTTPS fronts the origin.</td></tr>
+        <tr><td><code>CAPACITYLENS_BOOTSTRAP_TOKEN</code></td><td>off</td><td>Shared secret for <code>POST /api/orgs</code> (constant-time compare; empty never matches).</td></tr>
+        <tr><td><code>CAPACITYLENS_ALLOW_RESET</code> / <code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION</code></td><td>off</td><td>The two explicit escapes: the E2E reset route (blocked in prod by the boot guard) and the production auth-off override (downgrades refusal to warning).</td></tr>
+        <tr><td><code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code> · <code>CAPACITYLENS_LOG</code> · <code>CAPACITYLENS_HEALTH_DEEP</code> · <code>CAPACITYLENS_RATE_LIMIT</code></td><td>off</td><td>Stale-write 409s / request logging / deep health / rate limit.</td></tr>
         <tr><td><code>CAPACITYLENS_BACKUP_DIR</code> (+ <code>_INTERVAL_MIN</code>=60, <code>_KEEP</code>=48)</td><td>off</td><td>Periodic online snapshots.</td></tr>
-        <tr><td><code>CAPACITYLENS_AUTH</code> (+ <code>BETTER_AUTH_*</code>, <code>CAPACITYLENS_SSO_*</code>)</td><td><code>off</code></td><td>Auth mode &amp; its required secrets.</td></tr>
       </tbody>
     </table>
+    <p>Every var is documented with its default in <code>.env.example</code> — keep that file in the same
+    commit as any new flag. Page 10 carries the deployment-level register (including the client-side
+    <code>VITE_*</code> vars).</p>
 
     <h2 id="http">HTTP status &amp; error conventions</h2>
     <table>
       <thead><tr><th>Code</th><th>When</th></tr></thead>
       <tbody>
         <tr><td>201 / 200 / 204</td><td>Create / update-read / delete (delete is idempotent — deleting a missing row is also 204).</td></tr>
-        <tr><td>400</td><td>Validation, missing/empty id, bad FK, missing required param, bad op shape, SQLite <code>/constraint failed/i</code>.</td></tr>
-        <tr><td>401 / 403</td><td>Auth required (on modes, no session) / reset disabled.</td></tr>
-        <tr><td>404 / 409</td><td>Unknown entity or missing row, cross-account delete / <code>accountId</code> immutability or stale overwrite.</td></tr>
-        <tr><td>413 / 429 / 503</td><td>Body too large / rate limited / DB read failed (deep health).</td></tr>
+        <tr><td>400</td><td>Validation, missing/empty id, bad FK, missing required param (incl. the auth-on no-arg <code>/api/state</code> read), null body, bad op shape, SQLite <code>/constraint failed/i</code>, a frozen-field change via batch.</td></tr>
+        <tr><td>401</td><td>No session in an auth-on deployment (the root <code>requireUser</code> wall — every <code>/api/*</code> except health and the auth machinery).</td></tr>
+        <tr><td>403</td><td>Authorization denials: non-member or insufficient role (<code>{ error: 'Forbidden.' }</code>), the single-company cap, purge-tier gates, reset disabled, a preauth invite redeemed by the wrong/unverified email.</td></tr>
+        <tr><td>404 / 409 / 410</td><td>Unknown entity/row or cross-account delete · <code>accountId</code> immutability, frozen-field change (per-route), stale overwrite, used invite, delete-before-archive · expired invite.</td></tr>
+        <tr><td>413 / 429 / 503</td><td>Body too large / rate limited / DB read failed (deep health) <em>or the auth backend failed</em> — a thrown session verify is 503, never treated as "no session".</td></tr>
       </tbody>
     </table>
     <div class="callout rule">
@@ -259,7 +326,7 @@
 
     <div class="pager">
       <a href="06-ui-conventions.html"><span class="dir">Previous</span>← 06 · UI &amp; components</a>
-      <a class="next" href="08-testing.html"><span class="dir">Next</span>08 · Testing &amp; the gate →</a>
+      <a class="next" href="12-auth-and-access.html"><span class="dir">Next</span>12 · Auth &amp; access control →</a>
     </div>
   </main>
 </div>

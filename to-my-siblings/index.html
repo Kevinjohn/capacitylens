@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -46,18 +47,33 @@
       <span class="label">What these repos share</span>
       <p>
         CapacityLens and its siblings are all the <strong>same machine re-skinned for a new domain</strong>: a
-        local-first, browser-based scheduler with a pure domain core, an optional SQLite server behind one
-        seam, multi-tenancy by account, and a relentless testing gate. The <em>domain</em> changes
-        (people&times;allocations vs. shifts vs. deliverables); the <em>architecture, conventions, and
-        process do not</em>. This handbook is the part that does not change.
+        browser SPA over a pure domain core, <strong>server-backed by default</strong> (a Node +
+        <code>node:sqlite</code> API behind one persistence seam, with an in-browser <code>localStorage</code>
+        build as an explicit demo opt-in), opt-in session auth behind one adapter port, multi-tenancy by
+        account, and a relentless testing gate. The <em>domain</em> changes (people&times;allocations vs.
+        shifts vs. deliverables); the <em>architecture, conventions, and process do not</em>. This handbook is
+        the part that does not change.
+      </p>
+    </div>
+
+    <div class="callout warn">
+      <span class="label">Updated for the open-source posture (2026-07)</span>
+      <p>
+        This edition reflects the big inversions since the first edition: persistence flipped from
+        local-first to <strong>server-backed by default</strong>; a real auth &amp; access-control layer
+        (Better&nbsp;Auth, roles, invites, audit) landed behind seams that keep the auth-off deploy
+        byte-identical; deployments default to <strong>one company per instance</strong>; the UI adopted
+        shadcn/ui + Tailwind and passed a <strong>WCAG&nbsp;2.2&nbsp;AA</strong> sweep; and strings compile
+        through Paraglide so a missing key fails the build. Where a rule inverted, the old rule is called
+        out so a sibling mid-migration knows which side of history it is on.
       </p>
     </div>
 
     <h2>How to use this handbook</h2>
     <p>
-      Each page is self-contained but they build on each other. Pages 01–02 orient you. Pages 03–07 are the
-      build: architecture down through every layer. Pages 08–10 are how we keep it correct and ship it. Page
-      11 is the cheat-sheet you will keep returning to.
+      Each page is self-contained but they build on each other. Pages 01–02 orient you. Pages 03–07 and 12
+      are the build: architecture down through every layer, then the server and its auth/access layer. Pages
+      08–10 are how we keep it correct and ship it. Page 11 is the cheat-sheet you will keep returning to.
     </p>
     <p>Throughout, four kinds of callout flag what matters most:</p>
     <div class="callout rule"><span class="label">Load-bearing rule</span><p>A decision the code depends on. Copy it verbatim into the sibling. Breaking it breaks an invariant.</p></div>
@@ -65,34 +81,37 @@
     <div class="callout do"><span class="label">Do this</span><p>The positive pattern to follow.</p></div>
     <div class="callout dont"><span class="label">Don't</span><p>An anti-pattern that was considered and rejected, or a footgun that has bitten this codebase before.</p></div>
 
-    <h2>The ten ideas everything else follows from</h2>
+    <h2>The twelve ideas everything else follows from</h2>
     <p>If you internalise nothing else, internalise these. Every page is an elaboration of one of them.</p>
     <ol>
       <li><strong>Be deliberately small.</strong> One product solves one problem well. Non-goals are written down and defended. New scope is rejected by default.</li>
-      <li><strong>Local-first, server-optional, one seam.</strong> The app runs with zero backend on <code>localStorage</code>; an optional server drops in behind a single <code>PersistenceAdapter</code> interface and <em>nothing else changes</em>.</li>
+      <li><strong>Server-backed by default, one seam, demo opt-in.</strong> An empty env means the same-origin SQLite server (<code>/api</code>); <code>VITE_CAPACITYLENS_API</code> overrides the origin; <code>VITE_CAPACITYLENS_DEMO=1</code> is the <em>only</em> route to the in-browser <code>localStorage</code> build. Both are implementations of a single <code>PersistenceAdapter</code> interface and <em>nothing else knows which is active</em>.</li>
       <li><strong>One source of truth, shared so it can't drift.</strong> A pure domain core (<code>@capacitylens/shared</code>) is imported by both client and server. Server validation <em>is</em> client validation — the same code, not a re-implementation.</li>
       <li><strong>Forms reject; import and server repair.</strong> The same rule has two enforcement modes: a person fixes their mistake at a form; a machine import or a direct API write strips/repairs/drops instead.</li>
       <li><strong>Extending an entity is drift-proofed.</strong> Most parallel lists are exhaustiveness-checked against the types, so a new field that misses one <em>fails the build</em>; the FK map only type-checks its values, so a missed FK field is caught by the round-trip fixtures instead of silently dropping.</li>
-      <li><strong>Multi-tenant by account, through one seam.</strong> Every entity carries an <code>accountId</code>; the active account is chosen on load and <em>never persisted</em>; all scoped reads go through one hook.</li>
+      <li><strong>Multi-tenant schema, single-company deployments.</strong> Every entity carries an <code>accountId</code>; the active account is chosen on load and <em>never persisted</em>; all scoped reads go through one hook. But a self-hosted instance serves <em>one</em> company by default — creating a second is refused unless <code>CAPACITYLENS_MULTI_ACCOUNT=1</code>.</li>
+      <li><strong>Auth is a seam, and OFF is a guarantee.</strong> Better&nbsp;Auth sits behind a one-method <code>AuthAdapter</code> port; roles flow through one pure <code>can(role, action)</code>; control tables (members, invites) are structurally excluded from app data. <code>CAPACITYLENS_AUTH</code> unset means byte-for-byte the trusted-local behaviour — no auth tables, no login UI.</li>
       <li><strong>Device-global vs. account data are separate.</strong> Theme, display toggles, sidebar state live in their own <code>localStorage</code> keys, never in the exported dataset.</li>
-      <li><strong>Two oracles beyond "tests pass".</strong> Screenshots are the visual oracle; <code>axe</code> is the accessibility oracle. Role/DOM assertions prove behaviour, not appearance.</li>
-      <li><strong>Every behavioural change ships behind a flag, default OFF.</strong> Unset flag = byte-for-byte today's behaviour. Flag parsing is fail-closed.</li>
+      <li><strong>Two oracles beyond "tests pass".</strong> Screenshots are the visual oracle; <code>axe</code> is the accessibility oracle (WCAG 2.2 AA is a gate, not an aspiration). Role/DOM assertions prove behaviour, not appearance.</li>
+      <li><strong>Every behavioural change ships behind a flag, default OFF.</strong> Unset flag = byte-for-byte today's behaviour. Flag parsing is fail-closed. The few deliberate exceptions (safety interlocks, the on-by-default audit log) are named and justified in the flag register.</li>
+      <li><strong>Strings compile; a missing key fails the build.</strong> i18n is Paraglide (inlang): messages are typed functions compiled from <code>messages/&lt;locale&gt;.json</code>, so a removed or typo'd key is a <code>tsc</code> error, never a runtime miss.</li>
       <li><strong>Decisions are documentation.</strong> A slim present-tense digest of standing calls, an append-only dated log, open questions flagged not silently resolved, and manual user stories kept 1:1 with the E2E suite.</li>
     </ol>
 
     <h2>The pages</h2>
     <div class="cardgrid">
-      <a class="card" href="01-principles.html"><div class="knum">01</div><div class="ktitle">Principles &amp; the why</div><p class="kdesc">The foundational decisions and the reasoning behind each — scope discipline, local-first, no-drift, repair-don't-reject, flags-off, surface-never-swallow.</p></a>
-      <a class="card" href="02-repo-and-tooling.html"><div class="knum">02</div><div class="ktitle">Repository &amp; tooling</div><p class="kdesc">Monorepo layout, npm workspaces, every config file, Node pinning, scripts, and the green gate, exactly.</p></a>
-      <a class="card" href="03-architecture.html"><div class="knum">03</div><div class="ktitle">Architecture</div><p class="kdesc">The layered design, the data model, the persistence seam, multi-tenancy, and the entity-extension path.</p></a>
-      <a class="card" href="04-domain-core.html"><div class="knum">04</div><div class="ktitle">Domain core</div><p class="kdesc"><code>@capacitylens/shared</code> in depth: types, validation, integrity, cascade, import-remap, migrate, seed, drift-proofing.</p></a>
-      <a class="card" href="05-state-and-persistence.html"><div class="knum">05</div><div class="ktitle">State &amp; persistence</div><p class="kdesc">The Zustand orchestrator, undo/redo, the adapter seam, server sync via diffing, and the bootstrap.</p></a>
-      <a class="card" href="06-ui-conventions.html"><div class="knum">06</div><div class="ktitle">UI &amp; components</div><p class="kdesc">Folder layout, the primitive kit, the canonical form &amp; list, styling tokens, and accessibility conventions.</p></a>
-      <a class="card" href="07-server.html"><div class="knum">07</div><div class="ktitle">Optional server</div><p class="kdesc">Fastify + <code>node:sqlite</code> as a thin shell over the shared core; auto-ALTER columns; the hardening flags.</p></a>
-      <a class="card" href="08-testing.html"><div class="knum">08</div><div class="ktitle">Testing &amp; the gate</div><p class="kdesc">Four layers, the two oracles, the frozen clock, the three Playwright projects, and what the gate runs.</p></a>
-      <a class="card" href="09-process-and-workflow.html"><div class="knum">09</div><div class="ktitle">Process &amp; workflow</div><p class="kdesc">The docs map, how to log a decision, REFERENCE-first, the user-story system, and the modularity rule.</p></a>
-      <a class="card" href="10-deployment-and-ops.html"><div class="knum">10</div><div class="ktitle">Deployment &amp; ops</div><p class="kdesc">The static deploy, the server cutover, the flag register, backups/restore, and the staged migration plan.</p></a>
-      <a class="card" href="11-quick-reference.html"><div class="knum">11</div><div class="ktitle">Quick reference</div><p class="kdesc">Naming tables, the comment style, anti-patterns, and a step-by-step "standardise a new sibling" checklist.</p></a>
+      <a class="card" href="01-principles.html"><div class="knum">01</div><div class="ktitle">Principles &amp; the why</div><p class="kdesc">The foundational decisions and the reasoning behind each — scope discipline, server-backed-with-a-demo-escape, no-drift, repair-don't-reject, auth-off-is-a-guarantee, flags-off, surface-never-swallow.</p></a>
+      <a class="card" href="02-repo-and-tooling.html"><div class="knum">02</div><div class="ktitle">Repository &amp; tooling</div><p class="kdesc">Monorepo layout, npm workspaces, every config file, Node 24 pinning, the full-stack dev orchestrator, Paraglide compile step, scripts, and the green gate, exactly.</p></a>
+      <a class="card" href="03-architecture.html"><div class="knum">03</div><div class="ktitle">Architecture</div><p class="kdesc">The layered design, the data model, the persistence seam and the demo/server split, the auth boundary, multi-tenancy, and the entity-extension path.</p></a>
+      <a class="card" href="04-domain-core.html"><div class="knum">04</div><div class="ktitle">Domain core</div><p class="kdesc"><code>@capacitylens/shared</code> in depth: types, validation, integrity, cascade, import-remap, migrate, seed, access &amp; lifecycle machines, drift-proofing.</p></a>
+      <a class="card" href="05-state-and-persistence.html"><div class="knum">05</div><div class="ktitle">State &amp; persistence</div><p class="kdesc">The Zustand orchestrator, undo/redo, the adapter seam, diff-sync, per-account hydration, the account-switch orchestrator, and the bootstrap.</p></a>
+      <a class="card" href="06-ui-conventions.html"><div class="knum">06</div><div class="ktitle">UI &amp; components</div><p class="kdesc">Folder layout, the shadcn/ui + Tailwind kit, the canonical form &amp; list, styling tokens, Paraglide strings, and the WCAG 2.2 AA conventions.</p></a>
+      <a class="card" href="07-server.html"><div class="knum">07</div><div class="ktitle">The server</div><p class="kdesc">Fastify + <code>node:sqlite</code> as a thin shell over the shared core; auto-ALTER columns; the tenant store; timeouts, audit log, and the hardening flags.</p></a>
+      <a class="card" href="12-auth-and-access.html"><div class="knum">12</div><div class="ktitle">Auth &amp; access control</div><p class="kdesc">Better Auth behind the <code>AuthAdapter</code> port, the OFF guarantee, roles and <code>can()</code>, memberships &amp; invites, per-account reads, viewer mode, redaction, erasure.</p></a>
+      <a class="card" href="08-testing.html"><div class="knum">08</div><div class="ktitle">Testing &amp; the gate</div><p class="kdesc">Four layers, the two oracles, the frozen clock, the Playwright project matrix (Chromium default, WebKit/Firefox opt-in), and what the gate runs.</p></a>
+      <a class="card" href="09-process-and-workflow.html"><div class="knum">09</div><div class="ktitle">Process &amp; workflow</div><p class="kdesc">The docs map, how to log a decision, REFERENCE-first, the user-story system, the no-CI stance, and the modularity rule.</p></a>
+      <a class="card" href="10-deployment-and-ops.html"><div class="knum">10</div><div class="ktitle">Deployment &amp; ops</div><p class="kdesc">The two-service Docker image, the production posture interlock, the flag register, single-company deployments, backups and the restore drill.</p></a>
+      <a class="card" href="11-quick-reference.html"><div class="knum">11</div><div class="ktitle">Quick reference</div><p class="kdesc">Naming tables, the comment style, anti-patterns, the env-var and key registers, and a step-by-step "standardise a new sibling" checklist.</p></a>
     </div>
 
     <div class="callout warn">

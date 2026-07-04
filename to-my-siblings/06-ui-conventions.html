@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html" class="active"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -36,39 +37,47 @@
       <div class="crumb"><a href="index.html">Home</a> / Build / 06</div>
       <p class="eyebrow">Build</p>
       <h1>UI &amp; components</h1>
-      <p class="lead">The component layer is thin, hand-written, and accessible by default. A small primitive
-      kit, one canonical form pattern, one canonical list pattern, a pure scheduler view-model, and a
-      token-driven design system. No component library — and that is the point.</p>
+      <p class="lead">The component layer is thin and accessible by default: a small house kit
+      (<code>common/</code>) layered over shadcn/ui primitives (<code>ui/</code>), one canonical form pattern,
+      one canonical list pattern, a pure scheduler view-model, compile-time strings, and a token-driven design
+      system that holds WCAG&nbsp;2.2&nbsp;AA in both themes. The library does the plumbing; the house kit
+      owns every behaviour that matters.</p>
     </div>
 
     <div class="toc-mini">
       <strong>On this page</strong>
       <ul>
         <li><a href="#folders">Folder organisation</a></li>
-        <li><a href="#kit">The primitive kit</a></li>
+        <li><a href="#kit">The two-layer kit</a></li>
         <li><a href="#modal">The Modal pattern</a></li>
         <li><a href="#fields">Field primitives</a></li>
+        <li><a href="#i18n">Strings (Paraglide)</a></li>
         <li><a href="#form">The canonical form</a></li>
         <li><a href="#list">The canonical list</a></li>
         <li><a href="#scheduler">The scheduler view-model</a></li>
         <li><a href="#variable-columns">Variable-width timeline columns</a></li>
         <li><a href="#styling">Styling &amp; tokens</a></li>
         <li><a href="#a11y">Accessibility</a></li>
+        <li><a href="#wcag22">The WCAG 2.2 AA conventions</a></li>
         <li><a href="#react">React/TS conventions</a></li>
       </ul>
     </div>
 
     <h2 id="folders">Folder organisation</h2>
 <pre><code>src/components/
-├── common/         <span class="c"># the shared primitive kit (the "kit")</span>
+├── common/         <span class="c"># the HOUSE kit — wraps ui/ primitives, owns the behaviours</span>
 │   ├── ui.tsx      <span class="c"># BARREL — re-exports only (no definitions)</span>
-│   ├── dialogs.tsx <span class="c"># Button, Modal, ConfirmDialog, ListPage, EmptyState</span>
+│   ├── dialogs.tsx <span class="c"># Button, Modal, ConfirmDialog, ListPage, EmptyState, AddButton, EditButton, DeleteButton</span>
 │   ├── fields.tsx  <span class="c"># TextField, NumberField, SelectField, ColorField, WeekdayPicker…</span>
-│   ├── feedback.tsx<span class="c"># Callout, FieldError, Toast</span>
+│   ├── feedback.tsx<span class="c"># Callout, FieldError (the hand-rolled Toast is RETIRED — Sonner now)</span>
 │   ├── badges.tsx  <span class="c"># Avatar, ColorSwatch, TemporaryTag</span>
+│   ├── SegmentedControl.tsx <span class="c"># pill chooser — role="radiogroup" (single-select, unlike aria-pressed toggles)</span>
 │   ├── controls.ts <span class="c"># plain style constants — NOTE: .ts, not .tsx (see below)</span>
-│   ├── Icon.tsx    <span class="c"># one Icon component + IconName union</span>
+│   ├── Icon.tsx    <span class="c"># the lucide-react adapter: IconName union, always aria-hidden + focusable="false"</span>
 │   └── ErrorBoundary.tsx
+├── ui/             <span class="c"># shadcn/ui primitives (generated, then house-edited — see the kit section)</span>
+│   ├── button.tsx  input.tsx  textarea.tsx  badge.tsx  separator.tsx
+│   ├── popover.tsx  tooltip.tsx  command.tsx   <span class="c"># Radix + cmdk, restyled to house tokens</span>
 ├── clients/        <span class="c"># ClientForm.tsx + ClientList.tsx (the per-entity pattern)</span>
 ├── resources/  disciplines/  projects/  activities/  timeoff/  accounts/  settings/
 ├── scheduler/      <span class="c"># presentational components + PURE model/math modules</span>
@@ -88,19 +97,29 @@
       re-export-only file is not itself a refresh boundary.</p>
     </div>
 
-    <h2 id="kit">The primitive kit</h2>
-    <p>Everything imports from <code>'../common/ui'</code> — never from the implementation sub-files. The
-    <code>Button</code> is the template for the whole kit: a small variant union, a class map, and safe
-    defaults.</p>
-    <div class="filename">src/components/common/dialogs.tsx</div>
+    <h2 id="kit">The two-layer kit: house <code>common/</code> over shadcn <code>ui/</code></h2>
+    <p>The kit is hybrid. <code>src/components/ui/</code> holds shadcn/ui primitives (Radix headless behaviour
+    + <code>cva</code> variants + cmdk); <code>src/components/common/</code> wraps them with the house API,
+    behaviours and tokens. App code imports from <code>'../common/ui'</code> — never from the shadcn files
+    directly. The division of labour:</p>
+    <table>
+      <thead><tr><th>Layer</th><th>Owns</th><th>Editing rule</th></tr></thead>
+      <tbody>
+        <tr><td><code>ui/</code> (shadcn)</td><td>Layout scaffolding, focus/disabled plumbing, Radix behaviour (Popover, Tooltip, Separator, Dialog primitive), cmdk.</td><td>Generated by <code>shadcn add</code>, then <em>house-edited</em>: rebind stock tokens to house tokens, delete what conflicts (e.g. the stock <code>aria-invalid</code> ring on Input, so the single house danger ring shows; the generated <code>CommandDialog</code>). Edits are committed — these files are code, not vendored artefacts.</td></tr>
+        <tr><td><code>common/</code> (house)</td><td>The public API and every behaviour that matters: variants, ARIA wiring, the dirty guard, focus restore, permission gating, testids.</td><td>This is where new UI work happens. Never let a raw shadcn component leak into a feature file.</td></tr>
+      </tbody>
+    </table>
+    <div class="filename">src/components/common/dialogs.tsx (Button essence)</div>
 <pre><code><span class="k">type</span> <span class="t">ButtonVariant</span> = 'primary' | 'ghost' | 'danger'
-<span class="k">const</span> buttonClasses: <span class="t">Record</span>&lt;<span class="t">ButtonVariant</span>, string&gt; = {
-  primary: 'bg-brand-soft text-brand-soft-ink hover:bg-brand/25 shadow-sm',
-  ghost: 'border bg-surface text-ink hover:bg-canvas',
-  danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger/25 shadow-sm',
+<span class="k">const</span> VARIANT_CLASS: <span class="t">Record</span>&lt;<span class="t">ButtonVariant</span>, string&gt; = {
+  primary: 'bg-brand-strong text-white hover:bg-brand-strong/90 shadow-xs',
+  ghost: 'border bg-surface text-ink hover:bg-canvas shadow-xs',
+  danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger-soft/80 shadow-xs',
 }
+<span class="c">// The house Button RENDERS the shadcn Button (size="sm") — shadcn does layout/focus/disabled,</span>
+<span class="c">// the house map does colour, cn() merges. Props: ariaLabel, describedById, testId, className.</span>
 <span class="k">export function</span> <span class="f">Button</span>({ children, onClick, variant = 'primary', type = 'button', ... }) {
-  <span class="k">return</span> &lt;button type={type} ... className={`... ${buttonClasses[variant]}`}&gt;{children}&lt;/button&gt;
+  <span class="k">return</span> &lt;ShadButton size="sm" type={type} ... className={cn(VARIANT_CLASS[variant], className)}&gt;{children}&lt;/ShadButton&gt;
 }</code></pre>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
@@ -108,18 +127,46 @@
       <code>type="submit"</code>. This pairs with the Modal's form wrapper so <strong>Enter submits every
       dialog</strong> while no other button accidentally submits it.</p>
     </div>
+    <div class="callout do">
+      <span class="label">List-row actions are icon-only; creates carry a leading +</span>
+      <p>Three kit members own this convention: <code>EditButton</code> (pencil, ghost) and
+      <code>DeleteButton</code> (trash, danger) for list rows — icon-only, accessible name on the
+      <em>button</em> (<code>aria-label</code> + <code>title</code>), glyph always <code>aria-hidden</code>,
+      and <strong>Viewer-gated</strong> (they render <code>null</code> when the role can't edit) — and
+      <code>AddButton</code> (<code>+</code> plus a text label) for every create affordance. Dialog footers
+      keep their text buttons. Build new list pages on these shells, not bare <code>&lt;Button&gt;Edit&lt;/Button&gt;</code>;
+      <code>getByRole('button', {name})</code> stays stable because the name never left the button.</p>
+    </div>
 
-    <h2 id="modal">The Modal pattern — every dialog is a real form</h2>
-    <p><code>Modal</code> wraps its body and footer in a <code>&lt;form noValidate&gt;</code>. The primary footer
-    button is <code>type="submit"</code>, so Enter in any field submits. The form is rendered <em>even when no
-    <code>onSubmit</code> is given</em>, to suppress implicit page navigation.</p>
+    <h2 id="modal">The Modal pattern — every dialog is a real form, portaled to body</h2>
+    <p><code>Modal</code> is built on the Radix Dialog primitive but keeps the house behaviours: it runs
+    <code>modal={false}</code> (Radix's traps are neutralised so the house owns one dismiss path), re-adds
+    <code>aria-modal="true"</code> on the content, labels via <code>DialogPrimitive.Title</code>, wraps body
+    and footer in a <code>&lt;form noValidate&gt;</code> — and the whole tree is
+    <strong><code>createPortal</code>-ed to <code>document.body</code></strong>.</p>
     <div class="filename">src/components/common/dialogs.tsx (Modal essence)</div>
-<pre><code>&lt;div role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}&gt;
-  &lt;form noValidate onSubmit={(e) =&gt; { e.preventDefault(); onSubmit?.() }}&gt;
-    &lt;div className="space-y-3 p-4"&gt;{children}&lt;/div&gt;
-    {footer &amp;&amp; &lt;footer className="flex justify-end gap-2 border-t px-4 py-3"&gt;{footer}&lt;/footer&gt;}
-  &lt;/form&gt;
-&lt;/div&gt;</code></pre>
+<pre><code>createPortal(
+  &lt;DialogPrimitive.Root open modal={false}&gt;
+    &lt;div className="backdrop"&gt;                          <span class="c">/* plain backdrop — Radix Overlay is null when non-modal */</span>
+      &lt;DialogPrimitive.Content aria-modal="true" …&gt;     <span class="c">/* house Escape/Tab-trap/focus-restore; Radix auto-handlers preventDefault-ed */</span>
+        &lt;DialogPrimitive.Title&gt;{title}&lt;/DialogPrimitive.Title&gt;
+        &lt;form noValidate onSubmit={(e) =&gt; { e.preventDefault(); onSubmit?.() }}&gt;
+          &lt;div className="space-y-3 p-4"&gt;{children}&lt;/div&gt;
+          {footer &amp;&amp; &lt;footer className="flex justify-end gap-2 border-t px-4 py-3"&gt;{footer}&lt;/footer&gt;}
+        &lt;/form&gt;
+      &lt;/DialogPrimitive.Content&gt;
+    &lt;/div&gt;
+  &lt;/DialogPrimitive.Root&gt;,
+  document.body)</code></pre>
+    <div class="callout why">
+      <span class="label">Why the portal is load-bearing (not a style choice)</span>
+      <p>A dialog opened from inside the scheduler used to render as a DOM descendant of the grid's
+      <code>role="grid"</code> — which makes the accessibility tree claim the dialog is a grid cell (axe:
+      <code>aria-required-children</code>). Portaling to <code>&lt;body&gt;</code> means a dialog is never
+      inside any composite widget's DOM. The primary footer button is <code>type="submit"</code>, so Enter in
+      any field submits; the form renders <em>even when no <code>onSubmit</code> is given</em>, to suppress
+      implicit page navigation.</p>
+    </div>
     <p>The Modal also owns three behaviours every dialog inherits for free:</p>
     <ul>
       <li><strong>Focus management.</strong> On open, focus goes to the first <code>[data-autofocus]</code> target (or first focusable). Tab wraps inside the dialog. On close, focus restores to the trigger, falling back to <code>&lt;main&gt;</code> if the trigger left the DOM.</li>
@@ -137,17 +184,21 @@
 
     <h2 id="fields">Field primitives — three visual states, ARIA wired</h2>
     <p>Every field is a <code>&lt;label&gt;</code> wrapping a <code>FieldLabel</code> (which owns the required
-    asterisk) and the native control, with ARIA threaded through. The shared <code>controlClass</code> encodes
-    three states:</p>
+    asterisk) and the control — shadcn's <code>&lt;Input&gt;</code>/<code>&lt;Textarea&gt;</code> for text, the
+    <em>native</em> <code>&lt;select&gt;</code> for selects — with ARIA threaded through. The three visual
+    states are an accent layered over a shared base:</p>
     <div class="filename">src/components/common/fields.tsx</div>
-<pre><code><span class="k">function</span> <span class="f">controlClass</span>(invalid?: boolean, required?: boolean) {
-  <span class="k">if</span> (invalid) <span class="k">return</span> `${inputClass} border-danger ring-1 ring-danger`   <span class="c">// post-Save error: pops</span>
-  <span class="k">if</span> (required) <span class="k">return</span> `${inputClass} border-l-2 border-l-danger/60`     <span class="c">// at rest: quiet red edge</span>
-  <span class="k">return</span> inputClass
+<pre><code><span class="c">// Accent-only — layered over the shared controlBase via cn(). A separate selectClass</span>
+<span class="c">// exists for the native &lt;select&gt; (it isn't a shadcn component).</span>
+<span class="k">function</span> <span class="f">fieldAccent</span>(invalid?: boolean, required?: boolean) {
+  <span class="k">if</span> (invalid) <span class="k">return</span> 'border-danger ring-1 ring-danger'    <span class="c">// post-Save error: pops</span>
+  <span class="k">if</span> (required) <span class="k">return</span> 'border-l-2 border-l-danger/60'       <span class="c">// at rest: quiet red edge</span>
+  <span class="k">return</span> ''
 }
 
 <span class="c">// aria-label is the BARE label (the asterisk is aria-hidden, so it never leaks into the name).</span>
-&lt;input aria-label={label} aria-required={required || <span class="k">undefined</span>}
+&lt;Input className={cn(controlBase, fieldAccent(invalid, required))}
+  aria-label={label} aria-required={required || <span class="k">undefined</span>}
   aria-invalid={invalid || <span class="k">undefined</span>}
   aria-describedby={invalid ? describedById : <span class="k">undefined</span>} ... /&gt;</code></pre>
     <div class="callout rule">
@@ -158,12 +209,37 @@
       directly; there is no custom listbox (OS popup misalignment is accepted for free a11y).</p>
     </div>
     <p>Colour fields use a <strong>preset swatch grid only</strong> — no free hex input — so a stored colour is
-    always a valid 6-digit hex. Weekday/toggle controls use <code>aria-pressed</code> (they are toggles, not
-    checkboxes), which also feeds the Modal's dirty guard.</p>
+    always a valid 6-digit hex (swatch buttons are 24&times;24px — the WCAG 2.2 target floor). Weekday/toggle
+    controls use <code>aria-pressed</code> (they are toggles, not checkboxes), which also feeds the Modal's
+    dirty guard. Single-select pill choosers use <code>SegmentedControl</code>
+    (<code>role="radiogroup"</code>/<code>role="radio"</code> — a different semantic from the toggles).</p>
+
+    <h2 id="i18n">Strings: every user-facing string is a compiled message</h2>
+    <p>No string literals in components — every label, aria-label, <code>title</code>, screen-reader
+    announcement and toast message is a Paraglide message function, imported from the single seam:</p>
+<pre><code><span class="k">import</span> { m } <span class="k">from</span> <span class="s">'@/i18n'</span>          <span class="c">// NEVER from '@/paraglide' directly</span>
+
+&lt;TextField label={m.form_resource_name_label()} … /&gt;
+&lt;Button type="submit"&gt;{m.form_save()}&lt;/Button&gt;</code></pre>
+    <ul>
+      <li><strong>Keys are snake_case, area-namespaced:</strong> <code>nav_*</code>, <code>settings_*</code>, <code>form_*</code> (form/dialog chrome, entity-prefixed where it clarifies), <code>dialog_*</code> (whole-dialog copy), <code>palette_*</code>, <code>scheduler_sr_*</code>. The value <em>is</em> the source English.</li>
+      <li><strong>Share a key only when it is the same string and the same action</strong> — <code>form_save</code>/<code>form_cancel</code>/<code>form_delete</code>/<code>form_add</code>/<code>form_edit</code> cover every form's buttons; anything else gets its own key.</li>
+      <li><strong>Resolve at render, never at module load.</strong> A module-scope label list uses a getter (<code>() =&gt; m.nav_schedule()</code>) so the account-scoped locale switch (<code>syncLocaleFromAccount</code>, driven by <code>Account.language</code>) re-resolves on the next render instead of freezing at import time.</li>
+      <li><strong>Interpolations are parameters</strong> (<code>m.form_allocation_new_for({name})</code>); singular/plural pairs are <code>_one</code>/<code>_other</code> keys selected in JS.</li>
+    </ul>
+    <div class="callout why">
+      <span class="label">Why this matters even in English-only</span>
+      <p>A missing or typo'd key is a <code>tsc</code> error (the messages compile to typed functions — page
+      02), so the string catalogue can never silently rot. And because <em>every</em> string — including
+      aria-labels and SR-only text — goes through the catalogue, the accessibility copy is as reviewable as
+      the visible copy. Adding a second language later is a JSON file, not a component sweep.</p>
+    </div>
 
     <h2 id="form">The canonical form</h2>
     <p>Forms are self-contained: local <code>useState</code> per field, validation on submit only (never on
-    blur/keystroke), one error at a time via <code>useFieldError</code>.</p>
+    blur/keystroke), one error at a time via <code>useFieldError</code>, all copy via <code>m</code>, and the
+    store call wrapped so an integrity throw surfaces as a field error (<code>errorMessage(e)</code> — never a
+    blank dialog).</p>
     <div class="filename">src/components/clients/ClientForm.tsx (essence)</div>
 <pre><code><span class="k">const</span> [name, setName] = useState(client?.name ?? '')
 <span class="k">const</span> [color, setColor] = useState(client?.color ?? DEFAULT_COLORS.client)
@@ -207,8 +283,8 @@
         {clients.map((c) =&gt; (
           &lt;li key={c.id} data-testid="client-row" className="flex justify-between px-3 py-2"&gt;
             &lt;span&gt;&lt;ColorSwatch color={c.color} /&gt; {c.name}&lt;/span&gt;
-            &lt;span&gt;&lt;Button variant="ghost" onClick={() =&gt; setEditing(c)}&gt;Edit&lt;/Button&gt;
-                  &lt;Button variant="danger" onClick={() =&gt; setConfirming(c)}&gt;Delete&lt;/Button&gt;&lt;/span&gt;
+            &lt;span&gt;&lt;EditButton onClick={() =&gt; setEditing(c)} /&gt;      <span class="c">{/* icon-only, viewer-gated */}</span>
+                  &lt;DeleteButton onClick={() =&gt; setConfirming(c)} /&gt;&lt;/span&gt;
           &lt;/li&gt;))}
       &lt;/ul&gt;)}
 
@@ -228,12 +304,28 @@
   <span class="k">return</span> { creating, setCreating, editing, setEditing, confirming, setConfirming }
 }</code></pre>
 
-    <h2 id="scheduler">The scheduler view-model — a pure function</h2>
-    <p>The complex screen is built by a <strong>pure function</strong> with no React: <code>buildSchedulerModel(data,
-    geom, days, utilStart, utilEnd, filters, disciplinesEnabled)</code> returns a <code>GroupModel[]</code> tree of
-    rows, bars, day-states, time-off blocks, and utilisation. It is exhaustively unit-tested in isolation
-    because it has no hooks. (<code>geom</code> is the <a href="#variable-columns">ColumnGeometry</a> below — it
-    owns every pixel conversion, so the model never multiplies by a <code>dayWidth</code> scalar.)</p>
+    <h2 id="scheduler">The scheduler view-model — a pure function, three distinct signals</h2>
+    <p>The complex screen is built by a <strong>pure function</strong> with no React:
+    <code>buildSchedulerModel</code> takes the data, the geometry, the day window, <em>two</em> date windows
+    (<code>visStart/visEnd</code> and <code>overStart/overEnd</code>), the filters and the per-account feature
+    toggles, and returns a <code>GroupModel[]</code> tree of rows, bars, day-states, time-off blocks, and
+    utilisation. It is exhaustively unit-tested in isolation because it has no hooks. (<code>geom</code> is the
+    <a href="#variable-columns">ColumnGeometry</a> below — it owns every pixel conversion, so the model never
+    multiplies by a <code>dayWidth</code> scalar.)</p>
+    <div class="callout rule">
+      <span class="label">The three over/utilisation signals — never merge them</span>
+      <p><strong>(1) The per-day over-marker</strong> flags any day where <code>allocated &gt; available</code>
+      (strictly greater — at-capacity is <em>not</em> over), whole timeline, weekend-aware: a bar merely
+      <em>spanning</em> a non-working weekend does no work there, so the weekend keeps its cool tint; the
+      zero-capacity days that <em>do</em> read as over are a time-off day a working allocation covers, and a
+      weekend an allocation opts into via <code>ignoreWeekends</code>. <strong>(2) The displayed
+      utilisation&nbsp;%</strong> (per-person, per-discipline, overall) is a working-day ratio over the
+      <em>visible</em> window — the 1/2/4/8-week zoom span anchored at the scroll left edge, recomputed
+      day-quantized on zoom/pan (the left-edge day index, never per scroll pixel). <strong>(3) The
+      <code>overSoon</code> flag</strong> is a working-day ratio over a <em>fixed</em> forward 14-day window
+      from today (<code>UTILIZATION_WINDOW_DAYS</code>), zoom-independent. Three questions, three windows,
+      three code paths — <code>SchedulerGrid</code> threads both windows into the model separately.</p>
+    </div>
     <div class="callout why">
       <span class="label">Why the view-model is separated from rendering</span>
       <p>Two payoffs. <strong>Testability:</strong> all the layout/capacity/filter logic is a pure function you
@@ -373,16 +465,24 @@
     (<code>bg-surface</code>, <code>text-ink</code>, <code>text-muted</code>, <code>border-line</code>) —
     <em>never</em> Tailwind scale names like <code>text-gray-500</code>.</p>
     <div class="filename">src/index.css (the token system)</div>
-<pre><code>@theme {
+<pre><code>@custom-variant dark (&amp;:is([data-theme="dark"] *));   <span class="c">/* shadcn `dark:` utilities track the house attribute */</span>
+
+@theme {
   --color-canvas: var(--c-base);     <span class="c">/* page bg — named `canvas` not `base` on purpose:</span>
   --color-surface: var(--c-surface); <span class="c">   --color-base would shadow Tailwind's text-base size util */</span>
   --color-ink: var(--c-ink);  --color-muted: var(--c-muted);  --color-faint: var(--c-faint);
-  --color-brand: var(--c-brand);  --color-danger: var(--c-danger);  /* …soft + soft-ink pairs… */
+  --color-brand: var(--c-brand);  --color-brand-strong: var(--c-brand-strong);
+  --color-danger: var(--c-danger);  --color-danger-cell: var(--c-danger-cell);  <span class="c">/* the over-day fill */</span>
+  --color-weekend: var(--c-weekend);  <span class="c">/* the non-working-day band — its OWN token, never the canvas */</span>
+  --color-line-soft: …;  --color-line-faint: …;  --color-ok: …;  /* …soft + soft-ink pairs… */
   --text-2xs: 0.6875rem;             <span class="c">/* one deliberate 11px size for dense labels */</span>
   --shadow-pop: 0 10px 30px -10px rgb(0 0 0 / 0.3);
 }
-:root { --c-base: #f4f5f8; --c-ink: #1c2230; --c-brand: #6366f1; /* …light palette… */ color-scheme: light; }
-:root[data-theme="dark"] { --c-base: #0e1016; --c-ink: #e7eaf0; --c-brand: #818cf8; /* … */ color-scheme: dark; }</code></pre>
+:root { --c-base: #f4f5f8; --c-ink: #1c2230; --c-brand: #6366f1;
+  --c-focus-ink: #1c2230; --c-focus-halo: #ffffff;   <span class="c">/* the dual-tone focus pair (see WCAG section) */</span>
+  /* …light palette + the shadcn stock set (--background, --primary, --ring, …) remapped to house values… */
+  color-scheme: light; }
+:root[data-theme="dark"] { --c-base: #0e1016; --c-ink: #e7eaf0; --c-brand: #818cf8; /* …dark twins of BOTH sets… */ color-scheme: dark; }</code></pre>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>Dark mode is <strong>one attribute swap</strong> (<code>data-theme="dark"</code> on <code>&lt;html&gt;</code>),
@@ -391,9 +491,13 @@
       colour value is tuned to clear WCAG AA in both themes (the comments record the contrast adjustments).</p>
     </div>
     <p>Other token-level decisions: a global <code>:focus-visible</code> ring on all interactives; preset
-    swatch palette only; two custom keyframes (<code>capacitylens-pop</code>, <code>capacitylens-fade</code>) for
-    modal/toast entrances; and a global <code>prefers-reduced-motion</code> block that nulls all animation. The
-    metric is always called <strong>"Utilisation", never "Load"</strong> — in labels, store keys
+    swatch palette only; two custom keyframes (<code>capacitylens-pop</code> for Modal/Popover/palette
+    entrances, <code>capacitylens-fade</code> for the Modal backdrop — Sonner animates its own toasts); and a
+    global <code>prefers-reduced-motion</code> block that nulls all animation. The four schedule status
+    signals keep <strong>distinct colour families</strong> so none reads as another: over-capacity = saturated
+    rose (<code>bg-danger-cell</code> — the cell is empty, so no text-contrast bound applies), weekend =
+    the cool recessed <code>--c-weekend</code> band, today = brand, time-off = amber hatch. The metric is
+    always called <strong>"Utilisation", never "Load"</strong> — in labels, store keys
     (<code>utilizationPrefs</code>), and identifiers.</p>
 
     <h2 id="a11y">Accessibility conventions</h2>
@@ -404,12 +508,12 @@
         <tr><td>Active nav</td><td>React Router <code>NavLink</code> → automatic <code>aria-current="page"</code>.</td></tr>
         <tr><td>Toggles</td><td><code>aria-pressed</code> (weekday picker, swatches) — not <code>aria-checked</code>; they're buttons, not checkboxes.</td></tr>
         <tr><td>Command palette</td><td>Full combobox/listbox: <code>role="combobox"</code> + <code>aria-expanded</code>/<code>aria-controls</code>/<code>aria-activedescendant</code>; <code>role="listbox"</code> + <code>role="option"</code> + <code>aria-selected</code>.</td></tr>
-        <tr><td>Dialogs</td><td><code>role="dialog"</code> + <code>aria-modal</code> + <code>aria-labelledby</code>; manual Tab-trap; focus restore.</td></tr>
+        <tr><td>Dialogs</td><td>Radix Dialog + portal to <code>&lt;body&gt;</code>; <code>aria-modal</code> re-added; labelled by <code>DialogPrimitive.Title</code>; house Tab-trap + focus restore (Radix's own traps neutralised).</td></tr>
         <tr><td>Decorative elements</td><td>Icons, avatars, hatch patterns, drag grips, the required asterisk → <code>aria-hidden</code> (+ <code>focusable="false"</code> on SVGs).</td></tr>
         <tr><td>Field errors</td><td><code>role="alert"</code> on the message; field's <code>aria-describedby</code> points at it when invalid.</td></tr>
         <tr><td>Skip link</td><td><code>sr-only focus:not-sr-only</code> "Skip to content" → <code>&lt;main id="main" tabIndex={-1}&gt;</code>.</td></tr>
         <tr><td>Bars</td><td>Operable by keyboard: <code>role="button" tabIndex={0}</code> with an <code>aria-label</code> that announces both data <em>and</em> affordances (Enter to edit, arrows to move, etc.).</td></tr>
-        <tr><td>Toasts</td><td><code>role="alert"</code> (error) vs <code>role="status"</code> (info).</td></tr>
+        <tr><td>Toasts</td><td>Sonner-rendered from the store's <code>setNotice</code> bridge; tone drives persistence (page 05); <code>richColors</code> off for AA — the danger accent is a house <code>.toast-error</code> style.</td></tr>
       </tbody>
     </table>
     <div class="callout do">
@@ -418,6 +522,30 @@
       <code>aria-hidden</code> + <code>tabIndex={-1}</code>, and the single labelled Collapse/Expand toggle is
       the only accessible control. When a decorative affordance overlaps a real one, hide the decoy from
       assistive tech and leave exactly one labelled path.</p>
+    </div>
+
+    <h2 id="wcag22">The WCAG 2.2 AA conventions (v0.13.0) — replicate all of these</h2>
+    <p>A dedicated WCAG 2.2 AA pass hardened the app beyond what axe alone checks. Each convention below is
+    load-bearing for a sibling — they are cheap to copy and expensive to rediscover:</p>
+    <table>
+      <thead><tr><th>Criterion</th><th>Convention</th><th>Where</th></tr></thead>
+      <tbody>
+        <tr><td>2.4.2 Page titled</td><td>A per-route <code>document.title</code> — <code>"&lt;route label&gt; · &lt;APP_NAME&gt;"</code> — derived from the nav's own <code>LINKS</code> table (one source for label + title), recomputed on route and language change. Routes outside the shell (the invite page) title themselves.</td><td><code>AppShell</code></td></tr>
+        <tr><td>1.3.1 Info &amp; relationships</td><td>The scheduler grid is a self-consistent 2-column ARIA table: <code>role="grid" aria-colcount={2} aria-rowcount</code>, each row a <code>rowheader</code> (the person) + one <code>gridcell</code> (the timeline, accessibly named "&lt;name&gt; timeline"), a <code>columnheader</code> row, <code>rowgroup</code>s, and per-row sr-only capacity summaries. The visual grid is a timeline; the semantic grid is honest about being 2 columns.</td><td><code>SchedulerGrid</code></td></tr>
+        <tr><td>4.1.3 Status messages</td><td>Keyboard edits announce capacity changes via a polite live region that is a <em>sibling</em> of the grid (never inside a composite widget), keyed on a sequence number so identical text re-announces.</td><td><code>SchedulerGrid</code> + <code>announceCapacity</code></td></tr>
+        <tr><td>1.4.11 Non-text contrast</td><td>The scheduler bars' focus indicator is a <strong>dual-tone ring</strong> — a fixed dark ink + white halo pair (<code>--c-focus-ink</code>/<code>--c-focus-halo</code>) that clears 3:1 against any bar colour in either theme; the brand outline is identity only. The pair is pinned by a unit test.</td><td><code>index.css</code>, <code>color.test.ts</code></td></tr>
+        <tr><td>1.4.10 Reflow</td><td>Toolbar rows <code>flex-wrap</code> so chrome stacks at 320px instead of scrolling horizontally; verified by a dedicated E2E at 320px width.</td><td><code>SchedulerToolbar</code></td></tr>
+        <tr><td>2.4.11 Focus not obscured</td><td>Sticky chrome must not cover the focused element; verified by a dedicated E2E.</td><td>e2e <code>a11y.spec.ts</code></td></tr>
+        <tr><td>2.5.8 Target size</td><td>All controls ≥ 24&times;24px — swatches, weekday chips, icon buttons.</td><td>kit-wide</td></tr>
+        <tr><td>2.2.1 Timing adjustable</td><td>A message explaining a data change (the clamped-hours advisory) persists until dismissed — never a timed toast.</td><td>the notice tones (page 05)</td></tr>
+        <tr><td>1.4.3 Contrast</td><td>The faint/muted tokens are AA-verified in both themes (<code>--c-faint</code> ≥ 4.5:1), including the pre-hydration loader wordmark in <code>index.html</code>.</td><td><code>index.css</code>, <code>index.html</code></td></tr>
+      </tbody>
+    </table>
+    <div class="callout do">
+      <span class="label">Do this in a sibling</span>
+      <p>Copy the conventions, then copy their <em>oracles</em>: the axe suite covers light + dark + modals,
+      and the non-axe criteria (reflow, focus-not-obscured) get their own E2E tests. A convention without a
+      test regresses on the next redesign.</p>
     </div>
 
     <h2 id="react">React/TS conventions</h2>
@@ -431,7 +559,7 @@
 
     <div class="pager">
       <a href="05-state-and-persistence.html"><span class="dir">Previous</span>← 05 · State &amp; persistence</a>
-      <a class="next" href="07-server.html"><span class="dir">Next</span>07 · Optional server →</a>
+      <a class="next" href="07-server.html"><span class="dir">Next</span>07 · The server →</a>
     </div>
   </main>
 </div>

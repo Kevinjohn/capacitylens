@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -37,14 +38,16 @@
       <p class="eyebrow">Build</p>
       <h1>Architecture</h1>
       <p class="lead">How the pieces fit and which way dependencies point. The whole system is a set of
-      concentric layers around a pure core, with exactly one seam to the outside world. Get the layering and
-      the seam right and everything else has an obvious home.</p>
+      concentric layers around a pure core, with exactly one seam to persistence and one port to auth. Get the
+      layering and the seams right and everything else has an obvious home.</p>
     </div>
 
     <div class="toc-mini">
       <strong>On this page</strong>
       <ul>
         <li><a href="#layers">The layers</a></li>
+        <li><a href="#modes">The two builds (server / demo)</a></li>
+        <li><a href="#boot">The runtime gate chain</a></li>
         <li><a href="#dirrule">The dependency rule</a></li>
         <li><a href="#model">The data model</a></li>
         <li><a href="#seam">The persistence seam</a></li>
@@ -56,12 +59,17 @@
 
     <h2 id="layers">The layers, in one diagram</h2>
     <p>"<code>shared/</code> is a pure domain core imported by both app and server so they can't drift; the
-    store is the orchestrator; the scheduler builds a view-model; persistence is local-first behind one
-    adapter, with the server dropping in behind that same seam." That sentence is the architecture. Here it is
-    as a picture:</p>
+    store is the orchestrator; the scheduler builds a view-model; persistence is server-backed by default
+    behind one adapter, with the localStorage demo build behind that same seam; auth wraps the whole app
+    through one provider and is inert when off." That sentence is the architecture. Here it is as a picture:</p>
 <pre><code>          ┌─────────────────────────────────────────────────────────────┐
-          │  React components  (src/components, src/hooks)                │
-          │  per-entity forms+lists · common/ kit · scheduler/ view      │
+          │  AuthProvider  (src/auth) — asks GET /api/auth/me once       │
+          │  authMode 'off' → pass-through · 401 → LoginScreen           │
+          └───────────────┬─────────────────────────────────────────────┘
+          ┌───────────────▼─────────────────────────────────────────────┐
+          │  React components  (src/components, src/hooks)               │
+          │  AppShell gate chain · per-entity forms+lists · common/ +    │
+          │  ui/ (shadcn) kit · scheduler/ view · PermissionProvider     │
           └───────────────┬─────────────────────────────────────────────┘
                           │ reads via useScopedData()    writes via actions
           ┌───────────────▼─────────────────────────────────────────────┐
@@ -71,19 +79,56 @@
           └───────────────┬─────────────────────────────────────────────┘
                           │ every mutation calls into ↓
           ┌───────────────▼─────────────────────────────────────────────┐
-          │  @capacitylens/shared — PURE DOMAIN CORE  (no DOM/React)           │
+          │  @capacitylens/shared — PURE DOMAIN CORE  (no DOM/React)     │
           │  types · lib (id,strings,dateMath,color,integrity,sanitize)  │
-          │  data (migrate,seed,transfer,fixtures) · domain (mutations,  │
-          │  tenancy)        ── imported UNCHANGED by the server ──┐     │
+          │  data (migrate,seed,transfer,fixtures,internalClient)        │
+          │  domain (mutations,tenancy,access,lifecycle) · brand         │
+          │                  ── imported UNCHANGED by the server ──┐     │
           └───────────────┬───────────────────────────────────────┼─────┘
                           │ store subscribes; diff/serialize       │
           ┌───────────────▼──────────────────┐                    │
           │  PersistenceAdapter  (ONE seam)   │                    │
-          │  ┌────────────────┐ ┌───────────┐ │     ┌──────────────▼─────────────┐
-          │  │LocalStorage    │ │ServerSync │─┼────▶│ capacitylens-server (optional)   │
-          │  │Adapter (default)│ │Adapter    │ │HTTP │ Fastify + node:sqlite      │
-          │  └────────────────┘ └───────────┘ │     │ thin shell over shared core│
-          └───────────────────────────────────┘     └────────────────────────────┘</code></pre>
+          │  ┌───────────┐ ┌────────────────┐ │     ┌──────────────▼─────────────┐
+          │  │ServerSync │ │LocalStorage    │ │HTTP │ capacitylens-server        │
+          │  │(DEFAULT)  │─┼─Adapter (demo)─┼─┼────▶│ Fastify + node:sqlite      │
+          │  └───────────┘ └────────────────┘ │     │ + Better Auth (opt-in)     │
+          └───────────────────────────────────┘     │ thin shell over shared core│
+                                                    └────────────────────────────┘</code></pre>
+
+    <h2 id="modes">The two builds: server (default) and demo (opt-in)</h2>
+    <p>One env flag decides which side of the persistence seam a build lives on, and it cascades through four
+    behaviours. This is the single most important fact about the current architecture:</p>
+    <table>
+      <thead><tr><th></th><th>Server build (the default — empty env)</th><th>Demo build (<code>VITE_CAPACITYLENS_DEMO=1</code>)</th></tr></thead>
+      <tbody>
+        <tr><td>Adapter</td><td><code>ServerSyncAdapter</code> against <code>${API_BASE}/api</code>; empty <code>VITE_CAPACITYLENS_API</code> = same origin</td><td><code>LocalStorageAdapter</code> (key <code>capacitylens/v3</code>)</td></tr>
+        <tr><td>First run</td><td><strong>Empty</strong> — lands on the create-your-company picker (the server seeds only under <code>CAPACITYLENS_SEED_DEMO=1</code>, which <code>npm run dev</code> sets)</td><td>Self-seeds the demo dataset (<code>seedIfEmpty: isDemoMode() ? seed() : undefined</code>)</td></tr>
+        <tr><td>Auth</td><td><code>AuthProvider</code> asks <code>/api/auth/me</code>; the server's <code>authMode</code> decides</td><td>Zero-fetch pass-through; the cosmetic fake sign-in may gate instead</td></tr>
+        <tr><td>Tenant switch</td><td>The switch orchestrator re-hydrates the picked account's slice (page 05)</td><td>Inert — all accounts are in the one local blob</td></tr>
+      </tbody>
+    </table>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>The decision is <code>isDemoMode()</code> — <code>import.meta.env.VITE_CAPACITYLENS_DEMO === '1'</code>
+      — and nothing else. An empty <code>VITE_CAPACITYLENS_API</code> is still server mode (same-origin), and
+      a server build with no reachable backend shows a "can't reach the server" screen; it does <strong>not</strong>
+      silently fall back to localStorage. A silent fallback would look like data loss the moment the server
+      came back. Keep the two builds' naming straight: the <em>persistence</em> demo (localStorage) is a
+      different axis from the <em>auth</em> demo (the cosmetic fake sign-in screen).</p>
+    </div>
+
+    <h2 id="boot">The runtime gate chain</h2>
+    <p>Above the router, the app is a fixed sequence of gates; each renders a whole-screen state and the order
+    is deliberate (failure states first, identity next, tenancy last):</p>
+    <ol>
+      <li><strong><code>AuthProvider</code></strong> (in <code>main.tsx</code>, outside the router) — one boot-time <code>GET /api/auth/me</code>. <code>authMode 'off'</code> passes through; a 401 swaps in the lazy <code>LoginScreen</code>. It re-checks when a later write hits <code>persistError</code>, so an expired session walls the app off instead of failing writes silently.</li>
+      <li><strong><code>connectionError</code></strong> → <code>ConnectionError</code> (server unreachable; retry).</li>
+      <li><strong><code>loadError</code></strong> → <code>StorageRecovery</code> (corrupt local bytes; reset/import/export). Two different failures, two different screens — never one generic error page.</li>
+      <li><strong>Fake sign-in</strong> (demo polish, auth-off only) → the cosmetic "Choose an account" screen. Never mounts when real auth is on.</li>
+      <li><strong>Tenant gate</strong> → <code>AccountPicker</code> (pick or create a company; "New company" hides at the single-company cap).</li>
+      <li><strong>One-time intro</strong> → <code>IntroPage</code> (device-global <code>capacitylens/introSeen</code>).</li>
+      <li><strong><code>PermissionProvider</code></strong> wraps the app body — resolves the caller's role for the active account and drives the Viewer read-only affordances (page 12).</li>
+    </ol>
 
     <h2 id="dirrule">The dependency rule</h2>
     <p>Dependencies point <strong>inward</strong>. The core depends on nothing; everything depends on the
@@ -93,9 +138,11 @@
 lib/     →  pure per-record / generic utilities (id, strings, dates, colour,
             integrity, sanitize, scheduling-days) — may import types/
    ↑
-data/    →  whole-dataset lifecycle (migrate, seed, transfer, fixtures) — imports types/ + lib/
+data/    →  whole-dataset lifecycle (migrate, seed, transfer, fixtures,
+            internalClient) — imports types/ + lib/
    ↑
-domain/  →  whole-AppData mutations + the tenancy predicate — imports all of the above</code></pre>
+domain/  →  whole-AppData mutations + tenancy + the pure access matrix (can) +
+            the lifecycle state machine — imports all of the above</code></pre>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>The core never imports <em>up</em> the stack and never imports an environment API. If a function in
@@ -106,16 +153,18 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
     </div>
     <div class="callout do">
       <span class="label">Where does new code go?</span>
-      <p><strong>A rule about the data</strong> (validation, integrity, a derived value the server also needs)
-      → <code>shared/</code>. <strong>A browser-only utility</strong> (theme, fuzzy search, palette
-      generation, drag math, capacity display) → <code>src/lib</code>. <strong>State transition / id minting /
-      undo</strong> → the store. <strong>Pixels &amp; ARIA</strong> → a component. When in doubt, push the
+      <p><strong>A rule about the data</strong> (validation, integrity, a derived value the server also needs,
+      a permission) → <code>shared/</code>. <strong>A browser-only utility</strong> (theme, fuzzy search,
+      palette generation, drag math, capacity display) → <code>src/lib</code>. <strong>State transition / id
+      minting / undo</strong> → the store. <strong>Session verification / control tables</strong> → the server
+      behind their ports (page 12). <strong>Pixels &amp; ARIA</strong> → a component. When in doubt, push the
       logic <em>down</em> toward the core and keep components thin.</p>
     </div>
 
     <h2 id="model">The data model</h2>
     <p>The single source of truth is a normalised, in-memory tree: <code>AppData</code>, a bag of arrays, one
-    per entity table. Two base interfaces establish the universal fields.</p>
+    per entity table — nine tables: <code>accounts</code> plus eight scoped. Two base interfaces establish the
+    universal fields.</p>
     <div class="filename">shared/src/types/entities.ts (the bases)</div>
 <pre><code><span class="c">/** Fields every persisted entity carries — cheap now, impossible to backfill later. */</span>
 <span class="k">export interface</span> <span class="t">Entity</span> {
@@ -141,20 +190,23 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
     <table>
       <thead><tr><th>Entity</th><th>Scoped?</th><th>Key relationships</th></tr></thead>
       <tbody>
-        <tr><td><code>Account</code></td><td>No (it <em>is</em> the tenant)</td><td>Holds team-wide calendar config (<code>timezone</code>, <code>weekStartsOn</code>) + <code>schedulingMode</code>.</td></tr>
+        <tr><td><code>Account</code></td><td>No (it <em>is</em> the tenant)</td><td>Holds the team-wide config: calendar (<code>timezone</code>, <code>weekStartsOn</code> — frozen after creation), <code>schedulingMode</code>, <code>language</code>, and the feature toggles <code>disciplinesEnabled</code> / <code>placeholdersEnabled</code> / <code>externalEnabled</code>.</td></tr>
         <tr><td><code>Discipline</code></td><td>Yes</td><td>Groups resources; has a <code>sortOrder</code>.</td></tr>
-        <tr><td><code>Resource</code></td><td>Yes</td><td>A person or a project-bound placeholder; optional <code>disciplineId</code>.</td></tr>
-        <tr><td><code>Client</code></td><td>Yes</td><td>Groups projects.</td></tr>
-        <tr><td><code>Project</code></td><td>Yes</td><td><strong>Required</strong> <code>clientId</code>.</td></tr>
+        <tr><td><code>Resource</code></td><td>Yes</td><td><code>kind: 'person' | 'placeholder' | 'external'</code> — a person, a project-bound placeholder, or an outsourced third party (no capacity, zero-load allocations only). Optional <code>disciplineId</code>. Carries lifecycle fields.</td></tr>
+        <tr><td><code>Client</code></td><td>Yes</td><td>Groups projects. One per account is the <strong>built-in "Internal" client</strong> (<code>builtin: true</code> — a data anchor, hidden from the management list). Carries lifecycle fields.</td></tr>
+        <tr><td><code>Project</code></td><td>Yes</td><td><strong>Required</strong> <code>clientId</code>. Carries lifecycle fields.</td></tr>
         <tr><td><code>Phase</code></td><td>Yes</td><td><strong>Required</strong> <code>projectId</code>.</td></tr>
-        <tr><td><code>Activity</code></td><td>Yes</td><td><em>Optional</em> <code>projectId</code> (a general activity) + optional <code>phaseId</code>.</td></tr>
+        <tr><td><code>Activity</code></td><td>Yes</td><td>Required <code>kind: 'project' | 'internal' | 'repeatable'</code> — the discriminant: <code>project</code> requires a <code>projectId</code> (+ optional <code>phaseId</code>); the other two carry neither. Coherence enforced at the write boundary, repaired on import.</td></tr>
         <tr><td><code>Allocation</code></td><td>Yes</td><td>The core unit: <strong>required</strong> <code>resourceId</code> + <code>activityId</code>, a date range, hours/day, status.</td></tr>
-        <tr><td><code>TimeOff</code></td><td>Yes</td><td><strong>Required</strong> <code>resourceId</code>, a date range, a type.</td></tr>
+        <tr><td><code>TimeOff</code></td><td>Yes</td><td><strong>Required</strong> <code>resourceId</code>, a date range, a type. (Its <code>note</code> is role-redacted server-side — page 12.)</td></tr>
       </tbody>
     </table>
     <p>The required-vs-optional FK distinction is not decoration — it <em>drives the cascade and the import
-    repair</em> (a dangling required FK drops the row; a dangling optional FK just unbinds it). That symmetry
-    is detailed on page 04.</p>
+    repair</em> (a dangling required FK drops the row; a dangling optional FK just unbinds it). Resource,
+    Client and Project additionally carry the lifecycle fields <code>archivedAt</code>/<code>deletedAt</code>
+    driving the Active→Archived→Soft-deleted→Purged machine (page 04). Note what is <em>not</em> here:
+    memberships and invites are control-plane tables on the server, structurally excluded from
+    <code>AppData</code> (principle 8, page 12).</p>
     <p>Two derived constructs make the "loop over every scoped table" pattern safe and DRY:</p>
     <div class="filename">shared/src/types/entities.ts (the scoped-table seam)</div>
 <pre><code><span class="k">export type</span> <span class="t">ScopedEntityKey</span> = 'disciplines' | 'resources' | 'clients' | 'projects'
@@ -180,17 +232,21 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
 
     <h2 id="seam">The persistence seam</h2>
     <p>The app never reads or writes storage directly. It talks to one interface; an implementation is chosen
-    at module load based on whether <code>VITE_CAPACITYLENS_API</code> was baked into the build.</p>
+    at module load by <code>isDemoMode()</code> (see <a href="#modes">the two builds</a>).</p>
     <div class="filename">src/data/PersistenceAdapter.ts</div>
 <pre><code><span class="k">export interface</span> <span class="t">PersistenceAdapter</span> {
-  loadAll(): <span class="t">Promise</span>&lt;<span class="t">AppData</span>&gt;
+  loadAll(accountId?: <span class="t">string</span>): <span class="t">Promise</span>&lt;<span class="t">AppData</span>&gt;   <span class="c">// accountId (server only): load ONLY that</span>
+                                                    <span class="c">// account's slice + re-seed the diff snapshot</span>
   saveAll(data: <span class="t">AppData</span>, opts?: { unload?: boolean }): <span class="t">Promise</span>&lt;void&gt;
   hasExisting?(): <span class="t">Promise</span>&lt;boolean&gt;   <span class="c">// distinguishes first-run from "user cleared everything"</span>
-}</code></pre>
-    <p>Three methods (one optional) is the entire contract. <code>LocalStorageAdapter</code> implements it
-    against a versioned <code>localStorage</code> key; <code>ServerSyncAdapter</code> implements it against the
-    REST API by diffing snapshots. The selection is one ternary in <code>storageAdapter.ts</code>. Full detail
-    — including the debounced write, flush-on-unload, and the diff algorithm — is on
+}
+
+<span class="k">export type</span> <span class="t">LoadErrorKind</span> = 'corrupt' | 'unavailable'   <span class="c">// picks the recovery screen</span></code></pre>
+    <p>Three methods (one optional) is the entire contract, plus a typed <code>LoadError</code> whose
+    <code>kind</code> routes to the right recovery screen. <code>ServerSyncAdapter</code> implements it against
+    the REST API by diffing snapshots; <code>LocalStorageAdapter</code> against the versioned
+    <code>localStorage</code> key. The selection is one ternary in <code>storageAdapter.ts</code>. Full detail
+    — including the debounced write, flush-on-unload, per-account hydration, and the diff algorithm — is on
     <a href="05-state-and-persistence.html">page 05</a>.</p>
 
     <h2 id="tenancy">Multi-tenancy mechanics</h2>
@@ -206,15 +262,28 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
 <span class="k">export const</span> <span class="f">notInAccount</span> = (accountId: <span class="t">ID</span>) =&gt; (entity: <span class="t">ScopedEntity</span>): boolean =&gt;
   !belongsToAccount(entity, accountId)           <span class="c">// complement: keep rows NOT in this account</span></code></pre>
     <p>On the read side, the store exposes <code>useScopedData()</code> which filters <code>AppData</code> down
-    to the active account (memoised so unrelated mutations don't re-render every consumer). On the write side,
-    every update/delete first resolves the row through a guard that returns <code>null</code> for a missing id
-    (a stale-id no-op) but <em>throws</em> for a cross-account id (a real integrity violation). The active
-    account id is in store state but is <strong>never persisted</strong> — it is re-chosen at every load.</p>
+    to the active account (memoised so unrelated mutations don't re-render every consumer) — and its view-layer
+    twin <code>useActiveScopedData()</code>, which additionally hides archived/soft-deleted rows for the 15
+    normal view components (export keeps the raw seam). On the write side, every update/delete first resolves
+    the row through a guard that returns <code>null</code> for a missing id (a stale-id no-op) but
+    <em>throws</em> for a cross-account id (a real integrity violation). The active account id is in store
+    state but is <strong>never persisted</strong> — it is re-chosen at every load.</p>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>Switching accounts resets the undo/redo history and all per-account UI state. Undo must never cross an
       account boundary, and the previous tenant's filters/selection don't apply to the next. This is enforced
-      in <code>setActiveAccount</code> (page 05).</p>
+      in <code>setActiveAccount</code>, and in server mode the switch additionally runs the hydration
+      orchestrator so the diff snapshot and the data are always the <em>same</em> account (page 05 — the #1
+      invariant of the sync layer).</p>
+    </div>
+    <div class="callout warn">
+      <span class="label">Schema ≠ deployment shape</span>
+      <p>The schema is multi-tenant; the default <em>deployment</em> is single-company. The server refuses to
+      create a second account unless <code>CAPACITYLENS_MULTI_ACCOUNT=1</code> (in every auth mode, create-time
+      only), <code>/api/auth/me</code> reports <code>canCreateAccount</code>, and the picker hides "New
+      company" at the cap — fail-open on the client, because the server is the enforcer. Dev and the demo
+      build stay uncapped. In auth-on deployments the tenant boundary is real: reads are membership-gated per
+      account and the whole-dataset read is closed (page 12).</p>
     </div>
 
     <h2 id="extension">The entity-extension path (the rails)</h2>
@@ -249,6 +318,13 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
       the file to fix. You physically cannot ship a half-wired field. Page 04 (sanitiser, fixtures) and page
       07 (column specs) show the exact code of each checkpoint.</p>
     </div>
+    <div class="callout dont">
+      <span class="label">Don't route control tables through the rails</span>
+      <p>The extension path is for <em>app data</em>. Memberships and invites deliberately bypass every list
+      above — they must never appear in <code>SCOPED_KEYS</code>, <code>KNOWN_KEYS</code>, fixtures, or the
+      server's <code>TABLES</code>, or they would leak through generic CRUD and export. A control table gets
+      its own schema module and its own narrow accessors (page 12).</p>
+    </div>
 
     <h2 id="notdone">Deliberately not done at this size</h2>
     <p>An architecture is as much what you refuse to build as what you build. These were considered and
@@ -257,7 +333,7 @@ domain/  →  whole-AppData mutations + the tenancy predicate — imports all of
       <li><strong>No generic store/CRUD factory and no schema-driven forms.</strong> Each entity has a hand-written form and list. The repetition is small and the explicitness is worth more than the abstraction at nine entities.</li>
       <li><strong>No custom listbox to replace native <code>&lt;select&gt;</code>.</strong> OS popup misalignment is accepted in exchange for free accessibility and zero code.</li>
       <li><strong>No measurement-based row virtualization for font-scaling.</strong> Body rows keep fixed pixel heights; only the date header uses <code>minHeight</code>.</li>
-      <li><strong>No import id-dedup beyond repair</strong>, no ORM in the server (raw <code>node:sqlite</code>), no Postgres.</li>
+      <li><strong>No import id-dedup beyond repair</strong>, no ORM in the server (raw <code>node:sqlite</code>), no Postgres (the <code>TenantStore</code> interface on page 07 is the documented swap point if that ever changes).</li>
     </ul>
     <div class="callout warn">
       <span class="label">The modularity rule that governs refactors</span>

@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html" class="active"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -37,8 +38,9 @@
       <p class="eyebrow">Build</p>
       <h1>State &amp; persistence</h1>
       <p class="lead">The Zustand store is the orchestrator: it owns identity, time, and history, and delegates
-      every rule to the shared core. Persistence sits behind one adapter, debounced and flushed safely. This
-      page is the contract between the UI and everything below it.</p>
+      every rule to the shared core. Persistence sits behind one adapter, debounced and flushed safely — and in
+      server mode, hydrated <em>per account</em> through one carefully-guarded orchestrator. This page is the
+      contract between the UI and everything below it.</p>
     </div>
 
     <div class="toc-mini">
@@ -51,8 +53,10 @@
         <li><a href="#actions">Action patterns</a></li>
         <li><a href="#scope">The scoping seam</a></li>
         <li><a href="#selectors">Selectors</a></li>
+        <li><a href="#notices">Notices (Sonner)</a></li>
         <li><a href="#adapters">The adapters</a></li>
         <li><a href="#sync">Server sync by diffing</a></li>
+        <li><a href="#hydration">Per-account hydration</a></li>
         <li><a href="#bootstrap">Bootstrap &amp; persistence wiring</a></li>
         <li><a href="#void">The void-promise discipline</a></li>
       </ul>
@@ -66,23 +70,25 @@
       <tbody>
         <tr><td><strong>Data</strong></td><td><code>data: AppData</code></td><td>Yes</td><td>Yes (via the adapter)</td></tr>
         <tr><td><strong>UI</strong></td><td><code>ui: SchedulerUI</code> (zoom, dates, filters, selection, draw mode)</td><td>No</td><td>No</td></tr>
-        <tr><td><strong>Transient</strong></td><td><code>hydrated</code>, <code>activeAccountId</code>, <code>past</code>/<code>future</code>, <code>persistError</code>, <code>notice</code>, <code>dirtyForm</code>, <code>theme</code>, prefs…</td><td>No</td><td>No (theme/prefs have their own keys)</td></tr>
+        <tr><td><strong>Transient</strong></td><td><code>hydrated</code>, <code>activeAccountId</code>, <code>past</code>/<code>future</code>, <code>persistError</code>, <code>loadError</code>, <code>connectionError</code>, <code>notice</code>, <code>dirtyForm</code>, <code>accountSummaries</code>, <code>previousAccountId</code>, <code>activeRole</code>, <code>srAnnouncement</code>, <code>draggingAllocationId</code>, <code>theme</code>, device prefs (sidebar, weekends, snap, fake sign-in, intro)…</td><td>No</td><td>No (theme/prefs have their own keys)</td></tr>
       </tbody>
     </table>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>Only <code>data</code> is on the undo stack and only <code>data</code> goes through the adapter. UI and
       transient state must never land in either. The mechanism that enforces this is that <em>only data
-      mutations call <code>mutate()</code></em>; everything else calls <code>set()</code> directly.</p>
+      mutations call <code>mutate()</code></em>; everything else calls <code>set()</code> directly. Note the
+      two error fields are distinct on purpose: <code>connectionError</code> (server unreachable → retry
+      screen) vs. <code>loadError</code> (corrupt local bytes → recovery screen).</p>
     </div>
 
     <h2 id="draft">Draft / Patch — callers never supply identity</h2>
-    <p>Two utility types stop a caller from ever passing an id, an <code>accountId</code>, or a timestamp. The
-    store stamps all of those itself.</p>
+    <p>Two utility types stop a caller from ever passing an id, an <code>accountId</code>, a timestamp — or the
+    built-in-client flag. The store stamps all of those itself.</p>
     <div class="filename">src/store/useStore.ts</div>
-<pre><code><span class="c">// A Draft drops the server-owned fields (id/timestamps) AND accountId — the store</span>
-<span class="c">// stamps the active account, so callers never supply it.</span>
-<span class="k">export type</span> <span class="t">Draft</span>&lt;T <span class="k">extends</span> <span class="t">Entity</span>&gt; = <span class="t">Omit</span>&lt;T, 'id' | 'accountId' | 'createdAt' | 'updatedAt'&gt;
+<pre><code><span class="c">// A Draft drops the server-owned fields (id/timestamps), accountId (the store stamps the</span>
+<span class="c">// active account) AND builtin (the Internal-client flag is never caller-settable).</span>
+<span class="k">export type</span> <span class="t">Draft</span>&lt;T <span class="k">extends</span> <span class="t">Entity</span>&gt; = <span class="t">Omit</span>&lt;T, 'id' | 'accountId' | 'createdAt' | 'updatedAt' | 'builtin'&gt;
 <span class="k">export type</span> <span class="t">Patch</span>&lt;T <span class="k">extends</span> <span class="t">Entity</span>&gt; = <span class="t">Partial</span>&lt;<span class="t">Draft</span>&lt;T&gt;&gt;</code></pre>
     <p><code>addResource(draft: Draft&lt;Resource&gt;)</code>, <code>updateResource(id, patch:
     Patch&lt;Resource&gt;)</code>. The compiler refuses any attempt to pass identity from a component.</p>
@@ -103,8 +109,9 @@
 <span class="k">const</span> <span class="f">updateById</span> = &lt;T <span class="k">extends</span> <span class="t">Entity</span>&gt;(list: T[], id: <span class="t">ID</span>, patch: <span class="t">Partial</span>&lt;<span class="t">Omit</span>&lt;T, keyof <span class="t">Entity</span>&gt;&gt;): T[] =&gt;
   list.map((x) =&gt; (x.id === id ? { ...x, ...patch, updatedAt: touch() } : x))
 
-<span class="c">// EVERY data mutation goes through mutate(): it snapshots prior data onto the undo</span>
-<span class="c">// stack (capped) and clears the redo stack. This is the ONLY writer of `past`.</span>
+<span class="c">// EVERY forward data mutation goes through mutate(): it snapshots prior data onto the</span>
+<span class="c">// undo stack (capped) and clears the redo stack. (undo/redo move between the stacks</span>
+<span class="c">// themselves; mutate is the only PUSHER of new history.)</span>
 <span class="k">const</span> <span class="f">mutate</span> = (producer: (d: <span class="t">AppData</span>) =&gt; <span class="t">AppData</span>) =&gt;
   set((s) =&gt; ({ data: producer(s.data), past: [...s.past, s.data].slice(-HISTORY_LIMIT), future: [] }))</code></pre>
     <div class="callout rule">
@@ -124,8 +131,9 @@
   <span class="k">return</span> { data: previous, past: s.past.slice(0, -1), future: [s.data, ...s.future].slice(0, HISTORY_LIMIT) }
 }),</code></pre>
     <p>Undo/redo is wired to <span class="kbd">⌘Z</span> / <span class="kbd">⌘⇧Z</span> globally in the shell —
-    the keyboard handler calls <code>useStore.getState().undo()</code>. The toolbar buttons are intentionally
-    hidden (a clearer affordance is a flagged open question, not a missing feature).</p>
+    the keyboard handler calls <code>useStore.getState().undo()</code> — <em>and</em> to visible Undo/Redo
+    icon buttons on the schedule toolbar (<code>undo-button</code>/<code>redo-button</code>, disabled when
+    their stack is empty).</p>
     <div class="callout warn">
       <span class="label">Account switches reset history</span>
       <p><code>setActiveAccount</code> sets <code>past: []</code> and <code>future: []</code> (and clears
@@ -134,22 +142,29 @@
     </div>
 
     <h2 id="actions">Action patterns</h2>
-    <p>Three shapes cover almost everything. The pattern for a <strong>create</strong> with full integrity:</p>
+    <p>Three shapes cover almost everything. The pattern for a <strong>create</strong> with full integrity —
+    note the entity is built first, then the viewer guard, then the shared-core asserts:</p>
 <pre><code>addAllocation: (input) =&gt; {
   <span class="k">const</span> accountId = requireAccount()
-  assertAllocation(get().data, accountId, input.resourceId, input.activityId)   <span class="c">// shared core</span>
-  assertDateRange(input.startDate, input.endDate)                            <span class="c">// shared core</span>
   <span class="k">const</span> e: <span class="t">Allocation</span> = { ...input, hoursPerDay: clampHoursPerDay(input.hoursPerDay),
     id: newId(), accountId, ...stamp() }
+  <span class="k">if</span> (blockedByViewer()) <span class="k">return</span> e            <span class="c">// a Viewer's write is an inert no-op + notice, never a throw</span>
+  assertAllocation(get().data, accountId, input.resourceId, input.activityId, input.hoursPerDay)  <span class="c">// shared core</span>
+  assertDateRange(input.startDate, input.endDate)                                                 <span class="c">// shared core</span>
   mutate((d) =&gt; ({ ...d, allocations: [...d.allocations, e] }))
   <span class="k">return</span> e                                  <span class="c">// returned so callers can chain off the new id</span>
 },</code></pre>
-    <p>The pattern for an <strong>update</strong> — note the stale-id no-op and effective-range validation:</p>
+    <p>The pattern for an <strong>update</strong> — the stale-id no-op, and every assert re-run against the
+    <em>effective</em> merged row, so the store rejects exactly what the server's PUT/PATCH merge would 400 on:</p>
 <pre><code>updateAllocation: (id, patch) =&gt; {
+  <span class="k">if</span> (blockedByViewer()) <span class="k">return</span>
   <span class="k">const</span> existing = findOwned(get().data, 'allocations', id)
   <span class="k">if</span> (!existing) <span class="k">return</span>   <span class="c">// stale id (e.g. drag committed after an undo) → silent no-op</span>
-  <span class="c">// Validate the EFFECTIVE range (patch merged over existing), so a note/status-only</span>
-  <span class="c">// patch isn't rejected for omitting dates.</span>
+  <span class="c">// Validate the EFFECTIVE row (patch merged over existing), so a note/status-only</span>
+  <span class="c">// patch isn't rejected for omitting dates — and a ref change is fully re-validated.</span>
+  assertAllocation(get().data, existing.accountId,
+    patch.resourceId ?? existing.resourceId, patch.activityId ?? existing.activityId,
+    patch.hoursPerDay ?? existing.hoursPerDay)
   assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
   <span class="k">const</span> safe = patch.hoursPerDay !== <span class="k">undefined</span>
     ? { ...patch, hoursPerDay: clampHoursPerDay(patch.hoursPerDay) } : patch
@@ -165,10 +180,18 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
       <code>return</code> the new entity. Update/delete actions resolve through <code>findOwned</code> first
       (missing → no-op; cross-account → throw). All immutability is by spread — no immer.</p>
     </div>
+    <div class="callout why">
+      <span class="label">Why the viewer guard no-ops instead of throwing</span>
+      <p><code>blockedByViewer()</code> is inert unless <code>activeRole === 'viewer'</code> <em>exactly</em> —
+      null (OFF/local/not-fetched), owner, admin and editor all permit, so the default deploy is byte-identical.
+      When it does block, it surfaces a read-only notice and returns; it never throws, because a throw here
+      would read as data corruption. The server's 403 is the authoritative boundary — this is UX plus
+      defence-in-depth (page 12).</p>
+    </div>
 
     <h2 id="scope">The scoping seam</h2>
     <p>For account-scoped reads, components don't touch <code>store.data</code> directly — they read the scoped
-    view through one memoised hook:</p>
+    view through one memoised hook (and normal <em>views</em> through its lifecycle-filtering twin):</p>
     <div class="filename">src/store/useScopedData.ts</div>
 <pre><code><span class="k">export function</span> <span class="f">useScopedData</span>(): <span class="t">AppData</span> {
   <span class="k">const</span> data = useStore((s) =&gt; s.data)
@@ -177,14 +200,21 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
     () =&gt; (activeAccountId ? scopeData(data, activeAccountId) : emptyAppData()),
     [data, activeAccountId],
   )
-}</code></pre>
-    <p>The exceptions are the reads that sit <em>outside</em> the scope, and they go straight to
-    <code>store.data</code> on purpose: the tenant list the seam scopes <em>by</em> (<code>AppShell</code>'s
-    <code>s.data.accounts</code> for the picker), a per-company export that scopes by an explicit id rather than
-    the active one (<code>DeleteCompanyDialog</code> calls <code>scopeData(data, account.id)</code> for the company
-    being deleted), and the scheduler's drag-time lookups (<code>AllocationBar</code> reading
-    <code>s.data.resources</code> / <code>schedulingModeFor</code>, including imperative <code>getState()</code>
-    reads off the render path). Everything else goes through <code>useScopedData</code>.</p>
+}
+
+<span class="c">// The view seam: same slice, minus archived/soft-deleted rows (shared activeOnly).</span>
+<span class="c">// The 15 normal view components use THIS; export/import keeps the raw seam so a</span>
+<span class="c">// backup never silently loses retained rows.</span>
+<span class="k">export function</span> <span class="f">useActiveScopedData</span>(): <span class="t">AppData</span></code></pre>
+    <p>The exceptions are the reads that sit <em>outside</em> the scope, and they go on purpose to other
+    sources: the tenant list (the <code>AccountPicker</code> reads <code>accountSummaries</code>, which in
+    server mode comes from <code>GET /api/accounts</code> — in server mode <code>data</code> holds only the
+    active account's slice, so <code>data.accounts</code> would be wrong); a per-company export that scopes by
+    an explicit id rather than the active one (<code>DeleteCompanyDialog</code> calls
+    <code>scopeData(data, account.id)</code>); and the scheduler's drag-time lookups
+    (<code>AllocationBar</code> reading <code>s.data.resources</code> / <code>schedulingModeFor</code>,
+    including imperative <code>getState()</code> reads off the render path). Everything else goes through the
+    hooks.</p>
     <div class="callout why">
       <span class="label">Why the <code>useMemo</code> is mandatory, not optional</span>
       <p>Zustand returns a fresh scoped object each store update. Without memoising on
@@ -207,11 +237,27 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
 <span class="k">export const</span> <span class="f">byDisciplineOrder</span> = (a: <span class="t">Discipline</span>, b: <span class="t">Discipline</span>): number =&gt;
   a.sortOrder - b.sortOrder || (a.name &lt; b.name ? -1 : a.name &gt; b.name ? 1 : 0)</code></pre>
 
+    <h2 id="notices">Notices: one store field, a Sonner bridge, three tones</h2>
+    <p>Transient messages go through one store action — <code>setNotice(message, tone?)</code> with tones
+    <code>'info' | 'warning' | 'error'</code> — and the shell bridges the <code>notice</code> field to a Sonner
+    toast (the hand-rolled <code>Toast</code> component is retired). Tone drives <em>duration</em>, which is an
+    accessibility decision, not a style:</p>
+    <table>
+      <thead><tr><th>Tone</th><th>Surface</th><th>Duration</th><th>Used for</th></tr></thead>
+      <tbody>
+        <tr><td><code>info</code></td><td>neutral</td><td>4 s auto-dismiss</td><td>Confirmations ("Imported 42 records").</td></tr>
+        <tr><td><code>warning</code></td><td>neutral</td><td><strong>persistent</strong></td><td>Data-mutating advisories (the clamped-hours notice) — WCAG 2.2.1: a message that explains a silent change must not time out.</td></tr>
+        <tr><td><code>error</code></td><td>danger accent</td><td><strong>persistent</strong></td><td>Failures the user must act on.</td></tr>
+      </tbody>
+    </table>
+    <p>Sonner's <code>richColors</code> is deliberately OFF (its light error palette fails AA); the danger
+    accent is a local <code>.toast-error</code> style on the house tokens.</p>
+
     <h2 id="adapters">The adapters</h2>
     <p>The seam is the three-method interface from page 03. Two implementations; one ternary selects between
     them at module load:</p>
     <div class="filename">src/data/storageAdapter.ts</div>
-<pre><code><span class="k">export const</span> STORAGE_KEY = 'capacitylens/v3'
+<pre><code><span class="k">export const</span> STORAGE_KEY = `${STORAGE_KEY_PREFIX}v3`   <span class="c">// 'capacitylens/v3' — the prefix comes from shared/brand.ts</span>
 <span class="k">export const</span> storageAdapter = <span class="k">new</span> LocalStorageAdapter(STORAGE_KEY)
 
 <span class="k">export const</span> persistenceAdapter: <span class="t">PersistenceAdapter</span> = isServerConfigured()
@@ -219,13 +265,25 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
   : storageAdapter</code></pre>
     <p><code>LocalStorageAdapter</code> stores <code>{ schemaVersion, data }</code> as one JSON blob under the
     versioned key, runs <code>migrate()</code> on load, and raises a typed <code>LoadError('corrupt' |
-    'unavailable', …)</code> that routes to two different recovery screens. <code>storageAdapter</code> is
-    exported separately because the recovery UI needs its extra <code>readRaw()/clear()</code> methods, which
+    'unavailable', …, { cause })</code> that routes to two different recovery screens. <code>storageAdapter</code>
+    is exported separately because the recovery UI needs its extra <code>readRaw()/clear()</code> methods, which
     are deliberately <em>not</em> on the shared interface.</p>
-    <p><code>API_BASE</code> and <code>isServerConfigured()</code> read the build-time env once:</p>
+    <p><code>API_BASE</code> and the mode predicates read the build-time env once — and this is the load-bearing
+    bit that inverted when server-backed became the default:</p>
     <div class="filename">src/data/apiConfig.ts</div>
 <pre><code><span class="k">export const</span> API_BASE = (import.meta.env.VITE_CAPACITYLENS_API ?? '').replace(/\/+$/, '')
-<span class="k">export function</span> <span class="f">isServerConfigured</span>(): boolean { <span class="k">return</span> API_BASE.length &gt; 0 }</code></pre>
+
+<span class="c">// The ONLY route to the in-browser localStorage build. (The persistence demo — distinct</span>
+<span class="c">// from the cosmetic fake-sign-in "auth demo".)</span>
+<span class="k">export function</span> <span class="f">isDemoMode</span>(): boolean {
+  <span class="k">return</span> import.meta.env.VITE_CAPACITYLENS_DEMO === '1'
+}
+
+<span class="c">// Server mode is the DEFAULT — true unless the demo flag is set. An empty API_BASE</span>
+<span class="c">// means SAME-ORIGIN (/api), not "no server".</span>
+<span class="k">export function</span> <span class="f">isServerConfigured</span>(): boolean {
+  <span class="k">return</span> !isDemoMode()
+}</code></pre>
 
     <h2 id="sync">Server sync by diffing snapshots</h2>
     <p>The clever part of the server adapter: the store already produces a fresh <code>AppData</code> on every
@@ -259,17 +317,61 @@ setDraggingAllocation: (id) =&gt; set({ draggingAllocationId: id }),</code></pre
       fires. Diffing detects changed rows by <code>updatedAt</code> (last-writer-wins, since ids/timestamps are
       client-generated). The ops are sent to <code>POST /api/batch</code> as <strong>one transaction</strong>;
       <code>lastSynced</code> only advances on success, so a failure replays the full delta next time. Writes
-      coalesce to the latest snapshot while one is in flight.</p>
+      coalesce to the latest snapshot while one is in flight, and the drain loop deliberately has no
+      try/catch — a throw must propagate so <code>lastSynced</code> never advances past unlanded writes.</p>
     </div>
+    <p>Every request carries <code>credentials: 'include'</code> so an auth-enabled server sees the session
+    cookie. A 401 on <code>/api/batch</code> surfaces as a normal write failure → <code>persistError</code> →
+    the AuthProvider re-checks the session → the login wall. An expired session therefore walls the app off
+    loudly instead of failing writes silently.</p>
+
+    <h2 id="hydration">Per-account hydration &amp; the switch orchestrator (server mode)</h2>
+    <p>In server mode the store holds only the <em>active</em> account's slice, hydrated via
+    <code>GET /api/state?accountId=…</code>. That makes account switching a persistence operation with one
+    non-negotiable invariant:</p>
+    <div class="callout rule">
+      <span class="label">The #1 invariant of the sync layer</span>
+      <p><strong>The diff snapshot (<code>lastSynced</code>) and <code>data</code> must always be the same
+      account before any save diffs.</strong> A desync (snapshot = account A, data = account B) would emit
+      DELETEs for all of A plus PUTs for all of B — cross-account data loss. This is guarded by a dedicated
+      regression test, and it is why there is exactly <em>one</em> code path allowed to re-hydrate.</p>
+    </div>
+    <p>That path is the <strong>switch orchestrator</strong> in <code>persist.ts</code>. Picking a tenant (or
+    returning to the tab — see below) runs: await any in-flight save → flush pending edits →
+    <code>adapter.loadAll(accountId)</code>, which <em>atomically re-seeds <code>lastSynced</code> to exactly
+    the returned slice</em> (so the next diff is self-vs-self, zero ops) → a guarded <code>replaceAll</code>
+    into the store (guarded so the load isn't pushed back out as a save). A <code>switchToken</code> discards a
+    stale load that finishes after the user has already switched again.</p>
+    <ul>
+      <li><strong>Refresh-on-focus:</strong> returning to the tab/window (<code>focus</code> +
+      <code>visibilitychange→visible</code>) re-runs the same orchestrator body (<code>refreshActive</code>),
+      throttled to 30 s, so cross-tab and cross-device edits appear. Unsaved local edits flush first —
+      last-writer-wins, the user wins. Never build a parallel re-hydrate path (a React hook can't re-seed the
+      private snapshot).</li>
+      <li><strong>The picker's list</strong> comes from <code>GET /api/accounts</code> into
+      <code>accountSummaries</code> (with the caller's <code>role</code> per account); in auth-on mode the
+      no-arg whole-dataset read is closed, and the adapter treats its 400 as "hydrate empty, show the picker".</li>
+      <li><strong>The demo build is inert here:</strong> all accounts live in the one local blob, so switching
+      is just a state change and the orchestrator never runs (<code>serverMode: false</code>).</li>
+    </ul>
 
     <h2 id="bootstrap">Bootstrap &amp; persistence wiring</h2>
     <p><code>main.tsx</code> fires bootstrap <em>before</em> the first render; the shell gates content on
     <code>hydrated</code>, so there's no flash of empty data.</p>
     <div class="filename">src/main.tsx (order)</div>
-<pre><code>applyThemeToDom(useStore.getState().theme)        <span class="c">// 1. re-affirm theme from the store</span>
+<pre><code><span class="k">import</span> './data/runStorageMigration'      <span class="c">// 0. side-effect FIRST: legacy 'floaty/' keys → 'capacitylens/'</span>
+applyThemeToDom(useStore.getState().theme)        <span class="c">// 1. re-affirm theme from the store</span>
 watchSystemTheme(() =&gt; useStore.getState().theme)  <span class="c">// 2. follow OS changes when theme==='system'</span>
-<span class="k">void</span> bootstrap(useStore, persistenceAdapter, { seedIfEmpty: seed(), onError, onSuccess }) <span class="c">// 3. async, voided</span>
-createRoot(rootEl).render(&lt;App /&gt;)                 <span class="c">// 4. render starts alongside bootstrap</span></code></pre>
+<span class="k">void</span> bootstrap(useStore, persistenceAdapter, {
+  seedIfEmpty: isDemoMode() ? seed() : <span class="k">undefined</span>,  <span class="c">// 3. auto-seed is DEMO-BUILD-ONLY —</span>
+  serverMode: isServerConfigured(),                <span class="c">//    a real server deploy first-runs EMPTY</span>
+  onError, onSuccess,
+})
+createRoot(rootEl).render(                         <span class="c">// 4. render starts alongside bootstrap,</span>
+  &lt;StrictMode&gt;&lt;ErrorBoundary&gt;                      <span class="c">//    wrapped in the auth boundary</span>
+    &lt;AuthProvider&gt;&lt;RouterProvider router={router} /&gt;&lt;/AuthProvider&gt;
+  &lt;/ErrorBoundary&gt;&lt;/StrictMode&gt;,
+)</code></pre>
     <p><code>bootstrap</code> loads via the adapter, decides whether to seed, marks hydrated, and attaches the
     persistence subscription. Three behaviours are load-bearing:</p>
     <ul>
@@ -281,17 +383,16 @@ createRoot(rootEl).render(&lt;App /&gt;)                 <span class="c">// 4. r
     drop the last edit:</p>
     <div class="filename">src/data/persist.ts (flush wiring)</div>
 <pre><code><span class="c">// pagehide is the reliable close/navigate signal (fires for bfcache where beforeunload</span>
-<span class="c">// doesn't); visibilitychange→hidden covers tab switches and mobile.</span>
-window.addEventListener('pagehide', () =&gt; flushOnUnload())
-document.addEventListener('visibilitychange', () =&gt; {
-  <span class="k">if</span> (document.visibilityState === 'hidden') flushOnUnload()
-  <span class="k">else</span> retryStrandedWrite()
-})
-window.addEventListener('online', () =&gt; retryStrandedWrite())</code></pre>
+<span class="c">// doesn't); visibilitychange→hidden covers tab switches and mobile. Becoming visible</span>
+<span class="c">// again (or window focus) also triggers the throttled refresh-on-focus re-hydration.</span>
+window.addEventListener('pagehide', onPageHide)
+document.addEventListener('visibilitychange', onVisibility)   <span class="c">// hidden → flush; visible → retry + maybeRefreshOnFocus</span>
+window.addEventListener('focus', onFocus)                     <span class="c">// refresh-on-focus (server mode, 30s throttle)</span>
+window.addEventListener('online', onOnline)                   <span class="c">// retry a stranded write</span></code></pre>
     <p>The flush passes <code>{ unload: true }</code> so an async adapter dispatches its writes up-front (a
-    sequential await-loop would only get the first request out before the event loop dies). Failed writes
-    retry with exponential backoff (cap 5 attempts, max 30 s); a fresh user edit or an
-    <code>online</code> event resets the budget.</p>
+    sequential await-loop would only get the first request out before the event loop dies; the server adapter
+    uses a <code>keepalive</code> fetch). Failed writes retry with exponential backoff (cap 5 attempts, max
+    30 s); a fresh user edit or an <code>online</code> event resets the budget.</p>
 
     <h2 id="void">The void-promise discipline</h2>
     <p>Because ESLint enforces <code>no-floating-promises</code> (page 02), every intentional fire-and-forget is

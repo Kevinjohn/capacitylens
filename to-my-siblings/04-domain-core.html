@@ -21,7 +21,8 @@
       <a href="04-domain-core.html" class="active"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -49,7 +50,9 @@
         <li><a href="#lib">lib/ — pure utilities</a></li>
         <li><a href="#validation">Validation: reject vs. repair</a></li>
         <li><a href="#integrity">Integrity &amp; cascade</a></li>
-        <li><a href="#data">data/ — lifecycle</a></li>
+        <li><a href="#domain-machines">access.ts &amp; lifecycle.ts</a></li>
+        <li><a href="#internal">The built-in Internal client</a></li>
+        <li><a href="#data">data/ — migrate, seed, transfer</a></li>
         <li><a href="#import">The import-remap algorithm</a></li>
         <li><a href="#driftproof">Drift-proofing</a></li>
         <li><a href="#conv">Coding conventions</a></li>
@@ -57,15 +60,16 @@
     </div>
 
     <h2 id="org">Module organisation</h2>
-    <p>Four sub-directories, each with a strict rule about what belongs there. The split is by <em>how much of
-    the dataset a module touches</em>, which is also the dependency order.</p>
+    <p>Four sub-directories plus one top-level module, each with a strict rule about what belongs there. The
+    split is by <em>how much of the dataset a module touches</em>, which is also the dependency order.</p>
     <table>
       <thead><tr><th>Dir</th><th>Holds</th><th>The rule</th></tr></thead>
       <tbody>
-        <tr><td><code>types/</code></td><td>Types, enums, type-derived constants, and the clamps that are part of the domain contract.</td><td>Zero dependencies. No behaviour beyond type guards and contractual clamps.</td></tr>
+        <tr><td><code>brand.ts</code></td><td>The single source of product identity: <code>APP_NAME</code>, <code>STORAGE_KEY_PREFIX</code>.</td><td>The only place a sibling renames its brand. Every storage key derives from the prefix.</td></tr>
+        <tr><td><code>types/</code></td><td>Types, enums, type-derived constants, the contractual clamps, and the tiny contractual helpers (<code>scopedTables</code>, <code>isExternalResource</code>, <code>isCapacityTracked</code>, <code>emptyAppData</code>/<code>isEmpty</code>).</td><td>Zero dependencies. Behaviour limited to type guards and contractual helpers/clamps.</td></tr>
         <tr><td><code>lib/</code></td><td>Pure utilities keyed on the domain types — one file per concern (id, strings, dates, colour, integrity, sanitize, scheduling-days).</td><td>Pure functions. May import <code>types/</code>. Minimal cross-<code>lib</code> imports.</td></tr>
-        <tr><td><code>data/</code></td><td>Whole-dataset lifecycle: migrate, seed, export/import transfer, test fixtures.</td><td>Knows about <code>AppData</code> as a whole and schema versions. Imports <code>types/</code> + <code>lib/</code>.</td></tr>
-        <tr><td><code>domain/</code></td><td>Whole-<code>AppData</code> mutations + the tenancy predicate — the logic that must be identical on client and server.</td><td>Pure. Imports everything below. No store, no React, no I/O.</td></tr>
+        <tr><td><code>data/</code></td><td>Whole-dataset lifecycle: migrate, seed, export/import transfer, test fixtures, the built-in Internal client helpers.</td><td>Knows about <code>AppData</code> as a whole and schema versions. Imports <code>types/</code> + <code>lib/</code>.</td></tr>
+        <tr><td><code>domain/</code></td><td>Whole-<code>AppData</code> mutations, the tenancy predicate, the pure access matrix (<code>access.ts</code>), and the lifecycle state machine (<code>lifecycle.ts</code>) — the logic that must be identical on client and server.</td><td>Pure. Imports everything below. No store, no React, no I/O.</td></tr>
       </tbody>
     </table>
     <p>Consumed as raw source: the package's <code>exports</code> map (<code>"./*": "./src/*.ts"</code>) means
@@ -105,10 +109,15 @@
       the server can never disagree on the ceiling. There is no "import version" and "form version" of a
       clamp — there is one clamp.</p>
     </div>
-    <p>Also here: <code>SCHEMA_VERSION</code> (bumped when the persisted shape changes; drives migrate),
-    <code>emptyAppData()</code> (the all-empty dataset), and <code>isEmpty(data)</code> — the single
-    definition of "genuinely empty" shared by the client bootstrap and the server's init-marker backfill so
-    the two "is this empty?" checks can't drift.</p>
+    <p>Also here: <code>SCHEMA_VERSION</code> (currently <strong>6</strong>; bumped when the persisted shape
+    changes, drives migrate), <code>emptyAppData()</code> (the all-empty dataset), and <code>isEmpty(data)</code>
+    — the single definition of "genuinely empty" shared by the client bootstrap and the server's init-marker
+    backfill so the two "is this empty?" checks can't drift. Two domain enums beyond
+    <code>SchedulingMode</code> matter architecturally: <code>ResourceKind = 'person' | 'placeholder' |
+    'external'</code> (external = an outsourced third party — no capacity, allocations carry zero load, gated
+    everywhere by the single predicate <code>isExternalResource</code>) and <code>ActivityKind = 'project' |
+    'internal' | 'repeatable'</code> (the discriminant that decides whether a <code>projectId</code> is
+    required or forbidden).</p>
 
     <h2 id="lib">lib/ — pure utilities, one concern per file</h2>
     <dl class="defs">
@@ -212,8 +221,73 @@
       is the <em>store's</em> job (page 05). The core computes the next data shape; the orchestrator owns
       identity and time. Keeping that division clean is what lets the same cascade run on the server.</p>
     </div>
+    <p>The write-boundary asserts in <code>domain/mutations.ts</code> also enforce the kind rules:
+    <code>assertScopedRefs</code> checks the activity-kind ↔ <code>projectId</code> coherence (a
+    <code>project</code> activity must carry one; <code>internal</code>/<code>repeatable</code> must not);
+    <code>assertAllocationRefs</code> rejects a non-zero load on an external resource's allocation;
+    <code>assertResourceExists</code> rejects time off for an external; and
+    <code>assertResourceKindAllowsDependents</code> refuses to flip a resource to <code>external</code> while
+    it still owns loaded allocations or time off. Import mirrors each with a repair (coerce external load to
+    0, drop external time off, demote an orphaned <code>project</code> activity to <code>repeatable</code>).</p>
 
-    <h2 id="data">data/ — lifecycle: migrate, seed, transfer, fixtures</h2>
+    <h2 id="domain-machines">domain/access.ts &amp; domain/lifecycle.ts — the two pure machines</h2>
+    <p>Two whole-domain rule sets live beside <code>mutations.ts</code>, and both follow the same design: a
+    pure function is the single authority, and both the server and the client consume it so they cannot
+    drift.</p>
+    <h3>access.ts — the permission matrix</h3>
+    <div class="filename">shared/src/domain/access.ts (the shape)</div>
+<pre><code><span class="k">export type</span> <span class="t">Role</span> = 'owner' | 'admin' | 'editor' | 'viewer'
+<span class="k">export type</span> <span class="t">Action</span> = 'read' | 'write' | 'manageMembers' | 'manageInvites' | 'purge' | 'transferOwnership'
+
+<span class="c">// Encoded as a role-rank + a per-action minimum tier. `satisfies Record&lt;Action, Role&gt;`</span>
+<span class="c">// makes the table exhaustive over Action AT COMPILE TIME; unknown role/action fails closed.</span>
+<span class="k">const</span> MIN_TIER = { read: 'viewer', write: 'editor', manageMembers: 'admin', manageInvites: 'admin',
+  purge: 'admin', transferOwnership: 'owner' } <span class="k">as const satisfies</span> <span class="t">Record</span>&lt;<span class="t">Action</span>, <span class="t">Role</span>&gt;
+
+<span class="k">export function</span> <span class="f">can</span>(role: <span class="t">Role</span>, action: <span class="t">Action</span>): boolean</code></pre>
+    <p>Alongside <code>can()</code>: the member-management guards <code>canManageMemberRole(actor, target,
+    next)</code> / <code>canRemoveMember(actor, target)</code> (both forbid an admin touching or minting an
+    owner) and the field-visibility rule <code>canSeeTimeOffNote(role)</code> — kept <em>separate</em> from the
+    route actions because it redacts a field, not a route. Page 12 shows how the server and the client both
+    hang off these.</p>
+    <h3>lifecycle.ts — Active → Archived → Soft-deleted → Purged</h3>
+    <p>Resource, Client and Project carry <code>archivedAt</code>/<code>deletedAt</code>; the machine that
+    interprets them is pure and single-sourced: <code>lifecycleStatus(e)</code>, the guards
+    <code>canArchive</code>/<code>canUnarchive</code>/<code>canSoftDelete</code>/<code>canPurge</code> (purge
+    requires a ≥<code>PURGE_MIN_AGE_DAYS</code>&nbsp;=&nbsp;30 tombstone), the transitions
+    <code>archive</code>/<code>unarchive</code>/<code>softDelete</code> (these <em>throw</em> on an invalid
+    source state — a deliberate third throwing category beyond validators and asserts), the view projection
+    <code>activeOnly(data)</code> (used by the client's <code>useActiveScopedData</code> <em>and</em> the
+    server's <code>readSlice</code>), and <code>obfuscateResource</code> (scrubs a soft-deleted person's name —
+    the PII half of deletion). The entity list is single-sourced as <code>LIFECYCLE_ENTITY_KEYS =
+    ['resources','clients','projects']</code>.</p>
+    <div class="callout rule">
+      <span class="label">Load-bearing rule</span>
+      <p>Callers never re-derive lifecycle state from the timestamp fields — they call the machine. Views
+      filter through <code>activeOnly</code> at the <em>view boundary only</em>; integrity, cascade, import and
+      export must see all rows (a hidden row is retained data, not gone). And generic writes must never set or
+      clear a tombstone — only the dedicated archive/delete routes do (page 07).</p>
+    </div>
+
+    <h2 id="internal">The built-in "Internal" client (data/internalClient.ts)</h2>
+    <p>Every account owns exactly one persisted client flagged <code>builtin: true</code>, named "Internal" —
+    a real row (it survives import-remap because it is matched by the <em>flag</em>, never by a sentinel id)
+    that anchors project-less internal/repeatable work for display and filtering. The invariant — one per
+    account, never zero, never two — is enforced at every entry point: seeded, created by
+    <code>addAccount</code>, backfilled by <code>migrateV5toV6</code> and the server's <code>openDb</code>,
+    folded on import (duplicates merge, keep-first, <code>clientId</code>s rewired), and defended at the write
+    boundary (the store strips <code>builtin</code> from public CRUD and refuses rename/delete; the server
+    rejects a second builtin or an un-flagging write). Helpers: <code>buildInternalClient</code>,
+    <code>internalClientFor</code>, <code>isBuiltinClient</code>, <code>wouldAddSecondBuiltin</code>,
+    <code>ensureInternalClients</code>.</p>
+    <div class="callout why">
+      <span class="label">Why a real row and not a sentinel id</span>
+      <p>A sentinel id would break the moment import remints ids (imports never trust source ids — see below).
+      A flag on a real, persisted row survives remap, syncs like any client, and can own real projects. The
+      general lesson: when a singleton must survive id-remapping, identify it by a property, not by identity.</p>
+    </div>
+
+    <h2 id="data">data/ — migrate, seed, transfer, fixtures</h2>
     <h3>migrate.ts — turn any blob into current-shape AppData</h3>
     <p>Two guards protect the import path before any migration runs, so a non-CapacityLens file can never wipe data:</p>
 <pre><code><span class="k">export const</span> KNOWN_KEYS: string[] = ['accounts', ...SCOPED_KEYS]   <span class="c">// derived — can't drift</span>
@@ -227,8 +301,20 @@
 <span class="k">export function</span> <span class="f">hasNonArrayKnownTable</span>(value: unknown): boolean</code></pre>
     <p><code>migrate(raw)</code> then: returns <code>emptyAppData()</code> for non-objects; detects the schema
     version (absent = legacy); unwraps <code>{ schemaVersion, data }</code> or accepts bare
-    <code>AppData</code>; applies version steps (e.g. an old boolean → an enum); and normalises every known
-    table to an array. It never throws on bad data — it repairs or empties.</p>
+    <code>AppData</code>; applies the version steps in order; and normalises every known table to an array. It
+    never throws on bad data — it repairs or empties. The guards also recognise <code>LEGACY_KEYS</code>
+    (the pre-rename <code>tasks</code> table) so an old export still passes the shape check and reaches the
+    rename step. The real steps, as a worked history of what "a migration" can be:</p>
+    <table>
+      <thead><tr><th>Step</th><th>What it does</th><th>The kind of migration it teaches</th></tr></thead>
+      <tbody>
+        <tr><td>v1→v2</td><td><code>isFreelancer</code> boolean → <code>employmentType</code> enum.</td><td>The classic field transform.</td></tr>
+        <tr><td>v2→v3</td><td><em>No step</em> — the storage key was bumped (<code>capacitylens/v2</code>→<code>/v3</code>), orphaning old demo data (see the callout below).</td><td>Bump-and-orphan.</td></tr>
+        <tr><td>v3→v4</td><td>Activities gain a required <code>kind</code>, backfilled <code>'project'</code> if the row has a <code>projectId</code>, else <code>'repeatable'</code>.</td><td>Backfilling a new required discriminant.</td></tr>
+        <tr><td>v4→v5</td><td>The Task→Activity rename: <code>tasks</code>→<code>activities</code>, <code>taskId</code>→<code>activityId</code>.</td><td>Renaming a domain concept without stranding old exports.</td></tr>
+        <tr><td>v5→v6</td><td>Ensure every account has exactly one built-in Internal client (idempotent).</td><td>Backfilling a singleton invariant.</td></tr>
+      </tbody>
+    </table>
     <div class="callout warn">
       <span class="label">A migration that needs no migration step</span>
       <p>When CapacityLens added <code>accountId</code> to every scoped entity (v2→v3), it did <em>not</em> write a
@@ -247,11 +333,20 @@
     bomb.</p>
 
     <h3>seed.ts &amp; fixtures.ts — two different jobs</h3>
-    <p><code>seed.ts</code> is the demo dataset shown on first run: two companies (one rich enough to
-    demonstrate stacking, over-allocation, placeholders and time-off; one near-empty to prove account
-    switching), with stable literal ids (<code>r-tyler</code>, <code>p-acme</code>) and inline comments
-    explaining the scenario each row demonstrates. <code>fixtures.ts</code> is the opposite: <em>every optional
-    field set to a non-default value</em>, used as the drift-proof round-trip oracle in server tests.</p>
+    <p><code>seed.ts</code> is the demo dataset: two companies (one rich enough to demonstrate stacking,
+    over-allocation, placeholders, an external third party with a zero-load allocation, all three activity
+    kinds, the built-in Internal clients, and time-off; one near-empty to prove account switching), with
+    stable literal ids (<code>r-tyler</code>, <code>p-acme</code>) and inline comments explaining the scenario
+    each row demonstrates. <code>fixtures.ts</code> is the opposite: <em>every optional field set to a
+    non-default value</em>, used as the drift-proof round-trip oracle in server tests.</p>
+    <div class="callout warn">
+      <span class="label">Who seeds, and when (this changed)</span>
+      <p>Auto-seed is <strong>demo-build-only</strong>: the client bootstrap seeds only when
+      <code>isDemoMode()</code>, and the server seeds only under <code>CAPACITYLENS_SEED_DEMO=1</code> (which
+      <code>npm run dev</code> sets for you). A real server deployment's first run is deliberately
+      <strong>empty</strong> — it lands on the create-your-company screen. Seeding is also gated on a
+      persistent marker, not emptiness, so a user who clears all their data is not "helpfully" re-seeded.</p>
+    </div>
 
     <h2 id="import">The import-remap algorithm</h2>
     <p><code>remapAndValidateImport(data, accountId, incoming, now)</code> in <code>domain/mutations.ts</code> is
@@ -261,9 +356,14 @@
       <li><strong>Per-table id maps.</strong> One <code>Map&lt;sourceId, freshId&gt;</code> <em>per entity type</em>. Every incoming row gets a brand-new id (imports never trust source ids). Cross-table id collisions are safe because each FK resolves against its own table's map.</li>
       <li><strong>FK remap + value sanitise.</strong> Each row is given its fresh id, stamped with the active <code>accountId</code> and <code>now</code> timestamps, has each FK remapped through the right table's map, and is passed through <code>sanitizeImportedRecord</code> for value-level repair.</li>
       <li><strong>Referential repair, parent-before-child.</strong> Walk the dependency tree top-down so each child sees the surviving parent set: projects (drop if <code>clientId</code> didn't survive) → phases (drop if <code>projectId</code> gone) → resources (unbind dangling optional <code>disciplineId</code>/<code>projectId</code>) → activities (unbind dangling optional <code>projectId</code>; clear <code>phaseId</code> if its phase is gone or belongs to a different project) → allocations (drop if <code>resourceId</code> or <code>activityId</code> missing, or the date range / placeholder rule fails) → timeOff (drop if <code>resourceId</code> missing or range invalid).</li>
+      <li><strong>Singleton normalisation.</strong> Fold duplicate built-in Internal clients (keep-first, rewire <code>clientId</code>s), and synthesise one if the file had none — so an import can neither double nor lose the singleton.</li>
       <li><strong>Assemble.</strong> For each scoped table, keep the OTHER accounts' rows (via <code>notInAccount</code>) and append the repaired incoming rows.</li>
       <li><strong>Return counts.</strong> An honest <code>{ imported, skipped }</code> — a row that merely had an optional FK unbound still counts as imported; only dropped rows are skipped.</li>
     </ol>
+    <p>Kind-specific repairs ride along in phase 3: a <code>project</code> activity whose project didn't
+    survive is demoted to <code>repeatable</code> (not dropped — the work is still real); an external
+    resource's allocation load is coerced to 0 and external time off is dropped, mirroring the write-boundary
+    rules exactly.</p>
     <div class="callout rule">
       <span class="label">Load-bearing rule</span>
       <p>The repair order <em>is</em> the FK dependency order. A child is repaired only after its parent's
@@ -316,17 +416,19 @@
         <tr><td>Functions</td><td><code>camelCase</code> — <code>remapAndValidateImport</code>, <code>deleteClientCascade</code>.</td></tr>
         <tr><td>Boolean predicates</td><td>Prefixed <code>is</code>/<code>has</code>/<code>belongs</code>/<code>not</code> — <code>isValidISODate</code>, <code>hasDisallowedChars</code>, <code>belongsToAccount</code>.</td></tr>
         <tr><td>Exports</td><td><strong>Named only.</strong> No <code>default</code> exports anywhere in the package.</td></tr>
-        <tr><td>Purity</td><td>Every <code>lib/</code> and <code>domain/</code> function returns new data via spread; the one in-place mutator (<code>sanitizeImportedRecord</code>) is documented as such and operates on a fresh copy.</td></tr>
-        <tr><td>Errors</td><td>Validators return results; asserts throw; import/migrate never throw on bad data (only <code>parseData</code> throws, for structural failures).</td></tr>
+        <tr><td>Purity</td><td>Every <code>lib/</code> and <code>domain/</code> function returns new data via spread; the two in-place mutators (<code>sanitizeImportedRecord</code>, <code>sanitizeAccount</code>) are documented as such and operate on fresh copies.</td></tr>
+        <tr><td>Errors</td><td>Validators return results; asserts throw; import/migrate never throw on bad data (only <code>parseData</code> throws, for structural failures). Third category: the lifecycle transitions (<code>archive</code>/<code>unarchive</code>/<code>softDelete</code>) throw on an invalid source state — a caller bug, not bad data.</td></tr>
       </tbody>
     </table>
     <div class="callout do">
       <span class="label">Comment style: explain WHY, at both ends of a dependency</span>
-      <p>Every file opens with a 3–6 line block stating its role, which surfaces consume it, and the invariant
-      it enforces. Comments justify decisions and name edge cases; they don't narrate the code. When a constant
-      is used by two divergent paths, the comment says so ("used by client <em>and</em> server, so the two
-      can't drift"). This density is not optional — it is how the next reader (human or AI) learns the
-      <em>why</em> without spelunking. See page 11 for the full comment-style guide.</p>
+      <p>Intricate files open with a short header stating their role, which surfaces consume them, and the
+      invariant they enforce — and <strong>every exported symbol in <code>shared/</code> gets TSDoc</strong>
+      (it is the published API), with preconditions and <code>@throws</code> where a throw has meaning.
+      Comments justify decisions and name edge cases; they don't narrate the code. When a constant is used by
+      two divergent paths, the comment says so ("used by client <em>and</em> server, so the two can't drift").
+      This density is not optional — it is how the next reader (human or AI) learns the <em>why</em> without
+      spelunking. The full standard is <code>DEFENSIVE-CODING.md</code>; page 11 has the digest.</p>
     </div>
 
     <div class="pager">

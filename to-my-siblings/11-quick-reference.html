@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -45,6 +46,7 @@
       <strong>On this page</strong>
       <ul>
         <li><a href="#naming">Naming conventions</a></li>
+        <li><a href="#registers">Env-var &amp; storage-key registers</a></li>
         <li><a href="#comments">Comment style</a></li>
         <li><a href="#wheredoes">Where does X go?</a></li>
         <li><a href="#golden">The golden rules</a></li>
@@ -70,21 +72,44 @@
         <tr><td>Pure-logic files</td><td><code>camelCase.ts</code></td><td><code>schedulerModel.ts</code>, <code>layout.ts</code></td></tr>
         <tr><td>Tests</td><td><code>.test.ts(x)</code> co-located; <code>.spec.ts</code> in e2e; <code>.db/.auth.spec.ts</code></td><td><code>ClientForm.test.tsx</code>, <code>scheduler.spec.ts</code></td></tr>
         <tr><td><code>data-testid</code></td><td>kebab-case, role-named</td><td><code>client-row</code>, <code>allocation-bar</code>, <code>over-marker</code></td></tr>
-        <tr><td>Server env vars</td><td><code>CAPACITYLENS_*</code> (runtime)</td><td><code>CAPACITYLENS_DB</code>, <code>CAPACITYLENS_AUTH</code>, <code>CAPACITYLENS_RATE_LIMIT</code></td></tr>
-        <tr><td>Client env vars</td><td><code>VITE_CAPACITYLENS_*</code> (build-time)</td><td><code>VITE_CAPACITYLENS_API</code>, <code>VITE_CAPACITYLENS_BUILD_SHA</code></td></tr>
-        <tr><td>localStorage keys</td><td><code>{app}/{thing}</code></td><td><code>capacitylens/v3</code> (data), <code>capacitylens/theme</code>, <code>capacitylens/utilizationPrefs</code></td></tr>
+        <tr><td>Server env vars</td><td><code>CAPACITYLENS_*</code> (runtime)</td><td><code>CAPACITYLENS_DB</code>, <code>CAPACITYLENS_AUTH</code>, <code>CAPACITYLENS_MULTI_ACCOUNT</code></td></tr>
+        <tr><td>Client env vars</td><td><code>VITE_CAPACITYLENS_*</code> (build-time)</td><td><code>VITE_CAPACITYLENS_API</code>, <code>VITE_CAPACITYLENS_DEMO</code>, <code>VITE_CAPACITYLENS_BUILD_SHA</code></td></tr>
+        <tr><td>localStorage keys</td><td><code>{STORAGE_KEY_PREFIX}{thing}</code> (from <code>shared/brand.ts</code>)</td><td><code>capacitylens/v3</code> (data, demo build), <code>capacitylens/theme</code>, <code>capacitylens/utilizationPrefs</code></td></tr>
+        <tr><td>i18n message keys</td><td>snake_case, area-namespaced</td><td><code>nav_schedule</code>, <code>form_save</code>, <code>dialog_delete_company_confirm_label</code></td></tr>
         <tr><td>Exports</td><td><strong>Named only</strong>, no defaults</td><td>—</td></tr>
       </tbody>
     </table>
 
-    <h2 id="comments">Comment style</h2>
+    <h2 id="registers">The env-var &amp; storage-key registers</h2>
+    <p><code>.env.example</code> is the authoritative register (update it in the same commit as any new var).
+    The compact map:</p>
+    <table>
+      <thead><tr><th>Register</th><th>Contents</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Client (build-time)</strong></td><td><code>VITE_CAPACITYLENS_API</code> (empty = same-origin server — the default), <code>VITE_CAPACITYLENS_DEMO</code> (<code>1</code> = the localStorage demo build, the <em>only</em> route to it; wins over the API var), <code>VITE_CAPACITYLENS_BUILD_SHA</code>, <code>VITE_CAPACITYLENS_FEEDBACK_MAILTO</code>.</td></tr>
+        <tr><td><strong>Server: shape</strong></td><td><code>CAPACITYLENS_DB</code>, <code>PORT</code>, <code>CAPACITYLENS_HOST</code>, <code>CAPACITYLENS_CORS_ORIGIN</code>, <code>CAPACITYLENS_MULTI_ACCOUNT</code>, <code>CAPACITYLENS_SEED_DEMO</code>.</td></tr>
+        <tr><td><strong>Server: auth</strong></td><td><code>CAPACITYLENS_AUTH=off|password|sso</code>, <code>BETTER_AUTH_SECRET</code>/<code>_URL</code>, <code>CAPACITYLENS_ALLOW_OPEN_SIGNUP</code>, <code>CAPACITYLENS_{GOOGLE,MICROSOFT,GITHUB}_CLIENT_ID/_SECRET</code>, <code>CAPACITYLENS_SSO_*</code>, <code>CAPACITYLENS_BOOTSTRAP_TOKEN</code> (page 12).</td></tr>
+        <tr><td><strong>Server: ops</strong></td><td><code>CAPACITYLENS_LOG</code>, <code>CAPACITYLENS_HEALTH_DEEP</code>, <code>CAPACITYLENS_RATE_LIMIT</code>, <code>CAPACITYLENS_BACKUP_DIR/_INTERVAL_MIN/_KEEP</code>, <code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code>, <code>CAPACITYLENS_HTTPS</code>, <code>CAPACITYLENS_AUDIT</code> (<strong>on</strong> by default) <code>/_FILE/_MAX_MB</code>.</td></tr>
+        <tr><td><strong>Server: escapes</strong></td><td><code>CAPACITYLENS_ALLOW_RESET</code> (dev/E2E), <code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION</code> (the posture-interlock override).</td></tr>
+        <tr><td><strong>Test-harness only</strong></td><td><code>CAPACITYLENS_WEBKIT[_ONLY]</code>, <code>CAPACITYLENS_FIREFOX[_ONLY]</code>, <code>CAPACITYLENS_VITE_ONLY</code>, <code>CAPACITYLENS_DEV_API_PORT</code>, <code>CAPACITYLENS_REHEARSAL_URL</code>.</td></tr>
+      </tbody>
+    </table>
+    <p>Device-local storage keys (all <code>capacitylens/</code>-prefixed; a startup migration renames legacy
+    <code>floaty/</code> keys): <code>v3</code> (the demo build's data blob), <code>theme</code>,
+    <code>utilizationPrefs</code>, <code>barLabelPrefs</code>, <code>sidebar</code>,
+    <code>minimiseWeekends</code>, <code>snapToWeekStart</code>, <code>fakeSignedIn</code>,
+    <code>introSeen</code>; sessionStorage: <code>rotateHintDismissed</code>. "Clear local data" wipes exactly
+    the prefixed keys — never a blind <code>localStorage.clear()</code>. Auth sessions live in the Better Auth
+    cookie, never in storage.</p>
+
+    <h2 id="comments">Comment style (the DEFENSIVE-CODING.md digest)</h2>
     <ul>
-      <li><strong>Every file opens with a 3–6 line block</strong> stating its role, who consumes it, and the invariant it enforces.</li>
-      <li><strong>Comments explain <em>why</em>, not <em>what</em></strong>. If the code is clear, no comment. If a decision is non-obvious, the rationale and the rejected alternative go in a comment.</li>
+      <li><strong>Intricate files open with a short header</strong> stating their role, who consumes them, and the invariant they enforce.</li>
+      <li><strong>Comments explain <em>why</em>, for a junior — not <em>what</em></strong>. If the code is clear, no comment. If a decision is non-obvious, the rationale and the rejected alternative go in a comment.</li>
+      <li><strong>Every exported symbol gets TSDoc</strong> — highest priority in <code>shared/</code> (it is the published API) — with preconditions and <code>@throws</code> where a throw has meaning.</li>
       <li><strong>Dual-surface contracts are stated</strong>: when a constant/function is used by two divergent paths (form vs import, client vs server), say so ("used by client <em>and</em> server, so the two can't drift").</li>
       <li><strong>Performance shortcuts name the invariant they depend on</strong>, at both ends (e.g. <code>isWithin</code>'s string-compare comment names the validator that guarantees zero-padding).</li>
-      <li><strong>Degenerate-case guards are always explained</strong> (why this clamp, why this fallback, why this iteration cap).</li>
-      <li><strong>JSDoc <code>/** */</code> on exported functions/types</strong> when the signature alone is insufficient; plain <code>//</code> inline elsewhere.</li>
+      <li><strong>Degenerate-case guards are always explained</strong> (why this clamp, why this fallback, why this iteration cap) — and deliberately <em>unguarded</em> hot paths carry a guard-comment saying <em>not</em> to wrap them.</li>
     </ul>
 
     <h2 id="wheredoes">Where does X go?</h2>
@@ -95,8 +120,11 @@
         <tr><td>A pure browser-only utility (theme, fuzzy search, palette, drag/capacity math)</td><td><code>src/lib/</code></td></tr>
         <tr><td>A state transition, id minting, undo, or persistence wiring</td><td><code>src/store/</code> &amp; <code>src/data/</code></td></tr>
         <tr><td>Pixels, ARIA, event handling</td><td>a component in <code>src/components/</code></td></tr>
-        <tr><td>A shared UI primitive used across entities</td><td><code>src/components/common/</code></td></tr>
-        <tr><td>HTTP, SQLite, or an ops concern</td><td><code>server/src/</code></td></tr>
+        <tr><td>A shared UI primitive used across entities</td><td><code>src/components/common/</code> (wrapping <code>src/components/ui/</code> shadcn primitives)</td></tr>
+        <tr><td>A user-facing string (label, aria, SR text, toast)</td><td><code>messages/en.json</code>, consumed as <code>m.*()</code> via the <code>src/i18n</code> seam — never a literal in a component</td></tr>
+        <tr><td>HTTP, SQLite, sessions, or an ops concern</td><td><code>server/src/</code></td></tr>
+        <tr><td>A permission rule</td><td><code>shared/src/domain/access.ts</code> (<code>can()</code>) — never inline in a route or component</td></tr>
+        <tr><td>Membership/invite (control-plane) data</td><td><code>server/src/controlTables.ts</code> — never <code>AppData</code>, never generic CRUD</td></tr>
         <tr><td>A non-component style constant</td><td>a <code>.ts</code> file (not <code>.tsx</code>)</td></tr>
         <tr><td>A device preference (theme, toggles)</td><td>its own <code>localStorage</code> key — never <code>AppData</code></td></tr>
       </tbody>
@@ -107,8 +135,10 @@
     <h2 id="golden">The golden rules (load-bearing, consolidated)</h2>
     <div class="callout rule">
       <span class="label">Architecture</span>
-      <p>One persistence seam (<code>PersistenceAdapter</code>) — no code knows which backend is live. The core
-      imports nothing up the stack and no environment API. Dependencies point inward. One cast for the
+      <p>One persistence seam (<code>PersistenceAdapter</code>) — no code knows which backend is live; the
+      choice is <code>isDemoMode()</code> alone (empty API var = same-origin server, the default). One auth
+      port (<code>AuthAdapter</code>: null = 401, throw = 503) — nothing above it touches the provider. The
+      core imports nothing up the stack and no environment API. Dependencies point inward. One cast for the
       scoped-table union, in one named seam (<code>scopedTables</code>).</p>
     </div>
     <div class="callout rule">
@@ -141,8 +171,19 @@
     <div class="callout rule">
       <span class="label">Server &amp; ops</span>
       <p>Server is a thin shell over the core — no duplicated rules. 500 bodies are generic; never leak SQLite
-      errors. Every behaviour change ships behind a fail-closed flag, default OFF = today's behaviour. Backups
-      must have a tested restore. Rollback from server mode strands data — export first.</p>
+      errors. Every behaviour change ships behind a fail-closed flag, default OFF = today's behaviour — with
+      the <em>named</em> exceptions: safety interlocks (production posture, reset boot-guard, timeouts,
+      helmet) are always-on, and the audit log is on-by-default. Single company per instance unless
+      <code>CAPACITYLENS_MULTI_ACCOUNT=1</code>; a real deploy first-runs empty. Backups must have a tested
+      restore (and the drill <em>is</em> a test). Rollback from server mode strands data — export first.</p>
+    </div>
+    <div class="callout rule">
+      <span class="label">Auth &amp; access</span>
+      <p>OFF is a guarantee: no auth tables, no login UI, the gate allow-alls on line one; the entire pre-auth
+      suite green in off mode is the proof. One pure <code>can(role, action)</code> is the whole matrix,
+      consumed by server routes and client affordances alike. Control tables never enter AppData, fixtures,
+      generic CRUD or export. Sensitive fields are redacted server-side, per role. The server 403 is
+      authoritative; client gating is UX; the store's viewer guard no-ops, never throws.</p>
     </div>
     <div class="callout rule">
       <span class="label">Process</span>
@@ -173,8 +214,16 @@
     <div class="callout dont">
       <span class="label">Don't add abstraction this small product doesn't need</span>
       <p>No generic store/CRUD factory, no schema-driven forms, no custom listbox replacing native
-      <code>&lt;select&gt;</code>, no ORM, no extra runtime libraries. Explicit hand-written forms/lists at this
-      scale beat the abstraction.</p>
+      <code>&lt;select&gt;</code>, no ORM, no form/fetch/state-machine library. Every runtime dependency has
+      one named job (the shadcn layer included — page 02); reject any addition that duplicates a job something
+      already does. Explicit hand-written forms/lists at this scale beat the abstraction.</p>
+    </div>
+    <div class="callout dont">
+      <span class="label">Don't hand-roll what the kit already owns</span>
+      <p>Don't hand-roll a toast — surface via <code>setNotice</code> (the Sonner bridge; the old
+      <code>Toast</code> was retired). Don't build a dialog off <code>Modal</code>, a list row off the
+      icon-button shells, or a string outside the message catalogue. Don't import a shadcn <code>ui/</code>
+      file from feature code — go through <code>common/</code>.</p>
     </div>
     <div class="callout dont">
       <span class="label">Don't reintroduce silent failures</span>
@@ -200,18 +249,21 @@
     </div>
 
     <h2 id="newrepo">Runbook: standardise a new sibling repo</h2>
-    <p>An ordered, do-this-then-that sequence a developer or an agent can follow. Each step ends green.</p>
+    <p>An ordered, do-this-then-that sequence a developer or an agent can follow. Each step ends green.
+    Remember the shape you are building: <strong>server-backed by default, demo build opt-in</strong> — the
+    server is part of the product, not an appendix.</p>
     <ol>
-      <li><strong>Copy the toolchain</strong> (page 02): the three <code>package.json</code>s, five tsconfigs, <code>eslint.config.js</code>, <code>vite.config.ts</code>, <code>playwright.config.ts</code>, <code>index.html</code>, dotfiles. Rename the app, the <code>@scope/shared</code> package, and the env-var prefix. <code>npm install</code> at the root. Confirm an empty <code>npm run gate</code> passes.</li>
-      <li><strong>Write the product layer</strong> (page 01 + 09): the one-sentence problem statement and the non-goals, in the new <code>CLAUDE.md</code> and <code>DECISIONS.md</code>. Copy the standing architectural decisions from this handbook into <code>DECISIONS.md</code> so they're explicit.</li>
-      <li><strong>Define the data model</strong> (page 03–04): write <code>shared/src/types/entities.ts</code> for the new domain — keep the <code>Entity</code>/<code>ScopedEntity</code> bases, the tenant-at-top shape, required-vs-optional FKs, the enum + runtime-list pattern, the clamps, <code>SCOPED_KEYS</code>/<code>scopedTables</code>, <code>SCHEMA_VERSION</code>, <code>emptyAppData</code>/<code>isEmpty</code>.</li>
-      <li><strong>Port the core</strong> (page 04): bring over <code>lib/</code> (id, strings, dateMath, color where relevant), then write the domain's integrity validators + cascade transforms, the sanitiser (with the exhaustive switch), <code>tenancy.ts</code>, and <code>mutations.ts</code> (asserts + <code>remapAndValidateImport</code>). Write its unit tests as you go.</li>
-      <li><strong>Build the store &amp; seam</strong> (page 05): the Zustand store (Draft/Patch, stamp/touch, mutate, undo, requireAccount, action patterns), selectors, <code>useScopedData</code>, the <code>PersistenceAdapter</code> + <code>LocalStorageAdapter</code>, <code>persist.ts</code> bootstrap. (Add <code>ServerSyncAdapter</code> + <code>syncOps</code> when/if you do server mode.)</li>
-      <li><strong>Build the UI</strong> (page 06): copy <code>common/</code> wholesale (kit + Modal + fields), <code>index.css</code> tokens, the canonical form + list per entity, the domain's main view. Keep the a11y patterns.</li>
-      <li><strong>Stand up testing</strong> (page 08): <code>setup.ts</code>, fixtures, the frozen-clock <code>openApp</code> (set the constant to <em>your</em> seed window), <code>REFERENCE.md</code>, the a11y oracle. Write component + E2E coverage 1:1 with user stories.</li>
-      <li><strong>(Optional) Port the server</strong> (page 07): copy <code>tables.ts</code> (rewrite column specs for the new entities — the <code>CheckColumns</code> guard will tell you when they match), <code>rowCodec</code>, <code>db.ts</code>, <code>validate.ts</code>, <code>app.ts</code>, and the hardening modules. It is a thin shell — most of it is unchanged.</li>
-      <li><strong>Set the merge bar</strong> (page 02/08): the bar is <code>gate</code> + <code>gate:server</code> + <code>e2e</code> green, run locally before pushing. Hosted CI is optional and off by default (a GitHub Actions recipe is on page 08) — these repos keep it off to avoid Actions cost on private repos.</li>
-      <li><strong>Deploy &amp; operate</strong> (page 10) only when needed: static SPA first; the server cutover, flag register, and backups only when a shared dataset is actually required.</li>
+      <li><strong>Copy the toolchain</strong> (page 02): the three <code>package.json</code>s, five tsconfigs, <code>eslint.config.js</code>, <code>vite.config.ts</code>, <code>playwright.config.ts</code>, <code>index.html</code>, <code>components.json</code>, <code>.env.example</code>, <code>project.inlang/</code> + <code>messages/en.json</code>, the <code>scripts/</code> folder (dev orchestrator + e2e runners), the Docker trio, and the dotfiles. Rename the app, the <code>@scope/shared</code> package, the env-var prefix, and <code>shared/src/brand.ts</code>. Node 24, <code>npm install</code> at the root. Confirm an empty <code>npm run gate</code> passes (it compiles Paraglide first — that's expected).</li>
+      <li><strong>Write the product layer</strong> (page 01 + 09): the one-sentence problem statement and the non-goals, in the new <code>CLAUDE.md</code> and <code>DECISIONS.md</code>; copy <code>DEFENSIVE-CODING.md</code> verbatim. Copy the standing architectural decisions from this handbook into <code>DECISIONS.md</code> so they're explicit.</li>
+      <li><strong>Define the data model</strong> (page 03–04): write <code>shared/src/types/entities.ts</code> for the new domain — keep the <code>Entity</code>/<code>ScopedEntity</code> bases, the tenant-at-top shape, required-vs-optional FKs, the enum + runtime-list pattern, the clamps, <code>SCOPED_KEYS</code>/<code>scopedTables</code>, <code>SCHEMA_VERSION</code>, <code>emptyAppData</code>/<code>isEmpty</code> — plus lifecycle fields on the entities that need archive/delete.</li>
+      <li><strong>Port the core</strong> (page 04): bring over <code>lib/</code> (id, strings, dateMath, color where relevant) and <code>domain/access.ts</code> + <code>domain/lifecycle.ts</code> (near-verbatim), then write the domain's integrity validators + cascade transforms, the sanitiser (with the exhaustive switch), <code>tenancy.ts</code>, and <code>mutations.ts</code> (asserts + <code>remapAndValidateImport</code>). Write its unit tests as you go.</li>
+      <li><strong>Port the server</strong> (page 07 — it is on the default path, not optional): copy <code>tables.ts</code> (rewrite column specs for the new entities — the <code>CheckColumns</code> guard will tell you when they match), <code>rowCodec</code>, <code>db.ts</code>, <code>txn.ts</code>, <code>validate.ts</code>, <code>tenantStore.ts</code>, <code>app.ts</code>, and the hardening modules. It is a thin shell — most of it is unchanged.</li>
+      <li><strong>Build the store &amp; seam</strong> (page 05): the Zustand store (Draft/Patch, stamp/touch, mutate, undo, requireAccount, action patterns, the viewer guard), selectors, <code>useScopedData</code>/<code>useActiveScopedData</code>, the <code>PersistenceAdapter</code> with <em>both</em> implementations (<code>ServerSyncAdapter</code> + <code>syncOps</code> for the default build, <code>LocalStorageAdapter</code> for the demo build), and <code>persist.ts</code> (bootstrap, debounce/flush, the switch orchestrator).</li>
+      <li><strong>Wire auth &amp; access</strong> (page 12): copy the whole layer — <code>authAdapter.ts</code>, <code>auth.ts</code>, <code>controlTables.ts</code>, <code>membership.ts</code>, the <code>authorize</code> gate, erasure — plus the client's <code>src/auth/</code> (AuthProvider, LoginScreen, PermissionProvider). Adapt only the role matrix, the lifecycle entity list, and any role-redacted fields. Verify the OFF guarantee: every pre-auth test green with <code>CAPACITYLENS_AUTH</code> unset.</li>
+      <li><strong>Build the UI</strong> (page 06): copy <code>common/</code> + <code>ui/</code> wholesale (kit + Modal + fields + icon buttons), <code>src/i18n/</code>, <code>index.css</code> tokens, the canonical form + list per entity, the domain's main view. Keep the a11y patterns and the WCAG 2.2 conventions; put every string in <code>messages/en.json</code> from day one.</li>
+      <li><strong>Stand up testing</strong> (page 08): <code>setup.ts</code>, fixtures, the frozen-clock <code>openApp</code> (set the constant to <em>your</em> seed window), <code>REFERENCE.md</code>, the a11y oracle + the bespoke WCAG 2.2 tests, the db-backed and auth-backed projects. Write component + E2E coverage 1:1 with user stories.</li>
+      <li><strong>Set the merge bar</strong> (page 02/08): the bar is <code>gate</code> + <code>gate:server</code> + <code>e2e</code> green, run locally before pushing; <code>e2e:browsers</code> before a release. There is deliberately no committed CI workflow — the local gate is the enforcement mechanism.</li>
+      <li><strong>Deploy &amp; operate</strong> (page 10): the Docker Compose two-service deploy is the default path (empty first run, one company, posture interlock); the static build is the demo. Turn on the ops flags (log, deep health, rate limit, backups) for anything real, and run the restore drill.</li>
     </ol>
     <div class="callout do">
       <span class="label">The end state</span>

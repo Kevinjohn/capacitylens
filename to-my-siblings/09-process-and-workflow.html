@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html" class="active"><span class="num">09</span>Process &amp; workflow</a>
@@ -63,11 +64,14 @@
       <tbody>
         <tr><td><code>CLAUDE.md</code></td><td>The load-bearing invariants in one breath; loaded into the AI pair's context every session.</td><td>Keep it <strong>short</strong>. Read whole. Edit only when an invariant changes.</td></tr>
         <tr><td><code>DECISIONS.md</code></td><td>A slim, present-tense digest of standing calls that still constrain the code.</td><td>Read whole (it's short). Edit a line only when a load-bearing call changes.</td></tr>
+        <tr><td><code>DEFENSIVE-CODING.md</code></td><td>The error-handling &amp; commenting standard: surface-not-swallow, the two-tier error model, where try/catch is harmful, the TSDoc bar.</td><td>Read whole (it's short). Follow it on <em>every</em> change.</td></tr>
         <tr><td><code>docs/decisions-log.md</code></td><td>Append-only, dated history of every review/remediation round, with commit refs.</td><td><strong>Don't read whole</strong> (it's large). Grep it, or tail-read to append.</td></tr>
-        <tr><td><code>NEEDS-INPUT.md</code></td><td>Open product questions for the owner.</td><td>Flag here; don't silently resolve.</td></tr>
-        <tr><td><code>CODE_REVIEW.md</code></td><td>Findings from the big adversarial review passes (referenced by the log).</td><td>Reference when remediating.</td></tr>
+        <tr><td><code>NEEDS-INPUT.md</code></td><td>Open product questions for the owner — plus the <strong>accepted-for-alpha tripwires</strong> (below).</td><td>Flag here; don't silently resolve.</td></tr>
+        <tr><td><code>CODE_REVIEW.md</code></td><td>Findings from the big adversarial review passes (referenced by the log; <code>docs/full-review-2026-06-11.md</code> is its peer).</td><td>Reference when remediating.</td></tr>
         <tr><td><code>user-stories/</code> (+ <code>REFERENCE.md</code>)</td><td>Manual test scripts, 1:1 with the E2E specs; REFERENCE is their source of truth.</td><td>Update REFERENCE first, then stories.</td></tr>
+        <tr><td><code>docs/self-hosting.md</code>, <code>docs/runbook.md</code>, <code>docs/production-{plan,posture}.md</code>, <code>docs/privacy.md</code>, <code>docs/deploy.md</code></td><td>Running &amp; operating a self-hosted instance (page 10 is their handbook digest).</td><td>Update alongside the ops change they describe.</td></tr>
         <tr><td><code>README.md</code>, <code>server/README.md</code></td><td>Stable orientation for a newcomer.</td><td>Touch rarely.</td></tr>
+        <tr><td><code>CHANGELOG.md</code>, <code>CONTRIBUTING.md</code>, <code>SECURITY.md</code>, <code>CODE_OF_CONDUCT.md</code>, <code>LICENSE</code></td><td>The open-source surface.</td><td>Changelog per release; the rest touch rarely.</td></tr>
         <tr><td><code>STRETCH.md</code></td><td>The aspirational backlog / definition of "polished".</td><td>A north star, not a tracker.</td></tr>
       </tbody>
     </table>
@@ -95,7 +99,7 @@
     <h2 id="log">Logging a decision (keep it cheap)</h2>
     <p>The procedure is three steps, optimised so the common case is one appended line:</p>
     <ol>
-      <li><strong>Append one line to <code>docs/decisions-log.md</code></strong> — <code>- 2026-06-13 — &lt;area&gt; — &lt;what changed&gt; (&lt;sha&gt;)</code>. Full rationale only for load-bearing calls.</li>
+      <li><strong>Append to <code>docs/decisions-log.md</code></strong> — <code>- 2026-06-13 — &lt;area&gt; — &lt;what changed&gt; (&lt;sha&gt;)</code>. One line is the common case; a load-bearing round earns a fuller dated block (what/why/how-verified), still append-only.</li>
       <li><strong>Append by reading the file <em>tail</em></strong> (open it near EOF), never the whole file — that locality is the entire point of the split.</li>
       <li><strong>If the call constrains future work, promote it to <code>DECISIONS.md</code></strong> as one line. When a promoted call later changes, <em>edit that line</em> so the digest never drifts from the code.</li>
     </ol>
@@ -118,6 +122,15 @@
       answer. That is exactly the failure this file prevents: ambiguity about <em>the product</em> is escalated,
       not resolved unilaterally. Ambiguity about <em>the code</em> (which the agent can verify) is resolved by
       reading the source. Knowing which is which is a core competence here.</p>
+    </div>
+    <div class="callout do">
+      <span class="label">Tripwires: "accepted, for now" is a documented state</span>
+      <p>Beyond open questions, <code>NEEDS-INPUT.md</code> carries a dated <strong>"Accepted for alpha —
+      must clear before X"</strong> section: risks the owner has consciously accepted for the current stage
+      (an open auth-off posture, a live demo URL, leftover client references) with the deadline event named.
+      This is a third state between "open" and "resolved" — a decision <em>with an expiry</em>. It keeps a
+      launch review from re-litigating known risks, and it keeps "temporary" from silently becoming
+      permanent. A sibling should copy the mechanism the first time it accepts a risk "for now".</p>
     </div>
 
     <h2 id="stories">The user-story system</h2>
@@ -174,7 +187,7 @@
     <h2 id="newsibling">Adopting the process in a sibling</h2>
     <p>The process files are as copyable as the code. To stand up a sibling's process layer:</p>
     <ol>
-      <li>Copy <code>CLAUDE.md</code>, <code>DECISIONS.md</code>, <code>NEEDS-INPUT.md</code>, and the <code>docs/</code> + <code>user-stories/</code> skeletons.</li>
+      <li>Copy <code>CLAUDE.md</code>, <code>DECISIONS.md</code>, <code>DEFENSIVE-CODING.md</code> (verbatim — it is domain-agnostic), <code>NEEDS-INPUT.md</code>, the OSS meta files, and the <code>docs/</code> + <code>user-stories/</code> skeletons.</li>
       <li>Rewrite the product statement and non-goals for the new domain (page 01's rule).</li>
       <li>Rewrite <code>user-stories/REFERENCE.md</code> for the new routes/labels/seed.</li>
       <li>Start the decisions-log fresh; promote the standing architectural calls (which you inherited from this handbook) into the sibling's <code>DECISIONS.md</code> so they are explicit there too.</li>

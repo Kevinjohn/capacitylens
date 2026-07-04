@@ -21,7 +21,8 @@
       <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
       <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
       <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
-      <a href="07-server.html"><span class="num">07</span>Optional server</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
       <div class="navgroup">Assure</div>
       <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
       <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
@@ -36,177 +37,210 @@
       <div class="crumb"><a href="index.html">Home</a> / Assure / 10</div>
       <p class="eyebrow">Assure</p>
       <h1>Deployment &amp; ops</h1>
-      <p class="lead">Two deploy modes, a flag register that keeps every behaviour change opt-in, real backup
-      and restore drills, and a staged migration plan where each later stage is gated on a product trigger —
-      not a schedule. The discipline here is "ship the small thing safely, and never build ahead of need".</p>
+      <p class="lead">One reproducible two-service Docker image as the default deploy, a boot-time posture
+      interlock that makes unsafe production configurations a decision rather than an accident, a flag
+      register with named exceptions, and backups whose restore path is <em>continuously tested</em>. The
+      discipline is "ship the small thing safely, and never build ahead of need".</p>
     </div>
 
     <div class="toc-mini">
       <strong>On this page</strong>
       <ul>
-        <li><a href="#modes">Two deploy modes</a></li>
-        <li><a href="#static">Static SPA deploy</a></li>
-        <li><a href="#server">Server cutover</a></li>
+        <li><a href="#modes">The deploy shapes</a></li>
+        <li><a href="#docker">The Docker Compose deploy</a></li>
+        <li><a href="#firstrun">First run: empty, one company</a></li>
+        <li><a href="#posture">The production posture interlock</a></li>
+        <li><a href="#baremetal">Bare-metal / Forge notes</a></li>
+        <li><a href="#static">The static demo deploy (opt-in)</a></li>
         <li><a href="#flags">The flag register</a></li>
         <li><a href="#clientflags">Client build flags</a></li>
         <li><a href="#backups">Backups &amp; restore</a></li>
-        <li><a href="#rollback">Rollback is a data decision</a></li>
-        <li><a href="#stages">The staged plan</a></li>
+        <li><a href="#ops">Monitoring, audit &amp; rollback</a></li>
+        <li><a href="#stages">The staged plan, updated</a></li>
         <li><a href="#security">Security posture</a></li>
       </ul>
     </div>
 
-    <h2 id="modes">Two deploy modes</h2>
+    <h2 id="modes">The deploy shapes</h2>
     <table>
-      <thead><tr><th>Mode</th><th>What ships</th><th>Data</th><th>When</th></tr></thead>
+      <thead><tr><th>Shape</th><th>What ships</th><th>Data</th><th>When</th></tr></thead>
       <tbody>
-        <tr><td><strong>Static SPA</strong> (default)</td><td>The Vite build (<code>dist/</code>) on a static host. No backend.</td><td>Each browser's own <code>localStorage</code> — per-browser islands.</td><td>Solo use, demos, the simplest possible deploy.</td></tr>
-        <tr><td><strong>Server mode</strong></td><td>The build (with <code>VITE_CAPACITYLENS_API</code> baked in) + the Fastify daemon behind an <code>/api</code> proxy + persistent SQLite.</td><td>One shared, server-persisted dataset, last-writer-wins.</td><td>A shared dataset across people/devices.</td></tr>
+        <tr><td><strong>Docker Compose</strong> (default, recommended)</td><td>Two services from one multi-stage <code>Dockerfile</code>: <code>web</code> (nginx: the SPA + an <code>/api</code> reverse proxy) and <code>api</code> (the Fastify daemon).</td><td>SQLite + backups on named volumes.</td><td>Self-hosting — the documented path in <code>docs/self-hosting.md</code>.</td></tr>
+        <tr><td><strong>Bare metal</strong></td><td>The same pieces managed by hand: nginx + a daemonised server + the built SPA.</td><td>SQLite on disk, outside the deploy tree.</td><td>An existing host you already operate (the original alpha ran this way).</td></tr>
+        <tr><td><strong>Static demo</strong> (explicit opt-in)</td><td>A <code>VITE_CAPACITYLENS_DEMO=1</code> build on any static host. No backend, no login.</td><td>Each browser's own <code>localStorage</code> — per-browser islands.</td><td>Previews and demos only. <em>This used to be the default; it is not any more.</em></td></tr>
       </tbody>
     </table>
     <div class="callout warn">
       <span class="label">The one structural fact that frames everything</span>
-      <p><code>VITE_CAPACITYLENS_API</code> is inlined <strong>at build time</strong> with <strong>no localStorage
-      fallback</strong>. A build either targets the server or it doesn't. So in server mode the server is a
-      <em>hard dependency</em> (server down ⇒ app down), and rollback = rebuild without the flag, which strands
-      whatever is on the server. Rollback is a data decision, not just a redeploy (see below).</p>
+      <p>The client env is inlined <strong>at build time</strong>, and an empty env means <strong>same-origin
+      server mode</strong> — there is <em>no localStorage fallback</em>. A server build whose backend is missing
+      boots into a "can't reach the server" screen, on purpose (a silent fallback would read as data loss when
+      the server returned). The <em>only</em> way to get a browser-local build is the explicit demo flag. So:
+      the server is a hard dependency of the default build, and which build you have is always knowable from
+      the Settings build stamp (below).</p>
     </div>
 
-    <h2 id="static">Static SPA deploy (the default)</h2>
-    <p>The reference target is Laravel Forge + DigitalOcean, but any static host works. The essentials:</p>
+    <h2 id="docker">The Docker Compose deploy (the default path)</h2>
+    <p>One multi-stage <code>Dockerfile</code> (Node 24 for the build and the <code>api</code> target;
+    <code>nginx:alpine</code> for <code>web</code>), one <code>docker-compose.yml</code>, one
+    <code>nginx.conf</code>:</p>
+<pre><code>Browser ──HTTP(S)──&gt; web (nginx, :${WEB_PORT:-8080})
+                       ├── /          → the built SPA (empty env ⇒ same-origin /api)
+                       └── /api/*     → api:8787   (same-origin, so CORS stays fail-closed)
+                     api (Fastify + node:sqlite, CAPACITYLENS_HOST=0.0.0.0, NODE_ENV=production)
+                       ├── /data/capacitylens.db        (named volume capacitylens-db)
+                       └── /backups/…                   (named volume capacitylens-backups)
+                       HEALTHCHECK → /api/health</code></pre>
     <ul>
-      <li><strong>Site type: Static HTML</strong>; <strong>web directory: <code>/dist</code></strong> (the Vite output, not <code>/public</code>).</li>
-      <li><strong>Deploy script</strong> runs the build on the host:</li>
+      <li><strong>The server stays API-only</strong> — nginx serves the SPA; the Fastify app never gains a static-file concern (no <code>@fastify/static</code>).</li>
+      <li><strong>Same-origin by construction</strong>: the SPA is built with an empty <code>VITE_CAPACITYLENS_API</code>, and nginx proxies <code>/api</code> — so <code>CAPACITYLENS_CORS_ORIGIN</code> stays unset and CORS stays fail-closed.</li>
+      <li><strong>SPA fallback + cache split in <code>nginx.conf</code></strong>: <code>try_files … /index.html</code> for deep links; hashed <code>/assets/</code> immutable for a year; <code>index.html</code> <code>no-cache</code> so a deploy is picked up immediately.</li>
+      <li><strong><code>docker compose up --build -d</code></strong>, browse <code>http://localhost:8080</code>. That's the quick start.</li>
     </ul>
-    <div class="filename">deploy script (static)</div>
-<pre><code>git pull origin $FORGE_SITE_BRANCH
-<span class="c"># --include=dev guards against NODE_ENV=production skipping vite/tsc/tailwind</span>
-<span class="c"># ("vite: not found"). Prepend `export NODE_ENV=development` if the build still fails.</span>
-npm ci --include=dev
-npm run build   <span class="c"># tsc -b &amp;&amp; vite build  ->  dist/</span></code></pre>
-    <div class="callout rule">
-      <span class="label">Load-bearing rule — the SPA fallback</span>
-      <p>The app uses real URLs (<code>createBrowserRouter</code>), so the host <strong>must</strong> rewrite
-      unknown paths to <code>index.html</code> or refreshing a deep link like <code>/projects</code> 404s:
-      <code>location / { try_files $uri $uri/ /index.html; }</code>. Then enable HTTPS (Let's Encrypt). Each
-      visitor's data lives in their own browser — there is no shared dataset in this mode.</p>
+    <div class="callout do">
+      <span class="label">The quick start must actually boot — test your own docs</span>
+      <p>The documented no-auth quick start once crash-looped: the <code>api</code> image sets
+      <code>NODE_ENV=production</code>, and the posture interlock (below) correctly refused to boot with auth
+      off. The fix was to make the documented default honest — the compose file carries the explicit
+      <code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1</code> for the trusted-LAN quick start, with a comment
+      telling you to remove it when you turn auth on. The lesson for a sibling: <em>run your own quick start
+      from scratch</em>; a deploy doc that has never been executed is fiction.</p>
     </div>
 
-    <h2 id="server">Server cutover (the controlled-demo architecture)</h2>
-    <p>Moving to a shared dataset is a <strong>cutover plus hardening</strong>, not a build — the server and the
-    sync adapter already exist. The target architecture:</p>
-<pre><code>Browser ──HTTPS──&gt; Nginx (Let's Encrypt, Basic Auth, security headers)
-                     ├── /          → dist/  (Vite build, VITE_CAPACITYLENS_API baked in)
-                     └── /api/*      → 127.0.0.1:8787  (Fastify daemon, node:sqlite)
-                                         └── /home/.../capacitylens.db (WAL) + online backups</code></pre>
-    <p>The cutover steps (operations, mostly no code):</p>
+    <h2 id="firstrun">First run: empty, one company</h2>
+    <p>A fresh real instance starts <strong>empty</strong> — no demo data — at the create-your-company screen
+    (auto-seed is demo/dev-only: <code>CAPACITYLENS_SEED_DEMO=1</code>). And by default the instance serves
+    <strong>one company</strong>: the server refuses to create a second account (403 naming the fix) unless
+    <code>CAPACITYLENS_MULTI_ACCOUNT=1</code>; the picker hides "New company" at the cap. The multi-tenant
+    schema is intact underneath — the cap is a deployment shape, not a migration (page 07).</p>
+
+    <h2 id="posture">The production posture interlock</h2>
+    <p>At boot, a pure <code>evaluateProductionPosture(env)</code> is consulted. It is a no-op outside
+    <code>NODE_ENV=production</code> — dev, E2E and trusted-LAN self-hosting keep the open auth-off posture as
+    a first-class mode. In production it:</p>
+    <ul>
+      <li><strong>Refuses to start with auth off</strong> (the dataset would be world-readable and writable). The only escape is the explicit <code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1</code>, which downgrades the refusal to a loud warning — never silences it.</li>
+      <li><strong>Warns loudly (still boots)</strong> on HSTS-off (<code>CAPACITYLENS_HTTPS!=1</code> — expected when TLS terminates at a proxy) and on open self-signup.</li>
+    </ul>
+    <div class="callout why">
+      <span class="label">Why an interlock and not a flag</span>
+      <p>This is one of the named exceptions to "everything ships behind a flag, default off" (principle 12):
+      defaulting a safety guard off defeats it. Like the reset boot-guard, it is deliberately always-on; the
+      escape hatch exists, is explicit, and shows up in the logs. An unsafe production posture is thereby
+      always a <em>decision</em> with a paper trail, never an accident of an unset variable.</p>
+    </div>
+
+    <h2 id="baremetal">Bare-metal / Forge notes (the same pieces, by hand)</h2>
     <ol>
       <li><strong>Persistent DB path</strong> <em>outside</em> the deploy tree so <code>git pull</code> never touches it (<code>CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db</code>).</li>
       <li><strong>Run the server as a managed daemon</strong> (<code>npm start --workspace=server</code>); add a daemon restart to the deploy script so new code actually runs.</li>
       <li><strong>Reverse-proxy <code>/api</code> → <code>127.0.0.1:8787</code></strong>. Same-origin, so CORS stays moot and fail-closed (leave <code>CAPACITYLENS_CORS_ORIGIN</code> unset — the localhost defaults never match a real origin).</li>
-      <li><strong>Flip the build onto the server</strong>: <code>export VITE_CAPACITYLENS_API=https://&lt;site&gt;</code> <em>before</em> <code>npm run build</code>.</li>
-      <li><strong>Gate it with Nginx Basic Auth</strong> over the whole site — one htpasswd entry per user (attribution in access logs, per-person revocation). The API is destructive and unauthenticated; it must not be naked on the internet.</li>
-      <li><strong>Security headers in the host config</strong>, not the app (the app ships only the safe <code>object-src</code>/<code>base-uri</code> CSP). Ship the full CSP as <code>Report-Only</code> first, click through the whole app, then enforce. Note <code>style-src 'unsafe-inline'</code> is required because the scheduler positions bars with inline styles.</li>
-      <li><strong>Cache headers</strong>: hashed <code>/assets/</code> immutable for a year; <code>index.html</code> <code>no-cache</code> — or testers get stuck on a stale build after a deploy.</li>
+      <li><strong>Build with an empty <code>VITE_CAPACITYLENS_API</code></strong> for same-origin, or set it to the API's <em>origin</em> (never <code>/api</code> — the client composes <code>${API_BASE}/api/…</code>, so <code>/api</code> would double-prefix).</li>
+      <li><strong>HTTPS via Let's Encrypt</strong>; then <code>CAPACITYLENS_HTTPS=1</code> so HSTS and the <code>Secure</code> session cookie switch on together.</li>
+      <li><strong>Host-level security headers</strong> for the SPA (the API ships its own via helmet — page 07). Ship a full CSP as <code>Report-Only</code> first, click through the whole app, then enforce; <code>style-src 'unsafe-inline'</code> is required because the scheduler positions bars with inline styles.</li>
+      <li><strong>Cache headers</strong>: hashed <code>/assets/</code> immutable; <code>index.html</code> <code>no-cache</code>.</li>
+      <li><strong><code>npm ci --include=dev</code></strong> in the deploy script — <code>NODE_ENV=production</code> would otherwise skip vite/tsc and the build dies with "vite: not found".</li>
     </ol>
 
-    <h2 id="flags">The flag register — every behaviour change, opt-in</h2>
-    <p>This is principle 10 made operational. One table is the single source of truth for every flag, its
-    default (unset = today's behaviour), and what the production host actually sets.</p>
+    <h2 id="static">The static demo deploy (explicit opt-in)</h2>
+    <p>The old default, retained as a preview vehicle: build with <code>VITE_CAPACITYLENS_DEMO=1</code>, ship
+    <code>dist/</code> to any static host with the SPA fallback rewrite, done. No backend, no login, self-seeding,
+    every visitor an island. Do not use it for anything shared — and never assume a plain
+    <code>npm run build</code> produces it (a plain build is a <em>server</em> build now).</p>
+
+    <h2 id="flags">The flag register — every behaviour change, opt-in (with named exceptions)</h2>
+    <p>This is principle 12 made operational. <code>.env.example</code> is the human-readable register — every
+    var, server and client, with accurate defaults; pages 07 and 12 carry the detailed server and auth tables.
+    The operational summary:</p>
     <table>
-      <thead><tr><th>Flag</th><th>Default</th><th>Droplet</th><th>On means</th></tr></thead>
+      <thead><tr><th>Group</th><th>Flags</th><th>Notes</th></tr></thead>
       <tbody>
-        <tr><td><code>CAPACITYLENS_LOG</code></td><td>off</td><td><code>1</code></td><td>Structured per-request JSON logs (pino).</td></tr>
-        <tr><td><code>CAPACITYLENS_HEALTH_DEEP</code></td><td>off</td><td><code>1</code></td><td><code>/api/health</code> proves a DB read.</td></tr>
-        <tr><td><code>CAPACITYLENS_RATE_LIMIT</code></td><td>off</td><td><code>300</code></td><td><em>n</em> req/min/IP on <code>/api/*</code>; health exempt.</td></tr>
-        <tr><td><code>CAPACITYLENS_BACKUP_DIR</code></td><td>off</td><td>a path</td><td>Periodic online DB snapshots.</td></tr>
-        <tr><td><code>CAPACITYLENS_AUTH</code></td><td><code>off</code></td><td><code>off</code></td><td><code>password</code>/<code>sso</code>: sessions required.</td></tr>
-        <tr><td><code>VITE_CAPACITYLENS_BUILD_SHA</code></td><td>none</td><td>git sha</td><td>Settings shows <code>build &lt;sha&gt; · server|local</code>.</td></tr>
-        <tr><td><code>VITE_CAPACITYLENS_FEEDBACK_MAILTO</code></td><td>none</td><td>an address</td><td>"Send feedback" mailto in Settings.</td></tr>
+        <tr><td>Deployment shape</td><td><code>CAPACITYLENS_MULTI_ACCOUNT</code>, <code>CAPACITYLENS_SEED_DEMO</code>, <code>CAPACITYLENS_DB</code>, <code>PORT</code>/<code>CAPACITYLENS_HOST</code>, <code>CAPACITYLENS_CORS_ORIGIN</code></td><td>All default to the safe/small shape: one company, no seed, localhost, fail-closed CORS.</td></tr>
+        <tr><td>Auth</td><td><code>CAPACITYLENS_AUTH</code> + <code>BETTER_AUTH_SECRET/URL</code>, <code>CAPACITYLENS_ALLOW_OPEN_SIGNUP</code>, social/SSO sets, <code>CAPACITYLENS_BOOTSTRAP_TOKEN</code></td><td>Off by default; missing secrets refuse to boot (page 12).</td></tr>
+        <tr><td>Ops (opt-in)</td><td><code>CAPACITYLENS_LOG</code>, <code>CAPACITYLENS_HEALTH_DEEP</code>, <code>CAPACITYLENS_RATE_LIMIT</code>, <code>CAPACITYLENS_BACKUP_DIR</code> (+ interval/keep), <code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code>, <code>CAPACITYLENS_HTTPS</code></td><td>A production host turns these ON (log, deep health, rate limit ~300, backups).</td></tr>
+        <tr><td>Escapes (explicit, off)</td><td><code>CAPACITYLENS_ALLOW_RESET</code>, <code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION</code></td><td>Dev/E2E reset (boot-guarded in prod) and the posture-interlock override.</td></tr>
+        <tr><td><strong>Deliberate exceptions</strong></td><td>helmet headers, request timeouts, null-body 400s, the posture interlock, graceful shutdown, the Node pin — always on; <code>CAPACITYLENS_AUDIT</code> — <strong>on</strong> by default (opt-out)</td><td>Each named with its rationale: an "off" default would preserve a defect or an unsafe silence (page 07).</td></tr>
       </tbody>
     </table>
-    <div class="callout do">
-      <span class="label">The three deliberately un-flagged changes</span>
-      <p>A change is <em>not</em> flagged when an "off" default would <strong>preserve a defect</strong>: the
-      Node-version pin (an environment prerequisite, not behaviour), graceful shutdown (only changes
-      termination — today it can kill a request mid-transaction), and the reset boot-guard (a safety interlock
-      on an existing flag; defaulting a guard off defeats it). Document the exceptions with rationale, as the
-      register does.</p>
-    </div>
 
     <h2 id="clientflags">Client build flags &amp; the build stamp</h2>
-    <p>Client flags are build-time Vite env (<code>VITE_*</code>), inlined into the bundle. The build stamp is a
-    deliberate safety device: a build that <em>silently</em> lost <code>VITE_CAPACITYLENS_API</code> reverts to
-    localStorage and looks identical otherwise. So Settings shows a one-line footer — <code>build &lt;sha&gt; ·
-    server</code> or <code>build &lt;sha&gt; · local</code> — and the post-deploy smoke test asserts it says
-    <code>server</code>.</p>
+    <p>Client flags are build-time Vite env (<code>VITE_*</code>), inlined into the bundle:
+    <code>VITE_CAPACITYLENS_API</code> (empty = same-origin server; an origin to retarget),
+    <code>VITE_CAPACITYLENS_DEMO</code> (the localStorage demo build — wins over the API var),
+    <code>VITE_CAPACITYLENS_BUILD_SHA</code>, <code>VITE_CAPACITYLENS_FEEDBACK_MAILTO</code>. The build stamp
+    is a deliberate safety device: which-build-is-this is invisible from the UI otherwise, so Settings shows a
+    one-line footer — <code>build &lt;sha&gt; · server</code> or <code>build &lt;sha&gt; · local</code> — and
+    the post-deploy smoke test asserts it says <code>server</code> (a stray demo flag in a deploy pipeline
+    would otherwise ship a no-backend build that <em>looks</em> identical).</p>
     <div class="filename">deploy script (server mode, the exports)</div>
-<pre><code>export VITE_CAPACITYLENS_API="https://&lt;site&gt;"                       <span class="c"># server mode — REQUIRED</span>
+<pre><code><span class="c"># VITE_CAPACITYLENS_API stays EMPTY for a same-origin deploy (the default);</span>
+<span class="c"># set it only to point at a DIFFERENT origin — and never to "/api".</span>
 export VITE_CAPACITYLENS_BUILD_SHA="$(git rev-parse --short HEAD)"  <span class="c"># the tell-tale stamp</span>
 export VITE_CAPACITYLENS_FEEDBACK_MAILTO="&lt;owner address&gt;"
 npm run build</code></pre>
 
     <h2 id="backups">Backups, restore, and demo reset</h2>
     <p>Backups are a <em>server feature</em> (flag <code>CAPACITYLENS_BACKUP_DIR</code>), not a host cron — because
-    WAL mode means a raw <code>cp</code> can catch a torn state. The daemon writes online
-    <code>backup()</code> snapshots once at boot then hourly, keeping the newest 48 (RPO ≤ 1 h).</p>
+    WAL mode means a raw <code>cp</code> can catch a torn state. The daemon writes WAL-safe online
+    <code>backup()</code> snapshots (<code>capacitylens-&lt;stamp&gt;.db</code>) once at boot then every
+    <code>CAPACITYLENS_BACKUP_INTERVAL_MIN</code> (60), keeping the newest <code>CAPACITYLENS_BACKUP_KEEP</code>
+    (48) — RPO ≤ 1 h.</p>
     <div class="callout rule">
       <span class="label">Load-bearing rule — a backup that's never been restored is a hope</span>
-      <p>Run the restore drill once before real use: stop the daemon, copy a snapshot over the live DB,
-      <strong>remove the WAL sidecars</strong> (<code>capacitylens.db-wal</code>/<code>-shm</code> — stale ones would
-      replay old frames over the restored file), restart, verify in the app. Document the exact command
-      sequence in a one-page <code>runbook.md</code>. Snapshot before each demo session; restoring it is the
-      reset-to-clean button (which is why the destructive reset route stays forbidden in production).</p>
-    </div>
-    <p>Monitoring: an uptime check on <code>/api/health</code> (with deep health on, a 200 proves the DB
-    answers; a 503 means the DB is broken while the process lives) plus a disk alert sized against backup
-    retention. A production-shaped <strong>rehearsal</strong> runs the db-backed E2E specs against a real
-    production build served behind a local <code>/api</code> proxy (<code>scripts/serve-dist.mjs</code>) with
-    the droplet's flags ON — proving the ON-state behaviour before the cutover.</p>
-
-    <h2 id="rollback">Rollback is a data decision</h2>
-    <div class="callout warn">
-      <span class="label">Export before you roll back</span>
-      <p>Rebuilding without <code>VITE_CAPACITYLENS_API</code> returns the app to browser-local storage but
-      <strong>strands the server data</strong> (nothing migrates back). Before flipping, export it:
-      <code>curl -su &lt;user&gt; https://&lt;site&gt;/api/state &gt; export-$(date +%F).json</code>. Rolling back to a
-      good state <em>without</em> leaving server mode is the restore sequence above.</p>
+      <p>The restore path is <strong>continuously verified in-repo</strong>: <code>restore.drill.test.ts</code>
+      runs the full cycle on every <code>gate:server</code> — snapshot → make a post-snapshot edit → corrupt
+      the live DB → restore (copy the snapshot over it + <strong>remove the <code>-wal</code>/<code>-shm</code>
+      sidecars</strong>, which would replay stale frames) → verify the seed row is back <em>and</em> the
+      post-snapshot edit is gone (the point-in-time loss is real, proving the file was genuinely replaced).
+      The manual sequence lives in <code>docs/runbook.md</code>; the on-host drill before real users remains
+      the operator's step. Snapshot before each demo session; restoring is the reset-to-clean button (which is
+      why the destructive reset route stays forbidden in production).</p>
     </div>
 
-    <h2 id="stages">The staged migration plan — triggers, not a schedule</h2>
-    <p>Beyond the shared demo, further stages are <strong>conditional</strong>. Each is gated on a product
-    trigger; you do not build ahead of the trigger.</p>
+    <h2 id="ops">Monitoring, the audit log &amp; rollback</h2>
+    <ul>
+      <li><strong>Uptime</strong> is purely operational: an external monitor hits <code>/api/health</code> (with deep health on, a 200 proves the DB answers and carries the audit soft-signal <code>audit:'ok'|'degraded'</code>; a 503 means the DB is broken while the process lives). Plus a disk alert sized against backup retention.</li>
+      <li><strong>The audit log</strong> (on by default) is the accountability surface: one JSONL line per mutation, field-<em>names</em>-only, rotated at 64&nbsp;MB, fail-never (a broken sink degrades health-softly and sets a response header, never fails a request). Where it lives: <code>CAPACITYLENS_AUDIT_FILE</code>, default beside the DB — include it in what you back up.</li>
+      <li><strong>Rehearsal before cutover</strong>: run the db-backed E2E specs against a real production build behind a local <code>/api</code> proxy (<code>scripts/serve-dist.mjs</code>) with the host's flags ON — proving ON-state behaviour before it faces users.</li>
+      <li><strong>Rollback is a data decision.</strong> Export before any rollback: <code>curl … /api/state?accountId=&lt;id&gt;&amp;includeInactive=1 &gt; export-$(date +%F).json</code> (the complete per-tenant backup — admin-gated when auth is on). Rolling back to a good state <em>within</em> server mode is the restore sequence above. And note the old escape hatch is gone: rebuilding without the API var does <em>not</em> return the app to localStorage — it is still a server build.</li>
+    </ul>
+
+    <h2 id="stages">The staged plan — triggers, not a schedule (updated for what shipped)</h2>
+    <p>The original plan staged the road from a static demo to a real multi-user product. Most of it has now
+    shipped — the table records what <em>landed</em> (so a sibling sees the sequence that worked) and what
+    remains genuinely trigger-gated:</p>
     <table>
-      <thead><tr><th>Stage</th><th>What</th><th>Trigger</th></tr></thead>
+      <thead><tr><th>Stage</th><th>What</th><th>Status / trigger</th></tr></thead>
       <tbody>
-        <tr><td>0</td><td>Static localStorage deploy.</td><td>Today's default.</td></tr>
-        <tr><td>Near-term</td><td>Shared dataset on the DB, behind Basic Auth (the cutover above).</td><td>People need one shared, durable dataset.</td></tr>
-        <tr><td>B</td><td>Optimistic concurrency — but <em>build the client 409/conflict UI first</em>, then turn on <code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code>. Move off any experimental driver. Tested restore.</td><td>The shared dataset starts mattering / people co-edit.</td></tr>
-        <tr><td>C <span class="tag red">the big one</span></td><td>Real auth + per-account isolation: app login, derive <code>accountId</code> from the session (never the client), server-enforce ownership on every read/write, isolation tests + a security review as the gate.</td><td>Real users in separate trust domains who must not see each other's data.</td></tr>
-        <tr><td>D</td><td>Productised "push my localStorage to the server" import flow.</td><td>Real users with existing local data to carry over.</td></tr>
-        <tr><td>E</td><td>Postgres. Note: no ORM seam, so this is a data-layer <em>rewrite</em>, not a dialect swap.</td><td>SQLite concurrency/scale/managed-backup needs justify the ops cost.</td></tr>
+        <tr><td>0</td><td>Static localStorage deploy.</td><td><span class="tag gray">retired as default</span> — now the explicit demo build.</td></tr>
+        <tr><td>A</td><td>Shared dataset on the DB (the server cutover).</td><td><span class="tag green">shipped</span> — and then inverted into the default (v0.11.0).</td></tr>
+        <tr><td>B</td><td>Optimistic concurrency: the server flag exists (<code>CAPACITYLENS_OPTIMISTIC_CONCURRENCY</code> → 409 on stale writes).</td><td><span class="tag amber">half-shipped</span> — the client 409/conflict UI is still the trigger-gated half; don't flip the flag on before building it.</td></tr>
+        <tr><td>C</td><td>Real auth + access control: login, memberships, roles, per-account server-side reads, invites, viewer mode, erasure (page 12).</td><td><span class="tag green">substantially shipped</span> — the one honest remainder: on the <em>write</em> path <code>accountId</code> is still client-asserted (<code>ownsRow</code> + membership 403s are the guards); deriving it from the session is the final step, gated on real separate-trust-domain users.</td></tr>
+        <tr><td>D</td><td>Productised "push my local data to the server" import flow (the API + in-app import exist; the guided flow doesn't).</td><td>Real users with existing local data to carry over.</td></tr>
+        <tr><td>E</td><td>Postgres / per-tenant DBs. The swap point now exists (<code>TenantStore</code>, page 07) — still a data-layer rewrite, not a dialect swap (no ORM).</td><td>SQLite concurrency/scale/managed-backup needs justify the ops cost.</td></tr>
       </tbody>
     </table>
     <div class="callout why">
       <span class="label">Why "triggers, not schedules"</span>
       <p>Each stage carries real cost (a conflict UI, a security review, a rewrite). Building them before the
       need exists is speculative complexity in a deliberately-small product. The plan names the exact condition
-      that makes each stage worth its cost, so the team can defer with confidence rather than gold-plating.</p>
+      that makes each stage worth its cost, so the team can defer with confidence rather than gold-plating.
+      Note how the shipped stages validated the pattern: the seams (adapter, auth port, tenant store) were
+      built early and cheap, which is exactly what made each later stage a bounded change.</p>
     </div>
 
     <h2 id="security">Security posture, stated honestly</h2>
     <ul>
-      <li><strong>No app-level auth by default.</strong> The demo's gate is Nginx Basic Auth; the dataset is shared, last-writer-wins.</li>
-      <li><strong>Auth is wired but OFF</strong> (<code>CAPACITYLENS_AUTH</code>, Better Auth): off = byte-for-byte today, no auth tables, no login UI. The server-reported <code>authMode</code> is the only auth flag — there is no client-side auth flag.</li>
-      <li><strong>Session ≠ isolation.</strong> Turning auth on gates requests, but <code>accountId</code> stays client-asserted (<code>ownsRow</code> is defence-in-depth) until Stage C derives it from the session.</li>
-      <li><strong>CSP</strong>: <code>object-src</code>/<code>base-uri</code> ship in the app; the full policy belongs in a host header.</li>
+      <li><strong>Two postures, both deliberate.</strong> Auth-off = the trusted-local self-host default: an open, shared dataset (fine on a LAN or behind your own gate; the production interlock stops it being an <em>accident</em> on a public host). Auth-on = a real boundary: every <code>/api/*</code> request needs a session, reads are membership-gated per account, the whole-dataset read is closed, roles gate writes, sensitive fields are server-redacted.</li>
+      <li><strong>The honest remainder:</strong> on the write path, <code>accountId</code> is still client-asserted; <code>ownsRow</code> plus the membership 403s are defence-in-depth. Deriving it from the session is the named final step of Stage C — until then, don't advertise hostile-multi-tenant isolation.</li>
+      <li><strong>Headers</strong>: the API ships its own full CSP + security headers via helmet (page 07); the SPA's full policy belongs in the host/nginx config; the app HTML carries the safe <code>object-src</code>/<code>base-uri</code> baseline.</li>
+      <li><strong>Privacy is test-enforced</strong> (principle 14): no-egress is proven by the dependency denylist test and the <code>connect-src 'self'</code> no-widening assertion; the statement is <code>docs/privacy.md</code>.</li>
     </ul>
     <div class="callout dont">
       <span class="label">Don't</span>
-      <p>Do not expose <em>real, isolated</em> user data on the shared/no-auth model. Until Stage C lands, the
-      Basic Auth gate is the only thing between the destructive API and the internet — anyone with the URL +
-      credentials can edit or wipe the shared dataset. That line moves only when Stage C is built and
-      security-reviewed.</p>
+      <p>Do not expose <em>real, isolated</em> user data on the auth-off model, and do not treat auth-on as
+      hostile-grade isolation while the write path stays client-asserted. The line moves when session-derived
+      <code>accountId</code> lands with isolation tests and a security review — that gate is unchanged.</p>
     </div>
 
     <div class="pager">
