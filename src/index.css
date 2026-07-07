@@ -397,6 +397,67 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
   color: var(--color-danger);
 }
 
+/* "Show me around" tour popover (driver.js — see lib/tour.ts). driver.css ships a hard-coded
+   white popover / #2d2d2d text, which breaks in dark mode; re-skin it onto the SAME
+   elevated/ink/muted/line tokens as the app's tooltips and toasts so both themes hold AA
+   automatically ([data-theme] flips the underlying --c-* values). The arrow is drawn with CSS
+   border triangles, so each side's visible border colour must match the popover surface. */
+.driver-popover {
+  background-color: var(--color-elevated);
+  color: var(--color-ink);
+  box-shadow:
+    0 0 0 1px var(--color-line),
+    0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.driver-popover-title {
+  color: var(--color-ink);
+}
+
+.driver-popover-description,
+.driver-popover-progress-text {
+  color: var(--color-muted);
+}
+
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--color-elevated);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--color-elevated);
+}
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--color-elevated);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--color-elevated);
+}
+
+/* driver.css buttons ship a text-shadow + hard-coded greys; flatten them onto the app's
+   ghost-button look (ink text, line border, canvas hover). */
+.driver-popover-footer button {
+  text-shadow: none;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+}
+
+.driver-popover-footer button:hover {
+  background-color: var(--color-canvas);
+}
+
+.driver-popover-close-btn {
+  /* The close "×" is a borderless icon button in driver.css; keep it that way, just tinted. */
+  background-color: transparent;
+  border: none;
+  color: var(--color-muted);
+}
+
+.driver-popover-close-btn:hover {
+  background-color: transparent;
+  color: var(--color-ink);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

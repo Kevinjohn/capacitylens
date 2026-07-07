@@ -5,6 +5,11 @@ import './data/runStorageMigration'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
+// driver.css BEFORE index.css: index.css re-skins the tour popover (.driver-popover block) onto
+// the app tokens with equal-specificity rules, so the vendor sheet must come first in the
+// cascade. Importing it from lib/tour.ts instead put it AFTER index.css in the bundle and its
+// hard-coded white background won in dark mode.
+import 'driver.js/dist/driver.css'
 import './index.css'
 import { router } from './router'
 import { AuthProvider } from './auth/AuthProvider'

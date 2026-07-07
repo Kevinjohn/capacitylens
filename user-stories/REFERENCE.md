@@ -49,10 +49,22 @@ If the app changes, update this file first, then the affected stories.
    **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
    (`capacitylens/introSeen`, default off, never in `AppData`/export) and is skipped thereafter. The
    wording is **placeholder copy** (single-sourced in `src/lib/introCopy.ts`), pending a human edit.
-6. To start from the seeded state again, clear it: open DevTools → Console →
+6. On an account that still has an onboarding step to do, the schedule shows a **Getting
+   started** checklist card (`data-testid="getting-started"`) above the toolbar, with four
+   state-driven steps — **Add your first client / project / person** (links to those pages) and
+   **Assign them to the project** (done once any allocation exists). A step ticks itself off from
+   the account's actual data (the built-in Internal client does NOT count as "your first
+   client"); the card self-hides once ALL steps are done, so the seeded companies never show it.
+   **Show me around** (`data-testid="getting-started-tour"`) runs a loose five-stop driver.js
+   spotlight tour (schedule grid → toolbar → People → Clients & projects → Settings; Next/Back/
+   Done buttons, Escape bails, never navigates). **Dismiss**
+   (`data-testid="getting-started-dismiss"`) hides the card for good on this device
+   (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
+   Viewer (every CTA is a write they can't do).
+7. To start from the seeded state again, clear it: open DevTools → Console →
    `localStorage.clear()` → reload. (Clearing data *inside* the app does **not** re-seed —
    that's deliberate.)
-7. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
+8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
    also run in private windows when allowed). Enable JavaScript for the site and reload;
    no story can run without it.
@@ -453,6 +465,10 @@ stay silent — they give sighted feedback),
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
 `import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
+`getting-started` (the schedule's first-run checklist card; only while the active account has an
+incomplete onboarding step and it hasn't been dismissed), `getting-started-tour` (its **Show me
+around** button — runs the driver.js orientation tour), `getting-started-dismiss` (its **Dismiss**
+button; sets `capacitylens/gettingStartedDismissed`),
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
 (Settings → Calendar's read-only Language row — **English**; both frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —

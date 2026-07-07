@@ -254,3 +254,23 @@ export function readStoredIntroSeen(): boolean {
 export function writeStoredIntroSeen(on: boolean): void {
   writeBoolPref(INTRO_SEEN_STORAGE_KEY, on)
 }
+
+// "Getting started dismissed": whether the schedule's first-run "Getting started" checklist card
+// has been dismissed on this device. Device-global like the prefs above (own key, on/off string,
+// NOT account data) and DEFAULTS OFF so the card shows on first contact. The card ALSO self-hides
+// (without touching this flag) once the active account has completed every step — the checklist's
+// content is derived live from scoped data, only the dismissal is a device pref. See
+// `src/components/GettingStarted.tsx`.
+
+const GETTING_STARTED_DISMISSED_STORAGE_KEY = `${STORAGE_KEY_PREFIX}gettingStartedDismissed`
+
+/** The saved "getting started dismissed" state; defaults to FALSE (not dismissed → show the
+ *  checklist) when unset, unrecognised, or when storage is unavailable. */
+export function readStoredGettingStartedDismissed(): boolean {
+  return readBoolPref(GETTING_STARTED_DISMISSED_STORAGE_KEY, false)
+}
+
+/** Persist the "getting started dismissed" state. Best-effort, like the prefs above. */
+export function writeStoredGettingStartedDismissed(on: boolean): void {
+  writeBoolPref(GETTING_STARTED_DISMISSED_STORAGE_KEY, on)
+}

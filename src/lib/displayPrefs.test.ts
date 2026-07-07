@@ -17,6 +17,8 @@ import {
   DEFAULT_BAR_LABEL_PREFS,
   readStoredIntroSeen,
   writeStoredIntroSeen,
+  readStoredGettingStartedDismissed,
+  writeStoredGettingStartedDismissed,
 } from './displayPrefs'
 
 describe('sidebar preference', () => {
@@ -326,5 +328,27 @@ describe('intro-seen preference', () => {
   it('persists under the documented storage key', () => {
     writeStoredIntroSeen(true)
     expect(localStorage.getItem('capacitylens/introSeen')).toBe('on')
+  })
+})
+
+describe('getting-started-dismissed preference', () => {
+  beforeEach(() => {
+    localStorage.removeItem('capacitylens/gettingStartedDismissed')
+  })
+
+  it('defaults to FALSE (not dismissed) when never chosen', () => {
+    expect(readStoredGettingStartedDismissed()).toBe(false)
+  })
+
+  it('round-trips an explicit on/off choice', () => {
+    writeStoredGettingStartedDismissed(true)
+    expect(readStoredGettingStartedDismissed()).toBe(true)
+    writeStoredGettingStartedDismissed(false)
+    expect(readStoredGettingStartedDismissed()).toBe(false)
+  })
+
+  it('persists under the documented storage key', () => {
+    writeStoredGettingStartedDismissed(true)
+    expect(localStorage.getItem('capacitylens/gettingStartedDismissed')).toBe('on')
   })
 })

@@ -26,6 +26,7 @@ import {
   defaultSidebarOpen,
   readStoredBarLabelPrefs,
   readStoredFakeSignedIn,
+  readStoredGettingStartedDismissed,
   readStoredIntroSeen,
   readStoredMinimiseWeekends,
   readStoredSidebarOpen,
@@ -33,6 +34,7 @@ import {
   readStoredUtilizationPrefs,
   writeStoredBarLabelPrefs,
   writeStoredFakeSignedIn,
+  writeStoredGettingStartedDismissed,
   writeStoredIntroSeen,
   writeStoredMinimiseWeekends,
   writeStoredSidebarOpen,
@@ -273,6 +275,12 @@ export interface StoreState {
    *  the intro shows once on first contact (after a company is chosen), then stays dismissed.
    *  Frequency is once-per-device by design — see NEEDS-INPUT.md. See `src/components/IntroPage.tsx`. */
   introSeen: boolean
+  /** Whether the schedule's first-run "Getting started" checklist card has been dismissed on this
+   *  device. Device-global like `theme` (own localStorage key, NOT in AppData/export), defaults OFF
+   *  so the checklist shows on first contact. The card also self-hides once every step is complete
+   *  (derived live from scoped data) — this flag records only an explicit dismissal.
+   *  See `src/components/GettingStarted.tsx`. */
+  gettingStartedDismissed: boolean
   /** The caller's resolved {@link Role} for the ACTIVE account, or null. Set by PermissionProvider
    *  (P1.12) once it resolves the role from `GET /api/accounts`; null in OFF/local/not-fetched.
    *  Transient (never persisted, never on the undo stack). It powers ONLY the defense-in-depth
@@ -323,6 +331,8 @@ export interface StoreState {
   setFakeSignedIn: (value: boolean) => void
   /** Mark the post-login intro page as seen on this device: persist and update state. */
   setIntroSeen: (value: boolean) => void
+  /** Mark the "Getting started" checklist as dismissed on this device: persist and update state. */
+  setGettingStartedDismissed: (value: boolean) => void
   /** Set the active account's resolved role (P1.12) — called by PermissionProvider whenever it
    *  resolves/changes the role (incl. back to null on OFF/local/account-switch). Plain transient
    *  state: never persisted, never on the undo stack. Drives ONLY the defense-in-depth write guard. */
@@ -525,6 +535,7 @@ export const useStore = create<StoreState>()((set, get) => {
     snapToWeekStart: readStoredSnapToWeekStart(),
     fakeSignedIn: readStoredFakeSignedIn(),
     introSeen: readStoredIntroSeen(),
+    gettingStartedDismissed: readStoredGettingStartedDismissed(),
     activeRole: null,
 
     addAccount: (input) => {
@@ -702,6 +713,12 @@ export const useStore = create<StoreState>()((set, get) => {
     setIntroSeen: (value) => {
       writeStoredIntroSeen(value)
       set({ introSeen: value })
+    },
+    // Plain set (NOT mutate): a device-global view flag, never on the undo/redo stack,
+    // never in AppData/export.
+    setGettingStartedDismissed: (value) => {
+      writeStoredGettingStartedDismissed(value)
+      set({ gettingStartedDismissed: value })
     },
     // Plain set (NOT mutate): transient access state, never persisted, never on the undo/redo stack,
     // never in AppData/export. Drives ONLY the inert-unless-viewer write guard above.

@@ -326,6 +326,11 @@ export function AppShell() {
                   <NavLink
                     to={to}
                     end={to === '/'}
+                    /* Tour anchor (see lib/tour.ts): a route-keyed hook present in BOTH sidebar
+                       states — this open-menu link and the collapsed rail button below carry the
+                       same `data-nav`, so a `[data-nav="/x"]` selector matches whichever variant
+                       is rendered. NOT an e2e selector (specs use role/name); don't key tests on it. */
+                    data-nav={to}
                     className={({ isActive }) =>
                       `flex items-center gap-2 rounded-md px-2 py-1.5 text-sm ${
                         isActive ? 'bg-brand-soft font-semibold text-ink' : 'text-ink hover:bg-canvas'
@@ -407,6 +412,7 @@ export function AppShell() {
                   aria-hidden="true"
                   data-label={label()}
                   data-testid="nav-rail-item"
+                  data-nav={to}
                   onClick={() => setSidebarOpen(true)}
                   /* h-8 matches an expanded nav row's height (text-sm line + py-1.5), so the
                      icon-only rail keeps the SAME vertical rhythm as the open menu and the

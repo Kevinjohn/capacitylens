@@ -220,6 +220,14 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   is the single accessible control); portrait phones get a dismissable session-scoped
   "Best in landscape" hint (`capacitylens/rotateHintDismissed`, shown over the account picker too).
   A phone is a glanceable surface, not a workflow surface — don't grow this into mobile views.
+- **First-run onboarding = state-driven checklist + loose tour, never a scripted do-this-now tour
+  (owner, 2026-07-07).** The schedule's "Getting started" card derives its four steps (client →
+  project → person → assignment) live from the active account's scoped data — it can't get out of
+  step with reality — and self-hides when all are done; "Show me around" is a five-stop driver.js
+  (MIT, ~5 kB, the chosen tour lib — Shepherd/Intro.js are AGPL/commercial) spotlight tour that
+  points at things and never navigates. Dismissal is a device pref
+  (`capacitylens/gettingStartedDismissed`), like `introSeen`. Don't grow either into a guided
+  multi-page wizard.
 - **"Utilisation" is the term** everywhere on the schedule (not "Load").
 - **Filtering by client/project hides non-matching resources** by default; the
   "Show unallocated" toggle opts the visible-but-dimmed staffing view back in.
