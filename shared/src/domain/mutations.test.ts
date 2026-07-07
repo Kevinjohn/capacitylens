@@ -180,6 +180,65 @@ describe('assertScopedRefs', () => {
       'Placeholder project must belong to this company.',
     )
   })
+
+  it('treats a null FK as ABSENT — a null clientId is skipped, not rejected', () => {
+    // present(field) must count null as absent (a SQLite/JSON round-trip yields null): the field
+    // simply isn't validated, rather than being treated as a value and failing the in-account check.
+    expect(() => assertScopedRefs(base(), A1, 'projects', { clientId: null })).not.toThrow()
+  })
+
+  it('rejects a project whose client id is ABSENT even though ANOTHER client belongs to the account', () => {
+    // The in-account check must match the referenced id, not merely "does any row belong here": with a
+    // valid A1 client present but a dangling reference, the FK is still unsatisfied and must throw.
+    const data = { ...base(), clients: [client('c1', A1)] }
+    expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'ghost' })).toThrow(
+      'Project must reference a client in this company.',
+    )
+  })
+
+  it('validates a phase’s projectId FK (throws cross-account, passes in-account)', () => {
+    const cross = { ...base(), clients: [client('c1', A2)], projects: [project('p1', A2, 'c1')] }
+    expect(() => assertScopedRefs(cross, A1, 'phases', { projectId: 'p1' })).toThrow(
+      'Phase must reference a project in this company.',
+    )
+    const ok = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')] }
+    expect(() => assertScopedRefs(ok, A1, 'phases', { projectId: 'p1' })).not.toThrow()
+  })
+
+  it('validates an activity’s projectId FK with its OWN message when a dangling project is referenced', () => {
+    const data = { ...base(), clients: [client('c1', A1)] } // no projects at all
+    expect(() => assertScopedRefs(data, A1, 'activities', { projectId: 'ghost' })).toThrow(
+      'Activity must reference a project in this company.',
+    )
+  })
+
+  it('rejects an activity whose phase id is ABSENT even though ANOTHER phase belongs to the account', () => {
+    // The phase lookup must match the referenced id, not "any account phase": a dangling phaseId must
+    // fail with the belong-to-company message even when a real phase exists in the account.
+    const data = {
+      ...base(),
+      clients: [client('c1', A1)],
+      projects: [project('p1', A1, 'c1')],
+      phases: [phase('ph1', A1, 'p1')],
+    }
+    expect(() => assertScopedRefs(data, A1, 'activities', { projectId: 'p1', phaseId: 'ph-absent' })).toThrow(
+      'Activity phase must belong to this company.',
+    )
+  })
+
+  it('an UNRECOGNISED activity kind is not treated as internal/repeatable (no false project rejection)', () => {
+    // assertScopedRefs checks refs + coherence for the KNOWN kinds only; it does not police the kind
+    // enum itself (sanitize does). An unknown kind carrying a valid project must pass the ref checks.
+    const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')] }
+    expect(() => assertScopedRefs(data, A1, 'activities', { kind: 'bogus', projectId: 'p1' })).not.toThrow()
+  })
+
+  it('validates a resource’s disciplineId FK with its own message (dangling discipline throws)', () => {
+    const data = { ...base(), disciplines: [discipline('d1', A2)] } // discipline is in ANOTHER account
+    expect(() => assertScopedRefs(data, A1, 'resources', { disciplineId: 'd1' })).toThrow(
+      'Resource discipline must belong to this company.',
+    )
+  })
 })
 
 describe('assertAllocationRefs', () => {
@@ -584,6 +643,104 @@ describe('remapAndValidateImport', () => {
     }
     // The synthesised Internal is bookkeeping, so the FILE'S record count is still SCOPED_KEYS.length.
     expect(imported).toBe(SCOPED_KEYS.length)
+  })
+
+  it('assigns a FRESH id to a record that arrives WITHOUT one (never leaves id undefined)', () => {
+    // A hand-edited file can carry a record missing its id. It must still get a fresh newId() — not
+    // land with an undefined primary key (which SQLite's NOT NULL would reject).
+    const noId = { name: 'NoId', color: '#3b82f6', createdAt: TS, updatedAt: TS } as unknown as Client
+    const incoming: AppData = { ...emptyAppData(), clients: [noId] }
+    const { data } = remapAndValidateImport(base(), A1, incoming, TS)
+    const brought = data.clients.find((c) => c.accountId === A1 && c.name === 'NoId')
+    expect(brought).toBeDefined()
+    expect(brought?.id).toBeTruthy() // a real fresh id, not undefined
+  })
+
+  it('KEEPS a resource’s valid discipline and a placeholder’s valid project (does not over-unbind)', () => {
+    // The optional-FK repair must only unbind a DANGLING ref — a surviving discipline/project must be
+    // retained (and remapped), not nuked to undefined.
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      disciplines: [discipline('d', 'src')],
+      resources: [{ ...placeholder('ph', 'src', 'p'), disciplineId: 'd' }],
+    }
+    const { data } = remapAndValidateImport(base(), A1, incoming, TS)
+    const r = data.resources.find((x) => x.accountId === A1)
+    const proj = data.projects.find((x) => x.accountId === A1)
+    const disc = data.disciplines.find((x) => x.accountId === A1)
+    expect(r?.disciplineId).toBe(disc?.id) // valid discipline kept + remapped
+    expect(r?.projectId).toBe(proj?.id) // valid placeholder project kept + remapped
+  })
+
+  it('KEEPS a project activity’s valid phase and its kind (no over-unbind, no re-classify)', () => {
+    // A project activity whose phase belongs to its OWN project is coherent — the phase must stay, the
+    // kind must remain 'project', and the projectId must be retained.
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      activities: [activity('t', 'src', 'p', 'ph')],
+    }
+    const { data } = remapAndValidateImport(base(), A1, incoming, TS)
+    const t = data.activities.find((x) => x.accountId === A1)
+    const proj = data.projects.find((x) => x.accountId === A1)
+    const ph = data.phases.find((x) => x.accountId === A1)
+    expect(t?.kind).toBe('project') // not re-classified to repeatable
+    expect(t?.projectId).toBe(proj?.id) // project kept
+    expect(t?.phaseId).toBe(ph?.id) // coherent phase kept
+  })
+
+  it('STRIPS project + phase from an INTERNAL activity that carries them (kind coherence)', () => {
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      activities: [{ ...activity('t', 'src', 'p', 'ph'), kind: 'internal' }],
+    }
+    const { data } = remapAndValidateImport(base(), A1, incoming, TS)
+    const t = data.activities.find((x) => x.accountId === A1)
+    expect(t?.kind).toBe('internal') // kind preserved
+    expect(t?.projectId).toBeUndefined() // project stripped — a project-less kind carries neither
+    expect(t?.phaseId).toBeUndefined()
+  })
+
+  it('STRIPS project + phase from a REPEATABLE activity that carries them (kind coherence)', () => {
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [client('c', 'src')],
+      projects: [project('p', 'src', 'c')],
+      phases: [phase('ph', 'src', 'p')],
+      activities: [{ ...activity('t', 'src', 'p', 'ph'), kind: 'repeatable' }],
+    }
+    const { data } = remapAndValidateImport(base(), A1, incoming, TS)
+    const t = data.activities.find((x) => x.accountId === A1)
+    expect(t?.kind).toBe('repeatable')
+    expect(t?.projectId).toBeUndefined()
+    expect(t?.phaseId).toBeUndefined()
+  })
+
+  it('FOLDS duplicate imported built-in Internal clients into ONE and rewires their projects to it', () => {
+    // A hand-edited / re-imported file with TWO builtins must be normalised to exactly one Internal;
+    // anything that pointed at a folded-away builtin must be re-pointed at the kept one so it survives
+    // the required-FK drop.
+    const incoming: AppData = {
+      ...emptyAppData(),
+      clients: [
+        { ...client('b1', 'src'), name: 'Internal', color: '#9c3ace', builtin: true },
+        { ...client('b2', 'src'), name: 'Internal', color: '#9c3ace', builtin: true },
+      ],
+      projects: [project('p', 'src', 'b2')], // under the SECOND (folded-away) builtin
+    }
+    const { data } = remapAndValidateImport(base(), A1, incoming, TS)
+    const builtins = data.clients.filter((c) => c.accountId === A1 && c.builtin)
+    expect(builtins).toHaveLength(1) // duplicates folded to one
+    const proj = data.projects.find((p) => p.accountId === A1)
+    expect(proj).toBeDefined() // rewired to the kept Internal ⇒ survives the required-FK drop
+    expect(proj?.clientId).toBe(builtins[0].id)
   })
 
   it('repairs an imported allocation’s unpadded dates instead of dropping it', () => {

@@ -9,4 +9,10 @@ describe('errorMessage', () => {
     expect(errorMessage(null)).toBe('An unexpected error occurred.')
     expect(errorMessage(42)).toBe('An unexpected error occurred.')
   })
+
+  it('falls back to the generic message when statusText is present but not a string', () => {
+    // Exercises the `typeof statusText === 'string'` guard specifically (as opposed to the
+    // earlier `'statusText' in error` check, which alone would let a non-string through).
+    expect(errorMessage({ statusText: 123 })).toBe('An unexpected error occurred.')
+  })
 })

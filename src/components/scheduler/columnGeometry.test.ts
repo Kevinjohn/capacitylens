@@ -125,4 +125,34 @@ describe('buildColumnGeometry — gating + degenerate windows', () => {
     const geom = buildColumnGeometry(WEEK, 48, OFF)
     expect(geom.widthForDates('2026-06-05', '2026-06-01')).toBe(0)
   })
+
+  it('x() clamps a negative index to the left edge (0), not offsets[negativeIndex]', () => {
+    const geom = buildColumnGeometry(WEEK, 48, OFF)
+    expect(geom.x(-1)).toBe(0)
+    expect(geom.x(-99)).toBe(0)
+  })
+
+  it('widthOf is 0 for an out-of-range NEGATIVE index (not widths[negativeIndex])', () => {
+    const geom = buildColumnGeometry(WEEK, 48, OFF)
+    expect(geom.widthOf(-1)).toBe(0)
+  })
+
+  it('indexAt on an empty geometry returns 0 even for a large positive px (never n-1 = -1)', () => {
+    const geom = buildColumnGeometry([], 48, OFF)
+    expect(geom.indexAt(5)).toBe(0)
+  })
+
+  it('widthForDates returns 0 (not NaN) when only ONE side of the range is unparseable', () => {
+    const geom = buildColumnGeometry(WEEK, 48, OFF)
+    expect(geom.widthForDates('not-a-date', '2026-06-02')).toBe(0)
+    expect(geom.widthForDates('2026-06-02', 'not-a-date')).toBe(0)
+  })
+
+  it('narrows weekends exactly AT the DAY_COLUMN_MIN_WIDTH threshold (>=, not >)', () => {
+    // dayWidth 18 === DAY_COLUMN_MIN_WIDTH exactly; weekendWidth 10 stays well under dayWidth
+    // so the narrowing is visible (not swallowed by the weekendWidth-vs-dayWidth cap).
+    const geom = buildColumnGeometry(WEEK, 18, { minimiseWeekends: true, weekendWidth: 10 })
+    expect(geom.minimiseActive).toBe(true)
+    expect(geom.widths).toEqual([18, 18, 18, 18, 18, 10, 10])
+  })
 })

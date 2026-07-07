@@ -80,4 +80,31 @@ describe('applyGesture: weekend-aware resize', () => {
     expect(out.endDate).toBe('2026-06-08') // Monday, NOT the Sunday start
     expect(out.startDate).toBe('2026-06-07')
   })
+
+  it('a move whose range has NO working days at all preserves its calendar span (does not collapse it)', () => {
+    // 2026-06-06 Sat … 2026-06-07 Sun: 0 working days for a Mon-Fri resource. The
+    // working-day-count branch would collapse this to a single day (endDateForWorkingDays with
+    // count 0); the fallback must instead keep the original 2-calendar-day span.
+    const r: DateRange = { startDate: '2026-06-06', endDate: '2026-06-07' }
+    expect(applyGesture('move', r, 7, wd)).toEqual({ startDate: '2026-06-13', endDate: '2026-06-14' })
+  })
+
+  it('resize-start with a zero delta (no drag) is a no-op, even resting on a non-working day', () => {
+    // No actual drag happened (deltaDays 0) — weekend-awareness must NOT kick in and snap a
+    // start that was already sitting on a non-working day away from its current position.
+    const r: DateRange = { startDate: '2026-06-06', endDate: '2026-06-10' } // Sat … Wed
+    expect(applyGesture('resize-start', r, 0, wd)).toEqual({ startDate: '2026-06-06', endDate: '2026-06-10' })
+  })
+
+  it('resize-end with a zero delta (no drag) is a no-op, even resting on a non-working day', () => {
+    const r: DateRange = { startDate: '2026-06-03', endDate: '2026-06-06' } // Wed … Sat
+    expect(applyGesture('resize-end', r, 0, wd)).toEqual({ startDate: '2026-06-03', endDate: '2026-06-06' })
+  })
+
+  it('resize-start dragging FORWARD onto a weekend snaps forward (not backward) to a working day', () => {
+    // 2026-05-15 Fri … 2026-05-22 Fri, +1 day lands the start on Sat 05-16. A forward drag
+    // (deltaDays > 0) must snap FORWARD to Mon 05-18, not backward to Fri 05-15.
+    const r: DateRange = { startDate: '2026-05-15', endDate: '2026-05-22' }
+    expect(applyGesture('resize-start', r, 1, wd).startDate).toBe('2026-05-18')
+  })
 })

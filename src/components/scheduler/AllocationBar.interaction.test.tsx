@@ -319,6 +319,11 @@ describe('AllocationBar interactions', () => {
     }
 
     it('announces the over-capacity outcome when a nudge flips a day to over, and "no conflicts" when it resolves', () => {
+      // Pin the visible window to early June, independent of "today". The announced over-count is
+      // clamped to `visibleRange(ui)`, and the store's DEFAULT window derives from today (once, at
+      // init) — so with fixed June allocations this assertion would rot as today drifts past them
+      // unless the window is anchored here (mirrors the sibling Window-alignment test below).
+      useStore.setState((s) => ({ ui: { ...s.ui, originDate: '2026-06-01', rangeDays: 14 } })) // [2026-06-01 .. 2026-06-14]
       const b = seedConflictPair()
       const { rerender } = render(<AllocationBar bar={barFor(b)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
       expect(useStore.getState().srAnnouncement).toBeNull() // nothing announced before any edit

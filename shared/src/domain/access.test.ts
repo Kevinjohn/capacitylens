@@ -195,3 +195,22 @@ describe('canRemoveMember(actor, target) — removal matrix', () => {
     expect(canRemoveMember('viewer', 'viewer')).toBe(false)
   })
 })
+
+// The documented fail-closed contract at the untyped boundary: an unrecognised role or action makes
+// a rank `undefined`, and the guard must DENY (return false) — it must never fall open to `true`.
+describe('can / isAtLeast — fail-closed on an unknown role/action (never falls open)', () => {
+  it('an unknown role is denied EVERY action', () => {
+    for (const action of ACTIONS) {
+      expect(can('superuser' as Role, action)).toBe(false)
+    }
+  })
+  it('an unknown action is denied for EVERY role', () => {
+    for (const role of ROLES) {
+      expect(can(role, 'reboot' as Action)).toBe(false)
+    }
+  })
+  it('isAtLeast denies when either the role or the min tier is unknown', () => {
+    expect(isAtLeast('superuser' as Role, 'viewer')).toBe(false)
+    expect(isAtLeast('viewer', 'superuser' as Role)).toBe(false)
+  })
+})

@@ -79,4 +79,34 @@ describe('cleanText', () => {
     expect(cleanText(`1${VS16}${KEYCAP}`)).toBe('1') // emoji presentation stripped, digit kept
     expect(cleanText(`e${ACUTE}`)).toBe(`e${ACUTE}`) // legitimate accent untouched
   })
+
+  it('keeps a tab as-is (exempt from stripping) rather than dropping it', () => {
+    // A tab is a Cc control char and WOULD be caught by DISALLOWED if the '\n'/'\t'
+    // exemption in the copy loop were narrowed to just '\n' — it would then be
+    // dropped outright instead of kept-then-collapsed-to-a-space.
+    expect(cleanText('a\tb')).toBe('a b')
+  })
+
+  it('collapses a run of several spaces to exactly one, in multiline mode too', () => {
+    // Needs a run of 2+ horizontal-whitespace chars: a regex missing its `+`
+    // quantifier replaces each char with a space individually (a no-op run of
+    // spaces stays a run), instead of collapsing the whole run to one space.
+    expect(cleanText('a   b', { multiline: true })).toBe('a b')
+  })
+
+  it('collapses (never deletes) a run of horizontal whitespace in multiline mode', () => {
+    expect(cleanText('a   b', { multiline: true })).toContain(' ')
+  })
+
+  it('caps 3+ blank lines down to exactly one blank line, not zero', () => {
+    // Distinguishes replacing a 3+ newline run with '\n\n' (one blank line kept)
+    // from deleting it outright.
+    expect(cleanText('a\n\n\n\nb', { multiline: true })).toBe('a\n\nb')
+  })
+
+  it('trims trailing whitespace exposed by truncating at the max length', () => {
+    // "abc def" cut to 4 chars lands mid-whitespace ("abc "); the final .trim()
+    // after slice must clean that up, not leave a trailing space.
+    expect(cleanText('abc def', { maxLength: 4 })).toBe('abc')
+  })
 })

@@ -36,6 +36,14 @@ describe('resolveDayWidth', () => {
     expect(resolveDayWidth(-100, 1)).toBe(MIN_DAY_WIDTH)
   })
 
+  it('falls back to MIN for a non-finite (NaN) available width, without propagating NaN', () => {
+    // A measured DOM rect can be NaN (unmeasured/detached). Without the early `!Number.isFinite`
+    // guard, `Math.floor(NaN / …)` and Math.min/max(NaN, …) would propagate NaN straight through
+    // the clamp — this specifically exercises that guard, not the `<= 0` half.
+    expect(resolveDayWidth(NaN, 4)).toBe(MIN_DAY_WIDTH)
+    expect(Number.isFinite(resolveDayWidth(NaN, 4))).toBe(true)
+  })
+
   it('exposes the expected zoom levels', () => {
     expect(ZOOM_LEVELS).toEqual([1, 2, 4, 6, 8])
   })

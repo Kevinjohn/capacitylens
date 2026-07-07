@@ -106,4 +106,51 @@ describe('fuzzyFilter', () => {
     expect(fuzzyFilter(resources, 'TYLER', getText)).toHaveLength(1)
     expect(fuzzyFilter(resources, 'TYLER', getText)[0].id).toBe('r-tyler')
   })
+
+  it('returns items in original (unsorted) order for an empty or whitespace-only query', () => {
+    // The early-return path must hand back `items` untouched, not run them through the tier/
+    // length/alpha sort — an empty query short-circuits before scoring even starts.
+    expect(fuzzyFilter(resources, '', getText)).toEqual(resources)
+    expect(fuzzyFilter(resources, '   ', getText)).toEqual(resources)
+  })
+
+  it('trims the query before scoring, so surrounding whitespace does not defeat an exact match', () => {
+    // Untrimmed, the leading space would push 'Tyler Nix' out of every tier (no subsequence
+    // match for a leading space char), dropping it from the results entirely.
+    const result = fuzzyFilter(resources, ' tyler', getText)
+    expect(result.map((r) => r.id)).toContain('r-tyler')
+  })
+
+  it('sorts strictly by tier first, even when the tie-break would otherwise disagree', () => {
+    const items = [
+      { id: 't0', name: 'alphabetsoup' }, // starts with 'al' -> tier 0, but the LONGER name
+      { id: 't2', name: 'zzalz' }, // contains 'al' -> tier 2, but the SHORTER name
+    ]
+    expect(fuzzyFilter(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['t0', 't2'])
+  })
+
+  it('does not skip the tier compare on equal tiers (falls through to the length tie-break)', () => {
+    const items = [
+      { id: 'long', name: 'alphabet' }, // tier 0, length 8
+      { id: 'short', name: 'al' }, // tier 0, length 2 — same tier, should sort FIRST (shorter)
+    ]
+    expect(fuzzyFilter(items, 'al', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long'])
+  })
+
+  it('breaks a same-tier tie by length even when alpha order disagrees', () => {
+    const items = [
+      { id: 'short', name: 'qz' }, // tier 0, length 2, alphabetically AFTER 'qaaaaa'
+      { id: 'long', name: 'qaaaaa' }, // tier 0, length 6
+    ]
+    // Length wins: shorter ('qz') sorts first, even though 'qz' > 'qaaaaa' alphabetically.
+    expect(fuzzyFilter(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['short', 'long'])
+  })
+
+  it('breaks a same-tier, same-length tie alphabetically', () => {
+    const items = [
+      { id: 'b', name: 'qb' },
+      { id: 'a', name: 'qa' },
+    ]
+    expect(fuzzyFilter(items, 'q', (i) => i.name).map((i) => i.id)).toEqual(['a', 'b'])
+  })
 })

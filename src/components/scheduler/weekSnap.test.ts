@@ -56,6 +56,17 @@ describe('weekStartSnapTarget — Sunday week start (weekStartsOn=0)', () => {
   })
 })
 
+describe('weekStartSnapTarget — convergence boundary is <=, not <', () => {
+  const geom = buildColumnGeometry(DAYS, DAY_W, OFF)
+  const mon1 = geom.xForDateInGeom('2026-06-01')
+
+  it('a distance EXACTLY equal to a custom epsilon still counts as converged (returns null)', () => {
+    // scrollLeft sits exactly `epsilon` px from the target (mon1) — the doc'd "within epsilon"
+    // band is inclusive of the boundary itself, not just strictly inside it.
+    expect(weekStartSnapTarget(geom, DAYS, mon1 + 2, 1, 2)).toBeNull()
+  })
+})
+
 describe('weekStartSnapTarget — degenerate inputs stay finite', () => {
   const geom = buildColumnGeometry(DAYS, DAY_W, OFF)
 

@@ -10,6 +10,7 @@ import {
   softDelete,
   obfuscateResource,
   activeOnly,
+  isLifecycleEntityKey,
   PURGE_MIN_AGE_DAYS,
 } from './lifecycle'
 import type { LifecycleState, LifecycleFields } from './lifecycle'
@@ -206,6 +207,23 @@ describe('canPurge — deleted + age ≥ 30d, fail-closed', () => {
 describe('constants', () => {
   it('PURGE_MIN_AGE_DAYS === 30', () => {
     expect(PURGE_MIN_AGE_DAYS).toBe(30)
+  })
+})
+
+describe('isLifecycleEntityKey — narrowing guard for the tombstone-carrying tables', () => {
+  it('is TRUE for exactly resources/clients/projects', () => {
+    expect(isLifecycleEntityKey('resources')).toBe(true)
+    expect(isLifecycleEntityKey('clients')).toBe(true)
+    expect(isLifecycleEntityKey('projects')).toBe(true)
+  })
+  it('is FALSE for every non-lifecycle table (they carry no archivedAt/deletedAt)', () => {
+    expect(isLifecycleEntityKey('phases')).toBe(false)
+    expect(isLifecycleEntityKey('activities')).toBe(false)
+    expect(isLifecycleEntityKey('allocations')).toBe(false)
+    expect(isLifecycleEntityKey('timeOff')).toBe(false)
+    expect(isLifecycleEntityKey('disciplines')).toBe(false)
+    expect(isLifecycleEntityKey('accounts')).toBe(false)
+    expect(isLifecycleEntityKey('nonsense')).toBe(false)
   })
 })
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   defaultSidebarOpen,
   readStoredSidebarOpen,
@@ -9,6 +9,14 @@ import {
   writeStoredSnapToWeekStart,
   readStoredFakeSignedIn,
   writeStoredFakeSignedIn,
+  readStoredUtilizationPrefs,
+  writeStoredUtilizationPrefs,
+  DEFAULT_UTILIZATION_PREFS,
+  readStoredBarLabelPrefs,
+  writeStoredBarLabelPrefs,
+  DEFAULT_BAR_LABEL_PREFS,
+  readStoredIntroSeen,
+  writeStoredIntroSeen,
 } from './displayPrefs'
 
 describe('sidebar preference', () => {
@@ -58,6 +66,11 @@ describe('minimise-weekends preference', () => {
   it('treats an unrecognised stored value as the default (on)', () => {
     localStorage.setItem('capacitylens/minimiseWeekends', 'maybe')
     expect(readStoredMinimiseWeekends()).toBe(true)
+  })
+
+  it('persists under the documented storage key', () => {
+    writeStoredMinimiseWeekends(false)
+    expect(localStorage.getItem('capacitylens/minimiseWeekends')).toBe('off')
   })
 })
 
@@ -129,5 +142,189 @@ describe('fake sign-in (cosmetic demo) preference', () => {
   it('treats an unrecognised stored value as the default (signed out)', () => {
     localStorage.setItem('capacitylens/fakeSignedIn', 'perhaps')
     expect(readStoredFakeSignedIn()).toBe(false)
+  })
+
+  it('persists under the documented storage key', () => {
+    writeStoredFakeSignedIn(true)
+    expect(localStorage.getItem('capacitylens/fakeSignedIn')).toBe('on')
+  })
+})
+
+describe('utilization display preferences', () => {
+  beforeEach(() => {
+    localStorage.removeItem('capacitylens/utilizationPrefs')
+  })
+
+  it('defaults to showing everything', () => {
+    expect(DEFAULT_UTILIZATION_PREFS).toEqual({ showTotal: true, showDiscipline: true, showPersonal: true })
+  })
+
+  it('reads the show-everything defaults when never chosen', () => {
+    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: true, showDiscipline: true, showPersonal: true })
+  })
+
+  it('round-trips a mixed explicit choice', () => {
+    writeStoredUtilizationPrefs({ showTotal: false, showDiscipline: true, showPersonal: false })
+    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: false, showDiscipline: true, showPersonal: false })
+  })
+
+  it('fills in defaults for fields missing from a partial stored shape', () => {
+    localStorage.setItem('capacitylens/utilizationPrefs', JSON.stringify({ showTotal: false }))
+    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: false, showDiscipline: true, showPersonal: true })
+  })
+
+  it('falls back to defaults when a stored field is not a boolean', () => {
+    localStorage.setItem(
+      'capacitylens/utilizationPrefs',
+      JSON.stringify({ showTotal: 'yes', showDiscipline: 1, showPersonal: null }),
+    )
+    expect(readStoredUtilizationPrefs()).toEqual({ showTotal: true, showDiscipline: true, showPersonal: true })
+  })
+
+  it('falls back to defaults on malformed JSON', () => {
+    localStorage.setItem('capacitylens/utilizationPrefs', '{not json')
+    expect(readStoredUtilizationPrefs()).toEqual(DEFAULT_UTILIZATION_PREFS)
+  })
+
+  it('swallows a blocked read to the defaults', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    try {
+      expect(readStoredUtilizationPrefs()).toEqual(DEFAULT_UTILIZATION_PREFS)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('does not throw when the write is blocked', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    try {
+      expect(() => writeStoredUtilizationPrefs(DEFAULT_UTILIZATION_PREFS)).not.toThrow()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('persists under the documented storage key', () => {
+    writeStoredUtilizationPrefs({ showTotal: false, showDiscipline: false, showPersonal: false })
+    expect(localStorage.getItem('capacitylens/utilizationPrefs')).toBe(
+      JSON.stringify({ showTotal: false, showDiscipline: false, showPersonal: false }),
+    )
+  })
+})
+
+describe('bar-label display preferences', () => {
+  beforeEach(() => {
+    localStorage.removeItem('capacitylens/barLabelPrefs')
+  })
+
+  it('defaults to showing both client and project', () => {
+    expect(DEFAULT_BAR_LABEL_PREFS).toEqual({ showClient: true, showProject: true })
+  })
+
+  it('reads the show-everything defaults when never chosen', () => {
+    expect(readStoredBarLabelPrefs()).toEqual({ showClient: true, showProject: true })
+  })
+
+  it('round-trips a mixed explicit choice', () => {
+    writeStoredBarLabelPrefs({ showClient: false, showProject: true })
+    expect(readStoredBarLabelPrefs()).toEqual({ showClient: false, showProject: true })
+    writeStoredBarLabelPrefs({ showClient: true, showProject: false })
+    expect(readStoredBarLabelPrefs()).toEqual({ showClient: true, showProject: false })
+  })
+
+  it('falls back to defaults when a stored field is not a boolean', () => {
+    localStorage.setItem('capacitylens/barLabelPrefs', JSON.stringify({ showClient: 'yes', showProject: 0 }))
+    expect(readStoredBarLabelPrefs()).toEqual({ showClient: true, showProject: true })
+  })
+
+  it('falls back to defaults on malformed JSON', () => {
+    localStorage.setItem('capacitylens/barLabelPrefs', '{not json')
+    expect(readStoredBarLabelPrefs()).toEqual(DEFAULT_BAR_LABEL_PREFS)
+  })
+
+  it('swallows a blocked read to the defaults', () => {
+    const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('blocked', 'SecurityError')
+    })
+    try {
+      expect(readStoredBarLabelPrefs()).toEqual(DEFAULT_BAR_LABEL_PREFS)
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('does not throw when the write is blocked', () => {
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    try {
+      expect(() => writeStoredBarLabelPrefs(DEFAULT_BAR_LABEL_PREFS)).not.toThrow()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('persists under the documented storage key', () => {
+    writeStoredBarLabelPrefs({ showClient: false, showProject: false })
+    expect(localStorage.getItem('capacitylens/barLabelPrefs')).toBe(JSON.stringify({ showClient: false, showProject: false }))
+  })
+})
+
+describe('sidebar default (viewport-derived)', () => {
+  afterEach(() => {
+    // @ts-expect-error jsdom has no matchMedia by default — restore that absence
+    delete window.matchMedia
+  })
+
+  it('collapses by default when the viewport matches the small-screen query', () => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: true })
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia
+    expect(defaultSidebarOpen()).toBe(false)
+  })
+
+  it('opens by default when the viewport does not match the small-screen query', () => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: false })
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia
+    expect(defaultSidebarOpen()).toBe(true)
+  })
+
+  it('queries the documented small-viewport media query', () => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: false })
+    window.matchMedia = matchMedia as unknown as typeof window.matchMedia
+    defaultSidebarOpen()
+    expect(matchMedia).toHaveBeenCalledWith('(max-width: 767px), (max-height: 480px)')
+  })
+
+  it('defaults open when matchMedia throws', () => {
+    window.matchMedia = (() => {
+      throw new Error('blocked')
+    }) as unknown as typeof window.matchMedia
+    expect(defaultSidebarOpen()).toBe(true)
+  })
+})
+
+describe('intro-seen preference', () => {
+  beforeEach(() => {
+    localStorage.removeItem('capacitylens/introSeen')
+  })
+
+  it('defaults to FALSE (not yet seen) when never chosen', () => {
+    expect(readStoredIntroSeen()).toBe(false)
+  })
+
+  it('round-trips an explicit on/off choice', () => {
+    writeStoredIntroSeen(true)
+    expect(readStoredIntroSeen()).toBe(true)
+    writeStoredIntroSeen(false)
+    expect(readStoredIntroSeen()).toBe(false)
+  })
+
+  it('persists under the documented storage key', () => {
+    writeStoredIntroSeen(true)
+    expect(localStorage.getItem('capacitylens/introSeen')).toBe('on')
   })
 })

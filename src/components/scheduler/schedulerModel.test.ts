@@ -567,3 +567,167 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
     expect(barIdsAll).toContain('a-orphan')
   })
 })
+
+// Mutation-testing gap-fill: each block below targets a specific line the exhaustive suites above
+// happen not to exercise in a way that observes real output (a fallback path, an optional-chain
+// guard, a Map built via array-pair entries, etc).
+describe('buildSchedulerModel — mutation-testing gap-fill', () => {
+  it('search is TRIMMED before matching (leading/trailing whitespace is not part of the term)', () => {
+    const d = dataset()
+    // A resource whose displayName/name/role all collapse to the SAME single word, so there's no
+    // duplicate occurrence anywhere in the searched string to coincidentally rescue an un-trimmed
+    // search — the only way 'zed ' (trailing space) matches is if it's trimmed to 'zed' first.
+    d.resources.push({ id: 'r-zed', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Zed', role: 'Zed', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a' })
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, { ...emptyFilters(), search: 'zed ' }, true, true, true)
+    const ids = model.flatMap((g) => g.rows).map((r) => r.resource.id)
+    expect(ids).toContain('r-zed')
+  })
+
+  it('search falls back to an EMPTY string (not a literal placeholder) when resource.name is undefined', () => {
+    const d = dataset()
+    d.resources[0] = { ...d.resources[0], name: undefined }
+    // Searching for a term that would only ever match via a bogus non-empty fallback string.
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, { ...emptyFilters(), search: 'stryker' }, true, true, true)
+    expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).not.toContain('r1')
+  })
+
+  it('a placeholder IS searchable by its own (unusual, but allowed) `name` field', () => {
+    const d = dataset()
+    d.resources.push({ id: 'ph-named', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'placeholder', name: 'Zibblequork', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#b' })
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, { ...emptyFilters(), search: 'zibblequork' }, true, true, true)
+    expect(model.flatMap((g) => g.rows).map((r) => r.resource.id)).toContain('ph-named')
+  })
+
+  it('bar.project / bar.client resolve through the projectById / clientById maps (real lookups, not empty maps)', () => {
+    const model = build()
+    const a1 = allBars(model).find((b) => b.allocation.id === 'a1')!
+    expect(a1.project).toBe('P1')
+    expect(a1.client).toBe('Acme')
+  })
+
+  it('a project-less activity bar falls back to the RESOURCE colour via resourceById (not a broken/empty map)', () => {
+    const d = dataset()
+    d.activities.push({ id: 't-int', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' })
+    d.allocations.push({ id: 'a-int', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't-int', startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const bar = allBars(model).find((b) => b.allocation.id === 'a-int')!
+    expect(bar.color).toBe('#4') // r1's own colour — no project/client colour to fall back to first
+  })
+
+  it('does not throw when there are no clients at all (scopedAccountId derivation is optional-chained)', () => {
+    const d = { ...dataset(), clients: [] }
+    expect(() => buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)).not.toThrow()
+  })
+
+  it('positions time-off blocks with real fields (id/x/width/label/note), and marks only its OWN days unavailable', () => {
+    const d = dataset()
+    // TWO time-off rows for the SAME resource, so the resourceId -> TimeOff[] map must accumulate
+    // (push into an existing bucket) rather than each write clobbering the last one.
+    d.timeOff.push(
+      { id: 'to1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', startDate: '2026-06-01', endDate: '2026-06-01', type: 'holiday', note: 'day one' },
+      { id: 'to2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', startDate: '2026-06-02', endDate: '2026-06-02', type: 'sick' },
+    )
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!
+    expect(r1.timeOff).toHaveLength(2) // both accumulate — neither write drops the other
+    const t1 = r1.timeOff.find((t) => t.id === 'to1')!
+    expect(t1.x).toBe(geom.xForDateInGeom('2026-06-01'))
+    expect(t1.width).toBe(geom.widthForDates('2026-06-01', '2026-06-01'))
+    expect(t1.note).toBe('day one')
+    expect(typeof t1.label).toBe('string')
+    expect(t1.label.length).toBeGreaterThan(0)
+    // Day-state unavailable is exactly cap.available === 0: true on the time-off day, false on a
+    // plain working day with no time off (2026-06-03, a Wednesday r1 works).
+    expect(r1.dayStates[0].unavailable).toBe(true) // 2026-06-01, on time off
+    expect(r1.dayStates[2].unavailable).toBe(false) // 2026-06-03, ordinary working day
+  })
+
+  it('external rows use literal {over:false, unavailable:false} day-states (real booleans, not an empty object)', () => {
+    const model = buildSchedulerModel(withExternal(), geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const ext = model.at(-1)!.rows[0]
+    expect(ext.dayStates[0]).toEqual({ over: false, unavailable: false })
+  })
+
+  it('a dangling activityId (missing from `activities`) degrades to safe fallbacks, never throws', () => {
+    const d = dataset()
+    d.allocations.push({ id: 'a-ghost', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 'ghost-activity', startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
+    let model: GroupModel[] = []
+    expect(() => {
+      model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    }).not.toThrow()
+    const bar = allBars(model).find((b) => b.allocation.id === 'a-ghost')!
+    expect(bar.label).toBe('Activity') // fallback label, not a crash on the missing activity lookup
+    expect(bar.project).toBeUndefined()
+    expect(bar.client).toBeUndefined()
+  })
+
+  it('a dangling activityId does not throw when project/client/activity-kind filters are active, and is filtered out', () => {
+    const d = dataset()
+    d.allocations.push({ id: 'a-ghost2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 'ghost-activity-2', startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
+    expect(() => buildSchedulerModel(d, geom, days, start, end, start, end, { ...emptyFilters(), projectId: 'p1' }, true, true, true)).not.toThrow()
+    expect(() => buildSchedulerModel(d, geom, days, start, end, start, end, { ...emptyFilters(), clientId: 'c1' }, true, true, true)).not.toThrow()
+    expect(() => buildSchedulerModel(d, geom, days, start, end, start, end, { ...emptyFilters(), activityKind: 'internal' }, true, true, true)).not.toThrow()
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, { ...emptyFilters(), projectId: 'p1' }, true, true, true)
+    expect(allBars(model).map((b) => b.allocation.id)).not.toContain('a-ghost2')
+  })
+
+  it('the ungrouped ("No discipline") bucket keys as "none" with title "No discipline" (not empty strings)', () => {
+    const d = dataset()
+    d.resources.push({ id: 'r-nodisc', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Noe', role: 'Floater', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#c' })
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const nodisc = model.find((g) => g.rows.some((r) => r.resource.id === 'r-nodisc'))!
+    expect(nodisc.key).toBe('none')
+    expect(nodisc.title).toBe('No discipline')
+  })
+
+  it('group.external is a real boolean: true for the external band, false (not undefined) for a discipline group', () => {
+    const model = buildSchedulerModel(withExternal(), geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const design = model.find((g) => g.title === 'Design')!
+    const externalGroup = model.at(-1)!
+    expect(design.external).toBe(false)
+    expect(externalGroup.external).toBe(true)
+  })
+
+  it('placeholder ordering is stable WITHIN each kind: multiple persons keep their relative order, multiple placeholders too', () => {
+    const d = dataset()
+    d.resources = [
+      { id: 'ph1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'placeholder', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#9' },
+      { id: 'r1', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Dana', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#4' },
+      { id: 'ph2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'placeholder', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#8' },
+      { id: 'r2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'Sam', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#5' },
+    ]
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const design = model.find((g) => g.title === 'Design')!
+    expect(design.rows.map((r) => r.resource.id)).toEqual(['r1', 'r2', 'ph1', 'ph2'])
+  })
+
+  it('positions overlapping bars on the SAME resource at DIFFERENT lane tops (laneById is a real Map, not empty)', () => {
+    const d = dataset()
+    // a1 already books r1 on 2026-06-01..02; a second, overlapping allocation forces a 2nd lane.
+    d.allocations.push({ id: 'a-overlap', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const r1bars = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!.bars
+    const tops = new Set(r1bars.filter((b) => b.allocation.id === 'a1' || b.allocation.id === 'a-overlap').map((b) => b.top))
+    expect(tops.size).toBe(2)
+  })
+
+  it('overSoon truly SKIPS external resources — even one with real over-capacity hours', () => {
+    const d = withExternal()
+    // ext1's workingHoursPerDay is 8; this 20h booking on a working Monday WOULD read as over if
+    // the external guard were bypassed.
+    d.allocations.push({ id: 'aext2', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'ext1', activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 20, status: 'confirmed' })
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    expect(model.at(-1)!.rows[0].overSoon).toBe(false)
+  })
+
+  it('overSoon requires a REAL working day (available > 0): an ignoreWeekends weekend booking is over per-day but does not trip overSoon', () => {
+    const d = dataset()
+    // r1 works Mon–Fri; 2026-06-06 is a Saturday (available = 0 for r1 regardless of ignoreWeekends
+    // — that flag only affects whether the allocation counts hours there, not the resource's
+    // availability). ignoreWeekends: true makes the allocation actually WORK that zero-capacity day.
+    d.allocations.push({ id: 'a-sat', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-06', endDate: '2026-06-06', hoursPerDay: 8, status: 'confirmed', ignoreWeekends: true })
+    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!
+    expect(r1.overSoon).toBe(false)
+  })
+})

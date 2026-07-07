@@ -37,6 +37,22 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('resources', { workingDays: [5, 1, 3, 1, 5] }).workingDays).toEqual([1, 3, 5])
   })
 
+  it('repairs a discipline sortOrder: junk / NaN → 0, keeps a valid integer', () => {
+    expect(sanitizeImportedRecord('disciplines', { sortOrder: 5, name: 'D' }).sortOrder).toBe(5)
+    expect(sanitizeImportedRecord('disciplines', { sortOrder: 'x', name: 'D' }).sortOrder).toBe(0)
+    expect(sanitizeImportedRecord('disciplines', { sortOrder: NaN, name: 'D' }).sortOrder).toBe(0)
+  })
+
+  it('keeps only 0–6 integer weekdays, dropping out-of-range and non-numbers', () => {
+    // Only real Weekday values survive: 7 / -1 / 9 / 'x' are all dropped, leaving [1].
+    expect(sanitizeImportedRecord('resources', { workingDays: [1, 7, -1, 'x', 9] }).workingDays).toEqual([1])
+    // 0 (Sun) and 6 (Sat) are INCLUSIVE bounds — a weekend-only week is legal, not clipped.
+    expect(sanitizeImportedRecord('resources', { workingDays: [0, 3, 6] }).workingDays).toEqual([0, 3, 6])
+    // an ARRAY that filters empty still falls back to Mon–Fri (not to [], which would model a
+    // no-working-day resource).
+    expect(sanitizeImportedRecord('resources', { workingDays: [9] }).workingDays).toEqual([1, 2, 3, 4, 5])
+  })
+
   it('keeps valid values untouched', () => {
     const out = sanitizeImportedRecord('allocations', { status: 'tentative', hoursPerDay: 6 })
     expect(out).toMatchObject({ status: 'tentative', hoursPerDay: 6 })
@@ -69,9 +85,62 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('allocations', { startDate: 'nope' }).startDate).toBe('nope')
   })
 
+  it('normalizes ONLY a whole, trimmed Y-M-D string — not a partial or embedded match', () => {
+    // trims surrounding whitespace before matching
+    expect(sanitizeImportedRecord('allocations', { startDate: '  2026-6-1  ' }).startDate).toBe('2026-06-01')
+    // pads a 1-digit month even when the day is already 2 digits (the whole string must match)
+    expect(sanitizeImportedRecord('allocations', { startDate: '2026-6-12' }).startDate).toBe('2026-06-12')
+    // a prefixed / suffixed value is NOT a date — it's left verbatim for validateDateRange to reject,
+    // never partially rewritten from an embedded match.
+    expect(sanitizeImportedRecord('allocations', { startDate: 'x2026-6-1' }).startDate).toBe('x2026-6-1')
+    expect(sanitizeImportedRecord('allocations', { startDate: '2026-6-1x' }).startDate).toBe('2026-6-1x')
+  })
+
+  it('backfills a project-less activity’s kind to repeatable (a project-bound one to project)', () => {
+    expect(sanitizeImportedRecord('activities', { name: 'Admin' }).kind).toBe('repeatable')
+    expect(sanitizeImportedRecord('activities', { name: 'Wires', projectId: 'p1' }).kind).toBe('project')
+  })
+
   it('leaves clean names and refs alone, backfilling activity kind from projectId', () => {
     const out = sanitizeImportedRecord('activities', { name: 'Build', projectId: 'p1' })
     expect(out).toEqual({ name: 'Build', kind: 'project', projectId: 'p1' })
+  })
+
+  it('falls back a REQUIRED text column (per entity) to its placeholder when empty / missing', () => {
+    // The server marks these NOT NULL; an emoji-only or absent value collapses to '' locally,
+    // so each case supplies the right field name + placeholder so both import paths agree.
+    expect(sanitizeImportedRecord('clients', {}).name).toBe('Untitled')
+    expect(sanitizeImportedRecord('clients', { name: '💩' }).name).toBe('Untitled')
+    expect(sanitizeImportedRecord('projects', { name: '' }).name).toBe('Untitled')
+    expect(sanitizeImportedRecord('phases', { name: '' }).name).toBe('Untitled')
+    expect(sanitizeImportedRecord('activities', { name: '' }).name).toBe('Untitled')
+    expect(sanitizeImportedRecord('disciplines', { name: '' }).name).toBe('Untitled')
+    expect(sanitizeImportedRecord('resources', { role: '' }).role).toBe('Team member')
+  })
+
+  it('cleans a single-line name (collapsing newlines) but preserves newlines in multiline notes', () => {
+    // resources.name uses the DEFAULT (single-line) mode — a newline collapses to a space...
+    expect(sanitizeImportedRecord('resources', { name: 'a\nb', role: 'r' }).name).toBe('a b')
+    // ...whereas allocation / time-off NOTES are multiline, so a newline is preserved.
+    expect(sanitizeImportedRecord('allocations', { note: 'a\nb' }).note).toBe('a\nb')
+    expect(sanitizeImportedRecord('timeOff', { note: 'a\nb' }).note).toBe('a\nb')
+    // and a note is still stripped of emoji junk (proving the cleaned field really is 'note')
+    expect(sanitizeImportedRecord('timeOff', { note: 'done ✅' }).note).toBe('done')
+  })
+
+  it('repairs a discipline colour only when present (an absent colour stays absent)', () => {
+    expect(sanitizeImportedRecord('disciplines', { name: 'D' }).color).toBeUndefined()
+    expect(sanitizeImportedRecord('disciplines', { name: 'D', color: 'notahex' }).color).toBe('#6366f1')
+  })
+
+  it('drops a non-true builtin flag on an imported client, keeping only an explicit true', () => {
+    expect(sanitizeImportedRecord('clients', { name: 'C', builtin: 'yes' }).builtin).toBeUndefined()
+    expect(sanitizeImportedRecord('clients', { name: 'C', builtin: false }).builtin).toBeUndefined()
+    expect(sanitizeImportedRecord('clients', { name: 'C', builtin: true }).builtin).toBe(true)
+  })
+
+  it('does NOT give a phase an activity kind (its case must not fall through to activities)', () => {
+    expect(sanitizeImportedRecord('phases', { name: 'Build' })).toEqual({ name: 'Build' })
   })
 
   it('strips emoji / control junk from text fields but keeps refs', () => {
@@ -113,6 +182,14 @@ describe('sanitizeImportedRecord', () => {
 describe('sanitizeAccount', () => {
   it('strips an invalid timezone', () => {
     const rec = { timezone: 'Not/A/Zone' }
+    sanitizeAccount(rec)
+    expect(rec.timezone).toBeUndefined()
+  })
+
+  it('strips a non-string timezone even if it stringifies to a valid zone (type-guard, not coercion)', () => {
+    // Only a real string may be kept: the `typeof !== 'string'` branch must strip an object,
+    // NOT fall through to Intl (which would String()-coerce it to a valid zone and keep junk).
+    const rec: Record<string, unknown> = { timezone: { toString: () => 'Europe/London' } }
     sanitizeAccount(rec)
     expect(rec.timezone).toBeUndefined()
   })

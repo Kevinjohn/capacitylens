@@ -94,6 +94,27 @@ describe('computeGesture', () => {
   it('never flags clamped for a move (only a volume-preserving resize can clamp)', () => {
     expect(computeGesture('move', current, 2, IGNORE, 24, true).clamped).toBe(false)
   })
+
+  // A move never rescales even when the span is unchanged (its old/new span ARE equal, so a
+  // naive rescale would be a mathematical no-op on `hours` alone) — the `mode !== 'move'` guard
+  // must still be the thing gating the branch, not a coincidence of equal spans. An out-of-range
+  // hoursPerDay (30, over the 24h cap) makes the two code paths diverge in BOTH fields even though
+  // the span stays 4: the hardcoded move path returns it untouched/unclamped; the volume-preserving
+  // path (entered only if the mode guard is broken) would clamp it to 24 and flag `clamped: true`.
+  it('a move never enters the volume-preserving path, even with an out-of-range hoursPerDay', () => {
+    const { hours, clamped } = computeGesture('move', current, 2, IGNORE, 30, true)
+    expect(hours).toBe(30)
+    expect(clamped).toBe(false)
+  })
+
+  // deltaDays === 0 must short-circuit BEFORE the days-mode rescale, not merely produce the same
+  // numbers as it by coincidence. Same trick: an out-of-range hoursPerDay makes the (wrongly)
+  // entered rescale path diverge from the hardcoded "unchanged" return in both hours and clamped.
+  it('deltaDays === 0 skips the rescale entirely, even with an out-of-range hoursPerDay', () => {
+    const { hours, clamped } = computeGesture('resize-end', current, 0, IGNORE, 30, true)
+    expect(hours).toBe(30)
+    expect(clamped).toBe(false)
+  })
 })
 
 describe('snappedBarGeometry', () => {

@@ -1,10 +1,13 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   addDaysISO,
+  countWorkingDays,
   dayIndex,
   daysInclusive,
   eachDayISO,
+  endDateForWorkingDays,
   isWithin,
+  isWeekendAware,
   parseDate,
   startOfWeekISO,
   todayISO,
@@ -126,5 +129,87 @@ describe('todayISO', () => {
   it('falls back gracefully when given undefined', () => {
     expect(() => todayISO(undefined)).not.toThrow()
     expect(todayISO(undefined)).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+  })
+
+  describe('with a fixed clock', () => {
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    it('resolves the date in the GIVEN zone, not the local one — even when they disagree', () => {
+      // At this instant, Pacific/Kiritimati (UTC+14) has already ticked over to the
+      // 15th while every plausible CI/dev machine zone (UTC-12 .. UTC+14, but not
+      // literally Kiritimati) still reads the 14th. A mutant that swaps the locale,
+      // drops the timeZone option, or blanks out the year/month/day field options all
+      // make the Intl call throw or silently ignore the zone — either way falling back
+      // to the (wrong, one-day-off) local date.
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-14T20:00:00Z'))
+      expect(todayISO('Pacific/Kiritimati')).toBe('2026-06-15')
+    })
+
+    it('always resolves the SAME zone, ignoring which timeZone happens to be passed', () => {
+      // Guards the early-return short-circuit `if (!timeZone) return toISODate(new
+      // Date())`: forcing it to ALWAYS fire (dropping the timeZone argument on the
+      // floor) would make a valid, given zone come back as the local date instead.
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-06-14T20:00:00Z'))
+      expect(todayISO('Pacific/Kiritimati')).not.toBe(todayISO())
+    })
+  })
+
+  it('warns (not silently) and still returns a valid local date for a malformed IANA zone', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(() => todayISO('Not/AZone')).not.toThrow()
+    const result = todayISO('Not/AZone')
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(result).toBe(toISODate(new Date()))
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('todayISO: invalid timeZone "Not/AZone"'),
+      expect.anything(),
+    )
+    warnSpy.mockRestore()
+  })
+})
+
+describe('isWeekendAware', () => {
+  it('is false when workingDays is empty (no boundary at length > 0 to cross)', () => {
+    expect(isWeekendAware([], false)).toBe(false)
+  })
+
+  it('is false for a full 7-day working week (no boundary at length < 7 to cross)', () => {
+    expect(isWeekendAware([0, 1, 2, 3, 4, 5, 6], false)).toBe(false)
+  })
+
+  it('is true for a genuine partial week (both boundaries cleared)', () => {
+    expect(isWeekendAware([1, 2, 3, 4, 5], false)).toBe(true)
+  })
+})
+
+describe('countWorkingDays', () => {
+  it('returns 0 for a reversed (empty) range regardless of how far reversed', () => {
+    expect(countWorkingDays('2026-06-02', '2026-06-01', [1, 2, 3, 4, 5])).toBe(0)
+    expect(countWorkingDays('2026-06-10', '2026-06-01', [1, 2, 3, 4, 5])).toBe(0)
+  })
+})
+
+describe('endDateForWorkingDays', () => {
+  it('falls back to the raw calendar span (start itself) when count <= 0', () => {
+    expect(endDateForWorkingDays('2026-06-01', 0, [1, 2, 3, 4, 5])).toBe('2026-06-01')
+    expect(endDateForWorkingDays('2026-06-01', -3, [1, 2, 3, 4, 5])).toBe('2026-06-01')
+  })
+
+  it('falls back to the raw calendar span when workingDays is empty', () => {
+    // count=5 -> 5th calendar day at/after start = start + 4.
+    expect(endDateForWorkingDays('2026-06-01', 5, [])).toBe('2026-06-05')
+  })
+
+  it('falls back to the raw calendar span at length >= 7, even with duplicate weekday entries', () => {
+    // A length-7 workingDays array is normally the full week (matches every day), so
+    // the fallback and the working-day scan happen to agree — UNLESS the array is
+    // degenerate (all entries the same weekday), which still has length 7 but only
+    // actually works ~1 day in 7. That's exactly what distinguishes ">= 7" (fallback,
+    // start + 4) from a scan that would otherwise land 4 WEEKS later.
+    expect(endDateForWorkingDays('2026-06-01', 5, [1, 1, 1, 1, 1, 1, 1])).toBe('2026-06-05')
   })
 })

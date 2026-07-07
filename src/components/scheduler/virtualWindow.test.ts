@@ -48,4 +48,35 @@ describe('computeWindow', () => {
   it('is empty for no items', () => {
     expect(computeWindow([], 0, 720)).toEqual({ first: 0, last: -1, topPad: 0, bottomPad: 0 })
   })
+
+  // The "everything fits in view + overscan" fast path is independent of scrollTop — it answers
+  // "does the WHOLE list fit", not "what's visible from here". A huge scrollTop, fed through the
+  // (unmutated) windowing math below it, would legitimately trim rows off the front — proving the
+  // fast path is actually short-circuiting the windowing logic, not just producing the same answer.
+  it('the fits-in-view fast path renders everything regardless of scrollTop (not a coincidence of scrollTop=0)', () => {
+    const heights = Array.from({ length: 7 }, () => 20) // total 140
+    // viewportHeight + overscanPx = 150 >= 140 → fits, fast path — even at a huge scrollTop.
+    expect(computeWindow(heights, 200, 50, 100)).toEqual({ first: 0, last: 6, topPad: 0, bottomPad: 0 })
+  })
+
+  // Boundary of the fast-path guard: total === viewportHeight + overscanPx exactly must still take
+  // the "fits" branch (<=, not <). Below, a nonzero scrollTop proves it — if the guard were a
+  // strict '<', it would fall through to windowing and (correctly, using the real overscanPx) trim
+  // the first row.
+  it('the fits-in-view guard includes the exact-fit boundary (<=), not just strictly-under', () => {
+    const heights = [20, 20, 20, 20] // total 80
+    // viewportHeight(80) + overscanPx(0) === total(80) exactly.
+    expect(computeWindow(heights, 30, 80, 0)).toEqual({ first: 0, last: 3, topPad: 0, bottomPad: 0 })
+  })
+
+  // The `first` scan's own bound (`first < n - 1`) must stop it at the LAST valid index — never
+  // walk off the end into out-of-range (undefined) heights/tops. A very large `top` (scrollTop far
+  // past the content) makes the height-check side of the loop condition stay true all the way to
+  // the last row, so only the explicit bound decides where it stops.
+  it('the first-scan bound stops it AT the last index, never past it', () => {
+    const heights = [10, 10, 10]
+    // total 30, well past viewportHeight+overscanPx(10) so the fast path is skipped; a scrollTop of
+    // 1000 pushes `top` far beyond every row's bottom edge.
+    expect(computeWindow(heights, 1000, 10, 0)).toEqual({ first: 2, last: 2, topPad: 20, bottomPad: 0 })
+  })
 })

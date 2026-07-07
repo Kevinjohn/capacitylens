@@ -15,6 +15,10 @@ export default defineConfig([
     '.claude/worktrees/**',
     // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.
     'src/paraglide',
+    // Stryker mutation-testing sandbox + report (`npm run mutation`) — copies of the whole repo;
+    // linting them double-parses every file and confuses the typed parser's tsconfig-root lookup.
+    '.stryker-tmp',
+    'reports',
   ]),
 
   // Baseline for every TS file in every package (web, shared, server).

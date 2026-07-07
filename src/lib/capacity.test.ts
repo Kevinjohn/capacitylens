@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
   allocatedHoursOnDay,
   availableHoursOnDay,
@@ -72,6 +72,36 @@ describe('availability', () => {
     expect(availableHoursOnDay(r, '2026-06-01', [])).toBe(8) // Monday
     expect(availableHoursOnDay(r, '2026-06-06', [])).toBe(0) // Saturday
     expect(availableHoursOnDay(r, '2026-06-03', [makeTimeOff()])).toBe(0) // time off
+  })
+})
+
+describe('devAssertFinite (DEV-only console.warn on a non-finite value)', () => {
+  const r = makeResource()
+
+  it('warns when workingHoursPerDay is not finite', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    availableHoursOnDay(makeResource({ workingHoursPerDay: NaN }), '2026-06-01', []) // Monday
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toContain('workingHoursPerDay')
+    expect(warn.mock.calls[0][0]).toContain('is not a finite number')
+    expect(warn.mock.calls[0][0]).toContain('should have prevented this')
+    warn.mockRestore()
+  })
+
+  it('does not warn when workingHoursPerDay is finite', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    availableHoursOnDay(r, '2026-06-01', []) // Monday, finite workingHoursPerDay
+    expect(warn).not.toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('warns with the "allocated hours sum" label when the summed allocation hours are not finite', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: NaN })]
+    allocatedHoursOnDay(r, '2026-06-01', allocs)
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toContain('allocated hours sum')
+    warn.mockRestore()
   })
 })
 
@@ -205,6 +235,16 @@ describe('utilization', () => {
     const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-14', hoursPerDay: 8 })]
     expect(utilization(r, allocs, [], '2026-06-01', '2026-06-14')).toBeCloseTo(1)
   })
+
+  it('does not count hours on a zero-availability day (a weekend an allocation opts into) toward the ratio', () => {
+    // Sat/Sun have 0 availability for a Mon-Fri resource. An ignoreWeekends allocation still puts
+    // hours there, but those days must be skipped entirely (neither side counted) — not just have
+    // their availability zeroed, which would otherwise inflate the ratio via the numerator alone.
+    const allocs = [
+      makeAlloc({ startDate: '2026-06-06', endDate: '2026-06-07', hoursPerDay: 4, ignoreWeekends: true }),
+    ]
+    expect(utilization(r, allocs, [], '2026-06-01', '2026-06-07')).toBe(0)
+  })
 })
 
 describe('overAllocatedInWindow', () => {
@@ -220,6 +260,15 @@ describe('overAllocatedInWindow', () => {
     // must not count as over-allocation for the near-term radar.
     const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-14', hoursPerDay: 8 })]
     expect(overAllocatedInWindow(r, allocs, [], '2026-06-01', '2026-06-14')).toBe(false)
+  })
+
+  it('is false on a zero-capacity day even when an ignoreWeekends allocation books hours there', () => {
+    // Deliberately narrower than the per-day over-marker: this radar skips EVERY zero-capacity
+    // day, including one an allocation opts into via ignoreWeekends (unlike dayCapacity's `over`).
+    const allocs = [
+      makeAlloc({ startDate: '2026-06-06', endDate: '2026-06-06', hoursPerDay: 5, ignoreWeekends: true }),
+    ]
+    expect(overAllocatedInWindow(r, allocs, [], '2026-06-06', '2026-06-06')).toBe(false)
   })
 })
 
@@ -257,5 +306,35 @@ describe('capacityAdvisory', () => {
     // them — a Mon–Fri person has 0 weekend capacity, so the advisory matches the red over-marker.
     expect(capacityAdvisory(r, [], [], '2026-06-05', '2026-06-07', 8, false).overDays).toBe(0)
     expect(capacityAdvisory(r, [], [], '2026-06-05', '2026-06-07', 8, true).overDays).toBe(2)
+  })
+
+  it('returns the zeroed advisory when the window is empty (start after end)', () => {
+    expect(capacityAdvisory(r, [], [], '2026-06-05', '2026-06-01', 8, false)).toEqual({
+      overDays: 0,
+      timeOffDays: 0,
+    })
+  })
+
+  it('clamps an existing allocation to the window start (does not count its hours before start)', () => {
+    // The other allocation starts mid-window (Wed); its hours must not leak onto Mon/Tue.
+    const others = [makeAlloc({ startDate: '2026-06-03', endDate: '2026-06-03', hoursPerDay: 4 })]
+    const { overDays } = capacityAdvisory(r, others, [], '2026-06-01', '2026-06-03', 5, false)
+    expect(overDays).toBe(1) // only Wed (4 + 5 > 8); Mon/Tue see 0 + 5, not over
+  })
+
+  it('clamps an existing allocation to the window end (does not count its hours after it ends)', () => {
+    // The other allocation ends on day one (Mon); its hours must not leak onto Tue/Wed.
+    const others = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-01', hoursPerDay: 4 })]
+    const { overDays } = capacityAdvisory(r, others, [], '2026-06-01', '2026-06-03', 5, false)
+    expect(overDays).toBe(1) // only Mon (4 + 5 > 8); Tue/Wed see 0 + 5, not over
+  })
+
+  it('does not count an existing weekend-aware allocation on a weekend day it merely spans', () => {
+    // The other allocation spans Fri-Mon but (weekend-aware, no ignoreWeekends) does no work on
+    // Sat. The proposal opts INTO the weekend via ignoreWeekends with 0 hours, so a spurious
+    // carry-over of the other allocation's hours onto Sat would wrongly flag it as over.
+    const others = [makeAlloc({ startDate: '2026-06-05', endDate: '2026-06-08', hoursPerDay: 8 })]
+    const { overDays } = capacityAdvisory(r, others, [], '2026-06-06', '2026-06-06', 0, true)
+    expect(overDays).toBe(0)
   })
 })

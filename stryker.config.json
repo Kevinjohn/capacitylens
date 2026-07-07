@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing — scoped to the pure logic: the shared domain core (shared/src/lib + shared/src/domain, 'the product') plus the pure .ts helpers behind the schedule (src/components/scheduler, src/lib). Answers 'do the unit tests actually BITE?' (kill mutants) rather than just 'did they run the lines?' (coverage). Deliberately NOT wired into the gate (runs take many minutes); run on demand with `npm run mutation` before releases or after core changes. Report lands in reports/mutation/mutation.html.",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "reporters": ["html", "clear-text", "progress"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "shared/src/lib/**/*.ts",
+    "shared/src/domain/**/*.ts",
+    "src/components/scheduler/**/*.ts",
+    "src/lib/**/*.ts",
+    "!**/*.test.ts"
+  ],
+  "vitest": {
+    "configFile": "vite.config.ts"
+  },
+  "concurrency": 6,
+  "timeoutMS": 20000,
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation.html"
+  }
+}
