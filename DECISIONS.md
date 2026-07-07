@@ -780,6 +780,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Two oracles beyond "tests pass":** screenshots are the **visual** oracle (role/DOM
   assertions prove behaviour, not appearance); `@axe-core/playwright` is the **a11y** oracle
   (light + dark + a modal).
+- **Mutation testing is the "do the tests BITE?" oracle, on demand and OFF the gate.**
+  `npm run mutation` (Stryker + vitest runner, mirroring delivery-diary) mutates the pure logic
+  only — `shared/src/{lib,domain}` + the `.ts` helpers in `src/components/scheduler` and
+  `src/lib` — html report in `reports/mutation/`. Kept off the gate because a run takes ~15–30
+  min. Standing bar from the 2026-07-07 round: **94.8%**, with residual survivors documented
+  equivalent mutants — kill mutants with real-behaviour assertions, never line-execution tests.
 - **Dev server binds loud, not lucky:** `vite.config.ts` pins `host: '127.0.0.1'` (Node 17+
   would otherwise bind `localhost` → `::1` only) and `strictPort: true` (a squatted 5173 —
   including by floaty-schedule / delivery-diary, which claim the same port — fails at startup

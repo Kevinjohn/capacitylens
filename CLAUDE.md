@@ -92,6 +92,8 @@ preview. Scoped access goes through the `useScopedData` / `scopedTables()` seam.
 (Playwright), all green. Screenshots are the visual oracle; `@axe-core/playwright` (light + dark +
 a modal) is the a11y oracle. The `server/` workspace is OUT of the root gate (it needs Node's
 `node:sqlite`, Node 24+ per `.nvmrc`); run it separately with `npm run gate:server`.
+**Mutation testing** (`npm run mutation`, Stryker over the pure core + src helpers) is the
+on-demand "do the tests bite?" oracle — deliberately OFF the gate (~15–30 min a run).
 `npm run e2e` is Chromium; **Safari/WebKit and Firefox/Gecko are opt-in** — `npm run e2e:webkit` /
 `npm run e2e:firefox` re-run the core specs on a single engine, `npm run e2e:browsers` runs them on
 all three (Chromium + WebKit, then Firefox; Vite-only, so no SQLite/auth server and no Node 24), and
