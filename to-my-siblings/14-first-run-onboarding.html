@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>14 · First-run onboarding: checklist + tour — CapacityLens Handbook</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">CapacityLens&nbsp;<span>Handbook</span></a>
+    <p class="tagline">The CapacityLens house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+      <a href="13-pnpm-and-self-hosting-first.html"><span class="num">13</span>Migration: pnpm &amp; self-host first</a>
+      <a href="14-first-run-onboarding.html" class="active"><span class="num">14</span>First-run onboarding</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Reference / 14</div>
+      <p class="eyebrow">Reference · migration guide</p>
+      <h1>Build a first-run onboarding: a state-driven checklist + a loose tour</h1>
+      <p class="lead">CapacityLens shipped this on 2026-07-07 (commit <code>df3483c</code>): a
+      "Getting started" card on the main view that ticks itself off as the account fills up, and a
+      five-stop "Show me around" spotlight tour. This page is the recipe for a sibling repo. The
+      <em>pattern</em> transfers verbatim; the <em>content</em> — which steps, which tour stops, which
+      user story — is yours to derive, and §1 is the worksheet that derives it. Do the phases in
+      order; each ends with a check.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#pattern">The two-part pattern, and the two rules</a></li>
+        <li><a href="#worksheet">§1 — Design worksheet (your content)</a></li>
+        <li><a href="#derive">§2 — The pure derive function</a></li>
+        <li><a href="#pref">§3 — The dismissal device pref</a></li>
+        <li><a href="#card">§4 — The checklist card</a></li>
+        <li><a href="#tour">§5 — The tour</a></li>
+        <li><a href="#css">§6 — The CSS import-order gotcha</a></li>
+        <li><a href="#tests">§7 — Test plan (required)</a></li>
+        <li><a href="#verify">§8 — Verification</a></li>
+        <li><a href="#logit">Log the decision</a></li>
+        <li><a href="#pitfalls">Pitfall register</a></li>
+      </ul>
+    </div>
+
+    <h2 id="pattern">The two-part pattern, and the two rules that make it work</h2>
+    <p>Onboarding is two separate artefacts with two different jobs:</p>
+    <table>
+      <thead><tr><th>Artefact</th><th>Job</th><th>Character</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Getting-started checklist</strong> (card on the main view)</td><td>The <em>how</em>: the 3–5 actions that take an empty account to a useful one.</td><td><strong>State-driven</strong> — each step ticks itself off by reading the active account's real scoped data.</td></tr>
+        <tr><td><strong>"Show me around" tour</strong> (driver.js spotlights)</td><td>The <em>where</em>: point at the main view, the toolbar, and the nav destinations.</td><td><strong>Loose</strong> — it never navigates, never opens forms, never waits on the user doing something.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout rule"><span class="label">Rule 1 — the checklist is derived, never scripted</span>
+    <p>A scripted "now click here" flow breaks the moment the user wanders off mid-flow, and lies the moment
+    it gets out of step with reality. Deriving each step as a boolean off scoped data means the card is
+    <em>always</em> honest: do the step anywhere, by any means (form, import, API), and it ticks. This is why
+    the derivation lives in a pure, unit-tested function and not in the component.</p></div>
+    <div class="callout rule"><span class="label">Rule 2 — the tour looks, it doesn't touch</span>
+    <p>The tour's steps set <code>disableActiveInteraction: true</code> and never navigate: a stray click on a
+    spotlighted nav link would change the page underneath the overlay. Task-by-task guidance is the
+    checklist's job; mixing the two produces the brittle walkthroughs everyone dismisses unread.</p></div>
+
+    <h2 id="worksheet">§1 — Design worksheet: derive YOUR content first</h2>
+    <p>Do this on paper before writing code. Answer the four questions, then fill the table — the table
+    <em>is</em> your spec for §2–§7 and for the user story.</p>
+    <ol>
+      <li><strong>What is the shortest path from empty to "the main view shows something useful"?</strong>
+      List the entities a user must create, in dependency order. That list, capped at ~5, is your checklist.
+      Each step must be <em>checkable as a boolean off scoped <code>AppData</code></em> — if you can't write
+      the predicate, it's not a step.</li>
+      <li><strong>Which built-in/seeded rows must NOT count?</strong> CapacityLens excludes the builtin
+      Internal client (<code>isBuiltinClient</code>) — every account has it, so it isn't "your first client".
+      Find your equivalents (a default team? a seeded category?) or the card will start life half-ticked and
+      teach nothing.</li>
+      <li><strong>Where does each step happen?</strong> Steps whose page is elsewhere become
+      <code>&lt;Link&gt;</code>s to that route. A step that happens <em>on the main view itself</em> (the
+      final "use it" step, usually) gets no link — a hint line instead. CTAs navigate; they must NOT try to
+      open another page's Add modal (those are local component state — reaching across is the anti-pattern).</li>
+      <li><strong>What are the five-ish tour stops?</strong> The main view, its toolbar, and the 2–3 nav
+      destinations a new user needs. Anchors: existing <code>data-testid</code>s for in-view elements,
+      <code>data-nav="&lt;route&gt;"</code> for sidebar links (§5).</li>
+    </ol>
+    <p>CapacityLens's filled-in worksheet, as the worked example:</p>
+    <table>
+      <thead><tr><th>Step (i18n key)</th><th>Derived from (predicate)</th><th>Links to</th><th>Exclusions</th></tr></thead>
+      <tbody>
+        <tr><td>Add your first client (<code>gs_step_client</code>)</td><td><code>clients.some(c =&gt; !isBuiltinClient(c))</code></td><td><code>/clients</code></td><td>builtin Internal client</td></tr>
+        <tr><td>Add a project (<code>gs_step_project</code>)</td><td><code>projects.length &gt; 0</code></td><td><code>/projects</code></td><td>—</td></tr>
+        <tr><td>Add a person (<code>gs_step_person</code>)</td><td><code>resources.length &gt; 0</code></td><td><code>/resources</code></td><td>—</td></tr>
+        <tr><td>Assign them (<code>gs_step_assign</code>)</td><td><code>allocations.length &gt; 0</code></td><td>— (happens on the schedule; hint text instead)</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p>Sketches for the siblings — <strong>validate against your own domain model before adopting</strong>;
+    the predicates must name <em>your</em> tables:</p>
+    <ul>
+      <li><em>Shift-rota sibling:</em> add a location/venue → add your people → define a shift pattern →
+      put someone on the rota (final step, on the grid, hint not link).</li>
+      <li><em>Deliverables sibling:</em> add a client → add a deliverable → log your first update/entry
+      (final step, on the diary view, hint not link).</li>
+    </ul>
+    <div class="callout do"><span class="label">Write the user story from the worksheet, before the code</span>
+    <p>Per page 09, <code>user-stories/REFERENCE.md</code> is updated <em>first</em>. Draft your
+    US-NAV-style story straight from the table: precondition (clean state), the card appears on an empty
+    account with all steps pending, doing step 1 by its normal page ticks it, the tour drives all stops,
+    Dismiss hides and persists. CapacityLens's <code>US-NAV-13-getting-started.md</code> is the template —
+    same sections (Goal / Why / How / Result), same 1:1 link to the e2e spec.</p></div>
+
+    <h2 id="derive">§2 — The pure derive function</h2>
+    <p>One tiny file in <code>src/lib/</code> (NOT in the component): an interface with one boolean per
+    step, and a function from scoped <code>AppData</code> to it. The real one, whole:</p>
+    <div class="filename">src/lib/gettingStarted.ts</div>
+<pre><code>import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
+import type { AppData } from '@capacitylens/shared/types/entities'
+
+<span class="c">/** Which onboarding steps the active account has completed. */</span>
+export interface GettingStartedSteps {
+  client: boolean
+  project: boolean
+  person: boolean
+  assign: boolean
+}
+
+<span class="c">/** Derive the checklist's per-step completion from an account's scoped AppData. The
+ *  built-in Internal client doesn't count — every account has it, it's not "your first client". */</span>
+export function deriveGettingStartedSteps(data: AppData): GettingStartedSteps {
+  return {
+    client: data.clients.some((c) =&gt; !isBuiltinClient(c)),
+    project: data.projects.length &gt; 0,
+    person: data.resources.length &gt; 0,
+    assign: data.allocations.length &gt; 0,
+  }
+}</code></pre>
+    <p>Swap the fields and predicates for your worksheet rows. Keeping it pure and in <code>src/lib</code>
+    matters twice: it's trivially unit-testable, and that directory is inside the <strong>mutation-testing
+    scope</strong> (page 08) — Stryker will tell you if your tests don't actually bite.</p>
+    <p><strong>Check:</strong> a unit test file next to it (see §7.1) runs green.</p>
+
+    <h2 id="pref">§3 — The dismissal device pref</h2>
+    <p>Dismissal is a <strong>device preference</strong>, not account data: own localStorage key, never in
+    <code>AppData</code>/export, never on the undo stack (the page 05 invariant — same class as
+    <code>theme</code> and <code>introSeen</code>). Three touch points, all mirroring <code>introSeen</code>
+    exactly:</p>
+    <ol>
+      <li><strong><code>src/lib/displayPrefs.ts</code>:</strong> a
+      <code>&lt;prefix&gt;gettingStartedDismissed</code> key with
+      <code>readStoredGettingStartedDismissed()</code> / <code>writeStoredGettingStartedDismissed()</code>
+      via the existing <code>readBoolPref</code>/<code>writeBoolPref</code> helpers ('on'/'off' strings,
+      default <strong>false</strong> so the card shows on first contact, storage-unavailable degrades to the
+      default — the documented non-tenant-device-pref exception to surface-not-swallow).</li>
+      <li><strong><code>src/store/useStore.ts</code>:</strong> a <code>gettingStartedDismissed</code> field
+      initialised from the reader, and a <code>setGettingStartedDismissed</code> action that persists then
+      <code>set()</code>s. <strong>Plain <code>set</code>, NOT <code>mutate</code></strong> — a device-global
+      view flag must never enter undo/redo or the export.</li>
+      <li><strong>TSDoc on both</strong> stating the two-part visibility contract: this flag records only an
+      explicit dismissal; the card <em>also</em> self-hides (without touching the flag) once every step is
+      complete.</li>
+    </ol>
+    <p><strong>Check:</strong> the <code>displayPrefs</code> unit tests gain read/write/default cases for the
+    new pref (CapacityLens added 24 lines of test for exactly this).</p>
+
+    <h2 id="card">§4 — The checklist card</h2>
+    <p>One component (<code>src/components/GettingStarted.tsx</code>), rendered at the top of the main view
+    (CapacityLens: above the scheduler toolbar in <code>SchedulerView</code>). The load-bearing parts:</p>
+    <ul>
+      <li><strong>Visibility — one early return:</strong>
+      <code>if (dismissed || allDone || activeRole === 'viewer') return null</code>. Dismissed is the §3 pref;
+      allDone is derived (a seeded/established account <em>never</em> sees the card); a Viewer is excluded
+      because every CTA is a write affordance they can't complete — the same rule that hides the list pages'
+      Add buttons (page 12).</li>
+      <li><strong>Step rows:</strong> done = check icon + struck-through label <em>plus a screen-reader-only
+      "done" prefix</em> (<code>gs_step_done_sr</code> — the strike-through is invisible to a screen reader);
+      pending = a <code>&lt;Link&gt;</code> to the step's page, or plain text + hint for the in-place final
+      step.</li>
+      <li><strong>Footer:</strong> a primary "Show me around" button (<code>startTour</code>, §5) and a ghost
+      "Dismiss" button (<code>setGettingStartedDismissed(true)</code>).</li>
+      <li><strong>Hooks &amp; naming:</strong> <code>data-testid</code>s <code>getting-started</code>,
+      <code>getting-started-tour</code>, <code>getting-started-dismiss</code>; an <code>aria-label</code>led
+      <code>&lt;section&gt;</code>; every string a Paraglide <code>gs_*</code> key (CapacityLens added ~24
+      <code>gs_*</code>/<code>tour_*</code> messages) — no literals, per page 06.</li>
+      <li><strong>Data source:</strong> <code>useActiveScopedData()</code> — the card reads the ACTIVE
+      account through the scoping seam like everything else; never the raw tables.</li>
+    </ul>
+    <p><strong>Check:</strong> with a fresh empty account the card shows all-pending; with the demo seed it
+    never appears.</p>
+
+    <h2 id="tour">§5 — The tour</h2>
+    <p><strong>Library: driver.js.</strong> Chosen over Shepherd and Intro.js because they're
+    AGPL/commercial while driver.js is MIT, ~5&nbsp;kB, zero dependencies — re-run this license check in your
+    own year before adopting anything else. One module, <code>src/lib/tour.ts</code>, exporting
+    <code>startTour()</code>:</p>
+    <ul>
+      <li><strong>Steps built at CALL time</strong>, inside <code>startTour()</code> — Paraglide messages
+      resolve when invoked, so the active locale applies (the same deferred-resolution rule as AppShell's
+      nav links). A module-level steps array would freeze the boot-time locale.</li>
+      <li><strong>Anchors:</strong> in-view stops reuse existing <code>data-testid</code>s
+      (<code>scheduler-grid</code>, <code>scheduler-toolbar</code> — yours will differ); nav stops use a new
+      <code>data-nav="&lt;route&gt;"</code> attribute added to <strong>BOTH sidebar variants</strong> — the
+      open-menu <code>NavLink</code>s <em>and</em> the collapsed icon rail — so
+      <code>[data-nav="/x"]</code> matches whichever is rendered. Comment it as a tour anchor, NOT an e2e
+      selector (specs keep using role/name).</li>
+      <li><strong>Nav stops pin <code>side: 'right'</code></strong> — auto placement drops the popover below
+      the small link, covering the neighbouring nav rows it's pointing at.</li>
+      <li><strong>Config:</strong> <code>showProgress</code> with a translatable
+      <code>progressText</code> (driver.js interpolates its own <code>{{current}}/{{total}}</code> tokens —
+      pass them through the Paraglide message as literals), translated Next/Back/Done labels, and
+      <code>disableActiveInteraction: true</code> (Rule 2).</li>
+      <li><strong>Missing anchors degrade gracefully</strong> — driver.js renders a step whose element is
+      absent as a centred popover rather than throwing. Don't add defensive existence checks; that's the
+      library's documented behaviour.</li>
+    </ul>
+    <p><strong>Check:</strong> click "Show me around" — all stops highlight the right element, and during a
+    stop, clicking the spotlighted nav link does <em>not</em> navigate.</p>
+
+    <h2 id="css">§6 — The CSS import-order gotcha (read before styling)</h2>
+    <div class="callout warn"><span class="label">driver.css must be imported BEFORE index.css, in main.tsx</span>
+    <p><code>index.css</code> re-skins the tour popover onto the app tokens with a
+    <code>.driver-popover</code> block (~60 lines: surface/ink/line/brand variables, both themes). Those
+    overrides are <strong>equal-specificity</strong> with the vendor stylesheet, so <em>cascade order
+    decides</em>. Importing <code>driver.js/dist/driver.css</code> from <code>lib/tour.ts</code> placed the
+    vendor sheet <em>after</em> <code>index.css</code> in the bundle — and dark mode rendered
+    white-on-white. The fix: import it in <code>main.tsx</code>, on the line above
+    <code>import './index.css'</code>, with a comment saying exactly why. This was caught by screenshot
+    verification, <em>not</em> by the functional e2e — which is the whole argument for §8's visual pass.</p></div>
+
+    <h2 id="tests">§7 — Test plan (required)</h2>
+    <p><strong>7.1 — Unit (vitest, co-located):</strong></p>
+    <ul>
+      <li><code>src/lib/gettingStarted.test.ts</code> — empty data → all false; each entity present → its
+      step true <em>independently</em>; the exclusion case (a builtin-only client list does NOT tick the
+      client step); all-populated → all true. One case per worksheet row plus one per exclusion.</li>
+      <li><code>src/lib/displayPrefs.test.ts</code> — the new pref: default false when unset/garbage,
+      round-trips true/false, storage-unavailable degrades to default.</li>
+    </ul>
+    <p><strong>7.2 — E2E (Playwright, one spec file, four specs).</strong> This shape maps 1:1 onto the user
+    story; keep the names parallel to CapacityLens's <code>e2e/getting-started.spec.ts</code>:</p>
+    <table>
+      <thead><tr><th>Spec</th><th>Asserts</th></tr></thead>
+      <tbody>
+        <tr><td>Seeded company never shows the card</td><td>Open the demo-seeded account → <code>getting-started</code> testid absent (the derived all-done self-hide).</td></tr>
+        <tr><td>Empty company shows it; a completed step ticks itself off</td><td>Create a fresh company → card with every step pending; do step 1 via its normal page; return → that row struck through, others pending (state-driven, not scripted).</td></tr>
+        <tr><td>"Show me around" runs the loose tour</td><td>Click the tour button → popover with progress counter; Next through every stop; Done closes; URL never changed (the never-navigates rule, asserted).</td></tr>
+        <tr><td>Dismiss hides the card and persists</td><td>Dismiss → card gone; reload → still gone (device pref survives); the account's data untouched.</td></tr>
+      </tbody>
+    </table>
+    <p><strong>7.3 — REFERENCE.md first, then the story.</strong> Add the three testids, the
+    <code>data-nav</code> anchors, and the new <code>gs_*</code>/<code>tour_*</code> keys to
+    <code>user-stories/REFERENCE.md</code> <em>before</em> writing the story or the spec (page 09's
+    REFERENCE-first rule). Then write your US-NAV story from the §1 worksheet with its Linked-E2E line
+    naming all four specs.</p>
+    <p><strong>7.4 — Mutation note.</strong> The derive function sits in the Stryker scope. After the
+    feature lands, an on-demand <code>pnpm run mutation</code> should show no surviving mutants in
+    <code>gettingStarted.ts</code> — if one survives, your 7.1 cases assert too little (e.g. you asserted
+    "some step is true" instead of "exactly this step").</p>
+
+    <h2 id="verify">§8 — Verification</h2>
+<pre><code>pnpm run gate     <span class="c"># unit tests incl. the new derive + pref cases</span>
+pnpm run e2e      <span class="c"># incl. the four new onboarding specs</span>
+pnpm run dev      <span class="c"># then LOOK at it — this feature has two visual-only failure modes</span></code></pre>
+    <p>The visual pass is not optional: screenshot the card <em>and an open tour popover</em> in
+    <strong>both light and dark</strong> themes (§6's white-on-white bug is invisible to every functional
+    test), and run the axe pass over the view with the card mounted (the card is a labelled section with
+    real links and buttons — it's in scope for the a11y oracle, page 08).</p>
+
+    <h2 id="logit">Log the decision</h2>
+    <p>Per page 09: one <code>docs/decisions-log.md</code> entry naming the state-driven-not-scripted call,
+    the driver.js license rationale, the CSS-order gotcha (so the next person greps and finds it), and the
+    test counts; promote the standing calls (state-driven checklist, loose tour, driver.js, dismissal as a
+    device pref) to <code>DECISIONS.md</code> › UI &amp; product. CapacityLens's 2026-07-07 entry is the
+    template.</p>
+
+    <h2 id="pitfalls">Pitfall register</h2>
+    <table>
+      <thead><tr><th>Pitfall</th><th>Symptom</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Vendor CSS imported from the feature module</td><td>Tour popover white-on-white in dark mode</td><td>Import <code>driver.css</code> in <code>main.tsx</code> BEFORE <code>index.css</code>; comment why (§6)</td></tr>
+        <tr><td>Seeded/builtin rows count as progress</td><td>Card appears half-ticked on a brand-new account</td><td>Exclusion predicates from the §1 worksheet (e.g. <code>isBuiltinClient</code>)</td></tr>
+        <tr><td>Checklist CTA opens another page's modal</td><td>Reaching into a sibling page's local state — or a broken button</td><td>CTAs are <code>&lt;Link&gt;</code>s to the page; the in-place final step gets a hint, not a link</td></tr>
+        <tr><td>Dismissal stored in account data</td><td>Dismiss syncs across devices/exports, pollutes undo</td><td>Device pref via <code>displayPrefs</code> + plain <code>set</code> (§3)</td></tr>
+        <tr><td>Card shown to Viewers</td><td>Read-only users see CTAs they can't complete</td><td><code>activeRole === 'viewer'</code> in the §4 early return</td></tr>
+        <tr><td>Tour steps built at module level</td><td>Tour copy stuck in the boot-time locale</td><td>Build steps inside <code>startTour()</code> (§5)</td></tr>
+        <tr><td>Tour anchor on only one sidebar variant</td><td>Nav stops fall back to centred popovers when the sidebar is collapsed</td><td><code>data-nav</code> on BOTH the open links and the icon rail (§5)</td></tr>
+        <tr><td>Auto popover placement on nav stops</td><td>Popover covers the very nav rows it's describing</td><td><code>side: 'right'</code> on sidebar stops (§5)</td></tr>
+        <tr><td>Tests key on <code>data-nav</code></td><td>Tour refactor breaks unrelated e2e specs</td><td><code>data-nav</code> is a tour anchor only; specs use role/name (comment enforces it)</td></tr>
+        <tr><td>All-done accounts see the card until dismissed</td><td>Established users nagged by onboarding</td><td><code>allDone</code> is part of the §4 early return — dismissal is only for mid-flow opt-outs</td></tr>
+      </tbody>
+    </table>
+
+    <div class="pager">
+      <a href="13-pnpm-and-self-hosting-first.html"><span class="dir">Previous</span>← 13 · Migration: pnpm &amp; self-host first</a>
+      <a class="next" href="index.html"><span class="dir">Back to</span>00 · Home →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

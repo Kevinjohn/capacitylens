@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>13 · Migrate to pnpm &amp; self-hosting-first — CapacityLens Handbook</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" href="index.html">CapacityLens&nbsp;<span>Handbook</span></a>
+    <p class="tagline">The CapacityLens house style</p>
+    <nav>
+      <a href="index.html"><span class="num">00</span>Home &amp; overview</a>
+      <div class="navgroup">Orient</div>
+      <a href="01-principles.html"><span class="num">01</span>Principles &amp; the why</a>
+      <a href="02-repo-and-tooling.html"><span class="num">02</span>Repository &amp; tooling</a>
+      <div class="navgroup">Build</div>
+      <a href="03-architecture.html"><span class="num">03</span>Architecture</a>
+      <a href="04-domain-core.html"><span class="num">04</span>Domain core (shared)</a>
+      <a href="05-state-and-persistence.html"><span class="num">05</span>State &amp; persistence</a>
+      <a href="06-ui-conventions.html"><span class="num">06</span>UI &amp; components</a>
+      <a href="07-server.html"><span class="num">07</span>The server</a>
+      <a href="12-auth-and-access.html"><span class="num">12</span>Auth &amp; access control</a>
+      <div class="navgroup">Assure</div>
+      <a href="08-testing.html"><span class="num">08</span>Testing &amp; the gate</a>
+      <a href="09-process-and-workflow.html"><span class="num">09</span>Process &amp; workflow</a>
+      <a href="10-deployment-and-ops.html"><span class="num">10</span>Deployment &amp; ops</a>
+      <div class="navgroup">Reference</div>
+      <a href="11-quick-reference.html"><span class="num">11</span>Quick reference</a>
+      <a href="13-pnpm-and-self-hosting-first.html" class="active"><span class="num">13</span>Migration: pnpm &amp; self-host first</a>
+      <a href="14-first-run-onboarding.html"><span class="num">14</span>First-run onboarding</a>
+    </nav>
+  </aside>
+
+  <main class="content">
+    <div class="pagehead">
+      <div class="crumb"><a href="index.html">Home</a> / Reference / 13</div>
+      <p class="eyebrow">Reference · migration guide</p>
+      <h1>Migrate your repo to pnpm, and make self-hosting the front door</h1>
+      <p class="lead">CapacityLens did this on 2026-07-08. This page is the recipe for a sibling repo,
+      written to be followed step by step without improvisation: every phase ends with a verification
+      command, every known pitfall is named where you'll hit it, and the test changes are spelled out
+      exactly. Do the phases in order; don't start a phase until the previous one's check passed.</p>
+    </div>
+
+    <div class="toc-mini">
+      <strong>On this page</strong>
+      <ul>
+        <li><a href="#scope">What changes, and why</a></li>
+        <li><a href="#phase0">Phase 0 — Baseline &amp; names</a></li>
+        <li><a href="#phase1">Phase 1 — Manifests</a></li>
+        <li><a href="#phase2">Phase 2 — Lockfile &amp; install</a></li>
+        <li><a href="#phase3">Phase 3 — Everything that spawns npm</a></li>
+        <li><a href="#phase4">Phase 4 — Test updates (required)</a></li>
+        <li><a href="#phase5">Phase 5 — Docker files</a></li>
+        <li><a href="#phase6">Phase 6 — Docs sweep</a></li>
+        <li><a href="#phase7">Phase 7 — Full verification</a></li>
+        <li><a href="#partb">Part B — Self-hosting-first docs</a></li>
+        <li><a href="#logit">Log the decision</a></li>
+        <li><a href="#pitfalls">Pitfall register</a></li>
+      </ul>
+    </div>
+
+    <h2 id="scope">What changes, and why</h2>
+    <p>Two independent upgrades, done together because the second rewrites docs the first also touches:</p>
+    <ol>
+      <li><strong>npm → pnpm.</strong> Same dependency graph, different installer. What you gain:
+      a <em>strict, non-hoisted</em> <code>node_modules</code> (importing an undeclared package fails
+      loudly — the package-manager version of our drift-proofing), faster installs, and an explicit
+      <code>workspace:*</code> link between the app and the shared core instead of the ambiguous
+      <code>"*"</code> (which npm would happily resolve from the public registry if the workspace link
+      ever broke — a real supply-chain hazard for a package literally named <code>@yourbrand/shared</code>).</li>
+      <li><strong>Self-hosting docs lead with bare metal.</strong> Owner call (2026-07-08): the people who
+      self-host this kind of tool run a Linux box with nginx and systemd; Docker is the <em>least</em> likely
+      path. Keep the Compose stack fully documented, but as the final section, not the front door.</li>
+    </ol>
+
+    <div class="callout rule"><span class="label">Definition of done</span>
+    <p>Root gate green · server gate green · full Chromium e2e green · <code>pnpm run dev</code> boots both
+    halves (verify visually, not just by exit code) · no file in the repo invokes <code>npm</code>/<code>npx</code>
+    outside append-only history · <code>docs/self-hosting.md</code> quick start has no Docker in it.</p></div>
+
+    <h2 id="phase0">Phase 0 — Baseline &amp; names</h2>
+    <p><strong>0.1 — Prove the repo is green BEFORE touching anything.</strong> If any of these fail now,
+    stop and fix that first; otherwise you cannot tell migration breakage from pre-existing breakage.</p>
+<pre><code>git status          <span class="c"># must be clean — commit or stash everything first</span>
+npm run gate        <span class="c"># tsc + eslint + vitest + build, all green</span>
+npm run gate:server <span class="c"># needs Node 24 (nvm use 24)</span>
+npm run e2e         <span class="c"># full Chromium suite green</span></code></pre>
+    <p><strong>0.2 — Toolchain.</strong> You need Node 24 (<code>nvm use 24</code>; the server's
+    <code>node:sqlite</code> requires it) and pnpm ≥ 10 (<code>corepack enable</code> gives you one;
+    <code>pnpm --version</code> to confirm). Record the exact version — you'll pin it in a moment.</p>
+    <p><strong>0.3 — Find YOUR names.</strong> Everything below uses CapacityLens names. Substitute yours,
+    found here — do not guess:</p>
+    <table>
+      <thead><tr><th>Placeholder in this guide</th><th>CapacityLens value</th><th>Where yours is defined</th></tr></thead>
+      <tbody>
+        <tr><td><code>&lt;server-pkg&gt;</code></td><td><code>capacitylens-server</code></td><td><code>server/package.json</code> → <code>"name"</code></td></tr>
+        <tr><td><code>&lt;shared-pkg&gt;</code></td><td><code>@capacitylens/shared</code></td><td><code>shared/package.json</code> → <code>"name"</code></td></tr>
+        <tr><td><code>&lt;pnpm-version&gt;</code></td><td><code>10.33.0</code></td><td><code>pnpm --version</code> on your machine</td></tr>
+      </tbody>
+    </table>
+
+    <h2 id="phase1">Phase 1 — Manifests</h2>
+    <p><strong>1.1 — Root <code>package.json</code>:</strong></p>
+    <ul>
+      <li>Add <code>"packageManager": "pnpm@&lt;pnpm-version&gt;"</code> right after <code>"engines"</code>.
+      This is what lets contributors get the right pnpm from a bare <code>corepack enable</code>.</li>
+      <li><strong>Delete the <code>"workspaces"</code> array</strong> — pnpm ignores it; leaving it invites drift.</li>
+      <li>In <code>dependencies</code>: <code>"&lt;shared-pkg&gt;": "*"</code> → <code>"&lt;shared-pkg&gt;": "workspace:*"</code>.</li>
+      <li>In every script: <code>npm run X</code> → <code>pnpm run X</code>, and the workspace forms:</li>
+    </ul>
+    <table>
+      <thead><tr><th>npm form</th><th>pnpm form</th></tr></thead>
+      <tbody>
+        <tr><td><code>npm test -w &lt;server-pkg&gt;</code></td><td><code>pnpm --filter &lt;server-pkg&gt; test</code></td></tr>
+        <tr><td><code>npm run type-check -w &lt;server-pkg&gt;</code></td><td><code>pnpm --filter &lt;server-pkg&gt; type-check</code></td></tr>
+        <tr><td><code>npm start -w &lt;server-pkg&gt;</code></td><td><code>pnpm --filter &lt;server-pkg&gt; start</code></td></tr>
+        <tr><td><code>npx playwright test</code></td><td><code>pnpm exec playwright test</code></td></tr>
+        <tr><td><code>npm ci</code> / <code>npm ci --include=dev</code></td><td><code>pnpm install --frozen-lockfile</code></td></tr>
+      </tbody>
+    </table>
+    <p><strong>1.2 — <code>server/package.json</code>:</strong> same <code>workspace:*</code> change for
+    <code>&lt;shared-pkg&gt;</code>.</p>
+    <p><strong>1.3 — Create <code>pnpm-workspace.yaml</code></strong> at the repo root:</p>
+    <div class="filename">pnpm-workspace.yaml</div>
+<pre><code>packages:
+  - shared
+  - server
+
+<span class="c"># pnpm blocks dependency postinstall scripts by default; esbuild's is the one we</span>
+<span class="c"># trust and need (it links the platform binary Vite/Vitest shell out to).</span>
+onlyBuiltDependencies:
+  - esbuild</code></pre>
+    <div class="callout warn"><span class="label">Do not skip onlyBuiltDependencies</span>
+    <p>pnpm 10 refuses to run dependency install scripts unless approved. Without the esbuild entry the
+    install "succeeds" but Vite/Vitest die at run time with a missing-binary error. If your sibling has other
+    native deps, run <code>pnpm ignored-builds</code> after Phase 2 and approve <em>only</em> what's needed —
+    approval is a trust decision, not a checklist item.</p></div>
+
+    <h2 id="phase2">Phase 2 — Lockfile &amp; install</h2>
+<pre><code>nvm use 24
+pnpm import                    <span class="c"># converts package-lock.json -> pnpm-lock.yaml, preserving resolutions</span>
+rm package-lock.json
+rm -rf node_modules server/node_modules shared/node_modules
+pnpm install
+pnpm ignored-builds            <span class="c"># should list ONLY esbuild (already approved in Phase 1.3)</span>
+pnpm rebuild esbuild           <span class="c"># run its postinstall now that it's approved</span></code></pre>
+    <p><strong>Check:</strong> <code>pnpm run gate</code> — the whole root gate, green. If <code>tsc</code> or
+    Vite now reports a module it can't find, that's pnpm's strictness catching a <em>phantom dependency</em>:
+    some file imports a package no manifest declares (it worked before only because npm hoisted it). The fix is
+    always the same — add the package to the <code>package.json</code> of the workspace that imports it. Never
+    "fix" it with hoisting config.</p>
+
+    <h2 id="phase3">Phase 3 — Everything that spawns npm</h2>
+    <p>Scripts and configs invoke npm <em>by name</em>; grep, don't recall:</p>
+<pre><code>grep -rn "npm\|npx" scripts/ playwright.config.ts vite.config.ts</code></pre>
+    <ul>
+      <li><strong><code>scripts/dev-fullstack.mjs</code></strong> — <code>spawn('npm', …)</code> →
+      <code>spawn('pnpm', …)</code>, and the api child's args change shape:
+      <code>['run','dev','-w','&lt;server-pkg&gt;']</code> → <code>['--filter','&lt;server-pkg&gt;','run','dev']</code>.
+      The launcher's kill-tree/process-group comments mention npm — update them (pnpm is <code>pnpm.cmd</code>
+      on Windows, so the <code>shell:true</code> rationale carries over unchanged).</li>
+      <li><strong><code>scripts/e2e-all.mjs</code> / <code>scripts/e2e-browsers.mjs</code></strong> —
+      <code>spawnSync('npx', ['playwright','test',…])</code> →
+      <code>spawnSync('pnpm', ['exec','playwright','test',…])</code>.</li>
+      <li><strong><code>playwright.config.ts</code></strong> — every <code>webServer</code>
+      <code>command:</code> string (<code>dev:demo</code>, <code>start:e2e</code>, <code>dev:api</code>,
+      <code>start:auth-e2e</code>, <code>dev:auth</code>): <code>npm run</code> → <code>pnpm run</code>. The two
+      server entries keep their <code>cwd: './server'</code> — a bare <code>pnpm run</code> in that cwd resolves
+      the server workspace's scripts, so no <code>--filter</code> needed there.</li>
+      <li><strong>Comment sweep:</strong> source comments that tell a human what to type
+      (<code>vite.config.ts</code>'s dev-proxy note, test-file comments naming <code>npm run gate</code>) should
+      say <code>pnpm</code> now. Sweep with grep; leave nothing behind.</li>
+    </ul>
+    <div class="callout dont"><span class="label">The ppnpm trap</span>
+    <p>If you do this sweep with overlapping find-and-replace patterns (e.g. both
+    <code>`npm run</code>→<code>`pnpm run</code> <em>and</em> <code>npm run dev</code>→<code>pnpm run dev</code>),
+    a string matching both becomes <code>ppnpm</code>. It happened during the CapacityLens migration. After any
+    bulk replace, run <code>grep -rn "ppnpm" .</code> and expect zero hits.</p></div>
+    <p><strong>Check:</strong> <code>pnpm run dev</code> boots both halves —
+    <code>curl http://localhost:8787/api/health</code> returns <code>{"ok":true}</code> and :5173 serves the app.
+    Then stop it.</p>
+
+    <h2 id="phase4">Phase 4 — Test updates (required)</h2>
+    <p>One test is <strong>guaranteed</strong> to break, and it breaks <em>silently late</em> (only after you
+    delete <code>package-lock.json</code>, which happens after your first green gate — so a naive "gate was
+    green, ship it" misses it).</p>
+    <p><strong>4.1 — <code>src/test/privacy-posture.test.ts</code>, the transitive backstop.</strong> Its third
+    test reads <code>package-lock.json</code> and scans every installed package name against the
+    analytics/telemetry/email denylist. Port it to <code>pnpm-lock.yaml</code>. Do <em>not</em> add a YAML
+    parser dependency to do it — a heavier dep tree is exactly what this test polices. pnpm's lockfile keys
+    every resolved package as a 2-space-indented <code>name@version:</code> line, so a line scan is enough.
+    Replace the test body with:</p>
+    <div class="filename">src/test/privacy-posture.test.ts — the transitive backstop, ported</div>
+<pre><code>it('the resolved lockfile installs no denylisted package (transitive backstop)', () =&gt; {
+  const raw = readFileSync(join(REPO_ROOT, 'pnpm-lock.yaml'), 'utf8')
+
+  const installed = new Set&lt;string&gt;()
+
+  <span class="c">// pnpm lockfile (v9): the `packages:`/`snapshots:` sections key every resolved package as a</span>
+  <span class="c">// 2-space-indented `name@version:` line (optionally quoted, optionally with a `(peer@ver)`</span>
+  <span class="c">// suffix), e.g. `  '@babel/code-frame@7.26.2':` or `  use-sync-external-store@1.4.0(react@19.2.6):`.</span>
+  <span class="c">// We extract the NAME (everything before the @ that starts the version) line-by-line rather</span>
+  <span class="c">// than adding a YAML parser dependency — a heavier dep tree is exactly what this test polices.</span>
+  const keyLine = /^ {2}'?((?:@[^\s/']+\/)?[^\s@']+)@\d/
+  for (const line of raw.split('\n')) {
+    const match = keyLine.exec(line)
+    if (match) installed.add(match[1])
+  }
+
+  <span class="c">// Non-vacuous: we must have parsed a real tree. (A lockfile format change that stops these</span>
+  <span class="c">// lines matching must fail HERE, loudly — not silently scan nothing and vacuously pass.)</span>
+  expect(installed.size).toBeGreaterThan(100)
+
+  const offenders = [...installed].filter((name) =&gt; DENYSET.has(name))
+  expect(offenders, `lockfile installs denylisted package(s): ${offenders.join(', ')}`).toEqual([])
+})</code></pre>
+    <p>Also update the file's header comment ("root lockfile") and the <code>REPO_ROOT</code> comment that
+    names <code>package-lock.json</code>. The non-vacuous floor moves from <code>&gt; 0</code> to
+    <code>&gt; 100</code> — with a line-regex scan, "found a handful" is indistinguishable from "regex rotted";
+    a real tree has hundreds of packages.</p>
+    <p><strong>4.2 — Hunt for other lockfile readers.</strong> CapacityLens had exactly one; verify your sibling:</p>
+<pre><code>grep -rn "package-lock" --include="*.ts" --include="*.tsx" --include="*.mjs" src server shared scripts e2e</code></pre>
+    <p>Every hit outside append-only history must be ported or deleted. Zero hits = done.</p>
+    <p><strong>4.3 — What does NOT need changing.</strong> Vitest, Stryker, Playwright, and axe configs are
+    package-manager-agnostic — no config edits beyond the <code>webServer</code> commands in Phase 3. Test
+    <em>counts</em> stay identical; if a unit test newly fails, it's a phantom dep (Phase 2) or the lockfile
+    test (4.1), nothing else.</p>
+    <div class="callout why"><span class="label">Expect e2e flake under load, and don't misread it</span>
+    <p>The first full e2e run after migrating, CapacityLens saw 7/181 failures — all of which passed in
+    isolation and in a clean re-run. Cause: the suite ran while installs and other work hogged the machine, not
+    pnpm. Rule: a spec only counts as migration breakage if it fails in a <em>quiet, isolated</em> re-run
+    (<code>pnpm exec playwright test &lt;spec&gt; --project=chromium</code>). Never chase a red suite from a busy
+    machine.</p></div>
+
+    <h2 id="phase5">Phase 5 — Docker files</h2>
+    <p>Docker demotes to the alternative path in Part B, but it stays shipped and must stay correct.
+    Three mechanical changes and one structural one in the <code>Dockerfile</code>:</p>
+    <ul>
+      <li><strong>deps stage:</strong> add <code>ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0</code> +
+      <code>RUN corepack enable</code>; copy <code>pnpm-lock.yaml pnpm-workspace.yaml</code> instead of
+      <code>package-lock.json</code> (the workspace yaml carries the esbuild approval, so the in-image install
+      runs the same postinstall policy as a host install); <code>RUN npm ci</code> →
+      <code>RUN pnpm install --frozen-lockfile</code>.</li>
+      <li><strong>build stage:</strong> <code>npm run build</code> → <code>pnpm run build</code>.</li>
+      <li><strong>api stage:</strong> also <code>corepack enable</code>, and the <strong>structural</strong> bit —
+      pnpm keeps real packages in <code>node_modules/.pnpm</code> and gives each workspace its own
+      <code>node_modules</code> of <em>relative symlinks</em> into it, so the runtime image must copy all three
+      trees together:
+<pre><code>COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/shared/node_modules ./shared/node_modules
+COPY --from=deps /app/server/node_modules ./server/node_modules</code></pre>
+      and the entrypoint becomes <code>CMD ["pnpm", "--filter", "&lt;server-pkg&gt;", "start"]</code>.</li>
+      <li><strong><code>.dockerignore</code>:</strong> update the header comment's <code>npm ci</code> /
+      <code>package-lock.json</code> mentions.</li>
+    </ul>
+    <p><strong>Check:</strong> <code>docker compose up --build</code> on a machine that has Docker; confirm the
+    api container goes healthy and the SPA serves on :8080. <strong>If no Docker runtime exists on your dev
+    machine</strong> (true of the CapacityLens dev Mac), verify what you can — run the api image's exact
+    entrypoint semantics on the host:</p>
+<pre><code><span class="c"># must REFUSE (production interlock, auth off, no consent flag):</span>
+NODE_ENV=production CAPACITYLENS_DB=/tmp/guard.db pnpm --filter &lt;server-pkg&gt; start
+<span class="c"># must BOOT and answer /api/health:</span>
+NODE_ENV=production CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 CAPACITYLENS_DB=/tmp/guard.db \
+  pnpm --filter &lt;server-pkg&gt; start</code></pre>
+    <p>…and log honestly that the image build itself is unverified until someone runs it on a Docker host.
+    Unverified-but-logged beats assumed-working.</p>
+
+    <h2 id="phase6">Phase 6 — Docs sweep</h2>
+    <p>Apply the Phase 1.1 mapping table to every <strong>living</strong> doc:
+    <code>README.md</code>, <code>CONTRIBUTING.md</code>, <code>CLAUDE.md</code>, <code>DECISIONS.md</code>,
+    <code>DEFENSIVE-CODING.md</code>, <code>NEEDS-INPUT.md</code>, <code>server/README.md</code>,
+    <code>docs/{deploy,self-hosting,runbook,production-plan,production-posture,privacy}.md</code>,
+    <code>user-stories/REFERENCE.md</code>. Where a doc lists prerequisites, add that pnpm arrives via
+    <code>corepack enable</code>, pinned by <code>packageManager</code>. <code>package-lock.json</code> mentions
+    become <code>pnpm-lock.yaml</code>.</p>
+    <div class="callout dont"><span class="label">Never rewrite history</span>
+    <p><code>docs/decisions-log.md</code> and <code>CODE_REVIEW.md</code> are append-only records of what
+    happened — entries that say <code>npm run gate</code> were true when written. Don't touch them, and don't
+    "fix" historical statements ("0 npm vulnerabilities at review time") in any doc. Only live instructions
+    change.</p></div>
+    <p><strong>Check:</strong> <code>grep -rn "npm " *.md docs user-stories server/README.md | grep -v pnpm</code>
+    — every remaining hit must be in append-only history or the literal string "npm registry".</p>
+
+    <h2 id="phase7">Phase 7 — Full verification</h2>
+    <p>All of these, in order, on Node 24. Do not skip any because "it passed earlier" — Phases 3–6 changed
+    files after your earlier runs:</p>
+<pre><code>pnpm run gate            <span class="c"># root: tsc + eslint + vitest + build</span>
+pnpm run gate:server     <span class="c"># server type-check + tests</span>
+pnpm run e2e             <span class="c"># full Chromium suite (quiet machine — see Phase 4)</span>
+pnpm run dev             <span class="c"># boots api + web; screenshot the app, don't just curl it</span></code></pre>
+    <p>Then the repo-wide residue greps: <code>grep -rn "ppnpm" .</code> (zero),
+    <code>grep -rln "spawn('npm'\|spawnSync('npx'" scripts/</code> (zero), and the Phase 6 docs grep.</p>
+
+    <h2 id="partb">Part B — Self-hosting-first docs</h2>
+    <p>The insight that drives the restructure: <strong>the containers are packaging, not architecture</strong>.
+    A deployment is (1) the API daemon on Node 24 and (2) <code>dist/</code> behind any web server that proxies
+    <code>/api/*</code> to it — the daemon deliberately does <em>not</em> serve the SPA (page 10). Docker merely
+    wraps those two pieces. So the doc should teach the pieces first and the wrapper last.</p>
+    <p><strong>B.1 — Restructure <code>docs/self-hosting.md</code></strong> to this exact section plan
+    (CapacityLens's finished version is the reference implementation — crib from it directly rather than
+    re-deriving):</p>
+    <table>
+      <thead><tr><th>§</th><th>Content</th><th>Voice</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>What you get / prerequisites: the two pieces; Node 24 + corepack/pnpm + nginx-or-Caddy. Docker listed only as "prefer containers? → §8".</td><td>Bare metal</td></tr>
+        <tr><td>2</td><td>Quick start: clone → <code>pnpm install --frozen-lockfile</code> → <code>pnpm run build</code>; run the daemon <strong>with the access-mode choice made before first boot</strong> (auth on, or <code>CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1</code> — the production interlock applies identically outside Docker once <code>NODE_ENV=production</code> is set); a systemd unit; an nginx server block mirroring the repo's <code>nginx.conf</code> (root <code>dist/</code>, <code>/api/</code> proxy with no rewrite, SPA <code>try_files</code> fallback); first-run walkthrough.</td><td>Bare metal</td></tr>
+        <tr><td>3–7</td><td>Env register, auth (incl. SSO provider walkthroughs), backups/restore, upgrades, troubleshooting — <strong>rewritten path-neutral</strong>: primary commands are <code>systemctl</code>/<code>journalctl</code> and plain files; Docker equivalents in parentheses. Backups become "ordinary files you <code>scp</code> off-box" first, volume gymnastics second.</td><td>Neutral</td></tr>
+        <tr><td>8</td><td>"Running with Docker instead (Compose)": the services table, <code>.env</code> forwarding, named volumes, the restart-loop interlock note, snapshot copy-out via <code>docker compose cp</code>, compose upgrade sequence. <strong>Move</strong> the compose material here — don't delete a line of it.</td><td>Docker</td></tr>
+      </tbody>
+    </table>
+    <div class="callout rule"><span class="label">The interlock stays the star of the quick start</span>
+    <p>Whichever path leads, the pick-an-access-mode step goes <em>before</em> the first boot command, and the
+    troubleshooting section keeps the "daemon exits / restart-loops → read the refusing-to-start line" entry.
+    On bare metal the symptom is a systemd restart loop and the log is <code>journalctl -u &lt;service&gt; -e</code>;
+    in Docker it's <code>restart: unless-stopped</code> churning and <code>docker compose logs api</code>. Same
+    guard, two costumes.</p></div>
+    <p><strong>B.2 — Sweep the cross-references.</strong> Grep for the places that call Docker the default and
+    flip them: <code>docs/production-posture.md</code> (called self-hosting.md "the end-to-end Docker setup"),
+    this handbook's page 10 deploy-shapes table ("default, recommended" moves to the bare-metal row), and any
+    README framing. Verify every internal <code>#anchor</code> in the restructured doc still resolves —
+    renumbering sections silently breaks them.</p>
+    <p><strong>B.3 — DECISIONS.md</strong> gains one line under Deployment/self-host: bare metal is the primary
+    path, Docker the packaged alternative, don't write new docs or features that assume Docker is present.</p>
+
+    <h2 id="logit">Log the decision</h2>
+    <p>Per page 09: append to <code>docs/decisions-log.md</code> (read the tail, never the whole file) —
+    one entry for the pnpm migration (name the esbuild approval, the <code>workspace:*</code> change, the
+    privacy-test port, and exactly what was and wasn't verified), one for the docs flip. Promote both standing
+    calls to <code>DECISIONS.md</code>: pnpm under <em>Testing &amp; process</em>, bare-metal-first under
+    <em>Deployment / self-host</em>. CapacityLens's 2026-07-08 entries are the template.</p>
+
+    <h2 id="pitfalls">Pitfall register</h2>
+    <p>Every one of these was hit or nearly hit during the CapacityLens migration. Check the list twice:
+    before you start (so you recognise them) and before you declare done (so you've cleared them).</p>
+    <table>
+      <thead><tr><th>Pitfall</th><th>Symptom</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>esbuild postinstall blocked</td><td>Install succeeds; Vite/Vitest fail with a missing platform binary</td><td><code>onlyBuiltDependencies: [esbuild]</code> in <code>pnpm-workspace.yaml</code>, then <code>pnpm rebuild esbuild</code></td></tr>
+        <tr><td>Privacy test reads the old lockfile</td><td><code>ENOENT: package-lock.json</code> in <code>privacy-posture.test.ts</code> — only <em>after</em> the lockfile is deleted</td><td>Port per Phase 4.1</td></tr>
+        <tr><td><code>"*"</code> workspace dep</td><td>None today — the hazard is silent registry resolution later</td><td><code>workspace:*</code> in root <em>and</em> server manifests</td></tr>
+        <tr><td>Overlapping bulk replace</td><td><code>ppnpm</code> in comments/docs</td><td><code>grep -rn "ppnpm" .</code> → zero</td></tr>
+        <tr><td>Phantom dependencies</td><td><code>tsc</code>/Vite can't resolve a module that "was always there"</td><td>Declare it in the importing workspace's manifest; never hoist</td></tr>
+        <tr><td>api image loses workspace symlinks</td><td>Container can't resolve <code>&lt;shared-pkg&gt;</code> or <code>tsx</code></td><td>Copy all three <code>node_modules</code> trees (Phase 5)</td></tr>
+        <tr><td>e2e flake blamed on pnpm</td><td>Red specs on a busy machine that pass in isolation</td><td>Quiet re-run before diagnosing (Phase 4)</td></tr>
+        <tr><td>No Docker runtime to verify with</td><td>Can't smoke <code>docker compose up --build</code></td><td>Entrypoint-level interlock check + an honest "image unverified" log line (Phase 5)</td></tr>
+        <tr><td>Anchor rot in the restructured doc</td><td>In-page links point at renumbered sections</td><td>Grep every <code>](#</code> target against the new headings (B.2)</td></tr>
+        <tr><td>History rewritten</td><td>decisions-log entries suddenly say pnpm about npm-era events</td><td>Living docs only; append-only files untouched (Phase 6)</td></tr>
+      </tbody>
+    </table>
+
+    <div class="pager">
+      <a href="11-quick-reference.html"><span class="dir">Previous</span>← 11 · Quick reference</a>
+      <a class="next" href="14-first-run-onboarding.html"><span class="dir">Next</span>14 · First-run onboarding →</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -15,7 +15,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   overrides the backend origin. Server mode is last-writer-wins, no per-user isolation.
 - **The in-browser localStorage build is an explicit demo opt-in.** `VITE_CAPACITYLENS_DEMO=1` is the
   ONLY route to localStorage (the old default): no backend, no login, data is one `AppData` blob in
-  `localStorage` (`capacitylens/v3`). `npm run dev:demo` is the Vite-only localStorage preview.
+  `localStorage` (`capacitylens/v3`). `pnpm run dev:demo` is the Vite-only localStorage preview.
 - **Multi-tenant by Account.** Every entity carries `accountId`; you pick a company on load
   (`AccountPicker`) and `activeAccountId` is never persisted. Scoped access goes through the
   `useScopedData` / `scopedTables()` seam.
@@ -25,7 +25,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   bootstrap token doesn't bypass it). Create-time only: an existing multi-company DB keeps
   serving. `GET /api/auth/me` reports `canCreateAccount` and the picker hides "New company" at the
   cap (fail-open when the fact is unavailable — the server is the enforcer). The demo build and
-  `npm run dev` are uncapped.
+  `pnpm run dev` are uncapped.
 - **Pure domain core is shared.** `shared/` (`@capacitylens/shared`) owns types, validation,
   integrity, cascade, import-remap, migrate, seed — imported by both app and server so they
   can't drift.
@@ -41,7 +41,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   close inside the debounce window doesn't drop the last edit.
 - **Seed once, gated on a persistent marker** (not emptiness) — clearing all data does NOT
   re-seed. Since 2026-07-04 the server boot seed is also **opt-in** (`CAPACITYLENS_SEED_DEMO=1`;
-  `npm run dev` sets it): a fresh real server starts EMPTY at the create-your-company picker.
+  `pnpm run dev` sets it): a fresh real server starts EMPTY at the create-your-company picker.
   The localStorage demo build still self-seeds.
 - **Schema migrated on open** (introspection-gated, idempotent); `assertSchemaCurrent` throws
   loudly at startup on any required-column drift or `optional?`-vs-`NULL` mismatch, instead of
@@ -57,6 +57,11 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   (user-triggered, so don't swallow).
 
 ## Deployment / self-host
+- **Bare metal is the primary self-hosting path; Docker is the packaged alternative**
+  (2026-07-08). The docs lead with Node 24 + systemd + nginx serving `dist/` and proxying
+  `/api` to the daemon (the same topology as the hosted alpha); the Compose stack stays fully
+  documented but as `docs/self-hosting.md` §8, not the front door. Don't write new docs or
+  features that assume Docker is present.
 - **One reproducible image, two services from one multi-stage Dockerfile** (Node 24 for
   build+`api`, `nginx:alpine` for `web`). `web` serves the built Vite SPA and reverse-proxies
   `/api/*` -> the `api` service (same-origin, so CORS stays fail-closed); `api` runs the
@@ -600,7 +605,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 - **Privacy posture is documented + test-locked from both ends (P2.7).** The "we phone home to no one"
   claim is a no-egress PROOF split across the two test runners: a curated **exact-name** dependency
   denylist (analytics/telemetry + email — deny-known-bad, NO substring matching, also scans the root
-  lockfile for transitives) in `src/test/privacy-posture.test.ts` (root vitest / `npm run gate`) fails CI
+  lockfile for transitives) in `src/test/privacy-posture.test.ts` (root vitest / `pnpm run gate`) fails CI
   if such a package is ever added; and the server CSP **`connect-src 'self'`** (+ `default-src 'self'`)
   no-widening assertion in `server/src/app.helmet.test.ts` (`gate:server`) proves the browser can't be
   made to egress to any third party. Load-bearing nuance: IdP sign-in is a **top-level browser REDIRECT
@@ -759,9 +764,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   header uses `minHeight`); import id-dedup beyond repair.
 
 ## Testing & process
-- **Green gate** = `npm run gate` (`tsc -b` + `eslint .` + `vitest run` + `vite build`) **and**
-  `npm run e2e` (`playwright test`). The `server/` workspace is out of the root gate;
-  `npm run gate:server` covers it. Node 24+ (`.nvmrc` + `engines`) — `node:sqlite` unflagged.
+- **pnpm is the package manager** (2026-07-08, was npm): pinned by `packageManager` in
+  `package.json` (installed via `corepack enable`), workspace layout in `pnpm-workspace.yaml`,
+  lockfile `pnpm-lock.yaml`. Workspace commands use `pnpm --filter capacitylens-server <script>`;
+  dependency postinstall scripts are blocked by default — approvals live in
+  `pnpm-workspace.yaml`'s `onlyBuiltDependencies` (currently just esbuild). The strict,
+  non-hoisted `node_modules` is part of the point: undeclared (phantom) imports fail loudly.
+- **Green gate** = `pnpm run gate` (`tsc -b` + `eslint .` + `vitest run` + `vite build`) **and**
+  `pnpm run e2e` (`playwright test`). The `server/` workspace is out of the root gate;
+  `pnpm run gate:server` covers it. Node 24+ (`.nvmrc` + `engines`) — `node:sqlite` unflagged.
 - **No GitHub Actions CI — the local green gate is the enforcement mechanism.** CI was
   deliberately removed (`5b324020`, "run the gate locally instead") and the gate runs on demand.
   The CapacityLens open-source plan's **P0.6 ("Restore CI")** wants a `.github/workflows/ci.yml`
@@ -770,11 +781,11 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   deliberate removal and contradicting the standing "no Actions CI, merge via local gate" posture
   the build loop runs under. Revisit when ready for the public launch (then re-add the workflow and
   switch the loop's merge step to wait on required checks).
-- **Cross-browser E2E is opt-in; Chromium is the default loop.** `npm run e2e` runs the
-  chromium/db-backed/auth-backed projects on Chromium. `npm run e2e:webkit` and `npm run e2e:firefox`
+- **Cross-browser E2E is opt-in; Chromium is the default loop.** `pnpm run e2e` runs the
+  chromium/db-backed/auth-backed projects on Chromium. `pnpm run e2e:webkit` and `pnpm run e2e:firefox`
   re-run the **core localStorage specs on WebKit/Safari** and **Firefox/Gecko** respectively (a
-  `webkit` / `firefox` project, each mirroring `chromium`'s `testIgnore`). `npm run e2e:browsers`
-  runs the **core specs on all three engines** (Chromium + WebKit, then Firefox), and `npm run
+  `webkit` / `firefox` project, each mirroring `chromium`'s `testIgnore`). `pnpm run e2e:browsers`
+  runs the **core specs on all three engines** (Chromium + WebKit, then Firefox), and `pnpm run
   e2e:all` is the superset — that plus the Chromium-only db/auth server specs. Both sequence the
   engines the same way — Chrome in parallel, then **Safari, then Firefox** (`scripts/e2e-browsers.mjs`
   / `e2e-all.mjs` each run a Chromium+WebKit invocation, then a SEPARATE Firefox invocation — so
@@ -789,7 +800,7 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   assertions prove behaviour, not appearance); `@axe-core/playwright` is the **a11y** oracle
   (light + dark + a modal).
 - **Mutation testing is the "do the tests BITE?" oracle, on demand and OFF the gate.**
-  `npm run mutation` (Stryker + vitest runner, mirroring delivery-diary) mutates the pure logic
+  `pnpm run mutation` (Stryker + vitest runner, mirroring delivery-diary) mutates the pure logic
   only — `shared/src/{lib,domain}` + the `.ts` helpers in `src/components/scheduler` and
   `src/lib` — html report in `reports/mutation/`. Kept off the gate because a run takes ~15–30
   min. Standing bar from the 2026-07-07 round: **94.8%**, with residual survivors documented
