@@ -111,7 +111,7 @@ watch the interlock refuse and warn from a laptop:
   `CAPACITYLENS_HTTPS` unset: it boots, but logs a `production posture warning — ... HSTS ...`
   line.
 - Set `CAPACITYLENS_AUTH=password` + `CAPACITYLENS_HTTPS=1`: clean boot, no posture warnings.
-- Run `npm run gate:server` — the pure guard test exercises every combination above.
+- Run `pnpm run gate:server` — the pure guard test exercises every combination above.
 
 Be honest about what this proves: it verifies the **config contract**, not the live deploy. A
 green run here says the process will refuse the wrong env and accept the right one — it says
@@ -133,7 +133,7 @@ CAPACITYLENS_BACKUP_DIR="$BACKUPS" \
 CAPACITYLENS_BACKUP_INTERVAL_MIN=1 \
 CAPACITYLENS_HEALTH_DEEP=1 \
 PORT=8787 \
-npm start --workspace=server
+pnpm --filter capacitylens-server start
 ```
 
 - **Backups on boot.** `CAPACITYLENS_BACKUP_DIR` set ⇒ a snapshot is taken **immediately on start**
@@ -168,5 +168,5 @@ so they are not enforced by the boot interlock:
 
 For those, see the operator docs: [`docs/production-plan.md`](production-plan.md) (target
 architecture and the flag register), [`docs/runbook.md`](runbook.md) (deploy / watch / back up /
-restore / roll back), and [`docs/self-hosting.md`](self-hosting.md) (the end-to-end Docker
-setup, including auth).
+restore / roll back), and [`docs/self-hosting.md`](self-hosting.md) (the end-to-end self-hosting
+setup — bare metal first, Docker as the alternative — including auth).
