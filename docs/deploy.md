@@ -64,6 +64,35 @@ pnpm run build   # paraglide:compile && tsc -b && vite build  ->  dist/
 If the build still fails with `vite: not found` / `tsc: not found`, prepend
 `export NODE_ENV=development` to the script.
 
+## 5a. One-time droplet migration to pnpm (2026-07-08)
+
+The repo moved from npm to pnpm (see `DECISIONS.md` › Testing & process). The Forge
+config lives **outside the repo**, so an existing droplet needs a one-time update —
+**BEFORE pushing the pnpm commits if Quick Deploy is on**, or the next auto-deploy fails:
+
+1. **SSH in, install pnpm:** `corepack enable` (add `sudo` if it can't write the
+   symlinks), then `pnpm --version` inside the site directory — it should fetch and
+   print the version pinned by the root `packageManager` field. `node --version`
+   while you're there (must be 24+).
+2. **Deploy Script (Forge UI):** `npm ci --include=dev` → `pnpm install
+   --frozen-lockfile`; `npm run build` → `pnpm run build` (keep the
+   `VITE_CAPACITYLENS_BUILD_SHA` export line). §5 above shows the target script.
+3. **Daemon wrapper** (`run-server.sh`, run by the Background process): the start
+   command becomes `pnpm --filter capacitylens-server start`. The old
+   `npm start -w capacitylens-server` no longer works at all — the `workspaces`
+   field left `package.json` with the migration.
+4. Push → deploy → **restart the Background process**. Mandatory this once, even
+   though the usual rule is "restart only on `server/` changes": the first pnpm
+   install replaces the whole `node_modules` layout (per-workspace symlinks, new
+   `tsx` path) under the running daemon.
+5. **Verify:** site loads, Settings build stamp says `· server`, and `/api/health`
+   returns `{"ok":true}`.
+
+Nothing here is destructive if a step is missed: the DB + backups live outside the
+site directory, and a failed build leaves the previous `dist/` serving. The symptom
+is a failed deploy (or a daemon that won't restart) — complete the missed step and
+redeploy.
+
 ## 6. Nginx — SPA fallback (required)
 
 The app uses `createBrowserRouter` (real URLs). Without a fallback, refreshing
