@@ -110,8 +110,8 @@ Adjust the `pnpm` path to `which pnpm` on your host, and put your `BETTER_AUTH_*
 
 ### Serve the SPA + proxy /api
 
-Mirror the repo's [`nginx.conf`](../nginx.conf) (it's the Docker web container's config — the
-only changes are the root and the upstream host):
+The block below is the repo's [`nginx.conf`](../nginx.conf) with only three lines changed: the
+`server_name`, `root`, and `proxy_pass` (to your domain, your build path, and your local daemon):
 
 ```nginx
 server {
@@ -121,16 +121,36 @@ server {
     root /opt/capacitylens/dist;
     index index.html;
 
-    location /api/ {
-        proxy_pass http://127.0.0.1:8787;   # prefix preserved — no rewrite
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+    # Compression for text assets (Vite emits hashed JS/CSS).
+    gzip on;
+    gzip_types text/plain text/css application/javascript application/json image/svg+xml;
+    gzip_min_length 1024;
+
+    # Hashed asset filenames are content-addressed -> cache forever.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        try_files $uri =404;
     }
 
-    # SPA history-API fallback for client-side routes.
+    # Reverse-proxy the API to the local daemon. The server mounts every route
+    # under /api/, so the prefix is preserved (no rewrite). 8787 is the server's default PORT.
+    location /api/ {
+        proxy_pass http://127.0.0.1:8787;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+    }
+
+    # SPA history-API fallback: unknown paths return index.html so client-side
+    # routes (react-router) resolve. index.html itself is never cached so a fresh
+    # deploy is picked up immediately.
     location / {
+        add_header Cache-Control "no-cache";
         try_files $uri $uri/ /index.html;
     }
 }

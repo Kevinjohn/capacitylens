@@ -410,10 +410,6 @@ body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
     0 8px 24px rgb(0 0 0 / 0.18);
 }
 
-.driver-popover-title {
-  color: var(--color-ink);
-}
-
 .driver-popover-description,
 .driver-popover-progress-text {
   color: var(--color-muted);

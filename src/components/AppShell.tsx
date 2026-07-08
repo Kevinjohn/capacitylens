@@ -14,35 +14,13 @@ import { CommandPalette } from './CommandPalette'
 import { PermissionProvider } from '../auth/PermissionProvider'
 import { useRole } from '../auth/permissionContext'
 import { useAccountSummaries } from '../auth/useAccountSummaries'
-import { Icon, type IconName } from './common/Icon'
+import { Icon } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { cn } from '@/lib/utils'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m, syncLocaleFromAccount } from '@/i18n'
-
-/**
- * A nav destination: `[route, labelFn, icon]`. The label is a **getter** (`() => m.nav_x()`), not a
- * pre-resolved string, so each destination's text is resolved at RENDER (inside the `navLinks.map`
- * sites below) rather than at module load. That matters for i18n (P1.5.2): `LINKS` is module-scope,
- * and calling `m.nav_x()` here would freeze the label to the locale active at import — the getter
- * defers it to render so a locale switch (account change) re-resolves the text on the next render.
- */
-type NavLinkDef = [to: string, label: () => string, icon: IconName]
-
-const LINKS: NavLinkDef[] = [
-  ['/', () => m.nav_schedule(), 'calendar'],
-  ['/resources', () => m.nav_resources(), 'people'],
-  // External / 3rd parties moved INTO the Resources tab behind a per-account setting
-  // (`externalEnabled` on the Account, default off — Settings → External). They no longer have their
-  // own nav link; the old /external route redirects to /resources for saved bookmarks.
-  ['/disciplines', () => m.nav_disciplines(), 'tag'],
-  ['/clients', () => m.nav_clients(), 'briefcase'],
-  ['/projects', () => m.nav_projects(), 'folder'],
-  ['/activities', () => m.nav_activities(), 'clipboard-check'],
-  ['/timeoff', () => m.nav_timeoff(), 'sun'],
-  ['/settings', () => m.nav_settings(), 'sliders'],
-]
+import { LINKS } from '../lib/navLinks'
 
 export function AppShell() {
   // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, the demo build

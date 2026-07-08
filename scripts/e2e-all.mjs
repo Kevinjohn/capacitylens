@@ -21,6 +21,8 @@ function run(label, env, extraArgs = []) {
   const res = spawnSync('pnpm', ['exec', 'playwright', 'test', ...extraArgs], {
     stdio: 'inherit',
     env: { ...process.env, ...env },
+    // shell: true so `pnpm` resolves on Windows (pnpm is pnpm.cmd there); mirrors dev-fullstack.mjs.
+    shell: true,
   })
   return res.status ?? 1
 }

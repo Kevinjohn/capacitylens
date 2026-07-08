@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 
 // The seed dataset lives in the first half of June 2026 — the over-allocated day is
 // 3-4 June and every demo bar falls between 1-9 June. The scheduler is anchored to
@@ -43,4 +43,42 @@ export async function openApp(page: Page, company = 'Studio North', path = '/'):
   const appMain = page.locator('#main')
   await introContinue.or(appMain).first().waitFor()
   if (await introContinue.isVisible()) await introContinue.click()
+}
+
+// A few specs (getting-started, onboarding) need a FRESH, empty company rather than one of the
+// seeded ones, so they can't go through `openApp`'s "pick an existing company" step — they walk
+// the picker's "New company" create form instead. That walk splits into two halves so a spec can
+// inspect/interact with the open form (onboarding asserts its default fields and changes them)
+// before filling in the name and submitting: `openNewCompanyForm` gets to the open form, and
+// `createCompany` fills the name, submits, and clears the same post-create intro gate as `openApp`.
+export async function openNewCompanyForm(page: Page): Promise<void> {
+  // Must precede goto so the app reads the frozen date on its first render.
+  await page.clock.setFixedTime(FIXED_NOW)
+  await page.goto('/')
+  // Same cosmetic demo "fake sign-in" gate as `openApp`, ahead of the picker here too.
+  const signIn = page.getByTestId('fake-sign-in')
+  const newCompany = page.getByRole('button', { name: 'New company' })
+  await signIn.or(newCompany).first().waitFor()
+  if (await signIn.isVisible()) await signIn.click()
+  await newCompany.click()
+}
+
+/** Fill in the company name on an already-open create-company form (see `openNewCompanyForm`),
+ *  submit it, and clear through to the app — including the same post-create intro gate as
+ *  `openApp` — so callers land with `#main` visible. */
+export async function createCompany(page: Page, name: string): Promise<void> {
+  await page.getByLabel('Company name').fill(name)
+  await page.getByRole('button', { name: 'Create company' }).click()
+  const introContinue = page.getByTestId('intro-continue')
+  const appMain = page.locator('#main')
+  await introContinue.or(appMain).first().waitFor()
+  if (await introContinue.isVisible()) await introContinue.click()
+  await expect(appMain).toBeVisible()
+}
+
+/** Land in a brand-new empty company (through the fake-sign-in, picker create form, and intro
+ *  gates) in one call, for specs that don't need to touch the create form itself. */
+export async function openNewCompany(page: Page, name: string): Promise<void> {
+  await openNewCompanyForm(page)
+  await createCompany(page, name)
 }

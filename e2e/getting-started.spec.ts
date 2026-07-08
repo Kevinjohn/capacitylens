@@ -1,34 +1,13 @@
-import { test, expect, type Page } from '@playwright/test'
-import { openApp } from './helpers'
+import { test, expect } from '@playwright/test'
+import { openApp, openNewCompany } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
 // First-run "Getting started" checklist + "Show me around" tour (US-NAV-13). The card is
 // state-driven: it shows only while the ACTIVE account still has an onboarding step to do, so the
 // seeded companies (full data) never show it — these specs create a FRESH empty company (same
-// picker flow as onboarding.spec.ts) to see it. Dismissal is the device-global
-// `capacitylens/gettingStartedDismissed` pref, mirroring the intro page's flag.
-
-const FIXED_NOW = new Date('2026-06-03T12:00:00')
-
-/** Land in a brand-new empty company (through the fake-sign-in, picker create form, and intro
- *  gates), where the checklist has every step still to do. */
-async function openEmptyCompany(page: Page): Promise<void> {
-  await page.clock.setFixedTime(FIXED_NOW)
-  await page.goto('/')
-  const signIn = page.getByTestId('fake-sign-in')
-  const newCompany = page.getByRole('button', { name: 'New company' })
-  await signIn.or(newCompany).first().waitFor()
-  if (await signIn.isVisible()) await signIn.click()
-  await newCompany.click()
-  await page.getByLabel('Company name').fill('Fresh Co')
-  await page.getByRole('button', { name: 'Create company' }).click()
-  const introContinue = page.getByTestId('intro-continue')
-  const appMain = page.locator('#main')
-  await introContinue.or(appMain).first().waitFor()
-  if (await introContinue.isVisible()) await introContinue.click()
-  await expect(appMain).toBeVisible()
-}
+// picker flow as onboarding.spec.ts, via helpers.ts's `openNewCompany`) to see it. Dismissal is
+// the device-global `capacitylens/gettingStartedDismissed` pref, mirroring the intro page's flag.
 
 test.describe('getting started checklist', () => {
   test('a seeded (fully set up) company never shows the card', async ({ page }) => {
@@ -38,7 +17,7 @@ test.describe('getting started checklist', () => {
   })
 
   test('an empty company shows the card; completing a step ticks it off', async ({ page }) => {
-    await openEmptyCompany(page)
+    await openNewCompany(page, 'Fresh Co')
     const card = page.getByTestId('getting-started')
     await expect(card).toBeVisible()
 
@@ -66,7 +45,7 @@ test.describe('getting started checklist', () => {
   })
 
   test('"Show me around" runs the loose orientation tour', async ({ page }) => {
-    await openEmptyCompany(page)
+    await openNewCompany(page, 'Fresh Co')
     await page.getByTestId('getting-started-tour').click()
 
     // Stop 1: the schedule grid. The tour never navigates — URL stays on the schedule throughout.
@@ -88,7 +67,7 @@ test.describe('getting started checklist', () => {
   })
 
   test('Dismiss hides the card and persists the device-global flag', async ({ page }) => {
-    await openEmptyCompany(page)
+    await openNewCompany(page, 'Fresh Co')
     await page.getByTestId('getting-started-dismiss').click()
     await expect(page.getByTestId('getting-started')).toHaveCount(0)
     const stored = await page.evaluate(() => localStorage.getItem('capacitylens/gettingStartedDismissed'))

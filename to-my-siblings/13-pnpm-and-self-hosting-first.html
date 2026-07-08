@@ -203,9 +203,12 @@ pnpm rebuild esbuild           <span class="c"># run its postinstall now that it
   <span class="c">// pnpm lockfile (v9): the `packages:`/`snapshots:` sections key every resolved package as a</span>
   <span class="c">// 2-space-indented `name@version:` line (optionally quoted, optionally with a `(peer@ver)`</span>
   <span class="c">// suffix), e.g. `  '@babel/code-frame@7.26.2':` or `  use-sync-external-store@1.4.0(react@19.2.6):`.</span>
-  <span class="c">// We extract the NAME (everything before the @ that starts the version) line-by-line rather</span>
-  <span class="c">// than adding a YAML parser dependency — a heavier dep tree is exactly what this test polices.</span>
-  const keyLine = /^ {2}'?((?:@[^\s/']+\/)?[^\s@']+)@\d/
+  <span class="c">// A package pulled from git/a tarball/a local path instead of the registry keys as</span>
+  <span class="c">// `name@https://...`, `name@git+...`, `name@file:...`, or `name@link:...` — no digit after the</span>
+  <span class="c">// `@` — so a version-digit-only pattern silently skips those rows, letting a denylisted package</span>
+  <span class="c">// slip the scan via a git fork. We extract the NAME (everything before the specifier) line-by-line</span>
+  <span class="c">// rather than adding a YAML parser dependency — a heavier dep tree is exactly what this test polices.</span>
+  const keyLine = /^ {2}'?((?:@[^\s/']+\/)?[^\s@']+)@(?:\d|https?:|git\+|file:|link:)/
   for (const line of raw.split('\n')) {
     const match = keyLine.exec(line)
     if (match) installed.add(match[1])

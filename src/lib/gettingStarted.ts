@@ -24,3 +24,11 @@ export function deriveGettingStartedSteps(data: AppData): GettingStartedSteps {
     assign: data.allocations.length > 0,
   }
 }
+
+/** Whether every step is complete (the card hides once true). `Object.values(...).every(Boolean)`
+ *  is exhaustive BY CONSTRUCTION over {@link GettingStartedSteps}' fields — unlike a hand-enumerated
+ *  `steps.a && steps.b && ...`, adding a fifth step here can't silently compile against a stale
+ *  list and hide the card too early. */
+export function allStepsDone(steps: GettingStartedSteps): boolean {
+  return Object.values(steps).every(Boolean)
+}

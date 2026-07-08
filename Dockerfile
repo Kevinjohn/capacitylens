@@ -69,7 +69,6 @@ FROM node:24-bookworm-slim AS api
 WORKDIR /app
 ENV NODE_ENV=production
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-RUN corepack enable
 # In a container we deliberately bind all interfaces (the host default is
 # loopback-only). compose publishes nothing for api directly; nginx reaches it
 # over the compose network.
@@ -85,6 +84,14 @@ COPY --from=deps /app/server/node_modules ./server/node_modules
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY shared/package.json ./shared/
 COPY server/package.json ./server/
+# `corepack enable` only wires up shims (pnpm/pnpm.cjs) that fetch the real
+# pnpm tarball from the registry on first invocation — without a bake step,
+# that fetch happens at CONTAINER START (the CMD below), crash-looping any
+# air-gapped/offline host. `corepack install` (no -g) downloads and caches the
+# package manager PINNED BY THE package.json JUST COPIED ABOVE, so the version
+# lives in exactly one place ("packageManager" in package.json) instead of
+# being re-hardcoded here.
+RUN corepack enable && corepack install
 # TS source the server imports at runtime (server entry + the shared core).
 COPY server/src ./server/src
 COPY shared/src ./shared/src

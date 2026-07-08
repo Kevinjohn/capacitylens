@@ -54,15 +54,16 @@ cd /home/forge/capacitylens.yourdomain.com
 
 git pull origin $FORGE_SITE_BRANCH
 
-# --frozen-lockfile guards against NODE_ENV=production, which would skip the
-# devDependencies (vite, tsc, tailwind) and break the build with "vite: not found".
+# --frozen-lockfile pins the install to pnpm-lock.yaml (CI-style, no drift).
+# pnpm >=9 installs devDependencies regardless of NODE_ENV (add --prod=false to force them explicitly if a droplet config ever sets production=true).
 pnpm install --frozen-lockfile
 
 pnpm run build   # paraglide:compile && tsc -b && vite build  ->  dist/
 ```
 
-If the build still fails with `vite: not found` / `tsc: not found`, prepend
-`export NODE_ENV=development` to the script.
+If the build still fails with `vite: not found` / `tsc: not found`, ensure devDependencies
+are installed by prepending `pnpm install --prod=false` to the script (in case a droplet
+config sets `production=true`).
 
 ## 5a. One-time droplet migration to pnpm (2026-07-08)
 

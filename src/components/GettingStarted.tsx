@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useStore } from '../store/useStore'
 import { useActiveScopedData } from '../store/useScopedData'
 import { startTour } from '../lib/tour'
-import { deriveGettingStartedSteps } from '../lib/gettingStarted'
+import { deriveGettingStartedSteps, allStepsDone } from '../lib/gettingStarted'
 import { Button } from './common/ui'
 import { Icon } from './common/Icon'
 import { m } from '@/i18n'
@@ -48,16 +48,29 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
   )
 }
 
-/** The first-run checklist card (see the file header for the visibility rules). */
+/** The first-run checklist card (see the file header for the visibility rules).
+ *
+ *  Split into a cheap gate + an inner component that owns the scoped-data subscription: the
+ *  common case (a dismissed card, or a viewer) should read two plain booleans off the store and
+ *  render null, not stay subscribed to `useActiveScopedData()` — that subscription re-runs the
+ *  whole scopeData pass on every mutation for a card that already can't render anything. Only the
+ *  undismissed/non-viewer case needs to know the per-step completion, so only THAT case mounts
+ *  `GettingStartedCard` and pays for the subscription. */
 export function GettingStarted() {
   const dismissed = useStore((s) => s.gettingStartedDismissed)
-  const setDismissed = useStore((s) => s.setGettingStartedDismissed)
   const activeRole = useStore((s) => s.activeRole)
+  if (dismissed || activeRole === 'viewer') return null
+  return <GettingStartedCard />
+}
+
+/** Owns the scoped-data read + step derivation; hides itself once every step is done (a
+ *  seeded/established account never sees it). Kept out of the exported gate above — see there. */
+function GettingStartedCard() {
+  const setDismissed = useStore((s) => s.setGettingStartedDismissed)
   const data = useActiveScopedData()
   const steps = deriveGettingStartedSteps(data)
 
-  const allDone = steps.client && steps.project && steps.person && steps.assign
-  if (dismissed || allDone || activeRole === 'viewer') return null
+  if (allStepsDone(steps)) return null
 
   return (
     <section
@@ -74,7 +87,7 @@ export function GettingStarted() {
         <StepRow done={steps.assign} label={m.gs_step_assign()} hint={m.gs_step_assign_hint()} />
       </ol>
       <div className="mt-4 flex items-center gap-2">
-        <Button onClick={startTour} testId="getting-started-tour">
+        <Button onClick={() => void startTour()} testId="getting-started-tour">
           {m.gs_show_me_around()}
         </Button>
         <Button variant="ghost" onClick={() => setDismissed(true)} testId="getting-started-dismiss">
