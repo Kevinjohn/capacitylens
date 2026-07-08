@@ -27,25 +27,25 @@ See **[CHANGELOG.md](CHANGELOG.md)** for release notes.
 ## Run it
 
 ```bash
-npm install
-npm run dev        # FULL-STACK: SQLite API (:8787) + Vite (:5173) via a dev /api proxy
+pnpm install
+pnpm run dev        # FULL-STACK: SQLite API (:8787) + Vite (:5173) via a dev /api proxy
 ```
 
-> **`npm run dev` needs Node 24.** It is now a full-stack launcher: it boots the `node:sqlite`
+> **`pnpm run dev` needs Node 24.** It is now a full-stack launcher: it boots the `node:sqlite`
 > SQLite API on **:8787** alongside Vite on **:5173** and wires a Vite dev proxy so the app talks to
 > a same-origin `/api` (exactly like production behind nginx). Node's built-in `node:sqlite` is the
-> hard floor — on Node < 24 the API fails to start (and `npm run dev` refuses to come up half-stack).
+> hard floor — on Node < 24 the API fails to start (and `pnpm run dev` refuses to come up half-stack).
 > If you just want a zero-setup preview with **no backend and no Node 24**, use:
 >
 > ```bash
-> npm run dev:demo   # Vite-only localStorage DEMO build (VITE_CAPACITYLENS_DEMO=1)
+> pnpm run dev:demo   # Vite-only localStorage DEMO build (VITE_CAPACITYLENS_DEMO=1)
 > ```
 >
-> A third script, `npm run dev:web`, is Vite-only **server mode** (the old `dev`) — it talks to a
+> A third script, `pnpm run dev:web`, is Vite-only **server mode** (the old `dev`) — it talks to a
 > same-origin or explicit API you run yourself.
 
 Open **the URL Vite prints** (`http://127.0.0.1:5173/`) and pick **Studio North** at the
-account picker to land on the seeded data. On `npm run dev` that seed comes from **SQLite** (the
+account picker to land on the seeded data. On `pnpm run dev` that seed comes from **SQLite** (the
 server seeds a fresh DB on its first boot); the `dev:demo` build seeds `localStorage` instead. The
 dev server binds IPv4 loopback with a **strict port**: if 5173 is already taken (a stale server, or a
 sibling repo — floaty-schedule and delivery-diary claim the same port), Vite exits with an error
@@ -62,14 +62,14 @@ reload; the whole app is JS-rendered.
 
 React + TypeScript + Vite. Zustand for state, Tailwind for styling, React Router
 for navigation. Vitest + Testing Library for unit/component tests, Playwright for
-E2E. Organised as an npm workspace:
+E2E. Organised as a pnpm workspace:
 
 - **(root)** — the web app (`src/`).
 - **`shared/`** — `@capacitylens/shared`: the pure, environment-agnostic domain core
   (types, validation, integrity, cascade, import remap, migrate, seed) shared by the
   app and the server.
 - **`server/`** — the **default** backend: a Node + `node:sqlite` REST API behind the same
-  `PersistenceAdapter` seam, started automatically by `npm run dev` (see `server/README.md`).
+  `PersistenceAdapter` seam, started automatically by `pnpm run dev` (see `server/README.md`).
   A build with no `VITE_CAPACITYLENS_API` talks to it at a same-origin `/api`;
   `VITE_CAPACITYLENS_API=<origin>` only **overrides the backend origin** (e.g. a remote API) — it's
   not an on-switch, since the server is already the default.
@@ -97,13 +97,13 @@ The canonical type definitions live in `shared/src/types/entities.ts`.
 ## The green gate
 
 ```bash
-npm run gate         # paraglide:compile && tsc -b && eslint . && vitest run && vite build
-npm run gate:server  # type-check + test the server/ workspace (the default backend)
-npm run e2e          # Chromium: core + db-backed + auth-backed specs; boots 3 Vite + 2 API servers, needs Node 24
-npm run e2e:webkit   # the core specs on Safari/WebKit (opt-in; Vite-only, no Node 24)
-npm run e2e:firefox  # the core specs on Firefox/Gecko (opt-in; Vite-only, no Node 24)
-npm run e2e:browsers # the core specs on ALL 3 engines: Chromium + WebKit + Firefox (Vite-only, no Node 24)
-npm run e2e:all      # e2e:browsers PLUS the Chromium-only db/auth server specs (needs the servers + Node 24)
+pnpm run gate         # paraglide:compile && tsc -b && eslint . && vitest run && vite build
+pnpm run gate:server  # type-check + test the server/ workspace (the default backend)
+pnpm run e2e          # Chromium: core + db-backed + auth-backed specs; boots 3 Vite + 2 API servers, needs Node 24
+pnpm run e2e:webkit   # the core specs on Safari/WebKit (opt-in; Vite-only, no Node 24)
+pnpm run e2e:firefox  # the core specs on Firefox/Gecko (opt-in; Vite-only, no Node 24)
+pnpm run e2e:browsers # the core specs on ALL 3 engines: Chromium + WebKit + Firefox (Vite-only, no Node 24)
+pnpm run e2e:all      # e2e:browsers PLUS the Chromium-only db/auth server specs (needs the servers + Node 24)
 ```
 
 The `server/` workspace is kept out of the root `gate` (it needs Node's `node:sqlite`, no
@@ -111,7 +111,7 @@ browser build); run it separately with `gate:server`. **There is no automated CI
 is enforced locally by contributors and again at review, so run all three locally and push only with
 them green. Node 24+ (`.nvmrc`).
 
-`e2e` is Chromium by default (the fast inner loop) — but a plain `npm run e2e` (no `--project`
+`e2e` is Chromium by default (the fast inner loop) — but a plain `pnpm run e2e` (no `--project`
 filter) runs **all three** Chromium-flavoured projects at once: `chromium` (the core specs),
 `db-backed`, and `auth-backed`. That boots three Vite dev servers plus the SQLite and auth API
 servers, so it needs **Node 24** even though "Chromium" is the headline. The core specs run
@@ -121,15 +121,15 @@ opt-in: `e2e:webkit` / `e2e:firefox` run a single engine, and **`e2e:browsers` r
 on all three** (Chromium + WebKit, then Firefox). All of these boot **only** the Vite dev server,
 so they need neither the SQLite/auth servers nor Node 24 and run anywhere the app builds.
 `e2e:all` is the superset — `e2e:browsers` plus the Chromium-only db/auth server specs (so it needs
-the servers + Node 24, same as plain `npm run e2e`). In both `e2e:browsers` and `e2e:all`, WebKit
+the servers + Node 24, same as plain `pnpm run e2e`). In both `e2e:browsers` and `e2e:all`, WebKit
 runs first and Firefox second, both always run, and the run fails if either engine fails. The
 db-backed/auth-backed specs stay Chromium-only (they exercise server round-trips, not cross-engine
 rendering).
 
-> **Stop `npm run dev` before running `npm run e2e`.** Both bind **:5173**, and e2e deliberately does
+> **Stop `pnpm run dev` before running `pnpm run e2e`.** Both bind **:5173**, and e2e deliberately does
 > NOT reuse a running dev server (`reuseExistingServer: false`) — a reused server-mode dev server
-> would corrupt the demo/localStorage specs — so it boots its own. With `npm run dev` still holding
-> the strict port, `npm run e2e` fails to start. Kill the dev server first.
+> would corrupt the demo/localStorage specs — so it boots its own. With `pnpm run dev` still holding
+> the strict port, `pnpm run e2e` fails to start. Kill the dev server first.
 
 ## Docs map
 

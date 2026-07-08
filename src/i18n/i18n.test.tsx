@@ -2,8 +2,8 @@
 //
 // ACCEPTANCE — "a removed key fails the build": the demonstrator key `app_name` is referenced in
 // type-checked code (this test + the AppShell wordmark). Deleting `app_name` from messages/en.json
-// then recompiling (`npm run paraglide:compile`) removes the generated `m.app_name` function, so every
-// `m.app_name()` becomes a tsc error and `npm run build`/`gate` fails. That compile-time safety is the
+// then recompiling (`pnpm run paraglide:compile`) removes the generated `m.app_name` function, so every
+// `m.app_name()` becomes a tsc error and `pnpm run build`/`gate` fails. That compile-time safety is the
 // whole point of choosing Paraglide; these runtime tests are the render/value smoke that rides on top.
 
 import { render, screen } from '@testing-library/react'

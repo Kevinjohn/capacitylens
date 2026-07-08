@@ -89,13 +89,13 @@ The "we send nothing out" claim is **test-backed**, so it can't quietly rot as t
 Two automated guards split across the two test runners hold the line:
 
 1. **A dependency denylist test** —
-   [`src/test/privacy-posture.test.ts`](../src/test/privacy-posture.test.ts), run by `npm run
+   [`src/test/privacy-posture.test.ts`](../src/test/privacy-posture.test.ts), run by `pnpm run
    gate`. It scans every workspace manifest (`package.json` for root, `server/`, and `shared/`)
-   **and** the root `package-lock.json` against a curated list of known analytics, telemetry, and
+   **and** the root `pnpm-lock.yaml` against a curated list of known analytics, telemetry, and
    email packages, and **fails CI** the moment any of them is added — directly or transitively.
    No analytics, telemetry, or email dependency can sneak in unnoticed.
 2. **The server CSP `connect-src 'self'` assertion** —
-   [`server/src/app.helmet.test.ts`](../server/src/app.helmet.test.ts), run by `npm run
+   [`server/src/app.helmet.test.ts`](../server/src/app.helmet.test.ts), run by `pnpm run
    gate:server`. It asserts the Content-Security-Policy emitted by the server (set by
    `@fastify/helmet`) keeps `connect-src` to **exactly `'self'`** and `default-src` to `'self'`,
    with no external scheme, host, or wildcard. So even a compromised or careless front-end

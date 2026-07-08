@@ -11,12 +11,12 @@ the plan's Phase 2.
 > zero-downtime releases — app at `current/`, web root `current/dist`). What's actually wired —
 > this **supersedes the Basic-Auth / per-tester-Account instructions below**:
 > - **Server:** a Forge **Background process** named `capacitylens-server` runs
->   `/home/forge/capacitylens-data/run-server.sh` (a wrapper that `cd current && exec npm start -w
->   capacitylens-server` with `NODE_ENV=production` + the droplet flags). `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`.
+>   `/home/forge/capacitylens-data/run-server.sh` (a wrapper that `cd current && exec pnpm --filter
+>   capacitylens-server start` with `NODE_ENV=production` + the droplet flags). `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`.
 > - **Nginx:** `location /api/ → 127.0.0.1:8787` added via Forge's Nginx editor (no trailing
 >   slash on `proxy_pass`, so the `/api` prefix is preserved).
-> - **Deploy script (Forge):** `git pull` → `npm ci --include=dev` → `export VITE_CAPACITYLENS_API` +
->   `VITE_CAPACITYLENS_BUILD_SHA` → `npm run build`. **`NODE_ENV=development` is kept for alpha** (flip
+> - **Deploy script (Forge):** `git pull` → `pnpm install --frozen-lockfile` → `export VITE_CAPACITYLENS_API` +
+>   `VITE_CAPACITYLENS_BUILD_SHA` → `pnpm run build`. **`NODE_ENV=development` is kept for alpha** (flip
 >   to `production` before beta).
 > - **No auth this round (owner):** no Nginx Basic Auth, `CAPACITYLENS_AUTH` off — the dataset is
 >   shared and OPEN. Wherever this runbook says `curl -u` / htpasswd / per-tester creds, **that
@@ -35,13 +35,13 @@ then push to `main` → Forge deploy script
 
 ```sh
 nvm use                       # .nvmrc pins Node 24
-npm ci
+pnpm install --frozen-lockfile
 export VITE_CAPACITYLENS_API="https://<site>"                      # server mode — REQUIRED
 export VITE_CAPACITYLENS_BUILD_SHA="$(git rev-parse --short HEAD)" # build stamp
 export VITE_CAPACITYLENS_FEEDBACK_MAILTO="<owner address>"         # Send-feedback link
-npm run build                 # → dist/
+pnpm run build                 # → dist/
 # restart the daemon (Forge daemon panel does this; CLI equivalent:)
-# forge daemon:restart <id>   — daemon runs: npm start --workspace=server
+# forge daemon:restart <id>   — daemon runs: pnpm --filter capacitylens-server start
 ```
 
 **Verify after every deploy:** Settings shows `build <sha> · server`. A build missing
@@ -78,7 +78,7 @@ intact. **Re-run this drill once on the droplet before testers arrive** — a ba
 never been restored is a hope, not a backup.
 
 This drill is now also codified as an automated, reproducible test — `server/src/restore.drill.test.ts`
-— that runs on every `npm run gate:server`: it backs up an on-disk DB, simulates loss by corrupting
+— that runs on every `pnpm run gate:server`: it backs up an on-disk DB, simulates loss by corrupting
 the live file, restores via the sequence above, and verifies the seeded data is recovered while the
 post-snapshot edit is gone. So the restore PATH is continuously verified; the **on-droplet** re-run
 above remains the operator's pre-go-live step.
@@ -169,12 +169,12 @@ it under `production`; the guard has its own tests):
 # 1. server with the droplet's flags + reset for the specs (fresh temp DB)
 cd server && rm -f .rehearsal.db* && PORT=8787 CAPACITYLENS_DB=.rehearsal.db CAPACITYLENS_ALLOW_RESET=1 \
   CAPACITYLENS_LOG=1 CAPACITYLENS_HEALTH_DEEP=1 CAPACITYLENS_RATE_LIMIT=300 CAPACITYLENS_BACKUP_DIR=/tmp/capacitylens-rehearsal-backups \
-  npm start &
+  pnpm start &
 # 2. production build pointing at the proxy origin, served behind a local /api proxy
-VITE_CAPACITYLENS_API=http://127.0.0.1:4173 VITE_CAPACITYLENS_BUILD_SHA=$(git rev-parse --short HEAD) npm run build
+VITE_CAPACITYLENS_API=http://127.0.0.1:4173 VITE_CAPACITYLENS_BUILD_SHA=$(git rev-parse --short HEAD) pnpm run build
 node scripts/serve-dist.mjs &        # dist/ on :4173, /api/* → 127.0.0.1:8787
 # 3. the db-backed e2e specs against the production-shaped stack
-CAPACITYLENS_REHEARSAL_URL=http://127.0.0.1:4173 npx playwright test --project=rehearsal
+CAPACITYLENS_REHEARSAL_URL=http://127.0.0.1:4173 pnpm exec playwright test --project=rehearsal
 ```
 
 ## Launch checklist

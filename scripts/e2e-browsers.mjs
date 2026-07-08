@@ -1,4 +1,4 @@
-// `npm run e2e:browsers` — the core (localStorage) specs on ALL THREE engines: Chromium +
+// `pnpm run e2e:browsers` — the core (localStorage) specs on ALL THREE engines: Chromium +
 // WebKit/Safari first, then Firefox/Gecko second. Pure cross-browser rendering coverage — it does
 // NOT run the db-backed/auth-backed specs (those are Chromium-only server round-trips), so every
 // invocation is CAPACITYLENS_VITE_ONLY: it boots Vite alone and needs neither the SQLite/auth servers
@@ -9,14 +9,14 @@
 // project `dependency` (which SKIPS the dependent when its dependency fails, hiding a Firefox-only
 // regression). Exit code is non-zero if EITHER invocation failed, but both always run first.
 //
-//   node scripts/e2e-browsers.mjs   # = npm run e2e:browsers
+//   node scripts/e2e-browsers.mjs   # = pnpm run e2e:browsers
 
 import { spawnSync } from 'node:child_process'
 
 /** Run one Playwright invocation to completion; return its exit status (1 if it never started). */
 function run(label, env, extraArgs = []) {
   console.log(`\n=== e2e:browsers — ${label} ===`)
-  const res = spawnSync('npx', ['playwright', 'test', ...extraArgs], {
+  const res = spawnSync('pnpm', ['exec', 'playwright', 'test', ...extraArgs], {
     stdio: 'inherit',
     env: { ...process.env, ...env },
   })

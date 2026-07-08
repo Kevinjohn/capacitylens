@@ -76,8 +76,8 @@ const DENYLIST: string[] = [
 const DENYSET = new Set(DENYLIST)
 
 // Vitest's root config runs from the repo root, so cwd() IS the repo root; every manifest
-// path resolves relative to it. (Verified: package.json / server|shared/package.json / lock all
-// resolve here.)
+// path resolves relative to it. (Verified: package.json / server|shared/package.json /
+// pnpm-lock.yaml all resolve here.)
 const REPO_ROOT = cwd()
 
 interface Manifest {
@@ -126,34 +126,24 @@ describe('P2.7 privacy posture — no analytics/telemetry/email dependency (no-e
   // Transitive backstop: a denylisted vendor pulled in indirectly (not declared in any manifest)
   // is just as much an egress risk, so scan the resolved lockfile too.
   it('the resolved lockfile installs no denylisted package (transitive backstop)', () => {
-    const raw = readFileSync(join(REPO_ROOT, 'package-lock.json'), 'utf8')
-    const lock: unknown = JSON.parse(raw)
-    if (typeof lock !== 'object' || lock === null) {
-      throw new Error('package-lock.json did not parse to an object')
-    }
-    const parsed = lock as {
-      packages?: Record<string, unknown>
-      dependencies?: Record<string, unknown>
-    }
+    const raw = readFileSync(join(REPO_ROOT, 'pnpm-lock.yaml'), 'utf8')
 
     const installed = new Set<string>()
 
-    // lockfile v3: `packages` keyed by install path ("node_modules/<name>", possibly nested
-    // "node_modules/x/node_modules/<name>"). The package NAME is the substring after the LAST
-    // "node_modules/". Skip the "" root-project key.
-    for (const key of Object.keys(parsed.packages ?? {})) {
-      if (key === '') continue
-      const marker = 'node_modules/'
-      const idx = key.lastIndexOf(marker)
-      if (idx === -1) continue
-      const name = key.slice(idx + marker.length)
-      if (name) installed.add(name)
+    // pnpm lockfile (v9): the `packages:`/`snapshots:` sections key every resolved package as a
+    // 2-space-indented `name@version:` line (optionally quoted, optionally with a `(peer@ver)`
+    // suffix), e.g. `  '@babel/code-frame@7.26.2':` or `  use-sync-external-store@1.4.0(react@19.2.6):`.
+    // We extract the NAME (everything before the @ that starts the version) line-by-line rather
+    // than adding a YAML parser dependency — a heavier dep tree is exactly what this test polices.
+    const keyLine = /^ {2}'?((?:@[^\s/']+\/)?[^\s@']+)@\d/
+    for (const line of raw.split('\n')) {
+      const match = keyLine.exec(line)
+      if (match) installed.add(match[1])
     }
-    // v2 fallback: a flat `dependencies` map keyed directly by package name.
-    for (const name of Object.keys(parsed.dependencies ?? {})) installed.add(name)
 
-    // Non-vacuous: we must have parsed a real tree.
-    expect(installed.size).toBeGreaterThan(0)
+    // Non-vacuous: we must have parsed a real tree. (A lockfile format change that stops these
+    // lines matching must fail HERE, loudly — not silently scan nothing and vacuously pass.)
+    expect(installed.size).toBeGreaterThan(100)
 
     const offenders = [...installed].filter((name) => DENYSET.has(name))
     expect(offenders, `lockfile installs denylisted package(s): ${offenders.join(', ')}`).toEqual([])

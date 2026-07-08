@@ -17,8 +17,8 @@ import-remap, migrate, seed), imported by both app and server so they can't drif
 `src/components/scheduler/` builds the week-grid view-model (unit-tested). Persistence is
 server-backed by default behind `PersistenceAdapter`: an empty env = the same-origin Node + `node:sqlite`
 `server/` (relative `/api`), `VITE_CAPACITYLENS_API` overrides the origin, and `VITE_CAPACITYLENS_DEMO=1`
-is the only route to the in-browser `localStorage` build (key `capacitylens/v3`). `npm run dev` is now
-full-stack (server :8787 + web :5173, needs Node 24); `npm run dev:demo` is the Vite-only localStorage
+is the only route to the in-browser `localStorage` build (key `capacitylens/v3`). `pnpm run dev` is now
+full-stack (server :8787 + web :5173, needs Node 24); `pnpm run dev:demo` is the Vite-only localStorage
 preview. Scoped access goes through the `useScopedData` / `scopedTables()` seam.
 
 ## Load-bearing invariants (don't break)
@@ -88,15 +88,15 @@ preview. Scoped access goes through the `useScopedData` / `scopedTables()` seam.
    promoted call later changes, edit that line so the digest never drifts from the code.
 
 ## Green gate
-`npm run gate` (= `tsc -b` + `eslint .` + `vitest run` + `vite build`) **and** `npm run e2e`
+`pnpm run gate` (= `tsc -b` + `eslint .` + `vitest run` + `vite build`) **and** `pnpm run e2e`
 (Playwright), all green. Screenshots are the visual oracle; `@axe-core/playwright` (light + dark +
 a modal) is the a11y oracle. The `server/` workspace is OUT of the root gate (it needs Node's
-`node:sqlite`, Node 24+ per `.nvmrc`); run it separately with `npm run gate:server`.
-**Mutation testing** (`npm run mutation`, Stryker over the pure core + src helpers) is the
+`node:sqlite`, Node 24+ per `.nvmrc`); run it separately with `pnpm run gate:server`.
+**Mutation testing** (`pnpm run mutation`, Stryker over the pure core + src helpers) is the
 on-demand "do the tests bite?" oracle — deliberately OFF the gate (~15–30 min a run).
-`npm run e2e` is Chromium; **Safari/WebKit and Firefox/Gecko are opt-in** — `npm run e2e:webkit` /
-`npm run e2e:firefox` re-run the core specs on a single engine, `npm run e2e:browsers` runs them on
+`pnpm run e2e` is Chromium; **Safari/WebKit and Firefox/Gecko are opt-in** — `pnpm run e2e:webkit` /
+`pnpm run e2e:firefox` re-run the core specs on a single engine, `pnpm run e2e:browsers` runs them on
 all three (Chromium + WebKit, then Firefox; Vite-only, so no SQLite/auth server and no Node 24), and
-`npm run e2e:all` is the superset that adds the Chromium-only db/auth server specs (so it needs the
+`pnpm run e2e:all` is the superset that adds the Chromium-only db/auth server specs (so it needs the
 servers + Node 24). Both multi-engine runs sequence WebKit→Firefox (both always run, fail if either
 does) via `scripts/e2e-{browsers,all}.mjs`. Keep specs browser-agnostic — no UA branching.

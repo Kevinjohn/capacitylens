@@ -1,0 +1,11 @@
+# pnpm workspace layout (replaces npm's "workspaces" field). Root = the web app;
+# shared/ is the pure domain core both app and server import; server/ is the
+# SQLite-backed API. See CLAUDE.md "Architecture in one breath".
+packages:
+  - shared
+  - server
+
+# pnpm blocks dependency postinstall scripts by default; esbuild's is the one we
+# trust and need (it links the platform binary Vite/Vitest shell out to).
+onlyBuiltDependencies:
+  - esbuild

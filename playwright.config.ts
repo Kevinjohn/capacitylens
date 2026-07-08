@@ -35,15 +35,15 @@ const viteOnly = !!process.env.CAPACITYLENS_VITE_ONLY || webkitOnly || firefoxOn
 // Runs the DEMO build (localStorage) so the core specs stay backend-free now that server is the
 // app's default; the db/auth flavours below carry their own VITE_CAPACITYLENS_API.
 const devWebServer = {
-  command: 'npm run dev:demo',
+  command: 'pnpm run dev:demo',
   url: 'http://localhost:5173',
   // Never reuse: Playwright matches a running server by URL (:5173) only — it can't see the
-  // persistence flavour. Post-flip, `npm run dev` boots a SERVER-mode dev server on :5173; reusing
+  // persistence flavour. Post-flip, `pnpm run dev` boots a SERVER-mode dev server on :5173; reusing
   // that for the localStorage core specs would run them against the wrong backend. Always spawn a
   // fresh demo build (the CI guard is moot now that we never reuse).
-  // CONSEQUENCE: if a full-stack `npm run dev` is already holding :5173, this spawn collides
-  // (strictPort) and `npm run e2e` fails to start rather than reusing it — BY DESIGN (a reused
-  // server-mode :5173 would corrupt the demo specs). Stop `npm run dev` first.
+  // CONSEQUENCE: if a full-stack `pnpm run dev` is already holding :5173, this spawn collides
+  // (strictPort) and `pnpm run e2e` fails to start rather than reusing it — BY DESIGN (a reused
+  // server-mode :5173 would corrupt the demo specs). Stop `pnpm run dev` first.
   reuseExistingServer: false,
   timeout: 120_000,
 }
@@ -77,8 +77,8 @@ export default defineConfig({
     // Safari/WebKit & Firefox twins of the core localStorage specs (owner; WebKit 2026-06-13,
     // Firefox 2026-06-16): the exact same specs as `chromium` (testIgnore matches), run on the
     // other engines to catch Safari-/Gecko-only rendering and interaction regressions. Kept OUT of
-    // the default `npm run e2e` so Chrome stays the fast inner loop — opt in with `npm run
-    // e2e:webkit` / `npm run e2e:firefox` (one project each) or `npm run e2e:all` (full matrix).
+    // the default `pnpm run e2e` so Chrome stays the fast inner loop — opt in with `pnpm run
+    // e2e:webkit` / `pnpm run e2e:firefox` (one project each) or `pnpm run e2e:all` (full matrix).
     // The db-backed/auth-backed flavours stay Chrome-only: they exercise server round-trips and
     // the persistence seam, not cross-engine rendering.
     ...(webkitEnabled
@@ -129,30 +129,30 @@ export default defineConfig({
       : [
           devWebServer,
           {
-            command: 'npm run start:e2e',
+            command: 'pnpm run start:e2e',
             cwd: './server',
             url: `http://localhost:${API_PORT}/api/health`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
           },
           {
-            command: 'npm run dev:api',
+            command: 'pnpm run dev:api',
             url: `http://localhost:${DB_WEB_PORT}`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
             env: { VITE_CAPACITYLENS_API: `http://localhost:${API_PORT}` },
           },
           {
-            // CAPACITYLENS_AUTH=password + a dev-only secret live in the npm script; the DB file is
+            // CAPACITYLENS_AUTH=password + a dev-only secret live in the pnpm script; the DB file is
             // recreated on every boot so sign-up state never leaks between runs.
-            command: 'npm run start:auth-e2e',
+            command: 'pnpm run start:auth-e2e',
             cwd: './server',
             url: `http://localhost:${AUTH_API_PORT}/api/health`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
           },
           {
-            command: 'npm run dev:auth',
+            command: 'pnpm run dev:auth',
             url: `http://localhost:${AUTH_WEB_PORT}`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,

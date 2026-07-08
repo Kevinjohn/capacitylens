@@ -53,7 +53,7 @@ Basic Auth was dropped; add before beta). Stage C (real isolation) stays parked 
    within its phase.
 3. **The implementer must respect `CLAUDE.md`'s invariants** (entity-extension path,
    scoped reads, REFERENCE.md-first for anything user-visible) and finish with
-   `npm run gate` + `npm run gate:server` + `npm run e2e` green.
+   `pnpm run gate` + `pnpm run gate:server` + `pnpm run e2e` green.
 4. **Don't read `docs/decisions-log.md` whole** — append a one-line entry per landed
    task (tail-read only), per the standing logging process.
 
@@ -148,7 +148,7 @@ shape. All repo work, all CI-testable. Each task below is a standalone hand-off.
   `package.json` and `server/package.json`; remove `NODE_OPTIONS=--experimental-sqlite`
   from every `server/package.json` script; bump `.github/workflows/ci.yml`
   `node-version` to `24`.
-- **Acceptance:** `npm run gate:server` green on Node 24 with no `ExperimentalWarning`
+- **Acceptance:** `pnpm run gate:server` green on Node 24 with no `ExperimentalWarning`
   in output; CI green.
 - **Fallback (pre-approved):** if `node:sqlite` misbehaves on 24, swap the driver to
   `better-sqlite3` — the API surface is confined to `server/src/db.ts`.
@@ -220,7 +220,7 @@ shape. All repo work, all CI-testable. Each task below is a standalone hand-off.
 - **Tests:** unit test the helper + a SettingsView render test with the env stubbed
   both ways.
 
-**Phase gate:** `npm run gate` + `npm run gate:server` + `npm run e2e` green; one
+**Phase gate:** `pnpm run gate` + `pnpm run gate:server` + `pnpm run e2e` green; one
 decisions-log line per landed task.
 
 ## Phase 2 — Cutover + edge hardening on Forge (~1 day, ops — no code, no flags)
@@ -232,9 +232,9 @@ the items below. Order matters.
 
 1. **Daemon + proxy + build flag** (migration plan steps 1–4): persistent
    `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`; Forge daemon
-   `npm start --workspace=server`; daemon restart added to the deploy script; Nginx
+   `pnpm --filter capacitylens-server start`; daemon restart added to the deploy script; Nginx
    `/api` → `127.0.0.1:8787`; `export VITE_CAPACITYLENS_API=https://<site>` in the deploy
-   script *before* `npm run build`, plus
+   script *before* `pnpm run build`, plus
    `export VITE_CAPACITYLENS_BUILD_SHA=$(git rev-parse --short HEAD)` (P1.7).
    *Rollback:* remove the exports, redeploy (data-strand caveat — see runbook P4.5).
 2. **Gate it** (migration plan step 5): Nginx Basic Auth over the whole site,

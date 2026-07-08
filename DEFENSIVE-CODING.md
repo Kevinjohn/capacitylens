@@ -175,6 +175,6 @@ next real drift.
 
 ---
 
-**Green gate** (`npm run gate` + `npm run e2e`, plus `npm run gate:server`) is the proof. A change
+**Green gate** (`pnpm run gate` + `pnpm run e2e`, plus `pnpm run gate:server`) is the proof. A change
 that follows this standard but reds the gate isn't done. See [`CLAUDE.md`](CLAUDE.md) and
 [`DECISIONS.md`](DECISIONS.md).

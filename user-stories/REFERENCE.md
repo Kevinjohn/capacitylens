@@ -8,14 +8,14 @@ If the app changes, update this file first, then the affected stories.
 > env means the same-origin SQLite API). The app is **multi-tenant by Account**: you pick a company
 > on load and the whole dataset is scoped to it. An explicit in-browser **demo build**
 > (`VITE_CAPACITYLENS_DEMO=1`) keeps all data in `localStorage` with no login or network calls — that
-> is the build these manual stories run against, started with `npm run dev:demo`, signed in to the
+> is the build these manual stories run against, started with `pnpm run dev:demo`, signed in to the
 > seeded **Studio North** company.
 
 ---
 
 ## Launching the app (for a human tester)
 
-1. From the project root run `npm run dev:demo` and open **the URL Vite prints**
+1. From the project root run `pnpm run dev:demo` and open **the URL Vite prints**
    (<http://127.0.0.1:5173>; `localhost:5173` also works). If Vite exits with a
    port-in-use error, another dev server is squatting 5173 — find it with
    `lsof -nP -iTCP:5173 -sTCP:LISTEN` and kill it (strict port is deliberate).
@@ -123,7 +123,7 @@ never appears on desktop viewports or in landscape.
 > (`VITE_CAPACITYLENS_DEMO=1`); a fresh server-backed instance lands on the empty
 > create-your-company picker instead of a fabricated "Studio North" (a pre-seeded two-company
 > instance would otherwise trip its own single-company cap on first boot). The two-company seed
-> described below happens only in: the demo build (`npm run dev:demo`, what these stories run
+> described below happens only in: the demo build (`pnpm run dev:demo`, what these stories run
 > against), local dev tooling that opts in explicitly, and the db-backed E2E server's explicit
 > `POST /api/test/reset {seed:true}` (used by `e2e/db-helpers.ts`'s `resetServer()` — exempt from
 > the single-company cap so tests can still exercise a two-company picker).

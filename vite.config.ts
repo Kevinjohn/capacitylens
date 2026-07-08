@@ -39,7 +39,7 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: true,
-    // Dev-only /api proxy for the full-stack `npm run dev` (scripts/dev-fullstack.mjs): the app
+    // Dev-only /api proxy for the full-stack `pnpm run dev` (scripts/dev-fullstack.mjs): the app
     // talks to a same-origin /api and Vite forwards it to the SQLite server on :8787 (one rule
     // also covers /api/auth/*). Irrelevant to the demo build (no /api calls) and to prod (nginx
     // does this); ignored by `vite build`. Stays in lockstep with the launcher via the same env var.

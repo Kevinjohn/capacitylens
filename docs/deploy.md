@@ -6,13 +6,13 @@
 > deploy see [`docs/self-hosting.md`](self-hosting.md) / [`docs/runbook.md`](runbook.md).
 > The DNS/SSL/Nginx basics below still apply to either build.
 
-CapacityLens is a Vite/React SPA in an npm-workspaces monorepo. By default it is
+CapacityLens is a Vite/React SPA in a pnpm-workspaces monorepo. By default it is
 **server-backed** — the build talks to the same-origin SQLite `/api` and the `server/`
 (Fastify + SQLite) is documented in `server/README.md`. This guide covers the **legacy
 static SPA** build, which persists to the browser's `localStorage` and needs no backend;
-that build is now an **explicit demo opt-in** via `VITE_CAPACITYLENS_DEMO=1` (`npm run
-dev:demo`). You don't SSH in to run npm by hand — Forge's **Deploy Script** runs `git
-pull` + the npm build on the droplet for you on each deploy. SSH is only for debugging.
+that build is now an **explicit demo opt-in** via `VITE_CAPACITYLENS_DEMO=1` (`pnpm run
+dev:demo`). You don't SSH in to run pnpm by hand — Forge's **Deploy Script** runs `git
+pull` + the pnpm build on the droplet for you on each deploy. SSH is only for debugging.
 
 > **For the live controlled demo, follow the server path, not this page.** The demo runs
 > in **server mode** (daemon + `/api` proxy + persistent SQLite; per the 2026-06-16 update
@@ -42,7 +42,8 @@ Leave "Install Composer Dependencies" unchecked (no PHP).
 
 Ensure the Forge server runs **Node 24+** — pinned by the root `.nvmrc` (`24`) and the
 `"engines": { "node": ">=24" }` field in every workspace manifest. The optional `server/`
-workspace needs Node 24 specifically, where `node:sqlite` is unflagged.
+workspace needs Node 24 specifically, where `node:sqlite` is unflagged. pnpm comes via
+`corepack enable` (pinned by the root `packageManager` field), no separate install needed.
 
 ## 5. Deploy Script
 
@@ -53,11 +54,11 @@ cd /home/forge/capacitylens.yourdomain.com
 
 git pull origin $FORGE_SITE_BRANCH
 
-# --include=dev guards against NODE_ENV=production, which would skip the
+# --frozen-lockfile guards against NODE_ENV=production, which would skip the
 # devDependencies (vite, tsc, tailwind) and break the build with "vite: not found".
-npm ci --include=dev
+pnpm install --frozen-lockfile
 
-npm run build   # paraglide:compile && tsc -b && vite build  ->  dist/
+pnpm run build   # paraglide:compile && tsc -b && vite build  ->  dist/
 ```
 
 If the build still fails with `vite: not found` / `tsc: not found`, prepend
@@ -86,7 +87,7 @@ location / {
 ```bash
 ssh forge@<droplet-ip>
 cd /home/forge/capacitylens.yourdomain.com
-npm ci --include=dev && npm run build   # reproduce build errors interactively
+pnpm install --frozen-lockfile && pnpm run build   # reproduce build errors interactively
 ```
 
 Add your key under Forge → server → **SSH Keys** if `forge@` is refused.

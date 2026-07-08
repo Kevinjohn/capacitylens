@@ -12,19 +12,24 @@
 
 # ---------------------------------------------------------------------------
 # Stage 1 — deps: install the full workspace (root + shared + server) from the
-# lockfile. Kept separate so the npm ci layer caches independently of source.
+# lockfile. Kept separate so the install layer caches independently of source.
+# pnpm comes via corepack, pinned by "packageManager" in package.json.
 # ---------------------------------------------------------------------------
 FROM node:24-bookworm-slim AS deps
 WORKDIR /app
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 
 # Only the manifests + lockfile -> this layer is reused unless deps change.
-COPY package.json package-lock.json ./
+# pnpm-workspace.yaml also carries onlyBuiltDependencies (the esbuild approval),
+# so the install here runs the same postinstall policy as a host install.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY shared/package.json ./shared/
 COPY server/package.json ./server/
 
 # Full install (incl. dev deps): the build stage needs Vite/tsc, and the server
 # runs via tsx (a dev dependency of the server workspace) at runtime.
-RUN npm ci
+RUN pnpm install --frozen-lockfile
 
 # ---------------------------------------------------------------------------
 # Stage 2 — build: compile the client SPA. VITE_CAPACITYLENS_API is inlined at
@@ -52,7 +57,7 @@ ENV VITE_CAPACITYLENS_FEEDBACK_MAILTO=${VITE_CAPACITYLENS_FEEDBACK_MAILTO}
 COPY . .
 
 # tsc -b + vite build -> dist/
-RUN npm run build
+RUN pnpm run build
 
 # ---------------------------------------------------------------------------
 # Stage 3 — api: the Fastify server. It runs via tsx, so it ships its TS source
@@ -63,15 +68,21 @@ RUN npm run build
 FROM node:24-bookworm-slim AS api
 WORKDIR /app
 ENV NODE_ENV=production
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+RUN corepack enable
 # In a container we deliberately bind all interfaces (the host default is
 # loopback-only). compose publishes nothing for api directly; nginx reaches it
 # over the compose network.
 ENV CAPACITYLENS_HOST=0.0.0.0
 
-# Installed workspace (root node_modules + the hoisted/symlinked workspaces).
+# Installed workspace: pnpm keeps the real packages in node_modules/.pnpm and
+# gives each workspace its own node_modules of RELATIVE symlinks into it, so
+# all three trees must travel together (COPY preserves the symlinks).
 COPY --from=deps /app/node_modules ./node_modules
-# Manifests so `npm start -w capacitylens-server` resolves the workspace.
-COPY package.json package-lock.json ./
+COPY --from=deps /app/shared/node_modules ./shared/node_modules
+COPY --from=deps /app/server/node_modules ./server/node_modules
+# Manifests so `pnpm --filter capacitylens-server start` resolves the workspace.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY shared/package.json ./shared/
 COPY server/package.json ./server/
 # TS source the server imports at runtime (server entry + the shared core).
@@ -85,7 +96,7 @@ EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||8787)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
-CMD ["npm", "start", "-w", "capacitylens-server"]
+CMD ["pnpm", "--filter", "capacitylens-server", "start"]
 
 # ---------------------------------------------------------------------------
 # Stage 4 — web: nginx serving the built SPA + proxying /api -> the api service.

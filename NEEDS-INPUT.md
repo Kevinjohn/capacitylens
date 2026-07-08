@@ -92,7 +92,7 @@ repository is made public:
 ## Open — before beta (owner-deferred 2026-06-16)
 - **Build ships React in DEV mode.** The Forge deploy script keeps `NODE_ENV=development` for
   alpha → main chunk 646 kB vs 422 kB prod. Flip to `NODE_ENV=production` (keep
-  `npm ci --include=dev` so `tsx`/`vite` still install) and redeploy before beta.
+  `pnpm install --frozen-lockfile` so `tsx`/`vite` still install) and redeploy before beta.
 - **No auth gate.** Add Stage C session auth (or at minimum Nginx Basic Auth) before exposing
   beyond the trusted alpha group (see Security posture in DECISIONS.md).
 - **Phase 2 edge-hardening remainders** (not yet done on the droplet): Nginx security headers

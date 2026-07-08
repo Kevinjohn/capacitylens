@@ -1,7 +1,7 @@
 # capacitylens-server
 
 SQLite-backed, entity-level REST API for CapacityLens — the **default** database backend
-behind the `PersistenceAdapter` seam. This is what `npm run dev` (at the repo root) now starts
+behind the `PersistenceAdapter` seam. This is what `pnpm run dev` (at the repo root) now starts
 alongside the web app, and what an unconfigured build talks to over a same-origin `/api`. (The
 in-browser `localStorage` build is the explicit opt-in — a `VITE_CAPACITYLENS_DEMO=1` demo
 preview.) `VITE_CAPACITYLENS_API` on the web app only **overrides the backend origin** (e.g. point
@@ -23,35 +23,35 @@ rules are literally the client's code, not a re-implementation that can drift.
 
 ## Run
 
-The usual path is **`npm run dev` at the repo root**, which starts this API on `:8787` *and* the Vite
+The usual path is **`pnpm run dev` at the repo root**, which starts this API on `:8787` *and* the Vite
 web app together (wiring a same-origin `/api` proxy) — you don't run the server by hand for normal
 full-stack dev. The standalone instructions below are for running **just** the API (e.g. against a
 separately served front end, or for poking the endpoints directly).
 
-Install from the **repo root** — this is an npm workspace, so the root install is
+Install from the **repo root** — this is a pnpm workspace, so the root install is
 what links `@capacitylens/shared` into both the web app and this server:
 
 ```bash
-npm install            # at the repo root, not inside server/
-npm run dev --workspace=server   # http://localhost:8787, starts EMPTY unless CAPACITYLENS_SEED_DEMO=1
+pnpm install            # at the repo root, not inside server/
+pnpm --filter capacitylens-server dev   # http://localhost:8787, starts EMPTY unless CAPACITYLENS_SEED_DEMO=1
 ```
 
-To point a Vite-only web app (`npm run dev:web`, run separately) at a standalone API on a non-default
+To point a Vite-only web app (`pnpm run dev:web`, run separately) at a standalone API on a non-default
 origin, set the override (from the repo root):
 
 ```bash
-VITE_CAPACITYLENS_API=http://localhost:8787 npm run dev:web
+VITE_CAPACITYLENS_API=http://localhost:8787 pnpm run dev:web
 ```
 
 ## Scripts
 
-- `npm run dev` (in `server/`, i.e. `--workspace=server`) — watch-mode API only
-  (`capacitylens.db`); the repo-root `npm run dev` is the full-stack launcher (see above).
-- `npm start` — run the server once (no watch).
-- `npm run start:e2e` — reset-enabled server on a throwaway DB (used by the
+- `pnpm --filter capacitylens-server dev` — watch-mode API only
+  (`capacitylens.db`); the repo-root `pnpm run dev` is the full-stack launcher (see above).
+- `pnpm --filter capacitylens-server start` — run the server once (no watch).
+- `pnpm --filter capacitylens-server start:e2e` — reset-enabled server on a throwaway DB (used by the
   `db-backed` Playwright project).
-- `npm test` — type-check-free vitest run (API integration + shared-core tests).
-- `npm run type-check` — `tsc --noEmit`.
+- `pnpm --filter capacitylens-server test` — type-check-free vitest run (API integration + shared-core tests).
+- `pnpm --filter capacitylens-server type-check` — `tsc --noEmit`.
 
 ## Endpoints
 
@@ -143,7 +143,7 @@ register with the droplet's values lives in `docs/production-plan.md`):
   Digital) on a never-initialised DB at boot. **Default off: a fresh server now starts EMPTY** —
   the first-run experience is creating your one company at the account picker. Only makes sense
   paired with `CAPACITYLENS_MULTI_ACCOUNT=1` (the seed ships two companies, which the
-  single-company cap would otherwise immediately contradict). `npm run dev` sets both via
+  single-company cap would otherwise immediately contradict). `pnpm run dev` sets both via
   `scripts/dev-fullstack.mjs`, so the dev experience is unchanged.
 - `CAPACITYLENS_AUDIT` — append-only JSONL audit log of every AppData mutation (one line per
   mutation: `{ts, userId, accountId, action, entity, id, changedFields}`; `changedFields` is

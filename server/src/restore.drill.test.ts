@@ -8,7 +8,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 
 // P3.3 — the RESTORE DRILL, codified. A backup that has never been restored is a hope, not a
 // backup: this exercises the WHOLE recovery path end to end so the restore SEQUENCE itself is
-// continuously verified by `npm run gate:server`, not just on a one-off manual run on the droplet.
+// continuously verified by `pnpm run gate:server`, not just on a one-off manual run on the droplet.
 //
 // The cycle mirrors docs/runbook.md's "Restore" section EXACTLY: snapshot the live DB → make an
 // edit AFTER the snapshot (work the backup can't have captured) → simulate disaster by corrupting
