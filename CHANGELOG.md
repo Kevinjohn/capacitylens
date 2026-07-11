@@ -10,6 +10,64 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-07-11
+
+The open-source launch-prep release: a stranger can now find, run, and trust the project
+without reading the maintainer's mind. Verified green across gate (1403 unit), gate:server
+(436), Chromium e2e 183/183, WebKit + Firefox core specs 168/168 each, and a 94.04%
+mutation round.
+
+### Added
+- **First-run owner setup.** On a fresh password-auth instance (zero users) the login wall
+  offers **Create the owner account**; sign-up is gated live per request and closes the
+  moment the first user exists — the `ALLOW_OPEN_SIGNUP` first-login dance is retired.
+  `/api/auth/me`'s 401 carries `needsSetup`, and losing the first-run race flips the form
+  to sign-in with an explanation instead of dead-ending. A **"SETUP OPEN"** boot warning
+  fires whenever password mode starts with zero users (until the owner exists, anyone who
+  can reach the server can claim it — also called out in the self-hosting/deploy docs).
+- **Headless bootstrap flag.** `--create-owner-admin-admin` / `CAPACITYLENS_CREATE_ADMIN_ADMIN=1`
+  creates the well-known `admin@admin.admin` / `admin` owner on an **empty** user table only,
+  through Better Auth's internal adapter (atomic, rolled back on failure; the instance-wide
+  password floor is never touched). The boot prints a framed change-it-now warning and
+  production adds a posture warning naming the credential.
+- **CI and repo collateral.** A GitHub Actions gate (typecheck/lint/unit/build + server gate +
+  Chromium e2e) on pull requests, manual dispatch, `v*` tags, and a monthly schedule —
+  deliberately not on every push. Dependabot across all three workspace directories, issue
+  forms, a PR template, and package metadata.
+- **Node 24 preflight.** Every server entry script and the dev launcher now fail fast with a
+  clear message naming `.nvmrc` / `nvm use` (and the `dev:demo` fallback) instead of a raw
+  link-time `node:sqlite` crash from inside tsx.
+- **README screenshots** (light + dark, theme-aware on GitHub) and `docs/development.md` for
+  the dev-facing detail the README used to carry.
+
+### Changed
+- **Repository renamed** `floaty-v1` → `capacitylens` (GitHub redirects the old URL); all
+  in-repo links updated.
+- **README rewritten human-first** — pitch, quickstart with prerequisites, self-hosting,
+  contributing, license; `docs/deploy.md` rewritten as the end-to-end Forge runsheet for the
+  server-backed password-auth build.
+
+### Fixed
+- **Docker api image crash-loop**: the runtime stage never copied `server/scripts/`, so the
+  new preflight died on MODULE_NOT_FOUND before the server booted.
+- **Bootstrap lockout hazard**: a `linkAccount` failure after `createUser` used to strand a
+  credential-less user row that permanently closed both bootstrap paths; the write is now
+  atomic-with-rollback.
+- **auth-e2e server reuse**: Playwright no longer adopts a stale `:8887` server whose DB was
+  never wiped/bootstrapped.
+
+## [0.14.0] — 2026-07-10
+
+_(Section backfilled at 0.15.0 — the tag shipped without a changelog entry.)_
+
+### Added
+- **Admin-issued password-reset links (P1.18).** Owners/admins mint a single-use 24 h reset
+  link per member (no email infrastructure needed); a sessionless `/reset-password/:token`
+  page redeems it and revokes existing sessions. Hardened by a review round: cross-account
+  escalation closed (reset authority must hold in **every** account the target belongs to),
+  revocation centralised in the single membership writer, the public request-password-reset
+  route shadowed, and password bounds (min/max) single-sourced and test-pinned.
+
 ## [0.13.0] — 2026-06-27
 
 A WCAG 2.2 AA accessibility pass that remediates every finding from a deep audit (#116–#123).
@@ -351,7 +409,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.0
+[0.14.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.14.0
 [0.13.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.13.0
 [0.12.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.12.0
 [0.11.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.11.0
