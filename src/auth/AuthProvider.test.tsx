@@ -95,6 +95,35 @@ describe('AuthProvider — server mode', () => {
     expect(screen.queryByText('app-content')).not.toBeInTheDocument()
   })
 
+  it('a 401 with needsSetup:true shows the first-run owner-setup form instead of sign-in', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', needsSetup: true })))
+    const { AuthProvider } = await freshProvider()
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Create the owner account' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toBeInTheDocument()
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument()
+  })
+
+  it('fail-closed: junk/non-boolean needsSetup on the 401 body shows the ORDINARY sign-in form', async () => {
+    // A proxy page or an off-spec server must never conjure a create-account form on a populated
+    // instance — only a literal `true` counts.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', needsSetup: 'yes' })))
+    const { AuthProvider } = await freshProvider()
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
+  })
+
   it('an unreachable server renders the app (ConnectionError owns that failure)', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))))

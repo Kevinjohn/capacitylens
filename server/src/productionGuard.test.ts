@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { evaluateProductionPosture } from './productionGuard'
+import { BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD } from './auth'
 
 // P3.1: once NODE_ENV=production, the dev/open posture is retired — the entrypoint refuses to
 // boot when auth is OFF (unless deliberately opted in) and warns on the softer posture concerns.
@@ -74,5 +75,28 @@ describe('evaluateProductionPosture', () => {
     })
     expect(result.refusals).toEqual([])
     expect(result.warnings.some((w) => /CAPACITYLENS_ALLOW_OPEN_SIGNUP/.test(w))).toBe(true)
+  })
+
+  it('warns (does not refuse) on the admin/admin bootstrap flag in production — the well-known credential must be surfaced', () => {
+    // The entrypoint folds the --create-owner-admin-admin argv spelling into this env form before
+    // calling here, so this single check covers BOTH spellings of the flag.
+    const result = evaluateProductionPosture({
+      NODE_ENV: 'production',
+      CAPACITYLENS_AUTH: 'password',
+      CAPACITYLENS_HTTPS: '1',
+      CAPACITYLENS_CREATE_ADMIN_ADMIN: '1',
+    })
+    expect(result.refusals).toEqual([])
+    // The warning must name the exact credential so the operator knows what to change — asserted
+    // via the auth.ts exports, so a credential change can't leave this test passing on stale text.
+    expect(
+      result.warnings.some(
+        (w) => w.includes(BOOTSTRAP_ADMIN_EMAIL) && w.includes(BOOTSTRAP_ADMIN_PASSWORD) && /CAPACITYLENS_CREATE_ADMIN_ADMIN/.test(w),
+      ),
+    ).toBe(true)
+    // And it stays a no-op outside production, like every other posture concern.
+    expect(
+      evaluateProductionPosture({ NODE_ENV: 'test', CAPACITYLENS_CREATE_ADMIN_ADMIN: '1' }).warnings,
+    ).toEqual([])
   })
 })

@@ -144,11 +144,15 @@ export default defineConfig({
           },
           {
             // CAPACITYLENS_AUTH=password + a dev-only secret live in the pnpm script; the DB file is
-            // recreated on every boot so sign-up state never leaks between runs.
+            // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
+            // already-running :8887 — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
+            // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
+            // bootstrap-credential spec with a confusing red (same lesson as the :5173 block above
+            // and the 2026-07-08 orphaned-:8787 war story in the decisions log).
             command: 'pnpm run start:auth-e2e',
             cwd: './server',
             url: `http://localhost:${AUTH_API_PORT}/api/health`,
-            reuseExistingServer: !process.env.CI,
+            reuseExistingServer: false,
             timeout: 120_000,
           },
           {

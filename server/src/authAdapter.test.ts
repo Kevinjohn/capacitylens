@@ -9,12 +9,14 @@ import type { Auth, SessionUser } from './auth'
 const USER: SessionUser = { id: 'u1', name: 'Tester', email: 'tester@capacitylens.dev', emailVerified: true }
 
 /** A minimal fake Auth whose getSession yields whatever this factory is given. The adapter never
- *  touches requestPasswordReset (that's the P1.18 reset route's seam), so the stub just resolves. */
+ *  touches requestPasswordReset (the P1.18 reset route's seam) or createCredentialUser (the
+ *  first-run bootstrap's seam), so that stub just resolves. */
 function fakeAuth(getSession: Auth['api']['getSession']): Auth {
   return {
     handler: async () => new Response(null),
     api: { getSession, requestPasswordReset: async () => ({ status: true }) },
     options: {},
+    createCredentialUser: async () => ({ id: 'fake-user' }),
   }
 }
 

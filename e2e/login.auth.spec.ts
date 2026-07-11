@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from './auth-helpers'
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_ADMIN, BOOTSTRAP_TOKEN, signUpUser } from './auth-helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -97,6 +97,22 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  })
+
+  test('the --create-owner-admin-admin bootstrap credential signs in through the real form', async ({
+    page,
+  }) => {
+    // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 on a wiped DB, so
+    // admin@admin.admin / 'admin' exists as its first user. This proves the escape hatch
+    // end-to-end — including that the 5-char password (below the sign-UP minimum) signs IN fine
+    // after boot, the assumption the whole bootstrap design rests on. A fresh bootstrap admin has
+    // no memberships, so landing on the (empty) company picker past the wall is the success state.
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    await page.getByLabel('Email').fill(BOOTSTRAP_ADMIN.email)
+    await page.getByLabel('Password').fill(BOOTSTRAP_ADMIN.password)
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toBeVisible()
   })
 
   test('a login with NO memberships sees an EMPTY picker (tenant isolation — no cross-tenant leak)', async ({

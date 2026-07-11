@@ -4,13 +4,20 @@ import { buildApp } from './app'
 import { openDb } from './db'
 import {
   authFromEnv,
+  countUsers,
+  createBootstrapAdmin,
+  createCredentialUserWith,
   parseAuthMode,
   runAuthMigrations,
   AuthConfigError,
+  BOOTSTRAP_ADMIN_EMAIL,
+  BOOTSTRAP_ADMIN_PASSWORD,
   DEMO_USER,
   MIN_BETTER_AUTH_SECRET_LENGTH,
   normalizeSessionUser,
 } from './auth'
+import type { Auth } from './auth'
+import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -238,40 +245,223 @@ describe('social providers (P1.7)', () => {
   })
 })
 
-// P1.7 — open email self-registration is CLOSED by default (the secure default). The flag
-// CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 is an interim escape until invites (P1.9/P1.10).
-describe('closed self-registration (P1.7)', () => {
+// P1.7 + first-run setup — open email self-registration is CLOSED by default (the secure
+// default) ONCE A USER EXISTS. The single exception is an EMPTY user table, where the first
+// sign-up bootstraps the owner; the gate is enforced LIVE per request (hooks.before in
+// authFromEnv), so it closes on the very next request after the first user — no restart. The
+// flag CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 keeps its meaning: an interim escape that re-opens
+// sign-up unconditionally until invites (P1.9/P1.10).
+describe('closed self-registration (P1.7) + first-run bootstrap', () => {
   /** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
   const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV }
   delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP
 
-  const signUp = (app: FastifyInstance) =>
+  const signUp = (app: FastifyInstance, email = 'late@capacitylens.dev') =>
     call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'late@capacitylens.dev', password: 'password-123', name: 'Late' },
+      payload: { email, password: 'password-123', name: 'Late' },
     })
 
-  it('rejects POST /api/auth/sign-up/email by DEFAULT (400, disableSignUp on)', async () => {
+  it('allows the FIRST sign-up on an empty user table (owner bootstrap), then closes LIVE', async () => {
     const app = await appWithAuth(CLOSED_ENV)
-    const res = await signUp(app)
-    // Better Auth returns 400 BAD_REQUEST (EMAIL_PASSWORD_SIGN_UP_DISABLED) when disableSignUp.
-    expect(res.statusCode).toBe(400)
-    expect(cookiesOf(res)).not.toContain('better-auth.session_token')
+    const first = await signUp(app, 'owner@capacitylens.dev')
+    expect(first.statusCode).toBe(200)
+    expect(cookiesOf(first)).toContain('better-auth.session_token')
+    // The gate is per REQUEST, not per boot: the very next sign-up on the SAME running app must
+    // be refused now that one user exists — Better Auth's unchanged 400
+    // EMAIL_PASSWORD_SIGN_UP_DISABLED shape (a boot-time boolean would stay open until restart).
+    const second = await signUp(app, 'late@capacitylens.dev')
+    expect(second.statusCode).toBe(400)
+    expect(cookiesOf(second)).not.toContain('better-auth.session_token')
   })
 
-  it('allows sign-up only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1', async () => {
+  it('allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1', async () => {
     const app = await appWithAuth({ ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    // First user consumes the bootstrap exception; the second still succeeds because the flag
+    // re-opens sign-up unconditionally.
+    expect((await signUp(app, 'first@capacitylens.dev')).statusCode).toBe(200)
     const res = await signUp(app)
     expect(res.statusCode).toBe(200)
     expect(cookiesOf(res)).toContain('better-auth.session_token')
   })
 
-  it('sets disableSignUp on the resolved options to mirror the flag', () => {
+  it('keeps the library flag OFF — the live hook owns the gate (disableSignUp stays false)', () => {
+    // Better Auth 1.6.20 enforces disableSignUp even for server-side auth.api.signUpEmail
+    // (sign-up.mjs:143), so the static flag must stay false in BOTH postures — the closed
+    // behaviour above comes from hooks.before, never from this option.
     const open = authFromEnv(openDb(':memory:'), { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
     const closed = authFromEnv(openDb(':memory:'), CLOSED_ENV)
     expect(open.auth!.options.emailAndPassword?.disableSignUp).toBe(false)
-    expect(closed.auth!.options.emailAndPassword?.disableSignUp).toBe(true)
+    expect(closed.auth!.options.emailAndPassword?.disableSignUp).toBe(false)
+  })
+
+  it('reports needsSetup on the /api/auth/me 401 at zero users, and drops it once a user exists', async () => {
+    const app = await appWithAuth(CLOSED_ENV)
+    // Zero users: the login screen must offer "Create the owner account" instead of a dead end.
+    const before = await call(app, { method: 'GET', url: '/api/auth/me' })
+    expect(before.statusCode).toBe(401)
+    expect(before.json().needsSetup).toBe(true)
+    // The 401 shape still excludes account facts (only authMode/error/needsSetup — no capFields).
+    expect(Object.keys(before.json()).sort()).toEqual(['authMode', 'error', 'needsSetup'])
+    // One user later, the flag is GONE (absent, not false — the client fail-closes on absence).
+    expect((await signUp(app, 'owner@capacitylens.dev')).statusCode).toBe(200)
+    const after = await call(app, { method: 'GET', url: '/api/auth/me' })
+    expect(after.statusCode).toBe(401)
+    expect(after.json().needsSetup).toBeUndefined()
+  })
+})
+
+// First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1):
+// createBootstrapAdmin creates the well-known admin@admin.admin / 'admin' owner on an EMPTY user
+// table, skips (one line, not an error) when users exist, and refuses outside password mode.
+describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
+  const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV }
+  delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP
+
+  /** authFromEnv + migrations on a fresh in-memory DB, ready for createBootstrapAdmin. */
+  async function bootstrapFixture(env: Record<string, string> = CLOSED_ENV) {
+    const db = openDb(':memory:')
+    const { mode, auth } = authFromEnv(db, env)
+    await runAuthMigrations(auth!)
+    return { db, mode, auth }
+  }
+
+  it('creates admin@admin.admin on an empty user table and prints the framed credential warning', async () => {
+    const { db, mode, auth } = await bootstrapFixture()
+    const lines: string[] = []
+    expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe('created')
+    expect(countUsers(db)).toBe(1)
+    // The warning must name the EXACT credential — an operator who can't see what to change
+    // can't change it.
+    const warning = lines.join('\n')
+    expect(warning).toContain('WELL-KNOWN')
+    expect(warning).toContain(BOOTSTRAP_ADMIN_EMAIL)
+    expect(warning).toContain(BOOTSTRAP_ADMIN_PASSWORD)
+  })
+
+  it('signs in as admin/admin on a LATER boot WITHOUT the flag (sign-in never validates length)', async () => {
+    // The load-bearing library assumption, pinned per DEFENSIVE-CODING §7: better-auth 1.6.20's
+    // sign-IN route does not check minPasswordLength (only sign-up/reset do), so the 5-char
+    // bootstrap password keeps working after a restart restores the MIN_PASSWORD_LENGTH floor.
+    // If a library upgrade adds sign-in length validation, THIS test fails — switch the bootstrap
+    // to an >=MIN_PASSWORD_LENGTH password before taking that upgrade.
+    const { db, mode, auth } = await bootstrapFixture()
+    await createBootstrapAdmin(db, mode, auth, () => {})
+    // "Restart": a fresh instance on the SAME DB, bootstrap flag absent → floor back at the min.
+    const restarted = authFromEnv(db, CLOSED_ENV)
+    expect(restarted.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    const app = buildApp(db, { authMode: restarted.mode, auth: restarted.auth })
+    const signIn = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      payload: { email: BOOTSTRAP_ADMIN_EMAIL, password: BOOTSTRAP_ADMIN_PASSWORD },
+    })
+    expect(signIn.statusCode).toBe(200)
+    expect(cookiesOf(signIn)).toContain('better-auth.session_token')
+  })
+
+  it('keeps minPasswordLength at the shared floor ALWAYS — flagged boot or not, empty table or not', async () => {
+    // The fix (review remediation): the instance-wide floor is never bent. The bootstrap's 5-char
+    // password is created through a DIFFERENT path (auth.createCredentialUser(), bypassing the sign-up route
+    // entirely — see createBootstrapAdmin) instead of lowering this option.
+    const { auth } = await bootstrapFixture()
+    expect(auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    const seeded = await bootstrapFixture()
+    await createBootstrapAdmin(seeded.db, seeded.mode, seeded.auth, () => {})
+    const populated = authFromEnv(seeded.db, CLOSED_ENV)
+    expect(populated.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+    const plain = authFromEnv(openDb(':memory:'), CLOSED_ENV)
+    expect(plain.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
+  })
+
+  it('REJECTS a 5-char sign-up password during a boot where the bootstrap just ran (the floor is never bent for anything else)', async () => {
+    const { db, mode, auth } = await bootstrapFixture()
+    await createBootstrapAdmin(db, mode, auth, () => {})
+    // Same DB, open self-registration so the sign-up ROUTE (not the bootstrap's internalAdapter
+    // path) is reachable — this is exactly the "operator's own reset" / "sign-up that boot" case
+    // the finding called out: it must NOT inherit any lowered floor.
+    const open = authFromEnv(db, { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    const app = buildApp(db, { authMode: open.mode, auth: open.auth })
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { name: 'short', email: 'short@capacitylens.dev', password: BOOTSTRAP_ADMIN_PASSWORD },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().code).toBe('PASSWORD_TOO_SHORT')
+  })
+
+  it('skips with one line (not an error) when users already exist', async () => {
+    const { db, mode, auth } = await bootstrapFixture()
+    await createBootstrapAdmin(db, mode, auth, () => {})
+    const lines: string[] = []
+    expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe('skipped')
+    expect(lines).toEqual(['capacitylens-server: --create-owner-admin-admin skipped: users already exist'])
+    expect(countUsers(db)).toBe(1) // no second account, no throw
+  })
+
+  it('refuses loudly (AuthConfigError) when auth is off or sso — the flag is meaningless there', async () => {
+    await expect(createBootstrapAdmin(openDb(':memory:'), 'off', null)).rejects.toThrow(AuthConfigError)
+    const sso = authFromEnv(openDb(':memory:'), SSO_ENV)
+    await expect(createBootstrapAdmin(openDb(':memory:'), sso.mode, sso.auth)).rejects.toThrow(AuthConfigError)
+  })
+
+  // Finding 1 (review, 2026-07-11): a bare createUser+linkAccount would strand an orphaned,
+  // credential-less user forever if linkAccount ever throws — countUsers>0 with no sign-in-able
+  // account closes BOTH bootstrap paths permanently. Fixed by createCredentialUserWith's
+  // rollback (see auth.ts). This pins the contract end-to-end through createBootstrapAdmin, with
+  // ONLY the Better Auth internals faked (createUser/deleteUser hit the real `user` table so
+  // countUsers(db) — the real production signal — reflects the outcome truthfully).
+  it('rolls back the orphaned user row when linkAccount fails, so a retry bootstrap succeeds (Finding 1)', async () => {
+    const { db, mode, auth } = await bootstrapFixture()
+    const boom = new Error('linkAccount boom')
+
+    /** A fake Auth whose createCredentialUser drives the REAL createCredentialUserWith against a
+     *  fake internal adapter: createUser/deleteUser do real SQL against the migrated `user` table
+     *  (so countUsers(db) is meaningful), linkAccount always throws (simulating the failure). */
+    const failingAuth: Auth = {
+      handler: async () => new Response(null),
+      api: { getSession: async () => null, requestPasswordReset: async () => ({ status: true }) },
+      options: {},
+      createCredentialUser: (email, name, password) =>
+        createCredentialUserWith(
+          {
+            password: { hash: async (p) => p },
+            internalAdapter: {
+              createUser: async (input) => {
+                const id = 'orphan-candidate'
+                const now = new Date().toISOString()
+                db.prepare(
+                  `INSERT INTO user (id, name, email, emailVerified, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)`,
+                ).run(id, input.name, input.email, input.emailVerified ? 1 : 0, now, now)
+                return { id }
+              },
+              linkAccount: async () => {
+                throw boom
+              },
+              deleteUser: async (userId) => {
+                db.prepare(`DELETE FROM user WHERE id = ?`).run(userId)
+              },
+            },
+          },
+          email,
+          name,
+          password,
+        ),
+    }
+
+    await expect(createBootstrapAdmin(db, mode, failingAuth, () => {})).rejects.toMatchObject({
+      message: expect.stringContaining('rolled back'),
+      cause: boom,
+    })
+    // The rollback worked: no orphan left behind, so the table reads truly empty.
+    expect(countUsers(db)).toBe(0)
+
+    // Retry on the SAME db with the REAL auth: nothing about the failed attempt blocked it.
+    const lines: string[] = []
+    expect(await createBootstrapAdmin(db, mode, auth, (l) => lines.push(l))).toBe('created')
+    expect(countUsers(db)).toBe(1)
   })
 })
 

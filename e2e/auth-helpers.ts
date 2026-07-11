@@ -11,6 +11,18 @@ export const AUTH_API = 'http://localhost:8887'
 /** The password every auth-e2e fixture signs up / signs in with. */
 export const AUTH_PASSWORD = 'demo-password-123'
 
+/** The well-known first-run bootstrap credential the auth-e2e server creates at boot
+ *  (CAPACITYLENS_CREATE_ADMIN_ADMIN=1 in server's start:auth-e2e). Serving double duty: the specs
+ *  can sign in with it to prove the escape hatch end-to-end, AND its existence means the user
+ *  table is never empty when a spec first loads the page — so the login wall shows the ordinary
+ *  Sign in form, never the first-run owner-setup form (which needs a zero-user server and is
+ *  covered by unit tests instead).
+ *
+ *  Kept as a LITERAL rather than importing server/src/auth.ts's BOOTSTRAP_ADMIN_EMAIL/PASSWORD —
+ *  that module pulls in better-auth at top level, which must not enter the Playwright process.
+ *  Must match those exports; a drift surfaces loudly as the bootstrap sign-in spec failing. */
+export const BOOTSTRAP_ADMIN = { email: 'admin@admin.admin', password: 'admin' }
+
 /** The operator bootstrap token (set in server's start:auth-e2e script). The auth-e2e DB is SEEDED,
  *  so a fresh sign-up is not a first-run bootstrap and holds no membership — this is the documented
  *  operator path to provision an org (`POST /api/orgs`) on an already-populated instance. */

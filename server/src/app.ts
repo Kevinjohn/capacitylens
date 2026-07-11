@@ -6,6 +6,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   DEMO_USER,
   RESET_LINK_TTL_SECONDS,
+  countUsers,
   mintPasswordResetToken,
   type Auth,
   type AuthMode,
@@ -715,7 +716,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (authMode === 'off') return { authMode, user: DEMO_USER, ...capFields }
       try {
         const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
-        if (!user) return reply.code(401).send({ authMode, error: 'Sign in to continue.' })
+        if (!user) {
+          // First-run signal: password mode + an EMPTY user table means sign-up is open for
+          // exactly one bootstrap account (the live gate in auth.ts), so the login screen offers
+          // "Create the owner account" instead of a dead-end sign-in. "The user count is zero" is
+          // NOT tenant data — the 401 shape still deliberately excludes account facts (capFields
+          // stay off this branch); it reveals only what the open sign-up endpoint already would.
+          const needsSetup = authMode === 'password' && countUsers(db) === 0
+          return reply
+            .code(401)
+            .send({ authMode, error: 'Sign in to continue.', ...(needsSetup ? { needsSetup: true } : {}) })
+        }
         return { authMode, user, ...capFields }
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message

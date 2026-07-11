@@ -4,7 +4,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 import { createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
 import { evaluateProductionPosture } from './productionGuard'
-import { authFromEnv, runAuthMigrations, AuthConfigError } from './auth'
+import { authFromEnv, runAuthMigrations, createBootstrapAdmin, countUsers, AuthConfigError } from './auth'
 import { parseBackupConfig, startBackups } from './backup'
 import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 
@@ -78,6 +78,20 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //                                   value refuses to boot. When ≠ off:
 //   BETTER_AUTH_SECRET              required — session signing secret (32+ chars).
 //   BETTER_AUTH_URL                 required — the public origin the browser uses.
+//   CAPACITYLENS_ALLOW_OPEN_SIGNUP        '1' to keep email self-registration open unconditionally
+//                                   (interim trusted-instance/dev escape). Default off: sign-up
+//                                   is closed the moment ONE user exists — the sole exception is
+//                                   an EMPTY user table, where the first sign-up bootstraps the
+//                                   owner (the login screen offers "Create the owner account").
+//   CAPACITYLENS_CREATE_ADMIN_ADMIN       '1' (or the --create-owner-admin-admin argv flag — same
+//                                   switch, two spellings) to create a default owner credential
+//                                   admin@admin.admin / password 'admin' at boot, ONLY when
+//                                   CAPACITYLENS_AUTH=password AND the user table has ZERO rows
+//                                   (with users present it logs one "skipped" line and boots
+//                                   normally). Prints a loud framed warning — the credential is
+//                                   WELL KNOWN; sign in and change it immediately, then drop the
+//                                   flag. Refuses to boot when auth is off or sso (the flag is
+//                                   meaningless without password credentials).
 //   CAPACITYLENS_SSO_*                    sso mode only: CLIENT_ID + CLIENT_SECRET, plus
 //                                   DISCOVERY_URL or AUTHORIZATION_URL + TOKEN_URL
 //                                   (optional PROVIDER_ID, SCOPES).
@@ -144,6 +158,12 @@ const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT)
 // treats undefined and '' identically — bootstrapTokenMatches never allows an empty secret), so
 // the secure default holds: POST /api/orgs is first-run-only or an existing Owner/Admin.
 const bootstrapToken = process.env.CAPACITYLENS_BOOTSTRAP_TOKEN || undefined
+// First-run owner bootstrap: one switch, two spellings — the env var is the repo convention, the
+// argv flag exists for one-shot shells (`node ... --create-owner-admin-admin`) where exporting an
+// env var is awkward. Normalized ONCE here; everything downstream (the posture warning,
+// createBootstrapAdmin) sees a single boolean.
+const bootstrapAdmin =
+  process.env.CAPACITYLENS_CREATE_ADMIN_ADMIN === '1' || process.argv.includes('--create-owner-admin-admin')
 // X-Forwarded-For is only trustworthy when Nginx proxies to us on loopback (every socket
 // is then 127.0.0.1); a deliberately-exposed host (CAPACITYLENS_HOST=0.0.0.0) keys on the
 // socket address, because the header is client-spoofable there.
@@ -183,7 +203,11 @@ try {
 // Production-posture interlock (P3.1): once NODE_ENV=production, the dev/open posture must be retired
 // — running auth OFF in production would expose the demo dataset. Refuse on fatal posture violations,
 // warn loudly on the softer ones. No-op outside production (see productionGuard.ts).
-const posture = evaluateProductionPosture(process.env)
+// The posture guard is a pure env predicate, so the argv spelling of the bootstrap flag is folded
+// into its env form here — both spellings must trigger the same well-known-credential warning.
+const posture = evaluateProductionPosture(
+  bootstrapAdmin ? { ...process.env, CAPACITYLENS_CREATE_ADMIN_ADMIN: '1' } : process.env,
+)
 for (const w of posture.warnings) {
   console.warn(`capacitylens-server: production posture warning — ${w}`)
 }
@@ -212,9 +236,29 @@ if (posture.refusals.length > 0) {
 // unchanged; this only adds a flag gate in FRONT of it.
 try {
   if (auth) await runAuthMigrations(auth)
+  // First-run owner bootstrap — AFTER the auth tables exist, BEFORE the app serves a request. In
+  // off/sso mode createBootstrapAdmin throws AuthConfigError (the flag is meaningless there),
+  // which this catch frames as a legible refusal; with users already present it logs one
+  // "skipped" line and boot continues (deliberately NOT an error — see its TSDoc).
+  if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth)
   if (process.env.CAPACITYLENS_SEED_DEMO === '1') seedIfUninitialized(db, seed())
 } catch (e) {
   refuseToStart(e instanceof Error ? e.message : String(e))
+}
+
+// SETUP OPEN warning (Finding 3, review 2026-07-11): countUsers is read AFTER the bootstrap block
+// above, so if --create-owner-admin-admin just created the well-known admin this boot, this is
+// already false (that path prints its OWN loud framed warning instead). Docs alone don't reach an
+// operator who never reads them before exposing the port — a boot-time line in front of them is
+// the surface that actually gets seen. Not gated on NODE_ENV: the claimability is real in every
+// mode where auth=password (a dev/staging box left open is just as claimable as prod), and this is
+// a warning, not a refusal — first-run setup must stay reachable.
+if (authMode === 'password' && countUsers(db) === 0) {
+  console.warn(
+    'capacitylens-server: SETUP OPEN — no user accounts exist yet, so sign-up is open to the first ' +
+      'visitor; anyone who can reach this server can claim it as owner. Create the owner account now ' +
+      '(or start once with --create-owner-admin-admin).',
+  )
 }
 
 // Audit log (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT; =off disables). Server-mode only:

@@ -15,7 +15,7 @@ const LoginScreen = lazy(() => import('./LoginScreen').then((m) => ({ default: m
 type Status =
   | { kind: 'checking' }
   | { kind: 'pass'; authMode: AuthMode; user: AuthUser | null; canCreateAccount: boolean; multiAccount: boolean }
-  | { kind: 'login'; authMode: 'password' | 'sso' }
+  | { kind: 'login'; authMode: 'password' | 'sso'; needsSetup: boolean }
 
 // A 'pass' Status that fails OPEN on the single-company-per-instance fields (see authContext.ts):
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
@@ -49,9 +49,17 @@ async function fetchAuthStatus(): Promise<Status> {
   try {
     const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
     if (res.status === 401) {
-      // The 401 body carries authMode so the login screen knows which form to show.
-      const body = (await res.json().catch(() => ({}))) as { authMode?: string }
-      return { kind: 'login', authMode: body.authMode === 'sso' ? 'sso' : 'password' }
+      // The 401 body carries authMode so the login screen knows which form to show, plus the
+      // first-run `needsSetup` signal (password mode + zero users on the server).
+      const body = (await res.json().catch(() => ({}))) as { authMode?: string; needsSetup?: unknown }
+      return {
+        kind: 'login',
+        authMode: body.authMode === 'sso' ? 'sso' : 'password',
+        // FAIL-CLOSED: only a literal `true` (a server that computed "password mode + empty user
+        // table") shows the owner-setup form — absent (an older server) or junk means the
+        // ordinary sign-in, never a create-account form on a populated instance.
+        needsSetup: body.needsSetup === true,
+      }
     }
     if (res.ok) {
       // UNTRUSTED external input: a proxy HTML page, a truncated/old response, or a server bug could
@@ -163,7 +171,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         {/* Reload on success: bootstrap already ran (and 401ed) without a session, so a
             clean boot re-hydrates from the server WITH the new cookie and re-attaches
             persistence — state-juggling here would re-implement main.tsx. */}
-        <LoginScreen authMode={status.authMode} onSignedIn={() => window.location.reload()} />
+        <LoginScreen
+          authMode={status.authMode}
+          needsSetup={status.needsSetup}
+          onSignedIn={() => window.location.reload()}
+        />
       </Suspense>
     )
   }

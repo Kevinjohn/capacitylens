@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { betterAuth } from 'better-auth'
+import { APIError, createAuthMiddleware } from 'better-auth/api'
 import type { BetterAuthOptions } from 'better-auth'
 import type { SocialProviders } from 'better-auth/social-providers'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
@@ -42,6 +43,26 @@ export interface Auth {
   }
   /** Resolved options — what getMigrations needs to create the auth tables. */
   options: BetterAuthOptions
+  /** Create a user + credential account as ONE atomic-by-convention operation, bypassing the
+   *  public sign-up ROUTE entirely (and with it, the route's minPasswordLength check —
+   *  internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
+   *  does). This is why the instance-wide minPasswordLength floor no longer needs to be bent for
+   *  the bootstrap boot (see the comment on minPasswordLength below authFromEnv).
+   *
+   *  Deliberately the ONLY way to reach Better Auth's internalAdapter from outside this module —
+   *  earlier this exposed hashPassword/createUser/linkAccount as three independently callable
+   *  methods, an interface shape that invited a future caller to create a user with no credential
+   *  (an orphaned row that permanently locks out the bootstrap: {@link countUsers} > 0 forever,
+   *  with no sign-in-able account). This method owns hash → createUser → linkAccount sequencing
+   *  and the failure handling (best-effort rollback of the user row if linkAccount fails), so that
+   *  hazard can't recur. Resolves once Better Auth's async init context ($context) is ready;
+   *  nothing else should call it — every other caller goes through the narrow api surface above.
+   *
+   *  @throws when linkAccount fails after createUser succeeds — the thrown Error carries
+   *  `{ cause }` (the original failure) and states that a rollback was attempted, per
+   *  DEFENSIVE-CODING §1.
+   */
+  createCredentialUser: (email: string, name: string, password: string) => Promise<{ id: string }>
 }
 
 /** The identity attached to every request in 'off' mode — the seam Stage C will later
@@ -213,6 +234,46 @@ function verificationTableExists(db: Db): boolean {
   return exists
 }
 
+/**
+ * Per-handle cache of whether Better Auth's `user` table exists — caches the TRUE outcome ONLY,
+ * unlike {@link verificationTablePresence} (which safely caches both ways). The difference:
+ * {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
+ * its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
+ * exist yet. Caching that pre-migration `false` would make every later per-request call read
+ * "zero users" forever, holding first-run sign-up open on a populated instance — the exact stale-
+ * `false` hazard the verificationTablePresence comment warns about. So absence is re-probed every
+ * call (cheap: one sqlite_master lookup, and only until the table appears); presence, once true,
+ * is fixed for the life of the handle (nothing ever drops Better Auth's tables).
+ */
+const userTablePresence = new WeakMap<Db, true>()
+
+function userTableExists(db: Db): boolean {
+  if (userTablePresence.get(db)) return true
+  const row = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'user'`)
+    .get() as { name?: string } | undefined
+  const exists = row?.name === 'user'
+  if (exists) userTablePresence.set(db, true)
+  return exists
+}
+
+/**
+ * Count Better Auth `user` rows — the first-run signal. Zero means "no one can sign in yet", which
+ * is what opens the one-time bootstrap paths: the live sign-up gate (hooks.before in
+ * {@link authFromEnv}), the `needsSetup` flag on /api/auth/me's 401, and the
+ * {@link createBootstrapAdmin} escape hatch all key on this. Safe to call before runAuthMigrations:
+ * a missing `user` table (pre-migration, or an off-mode DB that never grows one) counts as zero
+ * rather than throwing a confusing "no such table" (same probe posture as verificationTableExists).
+ *
+ * @param db The open SQLite handle.
+ * @returns The number of Better Auth users, or 0 when the table does not exist (yet).
+ */
+export function countUsers(db: Db): number {
+  if (!userTableExists(db)) return 0
+  const row = db.prepare(`SELECT COUNT(*) AS n FROM user`).get() as { n?: number | bigint } | undefined
+  return Number(row?.n ?? 0)
+}
+
 export function parseAuthMode(raw: string | undefined): AuthMode {
   const mode = raw === undefined || raw === '' ? 'off' : raw
   if (mode === 'off' || mode === 'password' || mode === 'sso') return mode
@@ -315,13 +376,32 @@ export function authFromEnv(
     )
   }
 
-  // SECURE DEFAULT (P1.7): self-service signup is closed / invite-only by design (Decisions —
-  // social SSO is the primary path; email+password a secondary fallback). disableSignUp is
-  // therefore ON unless CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'. That flag is an INTERIM
-  // trusted-instance/dev escape that re-opens open email self-registration until the invite
-  // flow (P1.9/P1.10) provides the proper gated path; OFF by default = open registration
-  // impossible (POST /api/auth/sign-up/email returns 400 EMAIL_PASSWORD_SIGN_UP_DISABLED).
+  // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
+  // design (Decisions — social SSO is the primary path; email+password a secondary fallback),
+  // with EXACTLY ONE exception: an EMPTY user table, where the first sign-up is the bootstrap
+  // that creates the owner (there is no one to invite you when no one can sign in). The gate is
+  // enforced LIVE, per request, by the hooks.before below — NOT by Better Auth's static
+  // disableSignUp, because a boot-time boolean cannot express "open while zero users, closed the
+  // moment the first user exists": a still-running server would keep signup open until a restart
+  // (a hole). CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
+  // escape that re-opens signup unconditionally. With neither condition, POST
+  // /api/auth/sign-up/email returns the same 400 EMAIL_PASSWORD_SIGN_UP_DISABLED as before.
   const allowOpenSignup = env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'
+
+  // First-run owner bootstrap (--create-owner-admin-admin): the well-known bootstrap password
+  // ('admin', 5 chars) is below MIN_PASSWORD_LENGTH. Earlier this instance-wide floor was lowered
+  // for the whole flagged boot — but that legalised the SAME 5-char floor for the operator's own
+  // "change it now" reset and (with CAPACITYLENS_ALLOW_OPEN_SIGNUP=1) every sign-up that boot, not
+  // just the one bootstrap write. Fixed: the floor below stays UNCONDITIONAL, and
+  // {@link createBootstrapAdmin} creates the bootstrap user through Better Auth's internalAdapter
+  // directly (auth.createCredentialUser(), see the Auth interface) — a path that never runs the
+  // sign-up ROUTE's minPasswordLength check, so the one well-known write is exempt without bending policy
+  // for anything else. SAFE for the LATER sign-in because better-auth 1.6.20's sign-IN route never
+  // validates password length (verified: dist/api/routes/sign-in.mjs hashes+verifies only; the
+  // min/max checks live in sign-up.mjs:151-159 and password.mjs:143-146) — admin/admin keeps
+  // signing in after this boot with no special-casing needed. Pinned by the "signs in after a
+  // restart without the flag" test in app.auth.test.ts so a library upgrade that adds sign-in
+  // length validation fails loudly instead of silently locking the bootstrap account out.
 
   const instance = betterAuth({
     database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
@@ -330,10 +410,19 @@ export function authFromEnv(
     basePath: '/api/auth',
     emailAndPassword: {
       enabled: mode === 'password',
-      disableSignUp: !allowOpenSignup,
+      // The static library flag stays OFF so the sign-up gate has ONE owner: the live hooks.before
+      // below (see the SECURE DEFAULT comment above). Better Auth 1.6.20 enforces disableSignUp
+      // even for server-side auth.api.signUpEmail calls (sign-up.mjs:143), so leaving it on would
+      // also break the BROWSER first-run bootstrap (the login screen's "Create the owner account"
+      // form, which really does POST /api/auth/sign-up/email) — the headless
+      // --create-owner-admin-admin path is unaffected either way, since it now bypasses this route
+      // entirely (see createBootstrapAdmin).
+      disableSignUp: false,
       // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,
       // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
-      // drift — and a library-default change can't silently move the server's floor.
+      // drift — and a library-default change can't silently move the server's floor. UNCONDITIONAL:
+      // no boot, flagged or not, ever lowers this — see the bootstrap comment above for how the
+      // 5-char bootstrap password is created without needing an exception here.
       minPasswordLength: MIN_PASSWORD_LENGTH,
       // PIN the maximum length to the shared constant too (same no-drift contract as the min): the
       // client reset-page pre-check reads MAX_PASSWORD_LENGTH, so the bound it states is the bound the
@@ -355,6 +444,29 @@ export function authFromEnv(
     // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
     // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
     socialProviders: socialProvidersFromEnv(env),
+    // The LIVE sign-up gate (see the SECURE DEFAULT comment above): allowed when the operator
+    // opted in OR the user table is EMPTY (first-run owner bootstrap). countUsers(db) is consulted
+    // PER REQUEST, never cached at boot — the door must close on the very next request after the
+    // first user exists, without a restart. Race note: two concurrent first sign-ups can both read
+    // zero users; SQLite serializes the writes, so the worst case is simply two users existing —
+    // the second holds no org membership (account_members is a separate control table), so it
+    // gains no tenant access. Accepted: not worth a lock on a once-per-instance path.
+    // NB the benign-race note above covers two legitimate operators; a HOSTILE first claimant on a
+    // publicly exposed fresh instance wins the owner seat outright — documented in
+    // docs/self-hosting.md (complete the owner sign-up immediately after the first auth-enabled
+    // boot).
+    hooks: {
+      before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== '/sign-up/email') return
+        if (allowOpenSignup || countUsers(db) === 0) return
+        // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.20), so the
+        // client and tests see one unchanged error shape regardless of which gate closed the door.
+        throw APIError.from('BAD_REQUEST', {
+          message: 'Email and password sign up is not enabled',
+          code: 'EMAIL_PASSWORD_SIGN_UP_DISABLED',
+        })
+      }),
+    },
     plugins,
     trustedOrigins: opts.trustedOrigins,
     // Session-cookie hardening (P1.16), pinned so a Better Auth default change can't silently
@@ -387,6 +499,24 @@ export function authFromEnv(
       requestPasswordReset: Auth['api']['requestPasswordReset']
     }
     options: BetterAuthOptions
+    // Better Auth's async init context (verified against better-auth 1.6.20,
+    // dist/auth/base.mjs:37 `$context: authContext` and dist/db/internal-adapter.mjs:78-91,148-161,
+    // 499-505 for the createUser/deleteUser/linkAccount shapes, dist/context/create-context.mjs:
+    // 175-183 for `password.hash`). Read ONLY through {@link Auth.createCredentialUser} — see its
+    // TSDoc for why.
+    $context: Promise<{
+      password: { hash: (password: string) => Promise<string> }
+      internalAdapter: {
+        createUser: (input: { email: string; name: string; emailVerified: boolean }) => Promise<{ id: string }>
+        deleteUser: (userId: string) => Promise<void>
+        linkAccount: (input: {
+          userId: string
+          providerId: string
+          accountId: string
+          password: string
+        }) => Promise<unknown>
+      }
+    }>
   }
   const auth: Auth = {
     handler: raw.handler,
@@ -399,8 +529,72 @@ export function authFromEnv(
       // Bound (not bare-referenced): Better Auth's api endpoints resolve their context via `this`.
       requestPasswordReset: (input) => raw.api.requestPasswordReset(input),
     },
+    createCredentialUser: (email, name, password) =>
+      raw.$context.then((ctx) => createCredentialUserWith(ctx, email, name, password)),
   }
   return { mode, auth }
+}
+
+/** The subset of Better Auth's `$context` {@link createCredentialUserWith} needs — factored out
+ *  so the rollback-on-failure contract (Finding 1) can be pinned in tests against a fake context,
+ *  without a live Better Auth instance. */
+interface CredentialUserContext {
+  password: { hash: (password: string) => Promise<string> }
+  internalAdapter: {
+    createUser: (input: { email: string; name: string; emailVerified: boolean }) => Promise<{ id: string }>
+    deleteUser: (userId: string) => Promise<void>
+    linkAccount: (input: {
+      userId: string
+      providerId: string
+      accountId: string
+      password: string
+    }) => Promise<unknown>
+  }
+}
+
+/**
+ * hash → createUser → linkAccount, with a best-effort rollback of the user row if linkAccount
+ * fails (Finding 1: an orphaned, credential-less user would make {@link countUsers} > 0 forever,
+ * permanently locking out both first-run bootstrap paths). Exported ONLY so tests can exercise the
+ * rollback against a fake {@link CredentialUserContext}; production reaches this exclusively
+ * through {@link Auth.createCredentialUser}, bound to the real Better Auth `$context`.
+ *
+ * @throws when linkAccount fails — the thrown Error carries `{ cause }` (the original failure)
+ * and its message names the rollback, per DEFENSIVE-CODING §1.
+ */
+export async function createCredentialUserWith(
+  ctx: CredentialUserContext,
+  email: string,
+  name: string,
+  password: string,
+): Promise<{ id: string }> {
+  const hash = await ctx.password.hash(password)
+  const user = await ctx.internalAdapter.createUser({ email, name, emailVerified: false })
+  try {
+    await ctx.internalAdapter.linkAccount({
+      userId: user.id,
+      providerId: 'credential',
+      accountId: user.id,
+      password: hash,
+    })
+  } catch (e) {
+    // Best-effort rollback so a half-created (credential-less) user can never strand the
+    // instance: countUsers>0 with no sign-in-able account would close BOTH bootstrap paths (the
+    // browser first-run form and --create-owner-admin-admin) forever. The ONE deliberate swallow
+    // here is the cleanup's own failure — the ORIGINAL error must win the throw below; a failed
+    // cleanup changes nothing about what the caller needs to see. try/catch (not a chained
+    // .catch) so even a SYNCHRONOUS throw from deleteUser can't displace that original error.
+    try {
+      await ctx.internalAdapter.deleteUser(user.id)
+    } catch {
+      /* deliberate: see the swallow note above */
+    }
+    throw new Error(
+      `createCredentialUser: linkAccount failed after createUser (userId=${user.id}); user row rolled back to keep the first-run bootstrap recoverable`,
+      { cause: e },
+    )
+  }
+  return user
 }
 
 /** Create/upgrade Better Auth's tables in the shared SQLite file. Called at boot ONLY
@@ -408,4 +602,95 @@ export function authFromEnv(
 export async function runAuthMigrations(auth: Auth): Promise<void> {
   const { runMigrations } = await getMigrations(auth.options)
   await runMigrations()
+}
+
+// ── First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1) ────
+// The headless escape hatch for a first login: a fresh password-mode instance normally bootstraps
+// through the login screen's "Create the owner account" form (the browser path), but a scripted /
+// container deploy may want a known credential ready at boot. The flag creates admin@admin.admin /
+// 'admin' ONLY on an EMPTY user table — a WELL-KNOWN credential, so the boot prints an unmissable
+// framed warning telling the operator to sign in and change it immediately.
+
+/** The bootstrap owner's well-known credential triple. Exported so the tests and the framed
+ *  warning below can never drift from what createBootstrapAdmin actually creates. */
+export const BOOTSTRAP_ADMIN_NAME = 'admin'
+export const BOOTSTRAP_ADMIN_EMAIL = 'admin@admin.admin'
+export const BOOTSTRAP_ADMIN_PASSWORD = 'admin'
+
+/**
+ * Create the well-known bootstrap owner account (admin@admin.admin / 'admin') when — and only
+ * when — the Better Auth `user` table has ZERO rows. Called at boot from index.ts, after
+ * runAuthMigrations and before buildApp, whenever the operator passed --create-owner-admin-admin
+ * (or CAPACITYLENS_CREATE_ADMIN_ADMIN=1).
+ *
+ * Outcomes, deliberately tiered:
+ * - **Empty user table → 'created'.** The account is created through {@link Auth.createCredentialUser} —
+ *   Better Auth's internalAdapter.createUser + linkAccount directly, NOT the public sign-up
+ *   route/auth.api.signUpEmail — and a LOUD framed warning naming the exact credential is
+ *   printed: it is well known and must be changed on first sign-in.
+ * - **Users already exist → 'skipped'.** One log line, boot continues normally — the flag is
+ *   idempotent by design so a deploy script can leave it set across restarts without erroring.
+ * - **Auth off / sso → throws {@link AuthConfigError}.** The flag creates an email+password
+ *   credential, so it is meaningless without password mode — refusing loudly (the entrypoint
+ *   frames it via refuseToStart) beats silently ignoring an operator's explicit instruction.
+ *
+ * The 5-char password bypasses the shared MIN_PASSWORD_LENGTH floor entirely — not by lowering
+ * that floor (it stays a fixed, unconditional instance-wide policy, see authFromEnv), but because
+ * the internalAdapter write used here never runs the sign-up ROUTE's length check at all (that
+ * check lives only in sign-up.mjs, verified against better-auth 1.6.20). So no other write — not
+ * the operator's own immediate password reset, not any sign-up open via
+ * CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 — is ever held to a floor below MIN_PASSWORD_LENGTH.
+ *
+ * @param db    The open SQLite handle (for the zero-users check).
+ * @param mode  The parsed auth mode — must be 'password'.
+ * @param auth  The Better Auth instance — non-null exactly when mode ≠ 'off'.
+ * @param log   Line sink for the warning/skip output (console.log in production; injectable for tests).
+ * @returns 'created' when the account was made, 'skipped' when users already existed.
+ * @throws AuthConfigError when mode is not 'password' (boot must refuse, not limp on).
+ */
+export async function createBootstrapAdmin(
+  db: Db,
+  mode: AuthMode,
+  auth: Auth | null,
+  log: (line: string) => void = console.log,
+): Promise<'created' | 'skipped'> {
+  if (mode !== 'password' || !auth) {
+    throw new AuthConfigError(
+      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when CAPACITYLENS_AUTH is '${mode}'. Set CAPACITYLENS_AUTH=password, or drop the flag.`,
+    )
+  }
+  if (countUsers(db) > 0) {
+    // Not an error: the flag is a first-run bootstrap, and this run isn't the first. One line so
+    // the operator can see the flag was noticed, then boot continues untouched.
+    log('capacitylens-server: --create-owner-admin-admin skipped: users already exist')
+    return 'skipped'
+  }
+  // Bypass the public sign-up route (and its MIN_PASSWORD_LENGTH check) for this ONE well-known
+  // write — see the TSDoc above and Auth.createCredentialUser for why this is the exempt path, not
+  // a lowered policy. createCredentialUser owns the createUser→linkAccount sequencing and rolls
+  // back the user row if linkAccount fails, so a partial write here can never leave an orphaned,
+  // credential-less user that would strand every bootstrap path (see its TSDoc, Finding 1).
+  await auth.createCredentialUser(BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_NAME, BOOTSTRAP_ADMIN_PASSWORD)
+  // LOUD by design: this credential is printed in the project docs and predictable by anyone —
+  // an operator who misses this warning is one scan away from a takeover. The frame is measured
+  // from the content (not hand-padded) so a future wording tweak can't skew the box.
+  const content = [
+    'WARNING: a WELL-KNOWN default owner credential was just created:',
+    `    email:    ${BOOTSTRAP_ADMIN_EMAIL}`,
+    `    password: ${BOOTSTRAP_ADMIN_PASSWORD}`,
+    'Anyone who can reach this server can sign in with it. Sign in NOW and',
+    'change the password (Settings → Members → Reset password), then remove',
+    'the --create-owner-admin-admin flag / CAPACITYLENS_CREATE_ADMIN_ADMIN env.',
+  ]
+  const width = Math.max(...content.map((line) => line.length))
+  log(
+    [
+      '',
+      `  ╔${'═'.repeat(width + 4)}╗`,
+      ...content.map((line) => `  ║  ${line.padEnd(width)}  ║`),
+      `  ╚${'═'.repeat(width + 4)}╝`,
+      '',
+    ].join('\n'),
+  )
+  return 'created'
 }

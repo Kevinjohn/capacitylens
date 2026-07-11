@@ -1,13 +1,13 @@
 # US-NAV-10 — Sign in before using the app (auth-gated deploy)
 
-**Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Settings returns to the login screen"
+**Area:** Navigation / Auth · **Persona:** Tester on an auth-enabled deploy · **Linked E2E:** `e2e/login.auth.spec.ts` (auth-backed project) → "unauthenticated visit shows the login screen, not the app", "signing in reveals the app; signing out from Settings returns to the login screen", "the --create-owner-admin-admin bootstrap credential signs in through the real form"
 
 > **Flag-gated; not reachable in the default deploy.** The login screen only exists when
 > the optional server runs with `CAPACITYLENS_AUTH=password` (or `sso`) — the controlled-demo
 > deploy keeps `CAPACITYLENS_AUTH` unset (off), where every request carries a synthetic demo
 > identity and no login UI exists. The dedicated Playwright `auth-backed` project boots a
 > server with the flag on to run this story's checks; it cannot be exercised against
-> `npm run dev`.
+> `pnpm run dev`.
 
 ## Goal
 Be the only kind of visitor who can read or change data on an auth-enabled deploy: one
@@ -20,8 +20,11 @@ re-architecture. The login screen is the user-visible end of that seam: a 401 fr
 session must restore exactly the normal flow.
 
 ## How (end-to-end, password mode)
-**Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created
-(sign-up is API-only this round — there is no sign-up form).
+**Precondition:** a deploy with `CAPACITYLENS_AUTH=password`, and a user account created.
+On a **fresh instance with zero users** the login wall instead shows the one sign-up form
+that exists — the first-run **Create the owner account** screen (see REFERENCE.md
+“First-run owner setup”); once any user exists, self-registration closes automatically and
+only the Sign in form below is reachable.
 
 1. Open the app URL. Instead of the company picker, a **Sign in** screen appears.
 2. Enter a wrong password → an inline error appears; you stay on the screen.

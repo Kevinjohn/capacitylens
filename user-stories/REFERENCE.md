@@ -321,6 +321,19 @@ no login screen exists, Settings has no Account section, and local mode makes **
 request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
+**First-run owner setup (password mode, zero users).** When the server reports `needsSetup: true`
+on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
+bootstrap account and closes the moment it exists), the login wall shows a **Create the owner
+account** screen instead of sign-in: heading `Create the owner account`, fields `Name`
+(`data-testid="owner-setup-name"`), `Email` (`data-testid="owner-setup-email"`), `Password`
+(`data-testid="owner-setup-password"`), and a `Create owner account` button
+(`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
+owner in and reloads into the normal boot flow (company picker → app). On a populated server the
+flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
+zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential
+`admin@admin.admin` / `admin`; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`), so the setup form
+itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
+
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set role for one company. Opening `/invite/<token>` shows the **Accept invite**
 screen (heading `Accept invite`). In a server deploy with auth on, an **unauthenticated** visit
