@@ -295,6 +295,16 @@ SQLite file on first boot.
 > Full self-serve password onboarding (set-your-password-from-an-invite) needs email delivery, which is
 > a deliberate non-goal today — so treat `password` mode as a small, controlled set of accounts.
 
+**Forgotten passwords — admin-issued reset links (no email needed).** An Owner or Admin opens
+**Settings → Members** and clicks **Reset password** on the member's row. That mints a
+**single-use link, valid for 24 hours**, shown exactly once — copy it and hand it to the person
+directly (chat, however you like). Opening the link works **without being signed in** (that's the
+point); the person chooses a new password there and signs in with it. Every existing session for
+that member is revoked when the reset completes. Two deliberate guardrails: an Admin can reset
+anyone **except an Owner** (only an Owner may reset an Owner — a reset link is an account-takeover
+capability), and the link is never stored or shown again after that first response. This also
+works for setting a first password on an account created via social sign-in.
+
 ### 4b. `sso` mode — single OIDC/OAuth2 provider
 
 `sso` mode wires **one** generic OAuth2/OIDC provider entirely from environment variables. You

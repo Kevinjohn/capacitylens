@@ -3,7 +3,14 @@ import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
 import helmetPlugin from '@fastify/helmet'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
-import { DEMO_USER, type Auth, type AuthMode, type SessionUser } from './auth'
+import {
+  DEMO_USER,
+  RESET_LINK_TTL_SECONDS,
+  mintPasswordResetToken,
+  type Auth,
+  type AuthMode,
+  type SessionUser,
+} from './auth'
 import { betterAuthAdapter, type AuthAdapter } from './authAdapter'
 
 // The identity requireUser attaches to every gated request. Session/identity
@@ -79,6 +86,7 @@ import {
   can,
   canManageMemberRole,
   canRemoveMember,
+  canResetMemberAcrossAccounts,
   canSeeTimeOffNote,
   type Action,
   type Role,
@@ -725,6 +733,20 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // web Response → Fastify reply (set-cookie kept as separate headers; content-length
     // recomputed by Fastify).
     if (authMode !== 'off' && auth) {
+      // P1.18: SHADOW Better Auth's PUBLIC `request-password-reset` endpoint with a 404. Configuring
+      // `emailAndPassword.sendResetPassword` (so admins can mint reset links server-side) is what
+      // makes Better Auth expose this unauthenticated POST — but we NEVER want it reachable over
+      // HTTP: we have no email delivery, so a public call would only write an orphaned SQLite
+      // verification row per request (an unauthenticated, rate-limit-off-by-default DoS surface that
+      // grows the DB) while sending nothing. Our own reset-link minting calls `auth.api.request
+      // PasswordReset` in-process (mintPasswordResetToken), NOT this route, so shadowing it costs us
+      // nothing. A static route outranks the wildcard handler below in Fastify's router (same trick
+      // as /api/auth/me), so this 404 wins. Registered for every auth-on mode (in 'sso' the endpoint
+      // is inert anyway — sendResetPassword isn't set there — but a uniform 404 keeps the surface
+      // identical across modes).
+      app.post('/api/auth/request-password-reset', (_req, reply) =>
+        reply.code(404).send({ error: 'Not found.' }),
+      )
       app.route({
         method: ['GET', 'POST'],
         url: '/api/auth/*',
@@ -1113,6 +1135,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (targetRole === 'owner' && nextRole !== 'owner' && countOwners(db, accountId) <= 1) {
           return reply.code(403).send({ error: 'An account must keep at least one owner.' })
         }
+        // upsertMember burns the target's outstanding reset links (P1.18 TOCTOU close) — a role
+        // change would otherwise let a pre-change link redeem into the new role. Centralised there so
+        // every membership-write path gets it; see the note in controlTables.ts upsertMember.
         upsertMember(db, {
           accountId,
           userId,
@@ -1180,11 +1205,67 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const now = new Date().toISOString()
         // Atomic hand-over: promote the target and demote the caller together, so the account is never
         // left without an owner and never transiently shows the caller as a non-owner mid-transfer.
+        // Both upserts burn their users' outstanding reset links (P1.18 TOCTOU close, centralised in
+        // upsertMember): the promoted target's pre-promotion link can't redeem into the new owner
+        // identity, and the demoted caller's are cleared too (harmless).
         tx(db, () => {
           upsertMember(db, { accountId, userId: toUserId, role: 'owner', status: 'active', createdAt: now })
           upsertMember(db, { accountId, userId: req.user!.id, role: 'admin', status: 'active', createdAt: now })
         })
         return reply.code(200).send({ toUserId, role: 'owner' })
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
+    // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,
+    // exactly like an invite. Gated 'manageMembers' + the pure canResetMemberPassword guard (an
+    // admin must never reset an OWNER — a reset link is an account-takeover capability, so this is
+    // the same escalation door the no-admin→owner-grant rule closes). Password mode ONLY: 'sso'
+    // delegates credentials to the IdP (400, not a crash), and OFF has no credentials at all. The
+    // token rides Better Auth's own verification store (single-use, expiring) and is WRITE-ONCE:
+    // returned exactly here, never listed or read back — same posture as the invite token.
+    app.post('/api/accounts/:accountId/members/:userId/reset-password', async (req, reply) => {
+      const { accountId, userId } = req.params as { accountId: string; userId: string }
+      if (!authorize(req, reply, accountId, 'manageMembers')) return
+      if (authMode !== 'password') {
+        // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
+        // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
+        return reply
+          .code(400)
+          .send({ error: 'Password reset links require CAPACITYLENS_AUTH=password.' })
+      }
+      try {
+        // The target must be a member of THIS account (the account being managed) — 404 otherwise.
+        if (getMemberRole(db, accountId, userId) === null) {
+          return reply.code(404).send({ error: 'Not a member of this account.' })
+        }
+        // CROSS-ACCOUNT authority: the minted token controls the target's account-GLOBAL credential,
+        // so the actor must hold reset-authority over the target in EVERY account the target belongs
+        // to — not just this one. Otherwise an admin (or even owner) of account X could reset a user
+        // who is a mere editor in X but the OWNER of account Y, taking over Y (reachable only under
+        // CAPACITYLENS_MULTI_ACCOUNT). In the single-account default this reduces to the per-account
+        // guard. Pass both users' full role-by-account maps to the pure decision. NOTE: every
+        // MembershipStatus is 'active' today (controlTables.ts), so no status filter is applied; if a
+        // 'pending'/'suspended' status is ever added, the ACTOR map must filter to active (authority
+        // must not come from a non-active membership) — the target map stays all-rows (fail-closed).
+        const actorRoles = new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
+        const targetRoles = new Map(listMembershipsForUser(db, userId).map((mem) => [mem.accountId, mem.role]))
+        if (!canResetMemberAcrossAccounts(actorRoles, targetRoles)) {
+          return reply.code(403).send({ error: 'Forbidden.' })
+        }
+        // Membership rows key on userId; Better Auth mints reset tokens by email — the same
+        // admin-only identity read the member LIST uses (the one sanctioned user-table read).
+        const email = getUsersByIds(db, [userId]).get(userId)?.email
+        const token = email ? await mintPasswordResetToken(auth!, email) : null
+        if (token === null) {
+          // A membership row without a matching Better Auth user (or one with no email) — nothing
+          // to reset against. Surfaced, not swallowed: the admin sees WHY no link appeared.
+          return reply.code(404).send({ error: 'No sign-in identity found for this member.' })
+        }
+        const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString()
+        return reply.code(201).send({ token, expiresAt })
       } catch (err) {
         return sendFail(reply, err)
       }

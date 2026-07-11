@@ -4,6 +4,7 @@ import { buildApp } from './app'
 import { openDb, insertAll, type Db } from './db'
 import { upsertMember, createInvite, newInviteId } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
+import { PASSWORD_ENV, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 // P2.6a — TEST-LOCK for the COMPLETE PER-TENANT EXPORT.
@@ -43,35 +44,12 @@ const person = (id: string, accountId: string, extra: Record<string, unknown> = 
 const ARCHIVED = { archivedAt: TS }
 const TOMBSTONE = { archivedAt: TS, deletedAt: '2026-01-02T00:00:00.000Z' }
 
-const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: 'password',
-  BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
-  BETTER_AUTH_URL: 'http://localhost:8787',
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-}
-
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
   return { app: buildApp(db, { authMode: mode, auth }), db }
-}
-
-/** Sign up a user, returning its session cookie + resolved user id (from /api/auth/me). */
-async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
-  const res = await app.inject({
-    method: 'POST',
-    url: '/api/auth/sign-up/email',
-    payload: { email, password: 'password-123', name: 'Tester' },
-  })
-  expect(res.statusCode).toBe(200)
-  const raw = res.headers['set-cookie']
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : []
-  const cookie = list.map((c) => String(c).split(';')[0]).join('; ')
-  const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } })
-  expect(me.statusCode).toBe(200)
-  return { cookie, userId: me.json().user.id as string }
 }
 
 /**

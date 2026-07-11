@@ -24,6 +24,11 @@ const SettingsView = lazy(() => import('./components/settings/SettingsView').the
 // this page renders, so the token survives the auth wall. Lazy, like LoginScreen, so the default OFF
 // bundle is unaffected (the chunk loads only when an invite link is actually opened).
 const InviteAccept = lazy(() => import('./components/invites/InviteAccept').then((m) => ({ default: m.InviteAccept })))
+// Password reset (P1.18): like InviteAccept, its own top-level route outside AppShell — but unlike
+// an invite it must render for a visitor with NO session (they're locked out; that's the point), so
+// AuthProvider carves /reset-password/ out of the login wall (see the status 'login' branch there).
+// Lazy for the same bundle reason: the chunk loads only when a reset link is actually opened.
+const ResetPassword = lazy(() => import('./auth/ResetPassword').then((m) => ({ default: m.ResetPassword })))
 
 // Disciplines is an optional feature (account.disciplinesEnabled). When off, the nav
 // entry is hidden — guard the route too so a direct URL / bookmark can't reach the page.
@@ -64,6 +69,18 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={null}>
         <InviteAccept />
+      </Suspense>
+    ),
+  },
+  {
+    // Password reset (P1.18). A sibling of AppShell for the same reason as /invite (no tenant gate),
+    // with its own errorElement + Suspense. AuthProvider additionally lets this path through the
+    // login wall — the visitor redeeming a reset link is exactly the person who cannot sign in.
+    path: '/reset-password/:token',
+    errorElement: <RouteError />,
+    element: (
+      <Suspense fallback={null}>
+        <ResetPassword />
       </Suspense>
     ),
   },

@@ -165,6 +165,10 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-SET-07](settings/US-SET-07-show-external.md) | Show external / 3rd parties | `e2e/external.spec.ts` |
 | [US-SET-08](settings/US-SET-08-clear-local-storage.md) | Clear local storage | `e2e/clear-local-storage.spec.ts` |
 | [US-SET-09](settings/US-SET-09-snap-to-week-start.md) | Snap the schedule's left edge to the week start | `e2e/snap-week.spec.ts` |
+| [US-SET-10](settings/US-SET-10-member-management.md) | Member management (invite / role / revoke / transfer) | `e2e/members.auth.spec.ts` + `e2e/invite.auth.spec.ts` |
+| [US-SET-11](settings/US-SET-11-viewer-readonly.md) | Viewer read-only mode | `e2e/viewer.auth.spec.ts` |
+| [US-SET-12](settings/US-SET-12-archived-deleted.md) | Archived & deleted (restore / purge) | `e2e/archived.spec.ts` |
+| [US-SET-13](settings/US-SET-13-password-reset-links.md) | Admin-issued password-reset links | `e2e/reset-password.auth.spec.ts` |
 
 ## Keyboard & accessibility — `accessibility/`
 | Story | Title | Automated coverage |

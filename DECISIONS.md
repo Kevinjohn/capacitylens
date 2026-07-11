@@ -677,6 +677,27 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   the members read renders nothing (so a viewer/editor never sees it); owner-only affordances are
   hidden for an admin and the sole owner is protected. OFF mode hides the UI and the endpoints return
   empty lists / inert no-ops.
+- **Password reset is ADMIN-ISSUED LINKS, no email — password mode only (P1.18).** The app has no
+  email infrastructure (standing non-goal), so `POST /api/accounts/:accountId/members/:userId/`
+  `reset-password` (gated `manageMembers`) mints a **single-use, 24h** token via Better Auth's own
+  verification store and returns it **exactly once** (the invite write-once posture — never listed,
+  logged, or read back). Because a reset link is an account-GLOBAL takeover capability, authority is
+  judged by the pure **`canResetMemberAcrossAccounts`**: the actor must hold reset-authority
+  (`canResetMemberPassword` — admin may never reset an owner) over the target in **every** account
+  the target belongs to, so an admin/owner of X can't reset a user who owns another account Y
+  (multi-account). The mint-time check is paired with a **TOCTOU revoke centralised in
+  `upsertMember`**: any membership write (role change, owner-invite accepted in place, becoming owner
+  of a new org, transfer) burns the user's outstanding reset links, so no elevation path can leave a
+  stale link redeemable into the higher role — the single choke point makes it un-missable (the only
+  writer of `account_members`). `sendResetPassword` is an AsyncLocalStorage CAPTURE, not a mailer,
+  and Better Auth's public `request-password-reset` route is **shadowed with a 404** (we mint
+  in-process via `auth.api`, never over HTTP) so there is no unauthenticated token-minting surface.
+  Redeem is Better Auth's public `/api/auth/reset-password` via the sessionless
+  `/reset-password/:token` page — AuthProvider carves exactly `^/reset-password/[^/]+$` out of the
+  login wall (the redeemer is exactly the person who cannot sign in; malformed URLs fall back to the
+  wall, not a dead 404). `revokeSessionsOnPasswordReset` is pinned ON; `MIN_PASSWORD_LENGTH` is
+  single-sourced in `shared/domain/password.ts`. `sso` mode 400s (the IdP owns credentials); OFF has
+  no credential model (400, inert).
 - **Client permission context + Viewer read-only mode (P1.12).** `AccountSummary` gains `role` and
   `GET /api/accounts` carries it (auth-on = the caller's per-account role; **OFF = `'owner'`**, the
   trusted-local full-access sentinel — symmetric wire shape + OFF stays fully editable). The pure

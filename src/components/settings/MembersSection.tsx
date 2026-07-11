@@ -9,6 +9,7 @@ import { m } from '@/i18n'
 import {
   canManageMemberRole,
   canRemoveMember,
+  canResetMemberPassword,
   type Role,
 } from '@capacitylens/shared/domain/access'
 
@@ -86,6 +87,9 @@ export function MembersSection() {
   const [invitePreauth, setInvitePreauth] = useState('')
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once).
   const [mintedLink, setMintedLink] = useState<string | null>(null)
+  // The freshly-minted password-reset link (P1.18) — same write-once posture as the invite link,
+  // labelled with WHO it resets so an admin juggling several members can't hand out the wrong one.
+  const [resetLink, setResetLink] = useState<{ link: string; member: string; expiresAt: string } | null>(null)
   // Bumped after every mutation to re-run the fetch effect (a re-read keeps the list authoritative).
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -200,6 +204,34 @@ export function MembersSection() {
     }
   }
 
+  // Mint a single-use password-reset link for `mem` (P1.18). Password mode only (the button is
+  // hidden otherwise; the server 400s regardless). No email is ever sent — the admin copies the
+  // link out of the write-once block below and hands it over directly. `mem` is NOT `m` (i18n).
+  const resetPassword = async (mem: Member) => {
+    setResetLink(null)
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}/reset-password`,
+        { method: 'POST', credentials: 'include' },
+      )
+      if (res.status !== 201) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        fail(null, body.error ?? m.settings_members_err_reset({ status: res.status }))
+        return
+      }
+      const body = (await res.json()) as { token: string; expiresAt: string }
+      // Write-once: build + show the link straight from this response and never again.
+      setResetLink({
+        link: `${window.location.origin}/reset-password/${body.token}`,
+        member: labelFor(mem),
+        expiresAt: body.expiresAt,
+      })
+      setNotice(m.settings_members_reset_created())
+    } catch (e) {
+      fail(null, m.settings_err_server({ error: errorMessage(e) }))
+    }
+  }
+
   const submitInvite = async () => {
     setMintedLink(null)
     const trimmed = invitePreauth.trim()
@@ -247,9 +279,9 @@ export function MembersSection() {
     }
   }
 
-  const copyLink = (link: string) => {
+  const copyLink = (link: string, copiedNotice: string) => {
     void navigator.clipboard?.writeText(link).then(
-      () => setNotice(m.settings_members_invite_copied()),
+      () => setNotice(copiedNotice),
       () => setNotice(m.settings_members_copy_failed(), 'error'),
     )
   }
@@ -279,6 +311,10 @@ export function MembersSection() {
           const mayTouch = !!myRole && canManageMemberRole(myRole, mem.role, mem.role === 'owner' ? 'admin' : 'editor')
           const isSoleOwner = mem.role === 'owner' && ownerCount <= 1
           const mayRemove = !!myRole && canRemoveMember(myRole, mem.role) && !isSoleOwner
+          // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP; the
+          // server 400s there regardless). Same pure guard the server enforces: an admin must never
+          // mint a reset link for an owner — a reset link is an account-takeover capability.
+          const mayReset = authMode === 'password' && !!myRole && canResetMemberPassword(myRole, mem.role)
           // Demote of the sole owner is also blocked client-side (mirror the server last-owner rule).
           const roleSelectDisabled = isSoleOwner
           return (
@@ -308,6 +344,11 @@ export function MembersSection() {
                 ) : (
                   <span className="text-sm capitalize text-muted">{mem.role}</span>
                 )}
+                {mayReset && (
+                  <Button variant="ghost" testId="member-reset-password" onClick={() => void resetPassword(mem)}>
+                    {m.settings_member_reset_password()}
+                  </Button>
+                )}
                 {mayRemove && (
                   <Button variant="danger" testId="member-remove" onClick={() => void removeMember(mem)}>
                     {m.settings_member_remove()}
@@ -329,6 +370,31 @@ export function MembersSection() {
           )
         })}
       </div>
+
+      {/* Freshly-minted password-reset link (P1.18) — write-once, same posture as the invite link
+          below: shown straight from the create response and never read back. Named + dated so the
+          admin hands the right link to the right person before it disappears. */}
+      {resetLink && (
+        <div className="mb-4 space-y-2 rounded bg-canvas p-2">
+          <p className="text-xs text-muted">
+            {m.settings_members_reset_intro({
+              member: resetLink.member,
+              // Local date + TIME, not a bare UTC .slice(0,10): the link lives only 24h, so a
+              // date-only string (and a UTC one at that) misleads by up to a day in non-UTC zones
+              // and hides the hour it dies. toLocaleString renders the viewer's wall clock.
+              when: new Date(resetLink.expiresAt).toLocaleString(),
+            })}
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <code data-testid="reset-link" className="min-w-0 flex-1 break-all text-xs text-ink">
+              {resetLink.link}
+            </code>
+            <Button variant="ghost" onClick={() => copyLink(resetLink.link, m.settings_members_reset_copied())}>
+              {m.settings_invite_copy()}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Invite form */}
       <div className="mb-4 space-y-2 rounded border border-line p-3">
@@ -376,7 +442,7 @@ export function MembersSection() {
             <code data-testid="invite-link" className="min-w-0 flex-1 break-all text-xs text-ink">
               {mintedLink}
             </code>
-            <Button variant="ghost" onClick={() => copyLink(mintedLink)}>
+            <Button variant="ghost" onClick={() => copyLink(mintedLink, m.settings_members_invite_copied())}>
               {m.settings_invite_copy()}
             </Button>
           </div>

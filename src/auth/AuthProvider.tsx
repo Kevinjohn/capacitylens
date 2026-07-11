@@ -143,6 +143,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   if (status.kind === 'checking') return null
   if (status.kind === 'login') {
+    // Pre-session carve-out (P1.18): /reset-password/:token must render WITHOUT a session — the
+    // visitor redeeming an admin-issued reset link is exactly the person who cannot sign in (the
+    // login wall would be a dead end). The page is as safe as LoginScreen itself: it renders no
+    // tenant data and only POSTs the public /api/auth/reset-password endpoint (which requireUser
+    // already exempts server-side). window.location (not router state) is correct here — this
+    // component sits ABOVE the router, and the page's only exit is a full page load (see
+    // ResetPassword), so the path can't go stale mid-session. No AuthContext is provided on this
+    // branch; ResetPassword deliberately consumes none.
+    //
+    // Match EXACTLY one non-empty, non-nested segment — the shape `/reset-password/:token` the router
+    // actually renders. A malformed link (a token truncated to `/reset-password/`, or a trailing
+    // `/reset-password/<token>/extra`) matches NO route, so carving it out of the wall would drop the
+    // visitor onto React Router's bare 404 dead-end; failing the match here instead keeps the login
+    // wall as the fallback (a styled screen with a way in), which is the safer degrade.
+    if (/^\/reset-password\/[^/]+$/.test(window.location.pathname)) return <>{children}</>
     return (
       <Suspense fallback={null}>
         {/* Reload on success: bootstrap already ran (and 401ed) without a session, so a

@@ -192,6 +192,74 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
 }
 
 /**
+ * May `actorRole` issue a password-reset link for a member holding `targetRole`? The PURE policy
+ * behind admin-issued reset links (P1.18) — single-sourced HERE alongside {@link canRemoveMember}
+ * for the same no-drift reason (client hides the control, server enforces it).
+ *
+ * Rules (deny by default — same who-may-touch-whom shape as removal, because a reset link IS an
+ * account-takeover capability: whoever holds it can sign in as the target):
+ * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
+ * - An admin may NOT reset an OWNER's password (`targetRole === 'owner'` requires
+ *   `actorRole === 'owner'`) — otherwise an admin could mint an owner-session for themselves,
+ *   the exact privilege-escalation path the no-admin→owner-grant rule closes elsewhere.
+ *
+ * Self-reset is deliberately permitted by this matrix (an owner resetting the owner row passes):
+ * it is harmless — the actor already holds that session — and useful when a social-sign-in user
+ * wants a password set for them.
+ *
+ * PURE: no I/O, no session — just the two roles.
+ *
+ * @param actorRole  - the acting member's role.
+ * @param targetRole - the role of the member whose password would be reset.
+ * @returns `true` iff issuing the reset link is permitted by the pure matrix; `false` otherwise.
+ */
+export function canResetMemberPassword(actorRole: Role, targetRole: Role): boolean {
+  if (!can(actorRole, 'manageMembers')) return false
+  // An admin cannot reset an owner's password (only an owner may — reset = takeover capability).
+  if (targetRole === 'owner' && actorRole !== 'owner') return false
+  return true
+}
+
+/**
+ * May `actor` issue a password-reset link for `target`, judged across EVERY account the target
+ * belongs to (P1.18 cross-account escalation fix)?
+ *
+ * A reset link sets the target's Better Auth credential, which is account-GLOBAL: whoever redeems it
+ * can sign in as the target into EVERY account the target is a member of. So the per-account
+ * {@link canResetMemberPassword} check on the acting account alone is NOT enough — it would let an
+ * admin of account X mint a link for a user who is a mere editor in X but the OWNER of account Y,
+ * handing X's admin a takeover of Y (reachable under CAPACITYLENS_MULTI_ACCOUNT, where one identity
+ * holds memberships in several accounts). Even an OWNER of X must not reset a user who owns Y — X's
+ * owner has no standing in Y.
+ *
+ * The invariant: the actor may reset the target ONLY IF, in every account the target is a member of,
+ * the actor is ALSO a member there with a role that {@link canResetMemberPassword} permits over the
+ * target's role there. In the single-account default (the target belongs to exactly the acting
+ * account) this reduces exactly to the per-account check.
+ *
+ * PURE: no I/O — operates on the two role-by-account maps the caller reads from the membership table.
+ * Fail-closed: a target with NO memberships, or ANY account where the actor lacks sufficient
+ * authority (including not being a member there at all), yields `false`.
+ *
+ * @param actorRolesByAccount   The acting user's role in each account they belong to.
+ * @param targetRolesByAccount  The target user's role in each account they belong to.
+ * @returns `true` iff the actor may reset the target's global credential; `false` otherwise.
+ */
+export function canResetMemberAcrossAccounts(
+  actorRolesByAccount: ReadonlyMap<string, Role>,
+  targetRolesByAccount: ReadonlyMap<string, Role>,
+): boolean {
+  if (targetRolesByAccount.size === 0) return false // no identity to reset — fail closed.
+  for (const [accountId, targetRole] of targetRolesByAccount) {
+    const actorRole = actorRolesByAccount.get(accountId)
+    // Not a co-member of an account the target belongs to → no standing to take over that identity.
+    if (actorRole === undefined) return false
+    if (!canResetMemberPassword(actorRole, targetRole)) return false
+  }
+  return true
+}
+
+/**
  * Field-level visibility rule: only an owner or admin may see a time-off entry's `note`.
  *
  * Kept SEPARATE from the {@link Action} matrix on purpose — this is a *field-visibility* rule

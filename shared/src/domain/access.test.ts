@@ -5,6 +5,8 @@ import {
   isAtLeast,
   canManageMemberRole,
   canRemoveMember,
+  canResetMemberPassword,
+  canResetMemberAcrossAccounts,
 } from './access'
 import type { Role, Action } from './access'
 
@@ -193,6 +195,75 @@ describe('canRemoveMember(actor, target) — removal matrix', () => {
     expect(canRemoveMember('admin', 'editor')).toBe(true)
     expect(canRemoveMember('editor', 'viewer')).toBe(false)
     expect(canRemoveMember('viewer', 'viewer')).toBe(false)
+  })
+})
+
+describe('canResetMemberPassword(actor, target) — reset-link matrix (P1.18)', () => {
+  // Same who-may-touch-whom shape as removal: a reset link is an account-takeover capability, so
+  // an admin must never be able to mint one for an owner (privilege escalation).
+  const oracle = (actor: Role, target: Role): boolean => {
+    if (!(actor === 'owner' || actor === 'admin')) return false
+    if (target === 'owner' && actor !== 'owner') return false
+    return true
+  }
+  for (const actor of ROLES) {
+    for (const target of ROLES) {
+      const expected = oracle(actor, target)
+      it(`canResetMemberPassword('${actor}','${target}') === ${expected}`, () => {
+        expect(canResetMemberPassword(actor, target)).toBe(expected)
+      })
+    }
+  }
+
+  it('admin may NOT reset an owner (takeover path); owner may reset anyone including an owner', () => {
+    expect(canResetMemberPassword('admin', 'owner')).toBe(false)
+    expect(canResetMemberPassword('owner', 'owner')).toBe(true)
+  })
+
+  it('editor/viewer may reset no one', () => {
+    expect(canResetMemberPassword('editor', 'viewer')).toBe(false)
+    expect(canResetMemberPassword('viewer', 'viewer')).toBe(false)
+  })
+})
+
+describe('canResetMemberAcrossAccounts(actor, target) — global-identity reset matrix (P1.18)', () => {
+  const roles = (entries: [string, Role][]) => new Map<string, Role>(entries)
+
+  it('single account reduces to the per-account check (admin resets editor, not owner)', () => {
+    expect(canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'editor']]))).toBe(true)
+    expect(canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'owner']]))).toBe(false)
+    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([['X', 'owner']]))).toBe(true)
+  })
+
+  it('CLOSES the cross-account escalation: an admin of X cannot reset a user who owns Y', () => {
+    // Target is a mere editor in X but the OWNER of Y; actor is only in X.
+    const actor = roles([['X', 'admin']])
+    const target = roles([['X', 'editor'], ['Y', 'owner']])
+    expect(canResetMemberAcrossAccounts(actor, target)).toBe(false)
+  })
+
+  it('an OWNER of X still cannot reset a user who owns Y (no standing in Y)', () => {
+    const actor = roles([['X', 'owner']])
+    const target = roles([['X', 'editor'], ['Y', 'owner']])
+    expect(canResetMemberAcrossAccounts(actor, target)).toBe(false)
+  })
+
+  it('allows the reset only when the actor has authority in EVERY account the target is in', () => {
+    // Actor owns both X and Y; target is editor in X and admin in Y → owner dominates both.
+    const actor = roles([['X', 'owner'], ['Y', 'owner']])
+    const target = roles([['X', 'editor'], ['Y', 'admin']])
+    expect(canResetMemberAcrossAccounts(actor, target)).toBe(true)
+  })
+
+  it('refuses when the actor lacks reset authority in a shared account (co-editors)', () => {
+    // Actor is admin in X (acting) but only an editor in shared account Z where the target also sits.
+    const actor = roles([['X', 'admin'], ['Z', 'editor']])
+    const target = roles([['X', 'editor'], ['Z', 'editor']])
+    expect(canResetMemberAcrossAccounts(actor, target)).toBe(false)
+  })
+
+  it('fail-closed on a target with no memberships', () => {
+    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([]))).toBe(false)
   })
 })
 

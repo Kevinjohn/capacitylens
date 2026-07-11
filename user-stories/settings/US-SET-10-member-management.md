@@ -38,7 +38,8 @@ accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
    **Revoke** (`data-testid="invite-revoke"`) and the row goes away.
 6. B never sees an **owner** option (neither in a role select nor the invite-role picker), no **Make
    owner** button on any row (transfer of ownership is owner-only), and owner A's row shows **no**
-   role control and **no** Remove (an Admin can't touch an owner).
+   role control, **no** Remove and **no** Reset password (an Admin can't touch an owner — see
+   US-SET-13 for the reset-link flow itself).
 7. **As A (owner)** — sign in as A (or drive the API): every other, non-owner member's row shows a
    **Make owner** button (`data-testid="member-make-owner"`). Clicking it on **C** promotes C to
    **owner** and steps A down to **admin** in one atomic server call; the account always keeps exactly

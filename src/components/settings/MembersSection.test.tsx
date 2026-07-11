@@ -127,7 +127,7 @@ describe('MembersSection — admin affordances', () => {
     renderSection()
     await screen.findByTestId('members-section')
 
-    const rows = screen.getAllByTestId('member-row')
+    const rows = await screen.findAllByTestId('member-row')
     const ownerRow = rows.find((r) => within(r).queryByText(/theowner@x\.io/))!
     expect(ownerRow).toBeTruthy()
     // No role <select> and no Remove button on the owner row for an admin.
@@ -156,7 +156,7 @@ describe('MembersSection — owner affordances', () => {
     expect(Array.from(invitePicker.options).map((o) => o.value)).toContain('owner')
 
     // The other owner row is manageable (two owners → not sole) — it has a role control + Remove.
-    const rows = screen.getAllByTestId('member-row')
+    const rows = await screen.findAllByTestId('member-row')
     const otherOwnerRow = rows.find((r) => within(r).queryByText(/other@x\.io/))!
     expect(within(otherOwnerRow).getByRole('combobox')).toBeInTheDocument()
     expect(within(otherOwnerRow).getByTestId('member-remove')).toBeInTheDocument()
@@ -171,7 +171,7 @@ describe('MembersSection — owner affordances', () => {
     renderSection()
     await screen.findByTestId('members-section')
 
-    const rows = screen.getAllByTestId('member-row')
+    const rows = await screen.findAllByTestId('member-row')
     const soleOwnerRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!
     expect(within(soleOwnerRow).getByText(/Sole owner — protected/)).toBeInTheDocument()
     expect(within(soleOwnerRow).getByRole('combobox')).toBeDisabled()
@@ -190,7 +190,7 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
     renderSection()
     await screen.findByTestId('members-section')
 
-    const rows = screen.getAllByTestId('member-row')
+    const rows = await screen.findAllByTestId('member-row')
     const selfRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!
     const ownerRow = rows.find((r) => within(r).queryByText(/other@x\.io/))!
     const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!
@@ -222,7 +222,7 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
     renderSection()
     await screen.findByTestId('members-section')
 
-    const edRow = screen.getAllByTestId('member-row').find((r) => within(r).queryByText(/ed@x\.io/))!
+    const edRow = (await screen.findAllByTestId('member-row')).find((r) => within(r).queryByText(/ed@x\.io/))!
     await user.click(within(edRow).getByTestId('member-make-owner'))
     expect(fetchMock).toHaveBeenCalledWith(
       `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/transfer-ownership`,
@@ -258,7 +258,7 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
     renderSection()
     await screen.findByTestId('members-section')
 
-    const edRow = screen.getAllByTestId('member-row').find((r) => within(r).queryByText(/ed@x\.io/))!
+    const edRow = (await screen.findAllByTestId('member-row')).find((r) => within(r).queryByText(/ed@x\.io/))!
     await user.click(within(edRow).getByTestId('member-make-owner'))
     // The server's own message is preferred over the generic fallback (body.error ?? …).
     expect(await screen.findByText('Only the owner can transfer ownership.')).toBeInTheDocument()

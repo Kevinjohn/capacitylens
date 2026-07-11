@@ -1,5 +1,5 @@
-import { test, expect, request as playwrightRequest } from '@playwright/test'
-import type { APIRequestContext } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser as signUp } from './auth-helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -11,39 +11,11 @@ test.use({ reducedMotion: 'reduce' })
 // the API layer a direct write as the viewer is 403 (the server is the authoritative backstop).
 // Browser-agnostic (no UA branching); unique emails per run.
 
-const API = 'http://localhost:8887'
-const PASSWORD = 'demo-password-123'
-const BOOTSTRAP_TOKEN = 'auth-e2e-bootstrap-token-0123456789abcdef'
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp) comes from ./auth-helpers.
 const STAMP = Date.now()
 const OWNER = `v-owner-${STAMP}@capacitylens.dev`
 const VIEWER = `v-viewer-${STAMP}@capacitylens.dev`
 const EDITOR = `v-editor-${STAMP}@capacitylens.dev`
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function cookiesOf(setCookie: string): string {
-  return setCookie
-    .split('\n')
-    .map((c) => c.split(';')[0])
-    .filter(Boolean)
-    .join('; ')
-}
-
-/** Sign up ONE user in an ISOLATED request context; return its session cookie + user id. */
-async function signUp(email: string): Promise<{ cookie: string; userId: string }> {
-  const ctx: APIRequestContext = await playwrightRequest.newContext()
-  try {
-    const res = await ctx.post(`${API}/api/auth/sign-up/email`, {
-      data: { email, password: PASSWORD, name: email.split('@')[0] },
-    })
-    expect(res.ok(), `sign-up ${email}`).toBeTruthy()
-    const cookie = cookiesOf(res.headers()['set-cookie'] ?? '')
-    const me = await ctx.get(`${API}/api/auth/me`, { headers: { cookie } })
-    const userId = (await me.json()).user.id as string
-    return { cookie, userId }
-  } finally {
-    await ctx.dispose()
-  }
-}
 
 /** Sign in through the browser login wall and pick the org, dismissing the intro IF it shows. The
  *  intro is once-per-device (localStorage `capacitylens/introSeen`), so on the SECOND sign-in in the

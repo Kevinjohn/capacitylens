@@ -1,8 +1,10 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { betterAuth } from 'better-auth'
 import type { BetterAuthOptions } from 'better-auth'
 import type { SocialProviders } from 'better-auth/social-providers'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
 import { getMigrations } from 'better-auth/db/migration'
+import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import type { Db } from './db'
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
@@ -32,6 +34,11 @@ export interface Auth {
   handler: (request: Request) => Promise<Response>
   api: {
     getSession: (input: { headers: Headers }) => Promise<{ user: SessionUser } | null>
+    /** Better Auth's server-side reset-token mint (P1.18) — call it ONLY through
+     *  {@link mintPasswordResetToken}, which provides the AsyncLocalStorage capture context the
+     *  sendResetPassword callback delivers the token into. Anti-enumeration by design: it resolves
+     *  with a generic success whether or not the email matched a user. */
+    requestPasswordReset: (input: { body: { email: string } }) => Promise<unknown>
   }
   /** Resolved options — what getMigrations needs to create the auth tables. */
   options: BetterAuthOptions
@@ -97,6 +104,87 @@ export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
 /** Misconfiguration that must refuse boot loudly (same posture as assertSchemaCurrent) —
  *  the entrypoint catches this, prints the message, and exits 1. */
 export class AuthConfigError extends Error {}
+
+// ── Admin-issued password-reset links (P1.18) ──────────────────────────────────────────────────
+// CapacityLens deliberately has NO email infrastructure (docs/self-hosting.md — a standing
+// non-goal), so Better Auth's reset flow is repurposed: `sendResetPassword` (the "send the email"
+// hook) doesn't send anything — it CAPTURES the minted token and hands it back to the admin-gated
+// route, which returns it exactly once (the invite-link pattern: write-once, distributed
+// out-of-band by the admin). Everything else — token storage, single-use consumption, expiry,
+// hashing, the public POST /api/auth/reset-password redeem endpoint — stays Better Auth's.
+
+/** Reset links are admin-minted and handed over out-of-band (Slack/chat), so the 1-hour Better
+ *  Auth default is too tight — the recipient may not be at a keyboard. 24h matches the "share a
+ *  link with a colleague" reality while staying far below the invite TTL (an invite grants entry;
+ *  a reset link grants an EXISTING identity, so it stays the shorter-lived of the two). */
+export const RESET_LINK_TTL_SECONDS = 60 * 60 * 24
+
+/** Per-call capture context for {@link mintPasswordResetToken}. AsyncLocalStorage (not a module
+ *  variable) so two concurrent admin resets can never swap tokens across their await chains, and
+ *  so a PUBLIC call to POST /api/auth/request-password-reset — which Better Auth exposes once
+ *  sendResetPassword is configured — finds NO store and the token goes nowhere (that public route
+ *  is inert-by-design here: no email is ever sent, and its anti-enumeration response is unchanged). */
+const resetTokenCapture = new AsyncLocalStorage<{ token: string | null }>()
+
+/** The `emailAndPassword.sendResetPassword` hook: deliver the token to the capturing admin route
+ *  (if any) instead of emailing it. Never throws — a throw here would surface as a Better Auth
+ *  background-task error log, not a useful signal. */
+async function captureResetToken({ token }: { token: string }): Promise<void> {
+  const store = resetTokenCapture.getStore()
+  if (store) store.token = token
+  // No store = a public /api/auth/request-password-reset call: no email infra exists, so the
+  // token is deliberately dropped (the endpoint's generic success reply is the anti-enumeration
+  // surface either way).
+}
+
+/**
+ * Mint a single-use, {@link RESET_LINK_TTL_SECONDS}-lived password-reset token for `email` via
+ * Better Auth's own verification store (P1.18). Returns the token, or `null` when Better Auth
+ * matched no user for the email (its anti-enumeration success tells us nothing, so "callback never
+ * fired" IS the no-such-user signal). The caller (the admin-gated route in app.ts) turns the token
+ * into a link and returns it exactly once — it is never persisted or logged here.
+ *
+ * Password mode only: in 'sso' the IdP owns credentials and `sendResetPassword` is not configured,
+ * so Better Auth itself refuses with RESET_PASSWORD_DISABLED — the route gates on mode first and
+ * never reaches that.
+ */
+export async function mintPasswordResetToken(auth: Auth, email: string): Promise<string | null> {
+  const store: { token: string | null } = { token: null }
+  // The sendResetPassword hook is AWAITED inside requestPasswordReset (no backgroundTasks handler
+  // is configured), so the capture is complete when this resolves.
+  await resetTokenCapture.run(store, () => auth.api.requestPasswordReset({ body: { email } }))
+  return store.token
+}
+
+/**
+ * Delete every OUTSTANDING (unredeemed) password-reset token for `userId` (P1.18 escalation fix).
+ *
+ * A reset link is authorized at MINT time, but it lives for {@link RESET_LINK_TTL_SECONDS}; if the
+ * member is PROMOTED within that window (an editor made owner, or handed ownership), a link minted
+ * while they were a non-owner would still redeem into their now-owner identity — a takeover the
+ * mint-time guard already refused for the new role. So every role ELEVATION calls this to burn the
+ * user's outstanding links, re-closing the window: the promoted member (or their admin) must mint a
+ * fresh link, which is then judged against the new role.
+ *
+ * Better Auth stores a reset token as a `verification` row: `identifier = 'reset-password:<token>'`,
+ * `value = <userId>` (verified against better-auth 1.6.20, dist/api/routes/password.mjs —
+ * createVerificationValue there; same version erasure.ts pins). We delete by `value = userId` AND
+ * the `reset-password:` identifier prefix, so ONLY reset tokens go (never email-verification or
+ * other verification rows). No-ops cleanly when the auth tables are absent (OFF mode never mounts
+ * them, and the role routes that call this are inert no-ops in OFF anyway).
+ *
+ * @param db      The open SQLite handle.
+ * @param userId  The user whose outstanding reset tokens to revoke.
+ */
+export function revokeResetTokensForUser(db: Db, userId: string): void {
+  const hasTable = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'verification'`)
+    .get() as { name?: string } | undefined
+  if (hasTable?.name !== 'verification') return // OFF / auth-off: no Better Auth tables exist.
+  db.prepare(
+    `DELETE FROM verification WHERE value = ? AND identifier LIKE 'reset-password:%'`,
+  ).run(userId)
+}
 
 export function parseAuthMode(raw: string | undefined): AuthMode {
   const mode = raw === undefined || raw === '' ? 'off' : raw
@@ -213,7 +301,26 @@ export function authFromEnv(
     secret,
     baseURL,
     basePath: '/api/auth',
-    emailAndPassword: { enabled: mode === 'password', disableSignUp: !allowOpenSignup },
+    emailAndPassword: {
+      enabled: mode === 'password',
+      disableSignUp: !allowOpenSignup,
+      // PIN the minimum length to the shared constant rather than inheriting Better Auth's default,
+      // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
+      // drift — and a library-default change can't silently move the server's floor.
+      minPasswordLength: MIN_PASSWORD_LENGTH,
+      // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
+      // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public
+      // request-password-reset endpoint there. See captureResetToken/mintPasswordResetToken above.
+      ...(mode === 'password'
+        ? {
+            sendResetPassword: captureResetToken,
+            resetPasswordTokenExpiresIn: RESET_LINK_TTL_SECONDS,
+            // A reset is "I lost control of my credential" (or an admin offboarding a laptop):
+            // every existing session for that user dies with the old password.
+            revokeSessionsOnPasswordReset: true,
+          }
+        : {}),
+    },
     // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
     // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
     socialProviders: socialProvidersFromEnv(env),
@@ -244,7 +351,10 @@ export function authFromEnv(
   // downstream sees only the {id,email,emailVerified,name} SessionUser.
   const raw = instance as unknown as {
     handler: Auth['handler']
-    api: { getSession: (input: { headers: Headers }) => Promise<{ user: RawSessionUser } | null> }
+    api: {
+      getSession: (input: { headers: Headers }) => Promise<{ user: RawSessionUser } | null>
+      requestPasswordReset: Auth['api']['requestPasswordReset']
+    }
     options: BetterAuthOptions
   }
   const auth: Auth = {
@@ -255,6 +365,8 @@ export function authFromEnv(
         const session = await raw.api.getSession(input)
         return session ? { user: normalizeSessionUser(session.user) } : null
       },
+      // Bound (not bare-referenced): Better Auth's api endpoints resolve their context via `this`.
+      requestPasswordReset: (input) => raw.api.requestPasswordReset(input),
     },
   }
   return { mode, auth }

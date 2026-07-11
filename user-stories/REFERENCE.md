@@ -345,7 +345,14 @@ self-gates by trying to read the member list and rendering **nothing** if the se
   status; the caller's own row is marked **(you)**. Each manageable row carries a **role select**
   (`data-testid="member-role-select"`) and a **Remove** button (`data-testid="member-remove"`); an
   **Owner** additionally sees a **Make owner** button (`data-testid="member-make-owner"`) on every
-  other, non-owner member's row (the atomic ownership hand-over — see below).
+  other, non-owner member's row (the atomic ownership hand-over — see below). In **password mode
+  only**, manageable rows also carry a **Reset password** button
+  (`data-testid="member-reset-password"`): clicking it mints a **single-use, 24-hour** reset link
+  shown **once** (`data-testid="reset-link"`, `<origin>/reset-password/<token>`) with a **Copy**
+  button and a note naming the member and the expiry date — nothing is emailed; the admin hands the
+  link over directly. An **Admin never sees Reset password on an Owner's row** (a reset link is an
+  account-takeover capability; only an Owner may reset an Owner — the server 403s regardless). The
+  button is absent in `sso` mode (the IdP owns credentials).
 - **Invite form** — a **role** picker (`data-testid="invite-role"`) + an optional **pre-authorise
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
@@ -376,9 +383,27 @@ role/last-owner rules), `DELETE /api/accounts/:accountId/members/:userId` (204; 
 `POST /api/accounts/:accountId/transfer-ownership {toUserId}` (owner-only; 400 missing/empty or
 self-target, 404 non-member target, 403 non-owner; OFF → inert 200 no-op — hands the account to an
 existing member and demotes the caller to admin atomically). Creating an
-**owner** invite via `POST /api/invites` requires the caller be an owner (admin → 403). The UI is
+**owner** invite via `POST /api/invites` requires the caller be an owner (admin → 403), and
+`POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
+only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
+write-once) mints the reset link. The UI is
 `src/components/settings/MembersSection.tsx`; story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
+
+**Password reset route (`/reset-password/:token`; server mode, password auth).** The page an
+admin-minted reset link opens: heading **Reset password**, a **New password** field
+(`data-testid="reset-new-password"`), a **Confirm new password** field
+(`data-testid="reset-confirm-password"`) and a **Set new password** button
+(`data-testid="reset-submit"`). It renders **without a session** — unlike `/invite/:token` there is
+no login wall in front of it (the visitor is exactly the person who cannot sign in). Client
+pre-checks (mismatch, under 8 characters) show a field error without a request; the server is the
+authority on redeem (`POST /api/auth/reset-password`). Success shows *"Password updated. Sign in
+with your new password."* (`data-testid="reset-success"`) with a **Go to sign in** link (a full page
+load onto the login wall); the member's previous sessions are revoked. An invalid / already-used /
+expired token shows *"This reset link is invalid, already used, or expired. Ask your admin for a
+new one."* — the token is single-use. In local/demo mode the page shows a short "server mode only"
+note and makes no request. The page is `src/auth/ResetPassword.tsx`; spec
+`e2e/reset-password.auth.spec.ts`.
 
 **Viewer read-only mode (server + auth-on).** On an auth-on, server-backed deploy a member's account
 **role** (`owner` | `admin` | `editor` | `viewer`) drives the UI. `GET /api/accounts` now returns

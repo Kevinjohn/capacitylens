@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, type Db } from './db'
 import { upsertMember, getMemberRole, getInvite } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
+import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 // P1.11 — Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
@@ -18,16 +19,6 @@ const TS = '2026-01-01T00:00:00.000Z'
 const meta = () => ({ createdAt: TS, updatedAt: TS })
 const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
 
-const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers['set-cookie']
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : []
-  return list.map((c) => String(c).split(';')[0]).join('; ')
-}
-
 /** Seed two pre-existing accounts directly (a1 + a2, for the cross-tenant cases). */
 function seedTwo(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>
@@ -35,32 +26,11 @@ function seedTwo(db: Db): void {
   insertAll(db, d as unknown as AppData)
 }
 
-const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: 'password',
-  BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
-  BETTER_AUTH_URL: 'http://localhost:8787',
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-}
-
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
   return { app: buildApp(db, { authMode: mode, auth }), db }
-}
-
-/** Sign up a user, returning its session cookie + resolved user id. */
-async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
-  const res = await call(app, {
-    method: 'POST',
-    url: '/api/auth/sign-up/email',
-    payload: { email, password: 'password-123', name: 'Tester' },
-  })
-  expect(res.statusCode).toBe(200)
-  const cookie = cookiesOf(res)
-  const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
-  expect(me.statusCode).toBe(200)
-  return { cookie, userId: me.json().user.id as string }
 }
 
 const membersReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>

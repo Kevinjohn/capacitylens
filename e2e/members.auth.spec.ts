@@ -1,5 +1,5 @@
-import { test, expect, request as playwrightRequest } from '@playwright/test'
-import type { APIRequestContext } from '@playwright/test'
+import { test, expect } from '@playwright/test'
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser as signUp } from './auth-helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -14,39 +14,11 @@ test.use({ reducedMotion: 'reduce' })
 // (→ 403). Finally owner A hands ownership to C (→ 200; C becomes owner, A steps down to admin).
 // Browser-agnostic (no UA branching).
 
-const API = 'http://localhost:8887'
-const PASSWORD = 'demo-password-123'
-const BOOTSTRAP_TOKEN = 'auth-e2e-bootstrap-token-0123456789abcdef'
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp) comes from ./auth-helpers.
 const STAMP = Date.now()
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`
 const EDITOR = `m-editor-${STAMP}@capacitylens.dev`
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function cookiesOf(setCookie: string): string {
-  return setCookie
-    .split('\n')
-    .map((c) => c.split(';')[0])
-    .filter(Boolean)
-    .join('; ')
-}
-
-/** Sign up ONE user in an ISOLATED request context; return its session cookie + user id. */
-async function signUp(email: string): Promise<{ cookie: string; userId: string }> {
-  const ctx: APIRequestContext = await playwrightRequest.newContext()
-  try {
-    const res = await ctx.post(`${API}/api/auth/sign-up/email`, {
-      data: { email, password: PASSWORD, name: email.split('@')[0] },
-    })
-    expect(res.ok(), `sign-up ${email}`).toBeTruthy()
-    const cookie = cookiesOf(res.headers()['set-cookie'] ?? '')
-    const me = await ctx.get(`${API}/api/auth/me`, { headers: { cookie } })
-    const userId = (await me.json()).user.id as string
-    return { cookie, userId }
-  } finally {
-    await ctx.dispose()
-  }
-}
 
 test.describe('member management (CAPACITYLENS_AUTH=password)', () => {
   test('admin manages members but not owner-only ops; owner is last-owner protected; no cross-tenant leak', async ({

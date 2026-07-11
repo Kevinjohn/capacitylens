@@ -2,12 +2,13 @@ import { mkdtempSync, readFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
-import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, type Db } from './db'
 import { upsertMember } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
 import { fileAuditSink, type AuditRecord } from './audit'
+import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
@@ -87,43 +88,12 @@ const THIRTY_ONE_DAYS_AGO = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toIS
 const archivedTombstone = { archivedAt: TS, deletedAt: THIRTY_ONE_DAYS_AGO }
 const justArchived = { archivedAt: TS }
 
-const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers['set-cookie']
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : []
-  return list.map((c) => String(c).split(';')[0]).join('; ')
-}
-
-const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: 'password',
-  BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
-  BETTER_AUTH_URL: 'http://localhost:8787',
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-}
-
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
   return { app: buildApp(db, { authMode: mode, auth }), db }
-}
-
-/** Sign up a user, returning its session cookie + resolved user id (from /api/auth/me). */
-async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
-  const res = await call(app, {
-    method: 'POST',
-    url: '/api/auth/sign-up/email',
-    payload: { email, password: 'password-123', name: 'Tester' },
-  })
-  expect(res.statusCode).toBe(200)
-  const cookie = cookiesOf(res)
-  const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
-  expect(me.statusCode).toBe(200)
-  return { cookie, userId: me.json().user.id as string }
 }
 
 // ---- Lifecycle action requests (cookie carries the session in auth-on; omit it for OFF). ----

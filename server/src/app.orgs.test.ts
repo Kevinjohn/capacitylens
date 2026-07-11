@@ -1,10 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, loadState, type Db } from './db'
 import { upsertMember } from './controlTables'
 import { resolveRole } from './membership'
 import { authFromEnv, runAuthMigrations, DEMO_USER } from './auth'
+import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 // P1.8 — constrained org-creation (POST /api/orgs). The endpoint allows iff ANY of: zero accounts
@@ -19,30 +20,11 @@ const meta = () => ({ createdAt: TS, updatedAt: TS })
 
 const account = (id: string) => ({ id, name: `Studio ${id}`, color: '#3b82f6', ...meta() })
 
-const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers['set-cookie']
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : []
-  return list.map((c) => String(c).split(';')[0]).join('; ')
-}
-
 /** Seed one pre-existing account directly (so "an account already exists" holds). */
 function seedOne(db: Db): void {
   const d = emptyAppData() as unknown as Record<string, unknown[]>
   d.accounts = [account('a1')]
   insertAll(db, d as unknown as AppData)
-}
-
-const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: 'password',
-  BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
-  BETTER_AUTH_URL: 'http://localhost:8787',
-  // P1.7: open email signup is closed by DEFAULT; these fixtures create test users via
-  // sign-up/email, so re-open it explicitly until the invite flow (P1.9/P1.10) exists.
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
 }
 
 /** Build an auth-on (password) app over a fresh in-memory DB. `bootstrapToken` is optional.
@@ -56,20 +38,6 @@ async function appWithAuth(
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
   return { app: buildApp(db, { authMode: mode, auth, bootstrapToken: opts.bootstrapToken, multiAccount: opts.multiAccount }), db }
-}
-
-/** Sign up a user, returning its session cookie + the resolved user id (from /api/auth/me). */
-async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
-  const res = await call(app, {
-    method: 'POST',
-    url: '/api/auth/sign-up/email',
-    payload: { email, password: 'password-123', name: 'Tester' },
-  })
-  expect(res.statusCode).toBe(200)
-  const cookie = cookiesOf(res)
-  const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
-  expect(me.statusCode).toBe(200)
-  return { cookie, userId: me.json().user.id as string }
 }
 
 const createOrg = (

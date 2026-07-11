@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, type Db } from './db'
 import { upsertMember } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
+import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 // P1.4 endpoint coverage: GET /api/accounts + the new ?accountId= form of GET /api/state, in both
@@ -25,16 +26,6 @@ function seedTwo(db: Db): void {
   d.clients = [client('c1', 'a1'), client('c2', 'a2')]
   d.projects = [project('p1', 'a1', 'c1'), project('p2', 'a2', 'c2')]
   insertAll(db, d as unknown as AppData)
-}
-
-const call = (app: FastifyInstance, opts: InjectOptions): Promise<LightMyRequestResponse> =>
-  app.inject(opts) as unknown as Promise<LightMyRequestResponse>
-
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function cookiesOf(res: LightMyRequestResponse): string {
-  const raw = res.headers['set-cookie']
-  const list = Array.isArray(raw) ? raw : raw ? [raw] : []
-  return list.map((c) => String(c).split(';')[0]).join('; ')
 }
 
 describe('OFF mode — GET /api/accounts + GET /api/state?accountId=', () => {
@@ -86,35 +77,12 @@ describe('OFF mode — GET /api/accounts + GET /api/state?accountId=', () => {
   })
 })
 
-const PASSWORD_ENV = {
-  CAPACITYLENS_AUTH: 'password',
-  BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
-  BETTER_AUTH_URL: 'http://localhost:8787',
-  // P1.7: open email signup is closed by DEFAULT; these fixtures create test users via
-  // sign-up/email, so re-open it explicitly until the invite flow (P1.9/P1.10) exists.
-  CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
-}
-
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed. */
 async function appWithAuth(): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
   return { app: buildApp(db, { authMode: mode, auth }), db }
-}
-
-/** Sign up a user, returning its session cookie + the resolved user id (from /api/auth/me). */
-async function signUp(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string }> {
-  const res = await call(app, {
-    method: 'POST',
-    url: '/api/auth/sign-up/email',
-    payload: { email, password: 'password-123', name: 'Tester' },
-  })
-  expect(res.statusCode).toBe(200)
-  const cookie = cookiesOf(res)
-  const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
-  expect(me.statusCode).toBe(200)
-  return { cookie, userId: me.json().user.id as string }
 }
 
 describe('auth-on (password) — membership-existence guard', () => {

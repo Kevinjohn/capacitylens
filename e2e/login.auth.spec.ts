@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import type { APIRequestContext } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from './auth-helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -9,45 +10,23 @@ test.use({ reducedMotion: 'reduce' })
 // auth off, so this is the ONLY place the login screen exists; the rest of the suite
 // running unchanged in the other two projects is the off-guarantee.
 
-const API = 'http://localhost:8887'
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUpUser) comes from ./auth-helpers. P1.13: a fresh
+// user has NO membership, so GET /api/accounts is empty and the picker would have nothing to pick. The
+// org-bootstrap test provisions this login its own org via POST /api/orgs (BOOTSTRAP_TOKEN → Owner) so
+// the picker then lists it — account_members is a server-only control table excluded from the shared
+// seed, so a membership CAN'T be pre-seeded; bootstrapping is the path.
 const EMAIL = 'tester@capacitylens.dev'
-const PASSWORD = 'demo-password-123'
-// Same dev-only token the auth-e2e server boots with (server/package.json start:auth-e2e) — mirrors
-// members.auth/viewer.auth. P1.13: a fresh user has NO membership, so GET /api/accounts is empty and
-// the picker would have nothing to pick. We bootstrap this login its own org via POST /api/orgs (which
-// makes the caller its Owner) so the picker then lists it. account_members is a server-only control
-// table excluded from the shared seed, so a membership CAN'T be pre-seeded — bootstrapping is the path.
-const BOOTSTRAP_TOKEN = 'auth-e2e-bootstrap-token-0123456789abcdef'
 const ORG_NAME = `Login Studio ${Date.now()}`
 
-/** Collapse a response's Set-Cookie header(s) into one request Cookie header. */
-function cookiesOf(setCookie: string): string {
-  return setCookie
-    .split('\n')
-    .map((c) => c.split(';')[0])
-    .filter(Boolean)
-    .join('; ')
-}
-
-// Sign-up is API-only this round (no form). Idempotent for the FIXED EMAIL: a rerun against a reused
-// server hits USER_ALREADY_EXISTS (422), which is fine — the user exists either way.
+// Sign-up is API-only this round (no form). Idempotent for the FIXED EMAIL (kept LOCAL, not the shared
+// signUpUser, because this deliberately TOLERATES a rerun's USER_ALREADY_EXISTS 422 rather than
+// asserting a fresh success): a rerun against a reused server hits 422, which is fine — the user
+// exists either way, and it uses the shared `request` jar (no cookie needed here).
 async function seedUser(request: APIRequestContext, email = EMAIL) {
   const res = await request.post(`${API}/api/auth/sign-up/email`, {
     data: { email, password: PASSWORD, name: 'Tester' },
   })
   if (!res.ok()) expect(res.status()).toBe(422)
-}
-
-/** Sign up a FRESH (unique) user and return its email + session cookie. Used by the org-bootstrap test
- *  so sign-up always succeeds (yielding a cookie) even when the auth-e2e DB is reused across local
- *  reruns — Better Auth returns the session cookie on sign-up (members.auth/viewer.auth use the same). */
-async function signUpFresh(request: APIRequestContext): Promise<{ email: string; cookie: string }> {
-  const email = `login-${Date.now()}@capacitylens.dev`
-  const res = await request.post(`${API}/api/auth/sign-up/email`, {
-    data: { email, password: PASSWORD, name: 'Tester' },
-  })
-  expect(res.ok(), `sign-up ${email}`).toBeTruthy()
-  return { email, cookie: cookiesOf(res.headers()['set-cookie'] ?? '') }
 }
 
 test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
@@ -86,7 +65,7 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
     // P1.13: bootstrap THIS login its own org so the picker (now sourced from the login's memberships
     // via GET /api/accounts) has something to list. A FRESH per-run user guarantees the sign-up cookie
     // (no 422 on a reused DB); /api/orgs makes the caller the org's Owner.
-    const { email, cookie } = await signUpFresh(request)
+    const { email, cookie } = await signUpUser(`login-${Date.now()}@capacitylens.dev`)
     const orgRes = await request.post(`${API}/api/orgs`, {
       headers: { cookie, 'x-capacitylens-bootstrap-token': BOOTSTRAP_TOKEN },
       data: { name: ORG_NAME },

@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import type { Role } from '@capacitylens/shared/domain/access'
+import { revokeResetTokensForUser } from './auth'
 import type { Db } from './db'
 
 // Server-CONTROL tables — the user↔account binding (membership + its roles) AND the single-use
@@ -143,6 +144,17 @@ export function upsertMember(db: Db, member: AccountMember): void {
      ON CONFLICT(accountId, userId) DO UPDATE SET
        role = excluded.role, status = excluded.status`,
   ).run(member.accountId, member.userId, member.role, member.status, member.createdAt)
+  // P1.18 (TOCTOU close): a password-reset link is authorized at MINT time against the user's
+  // membership snapshot THEN — so ANY membership write for this user (a role change, an owner-invite
+  // accepted in place, becoming the owner of a new org, even a lateral move) invalidates that
+  // authorization and must burn their outstanding reset links, else a link minted while they were
+  // lower-tier could redeem into the elevated identity. Centralised HERE, at the single membership
+  // -write choke point, precisely so no elevation path (PATCH role, transfer-ownership, invite
+  // accept, POST /api/orgs) can forget it — the sprinkle-at-each-callsite approach missed two.
+  // No-op when the user holds no reset token (the common case: fresh membership) or in OFF mode
+  // (no Better Auth tables). revokeResetTokensForUser lives in auth.ts (its verification table is
+  // Better Auth's); this module already reaches into a Better Auth table via getUsersByIds.
+  revokeResetTokensForUser(db, member.userId)
 }
 
 /**
