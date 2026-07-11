@@ -16,6 +16,20 @@
 import { spawn } from 'node:child_process'
 import net from 'node:net'
 
+// Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
+// Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
+// (thrown at module-link time, before any server code runs) and the launcher then tears the
+// whole stack down — accurate, but it never tells the user the actual requirement.
+const nodeMajor = Number(process.versions.node.split('.')[0])
+if (!Number.isInteger(nodeMajor) || nodeMajor < 24) {
+  console.error(
+    `dev: full-stack dev needs Node 24+ — found ${process.versions.node}. The API uses Node's ` +
+      `built-in node:sqlite (see .nvmrc). Fix: \`nvm use\`, or install Node 24+ from ` +
+      `https://nodejs.org. No Node 24? \`pnpm run dev:demo\` runs the backend-free demo build.`,
+  )
+  process.exit(1)
+}
+
 // Keep the launcher, the API child (server reads PORT), and the Vite proxy on the SAME port.
 // vite.config.ts's proxy target MUST use the same `CAPACITYLENS_DEV_API_PORT ?? 8787` default so the
 // launcher and the Vite proxy stay in lockstep (the 8787 is the shared default, not a copy to drift).

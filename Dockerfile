@@ -92,8 +92,11 @@ COPY server/package.json ./server/
 # lives in exactly one place ("packageManager" in package.json) instead of
 # being re-hardcoded here.
 RUN corepack enable && corepack install
-# TS source the server imports at runtime (server entry + the shared core).
+# TS source the server imports at runtime (server entry + the shared core), plus the
+# scripts/ preflight the start script chains before tsx (node scripts/check-node.mjs && …) —
+# without it the CMD dies on MODULE_NOT_FOUND before the server ever boots.
 COPY server/src ./server/src
+COPY server/scripts ./server/scripts
 COPY shared/src ./shared/src
 
 EXPOSE 8787
