@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Mutation testing — scoped to the pure logic: the shared domain core (shared/src/lib + shared/src/domain, 'the product') plus the pure .ts helpers behind the schedule (src/components/scheduler, src/lib). Answers 'do the unit tests actually BITE?' (kill mutants) rather than just 'did they run the lines?' (coverage). Deliberately NOT wired into the gate (runs take many minutes); run on demand with `pnpm run mutation` before releases or after core changes. Report lands in reports/mutation/mutation.html. `plugins` is EXPLICIT because Stryker's auto-discovery scans a flat node_modules/@stryker-mutator/* — under pnpm's nested layout it finds nothing and dies with 'no TestRunner plugins were loaded'.",
+  "_comment": "Mutation testing — scoped to the pure logic: the shared domain core (shared/src/lib + shared/src/domain, 'the product') plus the pure .ts helpers behind the schedule (src/components/scheduler, src/lib) and the reset-page failure mapper (src/auth/resetPasswordFailure.ts — pure and unit-pinned, so its tests should bite too). Answers 'do the unit tests actually BITE?' (kill mutants) rather than just 'did they run the lines?' (coverage). Deliberately NOT wired into the gate (runs take many minutes); run on demand with `pnpm run mutation` before releases or after core changes. Report lands in reports/mutation/mutation.html. `plugins` is EXPLICIT because Stryker's auto-discovery scans a flat node_modules/@stryker-mutator/* — under pnpm's nested layout it finds nothing and dies with 'no TestRunner plugins were loaded'.",
   "packageManager": "pnpm",
   "testRunner": "vitest",
   "plugins": ["@stryker-mutator/vitest-runner"],
@@ -11,6 +11,7 @@
     "shared/src/domain/**/*.ts",
     "src/components/scheduler/**/*.ts",
     "src/lib/**/*.ts",
+    "src/auth/resetPasswordFailure.ts",
     "!**/*.test.ts"
   ],
   "vitest": {
