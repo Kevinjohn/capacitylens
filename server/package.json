@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
-    "@fastify/helmet": "^12.0.1",
+    "@fastify/helmet": "^13.1.0",
     "@fastify/rate-limit": "^11.0.0",
     "better-auth": "^1.6.18",
     "fastify": "^5.6.1"
