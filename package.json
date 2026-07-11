@@ -2,7 +2,24 @@
   "name": "capacitylens",
   "private": true,
   "version": "0.14.0",
+  "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
+  "author": "Kevinjohn Gallagher",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Kevinjohn/capacitylens.git"
+  },
+  "homepage": "https://github.com/Kevinjohn/capacitylens#readme",
+  "bugs": "https://github.com/Kevinjohn/capacitylens/issues",
+  "keywords": [
+    "resource-scheduling",
+    "capacity-planning",
+    "agency",
+    "scheduler",
+    "self-hosted",
+    "react",
+    "sqlite"
+  ],
   "type": "module",
   "engines": {
     "node": ">=24"

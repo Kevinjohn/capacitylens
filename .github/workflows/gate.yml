@@ -1,0 +1,54 @@
+# The green gate, in CI. Deliberately NOT run on every push to main — this is a
+# solo-maintainer repo where local `pnpm run gate` guards day-to-day pushes; CI's
+# job is to gate contributions (PRs), releases (v* tags), and on-demand runs.
+name: gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+  # Monthly run on the default branch: PR/tag runs never feed the README's unqualified
+  # badge (it reflects default-branch runs only), so without this the badge reads
+  # "no status" between releases. Also doubles as a bit-rot canary for the toolchain.
+  schedule:
+    - cron: '17 6 3 * *'
+
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: typecheck · lint · unit · build (+ server)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4 # version comes from package.json "packageManager"
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run gate
+      - run: pnpm run gate:server
+
+  e2e:
+    name: e2e (Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

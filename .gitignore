@@ -51,6 +51,7 @@ src/paraglide/
 
 # Agent/loop scratch — never ship these in a clone (P0.2)
 *-state.json
+FORGE-DEPLOY-TODO.md
 .claude/
 plan__*.md
 floaty-copy.md

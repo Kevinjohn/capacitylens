@@ -1,0 +1,19 @@
+# Monthly, grouped — enough to keep Better Auth & friends patched without
+# a weekly PR drizzle on a solo-maintainer repo.
+version: 2
+updates:
+  - package-ecosystem: npm
+    # Dependabot does NOT traverse pnpm workspace members from the root entry
+    # (dependabot-core#10758) — server/ holds fastify & friends, so list every
+    # workspace directory explicitly or they are never scanned.
+    directories: ["/", "/server", "/shared"]
+    schedule:
+      interval: monthly
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
