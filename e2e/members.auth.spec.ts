@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser as signUp } from './auth-helpers'
+import {
+  AUTH_API as API,
+  AUTH_PASSWORD as PASSWORD,
+  BOOTSTRAP_TOKEN,
+  signUpUser as signUp,
+  signUpUserWithId,
+} from './auth-helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -14,7 +20,7 @@ test.use({ reducedMotion: 'reduce' })
 // (→ 403). Finally owner A hands ownership to C (→ 200; C becomes owner, A steps down to admin).
 // Browser-agnostic (no UA branching).
 
-// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp) comes from ./auth-helpers.
+// Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp/signUpUserWithId) comes from ./auth-helpers.
 const STAMP = Date.now()
 const OWNER = `m-owner-${STAMP}@capacitylens.dev`
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`
@@ -26,9 +32,11 @@ test.describe('member management (CAPACITYLENS_AUTH=password)', () => {
     request,
   }) => {
     // ── API setup: owner A bootstraps an org, invites B (admin) + C (editor); both accept. ─────────
-    const owner = await signUp(OWNER)
+    // Owner and editor are targeted by userId below (PATCH/DELETE members/<id>, transfer-ownership
+    // toUserId) — the id-resolving variant. Admin is only ever used by its cookie.
+    const owner = await signUpUserWithId(OWNER)
     const admin = await signUp(ADMIN)
-    const editor = await signUp(EDITOR)
+    const editor = await signUpUserWithId(EDITOR)
 
     const orgRes = await request.post(`${API}/api/orgs`, {
       headers: { cookie: owner.cookie, 'x-capacitylens-bootstrap-token': BOOTSTRAP_TOKEN },

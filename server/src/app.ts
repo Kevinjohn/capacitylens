@@ -1094,9 +1094,29 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (authMode === 'off') return { members: [] }
       const members = listMembersForAccount(db, accountId)
       const identities = getUsersByIds(db, members.map((m) => m.userId))
+      // mayResetPassword mirrors the SERVER's full cross-account reset judgment onto every row so the
+      // client can hide the reset control for any target the reset route would refuse (a 403). This is
+      // the no-drift pattern the shared access module cites: the button is never OFFERED for a target
+      // the server would DENY, so the affordance and the enforcement can't disagree. Password mode
+      // only — 'sso' delegates credentials to the IdP (resets are meaningless), 'off' returned above.
+      // Build the caller's role-by-account map ONCE; per member a listMembershipsForUser is fine
+      // (member lists are small — this app targets small agencies), matching the reset route's shape.
+      const canReset = authMode === 'password'
+      const actorRoles = canReset
+        ? new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
+        : null
       return {
         members: members.map((m) => {
           const who = identities.get(m.userId)
+          const isSelf = m.userId === req.user!.id
+          const mayResetPassword =
+            canReset && actorRoles !== null
+              ? canResetMemberAcrossAccounts(
+                  actorRoles,
+                  new Map(listMembershipsForUser(db, m.userId).map((mem) => [mem.accountId, mem.role])),
+                  isSelf,
+                )
+              : false
           return {
             userId: m.userId,
             role: m.role,
@@ -1104,7 +1124,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             createdAt: m.createdAt,
             name: who?.name ?? null,
             email: who?.email ?? null,
-            isSelf: m.userId === req.user!.id,
+            isSelf,
+            mayResetPassword,
           }
         }),
       }
@@ -1237,10 +1258,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           .send({ error: 'Password reset links require CAPACITYLENS_AUTH=password.' })
       }
       try {
-        // The target must be a member of THIS account (the account being managed) — 404 otherwise.
-        if (getMemberRole(db, accountId, userId) === null) {
-          return reply.code(404).send({ error: 'Not a member of this account.' })
-        }
         // CROSS-ACCOUNT authority: the minted token controls the target's account-GLOBAL credential,
         // so the actor must hold reset-authority over the target in EVERY account the target belongs
         // to — not just this one. Otherwise an admin (or even owner) of account X could reset a user
@@ -1252,8 +1269,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // must not come from a non-active membership) — the target map stays all-rows (fail-closed).
         const actorRoles = new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
         const targetRoles = new Map(listMembershipsForUser(db, userId).map((mem) => [mem.accountId, mem.role]))
-        if (!canResetMemberAcrossAccounts(actorRoles, targetRoles)) {
-          return reply.code(403).send({ error: 'Forbidden.' })
+        // The target must be a member of THIS account (the account being managed) — 404 otherwise.
+        // Read it straight off the targetRoles map we just built (it holds the same account_members
+        // fact getMemberRole would re-query) — one query, one source of truth.
+        if (!targetRoles.has(accountId)) {
+          return reply.code(404).send({ error: 'Not a member of this account.' })
+        }
+        // A self-reset (actor === target) is exempt from the cross-account check — you cannot escalate
+        // against your own identity — which keeps the self-reset promise working for a user who holds
+        // a lower role in another account (see canResetMemberAcrossAccounts).
+        if (!canResetMemberAcrossAccounts(actorRoles, targetRoles, userId === req.user!.id)) {
+          return reply
+            .code(403)
+            .send({ error: 'This member belongs to another account where you lack password-reset authority.' })
         }
         // Membership rows key on userId; Better Auth mints reset tokens by email — the same
         // admin-only identity read the member LIST uses (the one sanctioned user-table read).

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
@@ -9,7 +9,6 @@ import { m } from '@/i18n'
 import {
   canManageMemberRole,
   canRemoveMember,
-  canResetMemberPassword,
   type Role,
 } from '@capacitylens/shared/domain/access'
 
@@ -29,6 +28,11 @@ interface Member {
   name: string | null
   email: string | null
   isSelf: boolean
+  // Whether the actor may mint a password-reset link for this member — SERVER-computed (it folds in
+  // the cross-account + self-exemption checks a per-account pure guard can't see, and is `false` in
+  // SSO mode). Trusting the server here keeps the client button from drifting into offering a reset
+  // the server will always 403 (e.g. a member who owns another account).
+  mayResetPassword: boolean
 }
 
 interface InviteSummary {
@@ -66,6 +70,55 @@ function labelFor(m: Member): string {
 }
 
 /**
+ * A write-once "here is a freshly-minted link, copy it now" block (shared by the invite link and the
+ * password-reset link). Renders the `break-all` <code> + ghost copy Button once; the token behind the
+ * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line — the reset block uses
+ * it to name WHO/when; the invite block omits it. Structure is intentionally two shapes (the intro
+ * variant needs the outer `space-y-2` stack) so both call sites keep their exact prior markup.
+ */
+function CopyableLinkBlock({
+  link,
+  testId,
+  copiedNotice,
+  copyLink,
+  intro,
+}: {
+  link: string
+  testId: string
+  copiedNotice: string
+  copyLink: (link: string, copiedNotice: string) => void
+  intro?: ReactNode
+}) {
+  const code = (
+    <code data-testid={testId} className="min-w-0 flex-1 break-all text-xs text-ink">
+      {link}
+    </code>
+  )
+  const button = (
+    <Button variant="ghost" onClick={() => copyLink(link, copiedNotice)}>
+      {m.settings_invite_copy()}
+    </Button>
+  )
+  if (intro) {
+    return (
+      <div className="mb-4 space-y-2 rounded bg-canvas p-2">
+        {intro}
+        <div className="flex flex-wrap items-center gap-2">
+          {code}
+          {button}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded bg-canvas p-2">
+      {code}
+      {button}
+    </div>
+  )
+}
+
+/**
  * The Settings → Members section (P1.11). Renders ONLY in server + auth-on mode; a 403 on the initial
  * members read self-gates it away for a viewer/editor (renders nothing). Owner/Admin affordances are
  * gated client-side via the shared pure guards (owner-only options hidden for an admin; an owner row
@@ -89,7 +142,11 @@ export function MembersSection() {
   const [mintedLink, setMintedLink] = useState<string | null>(null)
   // The freshly-minted password-reset link (P1.18) — same write-once posture as the invite link,
   // labelled with WHO it resets so an admin juggling several members can't hand out the wrong one.
-  const [resetLink, setResetLink] = useState<{ link: string; member: string; expiresAt: string } | null>(null)
+  // `userId` is carried (not just the display label) so a membership write that burns this member's
+  // token server-side can clear the block — see the changeRole / transferOwnership clears below.
+  const [resetLink, setResetLink] = useState<
+    { userId: string; link: string; member: string; expiresAt: string } | null
+  >(null)
   // Bumped after every mutation to re-run the fetch effect (a re-read keeps the list authoritative).
   const [reloadKey, setReloadKey] = useState(0)
 
@@ -154,6 +211,10 @@ export function MembersSection() {
         return
       }
       setNotice(m.settings_members_role_updated())
+      // The write-once block must never keep displaying a link the server has already revoked:
+      // upsertMember burns THIS member's outstanding reset tokens on every membership write (the
+      // P1.18 TOCTOU close), so a role change to the shown member kills that link server-side.
+      if (resetLink?.userId === mem.userId) setResetLink(null)
       reload()
     } catch (e) {
       fail(null, m.settings_err_server({ error: errorMessage(e) }))
@@ -198,6 +259,14 @@ export function MembersSection() {
         return
       }
       setNotice(m.settings_members_ownership_transferred())
+      // transferOwnership does TWO upserts in one tx — promoting `mem` AND demoting the caller — so
+      // the server burns outstanding reset tokens for BOTH. Clear the write-once block if it shows a
+      // link for either party, so we never hand out a link the server has already revoked (same
+      // reason as the changeRole clear above). `mm` is NOT `m` (the i18n catalogue).
+      const selfUserId = members?.find((mm) => mm.isSelf)?.userId
+      if (resetLink && (resetLink.userId === mem.userId || resetLink.userId === selfUserId)) {
+        setResetLink(null)
+      }
       reload()
     } catch (e) {
       fail(null, m.settings_err_server({ error: errorMessage(e) }))
@@ -220,8 +289,11 @@ export function MembersSection() {
         return
       }
       const body = (await res.json()) as { token: string; expiresAt: string }
-      // Write-once: build + show the link straight from this response and never again.
+      // Write-once: build + show the link straight from this response and never again. `userId` is
+      // carried so a later membership write on this member can clear the stale block (see the
+      // changeRole / transferOwnership clears above).
       setResetLink({
+        userId: mem.userId,
         link: `${window.location.origin}/reset-password/${body.token}`,
         member: labelFor(mem),
         expiresAt: body.expiresAt,
@@ -312,9 +384,12 @@ export function MembersSection() {
           const isSoleOwner = mem.role === 'owner' && ownerCount <= 1
           const mayRemove = !!myRole && canRemoveMember(myRole, mem.role) && !isSoleOwner
           // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP; the
-          // server 400s there regardless). Same pure guard the server enforces: an admin must never
-          // mint a reset link for an owner — a reset link is an account-takeover capability.
-          const mayReset = authMode === 'password' && !!myRole && canResetMemberPassword(myRole, mem.role)
+          // server 400s there regardless) and never for a target an admin can't touch (e.g. an owner,
+          // or a member who owns another account — a reset link is an account-takeover capability).
+          // We trust the SERVER-computed `mayResetPassword`: it already folds in the cross-account +
+          // self-exemption checks the per-account pure guard can't see AND returns `false` in SSO mode,
+          // so the old `authMode === 'password'` / `myRole` conditions here would be redundant.
+          const mayReset = mem.mayResetPassword
           // Demote of the sole owner is also blocked client-side (mirror the server last-owner rule).
           const roleSelectDisabled = isSoleOwner
           return (
@@ -375,25 +450,23 @@ export function MembersSection() {
           below: shown straight from the create response and never read back. Named + dated so the
           admin hands the right link to the right person before it disappears. */}
       {resetLink && (
-        <div className="mb-4 space-y-2 rounded bg-canvas p-2">
-          <p className="text-xs text-muted">
-            {m.settings_members_reset_intro({
-              member: resetLink.member,
-              // Local date + TIME, not a bare UTC .slice(0,10): the link lives only 24h, so a
-              // date-only string (and a UTC one at that) misleads by up to a day in non-UTC zones
-              // and hides the hour it dies. toLocaleString renders the viewer's wall clock.
-              when: new Date(resetLink.expiresAt).toLocaleString(),
-            })}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <code data-testid="reset-link" className="min-w-0 flex-1 break-all text-xs text-ink">
-              {resetLink.link}
-            </code>
-            <Button variant="ghost" onClick={() => copyLink(resetLink.link, m.settings_members_reset_copied())}>
-              {m.settings_invite_copy()}
-            </Button>
-          </div>
-        </div>
+        <CopyableLinkBlock
+          link={resetLink.link}
+          testId="reset-link"
+          copiedNotice={m.settings_members_reset_copied()}
+          copyLink={copyLink}
+          intro={
+            <p className="text-xs text-muted">
+              {m.settings_members_reset_intro({
+                member: resetLink.member,
+                // Local date + TIME, not a bare UTC .slice(0,10): the link lives only 24h, so a
+                // date-only string (and a UTC one at that) misleads by up to a day in non-UTC zones
+                // and hides the hour it dies. toLocaleString renders the viewer's wall clock.
+                when: new Date(resetLink.expiresAt).toLocaleString(),
+              })}
+            </p>
+          }
+        />
       )}
 
       {/* Invite form */}
@@ -438,14 +511,12 @@ export function MembersSection() {
         </div>
         <FieldError id={errorId}>{errorField === 'invite' ? error : null}</FieldError>
         {mintedLink && (
-          <div className="flex flex-wrap items-center gap-2 rounded bg-canvas p-2">
-            <code data-testid="invite-link" className="min-w-0 flex-1 break-all text-xs text-ink">
-              {mintedLink}
-            </code>
-            <Button variant="ghost" onClick={() => copyLink(mintedLink, m.settings_members_invite_copied())}>
-              {m.settings_invite_copy()}
-            </Button>
-          </div>
+          <CopyableLinkBlock
+            link={mintedLink}
+            testId="invite-link"
+            copiedNotice={m.settings_members_invite_copied()}
+            copyLink={copyLink}
+          />
         )}
       </div>
 

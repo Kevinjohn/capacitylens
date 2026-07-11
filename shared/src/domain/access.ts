@@ -237,19 +237,38 @@ export function canResetMemberPassword(actorRole: Role, targetRole: Role): boole
  * target's role there. In the single-account default (the target belongs to exactly the acting
  * account) this reduces exactly to the per-account check.
  *
+ * SELF-RESET EXEMPTION (`isSelf === true`): the cross-account escalation the loop defends against is
+ * "actor mints a link that takes over SOMEONE ELSE's global identity". When actor === target there is
+ * no such target — you cannot escalate against your own identity, because you already hold that
+ * session. So for a self-reset the cross-account authority check is skipped entirely and we require
+ * only the fail-closed non-empty-map rule (`size > 0` — a self with zero memberships is not a real
+ * identity). This is what keeps the self-reset promise in {@link canResetMemberPassword}'s docstring
+ * (a social-sign-in user setting themselves a password) working under CAPACITYLENS_MULTI_ACCOUNT:
+ * without the exemption, an owner of account X who is also a plain editor in account Y could not reset
+ * their OWN password, because the loop would hit Y and `canResetMemberPassword('editor','editor')`
+ * fails the `manageMembers` tier. Behaviour for the ACTING account is unchanged either way: the
+ * route's `authorize(..., 'manageMembers')` gate still restricts who may call at all, and the
+ * per-account matrix already passes `(admin,admin)`/`(owner,owner)` for a self-target in that account.
+ *
  * PURE: no I/O — operates on the two role-by-account maps the caller reads from the membership table.
  * Fail-closed: a target with NO memberships, or ANY account where the actor lacks sufficient
  * authority (including not being a member there at all), yields `false`.
  *
  * @param actorRolesByAccount   The acting user's role in each account they belong to.
  * @param targetRolesByAccount  The target user's role in each account they belong to.
+ * @param isSelf                `true` iff the actor IS the target (a self-reset); skips the
+ *                              cross-account authority check per the exemption above.
  * @returns `true` iff the actor may reset the target's global credential; `false` otherwise.
  */
 export function canResetMemberAcrossAccounts(
   actorRolesByAccount: ReadonlyMap<string, Role>,
   targetRolesByAccount: ReadonlyMap<string, Role>,
+  isSelf: boolean,
 ): boolean {
   if (targetRolesByAccount.size === 0) return false // no identity to reset — fail closed.
+  // Self-reset: no cross-account standing needed — you cannot escalate against your own identity
+  // (see the SELF-RESET EXEMPTION above). The empty-map fail-closed rule above still applies.
+  if (isSelf) return true
   for (const [accountId, targetRole] of targetRolesByAccount) {
     const actorRole = actorRolesByAccount.get(accountId)
     // Not a co-member of an account the target belongs to → no standing to take over that identity.

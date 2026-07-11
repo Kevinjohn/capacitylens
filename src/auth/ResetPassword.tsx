@@ -3,9 +3,10 @@ import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { Button, FieldError } from '../components/common/ui'
-import { inputClass } from '../components/common/controls'
+import { inputClass, linkButtonClass } from '../components/common/controls'
 import { APP_NAME } from '@capacitylens/shared/brand'
-import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import { messageForFailure } from './resetPasswordFailure'
 import { m } from '@/i18n'
 
 // Password-reset page (P1.18; route /reset-password/:token). The token arrives out-of-band — an
@@ -27,18 +28,6 @@ type State =
   | { kind: 'working' }
   | { kind: 'done' }
   | { kind: 'local' } // the demo build (no server) — password reset is a server-mode feature
-
-/** Map the redeem endpoint's failure body to the surfaced message. Better Auth 400s carry a typed
- *  `{ code }`: INVALID_TOKEN covers unknown/used/expired alike (single-use tokens are CONSUMED on
- *  redeem, so "used" is indistinguishable from "unknown" by design). We map ONLY recognised codes and
- *  otherwise fall back to our generic message — we deliberately do NOT surface a raw server
- *  `body.message`, because an off-mode server (where this route isn't mounted) answers with Fastify's
- *  internal "Route POST:/api/auth/reset-password not found" string, which must never reach the user. */
-function messageForFailure(body: { code?: string }): string {
-  if (body.code === 'INVALID_TOKEN') return m.reset_err_invalid()
-  if (body.code === 'PASSWORD_TOO_SHORT') return m.reset_err_short({ min: MIN_PASSWORD_LENGTH })
-  return m.reset_err_generic()
-}
 
 /**
  * Reset-password page for `/reset-password/:token` (P1.18).
@@ -78,6 +67,10 @@ export function ResetPassword() {
     // Pre-checks that save a round trip; the server re-enforces the length on redeem.
     if (password.length < MIN_PASSWORD_LENGTH) {
       setError(m.reset_err_short({ min: MIN_PASSWORD_LENGTH }))
+      return
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      setError(m.reset_err_long({ max: MAX_PASSWORD_LENGTH }))
       return
     }
     if (password !== confirm) {
@@ -169,10 +162,7 @@ export function ResetPassword() {
               <div className="flex justify-end">
                 {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean
                     boot is what re-runs AuthProvider's /me check and lands on the login screen. */}
-                <a
-                  href="/"
-                  className="inline-flex items-center justify-center rounded-md bg-brand-strong px-3 py-1.5 text-sm font-medium text-white shadow-xs hover:bg-brand-strong/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
+                <a href="/" className={linkButtonClass}>
                   {m.reset_go_signin()}
                 </a>
               </div>

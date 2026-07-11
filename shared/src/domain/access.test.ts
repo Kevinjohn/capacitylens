@@ -230,40 +230,54 @@ describe('canResetMemberAcrossAccounts(actor, target) — global-identity reset 
   const roles = (entries: [string, Role][]) => new Map<string, Role>(entries)
 
   it('single account reduces to the per-account check (admin resets editor, not owner)', () => {
-    expect(canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'editor']]))).toBe(true)
-    expect(canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'owner']]))).toBe(false)
-    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([['X', 'owner']]))).toBe(true)
+    expect(canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'editor']]), false)).toBe(true)
+    expect(canResetMemberAcrossAccounts(roles([['X', 'admin']]), roles([['X', 'owner']]), false)).toBe(false)
+    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([['X', 'owner']]), false)).toBe(true)
   })
 
   it('CLOSES the cross-account escalation: an admin of X cannot reset a user who owns Y', () => {
     // Target is a mere editor in X but the OWNER of Y; actor is only in X.
     const actor = roles([['X', 'admin']])
     const target = roles([['X', 'editor'], ['Y', 'owner']])
-    expect(canResetMemberAcrossAccounts(actor, target)).toBe(false)
+    expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(false)
   })
 
   it('an OWNER of X still cannot reset a user who owns Y (no standing in Y)', () => {
     const actor = roles([['X', 'owner']])
     const target = roles([['X', 'editor'], ['Y', 'owner']])
-    expect(canResetMemberAcrossAccounts(actor, target)).toBe(false)
+    expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(false)
   })
 
   it('allows the reset only when the actor has authority in EVERY account the target is in', () => {
     // Actor owns both X and Y; target is editor in X and admin in Y → owner dominates both.
     const actor = roles([['X', 'owner'], ['Y', 'owner']])
     const target = roles([['X', 'editor'], ['Y', 'admin']])
-    expect(canResetMemberAcrossAccounts(actor, target)).toBe(true)
+    expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(true)
   })
 
   it('refuses when the actor lacks reset authority in a shared account (co-editors)', () => {
     // Actor is admin in X (acting) but only an editor in shared account Z where the target also sits.
     const actor = roles([['X', 'admin'], ['Z', 'editor']])
     const target = roles([['X', 'editor'], ['Z', 'editor']])
-    expect(canResetMemberAcrossAccounts(actor, target)).toBe(false)
+    expect(canResetMemberAcrossAccounts(actor, target, false)).toBe(false)
   })
 
   it('fail-closed on a target with no memberships', () => {
-    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([]))).toBe(false)
+    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([]), false)).toBe(false)
+  })
+
+  it('SELF-RESET exemption: a multi-account self passes even where cross-account authority would fail', () => {
+    // Owner of X who is a mere editor of Y resets their OWN password. actor === target, so the maps
+    // are identical; the non-self path would hit Y and fail canResetMemberPassword('editor','editor').
+    // The isSelf exemption skips the cross-account check — you cannot escalate against your own identity.
+    const self = roles([['X', 'owner'], ['Y', 'editor']])
+    expect(canResetMemberAcrossAccounts(self, self, true)).toBe(true)
+    // Same maps WITHOUT the exemption is (correctly) refused — proving the exemption is load-bearing.
+    expect(canResetMemberAcrossAccounts(self, self, false)).toBe(false)
+  })
+
+  it('SELF-RESET still fails closed on an empty target map (no identity to reset)', () => {
+    expect(canResetMemberAcrossAccounts(roles([['X', 'owner']]), roles([]), true)).toBe(false)
   })
 })
 

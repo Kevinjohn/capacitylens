@@ -65,7 +65,6 @@ test.describe('password reset link (CAPACITYLENS_AUTH=password)', () => {
     const linkEl = page.getByTestId('reset-link')
     await expect(linkEl).toContainText('/reset-password/')
     const resetLink = (await linkEl.textContent())?.trim() ?? ''
-    expect(resetLink).toContain('/reset-password/')
 
     // ---- Browser, signed OUT (fresh context state via a plain goto after clearing cookies):
     // the member opens the link WITHOUT a session — the page must render, not the login wall. ----

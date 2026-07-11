@@ -3,15 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { useStore } from '../../store/useStore'
 import { FieldError } from '../common/ui'
+import { linkButtonClass } from '../common/controls'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
-
-// A <Link> styled as the kit's primary Button. The shared Button (../common/ui) takes an onClick,
-// not a child element, so it can't wrap a router <Link> — and a router navigation (not a full reload)
-// is what we want from /invite back into the SPA. Reuse the same brand-strong fill the Button uses so
-// the affordance reads identically.
-const linkButtonClass =
-  'inline-flex items-center justify-center rounded-md bg-brand-strong px-3 py-1.5 text-sm font-medium text-white shadow-xs hover:bg-brand-strong/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand'
 
 // Invite accept page (P1.9; route /invite/:token). On mount, in SERVER mode, it POSTs
 // `${API_BASE}/api/invites/:token/accept` (credentials included so the session cookie rides along).

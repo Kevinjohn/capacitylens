@@ -181,12 +181,76 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
     upsertMember(db, { accountId: 'y', userId: bob.userId, role: 'owner', status: 'active', createdAt: TS })
 
     // The per-account view says Bob is 'editor' in X, but the reset controls his GLOBAL identity —
-    // which owns Y — so X's admin (with no standing in Y) is refused.
-    expect((await mint(app, 'x', bob.userId, adminX.cookie)).statusCode).toBe(403)
+    // which owns Y — so X's admin (with no standing in Y) is refused. The 403 body EXPLAINS why
+    // (surface-not-swallow): it names the cross-account reason without leaking which account.
+    const denied = await mint(app, 'x', bob.userId, adminX.cookie)
+    expect(denied.statusCode).toBe(403)
+    expect((denied.json() as { error: string }).error).toBe(
+      'This member belongs to another account where you lack password-reset authority.',
+    )
 
     // Even the OWNER of X is refused — an owner of X has no authority over account Y.
     const ownerX = await member(app, db, 'x', 'owner-x@capacitylens.dev', 'owner')
     expect((await mint(app, 'x', bob.userId, ownerX.cookie)).statusCode).toBe(403)
+  })
+
+  it('SELF-RESET across accounts: a user who is owner of X but a mere editor of Y may reset their OWN password', async () => {
+    // The finding-1 scenario: without the isSelf exemption the cross-account loop hits Y and
+    // canResetMemberPassword('editor','editor') fails the manageMembers tier, wrongly 403-ing a
+    // self-reset. The acting account is X (where they are owner, so authorize passes); actor === target.
+    const { app, db } = await appWith(PASSWORD_ENV, { multiAccount: true })
+    seedAccount(db, 'x')
+    seedAccount(db, 'y')
+    const self = await member(app, db, 'x', 'self-multi@capacitylens.dev', 'owner')
+    upsertMember(db, { accountId: 'y', userId: self.userId, role: 'editor', status: 'active', createdAt: TS })
+
+    // Resetting their OWN credential succeeds (201) — self-reset needs no cross-account standing.
+    const res = await mint(app, 'x', self.userId, self.cookie)
+    expect(res.statusCode).toBe(201)
+    // And the link redeems, proving it is a real, usable reset (not a hollow 201).
+    const token = (res.json() as { token: string }).token
+    expect((await redeem(app, token, 'brand-new-password-456')).statusCode).toBe(200)
+  })
+
+  // Better Auth's public /api/auth/reset-password returns a machine-readable { code } on failure, and
+  // the CLIENT's messageForFailure sniffs exactly that code to pick a friendly message. Per
+  // DEFENSIVE-CODING.md's test-pin rule, we PIN the library's error-body shape here so a Better Auth
+  // upgrade that renamed a code would fail this suite loudly rather than silently degrade the client's
+  // messaging. (These are library contracts, not our route's — hence asserted against the redeem path.)
+  describe('Better Auth reset-password failure body shape (pinned for the client sniffer)', () => {
+    const freshToken = async (app: FastifyInstance, db: Db): Promise<string> => {
+      const owner = await member(app, db, 'a1', `owner-${Math.random()}@capacitylens.dev`, 'owner')
+      const editor = await member(app, db, 'a1', `editor-${Math.random()}@capacitylens.dev`, 'editor')
+      return ((await mint(app, 'a1', editor.userId, owner.cookie)).json() as { token: string }).token
+    }
+
+    it('token reuse → code INVALID_TOKEN', async () => {
+      const { app, db } = await appWith(PASSWORD_ENV)
+      seedAccount(db, 'a1')
+      const token = await freshToken(app, db)
+      expect((await redeem(app, token, 'brand-new-password-456')).statusCode).toBe(200)
+      const reuse = await redeem(app, token, 'another-password-789')
+      expect(reuse.statusCode).toBe(400)
+      expect((reuse.json() as { code: string }).code).toBe('INVALID_TOKEN')
+    })
+
+    it('too-short password → code PASSWORD_TOO_SHORT', async () => {
+      const { app, db } = await appWith(PASSWORD_ENV)
+      seedAccount(db, 'a1')
+      const token = await freshToken(app, db)
+      const res = await redeem(app, token, 'short') // below Better Auth's 8-char minimum
+      expect(res.statusCode).toBe(400)
+      expect((res.json() as { code: string }).code).toBe('PASSWORD_TOO_SHORT')
+    })
+
+    it('129-char password → code PASSWORD_TOO_LONG (pins the 128 default MAX_PASSWORD_LENGTH mirrors)', async () => {
+      const { app, db } = await appWith(PASSWORD_ENV)
+      seedAccount(db, 'a1')
+      const token = await freshToken(app, db)
+      const res = await redeem(app, token, 'x'.repeat(129)) // 128 is the Better Auth default cap
+      expect(res.statusCode).toBe(400)
+      expect((res.json() as { code: string }).code).toBe('PASSWORD_TOO_LONG')
+    })
   })
 
   it('TOCTOU: a reset link is burned when the target is promoted, so it cannot redeem into the new owner identity', async () => {

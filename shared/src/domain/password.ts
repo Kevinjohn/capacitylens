@@ -15,3 +15,14 @@
  * single-sourced instead of a magic literal duplicated across client and server.
  */
 export const MIN_PASSWORD_LENGTH = 8
+
+/**
+ * The maximum password length, in characters. Same no-drift contract as {@link MIN_PASSWORD_LENGTH}:
+ * passed EXPLICITLY to Better Auth's `emailAndPassword.maxPasswordLength` (server/src/auth.ts) and
+ * consumed by the reset-password page's pre-check + PASSWORD_TOO_LONG message
+ * (src/auth/ResetPassword.tsx), so an over-long passphrase gets an actionable bound instead of a
+ * generic failure — and the bound the client states is always the one the server enforces.
+ *
+ * 128 matches Better Auth 1.6.20's own default; pinned so a library upgrade can't silently move it.
+ */
+export const MAX_PASSWORD_LENGTH = 128

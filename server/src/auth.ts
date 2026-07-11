@@ -4,7 +4,7 @@ import type { BetterAuthOptions } from 'better-auth'
 import type { SocialProviders } from 'better-auth/social-providers'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
 import { getMigrations } from 'better-auth/db/migration'
-import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import type { Db } from './db'
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
@@ -177,13 +177,40 @@ export async function mintPasswordResetToken(auth: Auth, email: string): Promise
  * @param userId  The user whose outstanding reset tokens to revoke.
  */
 export function revokeResetTokensForUser(db: Db, userId: string): void {
-  const hasTable = db
-    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'verification'`)
-    .get() as { name?: string } | undefined
-  if (hasTable?.name !== 'verification') return // OFF / auth-off: no Better Auth tables exist.
+  if (!verificationTableExists(db)) return // OFF / auth-off: no Better Auth tables exist.
   db.prepare(
     `DELETE FROM verification WHERE value = ? AND identifier LIKE 'reset-password:%'`,
   ).run(userId)
+}
+
+/**
+ * Per-handle cache of whether Better Auth's `verification` table exists, so the sqlite_master probe
+ * runs at most ONCE per Db handle instead of on every membership write (the sole caller,
+ * upsertMember, hits this on each role change / invite accept / org create).
+ *
+ * BOTH outcomes are safe to cache because table existence is FIXED for the life of a handle: Better
+ * Auth's schema migration (runAuthMigrations) runs exactly once, at server boot — index.ts calls it
+ * before the Fastify app is built, i.e. before any request can trigger a membership write — and in
+ * OFF / auth-off mode it never runs at all, so the table is never created later. Nothing in the codebase
+ * (or in the tests, which each open a fresh `openDb(':memory:')` handle and, when they exercise auth,
+ * run migrations in setup before the first write) creates `verification` on a handle that has already
+ * been probed. If a future path could create auth tables lazily AFTER a first write on a live handle,
+ * this must switch to caching only the `true` outcome so a stale `false` can't hide a real table.
+ *
+ * WeakMap keyed by the Db handle: an entry is collected with its handle, so tests that spin up many
+ * short-lived in-memory handles don't leak.
+ */
+const verificationTablePresence = new WeakMap<Db, boolean>()
+
+function verificationTableExists(db: Db): boolean {
+  const cached = verificationTablePresence.get(db)
+  if (cached !== undefined) return cached
+  const row = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'verification'`)
+    .get() as { name?: string } | undefined
+  const exists = row?.name === 'verification'
+  verificationTablePresence.set(db, exists)
+  return exists
 }
 
 export function parseAuthMode(raw: string | undefined): AuthMode {
@@ -308,6 +335,10 @@ export function authFromEnv(
       // so the server bound and the client reset-page pre-check (both read MIN_PASSWORD_LENGTH) can't
       // drift — and a library-default change can't silently move the server's floor.
       minPasswordLength: MIN_PASSWORD_LENGTH,
+      // PIN the maximum length to the shared constant too (same no-drift contract as the min): the
+      // client reset-page pre-check reads MAX_PASSWORD_LENGTH, so the bound it states is the bound the
+      // server enforces, and a library-default change can't silently move the server's ceiling.
+      maxPasswordLength: MAX_PASSWORD_LENGTH,
       // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
       // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public
       // request-password-reset endpoint there. See captureResetToken/mintPasswordResetToken above.

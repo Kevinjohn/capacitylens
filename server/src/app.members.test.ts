@@ -130,6 +130,32 @@ describe('GET /api/accounts/:id/members — gate', () => {
     expect(otherRow.isSelf).toBe(false)
     expect(otherRow.role).toBe('editor')
   })
+
+  it('reports mayResetPassword per-row from the SERVER\'s full cross-account judgment', async () => {
+    // The client hides the reset control off this field, so it must equal what the reset route would
+    // decide — true for an ordinary same-account target and the caller\'s own row, false for a target
+    // whose GLOBAL identity outranks the caller in another account (the cross-account takeover the
+    // reset route refuses). Proving the affordance can\'t drift open past the enforcement.
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const owner = await signUp(app, 'owner-mrp@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    // An ordinary editor, only in a1 → resettable.
+    const ed = await signUp(app, 'editor-mrp@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: ed.userId, role: 'editor', status: 'active', createdAt: TS })
+    // A member who is a mere editor in a1 but the OWNER of a2 → the owner of a1 has no standing in a2.
+    const crossOwner = await signUp(app, 'cross-owner-mrp@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: crossOwner.userId, role: 'editor', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a2', userId: crossOwner.userId, role: 'owner', status: 'active', createdAt: TS })
+
+    const res = await membersReq(app, 'a1', { cookie: owner.cookie })
+    expect(res.statusCode).toBe(200)
+    const members = (res.json() as { members: Array<{ userId: string; mayResetPassword: boolean }> }).members
+    const by = (id: string) => members.find((m) => m.userId === id)!
+    expect(by(ed.userId).mayResetPassword).toBe(true) // same-account editor → resettable
+    expect(by(owner.userId).mayResetPassword).toBe(true) // caller's own row (self-reset exemption)
+    expect(by(crossOwner.userId).mayResetPassword).toBe(false) // outranks caller in a2 → refused
+  })
 })
 
 describe('PATCH /api/accounts/:id/members/:userId — role change', () => {
