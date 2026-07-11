@@ -277,12 +277,33 @@ Then restart the daemon (`systemctl restart capacitylens`, or `docker compose up
 Auth creates its own tables (`user`, `session`, `account`, `verification`) inside the **same**
 SQLite file on first boot.
 
-> **Signup is invite-only by design — and `password` mode needs one manual step per new user.**
-> Self-service public signup is intentionally **closed** (`CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset):
-> CapacityLens has no email infrastructure (no verification or password-reset mail), so opening signup
-> on a shared instance is a footgun. Note that an **invite binds a role to an already-signed-in user**
-> — it does not, by itself, create a login — so in `password` mode there is no self-serve path for a
-> brand-new person to get in. Two options:
+**First user (owner) — no flags needed.** While the `user` table has **zero rows**, the login
+screen offers **Create the owner account** (name / email / password) instead of sign-in — that
+first sign-up is the bootstrap, and the moment it exists, self-registration closes again
+automatically (no restart needed). Just visit the site after the first auth-enabled boot and
+create your account.
+
+> ⚠️ **Claim the instance before (or the moment) it is reachable.** Until the owner account
+> exists, *anyone* who can reach the URL can create it — a scanner that finds a fresh instance
+> first owns it (with zero accounts, any signed-in user may create the first company). Complete
+> the owner sign-up immediately after the first auth-enabled boot, or do the first boot before
+> exposing the site publicly (bind to localhost / firewall it, sign up, then open it up). If you
+> are beaten to it, stop the daemon and delete the DB file — the next boot starts fresh.
+
+For headless/scripted deploys there is an escape hatch: start the daemon once with
+`--create-owner-admin-admin` (or `CAPACITYLENS_CREATE_ADMIN_ADMIN=1`) and, **only if the user
+table is empty**, it creates the owner `admin@admin.admin` with password `admin` — a
+**well-known credential**: the boot log prints a loud framed warning, and you must sign in and
+change that password immediately (Settings → Members → Reset password), then drop the flag.
+With users already present the flag logs one "skipped" line and boots normally; with auth off
+or `sso` it refuses to boot (it's meaningless there).
+
+> **After the first user, signup is invite-only by design — and `password` mode needs one manual
+> step per new user.** Self-service public signup is intentionally **closed**
+> (`CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset): CapacityLens has no email infrastructure (no verification
+> or password-reset mail), so opening signup on a shared instance is a footgun. Note that an
+> **invite binds a role to an already-signed-in user** — it does not, by itself, create a login — so
+> in `password` mode there is no self-serve path for a brand-new person to get in. Two options:
 >
 > 1. **Admin-provisioned credential (fine for a small team).** Briefly set
 >    `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1`, have the new person create their email + password account (or

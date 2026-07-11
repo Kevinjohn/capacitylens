@@ -75,7 +75,9 @@ preview. Scoped access goes through the `useScopedData` / `scopedTables()` seam.
 - **`user-stories/`** — manual test scripts, 1:1 with the Playwright E2E specs.
   `user-stories/REFERENCE.md` is their single source of truth (routes / labels / `data-testid`s
   / seed data) — update it **first** when the app changes, then the affected stories.
-- **`README.md`, `server/README.md`** — stable orientation; touch rarely.
+- **`README.md`** — the public, human-facing front page (pitch, screenshots, quickstart) —
+  keep it non-technical; **`docs/development.md`** — the dev detail behind it (dev servers,
+  full test matrix, port/troubleshooting lore); **`server/README.md`** — backend orientation.
 - **`docs/self-hosting.md`, `docs/runbook.md`, `docs/production-{plan,posture}.md`,
   `docs/privacy.md`, `docs/deploy.md`** — running & operating a self-hosted (server-backed) instance.
 
