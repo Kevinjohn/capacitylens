@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { useStore } from '../../store/useStore'
 import { useAuth } from '../../auth/authContext'
+import { can } from '@capacitylens/shared/domain/access'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
@@ -39,7 +41,9 @@ export function AccountPicker() {
   const accounts = useStore((s) => s.accountSummaries)
   const addAccount = useStore((s) => s.addAccount)
   const deleteAccount = useStore((s) => s.deleteAccount)
+  const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
+  const setNotice = useStore((s) => s.setNotice)
   const previousAccountId = useStore((s) => s.previousAccountId)
   // If we got here via "Switch company" and that account is still in the list, offer a way back.
   const previous = accounts.find((a) => a.id === previousAccountId) ?? null
@@ -53,6 +57,9 @@ export function AccountPicker() {
   const { canCreateAccount } = useAuth()
 
   const [creating, setCreating] = useState(false)
+  // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
+  // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
+  const [submitting, setSubmitting] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(DEFAULT_COLORS.account)
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
@@ -70,14 +77,60 @@ export function AccountPicker() {
     setTimezone(DEFAULT_TIMEZONE)
   }
 
+  // SERVER-mode create goes through POST /api/orgs — the ATOMIC account + built-in Internal client +
+  // caller-as-Owner membership path — NOT the local addAccount + snapshot-diff sync. The generic
+  // batch path can only write the bare account row: in auth-on mode the batch's scoped Internal-client
+  // op 403s (the creator has no membership yet), so the company would appear to be created, raise a
+  // persistence error, and vanish on reload — and no membership would ever exist server-side (the
+  // P1.13 client migration the server's /api/orgs comment was waiting on). The three frozen fields
+  // ride in the body; the server sanitizes/validates them exactly like the generic account write.
+  const createOrgOnServer = async (trimmed: string) => {
+    setSubmitting(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/orgs`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed, color, weekStartsOn, timezone, language: DEFAULT_LANGUAGE }),
+      })
+      if (!res.ok) {
+        // The server's message (single-company cap / org-create gate) is the useful one; the
+        // status-stamped fallback covers an unreadable body.
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        fail(null, body.error ?? m.picker_err_create({ status: res.status }))
+        return
+      }
+      const created = (await res.json()) as { id: string; name: string }
+      // Seed the summary BEFORE activating: setActiveAccount validates ids against
+      // data.accounts ∪ accountSummaries, and the just-created org is in neither yet.
+      // Append-if-absent so a concurrent summaries refetch can't duplicate it.
+      const summaries = useStore.getState().accountSummaries
+      if (!summaries.some((a) => a.id === created.id)) {
+        setAccountSummaries([...summaries, { id: created.id, name: created.name, role: 'owner' as const }])
+      }
+      resetForm()
+      setActiveAccount(created.id) // the persist switch orchestrator hydrates the new slice
+    } catch (e) {
+      // A pre-response transport error (server down / offline) — surface it on the form.
+      fail(null, errorMessage(e))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const submit = () => {
     const trimmed = validateName(name, fail)
     if (!trimmed) return
     if (!validateHex(color, fail)) return
-    // Surface a store-side rejection as a form error rather than an uncaught React error. (addAccount
-    // is the one CRUD action that works with no active account — bootstrapping the first tenant.)
     // Pass the three frozen fields as CONCRETE values (never undefined): the server freezes them after
     // creation, so an unset value here could never be set later — stranding the user (P1.14, TRAP 4).
+    if (isServerConfigured()) {
+      void createOrgOnServer(trimmed)
+      return
+    }
+    // DEMO build: local store create. Surface a store-side rejection as a form error rather than an
+    // uncaught React error. (addAccount is the one CRUD action that works with no active account —
+    // bootstrapping the first tenant.)
     try {
       const account = addAccount({ name: trimmed, color, weekStartsOn, timezone, language: DEFAULT_LANGUAGE })
       resetForm()
@@ -85,6 +138,44 @@ export function AccountPicker() {
     } catch (e) {
       fail(null, errorMessage(e))
     }
+  }
+
+  // SERVER-mode delete calls the dedicated DELETE route (gated 'purge' — admin+ — server-side; it
+  // erases the whole tenant transactionally). The store's local deleteAccount can NOT do this job in
+  // server mode: persistence diffs AppData snapshots, and in server mode `data` holds only the loaded
+  // slice — "deleting" a company whose slice isn't loaded would diff to zero ops, delete nothing, and
+  // the company would resurrect on the next summaries refetch. `data` is deliberately NOT mutated
+  // here: the picker only renders with no active account, so a stale (now-deleted) slice in `data` is
+  // invisible and gets replaced wholesale by the next account pick's loadAll.
+  const deleteOrgOnServer = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/accounts/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string }
+        setNotice(body.error ?? m.picker_err_delete({ status: res.status }), 'error')
+        return
+      }
+      const summaries = useStore.getState().accountSummaries
+      setAccountSummaries(summaries.filter((s) => s.id !== id))
+    } catch (e) {
+      // A pre-response transport error — surface it; the company is still listed (nothing was removed).
+      setNotice(errorMessage(e), 'error')
+    } finally {
+      setConfirming(null)
+    }
+  }
+
+  const confirmDelete = (id: string) => {
+    if (isServerConfigured()) {
+      void deleteOrgOnServer(id)
+      return
+    }
+    // DEMO build: the local cascade drops the account and all its scoped data (undoable via ⌘Z).
+    deleteAccount(id)
+    setConfirming(null)
   }
 
   return (
@@ -137,7 +228,12 @@ export function AccountPicker() {
                 <Avatar name={a.name} color={DEFAULT_COLORS.account} />
                 <span className="font-medium">{a.name}</span>
               </button>
-              <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
+              {/* Company deletion is 'purge'-tier (admin+) server-side, so a viewer/editor summary
+                  gets no Delete affordance at all — offering one would let them type-to-confirm an
+                  irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
+              {can(a.role, 'purge') && (
+                <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
+              )}
             </li>
           ))}
           {accounts.length === 0 && !creating && (
@@ -199,7 +295,7 @@ export function AccountPicker() {
               <Button variant="ghost" onClick={resetForm}>
                 {m.picker_cancel()}
               </Button>
-              <Button type="submit">{m.picker_create()}</Button>
+              <Button type="submit" disabled={submitting}>{m.picker_create()}</Button>
             </div>
           </form>
         ) : (
@@ -217,10 +313,7 @@ export function AccountPicker() {
         {confirming && (
           <DeleteCompanyDialog
             account={confirming}
-            onConfirm={() => {
-              deleteAccount(confirming.id)
-              setConfirming(null)
-            }}
+            onConfirm={() => confirmDelete(confirming.id)}
             onCancel={() => setConfirming(null)}
           />
         )}

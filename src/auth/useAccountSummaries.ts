@@ -38,6 +38,31 @@ function toSummary(entry: unknown): AccountSummary | null {
 }
 
 /**
+ * Fetch `GET /api/accounts` and coerce it to a validated summaries list — the shared server read
+ * behind {@link useAccountSummaries}, exported so routes that mount OUTSIDE AppShell (InviteAccept)
+ * can pull a fresh list on demand: a just-joined account is in neither `data.accounts` nor
+ * `accountSummaries` there, so `setActiveAccount` would reject it without this refetch.
+ *
+ * @returns the validated list, or null on ANY failure (non-OK status, transport error) — fail-soft,
+ *          matching the hook's leave-the-existing-list-alone stance; the caller decides what a null
+ *          means for its flow. A non-array body yields an empty list (a real "no accounts" answer).
+ */
+export async function fetchAccountSummaries(): Promise<AccountSummary[] | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include' })
+    if (!res.ok) return null
+    const body: unknown = await res.json()
+    // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
+    // an `as` cast.
+    return Array.isArray(body) ? body.map(toSummary).filter((s): s is AccountSummary => s !== null) : []
+  } catch {
+    // Fail-soft by contract (see @returns): a transport error is reported as null, never a throw —
+    // the callers treat a failed list read as "keep what you have", not an error surface of its own.
+    return null
+  }
+}
+
+/**
  * Keep {@link useStore}.accountSummaries — the AccountPicker's account list — in sync (P1.13).
  *
  * - SERVER mode: fetch `GET /api/accounts` once on mount (re-keyed on the active account so a sign-in
@@ -62,21 +87,11 @@ export function useAccountSummaries(): void {
     if (!serverMode) return // demo build handled by the derive effect below
     let cancelled = false
     void (async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include' })
-        if (!res.ok) return // leave the existing list; a blip shouldn't blank the picker (server 403 backstops)
-        const body: unknown = await res.json()
-        // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
-        // an `as` cast. A non-array body yields an empty list (the "no accounts" picker state).
-        const list = Array.isArray(body)
-          ? body.map(toSummary).filter((s): s is AccountSummary => s !== null)
-          : []
-        if (cancelled) return
-        setAccountSummaries(list)
-      } catch {
-        // Fail-soft: a transport error (server down / offline / unreadable body) leaves the existing
-        // list untouched. Not silent at the data layer — a real read/write surfaces its own banner.
-      }
+      // A null list (non-OK / transport error) leaves the existing list untouched — a blip shouldn't
+      // blank the picker (the server 403 backstops); a real read/write surfaces its own banner.
+      const list = await fetchAccountSummaries()
+      if (cancelled || list === null) return
+      setAccountSummaries(list)
     })()
     return () => {
       cancelled = true

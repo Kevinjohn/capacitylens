@@ -59,6 +59,22 @@ test.describe('invite accept (CAPACITYLENS_AUTH=password)', () => {
     // B as an editor and the success state renders.
     await expect(page.getByText(/You’ve joined this company/)).toBeVisible()
 
+    // Continue must land INSIDE the joined company, not on the picker: the accept flow refetches
+    // the summaries list (this route mounts outside AppShell, so the hook never ran here) and
+    // activates the joined account before this link is used. Regression guard for the handoff that
+    // used to bounce to the picker with a "company not found" notice. A first visit on this device
+    // may hit the once-per-device intro page — click through it like helpers.openApp does.
+    await page.getByRole('link', { name: 'Continue' }).click()
+    // Wait for the intro button OR the in-app company name — NOT a bare role=main, which the
+    // invite page itself also renders (a main-based wait resolves before the navigation lands).
+    const introContinue = page.getByTestId('intro-continue')
+    const companyName = page.getByText(`Invite Studio ${STAMP}`)
+    await introContinue.or(companyName).first().waitFor()
+    if (await introContinue.isVisible()) await introContinue.click()
+    // In the app, in the joined company — the shell shows its name, and no picker heading.
+    await expect(page.getByText(`Invite Studio ${STAMP}`)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Choose a company' })).toHaveCount(0)
+
     // Single-use guarantee at the API layer: the browser accept already consumed the token, so a
     // second accept (B's API session) of the same token is 409.
     const reuse = await request.post(`${API}/api/invites/${token}/accept`, {

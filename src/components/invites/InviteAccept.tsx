@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
+import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { useStore } from '../../store/useStore'
 import { FieldError } from '../common/ui'
 import { linkButtonClass } from '../common/controls'
@@ -48,6 +49,7 @@ function messageForStatus(status: number, bodyError: string | undefined): string
 export function InviteAccept() {
   const { token } = useParams<{ token: string }>()
   const setActiveAccount = useStore((s) => s.setActiveAccount)
+  const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
   // `/invite/:token` route shouldn't even match, but is handled defensively), so the effect never has
   // to setState synchronously: it only ever sets state from an async fetch callback.
@@ -85,7 +87,19 @@ export function InviteAccept() {
         if (res.ok) {
           const body = (await res.json().catch(() => ({}))) as { accountId?: string; role?: string }
           // Switch the active company to the one just joined so the continue link lands in it.
-          if (typeof body.accountId === 'string') setActiveAccount(body.accountId)
+          // This route mounts OUTSIDE AppShell, so useAccountSummaries hasn't run here: the joined
+          // account is in neither `data.accounts` nor `accountSummaries`, and a bare setActiveAccount
+          // would REJECT it as unknown (dropping to the picker with a spurious "company not found"
+          // notice). Pull a fresh summaries list first and activate only once the account is in it.
+          // A failed list read (null) skips activation — the Continue link then lands on the picker,
+          // whose own summaries fetch (AppShell mount) lists the new membership. Fail-soft, no toast.
+          if (typeof body.accountId === 'string') {
+            const list = await fetchAccountSummaries()
+            if (list !== null) {
+              setAccountSummaries(list)
+              if (list.some((a) => a.id === body.accountId)) setActiveAccount(body.accountId)
+            }
+          }
           setState({
             kind: 'joined',
             accountId: body.accountId ?? '',
@@ -105,7 +119,7 @@ export function InviteAccept() {
         })
       }
     })()
-  }, [token, setActiveAccount])
+  }, [token, setActiveAccount, setAccountSummaries])
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
@@ -9,6 +9,16 @@ import { AuthContext } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
+
+// The picker now branches server-vs-demo (create → POST /api/orgs; delete → DELETE /api/accounts/:id
+// in server mode), so apiConfig is mocked with a MUTABLE flag — the ArchivedSection.test idiom: most
+// tests run as the demo build (local store paths), the server-mode describe flips it on per-test.
+const serverFlag = vi.hoisted(() => ({ on: false }))
+vi.mock('../../data/apiConfig', () => ({
+  API_BASE: '',
+  isDemoMode: () => !serverFlag.on,
+  isServerConfigured: () => serverFlag.on,
+}))
 
 /** Render `ui` inside an AuthContext fixed to `canCreateAccount` (single-company-per-instance
  *  policy) — mirrors permissionGating.test.tsx's `withRole`. The other fields are fixed to the
@@ -31,7 +41,12 @@ function seedAccounts(...accounts: ReturnType<typeof makeAccount>[]) {
   useStore.getState().setAccountSummaries(accounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const })))
 }
 
+afterEach(() => {
+  vi.unstubAllGlobals()
+})
+
 beforeEach(() => {
+  serverFlag.on = false
   useStore.getState().replaceAll(emptyAppData())
   useStore.getState().setActiveAccount(null)
   useStore.getState().setAccountSummaries([])
@@ -208,6 +223,109 @@ describe('AccountPicker server-mode list (P1.13)', () => {
     // Zero accounts ⇒ the server always reports canCreateAccount: true (no provider here, so the
     // default context value applies — see authContext.ts's fail-open default).
     expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
+  })
+})
+
+describe('AccountPicker server-mode create/delete (P1.13 client migration)', () => {
+  /** A fetch stub returning `response` for every call; records (url, init) pairs. */
+  function stubFetch(response: { ok: boolean; status: number; body?: unknown }) {
+    const fetchMock = vi.fn(async () => ({
+      ok: response.ok,
+      status: response.status,
+      json: async () => response.body ?? {},
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('creates via POST /api/orgs (the atomic org path — NOT the local addAccount), seeds the summary, activates', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    const fetchMock = stubFetch({ ok: true, status: 201, body: { id: 'org-1', name: 'Loft Digital' } })
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    await user.type(screen.getByLabelText('Company name'), 'Loft Digital')
+    await user.click(screen.getByRole('button', { name: 'Create company' }))
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe('org-1'))
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/orgs')
+    expect(init.method).toBe('POST')
+    expect(init.credentials).toBe('include')
+    // The three frozen fields ride in the body as concrete values (P1.14).
+    const body = JSON.parse(init.body as string) as Record<string, unknown>
+    expect(body.name).toBe('Loft Digital')
+    expect(body.weekStartsOn).toBe(1)
+    expect(body.timezone).toBe('Etc/GMT')
+    // Summary seeded (the picker lists it; setActiveAccount validated against it)…
+    expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain('org-1')
+    // …and NO local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).
+    expect(useStore.getState().data.accounts).toHaveLength(0)
+  })
+
+  it('surfaces the server refusal (cap / org gate) as the form error and does NOT activate', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    stubFetch({ ok: false, status: 403, body: { error: 'This instance allows a single company.' } })
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    await user.type(screen.getByLabelText('Company name'), 'Second Co')
+    await user.click(screen.getByRole('button', { name: 'Create company' }))
+
+    expect(await screen.findByText('This instance allows a single company.')).toBeInTheDocument()
+    expect(useStore.getState().activeAccountId).toBeNull()
+    expect(useStore.getState().accountSummaries).toHaveLength(0)
+  })
+
+  it('deletes an UNLOADED company via DELETE /api/accounts/:id and drops its summary', async () => {
+    // The regression this guards: the local deleteAccount cascade diffs the LOADED slice only, so a
+    // company whose slice isn't in `data` would emit no ops, delete nothing server-side, and
+    // resurrect on the next summaries refetch. Server mode must call the dedicated route instead.
+    serverFlag.on = true
+    const user = userEvent.setup()
+    const fetchMock = stubFetch({ ok: true, status: 204 })
+    useStore.getState().setAccountSummaries([{ id: 'a9', name: 'Ghost Co', role: 'owner' }]) // slice NOT loaded
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete Ghost Co' }))
+    const dialog = screen.getByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/Type/i), 'Ghost Co')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0))
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+    expect(url).toBe('/api/accounts/a9')
+    expect(init.method).toBe('DELETE')
+  })
+
+  it('keeps the company listed and surfaces a notice when the server refuses the delete', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    stubFetch({ ok: false, status: 403, body: { error: 'Forbidden.' } })
+    useStore.getState().setAccountSummaries([{ id: 'a9', name: 'Ghost Co', role: 'owner' }])
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete Ghost Co' }))
+    const dialog = screen.getByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/Type/i), 'Ghost Co')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => expect(useStore.getState().notice?.message).toBe('Forbidden.'))
+    expect(useStore.getState().accountSummaries).toHaveLength(1) // nothing removed optimistically
+  })
+
+  it("offers NO Delete button on a viewer/editor summary (company deletion is 'purge'-tier, admin+)", () => {
+    useStore.getState().setAccountSummaries([
+      { id: 'a1', name: 'Owner Co', role: 'owner' },
+      { id: 'a2', name: 'Editor Co', role: 'editor' },
+      { id: 'a3', name: 'Viewer Co', role: 'viewer' },
+    ])
+    render(<AccountPicker />)
+    expect(screen.getByRole('button', { name: 'Delete Owner Co' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Editor Co' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Viewer Co' })).not.toBeInTheDocument()
   })
 })
 

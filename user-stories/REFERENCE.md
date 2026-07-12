@@ -43,7 +43,12 @@ If the app changes, update this file first, then the affected stories.
    server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
    the FIRST company), an older server that predates these fields, or a deploy with
    `CAPACITYLENS_MULTI_ACCOUNT=1` set (the auth-backed stories' server runs this way, so its
-   picker always shows the button).
+   picker always shows the button). In a server deploy the create goes through `POST /api/orgs`
+   (atomic: company + built-in Internal client + your Owner membership); a server refusal (the
+   cap, or the org-create gate) surfaces as the form's inline error. Each listed company also
+   shows a **Delete** button (`Delete <name>`, type-the-name-to-confirm dialog) — but ONLY on
+   companies where your role is owner/admin (deletion is purge-tier); viewers/editors get no
+   Delete affordance at all.
 5. Then a one-time **"What CapacityLens is" intro page** (heading `Welcome to CapacityLens`) — a minimal
    post-login explainer that CapacityLens is a resourcing tool, not a project-management tool. Click
    **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
@@ -341,7 +346,9 @@ hits the login wall first (the `Sign in` screen above); after signing in, the ap
 same `/invite/<token>` URL and the accept runs automatically — so the token survives the login.
 A **valid** link binds the signed-in user to that company with the invited role and shows a
 *"You've joined this company as `<role>`"* success with a **Continue** link into the app (which
-opens the joined company). A **used** link shows *"This invite has already been used."*; an
+opens the joined company directly — the accept flow refetches the account list so the brand-new
+membership is activatable; if that refetch fails, Continue lands on the company picker, where
+the new company is listed). A **used** link shows *"This invite has already been used."*; an
 **expired** link shows *"This invite has expired."*; an **unknown** token shows *"Invite not
 found."* Invites are server-only: in local mode (no `VITE_CAPACITYLENS_API`) the page shows a
 short *"Invite links work only when CapacityLens is connected to a server."* note and makes no
