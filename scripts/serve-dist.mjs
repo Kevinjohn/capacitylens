@@ -51,19 +51,27 @@ createServer((req, res) => {
     return
   }
 
-  // Static files; anything without an extension falls back to the SPA index.
+  // Static files + SPA fallback, mirroring the packaged nginx.conf's three static blocks:
+  //  • `location /assets/ { try_files $uri =404; }` — ONLY under /assets/ does a missing file
+  //    404 (hashed bundles are content-addressed; the SPA fallback would mask a broken asset
+  //    reference that production nginx rejects).
+  //  • `location / { try_files $uri $uri/ /index.html; }` — everywhere else a real file is
+  //    served in place and ANY miss (extensioned or not: /favicon.ico, /invite/abc, …) falls
+  //    back to index.html so client-side routes resolve.
+  //  • `location ~ ^/(invite|reset-password)/ { try_files /index.html =404; }` — also serves
+  //    index.html for a miss, so the plain fallback above already matches its response shape
+  //    (the access-log redaction it exists for has no analogue here).
+  // An earlier version 404'd EVERY missing extensioned path — stricter than nginx, so the
+  // rehearsal failed requests (e.g. a missing /favicon.ico) that production serves as the SPA.
   const path = normalize((req.url ?? '/').split('?')[0]).replace(/^([.][.][/\\])+/, '')
   const file = join(DIST, path)
-  const ext = extname(file)
-  if (ext && !(existsSync(file) && statSync(file).isFile())) {
-    // Parity with the packaged nginx.conf (`try_files $uri =404` under /assets/): a missing
-    // file WITH an extension must 404, not serve index.html — the SPA fallback would mask
-    // broken asset references that production nginx will reject.
+  const isRealFile = existsSync(file) && statSync(file).isFile()
+  if (path.startsWith('/assets/') && !isRealFile) {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
     res.end('404 not found')
     return
   }
-  const target = ext ? file : join(DIST, 'index.html')
+  const target = isRealFile ? file : join(DIST, 'index.html')
   res.writeHead(200, { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' })
   createReadStream(target).pipe(res)
 }).listen(PORT, '127.0.0.1', () => {

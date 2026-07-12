@@ -65,7 +65,7 @@ VITE_CAPACITYLENS_API=http://localhost:8787 pnpm run dev:web
 | PATCH | `/api/:entity/:id` | Partial update. |
 | DELETE | `/api/:entity/:id` | Idempotent delete (DB cascades mirror the store); optional `?accountId=…` scopes it to the owner (404 cross-account). |
 | POST | `/api/batch` | `{ ops: [...] }` — one transaction of upserts/deletes in op order; **the write path the shipped sync adapter actually uses** (per-entity verbs above serve direct/manual use). Capped at **5000 ops** (400 above it — each PUT op costs a full-state read, so op count, not just body bytes, bounds request work). |
-| POST | `/api/import` | `{ accountId, data }` — reuses `remapAndValidateImport`. |
+| POST | `/api/import` | `{ accountId, data }` — reuses `remapAndValidateImport`. **Admin-tier (`'purge'`) with auth on**: an import destructively replaces the account's whole slice, and the id-remap bypasses field-level pins like the confidential time-off note — editor tier could erase/fabricate notes. Auth off stays open. |
 | POST | `/api/test/reset` | Wipe (+ optional reseed). Gated by `CAPACITYLENS_ALLOW_RESET=1`. |
 
 `:entity` is an `AppData` key: `accounts`, `clients`, `disciplines`, `projects`,
@@ -115,6 +115,8 @@ client-asserted and `ownsRow` is the only guard.
   `updatedAt` is older than the stored row) with HTTP 409 `{ error, current }` instead of
   last-writer-wins. Applies to the direct PUT **and** to every PUT op inside `POST /api/batch`
   (the shipped client's real save path) — a stale batch op rolls the whole batch back.
+  On a 409 the shipped client resolves the conflict server-wins (it reloads from the server and
+  discards the conflicting local edit) until a real conflict UI exists.
 
 Production-hardening flags (all **default OFF** = exactly the behaviour above; the full
 register with the droplet's values lives in `docs/production-plan.md`):

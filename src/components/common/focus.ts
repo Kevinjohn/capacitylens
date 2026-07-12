@@ -27,3 +27,37 @@ export function restoreFocus(prev: HTMLElement | null) {
     }
   }
 }
+
+/** The shared Tab/Shift-Tab containment step for a dialog-like overlay (the Modal's window
+ *  keydown and the CommandPalette's): both overlays sit over obscured content, so Tab must
+ *  cycle within `container` — otherwise keyboard users tab out into controls they can't see.
+ *  One definition so the two wraps can't drift (they had: the palette grew a pull-back-in
+ *  branch the Modal lacked).
+ *
+ *  Semantics (call only when `e.key === 'Tab'`):
+ *  - focusables are FOCUSABLE_SELECTOR matches inside `container`, minus `[disabled]` ones
+ *    (focusing a disabled control is a silent no-op that drops focus to <body>);
+ *  - if focus somehow escaped the container entirely, pull it back to the first focusable;
+ *  - Shift-Tab on the first wraps to the last; Tab on the last wraps to the first;
+ *  - anywhere in the middle: no preventDefault — the browser's natural Tab order runs.
+ *  No-op when the container holds no focusables. */
+export function wrapTabWithin(container: HTMLElement, e: KeyboardEvent): void {
+  const items = Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => !el.hasAttribute('disabled'),
+  )
+  if (items.length === 0) return
+  const first = items[0]
+  const last = items[items.length - 1]
+  const active = document.activeElement
+  // Wrap at the edges; also pull focus back in if it somehow left the container entirely.
+  if (active instanceof HTMLElement && !container.contains(active)) {
+    e.preventDefault()
+    first.focus()
+  } else if (e.shiftKey && active === first) {
+    e.preventDefault()
+    last.focus()
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault()
+    first.focus()
+  }
+}

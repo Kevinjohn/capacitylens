@@ -385,6 +385,32 @@ class StaleWriteError extends Error {
   }
 }
 
+/**
+ * The stale-write predicate (optimistic concurrency), shared by the direct PUT route and the batch
+ * PUT loop so the two paths can never drift: a write is stale ONLY when a stored row exists, BOTH
+ * `updatedAt` values are strings, and the stored one is STRICTLY newer — a missing/non-string
+ * `updatedAt` on either side is never a conflict. The `opts.optimisticConcurrency` opt-in stays at
+ * the call sites (it is app config, not row data — keeping it visible where the 409 is produced).
+ */
+function isStaleWrite(
+  existing: Record<string, unknown> | undefined,
+  row: Record<string, unknown>,
+): existing is Record<string, unknown> {
+  // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactNoteEcho inside
+  // the 409 branch, which needs the `existing`-is-present narrowing the old inline check gave.)
+  return (
+    existing !== undefined &&
+    typeof existing.updatedAt === 'string' &&
+    typeof row.updatedAt === 'string' &&
+    existing.updatedAt > row.updatedAt
+  )
+}
+
+/** The "writer may see the time-off note" SanitizeWriteOptions — the overwhelmingly common case
+ *  (every non-timeOff table, auth OFF, owner/admin). One frozen module-level instance so the hot
+ *  write paths don't allocate a fresh options object per row/op. */
+const NOTE_VISIBLE: SanitizeWriteOptions = Object.freeze({ canSeeTimeOffNote: true })
+
 /** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
  *  before the cap existed; kept as one function so every enforcement point reads the identical
  *  number (never re-derived ad hoc at each call site). */
@@ -702,7 +728,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     table: string,
     accountId: unknown,
   ): SanitizeWriteOptions {
-    if (table !== 'timeOff' || authMode === 'off') return { canSeeTimeOffNote: true }
+    if (table !== 'timeOff' || authMode === 'off') return NOTE_VISIBLE
     const role = typeof accountId === 'string' ? resolveRole(db, req.user!, accountId) : null
     return { canSeeTimeOffNote: role !== null && canSeeTimeOffNote(role) }
   }
@@ -1728,16 +1754,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
         // the 409 conflict payload included.
         const vis = noteVisibilityFor(req, entity, body.accountId)
-        // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row. The 409's
-        // `current` payload is a READ of the stored row, so it gets the same note redaction as the
-        // write echo — the conflict path must not hand a note-blind writer the redacted field.
-        if (
-          opts.optimisticConcurrency &&
-          existing &&
-          typeof existing.updatedAt === 'string' &&
-          typeof body.updatedAt === 'string' &&
-          existing.updatedAt > body.updatedAt
-        ) {
+        // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the
+        // predicate is isStaleWrite, SHARED with the batch loop so the two paths can't drift.
+        // The 409's `current` payload is a READ of the stored row, so it gets the same note
+        // redaction as the write echo — the conflict path must not hand a note-blind writer
+        // the redacted field.
+        if (opts.optimisticConcurrency && isStaleWrite(existing, body)) {
           return reply.code(409).send({
             error: 'The record was modified more recently on the server.',
             current: redactNoteEcho(entity, existing, vis),
@@ -1961,6 +1983,26 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const accountId = op.method === 'PUT' ? (op.row as { accountId?: string } | undefined)?.accountId : op.accountId
         if (!authorize(req, reply, accountId as string, 'write')) return
       }
+      // P1.6 note visibility, memoized PER REQUEST: noteVisibilityFor pays a resolveRole
+      // membership query for every timeOff row, and a batch may carry up to MAX_BATCH_OPS of them
+      // — each op would otherwise re-run the identical lookup inside the write tx. Memoizing by
+      // accountId is exact, not approximate: the caller (req.user) is fixed for the request, and
+      // their role cannot change mid-transaction (tx() serializes on the single SQLite connection
+      // membership writes also go through, so no interleaved role edit can land while the batch
+      // runs). Non-timeOff tables short-circuit inside noteVisibilityFor to the frozen
+      // NOTE_VISIBLE constant — no lookup, no allocation — so only distinct timeOff accountIds
+      // (in practice: one) ever populate the cache.
+      const noteVisCache = new Map<string, SanitizeWriteOptions>()
+      const noteVisFor = (table: string, accountId: unknown): SanitizeWriteOptions => {
+        if (table !== 'timeOff' || typeof accountId !== 'string') {
+          return noteVisibilityFor(req, table, accountId) // no-lookup short-circuits; nothing to cache
+        }
+        const cached = noteVisCache.get(accountId)
+        if (cached) return cached
+        const vis = noteVisibilityFor(req, table, accountId)
+        noteVisCache.set(accountId, vis)
+        return vis
+      }
       try {
         tx(db, () => {
           for (const op of ops) {
@@ -1989,24 +2031,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   'Language, week start and time zone are set when the company is created and cannot be changed.',
                 )
               }
-              // Optimistic concurrency (opt-in) — the EXACT same stale-write refusal as the direct
-              // PUT route (same skip conditions: only when BOTH updatedAt values are strings and
-              // the stored one is STRICTLY newer; a missing/non-string updatedAt on either side is
-              // never a conflict). Thrown (not replied) because we are inside tx(): the throw
-              // aborts the transaction, so the WHOLE batch rolls back, and the catch below maps it
-              // to the direct route's 409 + { current } shape.
-              if (
-                opts.optimisticConcurrency &&
-                existing &&
-                typeof existing.updatedAt === 'string' &&
-                typeof (row as { updatedAt?: unknown }).updatedAt === 'string' &&
-                existing.updatedAt > ((row as { updatedAt: string }).updatedAt)
-              ) {
+              // Optimistic concurrency (opt-in) — the stale-write refusal is isStaleWrite, the
+              // SAME predicate the direct PUT route runs, so the two paths can't drift. Thrown
+              // (not replied) because we are inside tx(): the throw aborts the transaction, so
+              // the WHOLE batch rolls back, and the catch below maps it to the direct route's
+              // 409 + { current } shape.
+              if (opts.optimisticConcurrency && isStaleWrite(existing, row as Record<string, unknown>)) {
                 // The 409's `current` payload is a READ of the stored row: redact the time-off
                 // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
                 // path must not hand an editor the very field readSlice redacts.
                 throw new StaleWriteError(
-                  redactNoteEcho(table, existing, noteVisibilityFor(req, table, (row as { accountId?: unknown }).accountId)),
+                  redactNoteEcho(table, existing, noteVisFor(table, (row as { accountId?: unknown }).accountId)),
                 )
               }
               // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
@@ -2015,7 +2050,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                 table,
                 row as Record<string, unknown>,
                 existing,
-                noteVisibilityFor(req, table, (row as { accountId?: unknown }).accountId),
+                noteVisFor(table, (row as { accountId?: unknown }).accountId),
               )
               validateWrite(loadState(db), table, clean)
               upsertRow(db, table, clean)
@@ -2097,9 +2132,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!body || typeof body.accountId !== 'string') {
         return reply.code(400).send({ error: 'accountId is required' })
       }
-      // P1.5 write gate: import replaces an entire account slice (replaceAccountSlice), so it is a
-      // privileged write — require membership + write tier for the target account before parsing.
-      if (!authorize(req, reply, body.accountId, 'write')) return
+      // Import is gated 'purge' (admin+), NOT 'write' (editor), for two reasons:
+      //   (1) it is DESTRUCTIVE slice replacement — replaceAccountSlice deletes the account's
+      //       entire scoped slice and re-inserts the import, the same hard-delete semantics the
+      //       purge tier exists for (cf. the accounts-DELETE vectors); and
+      //   (2) it BYPASSES field-level write pins — every id is remapped, so sanitizeWrite's
+      //       existing-row pins (e.g. the P1.6 timeOff note pin) can never match a stored row.
+      //       At 'write' tier a note-blind editor could erase every owner-confidential timeOff
+      //       note (their own exports are note-redacted) or fabricate notes wholesale.
+      // OFF mode keeps the open behaviour (demo/e2e parity — authorize no-ops there).
+      if (!authorize(req, reply, body.accountId, 'purge')) return
       let incoming
       try {
         incoming = parseData(JSON.stringify(body.data ?? {}))

@@ -9,9 +9,10 @@ import { m } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { Button as ShadButton } from '../ui/button'
 import { Icon, type IconName } from './Icon'
-// FOCUSABLE_SELECTOR + restoreFocus live in ./focus (shared with CommandPalette, and
-// react-refresh forbids exporting non-component helpers from this component file).
-import { FOCUSABLE_SELECTOR, restoreFocus } from './focus'
+// FOCUSABLE_SELECTOR + restoreFocus + wrapTabWithin live in ./focus (shared with
+// CommandPalette, and react-refresh forbids exporting non-component helpers from this
+// component file).
+import { FOCUSABLE_SELECTOR, restoreFocus, wrapTabWithin } from './focus'
 
 // Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
 // from semantic tokens (see index.css), so everything adapts to dark mode automatically.
@@ -254,34 +255,20 @@ export function Modal({
   //    can't reach: they fire fireEvent.keyDown(window, …)). Radix's own Escape is neutralised
   //    on the Content (onEscapeKeyDown preventDefault) so there's a single dismiss path.
   //  • Tab focus-trap. Radix's FocusScope trap is OFF in non-modal mode (DialogContentNonModal
-  //    sets trapFocus=false), so capacitylens keeps its own wrap — bound once, reading the latest
-  //    via panelRef. (Empty deps; the trigger ref keeps the guard state current.)
+  //    sets trapFocus=false), so capacitylens keeps its own wrap — the shared wrapTabWithin
+  //    (common/focus.ts, same wrap as the CommandPalette so the two can't drift; it also pulls
+  //    focus back in if it somehow escaped the panel). Bound once, reading the latest via
+  //    panelRef. (Empty deps; the trigger ref keeps the guard state current.)
   useEffect(() => {
-    const focusables = () => {
-      const node = panelRef.current
-      return node
-        ? Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-            (el) => !el.hasAttribute('disabled'),
-          )
-        : []
-    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         requestCloseRef.current()
         return
       }
       if (e.key !== 'Tab') return
-      const items = focusables()
-      if (items.length === 0) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      const node = panelRef.current
+      if (!node) return
+      wrapTabWithin(node, e)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

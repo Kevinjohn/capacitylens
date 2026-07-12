@@ -31,15 +31,33 @@ watchSystemTheme(() => useStore.getState().theme)
 // Load (and seed on first run) before/while the app renders. The AppShell gates
 // content on `hydrated`, so there's no flash of empty data.
 //
-// storageMigrationError first: the legacy-key copy failed on a REACHABLE store (e.g. quota), so the
-// user's pre-rebrand data was NOT carried to the new keys — booting normally would read the empty
-// new keys and the data would APPEAR lost. Mirror bootstrap's own load-failure branch instead:
-// render "hydrated" with NO persistence attached and NO seed, and raise `loadError` so the AppShell
-// shows the StorageRecovery screen (export / import / reset) rather than a silently-empty app.
-if (storageMigrationError) {
+// storageMigrationError first — but its severity depends on the persistence mode:
+//
+// DEMO build (localStorage-backed): the primary `/v3` AppData blob itself rides the legacy-key
+// copy, so a failed copy means the tenant data was NOT carried to the new keys — booting normally
+// would read the empty new keys and the data would APPEAR lost. Mirror bootstrap's own load-failure
+// branch instead: render "hydrated" with NO persistence attached and NO seed, and raise `loadError`
+// so the AppShell shows the StorageRecovery screen (export / import / reset).
+//
+// SERVER mode (the default): localStorage carries only DEVICE PREFS (theme, sidebar, intro-seen…)
+// — the tenant data lives on the server and never rode this migration. StorageRecovery would be a
+// DEAD END here: its readRaw/reset act only on `capacitylens/v3`, the legacy `floaty/*` keys that
+// threw stay put, so every reload re-throws and the app can never boot (a permanent recovery loop
+// over data that was never at risk). Log a loud breadcrumb about what actually failed and boot
+// normally — worst case the user's device prefs look reset, which is the documented degrade for
+// non-tenant prefs (DEFENSIVE-CODING.md §5).
+if (storageMigrationError && !isServerConfigured()) {
   useStore.getState().setHydrated(true)
   useStore.getState().setLoadError(true)
 } else {
+  if (storageMigrationError) {
+    console.error(
+      'main: legacy storage-key migration (floaty/* → capacitylens/*) failed in SERVER mode — ' +
+        'device prefs (theme, sidebar, intro-seen, display toggles) were NOT migrated and may look ' +
+        'reset; tenant data is server-owned and unaffected. Booting normally.',
+      storageMigrationError,
+    )
+  }
   void bootstrap(useStore, persistenceAdapter, {
     // Auto-seed is a DEMO-BUILD-ONLY convenience (single-company-per-instance policy): the
     // localStorage build has no server to own the data, so it seeds a demo dataset on first run.

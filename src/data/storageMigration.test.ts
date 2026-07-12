@@ -145,6 +145,41 @@ describe('migrateLegacyStorage', () => {
     warn.mockRestore()
   })
 
+  // The probe must cover OPERATION-level SecurityErrors too: some environments hand back a Storage
+  // object from the accessor but throw on every read (length/key/getItem). That shape means "store
+  // unreadable" — a soft-skip — NOT a copy failure (which would block boot into the recovery screen
+  // for data that never existed).
+  it('degrades (logs, does not throw) when the accessor works but READ operations throw', () => {
+    sessionStorage.setItem('floaty/theme', 'dark')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // A Storage whose accessor succeeds but whose operations all raise (permission-denied shape).
+    const broken = {
+      get length(): number {
+        throw new Error('SecurityError')
+      },
+      key(): string | null {
+        throw new Error('SecurityError')
+      },
+      getItem(): string | null {
+        throw new Error('SecurityError')
+      },
+      setItem() {
+        throw new Error('SecurityError')
+      },
+      removeItem() {},
+      clear() {},
+    } as unknown as Storage
+    const spy = vi.spyOn(window, 'localStorage', 'get').mockReturnValue(broken)
+
+    expect(() => migrateLegacyStorage()).not.toThrow()
+    // The other (healthy) store still migrated.
+    expect(sessionStorage.getItem('capacitylens/theme')).toBe('dark')
+    expect(warn).toHaveBeenCalled()
+
+    spy.mockRestore()
+    warn.mockRestore()
+  })
+
   // The catch is the availability PROBE only: once a store is reachable, a per-key copy failure
   // (quota) means legacy data was NOT migrated — it must PROPAGATE to the boot path (which routes
   // it to the storage-recovery screen), never be misclassified as "store unavailable".

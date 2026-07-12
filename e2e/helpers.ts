@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 // The seed dataset lives in the first half of June 2026 — the over-allocated day is
 // 3-4 June and every demo bar falls between 1-9 June. The scheduler is anchored to
@@ -11,6 +11,25 @@ import { expect, type Page } from '@playwright/test'
 // `setFixedTime` pins only Date/now — timers (scroll, drag, popovers) keep running —
 // and noon gives a wide margin against host/browser timezone offsets.
 const FIXED_NOW = new Date('2026-06-03T12:00:00')
+
+/** Click through the once-per-device "What CapacityLens is" intro page if this load shows it
+ *  (`capacitylens/introSeen` — skipped once dismissed). Waits for the intro's Continue button OR
+ *  `landedOn`, whichever renders first, and clicks Continue only when the intro is up, so neither
+ *  case hangs.
+ *
+ *  PITFALL (found by invite.auth.spec): `landedOn` must be a locator UNIQUE to the DESTINATION
+ *  screen. A generic `role=main` / `<main>` locator also matches interstitial pages (the invite
+ *  page renders its own main), so a main-based wait resolves BEFORE the navigation lands and the
+ *  intro check races. In-app callers use the AppShell's `#main` landmark (the only id="main" in
+ *  the tree, present on every route and in both sidebar states — unlike the "Schedule" nav LINK,
+ *  which a collapsed/small-viewport sidebar replaces with aria-hidden `nav-rail-item` buttons);
+ *  flows that start OUTSIDE the shell pass something only the destination shows (e.g. the joined
+ *  company's name). */
+export async function dismissIntroIfPresent(page: Page, landedOn: Locator): Promise<void> {
+  const introContinue = page.getByTestId('intro-continue')
+  await introContinue.or(landedOn).first().waitFor()
+  if (await introContinue.isVisible()) await introContinue.click()
+}
 
 // Multi-tenancy shows a full-screen account picker on every load (the active
 // account is never persisted). Almost every spec wants to land in the app for
@@ -31,18 +50,10 @@ export async function openApp(page: Page, company = 'Studio North', path = '/'):
   // Picking an account leaves the URL intact, so a deep link like `/resources`
   // still lands on that route once the tenant gate clears.
   await companyButton.click()
-  // A post-login "What CapacityLens is" intro page now follows the company pick (once per device,
-  // `capacitylens/introSeen`). It is skipped once dismissed, so wait for whichever screen this load
-  // lands on — the intro, or (if already seen) the app proper — then click Continue through only
-  // when the intro is up. Guarded exactly like the fake-sign-in above so neither case hangs.
-  // The "already in the app" sentinel is the AppShell's `#main` landmark (it wraps the routed
-  // Outlet and is the ONLY id="main" in the tree). It's viewport-AGNOSTIC: present on every route
-  // and in both sidebar states — unlike the "Schedule" nav LINK, which a collapsed/small-viewport
-  // sidebar replaces with aria-hidden `nav-rail-item` BUTTONS, so a link sentinel would hang there.
-  const introContinue = page.getByTestId('intro-continue')
-  const appMain = page.locator('#main')
-  await introContinue.or(appMain).first().waitFor()
-  if (await introContinue.isVisible()) await introContinue.click()
+  // A post-login "What CapacityLens is" intro page now follows the company pick; click through it
+  // if it's up. The "already in the app" sentinel is the AppShell's `#main` landmark (see
+  // dismissIntroIfPresent's doc comment for why #main and not role=main or the nav link).
+  await dismissIntroIfPresent(page, page.locator('#main'))
 }
 
 // A few specs (getting-started, onboarding) need a FRESH, empty company rather than one of the
@@ -69,10 +80,8 @@ export async function openNewCompanyForm(page: Page): Promise<void> {
 export async function createCompany(page: Page, name: string): Promise<void> {
   await page.getByLabel('Company name').fill(name)
   await page.getByRole('button', { name: 'Create company' }).click()
-  const introContinue = page.getByTestId('intro-continue')
   const appMain = page.locator('#main')
-  await introContinue.or(appMain).first().waitFor()
-  if (await introContinue.isVisible()) await introContinue.click()
+  await dismissIntroIfPresent(page, appMain)
   await expect(appMain).toBeVisible()
 }
 

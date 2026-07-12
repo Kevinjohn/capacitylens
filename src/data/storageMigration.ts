@@ -51,9 +51,12 @@ export function migrateLegacyStorageKeys(store: Storage): number {
  * Run the legacy→new key migration across BOTH web storages. Call once, as early as possible (before
  * the store reads the theme, before bootstrap loads the AppData blob).
  *
- * ONLY the store-availability PROBE is guarded (the accessor throws SecurityError when storage is
- * blocked in a sandboxed/private context): an entirely unavailable store means there is nothing to
- * migrate FROM it, so we log and move on rather than aborting the other store or crashing boot. This
+ * ONLY the store-availability PROBE is guarded — and the probe covers BOTH failure shapes: the
+ * accessor itself throwing (SecurityError in a sandboxed/private context) AND an accessor that
+ * succeeds but whose READ operations (`length`/`key`/`getItem`) throw (some embedded/permission-
+ * denied environments hand back a Storage object that rejects every operation). Either way an
+ * unreadable store means there is nothing to migrate FROM it, so we log and move on rather than
+ * aborting the other store or crashing boot. This
  * is the documented degrade for a non-tenant storage boundary (DEFENSIVE-CODING.md §5) — no data is
  * lost: the legacy keys stay in place, and a store that can't be read also can't have held
  * recoverable data.
@@ -75,13 +78,23 @@ export function migrateLegacyStorage(): void {
   for (const [name, get] of stores) {
     let store: Storage
     try {
-      // Availability probe ONLY — the accessor itself throws when the store is blocked.
+      // Availability probe ONLY — two shapes, both meaning "this store can't be read":
+      //  1. the accessor itself throws (classic sandboxed/private-mode SecurityError);
+      //  2. the accessor succeeds but the READ operations throw (some environments return a
+      //     Storage object whose length/key/getItem all raise SecurityError). Exercising each read
+      //     op the migration relies on HERE keeps that shape in the soft-skip arm — otherwise it
+      //     would throw inside migrateLegacyStorageKeys below and be misclassified as a COPY
+      //     failure (which blocks boot into the recovery screen for data that never existed).
       store = get()
+      void store.length
+      void store.key(0)
+      void store.getItem(LEGACY_KEY_PREFIX)
     } catch (e) {
       console.warn(`migrateLegacyStorage: ${name} unavailable — skipping legacy key migration`, e)
       continue
     }
-    // Outside the try: a copy failure on a REACHABLE store surfaces (see doc comment above).
+    // Outside the try: a copy failure (a WRITE, e.g. QuotaExceededError from setItem) on a
+    // reachable store surfaces (see doc comment above).
     migrateLegacyStorageKeys(store)
   }
 }

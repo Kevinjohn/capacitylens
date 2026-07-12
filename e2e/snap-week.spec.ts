@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { dismissIntroIfPresent, openApp } from './helpers'
 
 test.use({ reducedMotion: 'reduce', viewport: { width: 1440, height: 800 } })
 
@@ -152,10 +152,7 @@ test.describe('Snap to week start', () => {
     await page.getByRole('radio', { name: 'Sunday' }).click() // capture the Sunday week-start
     await page.getByRole('button', { name: 'Create company' }).click()
     // A post-create intro may precede the app; click through if it's up.
-    const introContinue = page.getByTestId('intro-continue')
-    const appMain = page.locator('#main')
-    await introContinue.or(appMain).first().waitFor()
-    if (await introContinue.isVisible()) await introContinue.click()
+    await dismissIntroIfPresent(page, page.locator('#main'))
 
     // Turn "Minimise weekends" OFF (device pref): with it on, a week-start Sunday is a (collapsed)
     // weekend labelled "S", indistinguishable from a Saturday, making the column-width probe

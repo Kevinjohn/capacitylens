@@ -17,7 +17,7 @@ import {
 } from './ui/command'
 import type { Filters } from '../store/useStore'
 import { cn } from '@/lib/utils'
-import { FOCUSABLE_SELECTOR, restoreFocus } from './common/focus'
+import { restoreFocus, wrapTabWithin } from './common/focus'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,15 +63,36 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Same policy as the Modal in common/dialogs.tsx (restoreFocus handles a since-detached
   // invoker by falling back to <main>), so closing any overlay lands keyboard/SR users
   // somewhere sensible instead of dropping focus to <body> (WCAG 2.4.3).
+  //
+  // ORDERING: the capture must run during RENDER, not in an effect. The CommandInput's
+  // `autoFocus` applies at COMMIT — before any passive effect runs — so an effect-time
+  // `document.activeElement` read would capture the palette's OWN input (detached by the
+  // unmount → restoreFocus falls back to <main>, never the real invoker). A lazy useState
+  // initializer runs exactly once, render-phase, before that autoFocus commits.
+  const [invoker] = useState(() => document.activeElement as HTMLElement | null)
+  // STRICTMODE: dev mounts run setup → cleanup → setup. A synchronous restoreFocus in the cleanup
+  // fires on that FAKE unmount — right after the input's autoFocus committed — yanking focus back
+  // to the invoker; with focus outside the panel, Escape never reaches the Command's onKeyDown and
+  // the palette can't be closed by keyboard (caught by e2e against the StrictMode dev server; the
+  // production build has no double-mount). Defer the restore a tick and let a re-running setup
+  // cancel it: only a REAL unmount lets the timer fire. restoreFocus itself handles the invoker
+  // having been detached in the meantime (falls back to <main>).
+  const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    const previouslyFocused = document.activeElement as HTMLElement | null
-    return () => restoreFocus(previouslyFocused)
-  }, [])
+    if (restoreTimer.current !== null) {
+      clearTimeout(restoreTimer.current) // StrictMode remount — the fake unmount's restore is cancelled
+      restoreTimer.current = null
+    }
+    return () => {
+      restoreTimer.current = setTimeout(() => restoreFocus(invoker), 0)
+    }
+  }, [invoker])
 
-  // Tab containment, mirroring the Modal's hand-rolled wrap in common/dialogs.tsx: the palette
-  // is visually overlaid on obscured content, so Tab/Shift-Tab must cycle within the panel —
-  // otherwise keyboard users tab out into controls they can't see. Usually the input is the
-  // only focusable (cmdk options are aria-activedescendant, not tabbable), so the wrap simply
+  // Tab containment via the shared wrapTabWithin (common/focus.ts — one wrap shared with the
+  // Modal in common/dialogs.tsx so the two overlays can't drift): the palette is visually
+  // overlaid on obscured content, so Tab/Shift-Tab must cycle within the panel — otherwise
+  // keyboard users tab out into controls they can't see. Usually the input is the only
+  // focusable (cmdk options are aria-activedescendant, not tabbable), so the wrap simply
   // keeps focus on it. Deliberately NO aria-modal: the background siblings are not
   // aria-hidden/inert (same honesty stance as dialogs.tsx — claiming modal would tell AT
   // browse mode the rest of the page is gone when it isn't). cmdk's own arrow/Enter handling
@@ -81,24 +102,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       if (e.key !== 'Tab') return
       const node = panelRef.current
       if (!node) return
-      const items = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-        (el) => !el.hasAttribute('disabled'),
-      )
-      if (items.length === 0) return
-      const first = items[0]
-      const last = items[items.length - 1]
-      // Wrap at the edges; also pull focus back in if it somehow left the panel entirely.
-      const active = document.activeElement
-      if (active instanceof HTMLElement && !node.contains(active)) {
-        e.preventDefault()
-        first.focus()
-      } else if (e.shiftKey && active === first) {
-        e.preventDefault()
-        last.focus()
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault()
-        first.focus()
-      }
+      wrapTabWithin(node, e)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

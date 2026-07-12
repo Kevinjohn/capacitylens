@@ -189,7 +189,7 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await importInto(app, 'a1', 'vc4', cookie)).statusCode).toBe(403)
   })
 
-  it('editor of a1: read → 200; every write to a1 → 2xx', async () => {
+  it('editor of a1: read → 200; every row-level write to a1 → 2xx; import → 403 (purge tier)', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie, userId } = await signUp(app, 'editor@capacitylens.dev')
@@ -201,7 +201,9 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(200)
     expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(204)
     expect((await batchInto(app, 'a1', 'ec3', cookie)).statusCode).toBe(200)
-    expect((await importInto(app, 'a1', 'ec4', cookie)).statusCode).toBe(200)
+    // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses
+    // the P1.6 note pin — gated 'purge' (admin+). See the dedicated import-tier suite below.
+    expect((await importInto(app, 'a1', 'ec4', cookie)).statusCode).toBe(403)
   })
 
   it.each(['admin', 'owner'] as const)('%s of a1: writes to a1 → 2xx (tier ≥ editor)', async (role) => {
@@ -507,6 +509,49 @@ describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vecto
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeBatch'`).get() as { n: number }).n).toBe(0)
     expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members WHERE accountId = 'purgeBatch'`).get() as { n: number }).n).toBe(0)
     expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0)
+  })
+})
+
+describe("P1.5 authorize — /api/import is admin-tier ('purge'), not editor-tier", () => {
+  // Import is a destructive delete-all + re-insert of the tenant slice (replaceAccountSlice) — the
+  // purge tier's hard-delete semantics — AND it bypasses field-level write pins: every id is
+  // remapped, so the P1.6 timeOff note pin can never match a stored row. At 'write' tier a
+  // note-blind editor could erase every owner-confidential note simply by importing their own
+  // (note-redacted) export. OFF mode stays open (see the OFF-mode allow-all suite).
+
+  const importSlice = (app: FastifyInstance, accountId: string, cookie: string) => {
+    // A realistic attack payload: the editor's own export of a1 — note-LESS by construction
+    // (their reads are redacted), so importing it would silently erase the stored note.
+    const data = {
+      ...emptyAppData(),
+      resources: [person('r1', accountId)],
+      timeOff: [timeOff('to1', accountId, 'r1')], // no note key
+    }
+    return call(app, { method: 'POST', url: '/api/import', payload: { accountId, data }, headers: { cookie } })
+  }
+
+  it.each(['viewer', 'editor'] as const)('%s of a1 → 403 and the slice (sentinel note included) survives', async (role) => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, `${role}-import@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+
+    expect((await importSlice(app, 'a1', cookie)).statusCode).toBe(403)
+    // Nothing was replaced: the seeded client is still there and the confidential note is intact.
+    const row = db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown }
+    expect(row.note).toBe(SENTINEL_TIMEOFF_NOTE)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE id = 'c1'`).get() as { n: number }).n).toBe(1)
+  })
+
+  it.each(['admin', 'owner'] as const)('%s of a1 → 200 (a note-VISIBLE role may replace the slice, note included)', async (role) => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, `${role}-import@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+
+    const res = await importSlice(app, 'a1', cookie)
+    expect(res.statusCode).toBe(200)
+    expect(res.json().imported).toBeGreaterThan(0)
   })
 })
 
