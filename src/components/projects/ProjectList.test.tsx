@@ -118,6 +118,21 @@ describe('ProjectList', () => {
     expect(screen.getByText('No projects yet.')).toBeInTheDocument()
   })
 
+  // activeOnly hides an archived client from the views but does NOT orphan-prune its still-active
+  // projects (shared/domain/lifecycle.ts). The row must name the archived client (resolved against
+  // the FULL scoped slice) with an (archived) hint — not the misleading "(no client)" fallback.
+  it('shows the client name + (archived) for a project whose client is archived, not "(no client)"', () => {
+    const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
+    useStore.getState().addProject({ name: 'Alpha Project', clientId: client.id, color: '#ec4899' })
+    useStore.getState().archiveEntity('clients', client.id)
+
+    render(<ProjectList />)
+
+    expect(screen.getByText('Alpha Project')).toBeInTheDocument()
+    expect(screen.getByText('· Acme Corp (archived)')).toBeInTheDocument()
+    expect(screen.queryByText('· (no client)')).not.toBeInTheDocument()
+  })
+
   it('shows (no client) when project has an unresolved client id', () => {
     // Seed via replaceAll to inject a project with an orphaned clientId
     useStore.getState().replaceAll(

@@ -91,6 +91,34 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities).toHaveLength(0)
   })
 
+  // activeOnly deliberately does NOT orphan-prune (shared/domain/lifecycle.ts): an activity under an
+  // archived project stays in this list. Its label must resolve against the FULL scoped slice and
+  // say so — NOT fall back to "Internal" (factually wrong for a kind:'project' activity).
+  it('labels an activity under an ARCHIVED project with the project name + (archived), not "Internal"', () => {
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
+    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
+    useStore.getState().addActivity({ name: 'My Activity', kind: 'project', projectId: project.id })
+    useStore.getState().archiveEntity('projects', project.id)
+
+    render(<ActivityList />)
+
+    const row = within(screen.getByTestId('project-activities')).getByTestId('activity-row')
+    expect(row).toHaveTextContent('Acme / Lightning (archived)')
+    expect(row).not.toHaveTextContent('Internal')
+  })
+
+  it('labels an activity whose project has an ARCHIVED client with the full name + (archived)', () => {
+    const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
+    const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
+    useStore.getState().addActivity({ name: 'My Activity', kind: 'project', projectId: project.id })
+    useStore.getState().archiveEntity('clients', client.id)
+
+    render(<ActivityList />)
+
+    const row = within(screen.getByTestId('project-activities')).getByTestId('activity-row')
+    expect(row).toHaveTextContent('Acme / Lightning (archived)')
+  })
+
   it('confirms before deleting and removes the activity from the list', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })

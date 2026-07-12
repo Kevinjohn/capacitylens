@@ -1,7 +1,7 @@
 // MUST be first: runs the storage-key rebrand migration (floaty/ → capacitylens/) as a module
 // side-effect, before any other import reads storage (the Zustand store reads device prefs eagerly
 // on import). Removable a release after the rebrand. See src/data/runStorageMigration.ts.
-import './data/runStorageMigration'
+import { storageMigrationError } from './data/runStorageMigration'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
@@ -30,32 +30,43 @@ watchSystemTheme(() => useStore.getState().theme)
 
 // Load (and seed on first run) before/while the app renders. The AppShell gates
 // content on `hydrated`, so there's no flash of empty data.
-void bootstrap(useStore, persistenceAdapter, {
-  // Auto-seed is a DEMO-BUILD-ONLY convenience (single-company-per-instance policy): the
-  // localStorage build has no server to own the data, so it seeds a demo dataset on first run.
-  // A server-backed instance (the default) must NOT auto-seed — the server owns its data, and a
-  // fresh real deploy now deliberately starts EMPTY at the create-your-company picker rather than
-  // fabricating a "Studio North". `undefined` here means bootstrap() only loads whatever the
-  // server already has (possibly nothing).
-  seedIfEmpty: isDemoMode() ? seed() : undefined,
-  // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
-  // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
-  serverMode: isServerConfigured(),
-  onError: () => useStore.getState().setPersistError(true),
-  // Recovery: once a write lands again (e.g. the server comes back), take the
-  // "changes aren't saving" banner back down. Guarded so a normal save doesn't
-  // churn the store on every keystroke.
-  onSuccess: () => {
-    if (useStore.getState().persistError) useStore.getState().setPersistError(false)
-  },
-}).catch((e) => {
-  // Hydration itself failed — still let the app render (with the banner) rather
-  // than dying on an unhandled rejection. The banner tells the user "changes aren't saving",
-  // but log the real cause too so a contributor isn't left guessing what broke at boot.
-  console.error('bootstrap: hydration failed; rendering with the persist-error banner', e)
+//
+// storageMigrationError first: the legacy-key copy failed on a REACHABLE store (e.g. quota), so the
+// user's pre-rebrand data was NOT carried to the new keys — booting normally would read the empty
+// new keys and the data would APPEAR lost. Mirror bootstrap's own load-failure branch instead:
+// render "hydrated" with NO persistence attached and NO seed, and raise `loadError` so the AppShell
+// shows the StorageRecovery screen (export / import / reset) rather than a silently-empty app.
+if (storageMigrationError) {
   useStore.getState().setHydrated(true)
-  useStore.getState().setPersistError(true)
-})
+  useStore.getState().setLoadError(true)
+} else {
+  void bootstrap(useStore, persistenceAdapter, {
+    // Auto-seed is a DEMO-BUILD-ONLY convenience (single-company-per-instance policy): the
+    // localStorage build has no server to own the data, so it seeds a demo dataset on first run.
+    // A server-backed instance (the default) must NOT auto-seed — the server owns its data, and a
+    // fresh real deploy now deliberately starts EMPTY at the create-your-company picker rather than
+    // fabricating a "Studio North". `undefined` here means bootstrap() only loads whatever the
+    // server already has (possibly nothing).
+    seedIfEmpty: isDemoMode() ? seed() : undefined,
+    // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
+    // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
+    serverMode: isServerConfigured(),
+    onError: () => useStore.getState().setPersistError(true),
+    // Recovery: once a write lands again (e.g. the server comes back), take the
+    // "changes aren't saving" banner back down. Guarded so a normal save doesn't
+    // churn the store on every keystroke.
+    onSuccess: () => {
+      if (useStore.getState().persistError) useStore.getState().setPersistError(false)
+    },
+  }).catch((e) => {
+    // Hydration itself failed — still let the app render (with the banner) rather
+    // than dying on an unhandled rejection. The banner tells the user "changes aren't saving",
+    // but log the real cause too so a contributor isn't left guessing what broke at boot.
+    console.error('bootstrap: hydration failed; rendering with the persist-error banner', e)
+    useStore.getState().setHydrated(true)
+    useStore.getState().setPersistError(true)
+  })
+}
 
 // Fail loud and LEGIBLE if the mount node is missing (e.g. a fork that renamed/removed it in
 // index.html): a fatal, unrecoverable boot precondition deserves a clear message, not the cryptic

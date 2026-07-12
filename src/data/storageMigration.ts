@@ -51,12 +51,21 @@ export function migrateLegacyStorageKeys(store: Storage): number {
  * Run the legacy→new key migration across BOTH web storages. Call once, as early as possible (before
  * the store reads the theme, before bootstrap loads the AppData blob).
  *
- * Each store is guarded INDEPENDENTLY: an entirely unavailable store (e.g. `localStorage` access
- * throwing SecurityError in a sandboxed/private context) means there is nothing to migrate FROM it,
- * so we log and move on rather than aborting the other store or crashing boot. This is the documented
- * degrade for a non-tenant storage boundary (DEFENSIVE-CODING.md §5) — no data is lost: the legacy
- * keys stay in place, and a store that can't be read also can't have held recoverable data. The
- * inner per-key copy still surfaces (it runs only once a store is confirmed reachable).
+ * ONLY the store-availability PROBE is guarded (the accessor throws SecurityError when storage is
+ * blocked in a sandboxed/private context): an entirely unavailable store means there is nothing to
+ * migrate FROM it, so we log and move on rather than aborting the other store or crashing boot. This
+ * is the documented degrade for a non-tenant storage boundary (DEFENSIVE-CODING.md §5) — no data is
+ * lost: the legacy keys stay in place, and a store that can't be read also can't have held
+ * recoverable data.
+ *
+ * The per-key copy is deliberately OUTSIDE the guard: once a store is reachable, a copy failure
+ * (e.g. QuotaExceededError from `setItem`) means the user's legacy data was NOT carried forward and
+ * the app would boot looking empty — a real data-path failure that must PROPAGATE to the boot path
+ * (runStorageMigration.ts routes it to the storage-recovery screen), never be soft-skipped as
+ * "store unavailable".
+ *
+ * @throws whatever {@link migrateLegacyStorageKeys} throws — a throw here means legacy data was NOT
+ *         migrated; the caller must surface it, not proceed as if the new keys were authoritative.
  */
 export function migrateLegacyStorage(): void {
   const stores: Array<[name: string, get: () => Storage]> = [
@@ -64,10 +73,15 @@ export function migrateLegacyStorage(): void {
     ['sessionStorage', () => sessionStorage],
   ]
   for (const [name, get] of stores) {
+    let store: Storage
     try {
-      migrateLegacyStorageKeys(get())
+      // Availability probe ONLY — the accessor itself throws when the store is blocked.
+      store = get()
     } catch (e) {
       console.warn(`migrateLegacyStorage: ${name} unavailable — skipping legacy key migration`, e)
+      continue
     }
+    // Outside the try: a copy failure on a REACHABLE store surfaces (see doc comment above).
+    migrateLegacyStorageKeys(store)
   }
 }

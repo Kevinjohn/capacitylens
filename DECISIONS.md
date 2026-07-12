@@ -26,6 +26,16 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   serving. `GET /api/auth/me` reports `canCreateAccount` and the picker hides "New company" at the
   cap (fail-open when the fact is unavailable — the server is the enforcer). The demo build and
   `pnpm run dev` are uncapped.
+- **Auth-on company creation is `POST /api/orgs` ONLY (2026-07-12).** The atomic path (account +
+  built-in Internal client + caller-as-Owner membership, one tx) is the sole create vector when
+  `CAPACITYLENS_AUTH` ≠ off — the generic `POST /api/accounts` / create-shaped PUT/batch-PUT 403
+  with a message naming `/api/orgs` (a bare account row has no membership, so nobody could ever
+  open or delete it). Auth OFF keeps the open generic create (dev/demo parity). The client's
+  AccountPicker uses /api/orgs in server mode; the demo build keeps the local store path.
+- **Confidential time-off notes are enforced on WRITE, not just read (2026-07-12).** A writer whose
+  role can't read notes (editor/viewer) has the stored `note` PINNED through PUT/PATCH/batch
+  (their redacted round-trip must not erase a note they never saw), and every echo — write
+  responses, optimistic-concurrency 409 `current` payloads — is redacted like a read.
 - **Pure domain core is shared.** `shared/` (`@capacitylens/shared`) owns types, validation,
   integrity, cascade, import-remap, migrate, seed — imported by both app and server so they
   can't drift.

@@ -9,36 +9,14 @@ import { m } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { Button as ShadButton } from '../ui/button'
 import { Icon, type IconName } from './Icon'
+// FOCUSABLE_SELECTOR + restoreFocus live in ./focus (shared with CommandPalette, and
+// react-refresh forbids exporting non-component helpers from this component file).
+import { FOCUSABLE_SELECTOR, restoreFocus } from './focus'
 
 // Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
 // from semantic tokens (see index.css), so everything adapts to dark mode automatically.
 
 type ButtonVariant = 'primary' | 'ghost' | 'danger'
-
-// The set of natively-focusable controls inside the dialog — shared by the manual Tab-trap
-// (window keydown) and the initial-focus fallback (onOpenAutoFocus) so the two can't drift.
-// The Tab-trap additionally drops disabled elements at runtime; initial focus uses the
-// `:not([disabled])` variant below so it never lands on a disabled control (which would
-// silently drop focus to <body>).
-const FOCUSABLE_SELECTOR =
-  'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-
-/** Restore focus to `prev` (the element that had focus before the dialog opened) on close.
- *  But .focus() on a node that's been detached from the DOM is a silent no-op that drops
- *  focus to <body>, stranding keyboard/SR users (WCAG 2.4.3) — an action like delete can
- *  unmount the row/button that opened the dialog. So fall back to the <main> landmark (made
- *  programmatically focusable) to keep focus in the content. */
-function restoreFocus(prev: HTMLElement | null) {
-  if (prev?.isConnected) {
-    prev.focus?.()
-  } else {
-    const main = document.querySelector<HTMLElement>('main')
-    if (main) {
-      main.tabIndex = -1
-      main.focus()
-    }
-  }
-}
 
 // CapacityLens's three button NAMES mapped onto shadcn's button aesthetic (Button base in
 // ../ui/button) via a plain Record lookup (capacitylens's original idiom — no second same-named
@@ -353,10 +331,14 @@ export function Modal({
       >
         <DialogPrimitive.Content
           ref={panelRef}
-          // Radix's Content under modal={false} emits role="dialog" WITHOUT aria-modal, so we
-          // pass it back through (Content forwards unknown props) to restore the screen-reader
-          // modality signal capacitylens's pre-Radix panel carried.
-          aria-modal="true"
+          // aria-modal is deliberately ABSENT. Radix's Content under modal={false} emits
+          // role="dialog" without it, and that's the honest signal: aria-modal="true" asserts
+          // the background is inert/hidden, but in non-modal mode the sibling subtrees are NOT
+          // aria-hidden (deliberately — RotateHint etc. must stay readable, see the shell note
+          // above). Claiming modal would tell AT browse mode the rest of the page is gone when
+          // it isn't. role="dialog" without aria-modal is valid ARIA — don't re-add it unless
+          // the background is actually isolated.
+          //
           // No visible description chrome — silence Radix's "missing Description" warning.
           aria-describedby={undefined}
           // CapacityLens owns Escape (the window listener above) and the backdrop press (the backdrop

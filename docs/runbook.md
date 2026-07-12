@@ -6,21 +6,16 @@ Flags and their droplet values live in the **flag register** in
 (Nginx + daemon + paths) is in the plan's "Target architecture"; the cutover steps are
 the plan's Phase 2.
 
-> **Live setup (alpha, 2026-06-16) — read this first.** The demo is deployed at
-> **small-saas-agency-resource-alpha.kevinjohngallagher.com** (DigitalOcean + Forge,
-> zero-downtime releases — app at `current/`, web root `current/dist`). What's actually wired —
-> this **supersedes the Basic-Auth / per-tester-Account instructions below**:
-> - **Server:** a Forge **Background process** named `capacitylens-server` runs
->   `/home/forge/capacitylens-data/run-server.sh` (a wrapper that `cd current && exec pnpm --filter
->   capacitylens-server start` with `NODE_ENV=production` + the droplet flags). `CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db`.
-> - **Nginx:** `location /api/ → 127.0.0.1:8787` added via Forge's Nginx editor (no trailing
->   slash on `proxy_pass`, so the `/api` prefix is preserved).
-> - **Deploy script (Forge):** `git pull` → `pnpm install --frozen-lockfile` → `export VITE_CAPACITYLENS_API` +
->   `VITE_CAPACITYLENS_BUILD_SHA` → `pnpm run build`. **`NODE_ENV=development` is kept for alpha** (flip
->   to `production` before beta).
-> - **No auth this round (owner):** no Nginx Basic Auth, `CAPACITYLENS_AUTH` off — the dataset is
->   shared and OPEN. Wherever this runbook says `curl -u` / htpasswd / per-tester creds, **that
->   gate does not exist yet**. **No per-tester Accounts** either — testers share the seeded Accounts.
+> **Live setup (auth-on, 2026-07-11) — read this first.** The instance runs the server-backed
+> build with **password auth ON** (`CAPACITYLENS_AUTH=password`) under `NODE_ENV=production` —
+> the daemon **refuses to boot** in production with auth off (the posture interlock in
+> `server/src/productionGuard.ts`). Access is invite-only (Settings → Members → Invite), and
+> tenant isolation is enforced server-side: the account a caller can touch is derived from
+> their session + membership (`authorize()`), not client-asserted. The full wiring — Forge
+> deploy script, daemon wrapper + env, Nginx `/api` proxy, first-user bootstrap — lives in
+> [`deploy.md`](deploy.md) (**source of truth for the deployed posture**); generic
+> systemd/Docker self-hosting is [`self-hosting.md`](self-hosting.md). This runbook is the
+> day-to-day operations layer on top of those.
 > - **Deploy gotcha:** the daemon runs from the rotating `current/` symlink, so a **server-code**
 >   change (`server/`) needs a manual restart of the `capacitylens-server` Background process in Forge
 >   after the deploy; client/`dist` changes go live on the symlink swap automatically.
@@ -29,14 +24,17 @@ the plan's Phase 2.
 ## Deploy
 
 Run the gate locally (`gate` + `gate:server` + `e2e`; optionally `e2e:webkit` / `e2e:firefox` for a
-Safari / Firefox pass),
-then push to `main` → Forge deploy script
-(there is no hosted CI by default — the local gate is the pre-push bar):
+Safari / Firefox pass), then push to `main` → Forge deploy script. Hosted CI also runs the gate
+(`.github/workflows/gate.yml`: PRs, manual dispatch, release tags, monthly cron), but the local
+gate stays the pre-push bar — CI is the backstop, not the substitute.
+
+The deploy script itself (build) and the daemon env are maintained in
+[`deploy.md`](deploy.md) §4–5 — don't duplicate them here. Two build facts that matter
+operationally:
 
 ```sh
 nvm use                       # .nvmrc pins Node 24
 pnpm install --frozen-lockfile
-export VITE_CAPACITYLENS_API="https://<site>"                      # server mode — REQUIRED
 export VITE_CAPACITYLENS_BUILD_SHA="$(git rev-parse --short HEAD)" # build stamp
 export VITE_CAPACITYLENS_FEEDBACK_MAILTO="<owner address>"         # Send-feedback link
 pnpm run build                 # → dist/
@@ -44,22 +42,26 @@ pnpm run build                 # → dist/
 # forge daemon:restart <id>   — daemon runs: pnpm --filter capacitylens-server start
 ```
 
-**Verify after every deploy:** Settings shows `build <sha> · server`. A build missing
-`VITE_CAPACITYLENS_API` silently reverts to localStorage and otherwise looks identical — the
-stamp is the tell (`· local` = bad build).
+- **Do NOT set `VITE_CAPACITYLENS_API`** — empty *is* same-origin server mode (the variable is
+  an origin *override* for different-origin deploys, not an on-switch; see `deploy.md`).
+- **Never set `VITE_CAPACITYLENS_DEMO`** here — that builds the backend-less localStorage demo.
+
+**Verify after every deploy:** Settings shows `build <sha> · server`. A demo-flagged build
+shows `· local` and otherwise looks identical — the stamp is the tell (`· local` = bad build).
 
 ## Logs
 
 - Daemon stdout (Forge daemon log): with `CAPACITYLENS_LOG=1` every request is one JSON line
   (method/path/status/latency, pino) plus `capacitylens-server: backup written …` lines hourly.
-- Nginx access log: per-tester Basic Auth usernames — who was on when. (NOT wired in the
-  current alpha — see the alpha banner; there are no Basic Auth usernames to log this round.)
+- Nginx access log: request-level traffic only. Who-did-what attribution comes from the
+  **audit log** (`capacitylens-audit.jsonl` beside the DB, on by default — one JSON line per
+  mutation with `userId`/`accountId`; field names only, never values).
 - 500s appear in the daemon log with the real error; the HTTP body stays generic.
 
 ## Backups (CAPACITYLENS_BACKUP_DIR)
 
 The daemon snapshots `capacitylens.db` online (WAL-safe — never `cp` the live file) into
-`/home/forge/capacitylens-data/backups/capacitylens-<YYYYMMDD-HHmmss>.db`: once at boot, then every
+`/home/forge/capacitylens-data/backups/capacitylens-<YYYYMMDD-HHmmss-SSS>.db`: once at boot, then every
 `CAPACITYLENS_BACKUP_INTERVAL_MIN` (60), keeping the newest `CAPACITYLENS_BACKUP_KEEP` (48) — RPO ≤ 1 h.
 
 ## Restore (P4.2 — drill performed 2026-06-13, exact sequence)
@@ -70,7 +72,8 @@ The daemon snapshots `capacitylens.db` online (WAL-safe — never `cp` the live 
 #    crashed daemon would replay old frames over the restored file)
 cp /home/forge/capacitylens-data/backups/capacitylens-<stamp>.db /home/forge/capacitylens-data/capacitylens.db
 rm -f /home/forge/capacitylens-data/capacitylens.db-wal /home/forge/capacitylens-data/capacitylens.db-shm
-# 3. start the daemon; verify in the app (or: curl -su <user> https://<site>/api/state)
+# 3. start the daemon; verify in the app (signed in — /api/state needs a session with auth on,
+#    so the app is the easy check; curl works only with a valid session cookie)
 ```
 
 Drill verification: an edit made after the snapshot is gone post-restore; seeded data
@@ -96,20 +99,23 @@ boot-guard refuses anyway (the daemon will not start with it under `NODE_ENV=pro
 
 ## Monitoring (P4.4)
 
-- Uptime check (Forge monitor / UptimeRobot) **with Basic Auth creds** on:
-  `https://<site>/api/health` (no Basic Auth this round — see the alpha banner; hit
-  `/api/health` directly) — with `CAPACITYLENS_HEALTH_DEEP=1` a 200 `{ok,db:true}` proves the
-  DB answers; 503 `{ok:false}` = DB broken while the process lives — and the SPA root.
+- Uptime check (Forge monitor / UptimeRobot) on `https://<site>/api/health` — deliberately
+  unauthenticated and rate-limit-exempt, so no creds needed even with auth on. With
+  `CAPACITYLENS_HEALTH_DEEP=1` a 200 `{ok,db:true}` proves the DB answers; 503 `{ok:false}` =
+  DB broken while the process lives. Also check the SPA root.
 - Droplet disk alert sized against backup retention (48 × DB size + WAL headroom; the DB
   is KB–MB scale, so any sane threshold works — set it when confirming disk headroom).
 
 ## Cohesion demo import (Phase 2 step 3 — dry-run verified locally 2026-06-13)
 
-First daemon boot auto-seeds Studio North / Loft Digital. The Cohesion Labs dataset
+A fresh daemon boots **EMPTY** — the two-company demo seed (Studio North / Loft Digital) is an
+explicit opt-in (`CAPACITYLENS_SEED_DEMO=1`), never automatic. The Cohesion Labs dataset
 (`_input/cohesion-labs-import.json`, 166 records) imports into its own Account — create
-the Account first, then import **into** it (run on the droplet from the repo root; the
-`curl -u <user>` note assumes Basic Auth, which is NOT wired in the current alpha — see the
-alpha banner, so drop the `-u`):
+the Account first, then import **into** it (run on the droplet from the repo root). Two
+auth-on caveats: loopback bypasses Nginx but **not** app-level auth, so these direct API
+calls need a signed-in session cookie — the easy path is the app's own import as a
+signed-in Owner; and creating an additional Account 403s unless
+`CAPACITYLENS_MULTI_ACCOUNT=1` (the default instance is single-company):
 
 ```sh
 NOW=$(node -e "console.log(new Date().toISOString())")
@@ -125,38 +131,44 @@ fetch('http://127.0.0.1:8787/api/import', {
 ```
 
 Expected: `200 {"imported":166,"skipped":0,…}`. *Verify:* Cohesion Labs appears in the
-AccountPicker next to the seeded companies, with 12 resources / 11 clients / 12 projects /
-30 tasks / 79 allocations / 20 time-off entries; the seeded companies are untouched.
-(Hitting the daemon on loopback as above bypasses Nginx — no Basic Auth needed when SSH'd in.)
+AccountPicker next to any existing companies, with 12 resources / 11 clients / 12 projects /
+30 tasks / 79 allocations / 20 time-off entries; existing companies are untouched.
+(Loopback as above bypasses Nginx, but with auth on the daemon still requires a session —
+see the caveat at the top of this section.)
 
 ## Testers (P5.1 / P5.3 / Phase 2 #3)
 
-- **Access:** one htpasswd entry per tester (`htpasswd /etc/nginx/.htpasswd-capacitylens <name>`)
-  — attribution in access logs, per-person revocation. Remove a line to revoke. (NOT wired in
-  the current alpha — see the alpha banner; there is no htpasswd gate this round.)
-- **One Account (company) per tester**, created in the UI after deploy, plus the Cohesion
-  import — makes last-writer-wins collisions rare by construction; the AccountPicker
-  doubles as "who are you".
+- **Access:** invite-only via **Settings → Members → Invite** (briefly set
+  `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1` while the invitee creates their credential, then unset it);
+  forgotten passwords via the admin-issued **Reset password** link on the member row
+  (single-use, 24 h). Revoke by removing the membership. First-user bootstrap and the full
+  flow are in [`deploy.md`](deploy.md) §7. Attribution is per-user (login + audit log).
+- **One Account (company) per tester** — needs `CAPACITYLENS_MULTI_ACCOUNT=1` (the default
+  instance is single-company) — plus the Cohesion import. Each tester sees only the
+  Account(s) they're a member of; login is "who are you".
 - **Briefing paragraph (paste into the invite):**
 
-  > Your data lives on our demo server and is shared per company — pick *your* company on
-  > the picker and stay in it. Anything you type is visible to the other testers and to
-  > us, so please use demo-ish names, not real client data. The little stamp at the bottom
+  > Your data lives on our demo server, scoped to your company — you only see the
+  > companies you've been invited into. Anything you type is visible to that company's
+  > other members and to us, so please use demo-ish names, not real client data. The little stamp at the bottom
   > of Settings says which build you're on — include it in any bug report (the “Send
   > feedback” link next to it pre-fills this). You can export your company's data as JSON
   > from the sidebar at any time. Best on a laptop; on a phone, landscape works better.
 
 ## Rollback (data decision, not just a redeploy)
 
-Rebuilding without `VITE_CAPACITYLENS_API` returns the app to browser-local storage but
-**strands the server data** (nothing migrates back). Before flipping:
+Rebuilding with `VITE_CAPACITYLENS_DEMO=1` returns the app to browser-local storage (an
+unflagged build stays server mode — `VITE_CAPACITYLENS_API` is only an origin override) but
+**strands the server data** (nothing migrates back). Before flipping, export the data —
+the app's sidebar JSON export as a signed-in user is the easy path, or with a valid
+session cookie:
 
 ```sh
-curl -su <user> https://<site>/api/state > capacitylens-server-export-$(date +%F).json
+curl -s -b '<session cookie>' https://<site>/api/state > capacitylens-server-export-$(date +%F).json
 ```
 
-Then remove the `VITE_CAPACITYLENS_API`/`VITE_CAPACITYLENS_BUILD_SHA` exports from the deploy script
-and redeploy. Server-mode rollback to a good state without leaving server mode = the
+Then add `VITE_CAPACITYLENS_DEMO=1` to the build step in the deploy script and redeploy.
+Server-mode rollback to a good state without leaving server mode = the
 restore sequence above.
 
 ## Production-shaped rehearsal (Phase 6, run locally before cutover)

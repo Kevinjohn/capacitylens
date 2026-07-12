@@ -352,7 +352,15 @@ export function MembersSection() {
   }
 
   const copyLink = (link: string, copiedNotice: string) => {
-    void navigator.clipboard?.writeText(link).then(
+    // navigator.clipboard is undefined in insecure contexts (plain-HTTP self-hosts, some
+    // WebViews). An optional chain there would short-circuit past BOTH .then callbacks —
+    // a click that silently does nothing (the swallow DEFENSIVE-CODING.md forbids). Surface
+    // the same failure notice instead; its wording already tells the user the manual fallback.
+    if (!navigator.clipboard) {
+      setNotice(m.settings_members_copy_failed(), 'error')
+      return
+    }
+    void navigator.clipboard.writeText(link).then(
       () => setNotice(copiedNotice),
       () => setNotice(m.settings_members_copy_failed(), 'error'),
     )

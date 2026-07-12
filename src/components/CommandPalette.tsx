@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useLayoutEffect } from 'react'
+import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, emptyFilters } from '../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../store/selectors'
@@ -17,6 +17,7 @@ import {
 } from './ui/command'
 import type { Filters } from '../store/useStore'
 import { cn } from '@/lib/utils'
+import { FOCUSABLE_SELECTOR, restoreFocus } from './common/focus'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,54 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Refs into cmdk's input + list so we can repair `aria-activedescendant` (below).
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  // Ref onto the dialog panel for the Tab wrap below.
+  const panelRef = useRef<HTMLDivElement>(null)
+
+  // Focus restore: capture the invoker (whatever had focus when the palette opened — the ⌘K
+  // press leaves it on a toolbar button, the grid, etc.) and give focus back on unmount.
+  // Same policy as the Modal in common/dialogs.tsx (restoreFocus handles a since-detached
+  // invoker by falling back to <main>), so closing any overlay lands keyboard/SR users
+  // somewhere sensible instead of dropping focus to <body> (WCAG 2.4.3).
+  useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null
+    return () => restoreFocus(previouslyFocused)
+  }, [])
+
+  // Tab containment, mirroring the Modal's hand-rolled wrap in common/dialogs.tsx: the palette
+  // is visually overlaid on obscured content, so Tab/Shift-Tab must cycle within the panel —
+  // otherwise keyboard users tab out into controls they can't see. Usually the input is the
+  // only focusable (cmdk options are aria-activedescendant, not tabbable), so the wrap simply
+  // keeps focus on it. Deliberately NO aria-modal: the background siblings are not
+  // aria-hidden/inert (same honesty stance as dialogs.tsx — claiming modal would tell AT
+  // browse mode the rest of the page is gone when it isn't). cmdk's own arrow/Enter handling
+  // is untouched — this listener acts on Tab only.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return
+      const node = panelRef.current
+      if (!node) return
+      const items = Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+        (el) => !el.hasAttribute('disabled'),
+      )
+      if (items.length === 0) return
+      const first = items[0]
+      const last = items[items.length - 1]
+      // Wrap at the edges; also pull focus back in if it somehow left the panel entirely.
+      const active = document.activeElement
+      if (active instanceof HTMLElement && !node.contains(active)) {
+        e.preventDefault()
+        first.focus()
+      } else if (e.shiftKey && active === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
   // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
@@ -139,6 +188,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
       role="presentation"
     >
       <div
+        ref={panelRef}
+        // The panel is a labelled dialog so AT announces what opened; aria-modal is deliberately
+        // absent (see the Tab-wrap comment above — the background is not actually isolated).
+        role="dialog"
+        aria-label={m.palette_dialog_label()}
         className="flex h-fit max-h-[60vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-elevated shadow-pop ring-1 ring-line animate-[capacitylens-pop_0.14s_ease-out]"
         onMouseDown={(e) => e.stopPropagation()}
       >

@@ -101,6 +101,16 @@ describe('migrateLegacyStorageKeys', () => {
     expect(store.getItem('some-other-tool')).toBe('keep')
     expect(store.getItem('analytics')).toBe('keep')
   })
+
+  it('PROPAGATES a copy failure (quota-style setItem throw) rather than swallowing it', () => {
+    const store = makeStore({ 'floaty/v3': 'DATA' })
+    const quota = new Error('QuotaExceededError')
+    store.setItem = () => {
+      throw quota
+    }
+    // The legacy data was NOT carried forward — the caller must see exactly why.
+    expect(() => migrateLegacyStorageKeys(store)).toThrow(quota)
+  })
 })
 
 describe('migrateLegacyStorage', () => {
@@ -133,5 +143,53 @@ describe('migrateLegacyStorage', () => {
 
     spy.mockRestore()
     warn.mockRestore()
+  })
+
+  // The catch is the availability PROBE only: once a store is reachable, a per-key copy failure
+  // (quota) means legacy data was NOT migrated — it must PROPAGATE to the boot path (which routes
+  // it to the storage-recovery screen), never be misclassified as "store unavailable".
+  it('PROPAGATES a quota throw during the copy on a reachable store (not soft-skipped)', () => {
+    localStorage.setItem('floaty/v3', 'PRECIOUS')
+    const quota = new Error('QuotaExceededError')
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw quota
+    })
+
+    expect(() => migrateLegacyStorage()).toThrow(quota)
+    // The legacy key is untouched — the data stays recoverable.
+    expect(localStorage.getItem('floaty/v3')).toBe('PRECIOUS')
+
+    spy.mockRestore()
+  })
+})
+
+describe('runStorageMigration (boot side-effect)', () => {
+  // The module runs the migration at import time, BEFORE React mounts — so instead of throwing
+  // (which would blank the page with no ErrorBoundary), it captures the failure for main.tsx to
+  // route to the StorageRecovery screen via `setLoadError(true)`.
+  it('captures a migration copy failure into storageMigrationError instead of throwing at module scope', async () => {
+    vi.resetModules()
+    const quota = new Error('QuotaExceededError')
+    vi.doMock('./storageMigration', () => ({
+      migrateLegacyStorage: () => {
+        throw quota
+      },
+    }))
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const mod = await import('./runStorageMigration')
+
+    expect(mod.storageMigrationError).toBe(quota)
+    expect(error).toHaveBeenCalled()
+
+    error.mockRestore()
+    vi.doUnmock('./storageMigration')
+    vi.resetModules()
+  })
+
+  it('leaves storageMigrationError undefined when the migration runs clean', async () => {
+    vi.resetModules()
+    const mod = await import('./runStorageMigration')
+    expect(mod.storageMigrationError).toBeUndefined()
   })
 })

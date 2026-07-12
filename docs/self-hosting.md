@@ -501,8 +501,12 @@ with your data safe on the named volume — [§8](#8-running-with-docker-instead
   (Docker: `docker compose logs -f api` / `web`.)
 - **CORS.** The default topology is **same-origin** — the browser talks to your web server,
   which proxies `/api/*` to the daemon, so no cross-origin request is ever made and CORS stays
-  fail-closed. **Leave `CAPACITYLENS_CORS_ORIGIN` unset.** Only set it (to your API origin, or
-  `*`) if you deliberately serve the SPA and the API on **different** origins.
+  fail-closed. **Leave `CAPACITYLENS_CORS_ORIGIN` unset.** Only set it if you deliberately
+  serve the SPA and the API on **different** origins — and then set it to the **exact SPA
+  origin(s)** (comma-separated). `*` cannot work for the web client: the client sends
+  credentialed requests (`credentials: 'include'`), browsers reject a wildcard origin with
+  credentials, and the server accordingly never sends `Access-Control-Allow-Credentials`
+  for `*` — the wildcard only serves non-credentialed API scripting (curl, server-to-server).
 - **"Refusing to start."** If the daemon exits on boot, read the log line — it fails loudly
   on misconfiguration (bad `CAPACITYLENS_AUTH` value, missing `BETTER_AUTH_SECRET` /
   `BETTER_AUTH_URL` with auth on, out-of-range `PORT`, etc.) instead of limping along.

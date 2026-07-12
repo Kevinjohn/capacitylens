@@ -1,5 +1,6 @@
 import { useStore } from '../../store/useStore'
-import { useActiveScopedData } from '../../store/useScopedData'
+import { useActiveScopedData, useScopedData } from '../../store/useScopedData'
+import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ActivityForm } from './ActivityForm'
@@ -9,8 +10,14 @@ import { m } from '@/i18n'
 export function ActivityList() {
   const data = useActiveScopedData()
   const activities = data.activities
-  const projects = data.projects
-  const clients = data.clients
+  // Label resolution deliberately uses the RAW scoped slice (NOT the active-only projection): the
+  // rows are active-only, but activities have no lifecycle field, so a `project`-kind activity can
+  // outlive its ARCHIVED parent in this list (activeOnly does not orphan-prune — see
+  // shared/domain/lifecycle.ts). Resolving labels against the full slice lets that parent's name
+  // still render (with an "(archived)" hint) instead of mislabelling the activity "Internal".
+  const raw = useScopedData()
+  const projects = raw.projects
+  const clients = raw.clients
   const del = useStore((s) => s.deleteActivity)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>()
 
@@ -19,9 +26,16 @@ export function ActivityList() {
   const projectLabel = (id: string | undefined) => {
     if (!id) return m.list_activities_internal_label()
     const p = projects.find((x) => x.id === id)
-    if (!p) return m.list_activities_internal_label()
+    // Unresolvable even against the FULL slice: in server mode the per-account read strips
+    // archived/deleted parents, so this is an archived (or deleted) project — never "Internal"
+    // (the activity's kind is 'project'; that label would be factually wrong).
+    if (!p) return m.list_activities_archived_project()
     const c = clients.find((x) => x.id === p.clientId)
-    return c ? `${c.name} / ${p.name}` : p.name
+    const label = c ? `${c.name} / ${p.name}` : p.name
+    // Any non-active ancestor (archived/deleted project OR client) gets the hint, so the user
+    // knows why this project no longer appears on the Projects page.
+    const dormant = lifecycleStatus(p) !== 'active' || (c !== undefined && lifecycleStatus(c) !== 'active')
+    return dormant ? m.list_label_archived({ name: label }) : label
   }
 
   // Three kinds, three tables. Internal first (the owner's ordering), then repeatable
