@@ -10,6 +10,39 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.15.1] — 2026-07-12
+
+A fix-only round: an external 23-finding review (21 confirmed) plus a follow-up
+/code-review over the fixes themselves. Verified green across gate (1433 unit),
+gate:server (457), and Chromium e2e 183/183.
+
+### Fixed
+
+- **Silent data loss**: a failed save can no longer be clobbered by the focus-refresh or the
+  archive/delete/purge reload (the retried edit used to diff to zero ops and vanish); lifecycle
+  reloads flush pending edits first, and a reload resolving after a company switch can no longer
+  install the previous tenant's data under the new one.
+- **Companies, invites and deletes work end-to-end on auth-enabled deploys**: "New company" now
+  uses the atomic `POST /api/orgs` (it used to appear to work, error, and vanish on reload);
+  deleting a company whose data isn't loaded actually deletes it; the Delete button only shows
+  for owner/admin roles; an accepted invite's Continue lands inside the joined company.
+- **Large imports sync**: saves are chunked under the server's batch cap (an import over ~5000
+  records used to fail forever and be lost on reload).
+- **Confidential time-off notes** can no longer be erased or read back by editors through any
+  write path — including write echoes, conflict payloads, and `/api/import` (now admin-only
+  under auth, since it replaces the whole slice).
+- **Boot resilience**: a full/blocked browser storage no longer locks a server-backed install
+  behind the local-storage recovery screen (its data lives on the server); the demo build keeps
+  the recovery flow.
+- **Security headers & token hygiene** (self-hosting): the packaged nginx now sends the same
+  clickjacking/sniffing headers as the API and keeps invite/reset tokens out of its access log.
+- Smaller fixes: stale-write conflicts resolve cleanly (server-wins) instead of wedging the
+  sync retry loop; command-palette focus returns to the invoking control and Tab stays
+  contained; "Copy invite link" reports failure when the clipboard is unavailable; children of
+  archived parents are labelled with the parent's name instead of "Internal"/"(no client)";
+  backups can't collide or overlap; Docker Compose can genuinely disable backups; assorted
+  stale operator docs brought up to the auth-on posture.
+
 ## [0.15.0] — 2026-07-11
 
 The open-source launch-prep release: a stranger can now find, run, and trust the project
@@ -409,7 +442,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.1...HEAD
+[0.15.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.1
 [0.15.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.0
 [0.14.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.14.0
 [0.13.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.13.0
