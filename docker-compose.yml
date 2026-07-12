@@ -17,13 +17,18 @@ services:
       context: .
       target: api
     restart: unless-stopped
-    # SQLite DB and the (optional) backups dir live INSIDE the mounted volumes
-    # so data persists across container rebuilds. CAPACITYLENS_HOST=0.0.0.0 is
+    # SQLite DB and the backups dir live INSIDE the mounted volumes so data
+    # persists across container rebuilds. CAPACITYLENS_HOST=0.0.0.0 is
     # baked into the api image (compose-network reachability for nginx).
     environment:
       PORT: "8787"
       CAPACITYLENS_DB: /data/capacitylens.db
-      CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR:-/backups}
+      # Backups are ON by default in Docker (hourly snapshots into the named
+      # volume). To disable, set CAPACITYLENS_BACKUP_DIR= (explicitly empty) in
+      # .env — the `-` form (not `:-`) only substitutes /backups when the var is
+      # UNSET, so an empty value reaches the server and turns backups off. The
+      # /backups volume mount below stays either way; it is simply unused then.
+      CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR-/backups}
       # Same-origin via the nginx proxy -> CORS stays fail-closed. Override only
       # if you expose the API on a different origin.
       CAPACITYLENS_CORS_ORIGIN: ${CAPACITYLENS_CORS_ORIGIN:-}

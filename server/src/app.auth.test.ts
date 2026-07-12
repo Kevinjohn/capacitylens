@@ -130,7 +130,7 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(me.json().authMode).toBe('password') // the login screen needs the mode
   })
 
-  it('sign-up → session cookie → writes succeed and /api/auth/me reports the user', async () => {
+  it('sign-up → session cookie → the session authenticates and /api/auth/me reports the user', async () => {
     const app = await appWithAuth(PASSWORD_ENV)
     const signUp = await call(app, {
       method: 'POST',
@@ -150,15 +150,19 @@ describe('CAPACITYLENS_AUTH password', () => {
     // is present and defaults correctly (the P1.10 invite-bind gate depends on it).
     expect(me.json().user.emailVerified).toBe(false)
 
+    // The GENERIC account create is CLOSED auth-on (403 → POST /api/orgs): the bare row write never
+    // minted a membership, so it could only produce orphan accounts — /api/orgs is the atomic path.
+    // A session is still proven to authenticate (403, an authz refusal — not the session-less 401).
     const write = await call(app, { method: 'POST', url: '/api/accounts', payload: account, headers: { cookie } })
-    expect(write.statusCode).toBe(201)
+    expect(write.statusCode).toBe(403)
+    expect(write.json().error).toContain('/api/orgs')
     // P1.13: the no-arg whole read is CLOSED in auth-on (tenant isolation — the P1.4 carry-forward).
     // A logged-in user must hydrate PER ACCOUNT via ?accountId=, so the bare GET /api/state now 400s.
     const noArg = await call(app, { method: 'GET', url: '/api/state', headers: { cookie } })
     expect(noArg.statusCode).toBe(400)
-    // The bare account write above does NOT grant membership (account_members is separate), so the
-    // membership-existence guard 403s a scoped read of 'a1' for this user — the slice path itself is
-    // exercised in app.accounts.test.ts (member → 200). Here we only pin that no-arg is closed.
+    // No membership exists for this fresh user, so the membership-existence guard 403s a scoped read
+    // of 'a1' — the slice path itself is exercised in app.accounts.test.ts (member → 200). Here we
+    // only pin that no-arg is closed.
     const scoped = await call(app, { method: 'GET', url: '/api/state?accountId=a1', headers: { cookie } })
     expect(scoped.statusCode).toBe(403)
   })

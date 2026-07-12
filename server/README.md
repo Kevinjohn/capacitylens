@@ -64,7 +64,7 @@ VITE_CAPACITYLENS_API=http://localhost:8787 pnpm run dev:web
 | POST | `/api/:entity` | Create. |
 | PATCH | `/api/:entity/:id` | Partial update. |
 | DELETE | `/api/:entity/:id` | Idempotent delete (DB cascades mirror the store); optional `?accountId=…` scopes it to the owner (404 cross-account). |
-| POST | `/api/batch` | `{ ops: [...] }` — one transaction of upserts/deletes in op order; **the write path the shipped sync adapter actually uses** (per-entity verbs above serve direct/manual use). |
+| POST | `/api/batch` | `{ ops: [...] }` — one transaction of upserts/deletes in op order; **the write path the shipped sync adapter actually uses** (per-entity verbs above serve direct/manual use). Capped at **5000 ops** (400 above it — each PUT op costs a full-state read, so op count, not just body bytes, bounds request work). |
 | POST | `/api/import` | `{ accountId, data }` — reuses `remapAndValidateImport`. |
 | POST | `/api/test/reset` | Wipe (+ optional reseed). Gated by `CAPACITYLENS_ALLOW_RESET=1`. |
 
@@ -91,8 +91,10 @@ of silently dropping on write.
 **Tenant guard (`ownsRow`).** `accountId` is immutable: a PUT/PATCH that tries to re-home an
 existing row to another account is refused with 409. A DELETE is scoped to its owner when the
 caller supplies `?accountId=…` (the sync adapter sends it for every scoped delete) — a
-cross-account target returns 404. This is **defense-in-depth**, not real isolation: the account
-is client-asserted, not derived from a session, until app-level auth lands (see Status below).
+cross-account target returns 404. This is **defense-in-depth** beneath the real gate: with auth
+on, every scoped route first derives the caller's role for the target account from their session
+via memberships (`authorize()` — see Status below); with auth off (dev), the account is
+client-asserted and `ownsRow` is the only guard.
 
 ## Env
 
@@ -104,9 +106,15 @@ is client-asserted, not derived from a session, until app-level auth lands (see 
 - `CAPACITYLENS_ALLOW_RESET` — `1` to expose `POST /api/test/reset` (dev/E2E only).
 - `CAPACITYLENS_CORS_ORIGIN` — CORS allow-list, comma-separated, or `*` to allow any
   origin. **Defaults to the local Vite dev/e2e origins** so the API is not open to
-  every site by default. Set it to your deployed app's origin in production.
-- `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` — `1` to reject a stale overwrite (a PUT whose
-  `updatedAt` is older than the stored row) with HTTP 409 instead of last-writer-wins.
+  every site by default. Set it to your deployed SPA's exact origin(s) in production.
+  **`*` cannot be used by the shipped web client**: every client request is credentialed
+  (`credentials: 'include'`), and the server deliberately omits
+  `Access-Control-Allow-Credentials` for `*` (browsers reject wildcard + credentials) —
+  the wildcard only serves non-credentialed API scripting (curl, server-to-server).
+- `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` — `1` to reject a stale overwrite (a write whose
+  `updatedAt` is older than the stored row) with HTTP 409 `{ error, current }` instead of
+  last-writer-wins. Applies to the direct PUT **and** to every PUT op inside `POST /api/batch`
+  (the shipped client's real save path) — a stale batch op rolls the whole batch back.
 
 Production-hardening flags (all **default OFF** = exactly the behaviour above; the full
 register with the droplet's values lives in `docs/production-plan.md`):
@@ -118,7 +126,7 @@ register with the droplet's values lives in `docs/production-plan.md`):
 - `CAPACITYLENS_RATE_LIMIT` — requests/minute per IP across `/api/*` (positive integer;
   unset/`0`/non-numeric = off, fail-closed). `/api/health` is exempt.
 - `CAPACITYLENS_BACKUP_DIR` — set to a directory to enable periodic online DB snapshots
-  (`capacitylens-<YYYYMMDD-HHmmss>.db`, one at boot then hourly). Off = no timer, no writes.
+  (`capacitylens-<YYYYMMDD-HHmmss-SSS>.db`, one at boot then hourly). Off = no timer, no writes.
   - `CAPACITYLENS_BACKUP_INTERVAL_MIN` — cadence in minutes (default `60`).
   - `CAPACITYLENS_BACKUP_KEEP` — rolling retention count (default `48`, oldest pruned).
 - `CAPACITYLENS_HTTPS` — `1` when the public origin is real HTTPS: enables the HSTS header. Off
@@ -166,11 +174,23 @@ register with the droplet's values lives in `docs/production-plan.md`):
 
 ## Status / standing posture
 
-Auth is **wired but OFF** (`CAPACITYLENS_AUTH`, Better Auth): sessions/login exist behind the
-flag, but the live alpha runs with **NO auth gate at all** (no app-level auth and no Nginx Basic
-Auth — the Basic Auth plan was dropped), one shared dataset, last-writer-wins; a real gate is
-required before beta — see DECISIONS.md. `ownsRow` is
-defense-in-depth, not isolation — the account stays client-asserted until Stage C derives
-it from the session. Optimistic concurrency stays off (last-writer-wins) until a client
-conflict UI exists. Postgres and real per-account ownership remain deferred (see
-`docs/production-plan.md` and `docs/runbook.md` for the deploy/ops side).
+Auth is **implemented and required in production**. `CAPACITYLENS_AUTH=password` (Better Auth)
+provides sessions/login, invite-only sign-up, and admin-issued password-reset links; under
+`NODE_ENV=production` the server **refuses to boot** with auth off (the posture interlock in
+`src/productionGuard.ts` — `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` is the explicit, discouraged
+opt-out for trusted-local no-login instances). Tenant isolation is real, not just
+defense-in-depth: with auth on, every scoped route derives the caller's role for the target
+account from the **session + memberships** (`resolveRole` / `authorize()` in `src/app.ts` +
+`src/membership.ts`) and 403s non-members — the account is no longer client-asserted.
+`POST /api/orgs` creates an account + its Internal client + the caller's Owner membership
+atomically, and with auth ON it is the **only** company-creation path — the generic vectors
+(`POST /api/accounts`, a create-shaped PUT/batch-PUT) 403 with a message pointing at
+`/api/orgs`, since a bare account row would have no membership (nobody could ever open or
+delete it) and no Internal client. Auth OFF keeps the open generic create (dev/demo parity).
+Confidential time-off notes are enforced on the write side too: a writer whose role can't read
+notes (editor/viewer) has the stored `note` **pinned** through PUT/PATCH/batch — their redacted
+round-trip can't erase a note they never saw, and write echoes / 409 `current` payloads are
+redacted the same as reads. `ownsRow` remains as defense-in-depth beneath the membership gate.
+Optimistic concurrency stays off (last-writer-wins) until a client conflict UI exists. Postgres
+remains deferred (see `docs/production-plan.md`; `docs/deploy.md` + `docs/runbook.md` for the
+deploy/ops side).

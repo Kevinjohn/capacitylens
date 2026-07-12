@@ -51,11 +51,19 @@ createServer((req, res) => {
     return
   }
 
-  // Static files; anything without a known extension falls back to the SPA index.
+  // Static files; anything without an extension falls back to the SPA index.
   const path = normalize((req.url ?? '/').split('?')[0]).replace(/^([.][.][/\\])+/, '')
   const file = join(DIST, path)
   const ext = extname(file)
-  const target = ext && existsSync(file) && statSync(file).isFile() ? file : join(DIST, 'index.html')
+  if (ext && !(existsSync(file) && statSync(file).isFile())) {
+    // Parity with the packaged nginx.conf (`try_files $uri =404` under /assets/): a missing
+    // file WITH an extension must 404, not serve index.html — the SPA fallback would mask
+    // broken asset references that production nginx will reject.
+    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+    res.end('404 not found')
+    return
+  }
+  const target = ext ? file : join(DIST, 'index.html')
   res.writeHead(200, { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' })
   createReadStream(target).pipe(res)
 }).listen(PORT, '127.0.0.1', () => {

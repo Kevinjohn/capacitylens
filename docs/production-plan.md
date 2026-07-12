@@ -354,7 +354,7 @@ wiring ≠ isolation, and this round's gate is still the Nginx Basic Auth.
   snapshots only (this supersedes the migration plan's `cp` cron).
 - **Change:** `server/src/backup.ts` (new). When `CAPACITYLENS_BACKUP_DIR` is set: ensure
   the dir exists; every `CAPACITYLENS_BACKUP_INTERVAL_MIN` minutes (default 60; `unref()`
-  the timer) write `capacitylens-<YYYYMMDD-HHmmss>.db` via `node:sqlite`'s `backup()`
+  the timer) write `capacitylens-<YYYYMMDD-HHmmss-SSS>.db` via `node:sqlite`'s `backup()`
   (fallback `VACUUM INTO` if unavailable); prune to the newest `CAPACITYLENS_BACKUP_KEEP`
   (default 48). Take one snapshot immediately on start. Stop the timer in the P1.2
   shutdown path. Log one line per snapshot/prune (respects P1.3's flag).

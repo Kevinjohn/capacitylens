@@ -11,7 +11,7 @@ import { seed } from '@capacitylens/shared/data/seed'
 // retention prunes oldest-first by filename, and stop() ends the timer (the shutdown path).
 
 const tempDir = () => mkdtempSync(join(tmpdir(), 'capacitylens-backup-test-'))
-const snapshots = (dir: string) => readdirSync(dir).filter((f) => /^capacitylens-\d{8}-\d{6}\.db$/.test(f)).sort()
+const snapshots = (dir: string) => readdirSync(dir).filter((f) => /^capacitylens-\d{8}-\d{6}-\d{3}\.db$/.test(f)).sort()
 
 /** A fake clock that advances one second per call, so every snapshot gets a unique name. */
 function tickingClock(start = new Date('2026-06-13T00:00:00')) {
@@ -71,6 +71,42 @@ describe('startBackups', () => {
     // start-up shot + 4 manual = stamps :01..:05; kept = :04 and :05).
     expect(kept[0] < kept[1]).toBe(true)
     expect(readdirSync(dir)).toContain('not-a-snapshot.txt')
+  })
+
+  it('never reuses a filename, even when the clock does not advance (monotonic stamp bump)', async () => {
+    const dir = tempDir()
+    const db = openDb(':memory:')
+    // A FROZEN clock is the worst case: without the monotonic bump every snapshot would target
+    // the same file and silently overwrite the previous one.
+    const frozen = () => new Date('2026-06-13T00:00:00')
+    const backups = startBackups(db, { dir, intervalMin: 60, keep: 48 }, () => {}, frozen)
+    const a = await backups.snapshotNow()
+    const b = await backups.snapshotNow()
+    backups.stop()
+
+    expect(a).not.toBe(b)
+    // Start-up shot + 2 manual = 3 distinct files despite identical clock readings.
+    await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(3))
+  })
+
+  it('skips (and logs) an interval tick while a snapshot is still in flight', async () => {
+    vi.useFakeTimers()
+    const dir = tempDir()
+    const db = openDb(':memory:')
+    const log = vi.fn()
+    const backups = startBackups(db, { dir, intervalMin: 1, keep: 48 }, log, tickingClock())
+    try {
+      // The start-up snapshot is suspended at its async write (no microtask has run yet); firing
+      // the first interval tick NOW must hit the in-flight guard — skipped, with a loud notice.
+      vi.advanceTimersByTime(60_000)
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('backup skipped'))
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('still in flight'))
+    } finally {
+      backups.stop()
+      vi.useRealTimers()
+    }
+    // Let the in-flight start-up snapshot settle: exactly one file, none from the skipped tick.
+    await vi.waitFor(() => expect(snapshots(dir)).toHaveLength(1))
   })
 
   it('the interval timer keeps snapshotting until stop()', async () => {

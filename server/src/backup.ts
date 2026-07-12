@@ -24,7 +24,10 @@ export interface Backups {
   stop(): void
 }
 
-const SNAPSHOT_RE = /^capacitylens-\d{8}-\d{6}\.db$/
+// The optional `-mmm` millisecond group keeps pre-v0.15 second-precision snapshots inside the
+// retention window (they'd otherwise pile up forever); mixed-format names still sort
+// chronologically except within a single second, which retention doesn't care about.
+const SNAPSHOT_RE = /^capacitylens-\d{8}-\d{6}(-\d{3})?\.db$/
 
 /** Fail-closed env parse: no CAPACITYLENS_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
  *  knobs are only read when backups are on; junk falls back to the documented defaults. */
@@ -46,7 +49,8 @@ function stampName(now: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   const date = `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}`
   const time = `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`
-  return `capacitylens-${date}-${time}.db`
+  const ms = String(now.getMilliseconds()).padStart(3, '0')
+  return `capacitylens-${date}-${time}-${ms}.db`
 }
 
 /** Delete the oldest snapshots beyond `keep`; returns how many were pruned. Only files
@@ -68,22 +72,46 @@ export function startBackups(
 ): Backups {
   mkdirSync(config.dir, { recursive: true })
 
+  // Millisecond stamps make same-name collisions unlikely; the monotonic bump makes them
+  // IMPOSSIBLE (two snapshots in the same ms, or a clock stepping backwards, would otherwise
+  // silently overwrite the earlier file) and keeps lexicographic == chronological for prune().
+  let lastStampMs = 0
+  const uniqueStamp = (): string => {
+    lastStampMs = Math.max(now().getTime(), lastStampMs + 1)
+    return stampName(new Date(lastStampMs))
+  }
+
+  // In-flight guard: a slow snapshot must not overlap the next interval tick (two writers in
+  // the same dir) — the tick is SKIPPED, loudly, and the following tick covers the gap.
+  let inFlight = false
+
   const snapshotNow = async (): Promise<string> => {
-    const file = join(config.dir, stampName(now()))
-    // node:sqlite's online backup (verified on Node 24); VACUUM INTO is the pre-approved
-    // fallback should the API regress — same consistent-snapshot guarantee.
-    if (typeof backup === 'function') await backup(db, file)
-    else db.exec(`VACUUM INTO '${file.replaceAll("'", "''")}'`)
-    const pruned = prune(config.dir, config.keep)
-    log(`capacitylens-server: backup written ${file}${pruned > 0 ? ` (pruned ${pruned})` : ''}`)
-    return file
+    inFlight = true
+    try {
+      const file = join(config.dir, uniqueStamp())
+      // node:sqlite's online backup (verified on Node 24); VACUUM INTO is the pre-approved
+      // fallback should the API regress — same consistent-snapshot guarantee.
+      if (typeof backup === 'function') await backup(db, file)
+      else db.exec(`VACUUM INTO '${file.replaceAll("'", "''")}'`)
+      const pruned = prune(config.dir, config.keep)
+      log(`capacitylens-server: backup written ${file}${pruned > 0 ? ` (pruned ${pruned})` : ''}`)
+      return file
+    } finally {
+      inFlight = false
+    }
   }
 
   // A failed snapshot must never crash the daemon — log and try again next tick.
-  const safeSnapshot = () =>
+  const safeSnapshot = () => {
+    if (inFlight) {
+      // Surface, don't silently drop: an operator watching the logs sees WHY a stamp is missing.
+      log('capacitylens-server: backup skipped — previous snapshot still in flight')
+      return
+    }
     void snapshotNow().catch((err: unknown) =>
       log(`capacitylens-server: backup FAILED — ${err instanceof Error ? err.message : String(err)}`),
     )
+  }
 
   safeSnapshot() // one immediately on start, so a fresh deploy is covered before the first hour
   const timer = setInterval(safeSnapshot, config.intervalMin * 60_000)

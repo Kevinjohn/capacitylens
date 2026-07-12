@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
-import { buildApp, statusFor, type AppOptions } from './app'
+import { buildApp, statusFor, MAX_BATCH_OPS, type AppOptions } from './app'
 import { ValidationError } from './validate'
 import { openDb } from './db'
 import {
@@ -829,6 +829,25 @@ describe('CORS allow-list', () => {
     expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173')
     expect(res.headers['access-control-allow-methods']).toContain('POST')
   })
+
+  it('Allow-Headers lists Content-Type AND the bootstrap-token header (the one custom header)', async () => {
+    // x-capacitylens-bootstrap-token is the ONLY custom request header the API accepts (the P1.8
+    // operator path on POST /api/orgs); without it in Allow-Headers, a cross-origin browser caller
+    // of /api/orgs fails the preflight even from an allowed origin.
+    const { app } = freshApp()
+    const res = await call(app, {
+      method: 'OPTIONS',
+      url: '/api/orgs',
+      headers: {
+        origin: 'http://localhost:5173',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': 'content-type, x-capacitylens-bootstrap-token',
+      },
+    })
+    expect(res.statusCode).toBe(204)
+    expect(res.headers['access-control-allow-headers']).toContain('Content-Type')
+    expect(res.headers['access-control-allow-headers']).toContain('x-capacitylens-bootstrap-token')
+  })
 })
 
 describe('optimistic concurrency (opt-in)', () => {
@@ -854,6 +873,106 @@ describe('optimistic concurrency (opt-in)', () => {
     const stale = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' })
     expect(stale.statusCode).toBe(200)
     expect((await state(app)).clients[0].name).toBe('Stale')
+  })
+
+  // The batch PUT branch applies the SAME stale-write refusal as the direct PUT (it previously
+  // had none — a stale client batch could silently overwrite newer server rows even with the flag
+  // on). The 409 carries the stored row as `current`, and — the batch being one tx — rolls the
+  // WHOLE batch back, sibling ops included.
+  it('batch: rejects a stale PUT op with 409 + current when enabled, rolling back the WHOLE batch', async () => {
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
+    await post(app, 'accounts', account('a1'))
+    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const res = await batch(app, [
+      // A fresh sibling op that would succeed alone — it must NOT survive the rollback.
+      { method: 'PUT', table: 'clients', id: 'c2', row: { ...client('c2', 'a1'), updatedAt: '2026-02-03T00:00:00.000Z' } },
+      // The stale op: older updatedAt than the stored row → conflict.
+      { method: 'PUT', table: 'clients', id: 'c1', row: { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' } },
+    ])
+    expect(res.statusCode).toBe(409)
+    // The direct PUT route's exact conflict shape: a message + the stored row for client re-sync.
+    expect(res.json().error).toBe('The record was modified more recently on the server.')
+    expect(res.json().current).toMatchObject({ id: 'c1', name: 'Acme', updatedAt: '2026-02-02T00:00:00.000Z' })
+    const s = await state(app)
+    expect(s.clients.map((c: { id: string }) => c.id)).toEqual(['c1']) // c2 rolled back with the batch
+    expect(s.clients[0].name).toBe('Acme') // c1 not overwritten
+  })
+
+  it('batch: a fresh (same/newer updatedAt) PUT op passes with the flag on', async () => {
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
+    await post(app, 'accounts', account('a1'))
+    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const res = await batch(app, [
+      { method: 'PUT', table: 'clients', id: 'c1', row: { ...client('c1', 'a1'), name: 'Fresh', updatedAt: '2026-02-03T00:00:00.000Z' } },
+    ])
+    expect(res.statusCode).toBe(200)
+    expect((await state(app)).clients[0].name).toBe('Fresh')
+  })
+
+  it('batch: same skip conditions as the direct PUT — a row with NO updatedAt is never a 409', async () => {
+    // A body without updatedAt skips the concurrency compare on BOTH paths (non-string ⇒ never a
+    // conflict) and then fails the SAME NOT-NULL column constraint at write time — a 400, proving
+    // the batch mirrors the direct route exactly rather than inventing a conflict for it.
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
+    await post(app, 'accounts', account('a1'))
+    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const noStamp: Record<string, unknown> = { ...client('c1', 'a1') }
+    delete noStamp.updatedAt
+    const viaBatch = await batch(app, [
+      { method: 'PUT', table: 'clients', id: 'c1', row: { ...noStamp, name: 'NoStamp' } },
+    ])
+    const viaPut = await put(app, 'clients', 'c1', { ...noStamp, name: 'NoStamp' })
+    expect(viaBatch.statusCode).toBe(viaPut.statusCode) // identical semantics…
+    expect(viaBatch.statusCode).toBe(400) // …and specifically NOT a 409 conflict
+    expect((await state(app)).clients[0].name).toBe('Acme') // stored row untouched by either
+  })
+
+  it('batch: OFF by default — a stale PUT op is last-writer-wins, no 409', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const res = await batch(app, [
+      { method: 'PUT', table: 'clients', id: 'c1', row: { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' } },
+    ])
+    expect(res.statusCode).toBe(200)
+    expect((await state(app)).clients[0].name).toBe('Stale')
+  })
+})
+
+describe('batch op-count cap (MAX_BATCH_OPS)', () => {
+  it(`rejects a batch of more than ${MAX_BATCH_OPS} ops with 400 before anything is written`, async () => {
+    const { app } = freshApp()
+    // Each PUT op costs a full loadState() scan, so op COUNT (not just body bytes) bounds request
+    // work — the cap must fire BEFORE the pre-scan/tx, leaving the DB untouched.
+    const ops = Array.from({ length: MAX_BATCH_OPS + 1 }, (_, i) => ({
+      method: 'PUT',
+      table: 'accounts',
+      id: `flood-${i}`,
+      row: account(`flood-${i}`),
+    }))
+    const res = await batch(app, ops)
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toContain(String(MAX_BATCH_OPS))
+    expect((await state(app)).accounts).toHaveLength(0) // nothing written
+  })
+
+  it(`allows a batch of exactly ${MAX_BATCH_OPS} ops (boundary, inclusive)`, async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    // Pad with idempotent no-op DELETEs (missing scoped ids with an asserted owner are 204-shaped
+    // no-ops) so the boundary case stays fast — the point is the CAP comparison, not 5 000 writes.
+    const ops = [
+      { method: 'PUT', table: 'clients', id: 'c1', row: client('c1', 'a1') },
+      ...Array.from({ length: MAX_BATCH_OPS - 1 }, (_, i) => ({
+        method: 'DELETE',
+        table: 'clients',
+        id: `ghost-${i}`,
+        accountId: 'a1',
+      })),
+    ]
+    const res = await batch(app, ops)
+    expect(res.statusCode).toBe(200)
+    expect((await state(app)).clients).toHaveLength(1)
   })
 })
 

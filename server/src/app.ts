@@ -44,7 +44,7 @@ import {
 } from '@capacitylens/shared/lib/integrity'
 import { seed } from '@capacitylens/shared/data/seed'
 import { TABLES } from './tables'
-import { validateWrite, sanitizeWrite, ValidationError } from './validate'
+import { validateWrite, sanitizeWrite, ValidationError, type SanitizeWriteOptions } from './validate'
 import {
   type Db,
   deleteRow,
@@ -100,6 +100,16 @@ import { type AuditRecord, type AuditSink, noopAuditSink } from './audit'
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024
+
+// Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
+// path). BODY_LIMIT bounds request BYTES, but not request WORK: every PUT op re-runs loadState()
+// — a full scan of ALL tables — for validation, so op COUNT is the real cost driver, and a
+// small-bodied but op-dense batch could otherwise pin the single-writer SQLite file for the whole
+// tx. 5 000 is generous headroom over the largest realistic full-slice diff the client sync
+// adapter produces (a whole busy agency's slice is low-thousands of rows) while bounding a
+// crafted/looping flood. Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
+// Exported for the test that pins the boundary.
+export const MAX_BATCH_OPS = 5000
 
 // Fastify defaults BOTH to 0 (disabled). The documented deploy fronts this server with Nginx,
 // which buffers/queues the client connection — 30s is generous headroom for that hop, and it's
@@ -348,6 +358,32 @@ function bootstrapTokenMatches(configured: string | undefined, presented: unknow
 // `accounts` row shares this one predicate so the rule can't drift between POST/PUT/batch/orgs.
 const SINGLE_COMPANY_CAP_MESSAGE =
   'This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.'
+
+// Auth-on closure of the generic account-create paths. Now that POST /api/orgs exists (P1.8 — the
+// ATOMIC account + built-in Internal client + owner-membership create), the old "onboarding
+// exemption" on the generic entity routes was an authz bypass: any authenticated user (even one
+// with NO membership anywhere) could mint bare `accounts` rows that NEVER become usable — no
+// membership is ever backfilled (only the Internal client backfills, at restart), so each row is a
+// permanent orphan its own creator cannot read. With auth on, all THREE generic create vectors
+// (POST /api/accounts, PUT-as-create, batch PUT-as-create) refuse with this message; /api/orgs
+// covers every legitimate case (first-run bootstrap at zero accounts, an Owner/Admin or
+// bootstrap-token caller under multiAccount). authMode 'off' keeps the open generic create —
+// trusted-local parity: the demo/local/e2e client syncs new companies through the entity routes.
+const ACCOUNT_CREATE_CLOSED_MESSAGE =
+  'Accounts cannot be created through this endpoint when authentication is on. Use POST /api/orgs.'
+
+/** Batch-internal stale-write signal (optimistic concurrency, fix parity with the direct PUT
+ *  route). Carries the STORED row so the batch handler can send the direct route's exact 409
+ *  shape (`{ error, current }`). It is thrown from INSIDE tx(), so by construction the whole
+ *  batch has already rolled back by the time the handler catches it — all-or-nothing, no op from
+ *  the conflicted batch persists. NOT a ValidationError: this is a conflict (409), not a
+ *  malformed request (400), and it must never be re-classified by statusFor. */
+class StaleWriteError extends Error {
+  constructor(readonly current: Record<string, unknown>) {
+    super('The record was modified more recently on the server.')
+    this.name = 'StaleWriteError'
+  }
+}
 
 /** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
  *  before the cap existed; kept as one function so every enforcement point reads the identical
@@ -648,6 +684,47 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     return true
   }
 
+  /**
+   * P1.6 write-side note visibility: the SanitizeWriteOptions for one write, deciding whether the
+   * CALLER may see the time-off `note` — the exact same rule the read path applies (readSlice's
+   * `includeTimeOffNote`, from `canSeeTimeOffNote`; auth OFF ⇒ trusted-local, always visible).
+   * sanitizeWrite uses it to PIN `note` to the stored value for a note-blind writer, so an
+   * editor's round-tripped (redacted) row can't NULL a note they never received.
+   *
+   * Only `timeOff` writes pay the membership lookup — every other table short-circuits to visible
+   * (the option is inert there), so the generic write paths gain no per-request DB cost. The
+   * `accountId` param is `unknown` (it comes straight off an untrusted body); a non-string
+   * fail-closes to not-visible, which only ever PRESERVES data (the ownsRow/authorize guards
+   * reject such a body independently).
+   */
+  function noteVisibilityFor(
+    req: FastifyRequest,
+    table: string,
+    accountId: unknown,
+  ): SanitizeWriteOptions {
+    if (table !== 'timeOff' || authMode === 'off') return { canSeeTimeOffNote: true }
+    const role = typeof accountId === 'string' ? resolveRole(db, req.user!, accountId) : null
+    return { canSeeTimeOffNote: role !== null && canSeeTimeOffNote(role) }
+  }
+
+  /**
+   * Redact the time-off `note` from a write's RESPONSE echo for a note-blind writer. A write
+   * response is a read: the pin above stores the existing note back into the written row, and
+   * PATCH's merge carries the stored note too — echoing either would hand an editor/viewer-tier
+   * caller the very field readSlice redacts from all their reads (P1.6). Returns the row
+   * unchanged whenever the writer may see the note (owner/admin, auth OFF, or any other table).
+   */
+  function redactNoteEcho(
+    table: string,
+    row: Record<string, unknown>,
+    vis: SanitizeWriteOptions,
+  ): Record<string, unknown> {
+    if (table !== 'timeOff' || vis.canSeeTimeOffNote !== false) return row
+    const rest = { ...row }
+    delete rest.note
+    return rest
+  }
+
   // No app-level auth in this phase. CORS is the only cross-origin gate, so the
   // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
   // answered here. This hook MUST live on the ROOT instance, not in the routes child
@@ -668,7 +745,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     }
     reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-    reply.header('Access-Control-Allow-Headers', 'Content-Type')
+    // Static allow-list: Content-Type (every JSON write) plus x-capacitylens-bootstrap-token —
+    // the ONLY custom request header the API accepts (the P1.8 operator path on POST /api/orgs).
+    // Without it, a cross-origin browser caller of /api/orgs would fail the preflight even when
+    // its origin is allowed. Keep this a static string; extend it only if a new custom header
+    // is ever introduced.
+    reply.header('Access-Control-Allow-Headers', 'Content-Type, x-capacitylens-bootstrap-token')
     if (req.method === 'OPTIONS') reply.code(204).send()
   })
 
@@ -865,10 +947,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // (the bug was: an emptied dataset reported hasData:false and got the demo seed back).
     app.get('/api/meta', () => ({ hasData: isInitialized(db) }))
 
-    // Constrained org-creation (P1.8): the ATOMIC "create a usable account" path, distinct from the
-    // generic `POST /api/accounts` below (which stays OPEN for the not-yet-migrated onboarding client
-    // and only ever writes the bare account row — closing it is deferred to the client migration,
-    // P1.13). Unlike that bare write, /api/orgs ALSO mints the account's built-in Internal client and
+    // Constrained org-creation (P1.8): the ATOMIC "create a usable account" path, and — with auth
+    // on — the ONLY account-create path: the generic vectors (POST /api/accounts, PUT-as-create,
+    // batch PUT-as-create) now refuse auth-on creates with a 403 directing here (see
+    // ACCOUNT_CREATE_CLOSED_MESSAGE; they stay open in OFF mode for the trusted-local client).
+    // Unlike those bare row writes, /api/orgs ALSO mints the account's built-in Internal client and
     // makes the caller its Owner, in ONE transaction.
     //
     // AUTHORIZATION (computed BEFORE any write). Two SEPARATE gates, both must pass:
@@ -1546,17 +1629,20 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!req.body || typeof req.body !== 'object') {
         return reply.code(400).send({ error: 'A request body is required.' })
       }
-      // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is DELIBERATELY NOT
-      // membership-gated: a freshly-signed-up auth-on user holds no membership yet and must be able
-      // to create their first account (onboarding); there is no `createAccount` Action to require.
-      // This open create does NOT extend to DELETE — account hard-delete CASCADES (total tenant
-      // destruction) and IS gated 'purge' (admin+) on BOTH vectors: the direct DELETE
-      // /api/accounts/:id route AND the batch accounts-DELETE op (see both below). The full
-      // archive→soft-delete→purge account lifecycle is P2.5/P2.6; this delete gate is the interim
-      // guard. (Batch PUT on accounts = create/update stays open for the same onboarding reason as
-      // this POST.) The onboarding exemption is now BOUNDED by the single-company cap just below:
-      // it is unconditional only for the first-run (zero-account) case; once any account exists it
-      // requires opts.multiAccount, same as every other create vector.
+      // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is CLOSED when auth is
+      // on: the old "onboarding exemption" (a freshly-signed-up user holds no membership yet, so
+      // this create was left ungated) became an authz bypass once POST /api/orgs landed — see
+      // ACCOUNT_CREATE_CLOSED_MESSAGE. /api/orgs is the sole auth-on create path (it also mints
+      // the Internal client + owner membership atomically, which this bare row write never did).
+      // authMode 'off' keeps the open create (trusted-local parity — the demo/local/e2e client
+      // syncs new companies through the entity routes), still BOUNDED by the single-company cap
+      // just below: unconditional only for the first-run (zero-account) case; once any account
+      // exists it requires opts.multiAccount, same as every other create vector. Account DELETE is
+      // separately gated 'purge' (admin+) on BOTH vectors — the direct DELETE /api/accounts/:id
+      // route AND the batch accounts-DELETE op (see both below).
+      if (entity === 'accounts' && authMode !== 'off') {
+        return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
+      }
       if (entity === 'accounts' && accountCreateCapped(db, opts)) {
         return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
       }
@@ -1565,7 +1651,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (!authorize(req, reply, body.accountId!, 'write')) return
       }
       try {
-        const row = sanitizeWrite(entity, req.body as Record<string, unknown>)
+        // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
+        // to preserve; they could never read back a note they authored) — see sanitizeWrite.
+        const vis = noteVisibilityFor(req, entity, (req.body as { accountId?: unknown }).accountId)
+        const row = sanitizeWrite(entity, req.body as Record<string, unknown>, undefined, vis)
         validateWrite(loadState(db), entity, row)
         insertRow(db, entity, row)
         // P1.15 audit (post-commit). changedFields = the row's field NAMES (never values).
@@ -1598,9 +1687,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (isScopedTable(entity) && !authorize(req, reply, body.accountId as string, 'write')) return
       try {
         const existing = getRow(db, entity, id)
-        // Single-company cap (create-time only, see accountCreateCapped): a CREATE here is `entity
-        // === 'accounts' && !existing` — no row at this id yet. Checked BEFORE the account-write
-        // gate below (which only ever fires for the UPDATE case, `existing` truthy) so the two never
+        // Account CREATE via upsert (`entity === 'accounts' && !existing` — no row at this id yet)
+        // is CLOSED when auth is on, same as the generic POST: the old onboarding exemption is an
+        // authz bypass now that POST /api/orgs exists (see ACCOUNT_CREATE_CLOSED_MESSAGE). Checked
+        // FIRST so the auth-on caller always gets the actionable "use /api/orgs" direction.
+        if (entity === 'accounts' && !existing && authMode !== 'off') {
+          return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
+        }
+        // Single-company cap (create-time only, see accountCreateCapped; OFF mode only here — the
+        // auth-on create was already refused just above). Checked BEFORE the account-write gate
+        // below (which only ever fires for the UPDATE case, `existing` truthy) so the two never
         // overlap. An UPDATE of an existing account is NEVER capped, regardless of multiAccount.
         if (entity === 'accounts' && !existing && accountCreateCapped(db, opts)) {
           return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
@@ -1609,9 +1705,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // isScopedTable() gate above never runs for it — leaving a bare account UPDATE (rename / colour /
         // schedulingMode / disciplines·placeholders·external toggles) ungated, i.e. cross-tenant writable
         // by any signed-in user. An UPDATE (existing row) now requires membership + write tier for the
-        // account's OWN id, mirroring the DELETE route's accounts branch; a CREATE (no existing row) stays
-        // OPEN per the onboarding exemption (now bounded by the single-company cap just above). OFF
-        // mode: authorize no-ops to allow. (See decisions-log.)
+        // account's OWN id, mirroring the DELETE route's accounts branch; a CREATE (no existing row) is
+        // OPEN only in OFF mode (auth-on → 403 → /api/orgs, and the single-company cap, both just
+        // above). OFF mode: authorize no-ops to allow. (See decisions-log.)
         if (entity === 'accounts' && existing && !authorize(req, reply, id, 'write')) return
         // accountId is immutable: a write must not move an EXISTING row to another account
         // (see ownsRow). The web store enforces this via findOwned; without the same guard a
@@ -1627,7 +1723,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             error: 'Language, week start and time zone are set when the company is created and cannot be changed.',
           })
         }
-        // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row.
+        // P1.6: the note-visibility fact for this writer — used to PIN the time-off `note` on the
+        // write (their round-tripped row was redacted, so a bare upsert would NULL a note they
+        // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
+        // the 409 conflict payload included.
+        const vis = noteVisibilityFor(req, entity, body.accountId)
+        // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row. The 409's
+        // `current` payload is a READ of the stored row, so it gets the same note redaction as the
+        // write echo — the conflict path must not hand a note-blind writer the redacted field.
         if (
           opts.optimisticConcurrency &&
           existing &&
@@ -1635,9 +1738,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           typeof body.updatedAt === 'string' &&
           existing.updatedAt > body.updatedAt
         ) {
-          return reply.code(409).send({ error: 'The record was modified more recently on the server.', current: existing })
+          return reply.code(409).send({
+            error: 'The record was modified more recently on the server.',
+            current: redactNoteEcho(entity, existing, vis),
+          })
         }
-        const row = sanitizeWrite(entity, body, existing)
+        const row = sanitizeWrite(entity, body, existing, vis)
         validateWrite(loadState(db), entity, row)
         upsertRow(db, entity, row)
         // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
@@ -1650,7 +1756,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           changedFields: fieldNames(body),
         })
-        return reply.code(200).send(row)
+        // The echo redaction (see redactNoteEcho): the pin re-attached a note the writer may not
+        // see, and a write response is a read.
+        return reply.code(200).send(redactNoteEcho(entity, row, vis))
       } catch (err) {
         return sendFail(reply, err)
       }
@@ -1675,7 +1783,21 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // authorize below never runs for it. A PATCH always targets an EXISTING row (404 above), so this
         // is always an UPDATE → require membership + write tier for the account's own id. OFF: no-op allow.
         if (entity === 'accounts' && !authorize(req, reply, id, 'write')) return
-        const merged = sanitizeWrite(entity, { ...existing, ...(req.body as Record<string, unknown>), id }, existing)
+        // P1.6 note pin (see sanitizeWrite): the merge already carries the STORED note (a note-blind
+        // caller's PATCH body can't include one they never received), but the pin also stops a
+        // crafted note change/clear riding a patch. accountId for the role lookup = the body's
+        // override if present (then refused by ownsRow below), else the stored row's.
+        const vis = noteVisibilityFor(
+          req,
+          entity,
+          (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
+        )
+        const merged = sanitizeWrite(
+          entity,
+          { ...existing, ...(req.body as Record<string, unknown>), id },
+          existing,
+          vis,
+        )
         // P1.5 write gate (scoped tables): membership + write tier for the MERGED row's accountId
         // (the merge inherits the stored accountId unless the body overrides it — and an override is
         // then refused by the ownsRow immutability guard just below). After the 404 so a missing row
@@ -1706,7 +1828,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           changedFields: fieldNames(req.body),
         })
-        return reply.code(200).send(merged)
+        // The echo redaction (see redactNoteEcho): the merge carried the stored note into `merged`,
+        // and a write response is a read — don't hand a note-blind patcher the redacted field.
+        return reply.code(200).send(redactNoteEcho(entity, merged, vis))
       } catch (err) {
         return sendFail(reply, err)
       }
@@ -1782,6 +1906,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply.code(400).send({ error: 'ops array is required' })
       }
       const ops = body.ops as BatchOp[]
+      // MAX_BATCH_OPS (see its doc comment): op COUNT — not just body bytes — bounds request work,
+      // because each PUT op below re-runs loadState() (a full scan of all tables). Rejected here,
+      // BEFORE the pre-scan and the tx, so an over-cap batch does no per-op work and writes nothing.
+      if (ops.length > MAX_BATCH_OPS) {
+        return reply
+          .code(400)
+          .send({ error: `A batch may contain at most ${MAX_BATCH_OPS} operations.` })
+      }
       // P1.5 write gate — PRE-SCAN before the tx opens so the batch is rejected WHOLE (one 403, no
       // partial write) if ANY op targets an account the caller may not write. A scoped PUT derives
       // its accountId from op.row.accountId, a scoped DELETE from op.accountId. The unscoped
@@ -1789,9 +1921,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // `accounts` is the client's real delete-company path, and it CASCADES (wipes all the account's
       // scoped data), so it is gated 'purge' (admin+) against the account's own id BEFORE the
       // non-scoped skip — the same gate as the direct DELETE /api/accounts/:id route. An accounts
-      // PUT (create/update) stays OPEN (onboarding: a membership-less new user mints their first
-      // account) and falls through to the skip, UNLESS it's a CREATE the single-company cap denies
-      // (accountCreateCapped) — that also fails the whole batch, see below. In OFF mode authorize
+      // PUT that is an UPDATE gates 'write'; an accounts PUT that is a CREATE is refused outright
+      // when auth is on (→ POST /api/orgs, see ACCOUNT_CREATE_CLOSED_MESSAGE) and stays open ONLY
+      // in OFF mode, where the single-company cap (accountCreateCapped) can still deny it — either
+      // refusal fails the whole batch, see below. In OFF mode authorize
       // short-circuits true, so the whole loop is a no-op pass for authz (the default deploy can
       // still delete companies via batch); the cap check is NOT part of that no-op — it runs
       // regardless of authMode.
@@ -1809,10 +1942,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             // account-write guard the per-route PUT/PATCH now apply). NEVER capped — enforcement is
             // create-time only.
             if (!authorize(req, reply, op.id, 'write')) return
+          } else if (authMode !== 'off') {
+            // A CREATE (no existing row) is CLOSED when auth is on — the old onboarding exemption
+            // is an authz bypass now that POST /api/orgs exists (see ACCOUNT_CREATE_CLOSED_MESSAGE).
+            // Fails the WHOLE batch: same one-403-no-partial-write semantics as every pre-scan denial.
+            reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
+            return
           } else if (accountCreateCapped(db, opts)) {
-            // A CREATE (no existing row) stays OPEN per the onboarding exemption ONLY while the
-            // single-company cap allows it (see accountCreateCapped). When it doesn't, fail the WHOLE
-            // batch — same one-403-no-partial-write semantics as every other pre-scan denial above.
+            // OFF mode keeps the open create (trusted-local parity — this batch is how the local
+            // client syncs a new company) ONLY while the single-company cap allows it (see
+            // accountCreateCapped). When it doesn't, fail the WHOLE batch, as above.
             reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
             return
           }
@@ -1850,7 +1989,34 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   'Language, week start and time zone are set when the company is created and cannot be changed.',
                 )
               }
-              const clean = sanitizeWrite(table, row as Record<string, unknown>, existing)
+              // Optimistic concurrency (opt-in) — the EXACT same stale-write refusal as the direct
+              // PUT route (same skip conditions: only when BOTH updatedAt values are strings and
+              // the stored one is STRICTLY newer; a missing/non-string updatedAt on either side is
+              // never a conflict). Thrown (not replied) because we are inside tx(): the throw
+              // aborts the transaction, so the WHOLE batch rolls back, and the catch below maps it
+              // to the direct route's 409 + { current } shape.
+              if (
+                opts.optimisticConcurrency &&
+                existing &&
+                typeof existing.updatedAt === 'string' &&
+                typeof (row as { updatedAt?: unknown }).updatedAt === 'string' &&
+                existing.updatedAt > ((row as { updatedAt: string }).updatedAt)
+              ) {
+                // The 409's `current` payload is a READ of the stored row: redact the time-off
+                // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
+                // path must not hand an editor the very field readSlice redacts.
+                throw new StaleWriteError(
+                  redactNoteEcho(table, existing, noteVisibilityFor(req, table, (row as { accountId?: unknown }).accountId)),
+                )
+              }
+              // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
+              // REAL save path, so an editor's redacted round-trip lands here (see sanitizeWrite).
+              const clean = sanitizeWrite(
+                table,
+                row as Record<string, unknown>,
+                existing,
+                noteVisibilityFor(req, table, (row as { accountId?: unknown }).accountId),
+              )
               validateWrite(loadState(db), table, clean)
               upsertRow(db, table, clean)
             } else if (method === 'DELETE') {
@@ -1906,6 +2072,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (auditFailed) reply.header('x-capacitylens-audit-warning', 'true')
         return reply.code(200).send({ ok: true, applied: ops.length, auditWarning: auditFailed })
       } catch (err) {
+        // Stale-write conflict (optimistic concurrency): mirror the direct PUT route's 409 +
+        // `current` payload. tx() has already rolled the WHOLE batch back by the time this runs
+        // (all-or-nothing), so no op from the conflicted batch persisted — the client re-syncs
+        // from `current`. Checked BEFORE sendFail, which would misclassify it as a 500.
+        if (err instanceof StaleWriteError) {
+          return reply.code(409).send({ error: err.message, current: err.current })
+        }
         return sendFail(reply, err)
       }
     })

@@ -138,7 +138,7 @@ pnpm --filter capacitylens-server start
 
 - **Backups on boot.** `CAPACITYLENS_BACKUP_DIR` set ⇒ a snapshot is taken **immediately on start**
   (then every `CAPACITYLENS_BACKUP_INTERVAL_MIN`; default 60, set low here to watch a second one
-  land in ~1 minute). A `capacitylens-<YYYYMMDD-HHmmss>.db` file appears in `$BACKUPS`, and the
+  land in ~1 minute). A `capacitylens-<YYYYMMDD-HHmmss-SSS>.db` file appears in `$BACKUPS`, and the
   server logs `capacitylens-server: backup written <path>`. Confirm with `ls "$BACKUPS"`. Retention
   is `CAPACITYLENS_BACKUP_KEEP` (default 48, oldest pruned).
 - **Deep health on.** With `CAPACITYLENS_HEALTH_DEEP=1`, `curl http://localhost:8787/api/health`

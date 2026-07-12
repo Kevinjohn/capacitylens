@@ -51,6 +51,22 @@ const FALLBACK_COLOR = '#6366f1'
 const isScopedKey = (table: string): table is ScopedEntityKey =>
   (SCOPED_KEYS as string[]).includes(table)
 
+/** Caller-context options for {@link sanitizeWrite} — facts about the WRITER that the row body
+ *  alone cannot carry, so field-level pinning rules can run at the same single funnel the
+ *  tombstone pin uses (not as per-route hacks). */
+export interface SanitizeWriteOptions {
+  /**
+   * P1.6 write-side counterpart of the read redaction: `false` when the caller's role may NOT see
+   * the time-off `note` (the same `canSeeTimeOffNote` rule readSlice applies; auth OFF ⇒ always
+   * `true`). A note-blind writer round-trips rows the server REDACTED — their PUT body has no
+   * `note` key — so without a pin, upsertRow would store NULL (rowCodec: absent optional → SQL
+   * NULL) and silently ERASE a note the writer never saw. Defaults to `true` (visible), which is
+   * byte-identical to the pre-option behaviour, so callers writing tables other than `timeOff`
+   * need not pass it.
+   */
+  canSeeTimeOffNote?: boolean
+}
+
 /**
  * Repair the constrained value-level fields of a write body, returning a NEW object
  * (the input is not mutated). Scoped tables delegate to the shared
@@ -62,13 +78,18 @@ const isScopedKey = (table: string): table is ScopedEntityKey =>
  * write paths flow through, so no path can slip past the NULL-id guard.
  *
  * `existing` is the currently-stored row (from getRow) on an UPDATE — PUT/PATCH/batch pass it so
- * the lifecycle tombstones can be PINNED to what's on disk (see the scoped branch); it is undefined
- * on a CREATE (POST), which is why a new row always starts with its tombstones stripped (active).
+ * the lifecycle tombstones (and, for a note-blind writer, the time-off `note`) can be PINNED to
+ * what's on disk (see the scoped branch); it is undefined on a CREATE (POST), which is why a new
+ * row always starts with its tombstones stripped (active).
+ *
+ * `opts` carries writer-context facts (see {@link SanitizeWriteOptions}); omit it entirely for
+ * tables the options don't apply to.
  */
 export function sanitizeWrite(
   table: string,
   row: Record<string, unknown>,
   existing?: Record<string, unknown>,
+  opts: SanitizeWriteOptions = {},
 ): Record<string, unknown> {
   assertIdPresent(row)
   const copy = { ...row }
@@ -107,6 +128,17 @@ export function sanitizeWrite(
       else delete cleaned.archivedAt
       if (typeof existing?.deletedAt === 'string') cleaned.deletedAt = existing.deletedAt
       else delete cleaned.deletedAt
+    }
+    // P1.6 note-erasure guard (same PIN mechanism as the tombstones above): when the writer's role
+    // cannot see the time-off `note` (readSlice redacted it from every row they ever received),
+    // their write body is note-less BY CONSTRUCTION — so pin `note` to the stored value on an
+    // UPDATE, and strip it on a CREATE (existing === undefined ⇒ nothing to preserve; a note-blind
+    // writer also can't legitimately AUTHOR a note they'd never be able to read back). A writer who
+    // CAN see the note (owner/admin, or auth OFF) passes through untouched, so they can still
+    // change or clear it.
+    if (table === 'timeOff' && opts.canSeeTimeOffNote === false) {
+      if (typeof existing?.note === 'string') cleaned.note = existing.note
+      else delete cleaned.note
     }
     return cleaned
   }

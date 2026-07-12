@@ -64,11 +64,21 @@ function seedTwo(db: Db): void {
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed.
  *  `multiAccount` defaults to the single-company-cap OFF default (false) — pass `true` for a test
  *  that deliberately exercises a multi-company instance. */
-async function appWithAuth(opts: { multiAccount?: boolean } = {}): Promise<{ app: FastifyInstance; db: Db }> {
+async function appWithAuth(
+  opts: { multiAccount?: boolean; optimisticConcurrency?: boolean } = {},
+): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(':memory:')
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
   await runAuthMigrations(auth!)
-  return { app: buildApp(db, { authMode: mode, auth, multiAccount: opts.multiAccount }), db }
+  return {
+    app: buildApp(db, {
+      authMode: mode,
+      auth,
+      multiAccount: opts.multiAccount,
+      optimisticConcurrency: opts.optimisticConcurrency,
+    }),
+    db,
+  }
 }
 
 // ---- Per-verb requests against a1's seeded rows (cookie carries the session in auth-on). ----
@@ -209,8 +219,8 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await importInto(app, 'a1', `${role}-c4`, cookie)).statusCode).toBe(200)
   })
 
-  it('account-lifecycle exemption: a signed-in user with NO membership can POST /api/accounts → 201', async () => {
-    const { app } = await appWithAuth()
+  it('generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs', async () => {
+    const { app, db } = await appWithAuth()
     const { cookie } = await signUp(app, 'onboarding@capacitylens.dev') // no membership → no account yet
     const res = await call(app, {
       method: 'POST',
@@ -218,9 +228,16 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
       payload: account('newAcct'),
       headers: { cookie },
     })
-    // 201: account creation is NOT gated (there is no createAccount Action) so a fresh user can
-    // bootstrap their first company — see the P1.5 account-lifecycle deferral in app.ts.
-    expect(res.statusCode).toBe(201)
+    // The old onboarding exemption (this POST used to 201 for a membership-less user) became an
+    // authz bypass once POST /api/orgs landed: the bare row write never mints a membership (and
+    // none is ever backfilled), so every generic auth-on create is now refused. Even the zero-
+    // account first-run goes through /api/orgs, which handles it atomically.
+    expect(res.statusCode).toBe(403)
+    expect(res.json().error).toContain('/api/orgs')
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0)
+    // …and /api/orgs DOES let the same user bootstrap their first company (201 + owner membership).
+    const orgs = await call(app, { method: 'POST', url: '/api/orgs', payload: account('newAcct'), headers: { cookie } })
+    expect(orgs.statusCode).toBe(201)
   })
 })
 
@@ -268,6 +285,140 @@ describe('P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
     expect(res.statusCode).toBe(200)
     expect(noteOf(res)).toBe(SENTINEL_TIMEOFF_NOTE)
     expect(res.body).toContain(SENTINEL_TIMEOFF_NOTE)
+  })
+})
+
+describe('P1.6 time-off note preservation on WRITE — a note-blind writer cannot erase a note', () => {
+  // The write-side counterpart of the read redaction above. An editor's reads have the `note`
+  // REDACTED, so every row they round-trip back (PUT / batch PUT — the client's real save paths)
+  // is note-less by construction; without the sanitizeWrite pin, upsertRow would store NULL and
+  // silently erase a note the editor never saw. Owner/admin (and OFF mode) writers keep full
+  // control: they can still change or clear the note.
+
+  const SENTINEL = SENTINEL_TIMEOFF_NOTE
+  const stampedTimeOff = (over: Record<string, unknown> = {}) =>
+    ({ ...timeOff('to1', 'a1', 'r1'), ...over }) as Record<string, unknown>
+
+  /** The note as an OWNER sees it after the write under test (the ground truth in the DB). */
+  const noteInDb = (db: Db): unknown =>
+    (db.prepare(`SELECT note FROM timeOff WHERE id = 'to1'`).get() as { note: unknown }).note
+
+  /** Auth-on app + seed + a signed-up member of a1 with `role`. */
+  async function memberApp(role: Role, opts: { optimisticConcurrency?: boolean } = {}) {
+    const { app, db } = await appWithAuth(opts)
+    seedTwo(db)
+    const { cookie, userId } = await signUp(app, `${role}-notewrite-${Math.random().toString(36).slice(2)}@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+    return { app, db, cookie }
+  }
+
+  it('editor PUT of a redacted round-trip (no note key, edited dates) → 200 and the note SURVIVES', async () => {
+    const { app, db, cookie } = await memberApp('editor')
+    const res = await call(app, {
+      method: 'PUT',
+      url: '/api/timeOff/to1',
+      payload: stampedTimeOff({ endDate: '2026-02-05' }), // what the editor actually has: note-less
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(noteInDb(db)).toBe(SENTINEL) // pinned to the stored value, not NULLed
+    // …and the write itself took effect (the pin is surgical, not a rejected write).
+    expect((db.prepare(`SELECT endDate FROM timeOff WHERE id = 'to1'`).get() as { endDate: string }).endDate).toBe('2026-02-05')
+    // The write's ECHO is a read: the pinned note must NOT ride the response back to the
+    // note-blind writer (redactNoteEcho) — same server-side proof as the read-redaction suite.
+    expect(res.body).not.toContain(SENTINEL)
+  })
+
+  it('editor batch PUT (the client sync path) → 200 and the note SURVIVES', async () => {
+    const { app, db, cookie } = await memberApp('editor')
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: { ops: [{ method: 'PUT', table: 'timeOff', id: 'to1', row: stampedTimeOff({ type: 'sick' }) }] },
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(noteInDb(db)).toBe(SENTINEL)
+    expect((db.prepare(`SELECT type FROM timeOff WHERE id = 'to1'`).get() as { type: string }).type).toBe('sick')
+  })
+
+  it("editor STALE write (optimistic concurrency) → the 409's `current` payload is note-REDACTED too", async () => {
+    // The conflict path is a READ of the stored row: without redaction, an editor could learn a
+    // note they can't read simply by sending a stale write. Both write paths must redact it.
+    const { app, cookie } = await memberApp('editor', { optimisticConcurrency: true })
+    const stale = stampedTimeOff({ updatedAt: '1999-01-01T00:00:00.000Z' }) // stored TS is strictly newer
+
+    const put = await call(app, { method: 'PUT', url: '/api/timeOff/to1', payload: stale, headers: { cookie } })
+    expect(put.statusCode).toBe(409)
+    expect((put.json() as { current?: Record<string, unknown> }).current?.id).toBe('to1') // payload present…
+    expect(put.body).not.toContain(SENTINEL) // …but the note never rides it
+
+    const batch = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: { ops: [{ method: 'PUT', table: 'timeOff', id: 'to1', row: stale }] },
+      headers: { cookie },
+    })
+    expect(batch.statusCode).toBe(409)
+    expect((batch.json() as { current?: Record<string, unknown> }).current?.id).toBe('to1')
+    expect(batch.body).not.toContain(SENTINEL)
+  })
+
+  it('editor PATCH of an unrelated field → 200 and the note SURVIVES (and a smuggled note change is pinned back)', async () => {
+    const { app, db, cookie } = await memberApp('editor')
+    const patched = await call(app, {
+      method: 'PATCH',
+      url: '/api/timeOff/to1',
+      payload: { type: 'sick', note: 'smuggled edit of a note I cannot see' },
+      headers: { cookie },
+    })
+    expect(patched.statusCode).toBe(200)
+    expect(noteInDb(db)).toBe(SENTINEL) // the crafted note change did not land
+    // PATCH's merge pulls the stored row (note included) into its echo — redactNoteEcho must strip
+    // it for a note-blind patcher, closing the pre-existing merge-echo leak.
+    expect(patched.body).not.toContain(SENTINEL)
+  })
+
+  it('editor CREATE of NEW time off works; a note they cannot see is stripped, not stored', async () => {
+    const { app, db, cookie } = await memberApp('editor')
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/timeOff',
+      payload: { ...timeOff('to2', 'a1', 'r1'), note: 'smuggled onto a create' },
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(201) // the create itself is fine — nothing existing to preserve
+    expect((db.prepare(`SELECT note FROM timeOff WHERE id = 'to2'`).get() as { note: unknown }).note).toBeNull()
+  })
+
+  it.each(['owner', 'admin'] as const)('%s PUT can still CHANGE the note, and clear it by omitting the key', async (role) => {
+    const { app, db, cookie } = await memberApp(role)
+    const changed = await call(app, {
+      method: 'PUT',
+      url: '/api/timeOff/to1',
+      payload: stampedTimeOff({ note: 'rescheduled to March' }),
+      headers: { cookie },
+    })
+    expect(changed.statusCode).toBe(200)
+    expect(noteInDb(db)).toBe('rescheduled to March')
+
+    const cleared = await call(app, {
+      method: 'PUT',
+      url: '/api/timeOff/to1',
+      payload: stampedTimeOff(), // note key absent — a note-visible writer clears it
+      headers: { cookie },
+    })
+    expect(cleared.statusCode).toBe(200)
+    expect(noteInDb(db)).toBeNull()
+  })
+
+  it('OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db) // OFF ⇒ the writer always "sees" the note
+    seedTwo(db)
+    const res = await call(app, { method: 'PUT', url: '/api/timeOff/to1', payload: stampedTimeOff() })
+    expect(res.statusCode).toBe(200)
+    expect(noteInDb(db)).toBeNull()
   })
 })
 
@@ -364,8 +515,9 @@ describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
   // does NOT (top-level, no accountId column), so a bare account UPDATE (rename / colour / scheduling
   // mode / feature toggles) needs its OWN gate — else any signed-in user could rewrite another tenant's
   // company settings. An UPDATE (existing row) requires membership + write tier; a CREATE (no existing
-  // row) stays OPEN per the onboarding exemption. OFF mode stays allow-all. (Regression for the
-  // cross-tenant account-write gap — see decisions-log.)
+  // row) is CLOSED auth-on (403 → POST /api/orgs; the old onboarding exemption is retired) and open
+  // only in OFF mode. OFF mode stays allow-all. (Regression for the cross-tenant account-write gap —
+  // see decisions-log.)
 
   const putAccount = (app: FastifyInstance, id: string, cookie?: string) =>
     call(app, { method: 'PUT', url: `/api/accounts/${id}`, payload: account(id), headers: cookie ? { cookie } : {} })
@@ -412,41 +564,48 @@ describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect((await batchPutAccount(app, 'a1', editor.cookie)).statusCode).toBe(200)
   })
 
-  // The single-company cap (AppOptions.multiAccount, default off) sits IN FRONT of this "CREATE
-  // stays open" onboarding exemption: a CREATE is unconditionally open only while the instance is
-  // still at zero accounts (the bootstrap case); once any account exists, it needs multiAccount:true
-  // like every other create vector. Three cases pin the full behaviour:
-  it('(a) zero-account instance: a non-member may PUT / batch-PUT the FIRST account → 2xx (bootstrap survives)', async () => {
+  // Auth-on, a CREATE via any generic vector is CLOSED outright — 403 directing to POST /api/orgs
+  // (the atomic account + Internal client + owner-membership path). The refusal is UNCONDITIONAL in
+  // auth-on: it fires ahead of the single-company cap, at zero accounts (the bootstrap case now
+  // belongs to /api/orgs too), and regardless of multiAccount. Three cases pin the full behaviour:
+  it('(a) zero-account instance, auth-on: a non-member PUT / batch-PUT of the FIRST account → 403 → /api/orgs (bootstrap moved there)', async () => {
     const put = await appWithAuth() // fresh db, zero accounts
     const { cookie: putCookie } = await signUp(put.app, 'acct-onboard-put@capacitylens.dev') // no membership
-    expect((await putAccount(put.app, 'brandNew1', putCookie)).statusCode).toBe(200)
+    const putRes = await putAccount(put.app, 'brandNew1', putCookie)
+    expect(putRes.statusCode).toBe(403)
+    expect(putRes.json().error).toContain('/api/orgs')
+    expect((put.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0)
 
     const batch = await appWithAuth() // separate fresh instance — also zero accounts
     const { cookie: batchCookie } = await signUp(batch.app, 'acct-onboard-batch@capacitylens.dev')
-    expect((await batchPutAccount(batch.app, 'brandNew2', batchCookie)).statusCode).toBe(200)
+    const batchRes = await batchPutAccount(batch.app, 'brandNew2', batchCookie)
+    expect(batchRes.statusCode).toBe(403)
+    expect(batchRes.json().error).toContain('/api/orgs')
+    expect((batch.db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(0)
   })
 
-  it('(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 (single-company cap, not a generic Forbidden)', async () => {
+  it('(b) instance with ≥1 account, default opts: a non-member PUT / batch-PUT of a NEW account → 403 → /api/orgs (the auth-on closure outranks the cap message)', async () => {
     const { app, db } = await appWithAuth() // multiAccount defaults to false
     seedTwo(db) // a1 + a2 already exist
     const { cookie } = await signUp(app, 'acct-onboard-cap@capacitylens.dev') // no membership
-    const CAP_MESSAGE = 'This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.'
 
     const put = await putAccount(app, 'brandNew3', cookie)
     expect(put.statusCode).toBe(403)
-    expect(put.json()).toEqual({ error: CAP_MESSAGE })
+    expect(put.json().error).toContain('/api/orgs')
 
     const batch = await batchPutAccount(app, 'brandNew4', cookie)
     expect(batch.statusCode).toBe(403)
-    expect(batch.json()).toEqual({ error: CAP_MESSAGE })
+    expect(batch.json().error).toContain('/api/orgs')
+    // /api/orgs then applies the single-company cap itself (its own GATE 0) — see app.orgs.test.ts.
   })
 
-  it('(c) multiAccount: true restores the old CREATE-stays-open behaviour even with existing accounts', async () => {
+  it('(c) multiAccount: true does NOT reopen the generic vectors auth-on — creation still goes through /api/orgs', async () => {
     const { app, db } = await appWithAuth({ multiAccount: true })
     seedTwo(db)
     const { cookie } = await signUp(app, 'acct-onboard-multi@capacitylens.dev') // no membership
-    expect((await putAccount(app, 'brandNew5', cookie)).statusCode).toBe(200)
-    expect((await batchPutAccount(app, 'brandNew6', cookie)).statusCode).toBe(200)
+    expect((await putAccount(app, 'brandNew5', cookie)).statusCode).toBe(403)
+    expect((await batchPutAccount(app, 'brandNew6', cookie)).statusCode).toBe(403)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id LIKE 'brandNew%'`).get() as { n: number }).n).toBe(0)
   })
 
   it('OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)', async () => {
