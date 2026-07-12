@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { persistenceAdapter } from '../data/storageAdapter'
+import { refreshActiveAccountSlice } from '../data/persist'
 import { useStore, type LifecycleEntity } from '../store/useStore'
 import { errorMessage } from '../lib/errorMessage'
 import { m } from '@/i18n'
@@ -50,16 +51,22 @@ export interface LifecycleActions {
  * the active views (scheduler / lists) reflect the out-of-band DB write AND the adapter's diff
  * snapshot is re-seeded (else the next ordinary edit would emit a spurious cross-snapshot delta).
  *
- * REUSE, not a hand-roll: `ServerSyncAdapter.loadAll(accountId)` is the SAME path the persist
- * switch-orchestrator / refresh-on-focus use (persist.ts `refreshActive`). It (a) re-fetches the
- * active slice via `GET /api/state?accountId=…` AND (b) re-seeds the adapter's private `lastSynced`
- * snapshot to EXACTLY that slice — atomically, in the one call. `replaceAll(slice)` then fires the
- * store data subscription, but because the snapshot now equals the slice the resulting diff is ZERO
- * ops — a harmless no-op save (the `loadingSlice` guard inside `refreshActive` only optimises that
- * no-op away; it is not required for correctness). The demo build never calls this (its store actions
- * already mutate `data`).
+ * REUSE, not a hand-roll: this goes THROUGH the persist orchestrator
+ * ({@link refreshActiveAccountSlice} → persist.ts `refreshActive`), the same sequence tenant switches
+ * and refresh-on-focus use — it FLUSHES a still-debounced ordinary edit and awaits any in-flight save
+ * BEFORE reloading, and skips the reload entirely while a save is in a failed state. A bare
+ * `loadAll` + `replaceAll` here would race those: an edit inside the debounce window when the reload
+ * lands would be replaced by the server slice AND the snapshot re-seeded under it, so the queued save
+ * diffs to zero ops and the edit is silently, permanently lost. (When the reload is skipped on a
+ * failed save, the lifecycle change is already committed server-side — it appears on the next
+ * successful refresh; preserving the un-persisted edit wins.)
+ *
+ * The bare-reload fallback runs ONLY when no orchestrator is attached (unit tests, pre-bootstrap) —
+ * with no orchestrator there is no debounce/retry state to clobber, so it is safe there. The demo
+ * build never calls this (its store actions already mutate `data`).
  */
 async function reloadFromServer(accountId: string): Promise<void> {
+  if (await refreshActiveAccountSlice(accountId)) return
   const slice = await persistenceAdapter.loadAll(accountId)
   useStore.getState().replaceAll(slice)
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { attachPersistence, bootstrap } from './persist'
+import { attachPersistence, bootstrap, refreshActiveAccountSlice } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
 import { ServerSyncAdapter } from './ServerSyncAdapter'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
@@ -422,6 +422,103 @@ describe('refresh-on-focus (P1.16, server mode)', () => {
 
     expect(loadAll).not.toHaveBeenCalled() // local holds every account — no refetch
     detach()
+  })
+
+  it('ABORTS the focus refresh while a save is FAILED — the un-persisted edit must not be clobbered', async () => {
+    // The data-loss trap: an edit's save fails (retry scheduled), the user tabs away and back, and the
+    // focus refresh loadAll+replaceAll's the SERVER's copy over the optimistic state — re-seeding the
+    // snapshot so the pending retry diffs to ZERO ops, "succeeds", and the edit is silently gone
+    // forever. The refresh must abort instead: the retry machinery still holds the edit, and the
+    // persist banner (onError) already tells the user they're unsynced.
+    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
+    const detach = await attachActiveA2(adapter) // debounceMs 0 — saves fire immediately
+    const loadsAfterPick = loadAll.mock.calls.length
+    saveAll.mockRejectedValue(new Error('write unavailable')) // every save now fails
+
+    useStore.getState().addClient({ name: 'Unsynced', color: '#222222' })
+    await new Promise((r) => setTimeout(r, 5)) // let the immediate save fail (failedSinceSuccess set)
+
+    window.dispatchEvent(new Event('focus'))
+    await new Promise((r) => setTimeout(r, 5))
+
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // NO reload — the refresh aborted
+    // The optimistic edit is still in the store, available to the retry/stranded-write machinery.
+    expect(useStore.getState().data.clients.some((c) => c.name === 'Unsynced')).toBe(true)
+    detach()
+  })
+})
+
+describe('refreshActiveAccountSlice (the lifecycle hook reload seam)', () => {
+  // The out-of-band server writers (archive/delete/purge routes) reload the active slice THROUGH the
+  // orchestrator via this export — a bare loadAll+replaceAll would clobber a still-debounced edit and
+  // re-seed the snapshot under it (the same permanent-loss mechanism the focus-refresh abort guards).
+
+  function recordingAdapter(slice: ReturnType<typeof emptyAppData>) {
+    const loadAll = vi.fn(async (): Promise<ReturnType<typeof emptyAppData>> => slice)
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+    return { adapter, loadAll, saveAll }
+  }
+
+  const a2Slice = () => ({
+    ...emptyAppData(),
+    accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+  })
+
+  async function attachActiveA2(adapter: PersistenceAdapter, debounceMs = 0) {
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+    const detach = attachPersistence(useStore, adapter, debounceMs, undefined, undefined, true)
+    useStore.getState().setActiveAccount('a2')
+    await new Promise((r) => setTimeout(r, 5))
+    return detach
+  }
+
+  it('returns false when no orchestrator is attached (the caller falls back to a bare reload)', async () => {
+    expect(await refreshActiveAccountSlice('a2')).toBe(false)
+  })
+
+  it('FLUSHES a pending debounced edit BEFORE reloading (returns true; the edit lands first)', async () => {
+    const order: string[] = []
+    const loadAll = vi.fn(async () => {
+      order.push('loadAll')
+      return a2Slice()
+    })
+    const saveAll = vi.fn(async () => {
+      order.push('saveAll')
+    })
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+    const detach = await attachActiveA2(adapter, 300) // genuinely debounced
+    order.length = 0 // ignore the initial switch's loadAll
+
+    useStore.getState().addClient({ name: 'Mid-debounce', color: '#222222' }) // not yet on the wire
+    expect(await refreshActiveAccountSlice('a2')).toBe(true)
+
+    expect(order[0]).toBe('saveAll') // the edit POSTed before the reload re-seeded the snapshot
+    expect(order).toContain('loadAll')
+    detach()
+  })
+
+  it('SKIPS the reload when the flush FAILS — preserving the edit beats reflecting the mutation', async () => {
+    const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
+    const detach = await attachActiveA2(adapter, 300)
+    const loadsAfterPick = loadAll.mock.calls.length
+    saveAll.mockRejectedValue(new Error('write unavailable'))
+
+    useStore.getState().addClient({ name: 'Unsynced', color: '#222222' })
+    expect(await refreshActiveAccountSlice('a2')).toBe(true) // handled by the orchestrator…
+
+    expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // …which refused to clobber the edit
+    expect(useStore.getState().data.clients.some((c) => c.name === 'Unsynced')).toBe(true)
+    detach()
+  })
+
+  it('is UNREGISTERED after detach (a later call falls back)', async () => {
+    const { adapter } = recordingAdapter(a2Slice())
+    const detach = await attachActiveA2(adapter)
+    detach()
+    expect(await refreshActiveAccountSlice('a2')).toBe(false)
   })
 })
 

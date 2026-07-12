@@ -8,6 +8,30 @@ import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 // container (and is trivially testable). attachPersistence debounce-saves on
 // every data change; bootstrap loads (and seeds only on a genuine first run).
 
+// The attached orchestrator's refreshActive, registered (server mode only) so OUT-OF-BAND server
+// writers — the lifecycle hook's archive/delete/purge routes — can reuse the exact
+// flush-pending → await-in-flight → token-guarded reload sequence instead of hand-rolling
+// loadAll+replaceAll, which would silently replace a still-debounced edit AND re-seed the adapter
+// snapshot under it (the retry then diffs to zero ops — permanent data loss). Null when no
+// orchestrator is attached (demo build, unit tests).
+let registeredRefreshActive: ((id: string) => Promise<void>) | null = null
+
+/**
+ * Re-hydrate the active account's slice THROUGH the persistence orchestrator: pending debounced
+ * edits are flushed and in-flight saves awaited before the reload, and the reload is skipped
+ * entirely while a save is in a failed state (reloading would clobber the un-persisted edits the
+ * retry machinery still holds — see refreshActive's abortIfSaveFailed note).
+ *
+ * @returns false when no orchestrator is attached — the caller may then fall back to a bare
+ *          `adapter.loadAll` + `replaceAll`, which is safe ONLY because with no orchestrator there
+ *          is no debounce/retry state to clobber.
+ */
+export async function refreshActiveAccountSlice(id: string): Promise<boolean> {
+  if (!registeredRefreshActive) return false
+  await registeredRefreshActive(id)
+  return true
+}
+
 /**
  * Wire the store to a PersistenceAdapter (OUTSIDE the store) and return an unsubscribe.
  *
@@ -186,7 +210,18 @@ export function attachPersistence(
   //   (b) adapter.loadAll(id) → returns the slice AND re-seeds lastSynced to it;
   //   (c) replaceAll(slice) under loadingSlice so the data subscription doesn't read it as an edit,
   //       then advance lastData.
-  const refreshActive = async (id: string): Promise<void> => {
+  //
+  // abortIfSaveFailed (refresh-on-focus + the lifecycle hook's post-mutation reload — NOT tenant
+  // switches): when the flush/await above still leaves a save FAILED, the refresh is ABANDONED.
+  // Proceeding would loadAll+replaceAll the server's copy over the optimistic state AND re-seed the
+  // diff snapshot to it, so the scheduled retry (which re-reads store state) would diff to ZERO ops,
+  // "succeed", and clear the failure — permanently discarding the user's un-persisted edit. Aborting
+  // keeps the edit in play: the retry/stranded-write machinery still holds it, and the persist banner
+  // (raised via save's onError) already tells the user they're not synced. A tenant SWITCH deliberately
+  // does NOT abort — refusing the load would leave account A's data rendered under account B's id (a
+  // cross-tenant display, strictly worse); its flush failure is surfaced the same way and the loss is
+  // bounded to the un-flushed edits.
+  const refreshActive = async (id: string, abortIfSaveFailed = false): Promise<void> => {
     const myToken = ++switchToken
     // (a) Let a prior account's save settle before we re-seed the snapshot.
     if (inFlightSave) await inFlightSave
@@ -209,6 +244,9 @@ export function attachPersistence(
       if (inFlightSave) await inFlightSave
       if (myToken !== switchToken) return // a newer switch/refresh superseded this one mid-flush
     }
+    // See the abortIfSaveFailed doc above: a refresh must not reload over a failed save's edits.
+    // Checked AFTER the flush/await so a flush that just SUCCEEDED (clearing the flag) still refreshes.
+    if (abortIfSaveFailed && failedSinceSuccess) return
     try {
       // (b) Load the slice; loadAll(id) re-seeds the adapter's diff snapshot to it.
       const slice = await adapter.loadAll(id)
@@ -277,8 +315,15 @@ export function attachPersistence(
     const now = Date.now()
     if (now - lastRefreshAt <= REFRESH_MIN_INTERVAL_MS) return
     lastRefreshAt = now // stamp at refresh START so two focuses inside the window collapse to one
-    void refreshActive(id)
+    void refreshActive(id, true) // abortIfSaveFailed: a focus refresh must never clobber failed-save edits
   }
+
+  // Register the orchestrator-backed refresh for out-of-band server writers (see
+  // refreshActiveAccountSlice above). Server mode only — the demo build's lifecycle actions mutate
+  // the store directly and never reload. abortIfSaveFailed for the same reason as focus-refresh:
+  // a post-lifecycle reload is a convenience re-hydrate, never worth destroying un-persisted edits.
+  const myRegisteredRefresh = serverMode ? (id: string) => refreshActive(id, true) : null
+  if (myRegisteredRefresh) registeredRefreshActive = myRegisteredRefresh
 
   const onPageHide = () => flushOnUnload()
   const onVisibility = () => {
@@ -304,6 +349,8 @@ export function attachPersistence(
   return () => {
     unsubscribe()
     unsubscribeSwitch?.()
+    // Unregister only if still OURS — a newer attachPersistence may have replaced the registration.
+    if (myRegisteredRefresh && registeredRefreshActive === myRegisteredRefresh) registeredRefreshActive = null
     if (canListen) {
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('online', onOnline)
