@@ -560,10 +560,11 @@ export const useStore = create<StoreState>()((set, get) => {
       // holds the instant the tenant exists — matching seed() and the v5→v6 migrate.
       const internal = buildInternalClient(e.id, ts.createdAt)
       mutate((d) => ({ ...d, accounts: [...d.accounts, e], clients: [...d.clients, internal] }))
-      // Keep the picker's server-sourced list in lockstep (P1.13): the creator is the new account's
-      // Owner, so optimistically append the summary. In server mode the next /api/accounts refetch
-      // (e.g. on a remount) reconciles; in the demo build the derivation does. Append only if absent so a
-      // refetch that already added it can't duplicate.
+      // Keep the picker's list in lockstep (P1.13). This action now runs only in the DEMO build —
+      // server-mode create goes through the AccountPicker's dedicated POST /api/orgs path, not here —
+      // so this append is the demo bookkeeping that keeps the picker synchronously fresh before the
+      // useAccountSummaries derive effect flushes. Append only if absent so a derive that already
+      // added it can't duplicate.
       set((s) =>
         s.accountSummaries.some((a) => a.id === e.id)
           ? {}
@@ -576,8 +577,10 @@ export const useStore = create<StoreState>()((set, get) => {
     // active one, fall back to the picker.
     deleteAccount: (id) => {
       mutate((d) => deleteAccountCascade(d, id))
-      // Drop it from the picker's list too (P1.13) so a deleted company disappears from the picker in
-      // server mode (the demo build's derivation would also drop it, but this keeps both paths consistent).
+      // Drop it from the picker's list too (P1.13). This action now runs only in the DEMO build —
+      // server-mode delete goes through the AccountPicker's dedicated DELETE /api/accounts/:id route,
+      // not here — so this filter is the demo bookkeeping that keeps the picker synchronously fresh
+      // before the useAccountSummaries derive effect flushes.
       set((s) => ({ accountSummaries: s.accountSummaries.filter((a) => a.id !== id) }))
       if (get().activeAccountId === id) get().setActiveAccount(null)
     },

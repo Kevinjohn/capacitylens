@@ -264,6 +264,34 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     expect(useStore.getState().data.accounts).toHaveLength(0)
   })
 
+  it('on a 2xx create with an unusable body: NO error, form closes, list refetched, nothing activated', async () => {
+    // A 2xx means the org EXISTS server-side. An unreadable/off-spec body must therefore NOT surface
+    // an error over a create that succeeded (a resubmit would duplicate / trip the cap-403), and must
+    // NOT seed a bogus {id: undefined} summary that setActiveAccount would then accept. Instead: the
+    // form closes and the authoritative /api/accounts refetch lists the new company.
+    serverFlag.on = true
+    const user = userEvent.setup()
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url === '/api/orgs') return { ok: true, status: 201, json: async () => ({ ok: true }) } // no id/name
+      return { ok: true, status: 200, json: async () => [{ id: 'org-9', name: 'Loft Digital', role: 'owner' }] }
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    await user.type(screen.getByLabelText('Company name'), 'Loft Digital')
+    await user.click(screen.getByRole('button', { name: 'Create company' }))
+
+    // The company appears via the refetch (the picker list), the form is gone, and no error shows.
+    expect(await screen.findByText('Loft Digital')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Company name')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.map((c) => c[0] as unknown as string)).toContain('/api/accounts')
+    // No activation: the create response carried no trustworthy id.
+    expect(useStore.getState().activeAccountId).toBeNull()
+    expect(useStore.getState().accountSummaries.map((a) => a.id)).toEqual(['org-9'])
+  })
+
   it('surfaces the server refusal (cap / org gate) as the form error and does NOT activate', async () => {
     serverFlag.on = true
     const user = userEvent.setup()
@@ -298,6 +326,35 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('/api/accounts/a9')
     expect(init.method).toBe('DELETE')
+  })
+
+  it('disarms Delete while the DELETE is in flight (double-click sends ONE request)', async () => {
+    // The regression this guards: without the in-flight guard a double-click sends a second DELETE,
+    // which 403s in auth-on mode (the membership was erased by the first) → a spurious "Forbidden."
+    // toast right after a successful delete.
+    serverFlag.on = true
+    const user = userEvent.setup()
+    let resolveDelete!: (v: { ok: boolean; status: number; json: () => Promise<unknown> }) => void
+    const fetchMock = vi.fn(() => new Promise((resolve) => { resolveDelete = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    useStore.getState().setAccountSummaries([{ id: 'a9', name: 'Ghost Co', role: 'owner' }])
+    render(<AccountPicker />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete Ghost Co' }))
+    const dialog = screen.getByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/Type/i), 'Ghost Co')
+    const deleteBtn = within(dialog).getByRole('button', { name: 'Delete' })
+    await user.click(deleteBtn)
+
+    // In flight: the busy prop disarms the button; a second click must not send a second DELETE.
+    expect(deleteBtn).toBeDisabled()
+    await user.click(deleteBtn)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    resolveDelete({ ok: true, status: 204, json: async () => ({}) })
+    await waitFor(() => expect(useStore.getState().accountSummaries).toHaveLength(0))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(useStore.getState().notice).toBeNull() // no spurious error after a successful delete
   })
 
   it('keeps the company listed and surfaces a notice when the server refuses the delete', async () => {

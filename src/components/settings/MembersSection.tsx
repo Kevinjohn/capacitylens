@@ -4,6 +4,7 @@ import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
+import { readApiError } from '../../lib/readApiError'
 import { Button, FieldError, SelectField } from '../common/ui'
 import { m } from '@/i18n'
 import {
@@ -206,8 +207,7 @@ export function MembersSection() {
         body: JSON.stringify({ role: nextRole }),
       })
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail(null, body.error ?? m.settings_members_err_change_role({ status: res.status }))
+        fail(null, (await readApiError(res)) ?? m.settings_members_err_change_role({ status: res.status }))
         return
       }
       setNotice(m.settings_members_role_updated())
@@ -229,8 +229,7 @@ export function MembersSection() {
         credentials: 'include',
       })
       if (!res.ok && res.status !== 204) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail(null, body.error ?? m.settings_members_err_remove({ status: res.status }))
+        fail(null, (await readApiError(res)) ?? m.settings_members_err_remove({ status: res.status }))
         return
       }
       setNotice(m.settings_members_removed())
@@ -254,8 +253,7 @@ export function MembersSection() {
         body: JSON.stringify({ toUserId: mem.userId }),
       })
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail(null, body.error ?? m.settings_members_err_transfer({ status: res.status }))
+        fail(null, (await readApiError(res)) ?? m.settings_members_err_transfer({ status: res.status }))
         return
       }
       setNotice(m.settings_members_ownership_transferred())
@@ -284,8 +282,7 @@ export function MembersSection() {
         { method: 'POST', credentials: 'include' },
       )
       if (res.status !== 201) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail(null, body.error ?? m.settings_members_err_reset({ status: res.status }))
+        fail(null, (await readApiError(res)) ?? m.settings_members_err_reset({ status: res.status }))
         return
       }
       const body = (await res.json()) as { token: string; expiresAt: string }
@@ -319,8 +316,7 @@ export function MembersSection() {
         }),
       })
       if (res.status !== 201) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail('invite', body.error ?? m.settings_members_err_create_invite({ status: res.status }))
+        fail('invite', (await readApiError(res)) ?? m.settings_members_err_create_invite({ status: res.status }))
         return
       }
       const body = (await res.json()) as { token: string }

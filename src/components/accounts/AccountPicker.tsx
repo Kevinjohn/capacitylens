@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { useStore } from '../../store/useStore'
 import { useAuth } from '../../auth/authContext'
+import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
+import { readApiError } from '../../lib/readApiError'
 import { can } from '@capacitylens/shared/domain/access'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
@@ -29,6 +31,18 @@ const WEEK_START_OPTIONS: { value: 0 | 1; label: () => string }[] = [
 const DEFAULT_WEEK_STARTS_ON = 1 as const
 const DEFAULT_TIMEZONE = 'Etc/GMT'
 const DEFAULT_LANGUAGE = 'en'
+
+/** Validate the UNTRUSTED 2xx body of POST /api/orgs — same stance as useAccountSummaries'
+ *  `toSummary` (the server is external input; never trust an `as` cast). Returns null when the
+ *  body is unusable (not an object, or id/name missing/empty) — the caller must then treat the
+ *  create as "succeeded, but id unknown", NOT as a failure (see createOrgOnServer). */
+function toCreatedOrg(body: unknown): { id: string; name: string } | null {
+  if (typeof body !== 'object' || body === null) return null
+  const b = body as { id?: unknown; name?: unknown }
+  if (typeof b.id !== 'string' || b.id.length === 0) return null
+  if (typeof b.name !== 'string' || b.name.length === 0) return null
+  return { id: b.id, name: b.name }
+}
 
 // Full-screen tenant chooser. Shown on every load (activeAccountId is never
 // persisted) and whenever the user picks "Switch company". Lets you open an
@@ -60,6 +74,11 @@ export function AccountPicker() {
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
   // round-trip would otherwise allow (two companies from one form). Demo-mode create is synchronous.
   const [submitting, setSubmitting] = useState(false)
+  // True while the server-mode DELETE is in flight — passed to the dialog as `busy` so the armed
+  // Delete button disarms during the round-trip. Without it a double-click sends a second DELETE,
+  // which 403s in auth-on mode (the membership was just erased) → a spurious "Forbidden." toast
+  // right after a successful delete. Demo-mode delete is synchronous and never sets it.
+  const [deleting, setDeleting] = useState(false)
   const [name, setName] = useState('')
   const [color, setColor] = useState<string>(DEFAULT_COLORS.account)
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
@@ -96,11 +115,26 @@ export function AccountPicker() {
       if (!res.ok) {
         // The server's message (single-company cap / org-create gate) is the useful one; the
         // status-stamped fallback covers an unreadable body.
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        fail(null, body.error ?? m.picker_err_create({ status: res.status }))
+        fail(null, (await readApiError(res)) ?? m.picker_err_create({ status: res.status }))
         return
       }
-      const created = (await res.json()) as { id: string; name: string }
+      // A 2xx means the org EXISTS server-side no matter what the body looks like, so the body
+      // read must NOT be allowed to throw into the transport catch below — that would surface an
+      // error over a create that SUCCEEDED and leave the form open for a resubmit (a duplicate
+      // company, or a spurious single-company-cap 403). Parse best-effort, validate the shape.
+      const created = toCreatedOrg(await res.json().catch(() => null))
+      if (created === null) {
+        // DELIBERATE ASYMMETRY with the !res.ok branch: this is a SUCCESS with an unusable body,
+        // not a failure. We can't seed a summary or activate (no trustworthy id — a bogus one
+        // would slip past setActiveAccount's validation and load a nameless shell), so close the
+        // form (resubmit = duplicate) and refetch the authoritative list instead: the new company
+        // appears in the picker and the user opens it from there. A null refetch leaves the list
+        // as-is — AppShell's own summaries fetch backstops on the next mount.
+        resetForm()
+        const list = await fetchAccountSummaries()
+        if (list !== null) setAccountSummaries(list)
+        return
+      }
       // Seed the summary BEFORE activating: setActiveAccount validates ids against
       // data.accounts ∪ accountSummaries, and the just-created org is in neither yet.
       // Append-if-absent so a concurrent summaries refetch can't duplicate it.
@@ -119,6 +153,10 @@ export function AccountPicker() {
   }
 
   const submit = () => {
+    // In-flight guard, self-contained (not just the button's `disabled` attribute): a POST already
+    // in flight means any further submit — however triggered — must be a no-op, or one form could
+    // create two companies.
+    if (submitting) return
     const trimmed = validateName(name, fail)
     if (!trimmed) return
     if (!validateHex(color, fail)) return
@@ -148,14 +186,17 @@ export function AccountPicker() {
   // here: the picker only renders with no active account, so a stale (now-deleted) slice in `data` is
   // invisible and gets replaced wholesale by the next account pick's loadAll.
   const deleteOrgOnServer = async (id: string) => {
+    // In-flight guard, self-contained (the dialog's `busy` disable is the visible half): a second
+    // DELETE for the same org 403s in auth-on mode — see the `deleting` state's comment.
+    if (deleting) return
+    setDeleting(true)
     try {
       const res = await fetch(`${API_BASE}/api/accounts/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include',
       })
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        setNotice(body.error ?? m.picker_err_delete({ status: res.status }), 'error')
+        setNotice((await readApiError(res)) ?? m.picker_err_delete({ status: res.status }), 'error')
         return
       }
       const summaries = useStore.getState().accountSummaries
@@ -164,6 +205,7 @@ export function AccountPicker() {
       // A pre-response transport error — surface it; the company is still listed (nothing was removed).
       setNotice(errorMessage(e), 'error')
     } finally {
+      setDeleting(false)
       setConfirming(null)
     }
   }
@@ -313,6 +355,7 @@ export function AccountPicker() {
         {confirming && (
           <DeleteCompanyDialog
             account={confirming}
+            busy={deleting}
             onConfirm={() => confirmDelete(confirming.id)}
             onCancel={() => setConfirming(null)}
           />

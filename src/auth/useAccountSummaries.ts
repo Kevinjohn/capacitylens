@@ -43,21 +43,27 @@ function toSummary(entry: unknown): AccountSummary | null {
  * can pull a fresh list on demand: a just-joined account is in neither `data.accounts` nor
  * `accountSummaries` there, so `setActiveAccount` would reject it without this refetch.
  *
- * @returns the validated list, or null on ANY failure (non-OK status, transport error) — fail-soft,
- *          matching the hook's leave-the-existing-list-alone stance; the caller decides what a null
- *          means for its flow. A non-array body yields an empty list (a real "no accounts" answer).
+ * @param init optional `{ signal }` threaded to the fetch — lets a caller BOUND the read (e.g.
+ *             InviteAccept's `AbortSignal.timeout(5000)` best-effort activation step); an abort
+ *             lands in the catch below and reports as null like any other failure.
+ * @returns the validated list, or null on ANY failure (non-OK status, transport error, abort) —
+ *          fail-soft, matching the hook's leave-the-existing-list-alone stance; the caller decides
+ *          what a null means for its flow. A non-array body yields an empty list (a real "no
+ *          accounts" answer).
  */
-export async function fetchAccountSummaries(): Promise<AccountSummary[] | null> {
+export async function fetchAccountSummaries(init?: { signal?: AbortSignal }): Promise<AccountSummary[] | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include' })
+    const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include', signal: init?.signal })
     if (!res.ok) return null
     const body: unknown = await res.json()
     // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
     // an `as` cast.
     return Array.isArray(body) ? body.map(toSummary).filter((s): s is AccountSummary => s !== null) : []
-  } catch {
-    // Fail-soft by contract (see @returns): a transport error is reported as null, never a throw —
-    // the callers treat a failed list read as "keep what you have", not an error surface of its own.
+  } catch (e) {
+    // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
+    // throw — the callers treat a failed list read as "keep what you have", not an error surface of
+    // its own. Breadcrumb per DEFENSIVE-CODING.md §5: handled-but-logged, never totally silent.
+    console.warn('fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)', e)
     return null
   }
 }

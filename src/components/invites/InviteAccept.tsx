@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
+import { readApiError } from '../../lib/readApiError'
 import { useStore } from '../../store/useStore'
 import { FieldError } from '../common/ui'
 import { linkButtonClass } from '../common/controls'
@@ -20,7 +21,10 @@ import { m } from '@/i18n'
 
 type State =
   | { kind: 'working' }
-  | { kind: 'joined'; accountId: string; role: string }
+  // `activating` = the best-effort switch-into-the-joined-company step (summaries refetch +
+  // setActiveAccount) hasn't settled yet. The success message renders as soon as we're 'joined';
+  // the Continue link renders only once `activating` is false — see the effect for why.
+  | { kind: 'joined'; accountId: string; role: string; activating: boolean }
   | { kind: 'error'; message: string }
   | { kind: 'local' } // the demo build (no server) — invites are a server-mode feature
 
@@ -86,29 +90,34 @@ export function InviteAccept() {
         })
         if (res.ok) {
           const body = (await res.json().catch(() => ({}))) as { accountId?: string; role?: string }
-          // Switch the active company to the one just joined so the continue link lands in it.
-          // This route mounts OUTSIDE AppShell, so useAccountSummaries hasn't run here: the joined
-          // account is in neither `data.accounts` nor `accountSummaries`, and a bare setActiveAccount
-          // would REJECT it as unknown (dropping to the picker with a spurious "company not found"
-          // notice). Pull a fresh summaries list first and activate only once the account is in it.
-          // A failed list read (null) skips activation — the Continue link then lands on the picker,
-          // whose own summaries fetch (AppShell mount) lists the new membership. Fail-soft, no toast.
-          if (typeof body.accountId === 'string') {
-            const list = await fetchAccountSummaries()
+          const accountId = typeof body.accountId === 'string' ? body.accountId : ''
+          // Show the SUCCESS FIRST: the single-use token is consumed the moment the POST succeeds,
+          // so the outcome must never be held hostage to the follow-up summaries fetch — a hanging
+          // GET would strand the user on "Joining…" with the membership already granted and the
+          // link already dead. The activation below is a bounded best-effort extra.
+          setState({ kind: 'joined', accountId, role: body.role ?? '', activating: accountId !== '' })
+          if (accountId !== '') {
+            // Switch the active company to the one just joined so the Continue link lands in it.
+            // This route mounts OUTSIDE AppShell, so useAccountSummaries hasn't run here: the joined
+            // account is in neither `data.accounts` nor `accountSummaries`, and a bare
+            // setActiveAccount would REJECT it as unknown (dropping to the picker with a spurious
+            // "company not found" notice). Pull a fresh summaries list first and activate only once
+            // the account is in it. BOUNDED to 5s: fetchAccountSummaries reports any failure —
+            // including this timeout — as null (fail-soft, no toast), in which case activation is
+            // skipped and Continue lands on the picker, whose own summaries fetch (AppShell mount)
+            // lists the new membership.
+            const list = await fetchAccountSummaries({ signal: AbortSignal.timeout(5000) })
             if (list !== null) {
               setAccountSummaries(list)
-              if (list.some((a) => a.id === body.accountId)) setActiveAccount(body.accountId)
+              if (list.some((a) => a.id === accountId)) setActiveAccount(accountId)
             }
+            // The Continue link renders only now that activation has SETTLED (succeeded or not), so
+            // clicking it deterministically lands in the joined company whenever activation worked.
+            setState((s) => (s.kind === 'joined' ? { ...s, activating: false } : s))
           }
-          setState({
-            kind: 'joined',
-            accountId: body.accountId ?? '',
-            role: body.role ?? '',
-          })
           return
         }
-        const body = (await res.json().catch(() => ({}))) as { error?: string }
-        setState({ kind: 'error', message: messageForStatus(res.status, body.error) })
+        setState({ kind: 'error', message: messageForStatus(res.status, await readApiError(res)) })
       } catch (err) {
         // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
         // message rather than a dead end, and log the real cause for debugging.
@@ -139,11 +148,16 @@ export function InviteAccept() {
               <p role="status" className="text-sm font-medium text-ink">
                 {`${m.invite_joined_base()}${state.role ? m.invite_joined_role({ role: state.role }) : ''}.`}
               </p>
-              <div className="flex justify-end">
-                <Link to="/" className={linkButtonClass}>
-                  {m.invite_continue()}
-                </Link>
-              </div>
+              {/* Continue appears only once the best-effort activation step has settled (see the
+                  effect): rendering it earlier would let a click race the setActiveAccount and land
+                  on the picker even when activation was about to succeed. */}
+              {!state.activating && (
+                <div className="flex justify-end">
+                  <Link to="/" className={linkButtonClass}>
+                    {m.invite_continue()}
+                  </Link>
+                </div>
+              )}
             </>
           )}
           {state.kind === 'error' && (
