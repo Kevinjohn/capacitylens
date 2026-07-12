@@ -132,4 +132,26 @@ describe('useLifecycleActions — SERVER mode dispatch', () => {
     expect(useStore.getState().data.clients.some((c) => c.id === 'c-reloaded')).toBe(true)
     expect(useStore.getState().notice).toBeNull() // no body-parse error surfaced
   })
+
+  it('SKIPS the post-mutation reload when the active account changed while the POST was in flight', async () => {
+    // The wrong-tenant race (P1): the lifecycle POST resolves AFTER the user switched away from the
+    // account the mutation ran in. The mutation committed server-side (it shows on that account's
+    // next hydration); the NEW tenant's slice is owned by the switch orchestrator, and this stale
+    // reload must not fight it — reloading here would install the OLD tenant's slice under the new
+    // active id. Simulated by switching the active account inside the stubbed fetch (mid-flight).
+    const fetchMock = vi.fn(async () => {
+      useStore.getState().setActiveAccount(null) // the user dropped to the picker mid-POST
+      return { ok: true, status: 200, json: async () => ({}) } as unknown as Response
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useLifecycleActions())
+
+    await result.current.archive('clients', 'c-1')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1) // the mutation itself was dispatched
+    expect(loadAll).not.toHaveBeenCalled() // but the stale reload was skipped
+    // The store was left for the switch orchestrator — no stale slice installed.
+    expect(useStore.getState().data.clients.some((c) => c.id === 'c-reloaded')).toBe(false)
+    expect(useStore.getState().notice).toBeNull() // and no spurious error surfaced
+  })
 })

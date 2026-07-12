@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { ServerSyncAdapter, diffOps, applyOps } from './ServerSyncAdapter'
+import { ServerSyncAdapter, BatchConflictError, MAX_OPS_PER_BATCH, diffOps, applyOps } from './ServerSyncAdapter'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData, Client, Project } from '@capacitylens/shared/types/entities'
 
@@ -229,6 +229,34 @@ describe('ServerSyncAdapter.saveAll', () => {
     expect(ops.find((o) => o.table === 'accounts')?.accountId).toBeUndefined()
   })
 
+  it('maps a 409 batch response to BatchConflictError carrying body.error (+ current)', async () => {
+    // 409 is the server's optimistic-concurrency conflict signal ({ error, current }). It must
+    // surface as the TYPED BatchConflictError — persist.ts branches on it to resolve by reloading
+    // (server wins) instead of futilely retrying the same stale diff.
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith('/api/batch')) {
+        return new Response(
+          JSON.stringify({ error: 'Someone else saved a newer version of this record.', current: { id: 'c1' } }),
+          { status: 409 },
+        )
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const err: unknown = await a.saveAll(withData({ clients: [client('c1')] })).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(BatchConflictError)
+    expect((err as BatchConflictError).message).toBe('Someone else saved a newer version of this record.')
+    expect((err as BatchConflictError).current).toEqual({ id: 'c1' })
+  })
+
+  it('a 409 with an unreadable body still throws BatchConflictError (best-effort parse)', async () => {
+    const fetchImpl = vi.fn(async () => new Response('<html>proxy error</html>', { status: 409 })) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    const err: unknown = await a.saveAll(withData({ clients: [client('c1')] })).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(BatchConflictError)
+  })
+
   it('coalesces overlapping saves to the latest state', async () => {
     let resolveFirst: (() => void) | null = null
     const fetchImpl = vi.fn(
@@ -250,5 +278,92 @@ describe('ServerSyncAdapter.saveAll', () => {
     )
     // first batch: [c1]; coalesced second batch: [c2] only (c1 already synced).
     expect(batches).toEqual([['c1'], ['c2']])
+  })
+})
+
+describe('batch chunking (large imports vs the server MAX_BATCH_OPS cap)', () => {
+  // An in-app import can produce tens of thousands of ops (fresh ids + deletes); the server rejects
+  // any single batch over 5000 ops, so the adapter must split the ordered op list into consecutive
+  // ≤MAX_OPS_PER_BATCH chunks POSTed sequentially — order preserved, lastSynced advanced only after
+  // ALL chunks land.
+
+  const manyClients = (n: number) => Array.from({ length: n }, (_, i) => client(`c${i}`))
+
+  it('splits 4500 ops into 3 SEQUENTIAL /api/batch POSTs of 2000/2000/500, order preserved', async () => {
+    const batches: string[][] = []
+    let inFlight = 0
+    let maxInFlight = 0
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/batch')) {
+        inFlight += 1
+        maxInFlight = Math.max(maxInFlight, inFlight)
+        batches.push((JSON.parse(init?.body as string) as { ops: Array<{ id: string }> }).ops.map((o) => o.id))
+        await new Promise((r) => setTimeout(r, 0)) // hold each request open a tick to expose overlap
+        inFlight -= 1
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const clients = manyClients(4500)
+    await a.saveAll(withData({ clients }))
+
+    expect(batches.map((b) => b.length)).toEqual([MAX_OPS_PER_BATCH, MAX_OPS_PER_BATCH, 500])
+    expect(maxInFlight).toBe(1) // strictly sequential — never overlapping requests
+    // The concatenated chunks are EXACTLY the full ordered op list (no reorder across chunks).
+    expect(batches.flat()).toEqual(clients.map((c) => c.id))
+  })
+
+  it('a mid-sequence chunk failure does NOT advance the snapshot — the retry re-sends the FULL diff', async () => {
+    // Chunks are individually transactional, so chunk 1 lands and chunk 2 fails → a partial write.
+    // Safe because ops are idempotent upserts/deletes and lastSynced only advances after ALL chunks:
+    // the retry replays the whole 4500-op diff (chunk 1 re-applies as no-op upserts).
+    let batchCount = 0
+    let failSecond = true
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith('/api/batch')) {
+        batchCount += 1
+        if (batchCount === 2 && failSecond) return new Response('boom', { status: 500 })
+      }
+      return new Response('{}', { status: 200 })
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    const data = withData({ clients: manyClients(4500) })
+
+    await expect(a.saveAll(data)).rejects.toThrow('Batch sync failed (500)')
+    expect(batchCount).toBe(2) // chunk 3 never dispatched after chunk 2 failed
+
+    // Retry with the same state: the FULL diff is re-sent as 3 chunks (snapshot did not advance).
+    failSecond = false
+    batchCount = 0
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    await a.saveAll(data)
+    const sizes = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .filter((c) => String(c[0]).endsWith('/api/batch'))
+      .map((c) => batchOps(c as unknown[]).length)
+    expect(sizes).toEqual([MAX_OPS_PER_BATCH, MAX_OPS_PER_BATCH, 500])
+  })
+
+  it('the unload path dispatches ALL keepalive chunks up-front (no await between dispatches)', async () => {
+    // Page teardown: awaiting between chunks would leave only the first on the wire before the
+    // event loop dies. All chunks must be DISPATCHED before any response resolves.
+    const resolvers: Array<() => void> = []
+    const fetchImpl = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolvers.push(() => resolve(new Response('{}', { status: 200 })))
+        }),
+    ) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const p = a.saveAll(withData({ clients: manyClients(4500) }), { unload: true })
+    // All 3 chunk requests are already on the wire — none awaited another's response.
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(3)
+    for (const c of calls) {
+      expect((c[1] as RequestInit).keepalive).toBe(true)
+    }
+    resolvers.forEach((r) => r())
+    await p
   })
 })

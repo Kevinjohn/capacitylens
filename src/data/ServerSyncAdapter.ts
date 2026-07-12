@@ -28,6 +28,31 @@ export { diffOps, applyOps } from './syncOps'
 // success, so a server echo can never re-trigger a write (ids + timestamps are
 // client-generated, so a re-read would match exactly).
 
+/**
+ * Thrown when POST /api/batch answers **409** — the server's optimistic-concurrency conflict
+ * signal (CAPACITYLENS_OPTIMISTIC_CONCURRENCY=1: a stale `updatedAt`; body `{ error, current }`,
+ * see the server's StaleWriteError arm). A TYPED error, not the generic batch failure, because the
+ * persist layer must treat it differently: retrying the same stale diff is deterministic futility
+ * (the server will 409 it forever), so persist.ts resolves a conflict by RELOADING the active
+ * slice (server wins — the documented interim policy until a conflict UI exists).
+ */
+export class BatchConflictError extends Error {
+  /** The server's copy of the conflicted row, when the 409 body carried one (best-effort parse). */
+  readonly current?: unknown
+  constructor(message: string, current?: unknown) {
+    super(message)
+    this.name = 'BatchConflictError'
+    this.current = current
+  }
+}
+
+// The server hard-rejects batches over MAX_BATCH_OPS = 5000 ops (see server/src/app.ts), and an
+// in-app import can legitimately produce tens of thousands of ops (fresh ids per record + deletes
+// of the replaced slice) — an unchunked POST would 400 deterministically forever, losing the
+// import on reload. 2000 leaves headroom under the server cap and bounds the server's
+// per-request loadState/validate work. Exported for the chunking tests.
+export const MAX_OPS_PER_BATCH = 2000
+
 export class ServerSyncAdapter implements PersistenceAdapter {
   private readonly baseUrl: string
   private readonly fetchImpl: typeof fetch
@@ -163,12 +188,40 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
-  // POST the ordered ops to /api/batch; the server applies them in one transaction
-  // (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
-  // reparent+delete can't lose rows and a mid-batch failure rolls the whole thing back.
-  // keepalive (unload) lets the request outlive the page; a debounced change's batch body
-  // stays well under the 64KB keepalive cap.
+  // Apply the ordered ops to /api/batch in chunks of MAX_OPS_PER_BATCH (the server caps a request
+  // at MAX_BATCH_OPS = 5000 — an unchunked large import would 400 forever).
+  //
+  // The atomicity trade, honestly: each CHUNK is one server-side transaction, so a mid-sequence
+  // failure leaves a PARTIAL write on the server. That is safe here because ops are idempotent
+  // upserts/deletes, lastSynced advances (in drain) only after ALL chunks land, and a failure
+  // throws so the retry re-sends the FULL remaining diff. Ordering is preserved across chunks:
+  // diffOps emits ALL upserts (parent-first) before ALL deletes (child-first) in one ordered list
+  // (verified in syncOps.ts — `[...upserts, ...deletes]`), and consecutive slices of that list
+  // POSTed strictly sequentially keep the global order, so a reparent's new binding still lands
+  // before the old parent's delete even when they fall into different chunks.
   private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<void> {
+    const chunks: Op[][] = []
+    for (let i = 0; i < ops.length; i += MAX_OPS_PER_BATCH) chunks.push(ops.slice(i, i + MAX_OPS_PER_BATCH))
+    if (opts?.keepalive) {
+      // Page teardown: dispatch EVERY chunk up-front, no await between dispatches — awaiting
+      // sequentially would get only the first chunk on the wire before the event loop dies (the
+      // same dispatch-all rationale as persist.ts's flushOnUnload). Cross-chunk arrival order is
+      // NOT guaranteed here, which is acceptable for this best-effort final flush: errors are
+      // swallowed by the caller, lastSynced never advances on this path, and a surviving reload
+      // re-diffs against the server. Chunking helps here anyway — keepalive caps each request
+      // body at ~64KB, so smaller bodies give more of the flush a chance to survive.
+      await Promise.all(chunks.map((chunk) => this.postBatch(chunk, { keepalive: true })))
+      return
+    }
+    // Normal drain: strictly sequential so the global upserts-before-deletes order holds server-side.
+    for (const chunk of chunks) await this.postBatch(chunk)
+  }
+
+  // POST one ≤MAX_OPS_PER_BATCH slice of ops to /api/batch; the server applies it in one
+  // transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
+  // mid-batch failure rolls the whole chunk back. keepalive (unload) lets the request outlive
+  // the page.
+  private async postBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<void> {
     const res = await this.fetchImpl(`${this.baseUrl}/api/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -177,6 +230,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       credentials: 'include',
     })
     if (!res.ok) {
+      // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
+      // `{ error, current }`). Throw the TYPED BatchConflictError so persist.ts can resolve it
+      // by reloading (server wins) — retrying the same stale diff is deterministic futility.
+      // Body parse is best-effort: an unreadable body still yields a conflict error.
+      if (res.status === 409) {
+        const body = (await res.json().catch(() => null)) as { error?: string; current?: unknown } | null
+        throw new BatchConflictError(body?.error ?? 'Batch sync failed (409): stale write conflict', body?.current)
+      }
       // A 401 (session expired on an auth-enabled server) surfaces like any other write
       // failure — persist.ts raises the banner, and the AuthProvider's re-check sees the
       // 401 and swaps to the login screen. Never a silent drop.

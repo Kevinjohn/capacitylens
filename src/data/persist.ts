@@ -3,6 +3,7 @@ import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import type { StoreState } from '../store/useStore'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
+import { BatchConflictError } from './ServerSyncAdapter'
 
 // Persistence is wired OUTSIDE the store so the store stays a pure state
 // container (and is trivially testable). attachPersistence debounce-saves on
@@ -61,6 +62,10 @@ export function attachPersistence(
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let retryAttempts = 0
   let failedSinceSuccess = false // a write failed and hasn't recovered — gates the online/visible re-attempt
+  // True while a 409 batch conflict is being resolved by a server-wins reload (see save's rejection
+  // arm). Guards re-entry: the resolution reload's own entry flush can 409 AGAIN if OTHER pending
+  // edits are also stale — without this a nested conflict would recurse into a reload↔save loop.
+  let resolvingConflict = false
   // The currently-running save round-trip (P1.13): the account-switch orchestrator AWAITS it so a
   // prior account's save can't land against the new account's snapshot. Resolved (never rejected) so
   // an in-flight FAILED save can still be awaited; settles whether the save succeeds or fails.
@@ -92,7 +97,45 @@ export function attachPersistence(
       },
       (e: unknown) => {
         failedSinceSuccess = true
+        // The banner must surface EVERY failed write — including a conflict, where the user's
+        // edit is about to be discarded (server wins below); they must learn it did not save.
         onError?.(e)
+        // A 409 batch conflict (optimistic-concurrency servers) is NOT transient: the same stale
+        // diff 409s forever, so the backoff retry + the stranded-write re-arms (focus/online)
+        // would loop the error endlessly — and abortIfSaveFailed blocks the focus refresh that
+        // could break the loop. There is no client conflict UI yet, so apply the documented
+        // interim policy — SERVER WINS: reload the active slice instead of retrying. The reload
+        // deliberately does NOT pass abortIfSaveFailed: this reload IS the resolution, and the
+        // local conflicting edit is knowingly discarded. A future conflict UI replaces this arm.
+        if (serverMode && e instanceof BatchConflictError) {
+          // Never re-arm the backoff with a stale diff — it would just replay into another 409.
+          if (retryTimer) {
+            clearTimeout(retryTimer)
+            retryTimer = null
+          }
+          const activeId = store.getState().activeAccountId
+          // Nested conflict during the resolution (resolvingConflict), or no active account to
+          // reload: just surface the banner and stop. The completed reload reseeds the snapshot,
+          // so the next save diffs clean; a focus/online re-attempt retriggers resolution if needed.
+          if (activeId !== null && !resolvingConflict) {
+            resolvingConflict = true
+            void refreshActive(activeId)
+              .then(() => {
+                // One follow-up save so a now-empty diff fires onSuccess and clears the banner
+                // (or pushes edits made DURING the reload as a clean diff against the fresh
+                // snapshot). Skipped if the user switched tenants mid-resolution — the switch
+                // orchestrator owns the new slice's lifecycle. resolvingConflict stays up until
+                // this follow-up settles, so a follow-up 409 cannot recurse into another reload.
+                if (store.getState().activeAccountId !== activeId) return
+                save(store.getState().data)
+                return inFlightSave ?? undefined
+              })
+              .finally(() => {
+                resolvingConflict = false
+              })
+          }
+          return
+        }
         scheduleRetry()
       },
     )
@@ -222,6 +265,15 @@ export function attachPersistence(
   // cross-tenant display, strictly worse); its flush failure is surfaced the same way and the loss is
   // bounded to the un-flushed edits.
   const refreshActive = async (id: string, abortIfSaveFailed = false): Promise<void> => {
+    // ENTRY GUARD — before the token bump. An out-of-band caller with a STALE id (the lifecycle
+    // hook's post-mutation reload resolving after the user switched tenant A→B) must neither
+    // reload the wrong tenant NOR cancel a newer switch's in-flight slice load — bumping
+    // switchToken here would do exactly that: B's late-resolving loadAll hits `myToken !==
+    // switchToken` and is discarded while A's stale slice is installed under B's active id
+    // (cross-tenant display, then cross-tenant writes). The switch subscriber calls refreshActive
+    // AFTER setActiveAccount has already set the id, so this guard passes for every real switch;
+    // mid-flight supersession is still covered by the post-await token checks below.
+    if (store.getState().activeAccountId !== id) return
     const myToken = ++switchToken
     // (a) Let a prior account's save settle before we re-seed the snapshot.
     if (inFlightSave) await inFlightSave

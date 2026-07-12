@@ -4,6 +4,7 @@ import { persistenceAdapter } from '../data/storageAdapter'
 import { refreshActiveAccountSlice } from '../data/persist'
 import { useStore, type LifecycleEntity } from '../store/useStore'
 import { errorMessage } from '../lib/errorMessage'
+import { readApiError } from '../lib/readApiError'
 import { m } from '@/i18n'
 
 // The SINGLE dispatch seam for the Active → Archived → Soft-deleted → Purged data-lifecycle (P2.5b),
@@ -66,6 +67,14 @@ export interface LifecycleActions {
  * build never calls this (its store actions already mutate `data`).
  */
 async function reloadFromServer(accountId: string): Promise<void> {
+  // STALE-TENANT GUARD: the lifecycle POST may resolve AFTER the user switched company, so re-read
+  // the CURRENT active account and skip the reload when it no longer matches the account the
+  // mutation ran in. The mutation already committed server-side (it shows on that account's next
+  // hydration); the slice for the NEW tenant is being loaded by the switch orchestrator, and this
+  // stale reload must not fight it — the bare fallback below would install the OLD tenant's slice
+  // under the NEW active id (cross-tenant display → cross-tenant writes). persist.ts's
+  // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
+  if (useStore.getState().activeAccountId !== accountId) return
   if (await refreshActiveAccountSlice(accountId)) return
   const slice = await persistenceAdapter.loadAll(accountId)
   useStore.getState().replaceAll(slice)
@@ -102,9 +111,8 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
           body: JSON.stringify({ accountId: activeAccountId }),
         })
         if (!res.ok && res.status !== 204) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string }
           // A <30d / non-admin purge is a 409/403 with a server message — show it, never crash.
-          setNotice(body.error ?? m.settings_archived_err_action({ status: res.status }), 'error')
+          setNotice((await readApiError(res)) ?? m.settings_archived_err_action({ status: res.status }), 'error')
           return
         }
         // The dedicated routes write the DB out-of-band from the snapshot-diff sync, so a reload is

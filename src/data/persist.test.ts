@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { attachPersistence, bootstrap, refreshActiveAccountSlice } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
-import { ServerSyncAdapter } from './ServerSyncAdapter'
+import { ServerSyncAdapter, BatchConflictError } from './ServerSyncAdapter'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { useStore } from '../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 import { seed } from '@capacitylens/shared/data/seed'
 import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '../test/fixtures'
 
@@ -305,36 +306,46 @@ function makeLocalTwoAccounts() {
   }
 }
 
+// ── Shared server-mode refresh helpers ────────────────────────────────────────────────────────────
+// Used by the refresh-on-focus, refreshActiveAccountSlice, and batch-conflict suites (hoisted so the
+// three don't carry verbatim copies).
+
+/** A recording adapter whose loadAll serves a fixed slice for the active account. */
+function recordingAdapter(slice: AppData) {
+  const loadAll = vi.fn(async (): Promise<AppData> => slice)
+  const saveAll = vi.fn().mockResolvedValue(undefined)
+  const adapter: PersistenceAdapter = { loadAll, saveAll }
+  return { adapter, loadAll, saveAll }
+}
+
+const a2Slice = (): AppData => ({
+  ...emptyAppData(),
+  accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+  clients: [{ id: 'c2', accountId: 'a2', name: 'Beta Client', color: '#1', createdAt: 't', updatedAt: 't' }],
+})
+
+/** Server-mode attach with a2 already the active account (post-pick steady state). */
+async function attachActiveA2(
+  adapter: PersistenceAdapter,
+  debounceMs = 0,
+  onError?: (e: unknown) => void,
+  onSuccess?: () => void,
+) {
+  useStore.getState().replaceAll(emptyAppData())
+  useStore.getState().setActiveAccount(null)
+  useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
+  const detach = attachPersistence(useStore, adapter, debounceMs, onError, onSuccess, true)
+  useStore.getState().setActiveAccount('a2') // hydrates a2, seeds snapshot := a2
+  await new Promise((r) => setTimeout(r, 5))
+  return detach
+}
+
 describe('refresh-on-focus (P1.16, server mode)', () => {
   // Coming back to the tab/window re-hydrates the active account's slice by REUSING refreshActive
   // (the switch orchestrator's body) — so the adapter's private lastSynced snapshot is re-seeded
   // atomically with `data`. Proven here against a recording adapter + window 'focus' events (the
-  // same shape as the pagehide tests above).
-
-  /** A recording adapter whose loadAll serves a fixed slice for the active account. */
-  function recordingAdapter(slice: ReturnType<typeof emptyAppData>) {
-    const loadAll = vi.fn(async (): Promise<ReturnType<typeof emptyAppData>> => slice)
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
-    return { adapter, loadAll, saveAll }
-  }
-
-  const a2Slice = () => ({
-    ...emptyAppData(),
-    accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
-    clients: [{ id: 'c2', accountId: 'a2', name: 'Beta Client', color: '#1', createdAt: 't', updatedAt: 't' }],
-  })
-
-  /** Server-mode attach with a2 already the active account (post-pick steady state). */
-  async function attachActiveA2(adapter: PersistenceAdapter, debounceMs = 0) {
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
-    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
-    const detach = attachPersistence(useStore, adapter, debounceMs, undefined, undefined, true)
-    useStore.getState().setActiveAccount('a2') // hydrates a2, seeds snapshot := a2
-    await new Promise((r) => setTimeout(r, 5))
-    return detach
-  }
+  // same shape as the pagehide tests above). Uses the module-scope recordingAdapter / a2Slice /
+  // attachActiveA2 helpers (shared with the refreshActiveAccountSlice + batch-conflict suites).
 
   it('re-hydrates the active slice on focus + re-seeds the snapshot (a later save diffs to ZERO ops)', async () => {
     const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
@@ -452,28 +463,7 @@ describe('refreshActiveAccountSlice (the lifecycle hook reload seam)', () => {
   // The out-of-band server writers (archive/delete/purge routes) reload the active slice THROUGH the
   // orchestrator via this export — a bare loadAll+replaceAll would clobber a still-debounced edit and
   // re-seed the snapshot under it (the same permanent-loss mechanism the focus-refresh abort guards).
-
-  function recordingAdapter(slice: ReturnType<typeof emptyAppData>) {
-    const loadAll = vi.fn(async (): Promise<ReturnType<typeof emptyAppData>> => slice)
-    const saveAll = vi.fn().mockResolvedValue(undefined)
-    const adapter: PersistenceAdapter = { loadAll, saveAll }
-    return { adapter, loadAll, saveAll }
-  }
-
-  const a2Slice = () => ({
-    ...emptyAppData(),
-    accounts: [{ id: 'a2', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
-  })
-
-  async function attachActiveA2(adapter: PersistenceAdapter, debounceMs = 0) {
-    useStore.getState().replaceAll(emptyAppData())
-    useStore.getState().setActiveAccount(null)
-    useStore.getState().setAccountSummaries([{ id: 'a2', name: 'Beta', role: 'owner' }])
-    const detach = attachPersistence(useStore, adapter, debounceMs, undefined, undefined, true)
-    useStore.getState().setActiveAccount('a2')
-    await new Promise((r) => setTimeout(r, 5))
-    return detach
-  }
+  // Uses the module-scope recordingAdapter / a2Slice / attachActiveA2 helpers.
 
   it('returns false when no orchestrator is attached (the caller falls back to a bare reload)', async () => {
     expect(await refreshActiveAccountSlice('a2')).toBe(false)
@@ -514,11 +504,173 @@ describe('refreshActiveAccountSlice (the lifecycle hook reload seam)', () => {
     detach()
   })
 
+  it('with a STALE id is a no-op and does NOT cancel an in-flight newer switch (wrong-tenant race)', async () => {
+    // The P1 race: a lifecycle POST for account A resolves AFTER the user switched A→B while B's
+    // slice load is still on the wire. Pre-fix, the stale refreshActive(A) bumped the switch token —
+    // CANCELLING B's late-resolving load — then installed A's slice while activeAccountId === B
+    // (cross-tenant display → cross-tenant writes). The entry guard must make the stale call a
+    // pure no-op: no loadAll(A), no token bump, and B's held-open load still lands.
+    const aSlice: AppData = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', name: 'Alpha', color: '#1', createdAt: 't', updatedAt: 't' }],
+      clients: [{ id: 'ca', accountId: 'a1', name: 'Alpha Client', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    const bSlice: AppData = {
+      ...emptyAppData(),
+      accounts: [{ id: 'b1', name: 'Beta', color: '#1', createdAt: 't', updatedAt: 't' }],
+      clients: [{ id: 'cb', accountId: 'b1', name: 'Beta Client', color: '#1', createdAt: 't', updatedAt: 't' }],
+    }
+    let releaseB: (() => void) | null = null
+    const loadAll = vi.fn((accountId?: string): Promise<AppData> => {
+      if (accountId === 'b1') {
+        // Hold B's slice load open so the stale refresh races it mid-flight.
+        return new Promise<AppData>((resolve) => {
+          releaseB = () => resolve(bSlice)
+        })
+      }
+      return Promise.resolve(aSlice)
+    })
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const adapter: PersistenceAdapter = { loadAll, saveAll }
+
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setActiveAccount(null)
+    useStore.getState().setAccountSummaries([
+      { id: 'a1', name: 'Alpha', role: 'owner' },
+      { id: 'b1', name: 'Beta', role: 'owner' },
+    ])
+    const detach = attachPersistence(useStore, adapter, 0, undefined, undefined, true)
+
+    useStore.getState().setActiveAccount('a1') // hydrate A
+    await new Promise((r) => setTimeout(r, 5))
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['ca'])
+
+    useStore.getState().setActiveAccount('b1') // switch — B's load is now held open
+    await new Promise((r) => setTimeout(r, 5))
+    expect(releaseB).not.toBeNull() // B's loadAll dispatched, unresolved
+    const aLoadsBefore = loadAll.mock.calls.filter((c) => c[0] === 'a1').length
+
+    // The lifecycle hook's stale reload lands NOW (mutation ran in A; user is on B).
+    expect(await refreshActiveAccountSlice('a1')).toBe(true) // orchestrator handled it…
+    expect(loadAll.mock.calls.filter((c) => c[0] === 'a1').length).toBe(aLoadsBefore) // …as a no-op
+
+    // B's in-flight load was NOT cancelled: when it resolves, B's slice still lands.
+    releaseB!()
+    await new Promise((r) => setTimeout(r, 5))
+    expect(useStore.getState().activeAccountId).toBe('b1')
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['cb']) // B's slice, never A's
+    detach()
+  })
+
   it('is UNREGISTERED after detach (a later call falls back)', async () => {
     const { adapter } = recordingAdapter(a2Slice())
     const detach = await attachActiveA2(adapter)
     detach()
     expect(await refreshActiveAccountSlice('a2')).toBe(false)
+  })
+})
+
+describe('batch-conflict resolution (server wins — interim policy until a conflict UI exists)', () => {
+  // A 409 from /api/batch (optimistic concurrency) is NOT transient: retrying the same stale diff
+  // 409s forever, and abortIfSaveFailed blocks the focus refresh that could break the loop — a
+  // self-sustaining error wedge. The persist layer must instead resolve by RELOADING the active
+  // slice (server wins, the local conflicting edit is deliberately discarded), surface the banner
+  // via onError, and clear it via the follow-up clean save's onSuccess.
+
+  it('a 409 conflict RELOADS the slice (no abort), does NOT arm the stale-diff retry, and the banner clears', async () => {
+    vi.useFakeTimers()
+    try {
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
+      const onError = vi.fn()
+      const onSuccess = vi.fn()
+      const detachP = attachActiveA2(adapter, 0, onError, onSuccess)
+      await vi.advanceTimersByTimeAsync(5)
+      const detach = await detachP
+      const loadsAfterPick = loadAll.mock.calls.length
+      saveAll.mockClear()
+      saveAll.mockRejectedValueOnce(new BatchConflictError('stale write'))
+
+      useStore.getState().addClient({ name: 'Conflicted', color: '#222222' }) // immediate save → 409
+      await vi.advanceTimersByTimeAsync(5)
+
+      expect(onError).toHaveBeenCalledTimes(1) // the banner surfaced "your edit did not save"
+      // The resolution reload ran — deliberately WITHOUT abortIfSaveFailed (this reload IS the
+      // resolution), unlike the focus refresh which must abort on a failed save.
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
+      // Server wins: the conflicting local edit was discarded for the server's slice.
+      expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['c2'])
+      // The follow-up clean save fired onSuccess so the banner comes back down.
+      expect(onSuccess).toHaveBeenCalled()
+
+      // The backoff retry was NOT armed with the stale diff: 35s covers every backoff step.
+      const savesAfterResolution = saveAll.mock.calls.length // the conflict save + the follow-up
+      expect(savesAfterResolution).toBe(2)
+      await vi.advanceTimersByTimeAsync(35_000)
+      expect(saveAll.mock.calls.length).toBe(savesAfterResolution)
+      detach()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a conflict DURING the resolution does not recurse — ONE reload, banner stays up', async () => {
+    // The re-entry guard: the resolution's follow-up save can itself 409 (other pending edits also
+    // stale). That must NOT trigger a second resolution reload (an unbounded reload↔save loop) —
+    // it just surfaces the banner; a later focus/online re-attempt retriggers resolution.
+    vi.useFakeTimers()
+    try {
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
+      const onError = vi.fn()
+      const onSuccess = vi.fn()
+      const detachP = attachActiveA2(adapter, 0, onError, onSuccess)
+      await vi.advanceTimersByTimeAsync(5)
+      const detach = await detachP
+      const loadsAfterPick = loadAll.mock.calls.length
+      saveAll.mockClear()
+      saveAll
+        .mockRejectedValueOnce(new BatchConflictError('stale write')) // the edit's save
+        .mockRejectedValueOnce(new BatchConflictError('still stale')) // the resolution's follow-up save
+
+      useStore.getState().addClient({ name: 'Conflicted', color: '#222222' })
+      await vi.advanceTimersByTimeAsync(5)
+
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1) // exactly ONE resolution reload
+      expect(onError).toHaveBeenCalledTimes(2) // both conflicts surfaced
+      expect(onSuccess).not.toHaveBeenCalled() // banner stays up — nothing landed
+      await vi.advanceTimersByTimeAsync(35_000) // and no retry/reload machinery re-fires
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick + 1)
+      expect(saveAll.mock.calls.length).toBe(2)
+      detach()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('a NON-conflict failure keeps the existing backoff retry (regression pin) — no conflict reload', async () => {
+    vi.useFakeTimers()
+    try {
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
+      const onSuccess = vi.fn()
+      const detachP = attachActiveA2(adapter, 0, undefined, onSuccess)
+      await vi.advanceTimersByTimeAsync(5)
+      const detach = await detachP
+      const loadsAfterPick = loadAll.mock.calls.length
+      saveAll.mockClear()
+      saveAll.mockRejectedValueOnce(new Error('temporarily unavailable'))
+
+      useStore.getState().addClient({ name: 'Transient', color: '#222222' })
+      await vi.advanceTimersByTimeAsync(0) // first attempt fails, retry armed
+      expect(onSuccess).not.toHaveBeenCalled()
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // a transient failure never reloads
+
+      await vi.advanceTimersByTimeAsync(1000) // backoff #1 → succeeds
+      expect(onSuccess).toHaveBeenCalled()
+      // The optimistic edit survived (no server-wins reload for a transient failure).
+      expect(useStore.getState().data.clients.some((c) => c.name === 'Transient')).toBe(true)
+      detach()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
