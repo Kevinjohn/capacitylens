@@ -17,10 +17,12 @@ import { ErrorBoundary } from './components/common/ErrorBoundary'
 import { useStore } from './store/useStore'
 import { persistenceAdapter } from './data/storageAdapter'
 import { isDemoMode, isServerConfigured } from './data/apiConfig'
-import { bootstrap } from './data/persist'
+import { bootstrap, ReloadDiscardedEditError } from './data/persist'
+import { BatchConflictError } from './data/ServerSyncAdapter'
 import { seed } from '@capacitylens/shared/data/seed'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { applyThemeToDom, watchSystemTheme } from './lib/theme'
+import { m } from '@/i18n'
 
 // Paint the saved colour scheme (the inline <head> script already did this to beat
 // the first paint; this re-affirms it from the store) and keep "system" mode live
@@ -31,21 +33,21 @@ watchSystemTheme(() => useStore.getState().theme)
 // Load (and seed on first run) before/while the app renders. The AppShell gates
 // content on `hydrated`, so there's no flash of empty data.
 //
-// storageMigrationError first — but its severity depends on the persistence mode:
+// storageMigrationError first. It can now ONLY mean the PRIMARY `floaty/v3` blob failed to copy —
+// a failed device-pref copy degrades inside the migration (warn + skip, DEFENSIVE-CODING.md §5,
+// see storageMigration.ts) and never sets the error. Severity still depends on persistence mode:
 //
-// DEMO build (localStorage-backed): the primary `/v3` AppData blob itself rides the legacy-key
-// copy, so a failed copy means the tenant data was NOT carried to the new keys — booting normally
-// would read the empty new keys and the data would APPEAR lost. Mirror bootstrap's own load-failure
-// branch instead: render "hydrated" with NO persistence attached and NO seed, and raise `loadError`
-// so the AppShell shows the StorageRecovery screen (export / import / reset).
+// DEMO build (localStorage-backed): the primary `/v3` AppData blob IS the tenant data — booting
+// normally would read the empty new keys and the data would APPEAR lost. Mirror bootstrap's own
+// load-failure branch instead: render "hydrated" with NO persistence attached and NO seed, and
+// raise `loadError` so the AppShell shows the StorageRecovery screen (whose "Download raw" falls
+// back to the legacy `floaty/v3` key, and whose "Reset" also removes the `floaty/*` keys so it
+// can't re-loop).
 //
-// SERVER mode (the default): localStorage carries only DEVICE PREFS (theme, sidebar, intro-seen…)
-// — the tenant data lives on the server and never rode this migration. StorageRecovery would be a
-// DEAD END here: its readRaw/reset act only on `capacitylens/v3`, the legacy `floaty/*` keys that
-// threw stay put, so every reload re-throws and the app can never boot (a permanent recovery loop
-// over data that was never at risk). Log a loud breadcrumb about what actually failed and boot
-// normally — worst case the user's device prefs look reset, which is the documented degrade for
-// non-tenant prefs (DEFENSIVE-CODING.md §5).
+// SERVER mode (the default): the tenant data lives on the server and never rode this migration —
+// a `floaty/v3` blob here is a leftover from demo-era usage of the same origin, not the source of
+// truth, so the recovery screen would block boot over data the server already owns. Log a loud
+// breadcrumb about what actually failed and boot normally.
 if (storageMigrationError && !isServerConfigured()) {
   useStore.getState().setHydrated(true)
   useStore.getState().setLoadError(true)
@@ -53,8 +55,8 @@ if (storageMigrationError && !isServerConfigured()) {
   if (storageMigrationError) {
     console.error(
       'main: legacy storage-key migration (floaty/* → capacitylens/*) failed in SERVER mode — ' +
-        'device prefs (theme, sidebar, intro-seen, display toggles) were NOT migrated and may look ' +
-        'reset; tenant data is server-owned and unaffected. Booting normally.',
+        'the leftover demo-era `floaty/v3` blob was NOT copied forward; tenant data is ' +
+        'server-owned and unaffected. Booting normally.',
       storageMigrationError,
     )
   }
@@ -69,7 +71,22 @@ if (storageMigrationError && !isServerConfigured()) {
     // Per-account hydration (P1.13): in server mode a tenant pick loads ONLY that account's slice and
     // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
     serverMode: isServerConfigured(),
-    onError: () => useStore.getState().setPersistError(true),
+    onError: (e) => {
+      // A mid-reload edit drop is a DISCRETE loss, not a broken pipeline: the reload that raised
+      // it completes cleanly (and fires onSuccess), sync is healthy afterwards, and a read-only
+      // user would otherwise wear a stale "changes aren't saving" banner forever (no future save
+      // exists to clear it). The STICKY error toast is its whole surface — skip the banner.
+      if (e instanceof ReloadDiscardedEditError) {
+        useStore.getState().setNotice(m.notice_edit_dropped_reload(), 'error')
+        return
+      }
+      useStore.getState().setPersistError(true)
+      // A 409 conflict also needs a STICKY error toast (error-tone notices persist until
+      // dismissed — see AppShell's notice→Sonner bridge) because the persist banner alone would
+      // be cleared sub-second by the resolution's follow-up clean save, before the user could
+      // read it — and the user's edit is about to be DISCARDED by the server-wins reload.
+      if (e instanceof BatchConflictError) useStore.getState().setNotice(m.notice_sync_conflict(), 'error')
+    },
     // Recovery: once a write lands again (e.g. the server comes back), take the
     // "changes aren't saving" banner back down. Guarded so a normal save doesn't
     // churn the store on every keystroke.

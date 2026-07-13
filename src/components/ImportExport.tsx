@@ -1,10 +1,15 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../store/useStore'
 import { useScopedData } from '../store/useScopedData'
 import { parseData, serializeData } from '@capacitylens/shared/data/transfer'
 import { downloadTextFile } from '../lib/download'
 import { errorMessage } from '../lib/errorMessage'
-import { ConfirmDialog } from './common/ui'
+import { readApiError } from '../lib/readApiError'
+import { API_BASE, isServerConfigured } from '../data/apiConfig'
+import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from '../data/persist'
+import { useRole } from '../auth/permissionContext'
+import { can } from '@capacitylens/shared/domain/access'
+import { ConfirmDialog, Modal } from './common/ui'
 import { m } from '@/i18n'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
@@ -47,10 +52,37 @@ export function ImportExport() {
   const importData = useStore((s) => s.importData)
   const setNotice = useStore((s) => s.setNotice)
   const fileRef = useRef<HTMLInputElement>(null)
+  const role = useRole()
+  const serverMode = isServerConfigured()
+  // Import is 'purge'-tier (admin+) in server mode, mirroring the server's own POST /api/import
+  // gate: a slice REPLACEMENT is destructive (and id-remapping bypasses field-level write pins,
+  // e.g. the owner-confidential timeOff note pin), so an editor must not see the affordance.
+  // `role === null` stays importable — that is the OFF/demo/not-yet-fetched regression guard
+  // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
+  const canImport = !serverMode || role === null || can(role, 'purge')
   // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
   // is a full replace, so we never apply it silently — confirm first, and the
   // apply goes through the undoable history path so ⌘Z restores the old data.
   const [pendingImport, setPendingImport] = useState<{ data: AppData; name: string } | null>(null)
+  // True while a server-mode import is in flight (POST + re-hydrate). Drives the blocking
+  // "Importing…" dialog below — the UI LOCK that makes the import window mutation-free: no edit
+  // can be made (so none can be parked, lost to a tab close, or misattributed to another
+  // company), no lifecycle action can fire an out-of-band POST the import would silently
+  // overwrite, and no company switch can interleave. The write-suspension seam inside
+  // confirmServerImport stays as defence-in-depth for anything that slips past the lock.
+  const [importBusy, setImportBusy] = useState(false)
+  const setDirtyForm = useStore((s) => s.setDirtyForm)
+  // While the lock is up, borrow the dirty-form semantics: AppShell's beforeunload guard prompts
+  // before a tab close mid-import (a parked edit has no durable fallback in server mode, and the
+  // import outcome itself deserves the warning), and the palette / undo / scheduler keyboard
+  // paths — which bypass the pointer-blocking dialog — are suppressed by their existing dirtyForm
+  // checks. This PARENT effect runs after the Modal child's own mount effect (which publishes
+  // dirtyForm=false for its untouched form state), so the lock's `true` wins for the window.
+  useEffect(() => {
+    if (!importBusy) return
+    setDirtyForm(true)
+    return () => setDirtyForm(false)
+  }, [importBusy, setDirtyForm])
 
   const onExport = () => {
     // downloadTextFile throws if the download couldn't start — surface it rather than letting it
@@ -80,8 +112,141 @@ export function ImportExport() {
     }
   }
 
+  // SERVER-mode import goes through the ATOMIC, purge-gated POST /api/import — one server-side
+  // transaction that replaces the slice via the same remap+validate the store runs — NOT through
+  // the local store + batch sync. Replaying a slice replacement as /api/batch diff ops would
+  // (a) run at editor tier, bypassing the server's admin-only import policy, and (b) chunk a
+  // large import into multiple transactions, where a mid-sequence 409 commits a silent PARTIAL
+  // import. The store is then re-hydrated from the server (refreshActiveAccountSlice), so what
+  // the user sees is exactly what the server committed. The trade, stated in the dialog copy:
+  // a server import is NOT undoable with ⌘Z (the store history never sees it).
+  const confirmServerImport = async (incoming: AppData) => {
+    // Same cross-file invariant as the demo arm below: ImportExport renders behind AppShell's
+    // tenant gate, so an account is always active here.
+    const accountId = useStore.getState().activeAccountId
+    if (accountId === null) throw new Error('Import requires an active company.')
+    setImportBusy(true)
+    try {
+      // Land any still-debounced pre-import edit against the PRE-import state FIRST — otherwise
+      // the post-import reload's own entry flush would diff that edit against the pre-import
+      // snapshot and upsert stale pre-import rows into the freshly imported slice. Refuse to
+      // import while a write is still FAILED: this flow's precondition is "local edits are
+      // persisted or knowingly abandoned", and a failed save's retry would later replay a stale
+      // diff over the imported slice.
+      if (!(await flushPendingWrites())) {
+        setNotice(m.data_import_blocked_unsynced(), 'error')
+        return
+      }
+      // SUSPEND store writes across the POST + re-hydrate: the flush above only proves
+      // cleanliness at one INSTANT — an edit made while the POST is pending would otherwise
+      // either land just before the import (and be silently wiped by it) or sit debounced until
+      // the post-import reload pushed its stale pre-import rows into the freshly imported slice
+      // (the import remaps ids, so they'd insert cleanly — no 409 stops them). A parked edit is
+      // dropped + surfaced by the reload (the uniform mid-reload policy, sticky notice); resume
+      // (the finally below) handles the edge cases via `committed`: an import that FAILED never
+      // replaced the slice, so the parked edit re-schedules; an import that COMMITTED but whose
+      // re-hydrate failed/was skipped left the diff snapshot stale, so the parked edit is dropped
+      // + surfaced instead — saving it would upsert ghost pre-import rows into the new slice.
+      const resumeWrites = suspendServerWrites()
+      let committed = false
+      try {
+        const res = await fetch(`${API_BASE}/api/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ accountId, data: incoming }),
+        })
+        if (!res.ok) {
+          // Prefer the server's user-facing sentence (e.g. the purge-gate 403 or a parseData 400).
+          setNotice((await readApiError(res)) ?? m.data_import_failed({ status: res.status }), 'error')
+          return
+        }
+        // A 200 means the server committed the atomic slice replacement — everything after this
+        // point must treat the LOCAL state (including any parked edit) as pre-import and stale.
+        committed = true
+        // UNTRUSTED body: validate the two counts rather than trusting an `as` cast — and demand
+        // NONNEGATIVE SAFE INTEGERS, not merely `number`, so {imported:-1}, {imported:1.5} or NaN
+        // can't produce a nonsensical success notice. A 200 whose body doesn't parse or whose
+        // `imported` is off-spec is a SHAPE error on a COMMITTED import — it must not be reported
+        // as "no records imported" (that would skip the re-hydrate and leave the UI showing
+        // pre-import data the server no longer holds). Distinguish it: null count → still
+        // re-hydrate, report success without numbers, leave a breadcrumb.
+        const count = (v: unknown): number | null =>
+          typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : null
+        const body: unknown = await res.json().catch(() => null)
+        const rec = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {}
+        const imported = count(rec.imported)
+        const skipped = count(rec.skipped) ?? 0
+        // The success notice claims the view shows the imported data, so it must be GATED on the
+        // reload actually happening: 'failed' AND 'skipped' both mean the store still renders the
+        // PRE-import slice (the import itself committed — say both halves honestly; 'skipped'
+        // covers a supersession or a mid-import tenant switch, where the conservative stale-view
+        // notice still tells the truth). 'unattached' is unreachable behind AppShell's gate in
+        // server mode (bootstrap attached the orchestrator before any tenant rendered) — it is
+        // what orchestrator-less unit tests exercise.
+        const viewIsStale = (outcome: Awaited<ReturnType<typeof refreshActiveAccountSlice>>) =>
+          outcome === 'failed' || outcome === 'skipped'
+        // NOTICE PRECEDENCE: the app holds ONE notice and a new one dismisses the old. If the
+        // re-hydrate itself raised an error notice — the sticky parked-edit loss warning
+        // (unreachable behind the UI lock; the suspension seam is defence-in-depth) — our
+        // follow-up import notice must NOT overwrite it: a data-loss warning outranks an import
+        // outcome the user can verify from the data on screen.
+        const refreshRespectingNotices = async () => {
+          const noticeBefore = useStore.getState().notice
+          const outcome = await refreshActiveAccountSlice(accountId)
+          const noticeAfter = useStore.getState().notice
+          return { outcome, errorRaised: noticeAfter !== noticeBefore && noticeAfter?.tone === 'error' }
+        }
+        if (imported === null) {
+          console.warn('import: 200 response with an off-spec body; the slice was replaced server-side', body)
+          const { outcome, errorRaised } = await refreshRespectingNotices()
+          if (errorRaised) return // keep the loss warning — see refreshRespectingNotices
+          if (viewIsStale(outcome)) setNotice(m.data_import_refresh_failed(), 'error')
+          else setNotice(m.data_import_done())
+          return
+        }
+        // The server refuses a zero-record import (never wipes a slice with nothing) — mirror the
+        // demo arm's honest failure report. Only a VALIDLY-reported zero takes this branch.
+        // The refusal also UN-commits: this 200 replaced NOTHING (the server's replace is gated on
+        // imported > 0), so a parked edit must take resume's re-schedule arm — dropping it here
+        // would destroy a perfectly saveable edit over a replacement that never happened.
+        if (imported === 0) {
+          committed = false
+          const why = skipped > 0 ? (skipped === 1 ? m.data_why_skipped_one({ count: skipped }) : m.data_why_skipped_other({ count: skipped })) : ''
+          setNotice(m.data_no_records({ why }), 'error')
+          return
+        }
+        // Re-hydrate the store from the server through the persistence orchestrator (token-guarded,
+        // re-seeds the diff snapshot) so the UI shows exactly the committed slice. refreshActive
+        // surfaces its own load failure via the persist banner; the honest stale-view notice here
+        // replaces the success message when that happens.
+        const { outcome, errorRaised } = await refreshRespectingNotices()
+        if (errorRaised) return // keep the loss warning — see refreshRespectingNotices
+        if (viewIsStale(outcome)) {
+          setNotice(m.data_import_refresh_failed(), 'error')
+          return
+        }
+        const skippedNote = skipped > 0 ? (skipped === 1 ? m.data_skipped_note_one({ count: skipped }) : m.data_skipped_note_other({ count: skipped })) : ''
+        setNotice(imported === 1 ? m.data_imported_server_one({ count: imported, skipped: skippedNote }) : m.data_imported_server_other({ count: imported, skipped: skippedNote }))
+      } finally {
+        resumeWrites({ dropParkedEdits: committed })
+      }
+    } catch (e) {
+      // A rejected fetch (server down / network error) — the import did NOT happen; say so.
+      setNotice(errorMessage(e) || m.data_import_failed({ status: 0 }), 'error')
+    } finally {
+      setImportBusy(false)
+    }
+  }
+
   const confirmImport = () => {
     if (!pendingImport) return
+    if (serverMode) {
+      const incoming = pendingImport.data
+      setPendingImport(null)
+      void confirmServerImport(incoming)
+      return
+    }
     // importData → requireAccount() throws if there's no active account, but ImportExport only ever
     // renders behind AppShell's tenant gate, so an account is always active here — confirmImport
     // can't throw on that path today. (Cross-file invariant; if this panel is ever rendered outside
@@ -107,32 +272,61 @@ export function ImportExport() {
   return (
     <div className="mt-6 border-t border-line pt-3">
       <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-faint">{m.data_menu_label()}</div>
-      <button type="button" data-testid="export-data" onClick={onExport} className={linkClass}>
+      {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
+          slice that is about to be obsolete, and a second import would race the first. */}
+      <button type="button" data-testid="export-data" onClick={onExport} disabled={importBusy} className={linkClass}>
         {m.data_export()}
       </button>
-      <button type="button" data-testid="import-data" onClick={() => fileRef.current?.click()} className={linkClass}>
-        {m.data_import()}
-      </button>
-      <input
-        ref={fileRef}
-        type="file"
-        accept="application/json"
-        data-testid="import-input"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) void onImport(f)
-          e.target.value = ''
-        }}
-      />
+      {canImport && (
+        <>
+          <button
+            type="button"
+            data-testid="import-data"
+            onClick={() => fileRef.current?.click()}
+            disabled={importBusy}
+            className={linkClass}
+          >
+            {m.data_import()}
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json"
+            data-testid="import-input"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) void onImport(f)
+              e.target.value = ''
+            }}
+          />
+        </>
+      )}
 
-      {pendingImport && (
+      {/* The import UI LOCK (see importBusy above): a non-dismissable blocking dialog for the few
+          seconds of POST + re-hydrate. onClose is a deliberate no-op — visibility is owned by
+          importBusy alone, so Escape/backdrop cannot dismiss it. The body carries tabIndex={0} so
+          the Modal's Tab-trap engages (it no-ops on a panel with zero focusables) and initial
+          focus lands on the status text for screen readers. */}
+      {importBusy && (
+        <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
+          <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted">
+            {m.data_importing_body()}
+          </p>
+        </Modal>
+      )}
+
+      {pendingImport && canImport && (
         <ConfirmDialog
           title={m.data_import_confirm_title()}
           confirmLabel={m.data_import_confirm_action()}
           message={
             <>
-              {m.data_import_confirm_intro()}<span className="font-medium text-ink">{pendingImport.name}</span>{m.data_import_confirm_mid1()}<span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>{m.data_import_confirm_mid2()}{summarize(pendingImport.data)}{m.data_import_confirm_outro()}
+              {m.data_import_confirm_intro()}<span className="font-medium text-ink">{pendingImport.name}</span>{m.data_import_confirm_mid1()}<span className="font-medium text-ink">{m.data_import_confirm_replaces()}</span>{m.data_import_confirm_mid2()}{summarize(pendingImport.data)}
+              {/* Honest dialog semantics: the demo/local import goes through the undoable store
+                  history (⌘Z restores); the server import is an atomic server-side slice replace
+                  the store history never sees, so promising ⌘Z there would be a lie. */}
+              {serverMode ? m.data_import_confirm_outro_server() : m.data_import_confirm_outro()}
             </>
           }
           onConfirm={confirmImport}

@@ -75,7 +75,10 @@ async function reloadFromServer(accountId: string): Promise<void> {
   // under the NEW active id (cross-tenant display → cross-tenant writes). persist.ts's
   // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
   if (useStore.getState().activeAccountId !== accountId) return
-  if (await refreshActiveAccountSlice(accountId)) return
+  // Anything but 'unattached' means the orchestrator OWNED the call — including 'skipped' (a
+  // failed save's edits win; the committed change appears on the next successful refresh) and
+  // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
+  if ((await refreshActiveAccountSlice(accountId)) !== 'unattached') return
   const slice = await persistenceAdapter.loadAll(accountId)
   useStore.getState().replaceAll(slice)
 }

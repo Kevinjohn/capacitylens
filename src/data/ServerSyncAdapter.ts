@@ -63,6 +63,29 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // the running flush picks them up. One write path, no overlapping requests.
   private queued: AppData | null = null
   private inFlight: Promise<void> | null = null
+  // Load generation counter: bumped at the START of every loadAll. A loadAll that is no longer
+  // the newest by the time its fetch resolves must NOT seed `lastSynced` — persist.ts's token
+  // guard discards that stale slice from the STORE, but without this guard the adapter snapshot
+  // would still be mutated, leaving snapshot=stale-account while data=newer-account, and the next
+  // save would diff across tenants (DELETEs for the stale account + PUTs for the newer one —
+  // cross-account data loss).
+  private loadGen = 0
+  // Seed generation counter: bumped every time loadAll actually SEEDS `lastSynced`. This — not
+  // loadGen — is what drain() must check: loadGen bumps at fetch START, so a save that begins
+  // while a load is already in flight captures the same generation the load will seed under, and
+  // a start-generation check would pass even though the seed landed mid-batch. Two uses:
+  //   - a queued save whose seedGen is stale by the time drain picks it up is DROPPED — its diff
+  //     basis (the snapshot it was queued against) is gone, and diffing it against the fresh seed
+  //     could cross tenants (DELETEs of the new account's rows + PUTs of the old one's);
+  //   - after a batch lands, `lastSynced` advances only if no seed happened since the diff was
+  //     taken — otherwise the reload's fresh seed wins (skipping is safe: the server already
+  //     holds the batch's idempotent ops, so the next diff re-derives anything still relevant).
+  // persist.ts's reload paths surface/re-push any edit a dropped save carried (see refreshActive's
+  // mid-load-edit handling), so a drop here is never a silent loss.
+  private seedGen = 0
+  // The seedGen at the moment `queued` was last written — pairs a parked save with the snapshot
+  // generation it was diffed-to-be against.
+  private queuedSeedGen = 0
 
   constructor(baseUrl: string, fetchImpl: typeof fetch = fetch.bind(globalThis)) {
     this.baseUrl = baseUrl.replace(/\/$/, '')
@@ -87,6 +110,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // load is what keeps snapshot and `data` on the same tenant. If they ever desync (snapshot=A,
   // data=B) the next save would emit DELETEs for A + PUTs for B → cross-account data loss.
   async loadAll(accountId?: string): Promise<AppData> {
+    const myGen = ++this.loadGen
     try {
       const url =
         accountId !== undefined
@@ -102,7 +126,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // read (accountId present) is a real error and still throws below.
       if (accountId === undefined && res.status === 400) {
         const empty = emptyAppData()
-        this.lastSynced = empty
+        if (myGen === this.loadGen) {
+          this.lastSynced = empty
+          this.seedGen += 1
+        }
         return empty
       }
       if (!res.ok) throw new Error(`Failed to load state (${res.status})`)
@@ -121,8 +148,13 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
       // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
       // account's slice, so the immediately-following saveAll diffs new-vs-new = ZERO ops, never
-      // cross-account deletes.
-      this.lastSynced = data
+      // cross-account deletes. Generation-guarded: a SUPERSEDED load (a newer loadAll started
+      // while this fetch was in flight) must not seed — its slice is discarded by persist.ts's
+      // token guard, and seeding here anyway would desync snapshot from data (see loadGen).
+      if (myGen === this.loadGen) {
+        this.lastSynced = data
+        this.seedGen += 1 // announce the seed to drain() — see the seedGen doc
+      }
       return data
     } catch (e) {
       // A rejected fetch (server down / network error), a non-OK status, or an
@@ -148,6 +180,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
     if (opts?.unload) return this.flushUnload(next)
     this.queued = next
+    this.queuedSeedGen = this.seedGen // pair the parked save with the snapshot it was made against
     if (this.inFlight) return this.inFlight
     this.inFlight = this.drain()
     try {
@@ -177,14 +210,26 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   private async drain(): Promise<void> {
     while (this.queued) {
       const target = this.queued
+      const targetSeedGen = this.queuedSeedGen
       this.queued = null
+      // A reload SEEDED the snapshot after this save was queued: the state it was diffed-to-be
+      // against no longer exists, and diffing it against the fresh seed could cross tenants
+      // (see the seedGen doc). Drop it — persist.ts's reload paths have already surfaced or
+      // re-pushed whatever edit it carried.
+      if (targetSeedGen !== this.seedGen) continue
       const ops = diffOps(this.lastSynced, target)
       // The ABSENCE of a try/catch here is INTENTIONAL — do not "harden" it. An applyBatch throw
       // MUST propagate so saveAll rejects, persist.ts surfaces it (persistError) and retries, and
       // lastSynced is NOT advanced. Swallowing here would advance lastSynced past writes that never
       // landed, silently dropping them from every future diff — permanent data loss.
       if (ops.length > 0) await this.applyBatch(ops)
-      this.lastSynced = target
+      // Advance the snapshot ONLY if no seed landed while this batch was in flight — a reload's
+      // fresh seed must win over our pre-reload target, or snapshot and store desync. Checked via
+      // seedGen, NOT loadGen: loadGen bumps at fetch START, so a load already in flight when this
+      // diff was taken would pass a start-generation check and still seed mid-batch. Skipping is
+      // safe: the server already holds these idempotent ops, so the next diff re-derives anything
+      // still relevant against the fresh seed.
+      if (targetSeedGen === this.seedGen) this.lastSynced = target
     }
   }
 
@@ -192,27 +237,45 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // at MAX_BATCH_OPS = 5000 — an unchunked large import would 400 forever).
   //
   // The atomicity trade, honestly: each CHUNK is one server-side transaction, so a mid-sequence
-  // failure leaves a PARTIAL write on the server. That is safe here because ops are idempotent
-  // upserts/deletes, lastSynced advances (in drain) only after ALL chunks land, and a failure
-  // throws so the retry re-sends the FULL remaining diff. Ordering is preserved across chunks:
-  // diffOps emits ALL upserts (parent-first) before ALL deletes (child-first) in one ordered list
-  // (verified in syncOps.ts — `[...upserts, ...deletes]`), and consecutive slices of that list
-  // POSTed strictly sequentially keep the global order, so a reparent's new binding still lands
-  // before the old parent's delete even when they fall into different chunks.
+  // failure leaves a PARTIAL write on the server. For a plain failure that is safe: ops are
+  // idempotent upserts/deletes, lastSynced advances (in drain) only after ALL chunks land, and the
+  // throw makes persist.ts retry the FULL remaining diff. For a mid-sequence 409 (optimistic
+  // concurrency) the retry defence does NOT hold — persist.ts resolves a conflict by server-wins
+  // reload, which accepts the committed prefix and discards the unsent suffix. That residual risk
+  // is accepted because no in-app flow produces a >MAX_OPS_PER_BATCH diff anymore: import — the
+  // one legitimate producer — goes through the atomic POST /api/import in server mode, not this
+  // diff path. Ordering is preserved across chunks: diffOps emits ALL upserts (parent-first)
+  // before ALL deletes (child-first) in one ordered list (verified in syncOps.ts —
+  // `[...upserts, ...deletes]`), and consecutive slices of that list POSTed strictly sequentially
+  // keep the global order, so a reparent's new binding still lands before the old parent's delete
+  // even when they fall into different chunks.
   private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<void> {
-    const chunks: Op[][] = []
-    for (let i = 0; i < ops.length; i += MAX_OPS_PER_BATCH) chunks.push(ops.slice(i, i + MAX_OPS_PER_BATCH))
     if (opts?.keepalive) {
-      // Page teardown: dispatch EVERY chunk up-front, no await between dispatches — awaiting
+      // Page teardown: dispatch every chunk up-front, no await between dispatches — awaiting
       // sequentially would get only the first chunk on the wire before the event loop dies (the
       // same dispatch-all rationale as persist.ts's flushOnUnload). Cross-chunk arrival order is
-      // NOT guaranteed here, which is acceptable for this best-effort final flush: errors are
-      // swallowed by the caller, lastSynced never advances on this path, and a surviving reload
-      // re-diffs against the server. Chunking helps here anyway — keepalive caps each request
-      // body at ~64KB, so smaller bodies give more of the flush a chance to survive.
+      // NOT guaranteed here, so when the flush doesn't fit ONE chunk the DELETE tail is WITHHELD:
+      // a delete chunk arriving before an earlier reparent/upsert chunk would let the server's FK
+      // cascade take the reparented child's unmodified descendants — and since lastSynced never
+      // advances on this path and the page is gone, no later reload could reconstruct them. A
+      // withheld delete is the benign failure by contrast: the next session re-loads the server's
+      // copy, the row merely resurrects, and re-deleting it is one click. (Upsert chunks can still
+      // arrive child-before-parent; that chunk just fails its FK check and rolls back — lost, not
+      // destructive, acceptable for a best-effort flush whose errors are swallowed by the caller.)
+      // Chunking helps here anyway — keepalive caps each request body at ~64KB, so smaller bodies
+      // give more of the flush a chance to survive.
+      const sendable = ops.length > MAX_OPS_PER_BATCH ? ops.filter((op) => op.method === 'PUT') : ops
+      if (sendable.length < ops.length) {
+        // Breadcrumb, not a surface: the page is going away, so a console line is all we can leave.
+        console.warn(`unload flush: withheld ${ops.length - sendable.length} delete op(s) to avoid cross-chunk cascade reordering`)
+      }
+      const chunks: Op[][] = []
+      for (let i = 0; i < sendable.length; i += MAX_OPS_PER_BATCH) chunks.push(sendable.slice(i, i + MAX_OPS_PER_BATCH))
       await Promise.all(chunks.map((chunk) => this.postBatch(chunk, { keepalive: true })))
       return
     }
+    const chunks: Op[][] = []
+    for (let i = 0; i < ops.length; i += MAX_OPS_PER_BATCH) chunks.push(ops.slice(i, i + MAX_OPS_PER_BATCH))
     // Normal drain: strictly sequential so the global upserts-before-deletes order holds server-side.
     for (const chunk of chunks) await this.postBatch(chunk)
   }

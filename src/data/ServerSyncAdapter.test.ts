@@ -366,4 +366,172 @@ describe('batch chunking (large imports vs the server MAX_BATCH_OPS cap)', () =>
     resolvers.forEach((r) => r())
     await p
   })
+
+  it('a multi-chunk unload flush WITHHOLDS the DELETE tail (concurrent chunks cannot reorder a cascade)', async () => {
+    // Concurrent keepalive chunks have no arrival-order guarantee, so a delete chunk landing
+    // before an earlier reparent/upsert chunk would let the server's FK cascade take unmodified
+    // descendants — unrecoverable, since lastSynced never advances on the unload path and the
+    // page is gone. A withheld delete merely resurrects on the next load (benign by contrast).
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const fetchImpl = okFetch() as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    const clients = manyClients(2100)
+    await a.saveAll(withData({ clients })) // sync 2100 rows (2 chunks) so deletes can be diffed
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+
+    // 100 edited PUTs + 2100 DELETEs (> one chunk total) flushed on unload.
+    const edited = clients.slice(0, 100).map((c) => ({ ...c, name: 'Edited', updatedAt: TS2, id: `e-${c.id}` }))
+    await a.saveAll(withData({ clients: edited }), { unload: true })
+
+    const sent = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => batchOps(c as unknown[]))
+    expect(sent.every((o) => o.method === 'PUT')).toBe(true) // no DELETE made it onto the wire
+    expect(sent).toHaveLength(100)
+    expect(warn).toHaveBeenCalledOnce() // the withheld tail leaves a breadcrumb
+    warn.mockRestore()
+  })
+
+  it('a SINGLE-chunk unload flush keeps its deletes (one request = one ordered transaction)', async () => {
+    const fetchImpl = okFetch() as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(withData({ clients: [client('c1')], projects: [project('p1', 'c1')] }))
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    await a.saveAll(emptyAppData(), { unload: true })
+    const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
+    expect(ops.map((o) => o.method)).toEqual(['DELETE', 'DELETE']) // fits one chunk → deletes ride along
+  })
+})
+
+describe('snapshot generation guard (superseded loads / in-flight batches)', () => {
+  it('a SUPERSEDED loadAll resolving late does NOT re-seed the snapshot over the newer load', async () => {
+    // The cross-account race: switch a1→a2 while a1's slow load is still in flight. persist.ts
+    // discards a1's late slice from the STORE (token guard) — the adapter must equally refuse to
+    // seed lastSynced from it, or snapshot=a1 under data=a2 and the next save diffs across
+    // tenants (DELETEs for a2's rows + PUTs of a1's).
+    const a1c = client('c1') // accountId 'a1'
+    const a2c: Client = { id: 'c2', accountId: 'a2', name: 'Beta', color: '#3b82f6', createdAt: TS1, updatedAt: TS1 }
+    const a1Slice = withData({ clients: [a1c] })
+    const a2Slice = withData({ clients: [a2c] })
+    let releaseA1: (() => void) | null = null
+    const fetchImpl = vi.fn((url: string) => {
+      if (String(url).includes('accountId=a1')) {
+        return new Promise<Response>((resolve) => {
+          releaseA1 = () => resolve(new Response(JSON.stringify(a1Slice), { status: 200 }))
+        })
+      }
+      if (String(url).includes('accountId=a2')) return Promise.resolve(new Response(JSON.stringify(a2Slice), { status: 200 }))
+      return Promise.resolve(new Response('{}', { status: 200 }))
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const slowA1 = a.loadAll('a1') // in flight, held open
+    await a.loadAll('a2') // newer load wins: snapshot = a2
+    releaseA1!()
+    await slowA1 // late resolve — must NOT seed a1 over a2
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+
+    // An a2 edit must diff against the a2 snapshot: one PUT, and NEVER a delete of a2's rows
+    // (which a stale a1 snapshot would produce).
+    await a.saveAll(withData({ clients: [{ ...a2c, name: 'Beta II', updatedAt: TS2 }] }))
+    const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
+    expect(ops).toEqual([expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c2' })])
+  })
+
+  it('an in-flight batch resolving AFTER a reload does not clobber the fresh snapshot seed', async () => {
+    // drain() computes its diff, awaits the POST, then advances lastSynced — if a loadAll
+    // completed in that window, advancing would overwrite the fresh seed with the pre-reload
+    // target (snapshot ≠ store). The generation check makes the reload's seed win; the skipped
+    // advance is safe because the server already holds the batch's idempotent ops.
+    const slice = withData({ clients: [client('c1')] })
+    let releaseBatch: (() => void) | null = null
+    const fetchImpl = vi.fn((url: string) => {
+      if (String(url).endsWith('/api/batch')) {
+        return new Promise<Response>((resolve) => {
+          releaseBatch = () => resolve(new Response('{}', { status: 200 }))
+        })
+      }
+      return Promise.resolve(new Response(JSON.stringify(slice), { status: 200 }))
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const saving = a.saveAll(withData({ clients: [client('cX')] })) // batch held open
+    await a.loadAll('a1') // reload completes mid-batch: snapshot = slice (c1)
+    releaseBatch!()
+    await saving
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+
+    // Re-saving the loaded slice must be a no-op — the reload's seed survived the batch settle.
+    // (Without the guard, snapshot would be the cX target and this would emit c1/cX ops.)
+    await a.saveAll(slice)
+    expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0)
+  })
+
+  it('a save that STARTS while a loadAll is already in flight cannot clobber that load\'s seed (same-generation race)', async () => {
+    // The subtle variant a start-generation check misses: loadAll bumps its counter at fetch
+    // START, so a save beginning mid-load captures the same generation the load will seed under.
+    // The guard must key on seeds (seedGen), not load starts — otherwise the batch's settle
+    // re-advances lastSynced to its pre-reload target, snapshot desyncs from store, and the next
+    // save diffs across states (cross-tenant deletes in the switch case).
+    const slice = withData({ clients: [client('c1')] })
+    let releaseState: (() => void) | null = null
+    let releaseBatch: (() => void) | null = null
+    const fetchImpl = vi.fn((url: string) => {
+      if (String(url).endsWith('/api/batch')) {
+        return new Promise<Response>((resolve) => {
+          releaseBatch = () => resolve(new Response('{}', { status: 200 }))
+        })
+      }
+      return new Promise<Response>((resolve) => {
+        releaseState = () => resolve(new Response(JSON.stringify(slice), { status: 200 }))
+      })
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const loading = a.loadAll('a1') // fetch held — generation already bumped
+    const saving = a.saveAll(withData({ clients: [client('cX')] })) // starts mid-load, batch held
+    releaseState!() // the load seeds lastSynced = slice
+    await loading
+    releaseBatch!() // the batch settles AFTER the seed
+    await saving
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+
+    // The seed survived: re-saving the loaded slice is a no-op.
+    await a.saveAll(slice)
+    expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0)
+  })
+
+  it('a QUEUED save parked before a reload seeded is DROPPED — its diff basis is gone (cross-tenant guard)', async () => {
+    // Coalesce-to-latest parks a second save while the first is in flight. If a reload seeds the
+    // snapshot before drain picks the parked save up, diffing it against the FRESH seed could
+    // emit cross-state ops (DELETEs of rows the parked save's tenant never had). It must be
+    // dropped — persist.ts's reload paths surface/re-push whatever edit it carried.
+    const slice = withData({ clients: [client('c1')] })
+    let releaseBatch: (() => void) | null = null
+    const fetchImpl = vi.fn((url: string) => {
+      if (String(url).endsWith('/api/batch')) {
+        return new Promise<Response>((resolve) => {
+          const r = () => resolve(new Response('{}', { status: 200 }))
+          if (!releaseBatch) releaseBatch = r
+          else r() // only the FIRST batch is held
+        })
+      }
+      return Promise.resolve(new Response(JSON.stringify(slice), { status: 200 }))
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const save1 = a.saveAll(withData({ clients: [client('cX')] })) // batch 1 held
+    const save2 = a.saveAll(withData({ clients: [client('cX'), client('cY')] })) // parked
+    await a.loadAll('a1') // reload completes while batch 1 is in flight: seed = slice
+    releaseBatch!()
+    await Promise.all([save1, save2])
+
+    // Exactly ONE batch went out (the parked save was dropped, never diffed against the seed)…
+    const batchCalls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.filter((c) =>
+      String(c[0]).endsWith('/api/batch'),
+    )
+    expect(batchCalls).toHaveLength(1)
+    // …and the seed survived: re-saving the loaded slice is a no-op.
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    await a.saveAll(slice)
+    expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0)
+  })
 })
