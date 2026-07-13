@@ -64,6 +64,18 @@ The daemon snapshots `capacitylens.db` online (WAL-safe — never `cp` the live 
 `/home/forge/capacitylens-data/backups/capacitylens-<YYYYMMDD-HHmmss-SSS>.db`: once at boot, then every
 `CAPACITYLENS_BACKUP_INTERVAL_MIN` (60), keeping the newest `CAPACITYLENS_BACKUP_KEEP` (48) — RPO ≤ 1 h.
 
+**These snapshots sit on the same droplet as the DB — lose the disk and you lose both.** Ship them
+off-box on a schedule; that scheduled copy is the actual backup. Recommended: an hourly `rsync` a
+few minutes past the hour (after the daemon's top-of-hour snapshot):
+
+```sh
+# /etc/cron.d/capacitylens-offsite
+7 * * * * forge  rsync -az --delete /home/forge/capacitylens-data/backups/ backup@offsite:capacitylens/
+```
+
+Restore-verify the far copy the same way as any snapshot (below). See
+[`self-hosting.md` §5](self-hosting.md#5-backups--restore) for the object-storage / `restic` variants.
+
 ## Restore (P4.2 — drill performed 2026-06-13, exact sequence)
 
 ```sh

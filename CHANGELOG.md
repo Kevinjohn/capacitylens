@@ -10,6 +10,25 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.15.7] — 2026-07-13
+
+Two ops-hardening items from the same P3/P4 backlog: the API container no longer runs as
+root, and off-host backups are documented as a required, scheduled step rather than an aside.
+
+### Changed
+
+- **The `api` Docker container runs as the unprivileged `node` user** instead of root. The DB
+  and backups volume mounts are created owned by `node` so a fresh volume initialises writable,
+  and the corepack cache is pinned to a world-readable path (`COREPACK_HOME`) so the pinned
+  `pnpm` still resolves offline at container start.
+
+### Documentation
+
+- **Off-host backups are now a recommended cron, not a passing mention.** The self-hosting and
+  runbook guides state plainly that on-host snapshots die with the disk/droplet/volume and give
+  a concrete scheduled `rsync` (with `restic`/`rclone`/`scp` as equivalents), because a copy on
+  a second machine is the real backup.
+
 ## [0.15.6] — 2026-07-13
 
 A remediation round drawn from the P3/P4 review backlog: one server-performance fix,
@@ -510,7 +529,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.6...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.7...HEAD
+[0.15.7]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.7
 [0.15.6]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.6
 [0.15.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.1
 [0.15.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.0

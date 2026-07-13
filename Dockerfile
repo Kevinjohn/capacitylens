@@ -69,6 +69,12 @@ FROM node:24-bookworm-slim AS api
 WORKDIR /app
 ENV NODE_ENV=production
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+# corepack's cache must live somewhere the unprivileged `node` user (set via
+# USER below) can READ at container start — the default is ~/.cache under the
+# BUILD user's home (/root, mode 0700, invisible to `node`), which would send
+# the runtime `pnpm` shim back to the network to re-fetch and crash-loop an
+# offline host. Pin it to a world-readable path inside /app instead.
+ENV COREPACK_HOME=/app/.corepack
 # In a container we deliberately bind all interfaces (the host default is
 # loopback-only). compose publishes nothing for api directly; nginx reaches it
 # over the compose network.
@@ -98,6 +104,17 @@ RUN corepack enable && corepack install
 COPY server/src ./server/src
 COPY server/scripts ./server/scripts
 COPY shared/src ./shared/src
+
+# Drop root: run the daemon as the image's built-in unprivileged `node` user.
+# The DB (/data) and the backups dir (/backups) are named volumes — create their
+# mount points owned by `node` FIRST, so Docker initialises a fresh, empty volume
+# with that ownership (an empty named volume inherits the image directory's
+# uid/gid on its first mount; without this the daemon can't write the DB and the
+# container restart-loops). The copied node_modules + TS source stay root-owned:
+# tsx/pnpm only READ them, and the corepack cache lives at COREPACK_HOME (set
+# above, world-readable), not under /root.
+RUN mkdir -p /data /backups && chown node:node /data /backups
+USER node
 
 EXPOSE 8787
 

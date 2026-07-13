@@ -478,13 +478,35 @@ SQLite database — once at boot, then every `CAPACITYLENS_BACKUP_INTERVAL_MIN` 
 60), keeping the newest `CAPACITYLENS_BACKUP_KEEP` files (default 48, oldest pruned). With the
 defaults that's an hourly snapshot and roughly a recovery-point objective of ≤ 1 hour.
 
-The snapshots are ordinary files in that directory — list them with `ls -lt`, ship them
-off-box with `scp`/`rsync` like any other file. (Docker: they're on the `capacitylens-backups`
-named volume — see [§8](#8-running-with-docker-instead-compose) for the `docker compose exec` /
-`cp` equivalents.)
+The snapshots are ordinary files in that directory — list them with `ls -lt`.
 
 > **Do not `cp` the live database file** while the daemon is running — it uses WAL mode, and a
 > raw copy can be torn. Use the daemon's snapshots (above), which are taken WAL-safely.
+
+### Copy the snapshots off the box — this is the real backup
+
+The timed snapshots above survive an app-level accident (a bad import, a fat-fingered delete you
+catch within the hour). They do **not** survive the thing most likely to end your data: the disk,
+the droplet, or the volume going away — the snapshots live on the same host as the DB they back
+up. An on-host snapshot is a convenience, not a backup. **A backup is a copy on a different
+machine.** Treat shipping the snapshots off-box as a required step, not an optional one, and put
+it on a schedule so it can't be forgotten:
+
+```sh
+# /etc/cron.d/capacitylens-offsite — pull the latest snapshot to another host hourly,
+# a few minutes after the daemon's top-of-hour snapshot. Runs as the service user so it
+# can read the backups dir; the far side is any box/bucket you control and can restore from.
+7 * * * * forge  rsync -az --delete /var/lib/capacitylens/backups/ backup@offsite:capacitylens/
+```
+
+`rsync` (over SSH), `scp`, `restic`, or a `rclone` push to object storage all work — the snapshot
+files are self-contained SQLite databases, so whatever lands them on a second machine is enough.
+Verify the far copy the same way you verify any backup: **restore one and check it** (see the
+runbook drill). A copy you've never restored is a hope, not a backup.
+
+(Docker: the snapshots are on the `capacitylens-backups` named volume — see
+[§8](#8-running-with-docker-instead-compose) for the `docker compose exec` / `cp` equivalents to
+pull them out; point the same scheduled off-host copy at whatever you `cp` them to.)
 
 **Restoring** a snapshot (stop the daemon, swap the file, clear stale WAL sidecars, restart) is
 a procedure that should be **drilled**, not improvised. The exact, tested sequence lives in the
