@@ -424,11 +424,12 @@ describe('P1.6 time-off note preservation on WRITE — a note-blind writer canno
   })
 })
 
-describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vectors gated', () => {
+describe('P1.5 authorize — account hard-delete is owner-only, both vectors gated', () => {
   // Account hard-delete CASCADES (FK ON DELETE CASCADE wipes all the account's scoped data), so in
   // auth-on it must NOT be reachable by an arbitrary signed-in user. Two vectors: the direct
   // DELETE /api/accounts/:id route, and a POST /api/batch op {method:'DELETE',table:'accounts',id}
-  // (the client's real delete-company path). Both gate 'purge' (admin+) against the account's OWN id.
+  // (the client's real delete-company path). Both gate the dedicated owner-only `deleteAccount`
+  // capability against the account's OWN id; admin-tier record purge remains a separate action.
 
   const deleteAccount = (app: FastifyInstance, id: string, cookie?: string) =>
     call(app, { method: 'DELETE', url: `/api/accounts/${id}`, headers: cookie ? { cookie } : {} })
@@ -463,31 +464,30 @@ describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vecto
     expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
   })
 
-  it.each(['viewer', 'editor'] as const)('%s of a1: DELETE /api/accounts/a1 → 403 (purge is admin+)', async (role) => {
+  it.each(['viewer', 'editor', 'admin'] as const)('%s of a1: both account-delete vectors → 403 (owner-only)', async (role) => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie, userId } = await signUp(app, `${role}-del@capacitylens.dev`)
     upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
-    // A read-witness admin so the survival read-back can resolve a role for a1.
-    const admin = await signUp(app, `${role}-del-witness@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId: admin.userId, role: 'admin', status: 'active', createdAt: TS })
+    // A read-witness owner so the survival read-back can resolve a role for a1.
+    const owner = await signUp(app, `${role}-del-witness@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
 
     expect((await deleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
     expect((await batchDeleteAccount(app, 'a1', cookie)).statusCode).toBe(403)
-    expect(await accountExists(app, 'a1', admin.cookie)).toBe(true)
+    expect(await accountExists(app, 'a1', owner.cookie)).toBe(true)
   })
 
-  it.each(['admin', 'owner'] as const)('%s of an account: DELETE /api/accounts/:id → 2xx (account gone)', async (role) => {
-    // Fresh account per success case so we never delete an account other assertions rely on.
+  it('owner of an account: DELETE /api/accounts/:id → 204 (account gone)', async () => {
     const { app, db } = await appWithAuth()
     insertAll(db, { ...emptyAppData(), accounts: [account('purgeMe')] } as unknown as AppData)
-    const { cookie, userId } = await signUp(app, `${role}-purge@capacitylens.dev`)
-    upsertMember(db, { accountId: 'purgeMe', userId, role, status: 'active', createdAt: TS })
+    const { cookie, userId } = await signUp(app, 'owner-delete@capacitylens.dev')
+    upsertMember(db, { accountId: 'purgeMe', userId, role: 'owner', status: 'active', createdAt: TS })
 
     const res = await deleteAccount(app, 'purgeMe', cookie)
     expect(res.statusCode).toBe(204)
     // P2.6b: this is now a TENANT ERASURE, not a bare row delete. The caller is the SOLE member, so the
-    // erasure also scrubs their PII and KILLS their session — their cookie no longer authenticates, so a
+    // erasure also removes their identity and KILLS their session — their cookie no longer authenticates, so a
     // read-back as them is 401 (not 200). "Account gone" is therefore asserted on observable DB state
     // directly: the accounts row, the membership row, and the member's auth session are all removed.
     expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts WHERE id = 'purgeMe'`).get() as { n: number }).n).toBe(0)
@@ -495,11 +495,11 @@ describe('P1.5 authorize — account hard-delete is admin+ ("purge"), both vecto
     expect((db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n).toBe(0)
   })
 
-  it('admin of an account: batch accounts-DELETE op → 2xx (account gone)', async () => {
+  it('owner of an account: batch accounts-DELETE op → 200 (account gone)', async () => {
     const { app, db } = await appWithAuth()
     insertAll(db, { ...emptyAppData(), accounts: [account('purgeBatch')] } as unknown as AppData)
-    const { cookie, userId } = await signUp(app, 'admin-purge-batch@capacitylens.dev')
-    upsertMember(db, { accountId: 'purgeBatch', userId, role: 'admin', status: 'active', createdAt: TS })
+    const { cookie, userId } = await signUp(app, 'owner-delete-batch@capacitylens.dev')
+    upsertMember(db, { accountId: 'purgeBatch', userId, role: 'owner', status: 'active', createdAt: TS })
 
     const res = await batchDeleteAccount(app, 'purgeBatch', cookie)
     expect(res.statusCode).toBe(200)
@@ -708,14 +708,17 @@ describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)',
 })
 
 describe('P1.5 access matrix sanity (pure can()) — companion to access.test.ts', () => {
-  // The route gate above proves read/write tiers end-to-end; the manage*/purge/transferOwnership
-  // actions have no routes yet (matrix-only), so pin them directly here against the pure authority.
-  it('editor cannot manageMembers; admin can manageMembers but not transferOwnership; owner can transfer', () => {
+  // The route gate above proves read/write tiers end-to-end; pin the remaining distinctions directly
+  // against the pure authority too, including record purge vs whole-account deletion.
+  it('admin can manage and purge records but cannot delete an account or transfer ownership', () => {
     const editor: Role = 'editor'
     const admin: Role = 'admin'
     const owner: Role = 'owner'
     expect(can(editor, 'manageMembers')).toBe(false)
     expect(can(admin, 'manageMembers')).toBe(true)
+    expect(can(admin, 'purge')).toBe(true)
+    expect(can(admin, 'deleteAccount')).toBe(false)
+    expect(can(owner, 'deleteAccount')).toBe(true)
     expect(can(admin, 'transferOwnership')).toBe(false)
     expect(can(owner, 'transferOwnership')).toBe(true)
   })

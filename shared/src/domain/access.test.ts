@@ -27,15 +27,17 @@ const ACTIONS = [
   'manageMembers',
   'manageInvites',
   'purge',
+  'deleteAccount',
   'transferOwnership',
 ] as const satisfies readonly Action[]
 
-// The full 4×6 expected matrix, written out explicitly from the Decisions table:
+// The full 4×7 expected matrix, written out explicitly from the Decisions table:
 //   read              — any member (owner, admin, editor, viewer)
 //   write             — editor and up (owner, admin, editor); NOT viewer
 //   manageMembers     — admin and up (owner, admin)
 //   manageInvites     — admin and up (owner, admin)
 //   purge             — admin and up (owner, admin)
+//   deleteAccount     — owner only
 //   transferOwnership — owner only
 const EXPECTED: Record<Role, Record<Action, boolean>> = {
   owner: {
@@ -44,6 +46,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: true,
     manageInvites: true,
     purge: true,
+    deleteAccount: true,
     transferOwnership: true,
   },
   admin: {
@@ -52,6 +55,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: true,
     manageInvites: true,
     purge: true,
+    deleteAccount: false,
     transferOwnership: false,
   },
   editor: {
@@ -60,6 +64,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: false,
     manageInvites: false,
     purge: false,
+    deleteAccount: false,
     transferOwnership: false,
   },
   viewer: {
@@ -68,6 +73,7 @@ const EXPECTED: Record<Role, Record<Action, boolean>> = {
     manageMembers: false,
     manageInvites: false,
     purge: false,
+    deleteAccount: false,
     transferOwnership: false,
   },
 }
@@ -76,8 +82,8 @@ describe('can(role, action) — the pure access matrix', () => {
   // Completeness guard: the action list the sweep iterates must equal the `Action` union, so a new
   // Action can't slip past the exhaustive check. (The `satisfies` on ACTIONS catches an EXTRA/typo
   // member at compile time; this asserts none was DROPPED — keep this count in step with `Action`.)
-  it('iterates exactly the Action union (6 actions, no more, no fewer)', () => {
-    expect(ACTIONS.length).toBe(6)
+  it('iterates exactly the Action union (7 actions, no more, no fewer)', () => {
+    expect(ACTIONS.length).toBe(7)
     expect(new Set(ACTIONS).size).toBe(ACTIONS.length) // no duplicates
   })
 

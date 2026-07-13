@@ -288,10 +288,10 @@ export function AccountPicker() {
                 <Avatar name={a.name} color={DEFAULT_COLORS.account} />
                 <span className="font-medium">{a.name}</span>
               </button>
-              {/* Company deletion is 'purge'-tier (admin+) server-side, so a viewer/editor summary
-                  gets no Delete affordance at all — offering one would let them type-to-confirm an
+              {/* Company deletion is owner-only server-side, so every non-owner summary gets no
+                  Delete affordance at all — offering one would let them type-to-confirm an
                   irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
-              {can(a.role, 'purge') && (
+              {can(a.role, 'deleteAccount') && (
                 <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
               )}
             </li>

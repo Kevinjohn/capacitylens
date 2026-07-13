@@ -1920,12 +1920,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // P1.5 account hard-delete gate. The account-lifecycle CREATE exemption (a new auth-on user
           // must mint their first account before any membership exists) does NOT extend to DELETE:
           // dropping an `accounts` row CASCADES (FK ON DELETE CASCADE) and wipes ALL the account's
-          // scoped data — total tenant destruction. So a direct accounts-DELETE is gated 'purge'
-          // (admin+, per the Decisions "purge = hard-delete, admin-only") against the caller's role
-          // for THAT account — the account's own id IS the accountId to resolve the role against.
-          // INTERIM gate pending P2's account-lifecycle rework (archive→soft-delete→purge); OFF mode
-          // short-circuits to allow so the default deploy can still delete companies.
-          if (!authorize(req, reply, id, 'purge')) return
+          // scoped data — total tenant destruction. This is intentionally stricter than purging one
+          // tombstoned record: only an owner may erase the tenant and orphaned member identities.
+          // OFF mode short-circuits to allow so the default deploy can still delete companies.
+          if (!authorize(req, reply, id, 'deleteAccount')) return
         }
         // P2.6b: an account hard-delete is a TENANT ERASURE, not a bare row delete. eraseAccount drops
         // the account (FK-cascading its scoped AppData) AND sweeps the control tables + Better Auth PII
@@ -1978,7 +1976,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // its accountId from op.row.accountId, a scoped DELETE from op.accountId. The unscoped
       // `accounts` table is the SECOND attack vector for tenant destruction: a batch DELETE on
       // `accounts` is the client's real delete-company path, and it CASCADES (wipes all the account's
-      // scoped data), so it is gated 'purge' (admin+) against the account's own id BEFORE the
+      // scoped data), so it is gated 'deleteAccount' (owner-only) against the account's own id BEFORE the
       // non-scoped skip — the same gate as the direct DELETE /api/accounts/:id route. An accounts
       // PUT that is an UPDATE gates 'write'; an accounts PUT that is a CREATE is refused outright
       // when auth is on (→ POST /api/orgs, see ACCOUNT_CREATE_CLOSED_MESSAGE) and stays open ONLY
@@ -1989,7 +1987,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // regardless of authMode.
       for (const op of ops) {
         if (op?.table === 'accounts' && op.method === 'DELETE') {
-          if (!authorize(req, reply, op.id, 'purge')) return
+          if (!authorize(req, reply, op.id, 'deleteAccount')) return
           continue
         }
         if (op?.table === 'accounts' && op.method === 'PUT') {

@@ -5,7 +5,7 @@ import { openDb, insertAll, type Db } from './db'
 import { upsertMember, createInvite } from './controlTables'
 import * as controlTables from './controlTables'
 import { eraseAccount } from './erasure'
-import { authFromEnv, runAuthMigrations } from './auth'
+import { authFromEnv, countUsers, runAuthMigrations } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
@@ -14,7 +14,7 @@ import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 // `accounts` row: the FK cascade wiped the account's scoped AppData, but `account_members` + `invites`
 // LEAKED (no FK to accounts) and Better Auth's user/account/session PII was left fully intact. This
 // suite proves the erasure now closes all three surfaces, AND keeps two hard invariants: it touches
-// ONLY the target tenant (cross-tenant), and a member still in ANOTHER account is NOT scrubbed.
+// ONLY the target tenant (cross-tenant), and a member still in ANOTHER account is NOT erased.
 //
 // Each case asserts OBSERVABLE DB state via raw SELECT (mirroring getUsersByIds' query style) rather
 // than trusting a helper — the point is to prove the bytes are gone from the actual tables.
@@ -61,6 +61,31 @@ const authAccountCount = (db: Db, userId: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM account WHERE userId = ?`).get(userId) as { n: number }).n
 const sessionCount = (db: Db, userId: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n
+const verificationCount = (db: Db, userId: string): number =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE value = ?`).get(userId) as { n: number }).n
+const verificationExists = (db: Db, id: string): boolean =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE id = ?`).get(id) as { n: number }).n === 1
+
+function seedResetToken(db: Db, userId: string, id = `verification-${userId}`): void {
+  db.prepare(
+    `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(id, `reset-password:${id}`, userId, TS, TS, TS)
+}
+
+function seedAccountLinkState(db: Db, userId: string, email: string, id: string): void {
+  const value = JSON.stringify({
+    callbackURL: 'http://localhost:3000/settings',
+    codeVerifier: `code-${id}`,
+    expiresAt: Date.now() + 600_000,
+    oauthState: id,
+    link: { email, userId },
+  })
+  db.prepare(
+    `INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  ).run(id, id, value, TS, TS, TS)
+}
 
 /** Seed a control-table membership + one outstanding invite for an account (the PII surfaces with no FK). */
 function seedMembershipAndInvite(db: Db, accountId: string, userId: string, role: 'owner' | 'admin'): void {
@@ -115,39 +140,54 @@ describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
   })
 })
 
-describe('P2.6b erasure — (b) scrub of a sole-member tenant', () => {
-  it('the sole owner of a1 (in no other account) has name/email/image scrubbed, account+session deleted', async () => {
+describe('P2.6b erasure — (b) last-company identity removal reopens password setup', () => {
+  it('deletes the sole owner and every auth artifact, then allows a new first-run signup', async () => {
     const { app, db } = await appWithAuth()
     insertAll(db, { ...emptyAppData(), accounts: [account('a1')] } as unknown as AppData)
     const u = await signUp(app, 'sole-owner@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
+    seedResetToken(db, u.userId)
+    seedAccountLinkState(db, u.userId, 'sole-owner@capacitylens.dev', 'link-sole-owner')
+    seedAccountLinkState(db, 'unrelated-user', 'unrelated@capacitylens.dev', 'link-unrelated')
 
-    // Pre-state: real identity, an `account` credential link (sign-up created one), a live `session`.
+    // Pre-state: real identity, credential link, live session, and outstanding reset token.
     expect(userRow(db, u.userId)?.email).toBe('sole-owner@capacitylens.dev')
     expect(authAccountCount(db, u.userId)).toBeGreaterThanOrEqual(1)
     expect(sessionCount(db, u.userId)).toBeGreaterThanOrEqual(1)
+    expect(verificationCount(db, u.userId)).toBe(1)
+    expect(verificationExists(db, 'link-sole-owner')).toBe(true)
+    expect(verificationExists(db, 'link-unrelated')).toBe(true)
 
     expect((await deleteAccountRoute(app, 'a1', u.cookie)).statusCode).toBe(204)
 
-    const row = userRow(db, u.userId)
-    expect(row).toBeDefined()
-    expect(row!.name).toBe('Removed member')
-    expect(row!.email).toMatch(/^deleted-.+@invalid$/)
-    expect(row!.email).not.toBe('sole-owner@capacitylens.dev')
-    expect(row!.image).toBeNull()
-    // SSO/credential link unlinked and every session killed (a scrubbed identity stays neither linked nor logged in).
+    expect(userRow(db, u.userId)).toBeUndefined()
     expect(authAccountCount(db, u.userId)).toBe(0)
     expect(sessionCount(db, u.userId)).toBe(0)
+    expect(verificationCount(db, u.userId)).toBe(0)
+    expect(verificationExists(db, 'link-sole-owner')).toBe(false)
+    expect(verificationExists(db, 'link-unrelated')).toBe(true)
+    expect(countUsers(db)).toBe(0)
+
+    // The dead cookie now sees a genuine first-run state, and the live signup gate consults the
+    // same zero-user fact per request. No restart or manual DB repair is required.
+    const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie: u.cookie } })
+    expect(me.statusCode).toBe(401)
+    expect(me.json().needsSetup).toBe(true)
+    const replacement = await signUp(app, 'replacement-owner@capacitylens.dev')
+    expect(userRow(db, replacement.userId)?.email).toBe('replacement-owner@capacitylens.dev')
+    expect(countUsers(db)).toBe(1)
   })
 })
 
 describe('P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)', () => {
-  it('M owns a1 AND is a member of a2: deleting a1 drops M\'s a1 membership but NEVER scrubs M', async () => {
+  it('M owns a1 AND is a member of a2: deleting a1 drops M\'s a1 membership but NEVER erases M', async () => {
     const { app, db } = await appWithAuth()
     insertAll(db, { ...emptyAppData(), accounts: [account('a1'), account('a2')] } as unknown as AppData)
     const m = await signUp(app, 'multi-account-member@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: m.userId, role: 'owner', status: 'active', createdAt: TS })
     upsertMember(db, { accountId: 'a2', userId: m.userId, role: 'editor', status: 'active', createdAt: TS })
+    seedResetToken(db, m.userId)
+    seedAccountLinkState(db, m.userId, 'multi-account-member@capacitylens.dev', 'link-multi-account')
 
     expect((await deleteAccountRoute(app, 'a1', m.cookie)).statusCode).toBe(204)
 
@@ -165,6 +205,8 @@ describe('P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)', (
     expect(row!.email).toBe('multi-account-member@capacitylens.dev')
     expect(authAccountCount(db, m.userId)).toBeGreaterThanOrEqual(1)
     expect(sessionCount(db, m.userId)).toBeGreaterThanOrEqual(1)
+    expect(verificationCount(db, m.userId)).toBe(1)
+    expect(verificationExists(db, 'link-multi-account')).toBe(true)
   })
 })
 

@@ -1,24 +1,39 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { clearCapacitylensLocalStorage, CAPACITYLENS_KEY_PREFIX } from './clearLocalStorage'
+import { migrateLegacyStorageKeys } from './storageMigration'
 
 describe('clearCapacitylensLocalStorage', () => {
   beforeEach(() => localStorage.clear())
 
-  it('removes every capacitylens/-prefixed key and leaves unrelated origin keys alone', () => {
+  it('removes every current and legacy app key and leaves unrelated origin keys alone', () => {
     localStorage.setItem('capacitylens/v3', '{"data":1}')
     localStorage.setItem('capacitylens/theme', 'dark')
     localStorage.setItem('capacitylens/sidebar', 'true')
+    localStorage.setItem('floaty/v3', '{"legacy":1}')
+    localStorage.setItem('floaty/theme', 'light')
     localStorage.setItem('some-other-tool', 'keep')
     localStorage.setItem('analytics', 'keep')
 
     const removed = clearCapacitylensLocalStorage()
 
-    expect(removed).toBe(3)
+    expect(removed).toBe(5)
     expect(localStorage.getItem('capacitylens/v3')).toBeNull()
     expect(localStorage.getItem('capacitylens/theme')).toBeNull()
     expect(localStorage.getItem('capacitylens/sidebar')).toBeNull()
+    expect(localStorage.getItem('floaty/v3')).toBeNull()
+    expect(localStorage.getItem('floaty/theme')).toBeNull()
     expect(localStorage.getItem('some-other-tool')).toBe('keep')
     expect(localStorage.getItem('analytics')).toBe('keep')
+  })
+
+  it('cannot resurrect cleared AppData through the rebrand migration on the next reload', () => {
+    localStorage.setItem('capacitylens/v3', '{"current":1}')
+    localStorage.setItem('floaty/v3', '{"legacy":1}')
+
+    expect(clearCapacitylensLocalStorage()).toBe(2)
+    expect(migrateLegacyStorageKeys(localStorage)).toBe(0)
+    expect(localStorage.getItem('capacitylens/v3')).toBeNull()
+    expect(localStorage.getItem('floaty/v3')).toBeNull()
   })
 
   it('is a no-op (returns 0) when no capacitylens keys exist', () => {

@@ -38,6 +38,7 @@ export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
  * - `'manageMembers'`    — add / remove members and change their roles. Admin tier (owner | admin).
  * - `'manageInvites'`    — create / revoke invites (link + email-preauth). Admin tier (owner | admin).
  * - `'purge'`            — hard-delete (purge) tombstoned data. Admin tier (owner | admin).
+ * - `'deleteAccount'`    — erase an entire account and its members' orphaned identities. Owner ONLY.
  * - `'transferOwnership'`— hand the account to another login. Owner ONLY.
  *
  * INVARIANT: this union is the closed vocabulary the matrix is exhaustive over (see {@link can}'s
@@ -49,6 +50,7 @@ export type Action =
   | 'manageMembers'
   | 'manageInvites'
   | 'purge'
+  | 'deleteAccount'
   | 'transferOwnership'
 
 // The role tiers are strictly nested for every gated Action (viewer ⊂ editor ⊂ admin ⊂ owner), so
@@ -79,6 +81,7 @@ const MIN_TIER = {
   manageMembers: 'admin', // admin and up
   manageInvites: 'admin', // admin and up
   purge: 'admin', // admin and up
+  deleteAccount: 'owner', // owner only
   transferOwnership: 'owner', // owner only
 } as const satisfies Record<Action, Role>
 

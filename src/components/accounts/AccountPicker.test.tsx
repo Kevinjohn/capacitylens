@@ -382,14 +382,16 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     expect(useStore.getState().accountSummaries).toHaveLength(1) // nothing removed optimistically
   })
 
-  it("offers NO Delete button on a viewer/editor summary (company deletion is 'purge'-tier, admin+)", () => {
+  it('offers a Delete button only on an owner summary', () => {
     useStore.getState().setAccountSummaries([
       { id: 'a1', name: 'Owner Co', role: 'owner' },
-      { id: 'a2', name: 'Editor Co', role: 'editor' },
-      { id: 'a3', name: 'Viewer Co', role: 'viewer' },
+      { id: 'a2', name: 'Admin Co', role: 'admin' },
+      { id: 'a3', name: 'Editor Co', role: 'editor' },
+      { id: 'a4', name: 'Viewer Co', role: 'viewer' },
     ])
     render(<AccountPicker />)
     expect(screen.getByRole('button', { name: 'Delete Owner Co' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Admin Co' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Editor Co' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Viewer Co' })).not.toBeInTheDocument()
   })
