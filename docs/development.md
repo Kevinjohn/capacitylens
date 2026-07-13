@@ -45,7 +45,7 @@ Enable JavaScript for the site and reload; the whole app is JS-rendered.
 
 ```bash
 pnpm run gate         # paraglide:compile && tsc -b && eslint . && vitest run && vite build
-pnpm run gate:server  # type-check + test the server/ workspace (the default backend)
+pnpm run gate:server  # type-check + test + lint (eslint server shared) the server/ workspace
 pnpm run e2e          # Chromium: core + db-backed + auth-backed specs; boots 3 Vite + 2 API servers, needs Node 24
 pnpm run e2e:webkit   # the core specs on Safari/WebKit (opt-in; Vite-only, no Node 24)
 pnpm run e2e:firefox  # the core specs on Firefox/Gecko (opt-in; Vite-only, no Node 24)
@@ -57,7 +57,9 @@ The `server/` workspace is kept out of the root `gate` (it needs Node's `node:sq
 browser build); run it separately with `gate:server`. CI (`.github/workflows/gate.yml`)
 runs `gate`, `gate:server`, and the Chromium E2E on every pull request, on release tags,
 and on demand — but **not on every push**, so keep running the gate locally before pushing.
-Node 24+ (`.nvmrc`).
+Pull requests (and manual runs) additionally run a `docker` job that builds both images and
+smoke-tests the Compose + Nginx deployment (`/api/health`, the security headers, and the 6 MB
+request-body limit). Node 24+ (`.nvmrc`).
 
 `e2e` is Chromium by default (the fast inner loop) — but a plain `pnpm run e2e` (no
 `--project` filter) runs **all three** Chromium-flavoured projects at once: `chromium`

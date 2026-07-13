@@ -1,7 +1,7 @@
 {
   "name": "capacitylens",
   "private": true,
-  "version": "0.15.5",
+  "version": "0.15.6",
   "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
   "author": "Kevinjohn Gallagher",

@@ -10,6 +10,40 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.15.6] — 2026-07-13
+
+A remediation round drawn from the P3/P4 review backlog: one server-performance fix,
+several accessibility/interaction fixes, and hardening of the lint and CI safety nets.
+
+### Fixed
+
+- **Batch writes no longer re-scan the whole database on every operation.** Each write in a
+  batch used to reload the entire multi-tenant dataset to validate cross-entity references, so
+  a large (authenticated) sync could grow quadratically and monopolise the single writer. The
+  batch now loads state once and keeps an in-memory projection in lockstep with the database's
+  cascade rules, validating each operation against the running result of the ones before it.
+- **Changing only an activity's _kind_ is now guarded against silent loss.** Editing just the
+  Project / Internal / Repeatable segment and then pressing Escape (or clicking the backdrop)
+  now raises the unsaved-changes notice instead of discarding the change.
+- **Purge availability uses the exact 30-day instant.** The "delete permanently" affordance
+  compared against date-midnight, so it could stay disabled for up to a day past the real
+  boundary; it now uses the precise timestamp the server enforces.
+
+### Changed
+
+- **The command palette is now a proper modal for assistive technology** — it sets `aria-modal`
+  and marks the background `inert`, so screen-reader browse mode can no longer wander through
+  the obscured application behind it.
+- **Escape cancels an in-flight gesture on the schedule** — a drag/resize of an allocation, or a
+  draw-to-create, can now be abandoned mid-gesture with Escape (reverting cleanly, no commit).
+
+### Internal
+
+- Type-aware ESLint (`no-floating-promises` / `no-misused-promises`) now covers the `server/`
+  and `shared/` workspaces and runs as part of `gate:server`.
+- CI builds the Docker images and smoke-tests the Compose + Nginx deployment (health endpoint,
+  security headers, and the 6 MB request-body limit) on pull requests and on demand.
+
 ## [0.15.5] — 2026-07-13
 
 A fix-only round on top of the invite-token-hashing / auth rework, closing two
@@ -476,7 +510,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.6...HEAD
+[0.15.6]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.6
 [0.15.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.1
 [0.15.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.0
 [0.14.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.14.0
