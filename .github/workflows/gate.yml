@@ -23,7 +23,7 @@ jobs:
     name: typecheck · lint · unit · build (+ server)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4 # version comes from package.json "packageManager"
       - uses: actions/setup-node@v4
         with:
@@ -37,7 +37,7 @@ jobs:
     name: e2e (Chromium)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -67,7 +67,7 @@ jobs:
       # container restart-loops and the health/header checks below never see a 200.
       CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # ubuntu-latest ships Docker + the compose plugin; no extra setup action needed.
       - name: docker compose build (validates both the api and web Dockerfile targets)
         run: docker compose build
