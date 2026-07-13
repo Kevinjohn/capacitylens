@@ -41,7 +41,7 @@ describe('P3.3 restore drill', () => {
     // 2. Snapshot S1 — the point we will recover to. Then stop the daemon's timer.
     const backups = startBackups(live, { dir: backupsDir, intervalMin: 60, keep: 48 }, () => {}, tickingClock())
     const snapshot = await backups.snapshotNow()
-    backups.stop()
+    await backups.stop()
     expect(existsSync(snapshot)).toBe(true)
 
     // 3. An edit made AFTER the snapshot — work the backup cannot have captured (the RPO loss).

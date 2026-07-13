@@ -286,3 +286,87 @@ describe('POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
     expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1'])
   })
 })
+
+// GET /api/auth/me `canCreateAccount` must MIRROR the POST /api/orgs gate (userMayCreateAccount +
+// the cap) — the bug this pins: the flag used to come from the instance cap alone, so an auth-on
+// editor / membership-less user was shown a "New company" affordance whose POST always 403'd. All
+// auth-on cases run with multiAccount: true so the cap never masks the WHO tier under test; the
+// bootstrap-token arm is deliberately absent (curl-only — it never lights the flag; see
+// userMayCreateAccount's doc comment).
+describe('GET /api/auth/me — canCreateAccount mirrors the /api/orgs gate', () => {
+  const me = (app: FastifyInstance, cookie?: string) =>
+    call(app, { method: 'GET', url: '/api/auth/me', ...(cookie ? { headers: { cookie } } : {}) })
+
+  it('auth-on + multiAccount, editor-only membership -> canCreateAccount:false (POST /api/orgs would 403)', async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true })
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'editor-flag@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+
+    const res = await me(app, cookie)
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ multiAccount: true, canCreateAccount: false })
+    // The flag and the gate agree: the create it would advertise is exactly the one that 403s.
+    const post = await createOrg(app, { name: 'Editor Org' }, { cookie })
+    expect(post.statusCode).toBe(403)
+  })
+
+  it('auth-on + multiAccount, NO membership anywhere -> canCreateAccount:false', async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true })
+    seedOne(db)
+    const { cookie } = await signUp(app, 'nomember-flag@capacitylens.dev')
+
+    const res = await me(app, cookie)
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ multiAccount: true, canCreateAccount: false })
+  })
+
+  it('auth-on + multiAccount, active OWNER of an existing account -> canCreateAccount:true', async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true })
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'owner-flag@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+
+    const res = await me(app, cookie)
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ multiAccount: true, canCreateAccount: true })
+  })
+
+  it('auth-on + multiAccount, active ADMIN of an existing account -> canCreateAccount:true (admin tier)', async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true })
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'admin-flag@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
+
+    const res = await me(app, cookie)
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ multiAccount: true, canCreateAccount: true })
+  })
+
+  it('auth-on, ZERO accounts -> canCreateAccount:true (first-run bootstrap, even with no membership)', async () => {
+    const { app } = await appWithAuth() // multiAccount defaults to false; zero accounts
+    const { cookie } = await signUp(app, 'bootstrap-flag@capacitylens.dev')
+
+    const res = await me(app, cookie)
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ multiAccount: false, canCreateAccount: true })
+  })
+
+  it('OFF mode + multiAccount -> canCreateAccount:true (trusted-local, no membership tier)', async () => {
+    const db = openDb(':memory:')
+    seedOne(db)
+    const app = buildApp(db, { multiAccount: true }) // authMode defaults to 'off'
+    const res = await me(app)
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ multiAccount: true, canCreateAccount: true })
+  })
+
+  it('anon caller on an auth-on instance: the 401 shape carries NO capability flags', async () => {
+    const { app, db } = await appWithAuth({ multiAccount: true })
+    seedOne(db)
+    const res = await me(app) // no cookie
+    expect(res.statusCode).toBe(401)
+    expect(res.json()).not.toHaveProperty('canCreateAccount')
+    expect(res.json()).not.toHaveProperty('multiAccount')
+  })
+})

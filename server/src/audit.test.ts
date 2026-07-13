@@ -279,6 +279,34 @@ describe('import → one import line (7)', () => {
     expect(fresh).toHaveLength(1)
     expect(fresh[0]).toMatchObject({ action: 'import', entity: 'account', id: 'a1', accountId: 'a1', changedFields: [] })
   })
+
+  it('a REFUSED zero-record import writes NO audit line (nothing was replaced — no false record)', async () => {
+    const { app, lines } = fileApp()
+    await post(app, 'accounts', account('a1'))
+    const before = lines().length
+    // Every record drops in remap (an allocation with dangling refs) → imported = 0 → the server
+    // refuses the replace and returns 200 {imported: 0}; the audit must not claim an import ran.
+    const file = {
+      schemaVersion: 3,
+      data: {
+        accounts: [],
+        clients: [],
+        disciplines: [],
+        projects: [],
+        phases: [],
+        resources: [],
+        activities: [],
+        allocations: [
+          { id: 'dangling', accountId: 'x', resourceId: 'nope', activityId: 'nope', startDate: '2026-01-05', endDate: '2026-01-09', hoursPerDay: 4, createdAt: 't', updatedAt: 't' },
+        ],
+        timeOff: [],
+      },
+    }
+    const res = await call(app, { method: 'POST', url: '/api/import', payload: body({ accountId: 'a1', data: file }) })
+    expect(res.statusCode).toBe(200)
+    expect((res.json() as { imported: number }).imported).toBe(0)
+    expect(lines().slice(before)).toHaveLength(0)
+  })
 })
 
 describe('rolled-back batch → ZERO new audit lines (8) — proves post-commit', () => {

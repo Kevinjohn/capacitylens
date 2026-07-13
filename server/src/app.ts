@@ -428,6 +428,33 @@ function accountCreateCapped(db: Db, opts: AppOptions): boolean {
   return !opts.multiAccount && countAccounts(db) > 0
 }
 
+/**
+ * WHO may create a new company right now — the ONE predicate behind both POST /api/orgs' GATE 1
+ * and the `canCreateAccount` flag /api/auth/me advertises, shared so the advertised capability
+ * can never drift from the enforced gate (the bug this closed: /me computed the flag from the
+ * instance cap alone, so an editor / membership-less user saw a "New company" affordance whose
+ * POST always 403'd). True iff ANY of:
+ *   (1) ZERO accounts exist — first-run bootstrap (anyone may create the very first org);
+ *   (2) authMode 'off' (trusted-local — the caller is DEMO_USER);
+ *   (3) auth-on: the caller is an ACTIVE Owner/Admin of SOME existing account
+ *       (can(role, 'manageMembers') = admin-tier).
+ * POST /api/orgs additionally accepts a valid bootstrap token (its arm (4), checked at the
+ * route) — that arm deliberately stays OUT of this predicate: the token travels in a curl
+ * header, never in a browser session, so it must never light up the client's "New company"
+ * affordance for a caller who can't actually present it.
+ *
+ * WHO only — the single-company cap (WHETHER a new company may exist; accountCreateCapped) is a
+ * separate gate the callers apply themselves.
+ */
+function userMayCreateAccount(db: Db, authMode: AuthMode, userId: string): boolean {
+  return (
+    countAccounts(db) === 0 || // (1) first-run bootstrap
+    authMode === 'off' || // (2) trusted-local — the caller is DEMO_USER
+    // (3) an ACTIVE owner/admin of ANY existing account (admin-tier = can manageMembers).
+    listMembershipsForUser(db, userId).some((m) => m.status === 'active' && can(m.role, 'manageMembers'))
+  )
+}
+
 // Map a thrown error to an HTTP status. Caller-fault errors — domain validation
 // (ValidationError) and DB constraint/FK violations — are 400; anything else is an
 // unexpected server/db bug and must surface as 500 (not be hidden as a 400).
@@ -811,31 +838,42 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // modes report the Better Auth session user, or 401 (with authMode, so the login
     // screen knows which form to show) when there is no session.
     app.get('/api/auth/me', async (req, reply) => {
-      // Single-company cap capability flags (see AppOptions.multiAccount): the client's
-      // create-company entry point uses these to hide/disable itself instead of discovering the cap
-      // via a failed POST. Recomputed PER REQUEST (accountCount changes as companies are created) —
-      // never cached — and carried on BOTH success shapes (off + authed) so neither mode forks the
-      // client. The 401/503 shapes below are deliberately unchanged (no account facts for a caller
-      // who isn't authenticated / whose session state is unknown).
-      const capFields = {
-        multiAccount: opts.multiAccount === true,
-        canCreateAccount: opts.multiAccount === true || countAccounts(db) === 0,
+      // Company-creation capability flags: the client's create-company entry point uses these to
+      // hide/disable itself instead of discovering the answer via a failed POST. `canCreateAccount`
+      // mirrors POST /api/orgs' full gate — (cap allows) AND userMayCreateAccount, the SAME shared
+      // predicate the route enforces — never the cap alone (that told editors/membership-less users
+      // "yes" and let them walk into a guaranteed 403). Recomputed PER REQUEST (account counts and
+      // memberships change) — never cached — and carried on BOTH success shapes (off + authed) so
+      // neither mode forks the client. The 401/503 shapes below are deliberately unchanged (no
+      // account facts for a caller who isn't authenticated / whose session state is unknown) — an
+      // anon caller on an auth-on instance is never told it can create.
+      const multiAccount = opts.multiAccount === true
+      // The cap arm (WHETHER a new company may exist at all) — POST /api/orgs' GATE 0.
+      const capAllows = multiAccount || countAccounts(db) === 0
+      if (authMode === 'off') {
+        // OFF mode: userMayCreateAccount is trivially true (its authMode arm), so the cap decides.
+        return { authMode, user: DEMO_USER, multiAccount, canCreateAccount: capAllows }
       }
-      if (authMode === 'off') return { authMode, user: DEMO_USER, ...capFields }
       try {
         const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
         if (!user) {
           // First-run signal: password mode + an EMPTY user table means sign-up is open for
           // exactly one bootstrap account (the live gate in auth.ts), so the login screen offers
           // "Create the owner account" instead of a dead-end sign-in. "The user count is zero" is
-          // NOT tenant data — the 401 shape still deliberately excludes account facts (capFields
-          // stay off this branch); it reveals only what the open sign-up endpoint already would.
+          // NOT tenant data — the 401 shape still deliberately excludes account facts (the
+          // capability flags stay off this branch); it reveals only what the open sign-up endpoint
+          // already would.
           const needsSetup = authMode === 'password' && countUsers(db) === 0
           return reply
             .code(401)
             .send({ authMode, error: 'Sign in to continue.', ...(needsSetup ? { needsSetup: true } : {}) })
         }
-        return { authMode, user, ...capFields }
+        return {
+          authMode,
+          user,
+          multiAccount,
+          canCreateAccount: capAllows && userMayCreateAccount(db, authMode, user.id),
+        }
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
         // (the client can tell "temporarily unavailable" from a 401 "bad/again credentials") rather
@@ -987,7 +1025,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     //   the actionable cap message rather than the generic 'Forbidden.' `allowed` would send. Not
     //   bypassed by OFF mode or the bootstrap token — see the cap's own doc comment.
     //
-    //   GATE 1 — `allowed` (WHO may create it, once GATE 0 permits). Allowed iff ANY of:
+    //   GATE 1 — `allowed` (WHO may create it, once GATE 0 permits). Arms (1)–(3) live in
+    //   userMayCreateAccount (shared with /api/auth/me's canCreateAccount flag). Allowed iff ANY of:
     //   (1) ZERO accounts exist — first-run bootstrap (anyone may create the very first org; this
     //       is also the only case GATE 0 lets through by default, so it's the common path).
     //   (2) OFF mode (trusted-local) — mirrors the authorize() OFF no-op; req.user is DEMO_USER.
@@ -1006,13 +1045,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
       }
       const allowed =
-        accountCount === 0 || // (1) first-run bootstrap
-        authMode === 'off' || // (2) trusted-local — req.user is DEMO_USER
-        bootstrapTokenMatches(opts.bootstrapToken, req.headers['x-capacitylens-bootstrap-token']) || // (4)
-        // (3) an ACTIVE owner/admin of ANY existing account (admin-tier = can manageMembers).
-        listMembershipsForUser(db, req.user!.id).some(
-          (m) => m.status === 'active' && can(m.role, 'manageMembers'),
-        )
+        // (1)/(2)/(3) — the shared WHO-may-create predicate, ALSO the source of /api/auth/me's
+        // `canCreateAccount` flag so the advertised affordance and this gate cannot drift.
+        userMayCreateAccount(db, authMode, req.user!.id) ||
+        // (4) — curl-only, deliberately NOT in the shared predicate (see its doc comment).
+        bootstrapTokenMatches(opts.bootstrapToken, req.headers['x-capacitylens-bootstrap-token'])
       if (!allowed) {
         return reply.code(403).send({ error: 'Forbidden.' })
       }
@@ -2159,16 +2196,21 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (result.imported > 0) replaceAccountSlice(db, body.accountId, result.data)
         // P1.15 audit (post-commit). ONE 'import' line: a slice replace, not a per-field edit, so
         // changedFields = [] (no individual fields to name) and id = the target accountId.
-        const auditOk = auditSink.append({
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: body.accountId,
-          action: 'import',
-          entity: 'account',
-          id: body.accountId,
-          changedFields: [],
-        })
-        if (!auditOk) reply.header('x-capacitylens-audit-warning', 'true')
+        // Gated on the SAME imported > 0 condition as the replace: a refused zero-record import
+        // changed nothing, and an audit line claiming an import happened would be a false record.
+        let auditOk = true
+        if (result.imported > 0) {
+          auditOk = auditSink.append({
+            ts: new Date().toISOString(),
+            userId: req.user!.id,
+            accountId: body.accountId,
+            action: 'import',
+            entity: 'account',
+            id: body.accountId,
+            changedFields: [],
+          })
+          if (!auditOk) reply.header('x-capacitylens-audit-warning', 'true')
+        }
         return { imported: result.imported, skipped: result.skipped, maxRecords: MAX_IMPORT_RECORDS, auditWarning: !auditOk }
       } catch (err) {
         return sendFail(reply, err)

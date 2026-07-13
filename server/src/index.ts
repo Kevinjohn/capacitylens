@@ -305,11 +305,13 @@ app
 
 // Graceful shutdown (P1.2): the deploy restarts the daemon with a signal — drain in-flight
 // requests, then close the DB, instead of dying mid-transaction. A repeat signal force-exits.
-// The backup timer stops FIRST so a drain never races a snapshot of the closing DB (P4.1).
+// Backups stop FIRST — the timer is cleared AND any in-flight snapshot is awaited — so the
+// DB is never closed under a running backup (P4.1; a SIGTERM during the start-up shot would
+// otherwise truncate a snapshot mid-write).
 const shutdown = createShutdownHandler(
   {
     close: async () => {
-      backups?.stop()
+      await backups?.stop()
       await app.close()
     },
   },
