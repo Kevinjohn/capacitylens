@@ -74,6 +74,9 @@ describe('POST /api/invites (P1.9 create) — gate', () => {
     expect(body.role).toBe('editor')
     expect(typeof body.token).toBe('string')
     expect(body.token.length).toBeGreaterThan(0)
+    const atRest = db.prepare(`SELECT tokenHash FROM invites`).get() as { tokenHash: string }
+    expect(atRest.tokenHash).not.toBe(body.token)
+    expect(JSON.stringify(db.prepare(`SELECT * FROM invites`).all())).not.toContain(body.token)
     // The row landed in the control table, unused, with a FUTURE expiry.
     const stored = getInvite(db, body.token)!
     expect(stored.accountId).toBe('a1')
@@ -81,6 +84,21 @@ describe('POST /api/invites (P1.9 create) — gate', () => {
     expect(stored.usedAt).toBeNull()
     expect(stored.preauthEmail).toBeNull() // P1.9 always null
     expect(Date.parse(stored.expiresAt)).toBeGreaterThan(Date.now())
+  })
+
+  it.each([
+    ['malformed', 'not-a-date', /valid ISO-8601/],
+    ['past', '2000-01-01T00:00:00.000Z', /future/],
+    ['too distant', '2999-01-01T00:00:00.000Z', /at most 30 days/],
+  ])('rejects a %s expiresAt instead of widening it', async (_label, expiresAt, message) => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'owner@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+    const res = await createInviteReq(app, { accountId: 'a1', role: 'editor', expiresAt }, { cookie })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(message)
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({ n: 0 })
   })
 
   it('admin of the account is ALLOWED (admin tier = manageInvites) -> 201', async () => {

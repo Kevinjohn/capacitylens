@@ -3,11 +3,33 @@ import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { migrate } from '@capacitylens/shared/data/migrate'
 import { diffOps, type Op } from './syncOps'
+import { announceAuditWarning } from '../lib/auditWarning'
+import { requestSignal, API_REQUEST_TIMEOUT_MS, API_BULK_TIMEOUT_MS } from './requestTimeout'
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
 // so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from
 // this module unchanged.
 export { diffOps, applyOps } from './syncOps'
+
+interface CommittedRevision {
+  table: Op['table']
+  id: string
+  createdAt: string
+  updatedAt: string
+}
+
+function applyCommittedRevisions(data: AppData, revisions: CommittedRevision[]): AppData {
+  if (revisions.length === 0) return data
+  const byRow = new Map(revisions.map((revision) => [`${revision.table}\0${revision.id}`, revision]))
+  const next = { ...data }
+  for (const table of Object.keys(data) as Array<keyof AppData>) {
+    next[table] = data[table].map((row) => {
+      const revision = byRow.get(`${table}\0${row.id}`)
+      return revision ? { ...row, createdAt: revision.createdAt, updatedAt: revision.updatedAt } : row
+    }) as never
+  }
+  return next
+}
 
 // A PersistenceAdapter that keeps the SAME whole-tree contract the store already
 // speaks (loadAll / saveAll) but talks to the entity-level REST API:
@@ -24,9 +46,8 @@ export { diffOps, applyOps } from './syncOps'
 // reparent (move a child to a new parent) coalesced with the old parent's delete must
 // land the re-binding BEFORE the delete cascades, or the cascade takes the child's
 // unmodified descendants. A single ordered transaction guarantees that and stays
-// atomic on failure. lastSynced advances only from the local optimistic state on
-// success, so a server echo can never re-trigger a write (ids + timestamps are
-// client-generated, so a re-read would match exactly).
+// atomic on failure. Batch receipts carry server-owned revisions; the adapter reconciles them
+// with client-local change markers before advancing lastSynced or flushing a queued edit.
 
 /**
  * Thrown when POST /api/batch answers **409** — the server's optimistic-concurrency conflict
@@ -120,10 +141,53 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // The seedGen at the moment `queued` was last written — pairs a parked save with the snapshot
   // generation it was diffed-to-be against.
   private queuedSeedGen = 0
+  private acknowledgedRevisions = new Map<string, { client: string; server: CommittedRevision }>()
 
   constructor(baseUrl: string, fetchImpl: typeof fetch = fetch.bind(globalThis)) {
     this.baseUrl = baseUrl.replace(/\/$/, '')
     this.fetchImpl = fetchImpl
+  }
+
+  private request(
+    input: RequestInfo | URL,
+    init: RequestInit = {},
+    timeoutMs: number | null = API_REQUEST_TIMEOUT_MS,
+  ): Promise<Response> {
+    // Share the one request-timeout/abort seam (requestSignal) with the rest of the API surface —
+    // same AbortSignal.any fallback for engines that lack it — instead of a second hand-rolled copy
+    // that could drift. `timeoutMs` picks the tier: interactive 15s by default, the longer bulk
+    // bound for whole-slice load/batch, or `null` (no deadline) for the keepalive unload flush.
+    return this.fetchImpl(input, { ...init, signal: requestSignal(init.signal, timeoutMs) })
+  }
+
+  private canonicalizeAcknowledged(data: AppData): AppData {
+    const next = { ...data }
+    let changed = false
+    for (const table of Object.keys(data) as Array<keyof AppData>) {
+      next[table] = data[table].map((row) => {
+        const key = `${table}\0${row.id}`
+        const acknowledged = this.acknowledgedRevisions.get(key)
+        if (!acknowledged || row.updatedAt !== acknowledged.client) return row
+        changed = true
+        // Consumed: the server's canonical timestamps are now baked into the row that becomes
+        // lastSynced, so this entry has done its job — delete it to bound the Map (it otherwise grows
+        // one entry per distinct row ever PUT, for the tab's lifetime). If this result is later
+        // discarded (a seedGen race) or the batch throws, the worst case is one redundant idempotent
+        // PUT that simply re-remembers the revision — never data loss.
+        this.acknowledgedRevisions.delete(key)
+        return { ...row, createdAt: acknowledged.server.createdAt, updatedAt: acknowledged.server.updatedAt }
+      }) as never
+    }
+    return changed ? next : data
+  }
+
+  private rememberRevisions(ops: Op[], revisions: CommittedRevision[]): void {
+    const byRow = new Map(revisions.map((revision) => [`${revision.table}\0${revision.id}`, revision]))
+    for (const op of ops) {
+      if (op.method !== 'PUT' || !op.row) continue
+      const server = byRow.get(`${op.table}\0${op.id}`)
+      if (server) this.acknowledgedRevisions.set(`${op.table}\0${op.id}`, { client: op.row.updatedAt, server })
+    }
   }
 
   private accountIdFor(data: AppData): string | null {
@@ -212,7 +276,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         accountId !== undefined
           ? `${this.baseUrl}/api/state?accountId=${encodeURIComponent(accountId)}`
           : `${this.baseUrl}/api/state`
-      const res = await this.fetchImpl(url, { credentials: 'include' })
+      // Whole-slice hydration: the BULK tier, not the interactive 15s — a large tenant's full read
+      // can legitimately outrun the interactive bound against a healthy-but-slow server.
+      const res = await this.request(url, { credentials: 'include' }, API_BULK_TIMEOUT_MS)
       // The no-arg whole read is CLOSED in auth-on (P1.13): the server 400s it (tenant isolation —
       // a logged-in user must hydrate PER ACCOUNT via ?accountId=). Treat that 400 on the NO-ARG read
       // as "nothing to hydrate yet" — return EMPTY (snapshot empty) so bootstrap shows the picker
@@ -235,12 +301,16 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // below and mapped to LoadError('unavailable') → the connection-error screen; it does NOT reach
       // migrate(). So migrate() only ever sees a body that already parsed as JSON.
       const json: unknown = await res.json()
-      // migrate() is TOLERANT of a PARSED-but-malformed/non-CapacityLens object: it coerces it to an
-      // EMPTY AppData rather than throwing. So a 200 carrying valid JSON of the wrong shape hydrates
-      // EMPTY and sets lastSynced=empty here — accepted because in server mode the SERVER is the source
-      // of truth (there's nothing local to overwrite). If such a 200 should instead be a hard failure,
-      // reuse the shared hasNonArrayKnownTable guard before migrate and throw LoadError('unavailable').
-      let data = migrate(json)
+      // Reject only a body that isn't a JSON object at all (null / array / primitive) — real garbage.
+      // A MISSING or off-shape table key is tolerated: migrate() coerces every known table to [] via
+      // normalize(), so a version-skewed server that omits a table the newer client expects still
+      // hydrates and keeps working, rather than hard-failing the whole load to the connection-error
+      // screen during a rolling deploy.
+      if (!json || typeof json !== 'object' || Array.isArray(json)) {
+        throw new Error('The server returned an invalid state payload.')
+      }
+      const serverSlice = migrate(json)
+      let data = serverSlice
       // Replay a crash/offline-surviving desired state before exposing the server slice. The diff
       // is still one atomic batch; if it conflicts or the network fails the journal remains and the
       // load fails visibly rather than silently presenting a server copy that omits local work.
@@ -250,10 +320,36 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         // that drain owns the same journal entry; replaying it inside a concurrent refresh would
         // create a second batch and can deadlock a held request in addition to duplicating work.
         if (pending && this.inFlight === null) {
-          const pendingOps = diffOps(data, pending.data)
-          if (pendingOps.length > 0) await this.applyBatch(pendingOps)
+          const pendingOps = diffOps(serverSlice, pending.data)
+          if (pendingOps.length > 0) {
+            let revisions: CommittedRevision[] | null
+            try {
+              revisions = await this.applyBatch(pendingOps)
+            } catch (e) {
+              // The journal's diff could not be replayed atomically — most notably an over-limit diff
+              // (> MAX_OPS_PER_BATCH), which applyBatch refuses by design. Do NOT rethrow as a
+              // LoadError here: that leaves clearPending unreached, so EVERY reload re-replays the same
+              // journal entry and re-throws — a permanent connection-error screen for a perfectly
+              // healthy server, escapable only by wiping the offline work. Instead present the offline
+              // DESIRED state, KEEP the journal, and leave lastSynced at the server slice (below) so the
+              // normal save path re-derives and retries this delta (raising a visible persistError if it
+              // still can't land) rather than silently dropping it. Breadcrumb per DEFENSIVE-CODING §5.
+              console.warn(
+                'ServerSyncAdapter.loadAll: offline write journal could not be replayed on load; presenting the pending state and keeping the journal for the next save to retry',
+                e,
+              )
+              if (myGen === this.loadGen) {
+                this.lastSynced = serverSlice
+                this.seedGen += 1 // announce the seed to drain() — see the seedGen doc
+              }
+              return pending.data
+            }
+            if (revisions) {
+              this.rememberRevisions(pendingOps, revisions)
+              data = applyCommittedRevisions(pending.data, revisions)
+            } else data = pending.data
+          } else data = pending.data
           this.clearPending(accountId, pending.revision)
-          data = pending.data
         }
       }
       // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
@@ -280,7 +376,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   async hasExisting(): Promise<boolean> {
-    const res = await this.fetchImpl(`${this.baseUrl}/api/meta`, { credentials: 'include' })
+    const res = await this.request(`${this.baseUrl}/api/meta`, { credentials: 'include' })
     if (!res.ok) throw new Error(`Failed to read meta (${res.status})`)
     const json = (await res.json()) as { hasData?: boolean }
     return json.hasData === true
@@ -315,7 +411,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       return
     }
     const committed = await this.applyBatch(ops, { keepalive: true })
-    if (committed && revision && accountId) this.clearPending(accountId, revision)
+    if (committed !== null && revision && accountId) this.clearPending(accountId, revision)
   }
 
   // Drain the queue: diff against lastSynced and apply the whole delta as ONE
@@ -337,19 +433,27 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // (see the seedGen doc). Drop it — persist.ts's reload paths have already surfaced or
       // re-pushed whatever edit it carried.
       if (targetSeedGen !== this.seedGen) continue
-      const ops = diffOps(this.lastSynced, target)
+      const canonicalTarget = this.canonicalizeAcknowledged(target)
+      const ops = diffOps(this.lastSynced, canonicalTarget)
       // The ABSENCE of a try/catch here is INTENTIONAL — do not "harden" it. An applyBatch throw
       // MUST propagate so saveAll rejects, persist.ts surfaces it (persistError) and retries, and
       // lastSynced is NOT advanced. Swallowing here would advance lastSynced past writes that never
       // landed, silently dropping them from every future diff — permanent data loss.
-      if (ops.length > 0) await this.applyBatch(ops)
+      let committedTarget = canonicalTarget
+      if (ops.length > 0) {
+        const revisions = await this.applyBatch(ops)
+        if (revisions) {
+          this.rememberRevisions(ops, revisions)
+          committedTarget = applyCommittedRevisions(canonicalTarget, revisions)
+        }
+      }
       // Advance the snapshot ONLY if no seed landed while this batch was in flight — a reload's
       // fresh seed must win over our pre-reload target, or snapshot and store desync. Checked via
       // seedGen, NOT loadGen: loadGen bumps at fetch START, so a load already in flight when this
       // diff was taken would pass a start-generation check and still seed mid-batch. Skipping is
       // safe: the server already holds these idempotent ops, so the next diff re-derives anything
       // still relevant against the fresh seed.
-      if (targetSeedGen === this.seedGen) this.lastSynced = target
+      if (targetSeedGen === this.seedGen) this.lastSynced = committedTarget
       const accountId = this.accountIdFor(target)
       if (targetRevision && accountId) this.clearPending(accountId, targetRevision)
     }
@@ -357,7 +461,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
 
   // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
   // over-limit diff remains in the durable journal; it is never split into committed prefixes.
-  private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<boolean> {
+  private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<CommittedRevision[] | null> {
     if (ops.length > MAX_OPS_PER_BATCH) {
       throw new Error(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`)
     }
@@ -365,10 +469,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     if (opts?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
       // Fetch keepalive has a small aggregate byte budget. The durable journal already owns this
       // desired state, so skip a predictably rejected teardown request and replay next session.
-      return false
+      return null
     }
-    await this.postBatch(ops, body, opts)
-    return true
+    return this.postBatch(ops, body, opts)
   }
 
   // POST the complete ≤MAX_OPS_PER_BATCH diff to /api/batch; the server applies it in one
@@ -379,14 +482,30 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     ops: Op[],
     body = JSON.stringify({ ops }),
     opts?: { keepalive?: boolean },
-  ): Promise<void> {
-    const res = await this.fetchImpl(`${this.baseUrl}/api/batch`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
-      keepalive: opts?.keepalive,
-      credentials: 'include',
+  ): Promise<CommittedRevision[]> {
+    // updatedAt on the wire is a concurrency precondition. Rebase an update onto the last
+    // authoritative server revision while retaining every locally edited field.
+    const wireOps = ops.map((op) => {
+      if (op.method !== 'PUT' || !op.row) return op
+      const existing = this.lastSynced[op.table].find((row) => row.id === op.id)
+      return existing ? { ...op, row: { ...op.row, updatedAt: existing.updatedAt } } : op
     })
+    body = JSON.stringify({ ops: wireOps })
+    const res = await this.request(
+      `${this.baseUrl}/api/batch`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        keepalive: opts?.keepalive,
+        credentials: 'include',
+      },
+      // The atomic write is a BULK op: give it the long bound so a big-but-healthy batch isn't
+      // aborted into the retry-the-same-diff wedge (drain never advances lastSynced on abort).
+      // The keepalive unload flush gets NO deadline — a timeout on a request meant to outlive the
+      // page is self-contradictory; it's best-effort and errors are swallowed anyway.
+      opts?.keepalive ? null : API_BULK_TIMEOUT_MS,
+    )
     if (!res.ok) {
       // 409 is the optimistic-concurrency conflict signal (stale updatedAt; body
       // `{ error, current }`). Throw the TYPED BatchConflictError so persist.ts can resolve it
@@ -402,9 +521,23 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       const detail = await res.text().catch(() => '')
       throw new Error(`Batch sync failed (${res.status}) ${detail}`.trim())
     }
-    const receipt = (await res.json().catch(() => null)) as { ok?: unknown; applied?: unknown } | null
+    const receipt = (await res.json().catch(() => null)) as { ok?: unknown; applied?: unknown; revisions?: unknown; auditWarning?: unknown } | null
     if (receipt?.ok !== true || receipt.applied !== ops.length) {
       throw new Error('Batch sync returned an invalid commit receipt.')
     }
+    if (receipt.auditWarning === true || res.headers.get('x-capacitylens-audit-warning') === 'true') {
+      announceAuditWarning()
+    }
+    if (!Array.isArray(receipt.revisions)) return [] // compatibility with older servers
+    const revisions = receipt.revisions.filter((revision): revision is CommittedRevision => {
+      if (!revision || typeof revision !== 'object') return false
+      const value = revision as Partial<CommittedRevision>
+      return typeof value.table === 'string' && Object.hasOwn(emptyAppData(), value.table) &&
+        typeof value.id === 'string' && typeof value.createdAt === 'string' && typeof value.updatedAt === 'string'
+    })
+    if (revisions.length !== receipt.revisions.length) {
+      throw new Error('Batch sync returned invalid server revisions.')
+    }
+    return revisions
   }
 }

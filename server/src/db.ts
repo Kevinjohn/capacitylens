@@ -1,5 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
-import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
+import { emptyAppData, isEmpty, SCHEMA_VERSION } from '@capacitylens/shared/types/entities'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
 import type { AppData } from '@capacitylens/shared/types/entities'
@@ -50,6 +50,13 @@ export function openDb(path: string): Db {
   // Wait up to 5s for a held lock instead of throwing SQLITE_BUSY immediately — two server
   // processes on the same CAPACITYLENS_DB file (or a WAL checkpoint) contend rather than error.
   db.exec('PRAGMA busy_timeout = 5000;')
+  const diskVersion = Number((db.prepare('PRAGMA user_version').get() as { user_version?: number }).user_version ?? 0)
+  if (diskVersion > SCHEMA_VERSION) {
+    db.close()
+    throw new Error(
+      `Database schema version ${diskVersion} is newer than this server supports (${SCHEMA_VERSION}); refusing a downgrade.`,
+    )
+  }
   // Legacy domain rename (Task→Activity, schema v5): bring an old DB's `tasks` table and
   // `allocations.taskId` column to `activities` / `activityId` BEFORE SCHEMA_SQL — otherwise
   // its `CREATE TABLE IF NOT EXISTS activities` would create a fresh empty table and orphan the
@@ -89,6 +96,7 @@ export function openDb(path: string): Db {
   // contract. So an account POSTed via the API without a paired Internal write stays Internal-less
   // until the next open backfills it — an unsupported/degraded path the web app never takes.
   ensureInternalClients(db)
+  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
   db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
   return db
 }

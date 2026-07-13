@@ -251,6 +251,38 @@ describe('ImportExport – server mode (atomic /api/import, purge-gated)', () =>
     serverFlag.on = true
   })
 
+  it('keeps active-slice export available to editors without calling the admin endpoint', async () => {
+    const fetchMock = vi.fn()
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('URL', { ...URL, createObjectURL: vi.fn(() => 'blob:editor'), revokeObjectURL: vi.fn() })
+    render(
+      <PermissionContext.Provider value={{ role: 'editor' }}>
+        <ImportExport />
+      </PermissionContext.Provider>,
+    )
+    fireEvent.click(screen.getByTestId('export-data'))
+    await waitFor(() => expect(click).toHaveBeenCalled())
+    expect(fetchMock).not.toHaveBeenCalled()
+    click.mockRestore()
+  })
+
+  it('rejects an incomplete complete-export response instead of downloading it', async () => {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    ))
+    render(
+      <PermissionContext.Provider value={{ role: 'admin' }}>
+        <ImportExport />
+      </PermissionContext.Provider>,
+    )
+    fireEvent.click(screen.getByTestId('export-data'))
+    await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'))
+    expect(click).not.toHaveBeenCalled()
+    click.mockRestore()
+  })
+
   it('POSTs the parsed file to /api/import and reports the server counts WITHOUT an undo prompt', async () => {
     const before = useStore.getState().data
     const fetchMock = vi.fn().mockResolvedValue(
@@ -451,6 +483,24 @@ describe('ImportExport – server mode (atomic /api/import, purge-gated)', () =>
     await importAndConfirm(incoming())
 
     await waitFor(() => expect(useStore.getState().notice?.tone).toBe('error'))
+  })
+
+  it('reconciles an unknown timed-out import before resuming writes', async () => {
+    refreshOverride.value = 'reloaded'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('timed out', 'TimeoutError')))
+    render(<ImportExport />)
+    await importAndConfirm(incoming())
+    await waitFor(() => expect(resumeSpy.calls).toEqual([{ dropParkedEdits: true }]))
+    expect(useStore.getState().notice?.message).toMatch(/latest server data was reloaded/i)
+  })
+
+  it('leaves writes suspended when a timed-out import cannot be reconciled', async () => {
+    refreshOverride.value = 'failed'
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new DOMException('timed out', 'TimeoutError')))
+    render(<ImportExport />)
+    await importAndConfirm(incoming())
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/reload this page/i))
+    expect(resumeSpy.calls).toEqual([])
   })
 
   it('hides the Import affordance from an editor (purge-tier, mirrors the server gate) but keeps Export', () => {

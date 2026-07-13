@@ -21,6 +21,7 @@ import { cn } from '@/lib/utils'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m, syncLocaleFromAccount } from '@/i18n'
 import { LINKS } from '../lib/navLinks'
+import { AUDIT_WARNING_EVENT } from '../lib/auditWarning'
 
 export function AppShell() {
   // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, the demo build
@@ -183,6 +184,15 @@ export function AppShell() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [undo, redo])
+
+  useEffect(() => {
+    const warn = () => setNotice(
+      'Your change was saved, but the audit log could not be written. Contact the server administrator.',
+      'warning',
+    )
+    globalThis.addEventListener(AUDIT_WARNING_EVENT, warn)
+    return () => globalThis.removeEventListener(AUDIT_WARNING_EVENT, warn)
+  }, [setNotice])
 
   // Remote-load gate: the server couldn't be reached, so block with a retry screen
   // rather than the localStorage reset UI (which can't recover a server-backed app).

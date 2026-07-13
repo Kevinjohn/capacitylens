@@ -52,7 +52,7 @@ function fileApp(): { app: FastifyInstance; file: string; lines: () => AuditReco
   const dir = mkdtempSync(join(tmpdir(), 'capacitylens-audit-test-'))
   const file = join(dir, 'audit.jsonl')
   const log = vi.fn()
-  const app = buildApp(openDb(':memory:'), { allowReset: true, audit: fileAuditSink(file, log) })
+  const app = buildApp(openDb(':memory:'), { allowReset: true, optimisticConcurrency: false, audit: fileAuditSink(file, log) })
   const lines = () =>
     existsSync(file)
       ? readFileSync(file, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l) as AuditRecord)
@@ -87,6 +87,16 @@ describe('AuditRecord shape (1)', () => {
     expect(Date.parse(rec.ts)).not.toBeNaN()
     // changedFields = the row's field NAMES (sanitized row keys), not values.
     expect(rec.changedFields).toEqual(expect.arrayContaining(['id', 'name', 'color', 'createdAt', 'updatedAt']))
+  })
+})
+
+describe('idempotent control-plane audit semantics', () => {
+  it('does not append inviteRevoke for an already-absent invite', async () => {
+    const { app, lines } = fileApp()
+    const before = lines().length
+    const res = await call(app, { method: 'DELETE', url: '/api/accounts/a1/invites/missing' })
+    expect(res.statusCode).toBe(204)
+    expect(lines().slice(before).filter((record) => record.action === 'inviteRevoke')).toHaveLength(0)
   })
 })
 
@@ -248,7 +258,7 @@ describe('batch → one line per op (6)', () => {
     expect(res.statusCode).toBe(200)
     const fresh = lines().slice(before)
     expect(fresh).toHaveLength(2)
-    expect(fresh[0]).toMatchObject({ action: 'update', entity: 'clients', id: 'c2' })
+    expect(fresh[0]).toMatchObject({ action: 'create', entity: 'clients', id: 'c2' })
     expect(fresh[0].changedFields).toContain('name')
     expect(fresh[1]).toMatchObject({ action: 'delete', entity: 'clients', id: 'c2', changedFields: [] })
   })

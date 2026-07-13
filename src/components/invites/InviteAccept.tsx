@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
+import { apiFetch } from '../../data/requestTimeout'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { useStore } from '../../store/useStore'
@@ -92,7 +93,7 @@ export function InviteAccept() {
 
     void (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`, {
+        const res = await apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`, {
           method: 'POST',
           credentials: 'include',
         })
@@ -165,7 +166,7 @@ export function InviteAccept() {
     setBusy(true)
     setState({ kind: 'auth' })
     try {
-      const res = await fetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`, {
+      const res = await apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },

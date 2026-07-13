@@ -6,6 +6,8 @@ import { downloadTextFile } from '../lib/download'
 import { errorMessage } from '../lib/errorMessage'
 import { readApiError } from '../lib/readApiError'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
+import { apiFetch } from '../data/requestTimeout'
+import { fetchInactiveSlice } from '../data/fetchInactiveSlice'
 import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from '../data/persist'
 import { useRole } from '../auth/permissionContext'
 import { can } from '@capacitylens/shared/domain/access'
@@ -15,7 +17,7 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
 
 // Refuse files past this size before reading them into memory (self-DoS guard).
-const MAX_IMPORT_BYTES = 10_000_000
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024
 
 // Order + labels for the "what's in this file" import summary. Each `label` is a render-time
 // GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS / option-getter pattern,
@@ -54,6 +56,7 @@ export function ImportExport() {
   const fileRef = useRef<HTMLInputElement>(null)
   const role = useRole()
   const serverMode = isServerConfigured()
+  const activeAccountId = useStore((s) => s.activeAccountId)
   // Import is 'purge'-tier (admin+) in server mode, mirroring the server's own POST /api/import
   // gate: a slice REPLACEMENT is destructive (and id-remapping bypasses field-level write pins,
   // e.g. the owner-confidential timeOff note pin), so an editor must not see the affordance.
@@ -84,11 +87,19 @@ export function ImportExport() {
     return () => setDirtyForm(false)
   }, [importBusy, setDirtyForm])
 
-  const onExport = () => {
+  const onExport = async () => {
     // downloadTextFile throws if the download couldn't start — surface it rather than letting it
     // escape as an uncaught handler error, so the user knows the export did NOT save.
     try {
-      downloadTextFile('capacitylens-data.json', serializeData(data))
+      let exported = data
+      if (serverMode) {
+        if (!activeAccountId) throw new Error('Choose a company before exporting.')
+        // Admin/OFF-mode callers receive the structurally validated complete slice. Editors and
+        // viewers retain their previously available active, already-redacted store export instead
+        // of being sent to the purge-gated endpoint and receiving a guaranteed 403.
+        if (role === null || can(role, 'purge')) exported = await fetchInactiveSlice(activeAccountId)
+      }
+      downloadTextFile('capacitylens-data.json', serializeData(exported))
     } catch (e) {
       setNotice(errorMessage(e), 'error')
     }
@@ -97,7 +108,7 @@ export function ImportExport() {
   const onImport = async (file: File) => {
     // Reject an oversized file before reading it into memory (self-DoS guard).
     if (file.size > MAX_IMPORT_BYTES) {
-      setNotice(m.data_err_too_large({ max: MAX_IMPORT_BYTES / 1_000_000 }), 'error')
+      setNotice(m.data_err_too_large({ max: MAX_IMPORT_BYTES / (1024 * 1024) }), 'error')
       return
     }
     try {
@@ -149,8 +160,9 @@ export function ImportExport() {
       // + surfaced instead — saving it would upsert ghost pre-import rows into the new slice.
       const resumeWrites = suspendServerWrites()
       let committed = false
+      let safeToResume = true
       try {
-        const res = await fetch(`${API_BASE}/api/import`, {
+        const res = await apiFetch(`${API_BASE}/api/import`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -228,8 +240,31 @@ export function ImportExport() {
         }
         const skippedNote = skipped > 0 ? (skipped === 1 ? m.data_skipped_note_one({ count: skipped }) : m.data_skipped_note_other({ count: skipped })) : ''
         setNotice(imported === 1 ? m.data_imported_server_one({ count: imported, skipped: skippedNote }) : m.data_imported_server_other({ count: imported, skipped: skippedNote }))
+      } catch (e) {
+        const name = typeof e === 'object' && e !== null && 'name' in e
+          ? String((e as { name?: unknown }).name)
+          : ''
+        if (name !== 'TimeoutError' && name !== 'AbortError') throw e
+
+        // An abort says only that the browser stopped waiting; the synchronous server import may
+        // already have committed. Treat the outcome as unknown, never resume against the stale
+        // pre-import snapshot, and reconcile from the authoritative slice first.
+        committed = true
+        const outcome = await refreshActiveAccountSlice(accountId)
+        if (outcome === 'failed' || outcome === 'skipped' || outcome === 'unattached') {
+          safeToResume = false // leave persistence suspended until a reload performs a clean boot read
+          setNotice(
+            'The import timed out and its result could not be verified. Reload this page before making changes.',
+            'error',
+          )
+        } else {
+          setNotice(
+            'The import timed out, so the latest server data was reloaded. Check the imported records before continuing.',
+            'warning',
+          )
+        }
       } finally {
-        resumeWrites({ dropParkedEdits: committed })
+        if (safeToResume) resumeWrites({ dropParkedEdits: committed })
       }
     } catch (e) {
       // A rejected fetch (server down / network error) — the import did NOT happen; say so.
@@ -274,7 +309,7 @@ export function ImportExport() {
       <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-faint">{m.data_menu_label()}</div>
       {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
           slice that is about to be obsolete, and a second import would race the first. */}
-      <button type="button" data-testid="export-data" onClick={onExport} disabled={importBusy} className={linkClass}>
+      <button type="button" data-testid="export-data" onClick={() => void onExport()} disabled={importBusy} className={linkClass}>
         {m.data_export()}
       </button>
       {canImport && (

@@ -3,6 +3,7 @@ import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { useStore } from '../store/useStore'
 import type { AccountSummary } from '../store/useStore'
 import type { Role } from '@capacitylens/shared/domain/access'
+import { requestSignal } from '../data/requestTimeout'
 
 // The AccountPicker's data source (production plan P1.13). It populates `store.accountSummaries` — the
 // list of accounts the login may OPEN — from the right source for the deploy:
@@ -19,22 +20,26 @@ import type { Role } from '@capacitylens/shared/domain/access'
 // trusted via an `as` cast). It runs OUTSIDE the tenant gate (called at the top of AppShell, before
 // the tenant gate) so the picker has the list before a tenant is chosen.
 
-/** Narrowing guard for the UNTRUSTED `role` of a `/api/accounts` entry (the server is external input —
- *  validate the shape, don't `as`-cast it). An off-spec role degrades to 'owner' (full access) so a
- *  server bug never silently downgrades a real owner to read-only — the server 403 is the real gate. */
+/** Narrowing guard for the UNTRUSTED `role` of a `/api/accounts` entry. */
 function isRole(v: unknown): v is Role {
   return v === 'owner' || v === 'admin' || v === 'editor' || v === 'viewer'
 }
 
 /** Coerce one UNTRUSTED `/api/accounts` array entry to an {@link AccountSummary}, or null if it's
  *  off-spec (not an object, missing id/name). A null entry is DROPPED — a malformed row must never
- *  crash the picker or smuggle a bogus account in. */
+ *  crash the picker or smuggle a bogus account in; an unrecognized role instead degrades to owner
+ *  (id/name still required). */
 function toSummary(entry: unknown): AccountSummary | null {
   if (typeof entry !== 'object' || entry === null) return null
   const e = entry as { id?: unknown; name?: unknown; role?: unknown }
   if (typeof e.id !== 'string' || e.id.length === 0) return null
   if (typeof e.name !== 'string') return null
-  return { id: e.id, name: e.name, role: isRole(e.role) ? e.role : 'owner' }
+  // An unrecognized role (a future/renamed server role, or a transient serialization blip) must NOT
+  // drop an account the user is a member of from the picker — id/name are valid, only the role hint
+  // is unknown. Degrade it to 'owner' so the account stays selectable; the actual edit gate is
+  // PermissionProvider, which independently fail-closes an unknown ACTIVE-account role to viewer.
+  const role: Role = isRole(e.role) ? e.role : 'owner'
+  return { id: e.id, name: e.name, role }
 }
 
 /**
@@ -55,7 +60,7 @@ function toSummary(entry: unknown): AccountSummary | null {
  */
 export async function fetchAccountSummaries(init?: { signal?: AbortSignal }): Promise<AccountSummary[] | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include', signal: init?.signal })
+    const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include', signal: requestSignal(init?.signal) })
     if (!res.ok) return null
     const body: unknown = await res.json()
     // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting

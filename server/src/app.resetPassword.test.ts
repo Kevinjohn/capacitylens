@@ -91,6 +91,9 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
     expect(res.statusCode).toBe(201)
     const body = res.json() as { token: string; expiresAt: string }
     expect(body.token.length).toBeGreaterThan(0)
+    const verificationRows = db.prepare(`SELECT identifier FROM verification`).all() as Array<{ identifier: string }>
+    expect(verificationRows.length).toBeGreaterThan(0)
+    expect(JSON.stringify(verificationRows)).not.toContain(body.token)
     // ~24h ahead (RESET_LINK_TTL_SECONDS) — pin "in the future, not the 1h library default's past".
     expect(new Date(body.expiresAt).getTime()).toBeGreaterThan(Date.now() + 23 * 60 * 60 * 1000)
 

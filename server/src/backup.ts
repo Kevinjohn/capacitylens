@@ -61,7 +61,10 @@ export function parseBackupConfig(env: Record<string, string | undefined>): Back
   return {
     dir,
     intervalMin: positive(env.CAPACITYLENS_BACKUP_INTERVAL_MIN, 60),
-    keep: Math.floor(positive(env.CAPACITYLENS_BACKUP_KEEP, 48)),
+    keep: (() => {
+      const n = Number(env.CAPACITYLENS_BACKUP_KEEP)
+      return Number.isInteger(n) && n >= 1 ? n : 48
+    })(),
   }
 }
 

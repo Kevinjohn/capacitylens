@@ -1,7 +1,8 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import type { Role } from '@capacitylens/shared/domain/access'
 import { revokeResetTokensForUser } from './auth'
 import type { Db } from './db'
+import { tx } from './txn'
 
 // Server-CONTROL tables — the user↔account binding (membership + its roles) AND the single-use
 // invite links that mint such memberships (P1.9). These mirror Better Auth's own user/session/
@@ -61,7 +62,7 @@ const isKnownRole = (value: unknown): value is Role =>
  * by-`userId` index (P1.2's listAccounts: "which accounts can this login see?") and a
  * by-`accountId` index (member-management listing: "who is in this account?").
  *
- * Also creates `invites(token PK, id, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)`
+ * Also creates `invites(tokenHash PK, id, accountId, role, preauthEmail?, expiresAt, usedAt?, createdAt)`
  * (P1.9) — the single-use, expiring invite links that mint a membership on accept — with a
  * by-`accountId` index (list an account's outstanding invites). The `id` column (P1.11) is a
  * NON-SECRET handle, distinct from the bearer `token`: list/revoke key on `id` so the secret `token`
@@ -88,8 +89,8 @@ export function ensureControlTables(db: Db): void {
     CREATE INDEX IF NOT EXISTS idx_account_members_userId ON account_members(userId);
     CREATE INDEX IF NOT EXISTS idx_account_members_accountId ON account_members(accountId);
     CREATE TABLE IF NOT EXISTS invites (
-      token TEXT NOT NULL PRIMARY KEY,
-      id TEXT NOT NULL,             -- NON-SECRET handle (P1.11); list/revoke key on this, never the token
+      tokenHash TEXT NOT NULL PRIMARY KEY,
+      id TEXT NOT NULL UNIQUE,      -- NON-SECRET handle (P1.11); list/revoke key on this, never the token
       accountId TEXT NOT NULL,
       role TEXT NOT NULL,
       preauthEmail TEXT,            -- NULLABLE; P1.10 (email-preauth) uses it; P1.9 always writes NULL
@@ -97,7 +98,6 @@ export function ensureControlTables(db: Db): void {
       usedAt TEXT,                  -- NULL = unused; set once on accept (single-use)
       createdAt TEXT NOT NULL
     );
-    CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);
   `)
   // ADDITIVE column for an ALREADY-CREATED dev DB (the `invites` table is new in P1.9; the `id`
   // column is added in P1.11). A DB that already has the table from P1.9 won't get `id` from the
@@ -105,9 +105,52 @@ export function ensureControlTables(db: Db): void {
   // here — guarded by a column-exists check, mirroring schema.ts's additive ALTER idiom. SQLite
   // can't ALTER-ADD a NOT NULL column to existing rows, so it lands NULLABLE; createInvite always
   // writes a non-null id, and the rebuilt DDL above makes it NOT NULL for every fresh DB.
-  if (!inviteHasColumn(db, 'id')) {
-    db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`)
+  const legacyPlaintextInvites = inviteHasColumn(db, 'token')
+  if (!legacyPlaintextInvites && !inviteHasColumn(db, 'id')) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`)
+
+  // Migrate the original schema, which stored bearer tokens verbatim as its primary key. Rebuild
+  // rather than retaining the old column: leaving plaintext beside a new digest would not improve
+  // backup compromise. Existing nullable ids are backfilled before the NOT NULL+UNIQUE invariant is
+  // installed, so every legacy invite remains independently revocable.
+  if (legacyPlaintextInvites) {
+    tx(db, () => {
+      if (!inviteHasColumn(db, 'id')) db.exec(`ALTER TABLE invites ADD COLUMN id TEXT`)
+      // A previous interrupted pre-fix migration may have left this scratch table behind.
+      db.exec(`DROP TABLE IF EXISTS invites_new`)
+      const rows = db.prepare(`SELECT token, id FROM invites`).all() as Array<{ token: string; id: string | null }>
+      const ids = new Set<string>()
+      const replacements = rows.map((row) => {
+        let id = row.id
+        while (!id || ids.has(id)) id = newInviteId()
+        ids.add(id)
+        return { token: row.token, id }
+      })
+      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE token = ?`)
+      for (const row of replacements) updateId.run(row.id, row.token)
+      db.exec(`
+        CREATE TABLE invites_new (
+          tokenHash TEXT NOT NULL PRIMARY KEY,
+          id TEXT NOT NULL UNIQUE,
+          accountId TEXT NOT NULL,
+          role TEXT NOT NULL,
+          preauthEmail TEXT,
+          expiresAt TEXT NOT NULL,
+          usedAt TEXT,
+          createdAt TEXT NOT NULL
+        )
+      `)
+      const oldRows = db.prepare(`SELECT token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites`).all() as unknown as Array<Invite>
+      const insert = db.prepare(`INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      for (const row of oldRows) insert.run(inviteTokenHash(row.token), row.id, row.accountId, row.role, row.preauthEmail, row.expiresAt, row.usedAt, row.createdAt)
+      db.exec(`DROP TABLE invites; ALTER TABLE invites_new RENAME TO invites;`)
+    })
   }
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);`)
+}
+
+/** One-way lookup key for an invite bearer. Domain separation prevents cross-protocol reuse. */
+export function inviteTokenHash(token: string): string {
+  return createHash('sha256').update('capacitylens-invite\0').update(token).digest('base64url')
 }
 
 /** Does the `invites` table already carry `column`? Used to gate the additive ALTER above for a dev
@@ -399,10 +442,10 @@ export function createInvite(db: Db, invite: Invite): void {
     )
   }
   db.prepare(
-    `INSERT INTO invites (token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
+    `INSERT INTO invites (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
-    invite.token,
+    inviteTokenHash(invite.token),
     invite.id,
     invite.accountId,
     invite.role,
@@ -436,11 +479,10 @@ export function newInviteId(): string {
 export function getInvite(db: Db, token: string): Invite | null {
   const row = db
     .prepare(
-      `SELECT token, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites WHERE token = ?`,
+      `SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites WHERE tokenHash = ?`,
     )
-    .get(token) as
+    .get(inviteTokenHash(token)) as
     | {
-        token: string
         id: string
         accountId: string
         role: string
@@ -461,7 +503,7 @@ export function getInvite(db: Db, token: string): Invite | null {
     )
   }
   return {
-    token: row.token,
+    token,
     id: row.id,
     accountId: row.accountId,
     role: row.role,
@@ -555,7 +597,7 @@ export function looksLikeEmail(email: string): boolean {
  * @param usedAt  The ISO-8601 instant to stamp as the consumption time.
  */
 export function markInviteUsed(db: Db, token: string, usedAt: string): void {
-  db.prepare(`UPDATE invites SET usedAt = ? WHERE token = ? AND usedAt IS NULL`).run(usedAt, token)
+  db.prepare(`UPDATE invites SET usedAt = ? WHERE tokenHash = ? AND usedAt IS NULL`).run(usedAt, inviteTokenHash(token))
 }
 
 /** One row of {@link listInvitesForAccount} — an account's outstanding-invite summary for the
@@ -574,7 +616,7 @@ export interface InviteSummary {
 
 /**
  * List an account's invites for the member-management UI (P1.11) — ordered newest-first by
- * `createdAt`. CRITICAL: this NEVER selects or returns the `token` column. The token is a write-once
+ * `createdAt`. CRITICAL: this NEVER selects or returns the token digest. The token is a write-once
  * bearer secret (handed to the creator at mint time and nowhere else); returning it on this read path
  * would hand out live, role-bearing links to anyone who can list invites. list/revoke key on the
  * non-secret `id` instead.
@@ -589,7 +631,10 @@ export interface InviteSummary {
 export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[] {
   const rows = db
     .prepare(
-      // NOTE: token is intentionally ABSENT from this SELECT — it must never leave on a read path.
+      // NOTE: tokenHash is intentionally ABSENT from this SELECT — it must never leave on a read path.
+      // Used invites are LISTED (not filtered out): the member-management UI shows them with a "used"
+      // badge (MembersSection's `usedAt ? …used()` branch) so an admin can confirm an invite was
+      // consumed. Dead expired-unused links are removed separately by pruneInvites, not hidden here.
       `SELECT id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites
        WHERE accountId = ? ORDER BY createdAt DESC`,
     )
@@ -630,6 +675,14 @@ export function listInvitesForAccount(db: Db, accountId: string): InviteSummary[
  * @param accountId  The account the invite must belong to (the cross-tenant guard).
  * @param id         The non-secret invite id to revoke.
  */
-export function revokeInvite(db: Db, accountId: string, id: string): void {
-  db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId)
+export function revokeInvite(db: Db, accountId: string, id: string): number {
+  return Number(db.prepare(`DELETE FROM invites WHERE id = ? AND accountId = ?`).run(id, accountId).changes)
+}
+
+/** Remove EXPIRED, UNUSED bearer rows — dead links that can never be accepted (accept 410s past
+ *  expiry); called on invite create/list traffic. USED invites are deliberately KEPT so the members
+ *  list can still show who consumed an invite (the `usedAt` "used" badge); a used row is only removed
+ *  by an explicit revoke or when its account is erased. */
+export function pruneInvites(db: Db, now = new Date().toISOString()): number {
+  return Number(db.prepare(`DELETE FROM invites WHERE usedAt IS NULL AND expiresAt <= ?`).run(now).changes)
 }

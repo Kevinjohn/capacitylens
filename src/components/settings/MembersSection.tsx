@@ -12,6 +12,7 @@ import {
   canRemoveMember,
   type Role,
 } from '@capacitylens/shared/domain/access'
+import { apiFetch } from '../../data/requestTimeout'
 
 // Member-management section (P1.11), shown in Settings ONLY on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
@@ -161,7 +162,7 @@ export function MembersSection() {
     if (!enabled || !activeAccountId) return
     void (async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/members`, {
+        const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members`, {
           credentials: 'include',
         })
         if (res.status === 403) {
@@ -177,7 +178,7 @@ export function MembersSection() {
         setMembers(body.members)
         setGate('shown')
         // Invites are a separate, also-gated read; failure there is non-fatal to the member list.
-        const invRes = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/invites`, {
+        const invRes = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites`, {
           credentials: 'include',
         })
         if (invRes.ok) setInvites(((await invRes.json()) as { invites: InviteSummary[] }).invites)
@@ -200,7 +201,7 @@ export function MembersSection() {
   const changeRole = async (mem: Member, nextRole: Role) => {
     if (nextRole === mem.role) return
     try {
-      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
+      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -224,7 +225,7 @@ export function MembersSection() {
   // NB: the param is `mem`, NOT `m` — see changeRole above (`m` is the i18n catalogue, not a Member).
   const removeMember = async (mem: Member) => {
     try {
-      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
+      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -246,7 +247,7 @@ export function MembersSection() {
   // (the i18n catalogue). The server (transferOwnership gate) is the real backstop; this is courtesy UI.
   const transferOwnership = async (mem: Member) => {
     try {
-      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/transfer-ownership`, {
+      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/transfer-ownership`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -277,7 +278,7 @@ export function MembersSection() {
   const resetPassword = async (mem: Member) => {
     setResetLink(null)
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}/reset-password`,
         { method: 'POST', credentials: 'include' },
       )
@@ -305,7 +306,7 @@ export function MembersSection() {
     setMintedLink(null)
     const trimmed = invitePreauth.trim()
     try {
-      const res = await fetch(`${API_BASE}/api/invites`, {
+      const res = await apiFetch(`${API_BASE}/api/invites`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -332,7 +333,7 @@ export function MembersSection() {
 
   const revokeInvite = async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/api/accounts/${activeAccountId}/invites/${id}`, {
+      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       })

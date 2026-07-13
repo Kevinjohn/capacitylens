@@ -14,8 +14,9 @@ so the people who run a company need a place to grant, adjust, and revoke that a
 the database. It belongs in Settings (the existing per-company admin surface) and must be invisible to
 anyone who can't use it — a Viewer/Editor never sees it. The dangerous operations are owner-only and
 last-owner-protected so the account can never be left ownerless or have ownership quietly escalated.
-Invites reuse the P1.9 single-use link: the secret token is shown once at creation and never read
-back, so listing or revoking invites can never leak a live, role-bearing link.
+Invites reuse the P1.9 single-use link: the secret token is shown once at creation, stored only as a
+one-way hash, and never read back, so listing or revoking invites can never leak a live, role-bearing
+link.
 
 This is a **server + auth-on** feature only. In the default deploy (auth off) or local mode the
 section does not exist.
@@ -34,8 +35,10 @@ accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
    **pre-authorise email** (`data-testid="invite-preauth"`), and clicks **Create invite**
    (`data-testid="invite-submit"`). The full link `<origin>/invite/<token>` appears **once**
    (`data-testid="invite-link"`) with a **Copy** button.
-5. The new invite shows under **Outstanding invites** (`data-testid="invite-row"`); B clicks
-   **Revoke** (`data-testid="invite-revoke"`) and the row goes away.
+5. The invites list (`data-testid="invite-row"`) shows the new invite **and** the admin/editor
+   invites B and C already accepted — an accepted invite stays listed **marked used** (so an admin can
+   confirm it was taken; only an expired, unaccepted link is pruned). B clicks **Revoke**
+   (`data-testid="invite-revoke"`) on the newest and its row goes away.
 6. B never sees an **owner** option (neither in a role select nor the invite-role picker), no **Make
    owner** button on any row (transfer of ownership is owner-only), and owner A's row shows **no**
    role control, **no** Remove and **no** Reset password (an Admin can't touch an owner — see
@@ -59,8 +62,9 @@ accepted). Sign in as **B (admin)**, pick the company, dismiss the intro.
   - **Make owner** (`data-testid="member-make-owner"`) is shown to an Owner on every other, non-owner
     member's row and to nobody else; it POSTs `transfer-ownership`, atomically promoting the target to
     owner and demoting the caller to admin.
-- The invite token is shown **once** at creation (`/invite/<token>`); the outstanding-invites list
-  carries no token.
+- The invite token is shown **once** at creation (`/invite/<token>`), is stored only as a one-way
+  hash, and the invites list carries no token. Accepted (used) invites remain listed (marked *used*)
+  for admin visibility; an expired, unaccepted link is pruned.
 - The server is the backstop regardless of the UI: an Admin granting owner, touching an owner, or
   demoting/removing the last owner is **403**; creating an `owner` invite as an Admin is **403**;
   transferring ownership as a non-owner is **403**, to a non-member is **404**, and to a missing/empty

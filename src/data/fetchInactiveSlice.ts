@@ -2,6 +2,7 @@ import { migrate, KNOWN_KEYS } from '@capacitylens/shared/data/migrate'
 import type { AppData, ID } from '@capacitylens/shared/types/entities'
 import { readApiError } from '../lib/readApiError'
 import { API_BASE } from './apiConfig'
+import { apiFetch, API_BULK_TIMEOUT_MS } from './requestTimeout'
 
 // The ONE client-side reader of the purge-gated admin endpoint
 // `GET /api/state?accountId=…&includeInactive=1` (the P2.6 complete per-tenant read: archived +
@@ -61,9 +62,12 @@ export class InactiveSliceShapeError extends Error {
  * like ServerSyncAdapter.loadAll does for the same endpoint family.
  */
 export async function fetchInactiveSlice(accountId: ID): Promise<AppData> {
-  const res = await fetch(
+  const res = await apiFetch(
     `${API_BASE}/api/state?accountId=${encodeURIComponent(accountId)}&includeInactive=1`,
     { credentials: 'include' },
+    // The complete (archived + soft-deleted) slice is the heaviest read the app makes — the BULK
+    // tier, not the interactive 15s, so a large tenant's export/backup isn't aborted mid-flight.
+    API_BULK_TIMEOUT_MS,
   )
   if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res))
   const body: unknown = await res.json()

@@ -334,9 +334,11 @@ bootstrap-admin escape hatch.
 
 For headless/scripted deploys there is an escape hatch: start the daemon once with
 `--create-owner-admin-admin` (or `CAPACITYLENS_CREATE_ADMIN_ADMIN=1`) and, **only if the user
-table is empty**, it creates the owner `admin@admin.admin` with password `admin` — a
-**well-known credential**: the boot log prints a loud framed warning, and you must sign in and
-change that password immediately (Settings → Members → Reset password), then drop the flag.
+table is empty**, it creates the owner `admin@admin.admin` with a **one-time generated password**
+printed to the boot log in a loud framed warning: copy it, sign in, and change that password
+immediately (Settings → Members → Reset password), then drop the flag. (A scripted deploy that must
+know the credential up front can pin it with `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, but prefer the
+generated one — `productionGuard` warns whenever it is set under `NODE_ENV=production`.)
 With users already present the flag logs one "skipped" line and boots normally; with auth off
 or `sso` it refuses to boot (it's meaningless there).
 

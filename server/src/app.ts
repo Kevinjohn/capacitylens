@@ -74,6 +74,7 @@ import {
   newInviteId,
   normalizeEmail,
   preauthInviteAllows,
+  pruneInvites,
   removeMember,
   revokeInvite,
   upsertMember,
@@ -123,6 +124,10 @@ const CONNECTION_TIMEOUT_MS = 30_000
  *  7 days after it is minted. A short-ish default keeps a leaked/forgotten link from staying live
  *  indefinitely; a caller can shorten it via the body's `expiresAt`. */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+/** Hard ceiling for bearer lifetime even when an API caller supplies expiresAt. */
+const MAX_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+const MIN_BOOTSTRAP_TOKEN_BYTES = 32
+const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/
 
 // Fail-CLOSED CORS default: only the local Vite dev/e2e origins may make cross-origin
 // browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
@@ -402,8 +407,63 @@ function isStaleWrite(
     existing !== undefined &&
     typeof existing.updatedAt === 'string' &&
     typeof row.updatedAt === 'string' &&
-    existing.updatedAt > row.updatedAt
+    Number.isFinite(Date.parse(existing.updatedAt)) &&
+    Number.isFinite(Date.parse(row.updatedAt)) &&
+    Date.parse(existing.updatedAt) > Date.parse(row.updatedAt)
   )
+}
+
+/** The server owns persistence timestamps; request timestamps are only precondition versions. */
+function stampServerRevision(
+  row: Record<string, unknown>,
+  existing?: Record<string, unknown>,
+): Record<string, unknown> {
+  const now = nextRevision(existing?.updatedAt)
+  return {
+    ...row,
+    createdAt: typeof existing?.createdAt === 'string' ? existing.createdAt : now,
+    updatedAt: now,
+  }
+}
+
+function generatedBuiltinReplacement(
+  db: Db,
+  table: string,
+  row: Record<string, unknown>,
+): string | null {
+  if (table !== 'clients' || row.builtin !== true || typeof row.accountId !== 'string') return null
+  const generatedId = `internal:${row.accountId}`
+  return row.id !== generatedId && getRow(db, 'clients', generatedId) ? generatedId : null
+}
+
+/** Replace the deterministic auto-created Internal client with a legacy/client-supplied id
+ * without firing its ON DELETE CASCADE. Must run inside the caller's transaction. */
+function replaceGeneratedBuiltin(
+  db: Db,
+  generatedId: string,
+  row: Record<string, unknown>,
+): void {
+  const projected = loadState(db)
+  projected.clients = projected.clients.filter((client) => client.id !== generatedId)
+  projected.projects = projected.projects.map((project) =>
+    project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
+  )
+  validateWrite(projected, 'clients', row)
+
+  // Insert the new FK target first, move every dependent project, then remove the old target.
+  // The transaction makes the brief two-builtin state invisible and rolls all three phases back
+  // together on any failure.
+  upsertRow(db, 'clients', row)
+  for (const project of projected.projects.filter((project) => project.clientId === row.id)) {
+    const existing = getRow(db, 'projects', project.id)
+    if (existing?.clientId !== generatedId) continue
+    upsertRow(db, 'projects', {
+      ...project,
+      createdAt: existing.createdAt,
+      updatedAt: nextRevision(existing.updatedAt),
+    } as unknown as Record<string, unknown>)
+  }
+  deleteRow(db, 'clients', generatedId)
 }
 
 /** Produce a server-side lifecycle revision strictly newer than the stored row when possible. */
@@ -505,6 +565,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // Misconfiguration, not a request-time condition: fail at construction, loudly.
   if (authMode !== 'off' && !auth) {
     throw new Error(`buildApp: authMode '${authMode}' requires a Better Auth instance (opts.auth)`)
+  }
+  if (
+    opts.bootstrapToken &&
+    Buffer.byteLength(opts.bootstrapToken, 'utf8') < MIN_BOOTSTRAP_TOKEN_BYTES
+  ) {
+    throw new Error(`CAPACITYLENS_BOOTSTRAP_TOKEN must be at least ${MIN_BOOTSTRAP_TOKEN_BYTES} bytes.`)
   }
   // P0.5.8: build the provider-neutral session-verify port ONCE. requireUser + /api/auth/me
   // depend only on this AuthAdapter, never on Better Auth directly. In 'off' mode no adapter
@@ -808,6 +874,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     }
     reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+    reply.header('Access-Control-Expose-Headers', 'x-capacitylens-audit-warning')
     // Static allow-list: Content-Type plus the explicit account-bootstrap and first-owner setup
     // secret headers. Never reflect arbitrary requested headers on credentialed origins.
     reply.header(
@@ -830,6 +897,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!healthStmt) return { ok: true }
       try {
         healthStmt.get()
+        // Exercise the real row codecs and every table, then verify relational semantics. A
+        // trivial SELECT 1 can succeed while JSON decoding or foreign-key integrity is broken.
+        loadState(db)
+        const fkViolations = db.prepare('PRAGMA foreign_key_check').all()
+        if (fkViolations.length > 0) throw new Error('foreign-key integrity check failed')
         // P1.15: audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
         // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
         // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
@@ -1096,6 +1168,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             createdAt: now,
           })
         })
+        audit(reply, {
+          ts: now, userId: req.user!.id, accountId: id, action: 'create', entity: 'accounts', id,
+          changedFields: fieldNames(accountRow),
+        })
         return reply.code(201).send(accountRow)
       } catch (err) {
         return sendFail(reply, err)
@@ -1153,17 +1229,32 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (body.role === 'owner' && authMode !== 'off' && resolveRole(db, req.user!, body.accountId) !== 'owner') {
         return reply.code(403).send({ error: 'Only an owner can invite an owner.' })
       }
-      // Honour a caller-supplied expiresAt ONLY when it parses to a FUTURE instant; otherwise fall
-      // back to the 7-day default. A junk/past expiresAt silently degrading to the default (rather
-      // than 400) keeps a malformed value from minting a born-expired link.
-      const parsed = typeof body.expiresAt === 'string' ? Date.parse(body.expiresAt) : NaN
-      const expiresAt =
-        Number.isFinite(parsed) && parsed > Date.now()
-          ? new Date(parsed).toISOString()
-          : new Date(Date.now() + INVITE_TTL_MS).toISOString()
+      const requestedExpiry = body.expiresAt
+      const nowMs = Date.now()
+      let expiresAt: string
+      if (requestedExpiry === undefined) {
+        expiresAt = new Date(nowMs + INVITE_TTL_MS).toISOString()
+      } else {
+        if (
+          typeof requestedExpiry !== 'string' ||
+          !ISO_INSTANT_RE.test(requestedExpiry) ||
+          !Number.isFinite(Date.parse(requestedExpiry))
+        ) {
+          return reply.code(400).send({ error: 'expiresAt must be a valid ISO-8601 timestamp.' })
+        }
+        const parsed = Date.parse(requestedExpiry)
+        if (parsed <= nowMs) {
+          return reply.code(400).send({ error: 'expiresAt must be in the future.' })
+        }
+        if (parsed > nowMs + MAX_INVITE_TTL_MS) {
+          return reply.code(400).send({ error: 'Invites may be valid for at most 30 days.' })
+        }
+        expiresAt = new Date(parsed).toISOString()
+      }
       const token = randomBytes(32).toString('base64url')
       const now = new Date().toISOString()
       try {
+        pruneInvites(db, now)
         const invite: Invite = {
           token,
           // Non-secret handle (P1.11) — list/revoke key on this; the token stays write-once.
@@ -1177,6 +1268,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           createdAt: now,
         }
         createInvite(db, invite)
+        audit(reply, {
+          ts: now, userId: req.user!.id, accountId: invite.accountId, action: 'inviteCreate',
+          entity: 'invite', id: invite.id, changedFields: ['role', 'preauthEmail', 'expiresAt'],
+        })
         // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
         // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
         // already-authorised admin — it is never exposed on any read path (invites are off AppData).
@@ -1245,6 +1340,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             })
           }
           markInviteUsed(db, invite.token, now)
+        })
+        audit(reply, {
+          ts: now, userId: req.user!.id, accountId: invite.accountId, action: 'inviteAccept',
+          entity: 'membership', id: req.user!.id, changedFields: ['role'],
         })
         return reply.code(200).send({ accountId: invite.accountId, role: effectiveRole })
       } catch (err) {
@@ -1334,6 +1433,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           }
           throw claimError
         }
+        audit(reply, {
+          ts: new Date().toISOString(), userId: user.id, accountId: invite.accountId,
+          action: 'inviteAccept', entity: 'member', id: user.id, changedFields: ['role', 'status'],
+        })
         return reply.code(201).send({ ok: true, accountId: invite.accountId, role: invite.role })
       } catch (err) {
         return sendFail(reply, err)
@@ -1433,6 +1536,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           status: 'active',
           createdAt: new Date().toISOString(),
         })
+        audit(reply, {
+          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'memberRole',
+          entity: 'membership', id: userId, changedFields: ['role'],
+        })
         return reply.code(200).send({ userId, role: nextRole })
       } catch (err) {
         return sendFail(reply, err)
@@ -1459,6 +1566,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           return reply.code(403).send({ error: 'An account must keep at least one owner.' })
         }
         removeMember(db, accountId, userId)
+        audit(reply, {
+          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'memberRemove',
+          entity: 'membership', id: userId, changedFields: [],
+        })
         return reply.code(204).send()
       } catch (err) {
         return sendFail(reply, err)
@@ -1499,6 +1610,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         tx(db, () => {
           upsertMember(db, { accountId, userId: toUserId, role: 'owner', status: 'active', createdAt: now })
           upsertMember(db, { accountId, userId: req.user!.id, role: 'admin', status: 'active', createdAt: now })
+        })
+        audit(reply, {
+          ts: now, userId: req.user!.id, accountId, action: 'ownershipTransfer',
+          entity: 'membership', id: toUserId, changedFields: ['role'],
         })
         return reply.code(200).send({ toUserId, role: 'owner' })
       } catch (err) {
@@ -1560,6 +1675,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           return reply.code(404).send({ error: 'No sign-in identity found for this member.' })
         }
         const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString()
+        audit(reply, {
+          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'passwordResetIssue',
+          entity: 'identity', id: userId, changedFields: ['credential'],
+        })
         return reply.code(201).send({ token, expiresAt })
       } catch (err) {
         return sendFail(reply, err)
@@ -1572,6 +1691,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const { accountId } = req.params as { accountId: string }
       if (!authorize(req, reply, accountId, 'manageInvites')) return
       if (authMode === 'off') return { invites: [] }
+      pruneInvites(db)
       return { invites: listInvitesForAccount(db, accountId) }
     })
 
@@ -1581,7 +1701,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const { accountId, id } = req.params as { accountId: string; id: string }
       if (!authorize(req, reply, accountId, 'manageInvites')) return
       try {
-        revokeInvite(db, accountId, id) // idempotent; accountId predicate is the cross-tenant guard
+        const revoked = revokeInvite(db, accountId, id) // idempotent; accountId predicate is the cross-tenant guard
+        if (revoked > 0) audit(reply, {
+          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'inviteRevoke',
+          entity: 'invite', id, changedFields: [],
+        })
         return reply.code(204).send()
       } catch (err) {
         return sendFail(reply, err)
@@ -1730,7 +1854,24 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // Resource is the only entity carrying PII (name); scrub it on the tombstone. obfuscateResource
         // PRESERVES deletedAt/archivedAt and overrides ONLY name, so the changedFields below is exact.
         const next = entity === 'resources' ? obfuscateResource(deleted as Resource) : deleted
-        const updated = { ...slice, [entity]: slice[entity as LifecycleEntity].map((e) => (e.id === id ? next : e)) }
+        const updated = {
+          ...slice,
+          [entity]: slice[entity as LifecycleEntity].map((e) => (e.id === id ? next : e)),
+          ...(entity === 'resources'
+            ? {
+                allocations: slice.allocations.map((a) =>
+                  a.resourceId === id && a.note !== undefined
+                    ? { ...a, note: undefined, updatedAt: nextRevision(a.updatedAt) }
+                    : a,
+                ),
+                timeOff: slice.timeOff.map((t) =>
+                  t.resourceId === id && t.note !== undefined
+                    ? { ...t, note: undefined, updatedAt: nextRevision(t.updatedAt) }
+                    : t,
+                ),
+              }
+            : {}),
+        }
         replaceAccountSlice(db, accountId, updated)
         audit(reply, {
           ts: new Date().toISOString(),
@@ -1832,9 +1973,23 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
         // to preserve; they could never read back a note they authored) — see sanitizeWrite.
         const vis = noteVisibilityFor(req, entity, (req.body as { accountId?: unknown }).accountId)
-        const row = sanitizeWrite(entity, req.body as Record<string, unknown>, undefined, vis)
-        validateWrite(loadState(db), entity, row)
-        insertRow(db, entity, row)
+        const row = stampServerRevision(
+          sanitizeWrite(entity, req.body as Record<string, unknown>, undefined, vis),
+        )
+        const generatedReplacement = generatedBuiltinReplacement(db, entity, row)
+        if (generatedReplacement) {
+          tx(db, () => {
+            replaceGeneratedBuiltin(db, generatedReplacement, row)
+          })
+        } else {
+          validateWrite(loadState(db), entity, row)
+        }
+        if (entity === 'accounts') {
+          tx(db, () => {
+            insertRow(db, entity, row)
+            insertRow(db, 'clients', buildInternalClient(row.id as string, row.createdAt as string) as unknown as Record<string, unknown>)
+          })
+        } else if (!generatedReplacement) insertRow(db, entity, row)
         // P1.15 audit (post-commit). changedFields = the row's field NAMES (never values).
         audit(reply, {
           ts: new Date().toISOString(),
@@ -1917,15 +2072,30 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             current: redactNoteEcho(entity, existing, vis),
           })
         }
-        const row = sanitizeWrite(entity, body, existing, vis)
-        validateWrite(loadState(db), entity, row)
-        upsertRow(db, entity, row)
+        const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing)
+        const generatedReplacement = generatedBuiltinReplacement(db, entity, row)
+        if (entity === 'accounts' && !existing) {
+          // A company is not usable without its singleton Internal client. Commit both rows as
+          // one unit so a constraint/storage failure cannot leave a degraded company behind.
+          tx(db, () => {
+            validateWrite(loadState(db), entity, row)
+            upsertRow(db, entity, row)
+            upsertRow(db, 'clients', buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>)
+          })
+        } else if (generatedReplacement) {
+          tx(db, () => {
+            replaceGeneratedBuiltin(db, generatedReplacement, row)
+          })
+        } else {
+          validateWrite(loadState(db), entity, row)
+          upsertRow(db, entity, row)
+        }
         // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
         audit(reply, {
           ts: new Date().toISOString(),
           userId: req.user!.id,
           accountId: (body.accountId as string | undefined) ?? id,
-          action: 'update',
+          action: existing ? 'update' : 'create',
           entity,
           id,
           changedFields: fieldNames(body),
@@ -1989,8 +2159,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             error: 'Language, week start and time zone are set when the company is created and cannot be changed.',
           })
         }
-        validateWrite(loadState(db), entity, merged)
-        upsertRow(db, entity, merged)
+        if (
+          opts.optimisticConcurrency !== false &&
+          isStaleWrite(existing, req.body as Record<string, unknown>)
+        ) {
+          return reply.code(409).send({
+            error: 'The record was modified more recently on the server.',
+            current: redactNoteEcho(entity, existing, vis),
+          })
+        }
+        const stamped = stampServerRevision(merged, existing)
+        validateWrite(loadState(db), entity, stamped)
+        upsertRow(db, entity, stamped)
         // P1.15 audit (post-commit). changedFields = the PATCH req.body keys (the fields the caller
         // actually sent), NOT the merged row's keys — a patch's intent is the keys it touched.
         audit(reply, {
@@ -2004,7 +2184,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         })
         // The echo redaction (see redactNoteEcho): the merge carried the stored note into `merged`,
         // and a write response is a read — don't hand a note-blind patcher the redacted field.
-        return reply.code(200).send(redactNoteEcho(entity, merged, vis))
+        return reply.code(200).send(redactNoteEcho(entity, stamped, vis))
       } catch (err) {
         return sendFail(reply, err)
       }
@@ -2020,6 +2200,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // carry no accountId, so they delete by id.
       const { accountId } = req.query as { accountId?: string }
       try {
+        const targetExisted = Boolean(getRow(db, entity, id))
         if (isScopedTable(entity)) {
           if (accountId === undefined) {
             return reply.code(400).send({ error: 'accountId is required to delete a scoped record.' })
@@ -2048,7 +2229,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         else deleteRow(db, entity, id) // idempotent
         // P1.15 audit (post-commit). A delete carries no field set → changedFields = []. accountId
         // is the asserted owner for a scoped table, else the (accounts) row's own id.
-        audit(reply, {
+        if (targetExisted) audit(reply, {
           ts: new Date().toISOString(),
           userId: req.user!.id,
           accountId: accountId ?? id,
@@ -2187,6 +2368,24 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         noteVisCache.set(accountId, vis)
         return vis
       }
+      // Classify each op against the projected sequence, not merely the final/pre-batch DB. This
+      // makes create-vs-update audit semantics honest even when one batch touches an id twice.
+      const projectedRows = new Map<string, boolean>()
+      const auditActions = ops.map((op): 'create' | 'update' | 'delete' | null => {
+        if (typeof op?.table !== 'string' || typeof op.id !== 'string' || !isKnownTable(op.table)) return null
+        const key = `${op.table}\0${op.id}`
+        const existed = projectedRows.has(key) ? projectedRows.get(key)! : Boolean(getRow(db, op.table, op.id))
+        if (op.method === 'PUT') {
+          projectedRows.set(key, true)
+          return existed ? 'update' : 'create'
+        }
+        if (op.method === 'DELETE') {
+          projectedRows.set(key, false)
+          return existed ? 'delete' : null
+        }
+        return null
+      })
+      const revisions: Array<{ table: string; id: string; createdAt: string; updatedAt: string }> = []
       try {
         tx(db, () => {
           for (const op of ops) {
@@ -2233,14 +2432,30 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               }
               // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
               // REAL save path, so an editor's redacted round-trip lands here (see sanitizeWrite).
-              const clean = sanitizeWrite(
-                table,
-                row as Record<string, unknown>,
+              const clean = stampServerRevision(
+                sanitizeWrite(
+                  table,
+                  row as Record<string, unknown>,
+                  existing,
+                  noteVisFor(table, (row as { accountId?: unknown }).accountId),
+                ),
                 existing,
-                noteVisFor(table, (row as { accountId?: unknown }).accountId),
               )
-              validateWrite(loadState(db), table, clean)
-              upsertRow(db, table, clean)
+              const generatedReplacement = generatedBuiltinReplacement(db, table, clean)
+              if (generatedReplacement) replaceGeneratedBuiltin(db, generatedReplacement, clean)
+              else {
+                validateWrite(loadState(db), table, clean)
+                upsertRow(db, table, clean)
+              }
+              if (table === 'accounts' && !existing) {
+                upsertRow(db, 'clients', buildInternalClient(id, clean.createdAt as string) as unknown as Record<string, unknown>)
+              }
+              revisions.push({
+                table,
+                id,
+                createdAt: clean.createdAt as string,
+                updatedAt: clean.updatedAt as string,
+              })
             } else if (method === 'DELETE') {
               // Scoped deletes assert ownership (same rule as the DELETE route).
               if (isScopedTable(table)) {
@@ -2268,14 +2483,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // for a PUT = op.row's field NAMES (never values); a DELETE carries none.
         const ts = new Date().toISOString()
         let auditFailed = false
-        for (const op of ops) {
+        for (const [opIndex, op] of ops.entries()) {
+          const auditedAction = auditActions[opIndex]
+          if (auditedAction === null) continue
           const record: AuditRecord =
             op.method === 'PUT'
               ? {
                   ts,
                   userId: req.user!.id,
                   accountId: (op.row as { accountId?: string } | undefined)?.accountId ?? op.id,
-                  action: 'update',
+                  action: auditedAction,
                   entity: op.table,
                   id: op.id,
                   changedFields: fieldNames(op.row),
@@ -2292,7 +2509,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           if (!auditSink.append(record)) auditFailed = true
         }
         if (auditFailed) reply.header('x-capacitylens-audit-warning', 'true')
-        return reply.code(200).send({ ok: true, applied: ops.length, auditWarning: auditFailed })
+        return reply.code(200).send({ ok: true, applied: ops.length, revisions, auditWarning: auditFailed })
       } catch (err) {
         // Stale-write conflict (optimistic concurrency): mirror the direct PUT route's 409 +
         // `current` payload. tx() has already rolled the WHOLE batch back by the time this runs

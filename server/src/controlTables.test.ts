@@ -14,6 +14,7 @@ import {
   newInviteId,
   listInvitesForAccount,
   revokeInvite,
+  pruneInvites,
   type AccountMember,
 } from './controlTables'
 import type { Db } from './db'
@@ -45,6 +46,27 @@ describe('ensureControlTables', () => {
     const db = new DatabaseSync(':memory:')
     ensureControlTables(db)
     expect(() => ensureControlTables(db)).not.toThrow()
+  })
+
+  it('rolls back the entire plaintext-token rebuild when a legacy row cannot migrate', () => {
+    const db = new DatabaseSync(':memory:')
+    db.exec(`CREATE TABLE invites (
+      token TEXT PRIMARY KEY,
+      accountId TEXT NOT NULL,
+      role TEXT,
+      preauthEmail TEXT,
+      expiresAt TEXT NOT NULL,
+      usedAt TEXT,
+      createdAt TEXT NOT NULL
+    )`)
+    db.prepare(`INSERT INTO invites (token, accountId, role, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)`)
+      .run('still-secret', 'a1', null, '2099-01-01T00:00:00.000Z', TS)
+
+    expect(() => ensureControlTables(db as Db)).toThrow()
+    expect((db.prepare(`SELECT token FROM invites`).get() as { token: string }).token).toBe('still-secret')
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table' AND name='invites_new'`).get() as { n: number }).n).toBe(0)
+    const columns = db.prepare(`PRAGMA table_info(invites)`).all() as Array<{ name: string }>
+    expect(columns.some((column) => column.name === 'id')).toBe(false)
   })
 })
 
@@ -217,6 +239,32 @@ describe('listInvitesForAccount', () => {
 
   it('returns an empty array for an account with no invites', () => {
     expect(listInvitesForAccount(freshDb(), 'none')).toEqual([])
+  })
+
+  it('lists USED invites too — the members UI shows a consumed invite with a "used" badge', () => {
+    const db = freshDb()
+    createInvite(db, invite({ token: 'tok-used', id: 'inv-used', usedAt: TS }))
+    createInvite(db, invite({ token: 'tok-open', id: 'inv-open' })) // still unused
+    const list = listInvitesForAccount(db, 'acc-1')
+    expect(list.map((i) => i.id).sort()).toEqual(['inv-open', 'inv-used'])
+    expect(list.find((i) => i.id === 'inv-used')!.usedAt).toBe(TS)
+  })
+})
+
+describe('pruneInvites', () => {
+  const TS_EXPIRED = '2000-01-01T00:00:00.000Z'
+
+  it('deletes ONLY expired-unused links; keeps used invites and still-live invites', () => {
+    const db = freshDb()
+    createInvite(db, invite({ token: 'tok-live', id: 'inv-live' })) // unused, future expiry
+    createInvite(db, invite({ token: 'tok-used', id: 'inv-used', usedAt: TS, expiresAt: TS_EXPIRED })) // used + expired
+    createInvite(db, invite({ token: 'tok-dead', id: 'inv-dead', expiresAt: TS_EXPIRED })) // unused + expired → dead link
+
+    expect(pruneInvites(db)).toBe(1) // only the dead unused link is removed
+    expect(getInvite(db, 'tok-dead')).toBeNull()
+    // A USED invite survives pruning even when expired — the members list must still show it.
+    expect(getInvite(db, 'tok-used')).not.toBeNull()
+    expect(getInvite(db, 'tok-live')).not.toBeNull()
   })
 })
 

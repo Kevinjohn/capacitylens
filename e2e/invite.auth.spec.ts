@@ -7,10 +7,11 @@ test.use({ reducedMotion: 'reduce' })
 // P1.9 — invite accept, against the auth-backed project's server (CAPACITYLENS_AUTH=password on
 // :8887 — see playwright.config.ts). Owner A signs up, bootstraps an org (via the operator bootstrap
 // token, since the auth-e2e DB is seeded so A is not first-run), and mints an editor invite token via
-// POST /api/invites. User B then opens /invite/<token> in the browser: the login wall shows first, B
-// signs in, and the accept POST binds B as an editor — the "joined" success state. Finally we assert
-// the API-layer single-use guarantee (re-POSTing the same token is 409). Browser-agnostic (no UA
-// branching).
+// POST /api/invites. User B then opens /invite/<token> in the browser: with no session the accept
+// 401s and the invite page shows its OWN inline onboarding form (the route is deliberately carved out
+// of the login wall — see InviteAccept.tsx); B signs in there, the page reloads and the accept POST
+// binds B as an editor — the "joined" success state. Finally we assert the API-layer single-use
+// guarantee (re-POSTing the same token is 409). Browser-agnostic (no UA branching).
 
 // The auth-e2e server is SEEDED (Studio North + Loft Digital), so a fresh sign-up is not a first-run
 // bootstrap and holds no membership — /api/orgs would 403; the BOOTSTRAP_TOKEN (from ./auth-helpers)
@@ -45,19 +46,20 @@ test.describe('invite accept (CAPACITYLENS_AUTH=password)', () => {
     expect(token.length).toBeGreaterThan(0)
 
     // User B exists (sign-up is API-only; keep B's session cookie for the API reuse check below).
-    // Opening /invite/<token> in the browser hits the login wall first (the browser page has no
-    // session), then the accept runs after B signs in.
+    // Opening /invite/<token> in the browser has NO session, so the accept POST 401s and the invite
+    // page shows its OWN inline onboarding form (the route is carved out of the login wall so an
+    // invitee signs in — or creates an account — in place; see InviteAccept.tsx).
     const joinerCookie = (await signUpUser(JOINER)).cookie
     await page.goto(`/invite/${token}`)
 
-    // The auth wall: the login screen, NOT the invite page, until B signs in.
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+    // The invite page's own form (heading "Accept invite"), NOT the app login wall: B signs in here.
+    await expect(page.getByRole('heading', { name: 'Accept invite' })).toBeVisible()
     await page.getByLabel('Email').fill(JOINER)
     await page.getByLabel('Password').fill(PASSWORD)
-    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.getByRole('button', { name: 'Sign in and accept' }).click()
 
-    // After sign-in AuthProvider reloads onto the same /invite/<token> URL; the accept POST binds
-    // B as an editor and the success state renders.
+    // "Sign in and accept" signs B in and reloads onto the same /invite/<token> URL; the accept POST
+    // then binds B as an editor and the success state renders.
     await expect(page.getByText(/You’ve joined this company/)).toBeVisible()
 
     // Continue must land INSIDE the joined company, not on the picker: the accept flow refetches

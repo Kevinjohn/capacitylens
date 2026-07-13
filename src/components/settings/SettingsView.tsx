@@ -17,6 +17,7 @@ import { m } from '@/i18n'
 import type { ThemePref } from '../../lib/theme'
 import type { SchedulingMode } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { useCanEdit } from '../../auth/permissionContext'
 
 // Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
 // the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
@@ -50,7 +51,7 @@ const BAR_LABEL_OPTIONS: { key: 'showClient' | 'showProject'; label: () => strin
 ]
 
 // The on/off switch row shared by the Allocation bars and Utilisation sections.
-function ToggleRow({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
+function ToggleRow({ label, on, onToggle, disabled = false }: { label: string; on: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <div className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
       <span className="text-sm text-ink">{label}</span>
@@ -60,6 +61,7 @@ function ToggleRow({ label, on, onToggle }: { label: string; on: boolean; onTogg
         aria-checked={on}
         aria-label={label}
         onClick={onToggle}
+        disabled={disabled}
         // WCAG 2.5.8 (Target Size, AA): the switch must be ≥24×24px. h-6 (24px) hits the floor
         // exactly; w-10 keeps a balanced pill. Thumb travel is recomputed for the new geometry —
         // a 20px (h-5) thumb inset 2px (top-0.5) slides between left-0.5 (off) and left-[18px]
@@ -79,6 +81,7 @@ function ToggleRow({ label, on, onToggle }: { label: string; on: boolean; onTogg
 
 // App-level preferences, opened from the nav like the CRUD list pages.
 export function SettingsView() {
+  const canEdit = useCanEdit()
   const accounts = useStore((s) => s.data.accounts)
   const activeAccountId = useStore((s) => s.activeAccountId)
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null
@@ -170,10 +173,11 @@ export function SettingsView() {
               onChange={setName}
               invalid={errorField === 'name'}
               describedById={errorId}
+              disabled={!canEdit}
             />
             <FieldError id={errorId}>{error}</FieldError>
             <div className="flex justify-end">
-              <Button onClick={saveName} disabled={nameUnchanged}>
+              <Button onClick={saveName} disabled={!canEdit || nameUnchanged}>
                 {m.settings_save()}
               </Button>
             </div>
@@ -199,6 +203,7 @@ export function SettingsView() {
             value={schedulingMode}
             onChange={(value) => updateAccount(activeAccount.id, { schedulingMode: value })}
             options={SCHEDULING_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
+            disabled={!canEdit}
           />
         </section>
 
@@ -259,6 +264,7 @@ export function SettingsView() {
               label={m.settings_disciplines_toggle()}
               on={disciplinesEnabled}
               onToggle={() => updateAccount(activeAccount.id, { disciplinesEnabled: !disciplinesEnabled })}
+              disabled={!canEdit}
             />
           </div>
         </section>
@@ -292,6 +298,7 @@ export function SettingsView() {
               label={m.settings_placeholders_toggle()}
               on={placeholdersEnabled}
               onToggle={() => updateAccount(activeAccount.id, { placeholdersEnabled: !placeholdersEnabled })}
+              disabled={!canEdit}
             />
           </div>
         </section>
@@ -309,6 +316,7 @@ export function SettingsView() {
               label={m.settings_external_toggle()}
               on={externalEnabled}
               onToggle={() => updateAccount(activeAccount.id, { externalEnabled: !externalEnabled })}
+              disabled={!canEdit}
             />
           </div>
         </section>

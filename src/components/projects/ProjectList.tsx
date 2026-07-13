@@ -2,9 +2,18 @@ import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ProjectForm } from './ProjectForm'
-import type { Project } from '@capacitylens/shared/types/entities'
+import type { AppData, Project } from '@capacitylens/shared/types/entities'
+import { archiveImpact } from '@capacitylens/shared/domain/lifecycle'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
+
+/** Build the archive-confirm message for a project, appending the allocation-count cascade warning
+ *  when the project has active allocations that archiving would pull out of the schedule. */
+function projectArchiveMessage(data: AppData, project: Project): string {
+  const base = m.list_projects_archive_message({ name: project.name })
+  const { allocations } = archiveImpact(data, 'projects', project.id)
+  return allocations > 0 ? `${base} ${m.list_projects_archive_cascade({ allocations })}` : base
+}
 
 export function ProjectList() {
   const data = useActiveScopedData()
@@ -53,7 +62,7 @@ export function ProjectList() {
       {confirming && (
         <ConfirmDialog
           title={m.list_projects_archive_title()}
-          message={m.list_projects_archive_message({ name: confirming.name })}
+          message={projectArchiveMessage(data, confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive('projects', confirming.id)

@@ -4,6 +4,7 @@ import { useStore } from '../store/useStore'
 import { useAuth } from './authContext'
 import { PermissionContext } from './permissionContext'
 import type { Role } from '@capacitylens/shared/domain/access'
+import { requestSignal } from '../data/requestTimeout'
 
 // Client permission boundary (production plan P1.12). It resolves the caller's ROLE for the ACTIVE
 // account and provides it to the pure-`can`-driven affordance hooks (useRole / useCanEdit) so a
@@ -65,7 +66,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       // value is already null for the new account until the fetch resolves (fetchedRole is keyed below).
       setActiveRole('viewer')
       try {
-        const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include' })
+        const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include', signal: requestSignal() })
         if (!res.ok) return // fail-closed: keep the viewer projection installed above.
         // UNTRUSTED external input: validate the shape rather than trusting an `as` cast. We want the
         // entry for the ACTIVE account; anything off-spec (not an array, missing entry, bad role)

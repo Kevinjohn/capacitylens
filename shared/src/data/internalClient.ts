@@ -1,4 +1,3 @@
-import { newId } from '../lib/id'
 import type { AppData, Client, ID, ISOTimestamp } from '../types/entities'
 
 // The built-in "Internal" pseudo-client. It is a REAL, persisted {@link Client} (it carries an
@@ -38,7 +37,7 @@ export const INTERNAL_CLIENT_COLOR = '#9c3ace'
  *  id, the reserved name + colour, and the given timestamps. */
 export function buildInternalClient(accountId: ID, now: ISOTimestamp): Client {
   return {
-    id: newId(),
+    id: `internal:${accountId}`,
     accountId,
     name: INTERNAL_CLIENT_NAME,
     color: INTERNAL_CLIENT_COLOR,

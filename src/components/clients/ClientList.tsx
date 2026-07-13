@@ -3,9 +3,22 @@ import { useCrudListState } from '../../hooks/useCrudListState'
 import { isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ClientForm } from './ClientForm'
-import type { Client } from '@capacitylens/shared/types/entities'
+import type { AppData, Client } from '@capacitylens/shared/types/entities'
+import { archiveImpact } from '@capacitylens/shared/domain/lifecycle'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
+
+/** Build the archive-confirm message for a client, appending the descendant-count cascade warning
+ *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
+ *  the admin sees exactly what an archive pulls out of the schedule (counts via the pure
+ *  archiveImpact, which diffs the same activeOnly projection the view uses). */
+function clientArchiveMessage(data: AppData, client: Client): string {
+  const base = m.list_clients_archive_message({ name: client.name })
+  const { projects, allocations } = archiveImpact(data, 'clients', client.id)
+  return projects + allocations > 0
+    ? `${base} ${m.list_clients_archive_cascade({ projects, allocations })}`
+    : base
+}
 
 export function ClientList() {
   // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/repeatable
@@ -14,7 +27,8 @@ export function ClientList() {
   // selectable in ProjectForm's client picker, a "Filter by client" option in the scheduler, and a
   // Clients entry in the command palette (all of which read `useActiveScopedData().clients` directly,
   // not this view) — and a project under Internal still resolves its client label. See DECISIONS.md.
-  const clients = useActiveScopedData().clients.filter((c) => !isBuiltinClient(c))
+  const scoped = useActiveScopedData()
+  const clients = scoped.clients.filter((c) => !isBuiltinClient(c))
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions()
@@ -52,7 +66,7 @@ export function ClientList() {
       {confirming && (
         <ConfirmDialog
           title={m.list_clients_archive_title()}
-          message={m.list_clients_archive_message({ name: confirming.name })}
+          message={clientArchiveMessage(scoped, confirming)}
           confirmLabel={m.list_archive()}
           onConfirm={() => {
             void archive('clients', confirming.id)

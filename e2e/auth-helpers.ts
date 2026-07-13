@@ -18,9 +18,11 @@ export const AUTH_PASSWORD = 'demo-password-123'
  *  Sign in form, never the first-run owner-setup form (which needs a zero-user server and is
  *  covered by unit tests instead).
  *
- *  Kept as a LITERAL rather than importing server/src/auth.ts's BOOTSTRAP_ADMIN_EMAIL/PASSWORD —
- *  that module pulls in better-auth at top level, which must not enter the Playwright process.
- *  Must match those exports; a drift surfaces loudly as the bootstrap sign-in spec failing. */
+ *  Kept as a LITERAL rather than importing server/src/auth.ts (that module pulls in better-auth at
+ *  top level, which must not enter the Playwright process). The email is auth.ts's fixed
+ *  BOOTSTRAP_ADMIN_EMAIL; the password is the one start:auth-e2e pins via
+ *  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=admin (production defaults to a generated secret instead, so
+ *  this is a test-only known credential). A drift surfaces loudly as the bootstrap sign-in spec failing. */
 export const BOOTSTRAP_ADMIN = { email: 'admin@admin.admin', password: 'admin' }
 
 /** The operator bootstrap token (set in server's start:auth-e2e script). The auth-e2e DB is SEEDED,

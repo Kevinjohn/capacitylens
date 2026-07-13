@@ -180,7 +180,13 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
     return
   }
   try {
-    if (table === 'accounts' || table === 'disciplines') {
+    if (table === 'accounts') {
+      if (typeof row.name !== 'string' || row.name.trim().length === 0) {
+        throw new ValidationError('Company name is required.')
+      }
+      return
+    }
+    if (table === 'disciplines') {
       // No outbound foreign keys to validate (accounts are top-level; disciplines only
       // carry accountId, which the DB's FK enforces).
       return

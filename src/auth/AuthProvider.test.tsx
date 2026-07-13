@@ -101,7 +101,7 @@ describe('AuthProvider — server mode', () => {
       </AuthProvider>,
     )
     expect(await screen.findByText('app-content')).toBeInTheDocument()
-    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/me', { credentials: 'include' })
+    expect(fetchSpy).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({ credentials: 'include', signal: expect.any(AbortSignal) }))
   })
 
   it("authMode 'off' renders children after one credentialed /api/auth/me check", async () => {
@@ -115,7 +115,7 @@ describe('AuthProvider — server mode', () => {
       </AuthProvider>,
     )
     expect(await screen.findByText('app-content')).toBeInTheDocument()
-    expect(fetchSpy).toHaveBeenCalledWith('http://api.test/api/auth/me', { credentials: 'include' })
+    expect(fetchSpy).toHaveBeenCalledWith('http://api.test/api/auth/me', expect.objectContaining({ credentials: 'include', signal: expect.any(AbortSignal) }))
   })
 
   it('a 401 replaces the app with the login screen (password form)', async () => {
@@ -180,7 +180,7 @@ describe('AuthProvider — server mode', () => {
     expect(screen.queryByLabelText('Name')).not.toBeInTheDocument()
   })
 
-  it('an unreachable server renders the app (ConnectionError owns that failure)', async () => {
+  it('an unreachable auth server renders a retryable auth error boundary', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))))
     const { AuthProvider } = await freshProvider()
@@ -189,7 +189,7 @@ describe('AuthProvider — server mode', () => {
         <div>app-content</div>
       </AuthProvider>,
     )
-    expect(await screen.findByText('app-content')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Unable to verify your session' })).toBeInTheDocument()
   })
 
   it('re-checks on persistError and swaps to the login screen when the session is gone', async () => {
@@ -321,7 +321,7 @@ describe('AuthProvider — canCreateAccount / multiAccount (single-company-per-i
     expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
   })
 
-  it('defaults to true on a fetch failure (fail-open, mirrors the authMode-off fallback)', async () => {
+  it('fails closed on a boot-time auth fetch failure', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('ECONNREFUSED'))))
     const { AuthProvider, useAuth } = await freshProvider()
@@ -330,13 +330,10 @@ describe('AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     )
-    expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Unable to verify your session' })).toBeInTheDocument()
   })
 
-  it('defaults to true on a 401 login response too (checked once past sign-in)', async () => {
-    // The login screen itself doesn't read these fields, but the NEXT check (a fresh boot after
-    // sign-in) must still fail open if that follow-up request errors — covered by the fetch-failure
-    // case above; this pins the 200-with-off-spec-authMode branch, the OTHER fail-open path.
+  it('fails closed on a 200 response with an off-spec authMode', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => me(200, { authMode: 'bogus' })))
     const { AuthProvider, useAuth } = await freshProvider()
@@ -345,7 +342,7 @@ describe('AuthProvider — canCreateAccount / multiAccount (single-company-per-i
         <Probe useAuth={useAuth} />
       </AuthProvider>,
     )
-    expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Unable to verify your session' })).toBeInTheDocument()
   })
 
   it('refreshAuth re-asks /api/auth/me and a flipped canCreateAccount reaches consumers', async () => {

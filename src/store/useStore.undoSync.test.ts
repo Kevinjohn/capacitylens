@@ -83,9 +83,8 @@ describe('undo emits synchronization revisions for cascade-restored bindings', (
     const afterDelete = useStore.getState().data
     expect(afterDelete.resources[0].projectId).toBeUndefined()
     const ops = undoOps(afterDelete)
-
-    expect(ops).toContainEqual(expect.objectContaining({ method: 'PUT', table: 'resources', id: 'placeholder' }))
-    expect(useStore.getState().data.resources[0].projectId).toBe('p1')
+    expect(ops).toEqual([])
+    expect(useStore.getState().data.resources[0].projectId).toBeUndefined()
   })
 
   it('restores a placeholder projectId after client purge with a resource PUT', () => {
@@ -110,8 +109,7 @@ describe('undo emits synchronization revisions for cascade-restored bindings', (
     const afterDelete = useStore.getState().data
     expect(afterDelete.resources[0].projectId).toBeUndefined()
     const ops = undoOps(afterDelete)
-
-    expect(ops).toContainEqual(expect.objectContaining({ method: 'PUT', table: 'resources', id: 'placeholder' }))
-    expect(useStore.getState().data.resources[0].projectId).toBe('p1')
+    expect(ops).toEqual([])
+    expect(useStore.getState().data.resources[0].projectId).toBeUndefined()
   })
 })

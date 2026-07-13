@@ -25,9 +25,15 @@ import {
 
 const TS = '2026-01-01T00:00:00.000Z'
 const meta = () => ({ createdAt: TS, updatedAt: TS })
+const withoutRevision = <T extends object>(row: T) => {
+  const copy = { ...row } as Record<string, unknown>
+  delete copy.createdAt
+  delete copy.updatedAt
+  return copy
+}
 
 function freshApp(allowReset = true, extra: Partial<AppOptions> = {}): { app: FastifyInstance } {
-  return { app: buildApp(openDb(':memory:'), { allowReset, ...extra }) }
+  return { app: buildApp(openDb(':memory:'), { allowReset, optimisticConcurrency: false, ...extra }) }
 }
 
 const account = (id: string) => ({ id, name: 'Studio', color: '#3b82f6', ...meta() })
@@ -75,7 +81,13 @@ const del = (app: FastifyInstance, entity: string, id: string, accountId?: strin
   })
 const batch = (app: FastifyInstance, ops: unknown[]) =>
   call(app, { method: 'POST', url: '/api/batch', payload: body({ ops }) })
-const state = async (app: FastifyInstance) => (await call(app, { method: 'GET', url: '/api/state' })).json()
+const state = async (app: FastifyInstance) => {
+  const data = (await call(app, { method: 'GET', url: '/api/state' })).json()
+  // Generic account creation now guarantees its required Internal client. Most legacy CRUD tests
+  // predate that invariant and reason about the regular clients they explicitly create.
+  data.clients = data.clients.filter((c: { id: string }) => !c.id.startsWith('internal:'))
+  return data
+}
 
 /** Seed a minimal account → client → project → activity → person chain. */
 async function scaffold(app: FastifyInstance) {
@@ -122,8 +134,8 @@ describe('CRUD round-trip', () => {
     expect(s.resources).toHaveLength(1)
     expect(s.allocations).toHaveLength(1)
     // Round-trips exactly: workingDays json + omitted optionals survive.
-    expect(s.resources[0]).toEqual(person('r1', 'a1'))
-    expect(s.allocations[0]).toEqual(allocation('al1', 'a1', 'r1', 't1'))
+    expect(withoutRevision(s.resources[0])).toEqual(withoutRevision(person('r1', 'a1')))
+    expect(withoutRevision(s.allocations[0])).toEqual(withoutRevision(allocation('al1', 'a1', 'r1', 't1')))
   })
 
   it('PATCH updates fields; DELETE removes', async () => {
@@ -225,9 +237,10 @@ describe('CRUD round-trip', () => {
     expect((await put(app, 'clients', 'c1', c)).statusCode).toBe(200)
     // Replay the SAME create — must not error (the sync adapter relies on this when
     // replaying a batch after a partial failure).
-    expect((await put(app, 'clients', 'c1', c)).statusCode).toBe(200)
+    const replay = await put(app, 'clients', 'c1', c)
+    expect(replay.statusCode).toBe(200)
     // A changed body overwrites.
-    expect((await put(app, 'clients', 'c1', { ...c, name: 'Renamed' })).statusCode).toBe(200)
+    expect((await put(app, 'clients', 'c1', { ...c, updatedAt: replay.json().updatedAt, name: 'Renamed' })).statusCode).toBe(200)
     const s = await state(app)
     expect(s.clients).toHaveLength(1)
     expect(s.clients[0].name).toBe('Renamed')
@@ -439,6 +452,22 @@ describe('validation (shared domain-core) rejects bad writes with 400', () => {
 })
 
 describe('built-in Internal client is a per-account singleton on direct writes', () => {
+  it('reparents Internal projects before replacing the generated client id', async () => {
+    const { app } = freshApp()
+    await post(app, 'accounts', account('a1'))
+    await post(app, 'projects', project('p-internal', 'a1', 'internal:a1'))
+    await post(app, 'activities', activity('t-internal', 'a1', 'p-internal'))
+    await post(app, 'resources', person('r1', 'a1'))
+    await post(app, 'allocations', allocation('al1', 'a1', 'r1', 't-internal'))
+
+    const replacement = await post(app, 'clients', { ...client('legacy-internal', 'a1'), builtin: true })
+    expect(replacement.statusCode).toBe(201)
+    const snapshot = await state(app)
+    expect(snapshot.projects.find((p: { id: string }) => p.id === 'p-internal')?.clientId).toBe('legacy-internal')
+    expect(snapshot.activities.some((a: { id: string }) => a.id === 't-internal')).toBe(true)
+    expect(snapshot.allocations.some((a: { id: string }) => a.id === 'al1')).toBe(true)
+  })
+
   it('rejects a SECOND builtin client for an account (internalClientFor is first-match)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
@@ -845,6 +874,7 @@ describe('CORS allow-list', () => {
     expect(res.headers['access-control-allow-headers']).toContain('Content-Type')
     expect(res.headers['access-control-allow-headers']).toContain('x-capacitylens-bootstrap-token')
     expect(res.headers['access-control-allow-headers']).toContain('x-capacitylens-setup-token')
+    expect(res.headers['access-control-expose-headers']).toContain('x-capacitylens-audit-warning')
   })
 })
 
@@ -853,15 +883,27 @@ describe('optimistic concurrency (default-on)', () => {
     const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
     await post(app, 'accounts', account('a1'))
     // Store a client at T2.
-    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const created = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
     // A PUT carrying an OLDER updatedAt (T1) is a stale overwrite → 409.
     const stale = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' })
     expect(stale.statusCode).toBe(409)
     expect((await state(app)).clients[0].name).toBe('Acme') // not overwritten
     // A PUT at a newer time succeeds.
-    const fresh = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Fresh', updatedAt: '2026-02-03T00:00:00.000Z' })
+    const fresh = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Fresh', updatedAt: created.json().updatedAt })
     expect(fresh.statusCode).toBe(200)
     expect((await state(app)).clients[0].name).toBe('Fresh')
+  })
+
+  it('rejects a stale PATCH and accepts one carrying the current server revision', async () => {
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
+    await post(app, 'accounts', account('a1'))
+    const created = await put(app, 'clients', 'c1', client('c1', 'a1'))
+    const stale = await patch(app, 'clients', 'c1', { name: 'Stale', updatedAt: '2000-01-01T00:00:00.000Z' })
+    expect(stale.statusCode).toBe(409)
+    const fresh = await patch(app, 'clients', 'c1', { name: 'Fresh', updatedAt: created.json().updatedAt })
+    expect(fresh.statusCode).toBe(200)
+    expect(fresh.json().name).toBe('Fresh')
+    expect(Date.parse(fresh.json().updatedAt)).not.toBeNaN()
   })
 
   it('can be explicitly disabled for a trusted single-writer deployment', async () => {
@@ -880,7 +922,7 @@ describe('optimistic concurrency (default-on)', () => {
   it('batch: rejects a stale PUT op with 409 + current when enabled, rolling back the WHOLE batch', async () => {
     const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
     await post(app, 'accounts', account('a1'))
-    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const created = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
     const res = await batch(app, [
       // A fresh sibling op that would succeed alone — it must NOT survive the rollback.
       { method: 'PUT', table: 'clients', id: 'c2', row: { ...client('c2', 'a1'), updatedAt: '2026-02-03T00:00:00.000Z' } },
@@ -890,7 +932,7 @@ describe('optimistic concurrency (default-on)', () => {
     expect(res.statusCode).toBe(409)
     // The direct PUT route's exact conflict shape: a message + the stored row for client re-sync.
     expect(res.json().error).toBe('The record was modified more recently on the server.')
-    expect(res.json().current).toMatchObject({ id: 'c1', name: 'Acme', updatedAt: '2026-02-02T00:00:00.000Z' })
+    expect(res.json().current).toMatchObject({ id: 'c1', name: 'Acme', updatedAt: created.json().updatedAt })
     const s = await state(app)
     expect(s.clients.map((c: { id: string }) => c.id)).toEqual(['c1']) // c2 rolled back with the batch
     expect(s.clients[0].name).toBe('Acme') // c1 not overwritten
@@ -899,18 +941,20 @@ describe('optimistic concurrency (default-on)', () => {
   it('batch: a fresh (same/newer updatedAt) PUT op passes with the flag on', async () => {
     const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
     await post(app, 'accounts', account('a1'))
-    await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
+    const created = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
     const res = await batch(app, [
-      { method: 'PUT', table: 'clients', id: 'c1', row: { ...client('c1', 'a1'), name: 'Fresh', updatedAt: '2026-02-03T00:00:00.000Z' } },
+      { method: 'PUT', table: 'clients', id: 'c1', row: { ...client('c1', 'a1'), name: 'Fresh', updatedAt: created.json().updatedAt } },
     ])
     expect(res.statusCode).toBe(200)
+    expect(res.json().revisions).toEqual([
+      expect.objectContaining({ table: 'clients', id: 'c1', createdAt: expect.any(String), updatedAt: expect.any(String) }),
+    ])
     expect((await state(app)).clients[0].name).toBe('Fresh')
   })
 
   it('batch: same skip conditions as the direct PUT — a row with NO updatedAt is never a 409', async () => {
     // A body without updatedAt skips the concurrency compare on BOTH paths (non-string ⇒ never a
-    // conflict) and then fails the SAME NOT-NULL column constraint at write time — a 400, proving
-    // the batch mirrors the direct route exactly rather than inventing a conflict for it.
+    // conflict); the server supplies its own persistence revision on both paths.
     const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
     await post(app, 'accounts', account('a1'))
     await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
@@ -921,8 +965,8 @@ describe('optimistic concurrency (default-on)', () => {
     ])
     const viaPut = await put(app, 'clients', 'c1', { ...noStamp, name: 'NoStamp' })
     expect(viaBatch.statusCode).toBe(viaPut.statusCode) // identical semantics…
-    expect(viaBatch.statusCode).toBe(400) // …and specifically NOT a 409 conflict
-    expect((await state(app)).clients[0].name).toBe('Acme') // stored row untouched by either
+    expect(viaBatch.statusCode).toBe(200) // …and specifically NOT a 409 conflict
+    expect((await state(app)).clients[0].name).toBe('NoStamp')
   })
 
   it('batch: explicit opt-out restores last-writer-wins semantics', async () => {
@@ -1106,24 +1150,31 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     return copy
   }
 
+  function expectFixture(actual: object, expected: object) {
+    expect(withoutRevision(actual)).toEqual(withoutRevision(expected))
+    const revision = actual as { createdAt?: unknown; updatedAt?: unknown }
+    expect(Date.parse(String(revision.createdAt))).not.toBeNaN()
+    expect(Date.parse(String(revision.updatedAt))).not.toBeNaN()
+  }
+
   it('account: every field round-trips (including optional schedulingMode)', async () => {
     const { app } = freshApp()
     expect((await post(app, 'accounts', FIXTURE_ACCOUNT)).statusCode).toBe(201)
-    expect((await state(app)).accounts[0]).toEqual(FIXTURE_ACCOUNT)
+    expectFixture((await state(app)).accounts[0], FIXTURE_ACCOUNT)
   })
 
   it('client: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', FIXTURE_ACCOUNT)
     expect((await post(app, 'clients', FIXTURE_CLIENT)).statusCode).toBe(201)
-    expect((await state(app)).clients[0]).toEqual(stripTombstones(FIXTURE_CLIENT))
+    expectFixture((await state(app)).clients[0], stripTombstones(FIXTURE_CLIENT))
   })
 
   it('discipline: every field round-trips (including optional color)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', FIXTURE_ACCOUNT)
     expect((await post(app, 'disciplines', FIXTURE_DISCIPLINE)).statusCode).toBe(201)
-    expect((await state(app)).disciplines[0]).toEqual(FIXTURE_DISCIPLINE)
+    expectFixture((await state(app)).disciplines[0], FIXTURE_DISCIPLINE)
   })
 
   it('project: every field round-trips (lifecycle archivedAt/deletedAt stripped by generic writes)', async () => {
@@ -1131,7 +1182,7 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     await post(app, 'accounts', FIXTURE_ACCOUNT)
     await post(app, 'clients', FIXTURE_CLIENT)
     expect((await post(app, 'projects', FIXTURE_PROJECT)).statusCode).toBe(201)
-    expect((await state(app)).projects[0]).toEqual(stripTombstones(FIXTURE_PROJECT))
+    expectFixture((await state(app)).projects[0], stripTombstones(FIXTURE_PROJECT))
   })
 
   it('phase: every field round-trips', async () => {
@@ -1140,28 +1191,28 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     await post(app, 'clients', FIXTURE_CLIENT)
     await post(app, 'projects', FIXTURE_PROJECT)
     expect((await post(app, 'phases', FIXTURE_PHASE)).statusCode).toBe(201)
-    expect((await state(app)).phases[0]).toEqual(FIXTURE_PHASE)
+    expectFixture((await state(app)).phases[0], FIXTURE_PHASE)
   })
 
   it('resource: every field round-trips (including optional name/disciplineId/projectId + json workingDays + lifecycle archivedAt/deletedAt)', async () => {
     const { app } = freshApp()
     await seedFixtureDeps(app)
     expect((await post(app, 'resources', FIXTURE_RESOURCE)).statusCode).toBe(201)
-    expect((await state(app)).resources[0]).toEqual(stripTombstones(FIXTURE_RESOURCE))
+    expectFixture((await state(app)).resources[0], stripTombstones(FIXTURE_RESOURCE))
   })
 
   it('external resource: kind + company name round-trip (no discipline/project binding)', async () => {
     const { app } = freshApp()
     await seedFixtureDeps(app)
     expect((await post(app, 'resources', FIXTURE_RESOURCE_EXTERNAL)).statusCode).toBe(201)
-    expect((await state(app)).resources[0]).toEqual(FIXTURE_RESOURCE_EXTERNAL)
+    expectFixture((await state(app)).resources[0], FIXTURE_RESOURCE_EXTERNAL)
   })
 
   it('activity: every field round-trips (including optional projectId/phaseId)', async () => {
     const { app } = freshApp()
     await seedFixtureDeps(app)
     expect((await post(app, 'activities', FIXTURE_ACTIVITY)).statusCode).toBe(201)
-    expect((await state(app)).activities[0]).toEqual(FIXTURE_ACTIVITY)
+    expectFixture((await state(app)).activities[0], FIXTURE_ACTIVITY)
   })
 
   it('internal + repeatable activities round-trip with kind and no projectId/phaseId', async () => {
@@ -1170,8 +1221,8 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     expect((await post(app, 'activities', FIXTURE_ACTIVITY_INTERNAL)).statusCode).toBe(201)
     expect((await post(app, 'activities', FIXTURE_ACTIVITY_REPEATABLE)).statusCode).toBe(201)
     const activities = (await state(app)).activities
-    expect(activities).toContainEqual(FIXTURE_ACTIVITY_INTERNAL)
-    expect(activities).toContainEqual(FIXTURE_ACTIVITY_REPEATABLE)
+    expectFixture(activities.find((a: { id: string }) => a.id === FIXTURE_ACTIVITY_INTERNAL.id), FIXTURE_ACTIVITY_INTERNAL)
+    expectFixture(activities.find((a: { id: string }) => a.id === FIXTURE_ACTIVITY_REPEATABLE.id), FIXTURE_ACTIVITY_REPEATABLE)
   })
 
   it('allocation: every field round-trips (including optional note + json ignoreWeekends + hoursPerDay 0)', async () => {
@@ -1180,7 +1231,7 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     await post(app, 'resources', FIXTURE_RESOURCE)
     await post(app, 'activities', FIXTURE_ACTIVITY)
     expect((await post(app, 'allocations', FIXTURE_ALLOCATION)).statusCode).toBe(201)
-    expect((await state(app)).allocations[0]).toEqual(FIXTURE_ALLOCATION)
+    expectFixture((await state(app)).allocations[0], FIXTURE_ALLOCATION)
   })
 
   it('timeOff: every field round-trips (including optional note)', async () => {
@@ -1188,6 +1239,6 @@ describe('full-fixture round-trip (every optional field set; catches column-spec
     await seedFixtureDeps(app)
     await post(app, 'resources', FIXTURE_RESOURCE)
     expect((await post(app, 'timeOff', FIXTURE_TIMEOFF)).statusCode).toBe(201)
-    expect((await state(app)).timeOff[0]).toEqual(FIXTURE_TIMEOFF)
+    expectFixture((await state(app)).timeOff[0], FIXTURE_TIMEOFF)
   })
 })

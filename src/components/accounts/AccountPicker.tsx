@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
+import { apiFetch } from '../../data/requestTimeout'
 import { useStore } from '../../store/useStore'
 import { useAuth } from '../../auth/authContext'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
@@ -109,7 +110,7 @@ export function AccountPicker() {
   const createOrgOnServer = async (trimmed: string) => {
     setSubmitting(true)
     try {
-      const res = await fetch(`${API_BASE}/api/orgs`, {
+      const res = await apiFetch(`${API_BASE}/api/orgs`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -202,7 +203,7 @@ export function AccountPicker() {
     if (deleting) return
     setDeleting(true)
     try {
-      const res = await fetch(`${API_BASE}/api/accounts/${encodeURIComponent(id)}`, {
+      const res = await apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -233,7 +234,7 @@ export function AccountPicker() {
       void deleteOrgOnServer(id)
       return
     }
-    // DEMO build: the local cascade drops the account and all its scoped data (undoable via ⌘Z).
+    // DEMO build: the local cascade drops the account and all its scoped data irreversibly.
     deleteAccount(id)
     setConfirming(null)
   }

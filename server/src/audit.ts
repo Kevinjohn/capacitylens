@@ -35,6 +35,8 @@ export interface AuditRecord {
    *  tells a reversible soft-delete apart from an irreversible purge. changedFields stay field NAMES
    *  only (e.g. `['archivedAt']`, `['deletedAt','name']`) — never values (the #1 no-PII invariant). */
   action: 'create' | 'update' | 'patch' | 'delete' | 'batch' | 'import' | 'archive' | 'unarchive' | 'softDelete' | 'purge'
+    | 'memberRole' | 'memberRemove' | 'ownershipTransfer' | 'inviteCreate' | 'inviteAccept'
+    | 'inviteRevoke' | 'passwordResetIssue'
   /** The entity/table touched (e.g. 'timeOff', 'clients'), or 'account' for an import slice. */
   entity: string
   /** The affected row id (the import record uses the accountId as its id). */

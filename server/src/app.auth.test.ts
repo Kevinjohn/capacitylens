@@ -11,7 +11,6 @@ import {
   runAuthMigrations,
   AuthConfigError,
   BOOTSTRAP_ADMIN_EMAIL,
-  BOOTSTRAP_ADMIN_PASSWORD,
   DEMO_USER,
   MIN_BETTER_AUTH_SECRET_LENGTH,
   normalizeSessionUser,
@@ -279,6 +278,28 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     expect(cookiesOf(second)).not.toContain('better-auth.session_token')
   })
 
+  it('serializes concurrent first-owner sign-ups so exactly one identity is created', async () => {
+    const app = await appWithAuth(CLOSED_ENV)
+    const results = await Promise.all([
+      signUp(app, 'owner-one@capacitylens.dev'),
+      signUp(app, 'owner-two@capacitylens.dev'),
+    ])
+    expect(results.filter((res) => res.statusCode === 200)).toHaveLength(1)
+    expect(results.filter((res) => res.statusCode !== 200)).toHaveLength(1)
+  })
+
+  it('releases the bootstrap claim after success so erasing the sole identity reopens setup', async () => {
+    const db = openDb(':memory:')
+    const { mode, auth } = authFromEnv(db, CLOSED_ENV)
+    await runAuthMigrations(auth!)
+    const app = buildApp(db, { authMode: mode, auth })
+    expect((await signUp(app, 'first-owner@capacitylens.dev')).statusCode).toBe(200)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n).toBe(0)
+
+    db.exec(`DELETE FROM session; DELETE FROM account; DELETE FROM user;`)
+    expect((await signUp(app, 'replacement-owner@capacitylens.dev')).statusCode).toBe(200)
+  })
+
   it('refuses a network visitor who lacks the fresh-instance setup token', async () => {
     const app = await appWithAuth(CLOSED_ENV)
     const missing = await call(app, {
@@ -305,6 +326,17 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     const res = await signUp(app)
     expect(res.statusCode).toBe(200)
     expect(cookiesOf(res)).toContain('better-auth.session_token')
+  })
+
+  it('open signup validation failures do not touch the absent bootstrap-claim table', async () => {
+    const app = await appWithAuth({ ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+    const invalid = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'invalid@capacitylens.dev', password: 'short', name: 'Invalid' },
+    })
+    expect(invalid.statusCode).toBeGreaterThanOrEqual(400)
+    expect(invalid.statusCode).toBeLessThan(500)
   })
 
   it('keeps the library flag OFF — the live hook owns the gate (disableSignUp stays false)', () => {
@@ -334,7 +366,7 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
 })
 
 // First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1):
-// createBootstrapAdmin creates the well-known admin@admin.admin / 'admin' owner on an EMPTY user
+// createBootstrapAdmin creates admin@admin.admin with a generated password on an EMPTY user
 // table, skips (one line, not an error) when users exist, and refuses outside password mode.
 describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
   const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV }
@@ -356,19 +388,18 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
     // The warning must name the EXACT credential — an operator who can't see what to change
     // can't change it.
     const warning = lines.join('\n')
-    expect(warning).toContain('WELL-KNOWN')
+    expect(warning).toContain('password:')
     expect(warning).toContain(BOOTSTRAP_ADMIN_EMAIL)
-    expect(warning).toContain(BOOTSTRAP_ADMIN_PASSWORD)
+    expect(warning).not.toContain('password: admin')
   })
 
-  it('signs in as admin/admin on a LATER boot WITHOUT the flag (sign-in never validates length)', async () => {
-    // The load-bearing library assumption, pinned per DEFENSIVE-CODING §7: better-auth 1.6.20's
-    // sign-IN route does not check minPasswordLength (only sign-up/reset do), so the 5-char
-    // bootstrap password keeps working after a restart restores the MIN_PASSWORD_LENGTH floor.
-    // If a library upgrade adds sign-in length validation, THIS test fails — switch the bootstrap
-    // to an >=MIN_PASSWORD_LENGTH password before taking that upgrade.
+  it('signs in with the generated bootstrap password on a later boot without the flag', async () => {
     const { db, mode, auth } = await bootstrapFixture()
-    await createBootstrapAdmin(db, mode, auth, () => {})
+    const lines: string[] = []
+    await createBootstrapAdmin(db, mode, auth, (line) => lines.push(line))
+    const password = /password:\s+([^\s]+)/.exec(lines.join('\n'))?.[1]
+    expect(password).toBeTruthy()
+    expect(password!.length).toBeGreaterThanOrEqual(MIN_PASSWORD_LENGTH)
     // "Restart": a fresh instance on the SAME DB, bootstrap flag absent → floor back at the min.
     const restarted = authFromEnv(db, CLOSED_ENV)
     expect(restarted.auth!.options.emailAndPassword?.minPasswordLength).toBe(MIN_PASSWORD_LENGTH)
@@ -376,7 +407,7 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
     const signIn = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-in/email',
-      payload: { email: BOOTSTRAP_ADMIN_EMAIL, password: BOOTSTRAP_ADMIN_PASSWORD },
+      payload: { email: BOOTSTRAP_ADMIN_EMAIL, password },
     })
     expect(signIn.statusCode).toBe(200)
     expect(cookiesOf(signIn)).toContain('better-auth.session_token')
@@ -407,7 +438,7 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
     const res = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { name: 'short', email: 'short@capacitylens.dev', password: BOOTSTRAP_ADMIN_PASSWORD },
+      payload: { name: 'short', email: 'short@capacitylens.dev', password: 'admin' },
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().code).toBe('PASSWORD_TOO_SHORT')

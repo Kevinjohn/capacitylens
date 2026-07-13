@@ -75,7 +75,7 @@ async function appWithAuth(
       authMode: mode,
       auth,
       multiAccount: opts.multiAccount,
-      optimisticConcurrency: opts.optimisticConcurrency,
+      optimisticConcurrency: opts.optimisticConcurrency ?? false,
     }),
     db,
   }
@@ -281,7 +281,7 @@ describe('P1.6 time-off note redaction — owner/admin see it; editor/viewer nev
 
   it('OFF mode (trusted-local): scoped read INCLUDES the note', async () => {
     const db = openDb(':memory:')
-    const app = buildApp(db) // no authMode ⇒ OFF
+    const app = buildApp(db, { optimisticConcurrency: false }) // no authMode ⇒ OFF
     seedTwo(db)
     const res = await getState(app, 'a1') // no cookie needed in OFF
     expect(res.statusCode).toBe(200)
@@ -416,7 +416,7 @@ describe('P1.6 time-off note preservation on WRITE — a note-blind writer canno
 
   it('OFF mode (trusted-local): PUT without the note key still clears it — pre-change behaviour intact', async () => {
     const db = openDb(':memory:')
-    const app = buildApp(db) // OFF ⇒ the writer always "sees" the note
+    const app = buildApp(db, { optimisticConcurrency: false }) // OFF ⇒ the writer always "sees" the note
     seedTwo(db)
     const res = await call(app, { method: 'PUT', url: '/api/timeOff/to1', payload: stampedTimeOff() })
     expect(res.statusCode).toBe(200)
@@ -655,7 +655,7 @@ describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
 
   it('OFF mode: account update (PUT/PATCH/batch) is allow-all (no cookie, no membership)', async () => {
     const db = openDb(':memory:')
-    const app = buildApp(db) // OFF
+    const app = buildApp(db, { optimisticConcurrency: false }) // OFF
     seedTwo(db)
     expect((await putAccount(app, 'a1')).statusCode).toBe(200)
     expect((await patchAccount(app, 'a1')).statusCode).toBe(200)

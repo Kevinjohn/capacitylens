@@ -49,6 +49,15 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
 ## Persistence
 - **Debounced writes, flushed on unload** (`pagehide` + `visibilitychange→hidden`) so a tab
   close inside the debounce window doesn't drop the last edit.
+- **API deadlines are TIERED, not one 15s bound** (`requestTimeout.ts`, 2026-07-13). Interactive
+  calls (single-entity write, auth check, `/api/meta` probe) keep the fast `API_REQUEST_TIMEOUT_MS`
+  (15s). The three BULK operations — whole-slice `GET /api/state` load/hydrate, the atomic
+  `POST /api/batch` write, and the full inactive-slice export — use `API_BULK_TIMEOUT_MS` (120s):
+  a large-but-healthy tenant must not be aborted mid-flight. The batch especially — aborting an
+  in-flight batch leaves `lastSynced` un-advanced, so persist.ts retries the identical diff forever
+  (banner never clears) against a merely-slow server. The keepalive **unload flush gets NO deadline**
+  (`null` tier) — a timeout on a request meant to outlive the page is self-contradictory; the durable
+  journal is the guard. New whole-slice request paths MUST pick the bulk tier, never the 15s default.
 - **Seed once, gated on a persistent marker** (not emptiness) — clearing all data does NOT
   re-seed. Since 2026-07-04 the server boot seed is also **opt-in** (`CAPACITYLENS_SEED_DEMO=1`;
   `pnpm run dev` sets it): a fresh real server starts EMPTY at the create-your-company picker.

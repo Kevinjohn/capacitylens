@@ -31,6 +31,8 @@ describe('parseBackupConfig (fail-closed)', () => {
     expect(
       parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_INTERVAL_MIN: 'lots', CAPACITYLENS_BACKUP_KEEP: '-2' }),
     ).toEqual({ dir: '/tmp/x', intervalMin: 60, keep: 48 })
+    expect(parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_KEEP: '0.5' }))
+      .toEqual({ dir: '/tmp/x', intervalMin: 60, keep: 48 })
     expect(
       parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_INTERVAL_MIN: '15', CAPACITYLENS_BACKUP_KEEP: '4' }),
     ).toEqual({ dir: '/tmp/x', intervalMin: 15, keep: 4 })

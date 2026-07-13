@@ -10,6 +10,40 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.15.5] — 2026-07-13
+
+A fix-only round on top of the invite-token-hashing / auth rework, closing two
+`/code-review` passes (high effort, workflow-backed + independent verify).
+
+### Fixed
+
+- **Tiered API deadlines (no more slow-server sync wedge).** The rework applied one
+  15s request timeout to every API call, including the three bulk operations. Aborting an
+  in-flight `POST /api/batch` left the sync snapshot un-advanced, so the client retried the
+  identical diff forever against a merely-slow (but healthy) server and the "saving…" banner
+  never cleared. Requests are now tiered: interactive calls keep 15s; the whole-slice load,
+  the atomic batch write, and the full inactive-slice export get a 120s bulk bound; and the
+  keepalive unload flush gets no deadline at all (a timeout on a request meant to outlive the
+  page is self-contradictory — the durable write journal is the guard there).
+- **Used invites stay visible to admins.** The member-management invite list dropped used and
+  expired links, and the prune step deleted used ones, so an accepted invite vanished from the
+  admin view. Used invites now remain listed (only expired-and-unused links are pruned).
+- **Archive confirmation now spells out the cascade.** Archiving a client or project opens a
+  confirmation that names how many projects and allocations will drop out of the schedule
+  underneath it (counts derived from the same active-view projection, so they can't drift).
+- **Sign-out always returns to the login screen** — the page now reloads whether the
+  `signOut` call succeeds or fails, so a failed network call can't strand a signed-out session
+  in a logged-in-looking UI.
+- **Audit-degradation warnings surface on lifecycle actions** (the archive/restore/delete path
+  now flows through the shared `apiFetch`, which forwards the server's audit-warning header).
+- **Bootstrap admin password stays a generated secret in production.** A test-only
+  `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` override pins it for the auth e2e server; production
+  keeps the random secret, and the production guard warns if the override is ever set there.
+- Smaller hardening: `AbortSignal.any` fallback for Safari 17.0–17.3; unknown-role accounts
+  degrade to a safe default instead of disappearing; import size limit and error-recovery
+  routing (`unavailable` vs `corrupt`) corrected; MiB (not MB) import-size math; nginx body
+  limit aligned with the server cap.
+
 ## [0.15.1] — 2026-07-12
 
 A fix-only round: an external 23-finding review (21 confirmed) plus a follow-up

@@ -1,7 +1,7 @@
 import { emptyAppData, SCHEMA_VERSION } from '@capacitylens/shared/types/entities'
 import type { AppData, PersistedState } from '@capacitylens/shared/types/entities'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
-import { migrate } from '@capacitylens/shared/data/migrate'
+import { migrate, UnsupportedSchemaVersionError } from '@capacitylens/shared/data/migrate'
 
 // The canonical table keys (accounts + every scoped table), derived from emptyAppData so
 // this never drifts from the schema. A stored blob whose table is present but NOT an array
@@ -55,7 +55,7 @@ export class LocalStorageAdapter implements PersistenceAdapter {
       console.warn('LocalStorageAdapter.loadAll: reading local storage failed', e)
       throw new LoadError('unavailable', 'Local storage could not be read on this device.', { cause: e })
     }
-    if (!raw) {
+    if (raw === null) {
       this.revision = 0
       return emptyAppData()
     }
@@ -82,6 +82,13 @@ export class LocalStorageAdapter implements PersistenceAdapter {
           : 0
       return migrate(parsed)
     } catch (e) {
+      // Data written by a NEWER app version parses fine — it is NOT corrupt, and offering the
+      // StorageRecovery "reset" would DESTROY intact, recoverable data. Route it to the
+      // non-destructive retry screen ('unavailable') instead; the user recovers by updating the
+      // app (or clearing a stale cached bundle), never by wiping storage.
+      if (e instanceof UnsupportedSchemaVersionError) {
+        throw new LoadError('unavailable', e.message, { cause: e })
+      }
       throw new LoadError('corrupt', 'Stored CapacityLens data could not be parsed.', { cause: e })
     }
   }
@@ -89,8 +96,8 @@ export class LocalStorageAdapter implements PersistenceAdapter {
   async hasExisting(): Promise<boolean> {
     try {
       return localStorage.getItem(this.key) !== null
-    } catch {
-      return false
+    } catch (e) {
+      throw new LoadError('unavailable', 'Local storage could not be read on this device.', { cause: e })
     }
   }
 

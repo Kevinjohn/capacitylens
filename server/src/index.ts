@@ -126,7 +126,10 @@ function parsePort(raw: string | undefined): number {
 // value falls back to the documented 64 MiB default rather than refusing to boot.
 function parseAuditMaxMb(raw: string | undefined): number {
   const n = Number(raw)
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 64
+  // Floor a fractional value (e.g. 100.5 → 100) rather than rejecting it to the 64 MiB default: this
+  // is a fail-SOFT size bound, so honouring the operator's rounded intent beats silently shrinking
+  // the rotation size. Only a non-finite / <1 value falls back to the documented default.
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 64
 }
 
 // Safety interlock before anything opens: the test-only reset route must be impossible
@@ -168,7 +171,9 @@ const bootstrapAdmin =
 // X-Forwarded-For is only trustworthy when Nginx proxies to us on loopback (every socket
 // is then 127.0.0.1); a deliberately-exposed host (CAPACITYLENS_HOST=0.0.0.0) keys on the
 // socket address, because the header is client-spoofable there.
-const rateLimitTrustForwarded = host === '127.0.0.1' || host === 'localhost' || host === '::1'
+const rateLimitTrustForwarded =
+  process.env.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === '1' ||
+  host === '127.0.0.1' || host === 'localhost' || host === '::1'
 
 // openDb crashing is the right outcome (a broken/unopenable DB must NOT start) — frame it so the
 // operator gets one clear line, not a raw node:sqlite stack.

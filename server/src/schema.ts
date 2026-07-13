@@ -180,6 +180,28 @@ export function assertSchemaCurrent(db: Db): void {
     }
   }
   const problems: string[] = []
+  const expectedForeignKeys: Record<string, Array<[string, string, string, string]>> = {
+    clients: [['accountId', 'accounts', 'id', 'CASCADE']],
+    disciplines: [['accountId', 'accounts', 'id', 'CASCADE']],
+    projects: [['clientId', 'clients', 'id', 'CASCADE'], ['accountId', 'accounts', 'id', 'CASCADE']],
+    phases: [['projectId', 'projects', 'id', 'CASCADE'], ['accountId', 'accounts', 'id', 'CASCADE']],
+    resources: [['projectId', 'projects', 'id', 'SET NULL'], ['disciplineId', 'disciplines', 'id', 'SET NULL'], ['accountId', 'accounts', 'id', 'CASCADE']],
+    activities: [['phaseId', 'phases', 'id', 'SET NULL'], ['projectId', 'projects', 'id', 'CASCADE'], ['accountId', 'accounts', 'id', 'CASCADE']],
+    allocations: [['activityId', 'activities', 'id', 'CASCADE'], ['resourceId', 'resources', 'id', 'CASCADE'], ['accountId', 'accounts', 'id', 'CASCADE']],
+    timeOff: [['resourceId', 'resources', 'id', 'CASCADE'], ['accountId', 'accounts', 'id', 'CASCADE']],
+  }
+  const foreignKeyProblems: string[] = []
+  for (const [table, expected] of Object.entries(expectedForeignKeys)) {
+    const actual = (db.prepare(`PRAGMA foreign_key_list(${table})`).all() as Array<{
+      from: string; table: string; to: string; on_delete: string
+    }>).map((fk) => [fk.from, fk.table, fk.to, fk.on_delete] as [string, string, string, string])
+    for (const wanted of expected) {
+      if (!actual.some((got) => got.every((value, i) => value === wanted[i]))) {
+        foreignKeyProblems.push(`${table}.${wanted[0]} -> ${wanted[1]}.${wanted[2]} ON DELETE ${wanted[3]}`)
+      }
+    }
+    if (actual.length !== expected.length) foreignKeyProblems.push(`${table} has unexpected foreign-key count`)
+  }
   if (missing.length > 0) {
     problems.push(
       `missing column(s): ${missing.join(', ')} — migrateSchema auto-adds optional columns, but a ` +
@@ -192,6 +214,9 @@ export function assertSchemaCurrent(db: Db): void {
       `nullability mismatch: ${mismatched.join('; ')} — the spec's optional? flag and SCHEMA_SQL's ` +
         `NOT NULL have drifted; reconcile them (a NOT NULL change to an existing table needs a rebuild)`,
     )
+  }
+  if (foreignKeyProblems.length > 0) {
+    problems.push(`foreign-key mismatch: ${foreignKeyProblems.join('; ')}`)
   }
   if (problems.length > 0) {
     throw new Error(`DB schema is behind the current model — ${problems.join('. ')}.`)

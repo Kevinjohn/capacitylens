@@ -6,6 +6,7 @@ import { useStore, type LifecycleEntity } from '../store/useStore'
 import { errorMessage } from '../lib/errorMessage'
 import { readApiError } from '../lib/readApiError'
 import { m } from '@/i18n'
+import { apiFetch } from '../data/requestTimeout'
 
 // The SINGLE dispatch seam for the Active → Archived → Soft-deleted → Purged data-lifecycle (P2.5b),
 // shared by BOTH the management lists' Archive affordance (ResourceList/ClientList/ProjectList) and
@@ -107,7 +108,10 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return
       try {
-        const res = await fetch(`${API_BASE}/api/${entity}/${id}/${verb}`, {
+        // apiFetch (not raw fetch) so the server's `x-capacitylens-audit-warning` header on these
+        // destructive lifecycle writes is surfaced (announceAuditWarning) exactly like ordinary edits;
+        // it also attaches the shared request-timeout signal.
+        const res = await apiFetch(`${API_BASE}/api/${entity}/${id}/${verb}`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

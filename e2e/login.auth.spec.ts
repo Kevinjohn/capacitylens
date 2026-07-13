@@ -102,8 +102,9 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
   test('the --create-owner-admin-admin bootstrap credential signs in through the real form', async ({
     page,
   }) => {
-    // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 on a wiped DB, so
-    // admin@admin.admin / 'admin' exists as its first user. This proves the escape hatch
+    // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 and a pinned
+    // CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=admin on a wiped DB, so admin@admin.admin / 'admin' exists
+    // as its first user (production instead mints a generated password). This proves the escape hatch
     // end-to-end — including that the 5-char password (below the sign-UP minimum) signs IN fine
     // after boot, the assumption the whole bootstrap design rests on. A fresh bootstrap admin has
     // no memberships, so landing on the (empty) company picker past the wall is the success state.

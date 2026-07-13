@@ -1,4 +1,4 @@
-import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_PASSWORD } from './auth'
+import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from './auth'
 
 // Production-posture interlock (production plan P3.1). Once NODE_ENV=production, the
 // dev/open posture P3.1 retires must actually be retired: running with auth OFF in
@@ -55,9 +55,9 @@ export interface ProductionPostureResult {
  *   Expected when TLS terminates at a reverse proxy; flagged so a direct-HTTPS deploy notices.
  * - **Warning — open signup on:** `CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
- * - **Warning — admin/admin bootstrap on:** `CAPACITYLENS_CREATE_ADMIN_ADMIN === '1'` (the
+ * - **Warning — bootstrap-owner flag on:** `CAPACITYLENS_CREATE_ADMIN_ADMIN === '1'` (the
  *   entrypoint folds the `--create-owner-admin-admin` argv spelling into this env form before
- *   calling here) creates the WELL-KNOWN default owner credential on an empty user table — fine
+ *   calling here) creates a bootstrap owner with a generated password on an empty user table — fine
  *   as a deliberate first-boot bootstrap, but it must be surfaced loudly and retired immediately.
  *
  * The warnings are evaluated independently of the auth mode — they are production concerns in
@@ -80,6 +80,7 @@ export function evaluateProductionPosture(env: {
   CAPACITYLENS_ALLOW_OPEN_SIGNUP?: string
   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string
   CAPACITYLENS_CREATE_ADMIN_ADMIN?: string
+  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string
 }): ProductionPostureResult {
   const refusals: string[] = []
   const warnings: string[] = []
@@ -121,12 +122,20 @@ export function evaluateProductionPosture(env: {
   }
   if (env.CAPACITYLENS_CREATE_ADMIN_ADMIN === '1') {
     // A warning, not a refusal: the flag IS the documented headless first-boot bootstrap, and with
-    // users already present it is an inert no-op — but the credential it creates is well known,
+    // users already present it is an inert no-op — but a bootstrap credential is security-sensitive,
     // so a production boot must surface it every time it is set. The pair is interpolated from
     // the auth.ts exports (never restated) so this warning can't drift from what
     // createBootstrapAdmin actually creates.
     warnings.push(
-      `CAPACITYLENS_CREATE_ADMIN_ADMIN=1 (or --create-owner-admin-admin) under NODE_ENV=production creates the WELL-KNOWN default owner credential ${BOOTSTRAP_ADMIN_EMAIL} / password "${BOOTSTRAP_ADMIN_PASSWORD}" on an empty user table. Sign in and change that password immediately, then drop the flag.`,
+      `CAPACITYLENS_CREATE_ADMIN_ADMIN=1 (or --create-owner-admin-admin) under NODE_ENV=production creates bootstrap owner ${BOOTSTRAP_ADMIN_EMAIL} with a one-time generated password on an empty user table. Store the startup output securely, sign in, change the password, then drop the flag.`,
+    )
+  }
+  if (env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD) {
+    // Security-sensitive: an operator-supplied bootstrap password REPLACES the generated one
+    // createBootstrapAdmin would otherwise mint (empty user table only). Legitimate for a
+    // secrets-managed first boot, but a KNOWN admin password must be surfaced every production boot.
+    warnings.push(
+      `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD is set under NODE_ENV=production, so bootstrap owner ${BOOTSTRAP_ADMIN_EMAIL} would be created with an operator-supplied password instead of a generated one (empty user table only). Prefer the generated password; if you must pin it, source it from a secrets manager, sign in, change it, then unset this.`,
     )
   }
 

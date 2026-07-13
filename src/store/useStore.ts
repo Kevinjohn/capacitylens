@@ -512,6 +512,11 @@ export const useStore = create<StoreState>()((set, get) => {
   const mutate = (producer: (d: AppData) => AppData) =>
     set((s) => ({ data: producer(s.data), past: [...s.past, s.data].slice(-HISTORY_LIMIT), future: [] }))
 
+  // Erasure/purge actions must not leave a recoverable pre-erasure snapshot in memory. They also
+  // cannot honestly be undoable, so clear both history directions as part of the same state write.
+  const mutateIrreversible = (producer: (d: AppData) => AppData) =>
+    set((s) => ({ data: producer(s.data), past: [], future: [] }))
+
   const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
     list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x))
 
@@ -617,11 +622,15 @@ export const useStore = create<StoreState>()((set, get) => {
       )
       return e
     },
-    updateAccount: (id, patch) => mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, patch) })),
+    updateAccount: (id, patch) => {
+      if (blockedByViewer()) return
+      mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, patch) }))
+    },
     // Cascade-drop every scoped entity belonging to this account; if it was the
     // active one, fall back to the picker.
     deleteAccount: (id) => {
-      mutate((d) => deleteAccountCascade(d, id))
+      if (blockedByViewer()) return
+      mutateIrreversible((d) => deleteAccountCascade(d, id))
       // Drop it from the picker's list too (P1.13). This action now runs only in the DEMO build —
       // server-mode delete goes through the AccountPicker's dedicated DELETE /api/accounts/:id route,
       // not here — so this filter is the demo bookkeeping that keeps the picker synchronously fresh
@@ -782,12 +791,14 @@ export const useStore = create<StoreState>()((set, get) => {
 
     undo: () =>
       set((s) => {
+        if (s.activeRole === 'viewer') return {}
         if (s.past.length === 0) return {}
         const previous = prepareHistoryTarget(s.data, s.past[s.past.length - 1])
         return { data: previous, past: s.past.slice(0, -1), future: [s.data, ...s.future].slice(0, HISTORY_LIMIT) }
       }),
     redo: () =>
       set((s) => {
+        if (s.activeRole === 'viewer') return {}
         if (s.future.length === 0) return {}
         const next = prepareHistoryTarget(s.data, s.future[0])
         return { data: next, future: s.future.slice(1), past: [...s.past, s.data].slice(-HISTORY_LIMIT) }
@@ -1067,7 +1078,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // softDelete() THROWS unless the row is 'archived' (prior-archival rule). For a resource, COMPOSE
       // the shared obfuscateResource so the local tombstone carries NO original PII (the obfuscation
       // string is single-sourced from lifecycle.ts — never hand-written here).
-      mutate((d) => ({
+      mutateIrreversible((d) => ({
         ...d,
         [entity]: d[entity].map((e) => {
           if (e.id !== id) return e
@@ -1077,6 +1088,12 @@ export const useStore = create<StoreState>()((set, get) => {
             ? { ...obfuscateResource(t as Resource), updatedAt: now }
             : { ...t, updatedAt: now }
         }),
+        ...(entity === 'resources'
+          ? {
+              allocations: d.allocations.map((a) => a.resourceId === id ? { ...a, note: undefined, updatedAt: touchAfter(a.updatedAt) } : a),
+              timeOff: d.timeOff.map((t) => t.resourceId === id ? { ...t, note: undefined, updatedAt: touchAfter(t.updatedAt) } : t),
+            }
+          : {}),
       }))
     },
     purgeEntity: (entity, id) => {
@@ -1099,7 +1116,7 @@ export const useStore = create<StoreState>()((set, get) => {
       }
       // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the
       // regular delete* actions use (single-sourced from shared/lib/integrity.ts — no drift).
-      mutate((d) => {
+      mutateIrreversible((d) => {
         if (entity === 'resources') return deleteResourceCascade(d, id)
         const now = nextDataRevision(d)
         return entity === 'clients'

@@ -8,6 +8,7 @@ import { APP_NAME } from '@capacitylens/shared/brand'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import { messageForFailure } from './resetPasswordFailure'
 import { m } from '@/i18n'
+import { requestSignal } from '../data/requestTimeout'
 
 // Password-reset page (P1.18; route /reset-password/:token). The token arrives out-of-band — an
 // Owner/Admin minted it in Settings → Members and handed the link over directly (the app has no
@@ -84,6 +85,7 @@ export function ResetPassword() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword: password, token }),
+        signal: requestSignal(),
       })
       if (res.ok) {
         setState({ kind: 'done' })

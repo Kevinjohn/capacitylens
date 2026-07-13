@@ -349,6 +349,50 @@ describe('ServerSyncAdapter.saveAll', () => {
     // first batch: [c1]; coalesced second batch: [c2] only (c1 already synced).
     expect(batches).toEqual([['c1'], ['c2']])
   })
+
+  it('rebases a queued edit onto the server revision returned by the in-flight batch', async () => {
+    let resolveFirst: ((response: Response) => void) | null = null
+    let batchNumber = 0
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      batchNumber += 1
+      const current = batchNumber
+      const ops = JSON.parse(init?.body as string).ops as Array<{ table: 'clients'; id: string; row: Client }>
+      const response = () => new Response(JSON.stringify({
+        ok: true,
+        applied: ops.length,
+        revisions: ops.map((op) => ({
+          table: op.table,
+          id: op.id,
+          createdAt: '2030-01-01T00:00:00.000Z',
+          updatedAt: `2030-01-0${current}T00:00:00.000Z`,
+        })),
+      }), { status: 200 })
+      if (current === 1) return new Promise<Response>((resolve) => { resolveFirst = resolve })
+      return Promise.resolve(response())
+    }) as unknown as typeof fetch
+    const adapter = new ServerSyncAdapter('http://x', fetchImpl)
+    const first = withData({ clients: [client('c1', TS1)] })
+    const second = withData({ clients: [{ ...client('c1', TS2), name: 'Queued edit' }] })
+
+    const p1 = adapter.saveAll(first)
+    const p2 = adapter.saveAll(second)
+    resolveFirst!(new Response(JSON.stringify({
+      ok: true,
+      applied: 1,
+      revisions: [{ table: 'clients', id: 'c1', createdAt: '2030-01-01T00:00:00.000Z', updatedAt: '2030-01-01T00:00:00.000Z' }],
+    }), { status: 200 }))
+    await Promise.all([p1, p2])
+
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(2)
+    const queuedWire = batchOps(calls[1]) as unknown as Array<{ row: Client }>
+    expect(queuedWire[0].row.name).toBe('Queued edit')
+    expect(queuedWire[0].row.updatedAt).toBe('2030-01-01T00:00:00.000Z')
+    // Saving the unchanged local object again canonicalizes its acknowledged client revision and
+    // does not emit a third, timestamp-only batch.
+    await adapter.saveAll(second)
+    expect(calls).toHaveLength(2)
+  })
 })
 
 describe('atomic large diffs and unload durability', () => {
@@ -379,6 +423,35 @@ describe('atomic large diffs and unload durability', () => {
     await expect(a.saveAll(data)).rejects.toThrow(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`)
     expect(fetchImpl).not.toHaveBeenCalled()
     expect(localStorage.getItem('capacitylens/server-write-queue/v1')).toContain('c5000')
+  })
+
+  it('does NOT brick the load when the journal replay is over-limit; it presents the pending state and keeps the journal', async () => {
+    // Seed an over-limit desired state into the durable journal (the save refuses it atomically, per
+    // the test above), so a fresh session must replay it on load.
+    const desired = withData({ clients: manyClients(MAX_OPS_PER_BATCH + 1) })
+    const first = new ServerSyncAdapter('http://x', okFetch() as unknown as typeof fetch)
+    await expect(first.saveAll(desired)).rejects.toThrow(
+      `Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`,
+    )
+    expect(localStorage.getItem('capacitylens/server-write-queue/v1')).toContain('c5000')
+
+    // New session: /api/state returns the (empty) server slice, so replaying the journal is an
+    // over-limit diff. loadAll must NOT throw — rethrowing as a LoadError would strand EVERY reload on
+    // the connection-error screen for a healthy server. Instead it presents the offline desired state
+    // and KEEPS the journal for the next save to retry.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const recoveredFetch = vi.fn(async (url: string) => {
+      if (url.includes('/api/state')) return new Response(JSON.stringify(emptyAppData()), { status: 200 })
+      return commitReceipt()
+    }) as unknown as typeof fetch
+    const recovered = new ServerSyncAdapter('http://x', recoveredFetch)
+
+    const loaded = await recovered.loadAll('a1')
+
+    expect(loaded.clients).toHaveLength(MAX_OPS_PER_BATCH + 1) // the offline work is visible, not lost
+    expect(localStorage.getItem('capacitylens/server-write-queue/v1')).toContain('c5000') // journal kept
+    expect(warn).toHaveBeenCalled() // the stuck replay left a breadcrumb (DEFENSIVE-CODING §5)
+    warn.mockRestore()
   })
 
   it('does not dispatch a keepalive body over the byte budget; the journal survives teardown', async () => {

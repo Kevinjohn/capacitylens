@@ -197,9 +197,9 @@ same token-path handling — if you're wiring nginx by hand instead of through F
      row (single-use, 24 h).
 
    *Headless alternative:* start the daemon once with `--create-owner-admin-admin` (or
-   `CAPACITYLENS_CREATE_ADMIN_ADMIN=1`) to create the owner `admin@admin.admin` /
-   password `admin` on the empty user table — a **well-known credential** (the boot log
-   prints a loud framed warning): **sign in and change it immediately**, then drop the
+   `CAPACITYLENS_CREATE_ADMIN_ADMIN=1`) to create the owner `admin@admin.admin` with a
+   **one-time generated password** on the empty user table (the boot log prints it in a loud
+   framed warning): copy it, **sign in and change it immediately**, then drop the
    flag. With users already present it logs one "skipped" line and boots normally.
 
 ## 8. Verify

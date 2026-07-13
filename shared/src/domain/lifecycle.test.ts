@@ -10,6 +10,7 @@ import {
   softDelete,
   obfuscateResource,
   activeOnly,
+  archiveImpact,
   isLifecycleEntityKey,
   PURGE_MIN_AGE_DAYS,
 } from './lifecycle'
@@ -425,5 +426,63 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.resources).toEqual([])
     expect(out.clients).toEqual([])
     expect(out.projects).toEqual([])
+  })
+})
+
+describe('archiveImpact', () => {
+  const A = 'acct-1'
+  // A minimal live tree: client c1 → project p1 → project-activity a1 → allocation al1; plus an
+  // internal activity (no project) whose allocation al-internal hangs off the resource, not the
+  // client; plus time-off to1. c-empty has nothing beneath it.
+  function base(): AppData {
+    return {
+      ...emptyAppData(),
+      accounts: [{ id: A, name: 'Studio', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH }],
+      resources: [
+        { id: 'r1', accountId: A, kind: 'person', name: 'R', role: 'Dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      clients: [
+        { id: 'c1', accountId: A, name: 'C1', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'c-empty', accountId: A, name: 'Empty', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      projects: [
+        { id: 'p1', accountId: A, name: 'P1', clientId: 'c1', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      activities: [
+        { id: 'a1', accountId: A, name: 'A1', kind: 'project', projectId: 'p1', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'internal', accountId: A, name: 'Admin', kind: 'internal', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      allocations: [
+        { id: 'al1', accountId: A, resourceId: 'r1', activityId: 'a1', startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'al-internal', accountId: A, resourceId: 'r1', activityId: 'internal', startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      timeOff: [
+        { id: 'to1', accountId: A, resourceId: 'r1', startDate: '2026-02-01', endDate: '2026-02-03', type: 'holiday', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+    }
+  }
+
+  it('counts a client’s active descendants: its projects + their project-activities + allocations', () => {
+    // al-internal stays (its activity is internal, not under c1); to1 is a resource descendant.
+    expect(archiveImpact(base(), 'clients', 'c1')).toEqual({ projects: 1, activities: 1, allocations: 1, timeOff: 0 })
+  })
+
+  it('reports zero descendants for an empty client', () => {
+    expect(archiveImpact(base(), 'clients', 'c-empty')).toEqual({ projects: 0, activities: 0, allocations: 0, timeOff: 0 })
+  })
+
+  it('for a project: activities + allocations, and NEVER a self project count', () => {
+    expect(archiveImpact(base(), 'projects', 'p1')).toEqual({ projects: 0, activities: 1, allocations: 1, timeOff: 0 })
+  })
+
+  it('for a resource: all its allocations (incl. the internal-activity one) + its time off', () => {
+    expect(archiveImpact(base(), 'resources', 'r1')).toEqual({ projects: 0, activities: 0, allocations: 2, timeOff: 1 })
+  })
+
+  it('does NOT mutate the input', () => {
+    const input = base()
+    const snapshot = structuredClone(input)
+    archiveImpact(input, 'clients', 'c1')
+    expect(input).toEqual(snapshot)
   })
 })

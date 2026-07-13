@@ -340,15 +340,19 @@ account** screen instead of sign-in: heading `Create the owner account`, fields 
 (`data-testid="owner-setup-submit"`); failures show the same inline alert. Success signs the
 owner in and reloads into the normal boot flow (company picker → app). On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
-zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential
-`admin@admin.admin` / `admin`; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`), so the setup form
+zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
+/ `admin` — `admin` is PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
+production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`),
+so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
 carries a pre-set role for one company. Opening `/invite/<token>` shows the **Accept invite**
 screen (heading `Accept invite`). In a server deploy with auth on, an **unauthenticated** visit
-hits the login wall first (the `Sign in` screen above); after signing in, the app returns to the
-same `/invite/<token>` URL and the accept runs automatically — so the token survives the login.
+gets a 401 from the accept POST and the invite page shows its OWN inline onboarding form (NOT the
+app login wall): an existing user signs in with **Sign in and accept**, or a brand-new invitee
+creates a password account with **Create account and accept** (POST `/invite/:token/signup`); either
+way the page reloads onto the same `/invite/<token>` URL and the accept runs — so the token survives.
 A **valid** link binds the signed-in user to that company with the invited role and shows a
 *"You've joined this company as `<role>`"* success with a **Continue** link into the app (which
 opens the joined company directly — the accept flow refetches the account list so the brand-new

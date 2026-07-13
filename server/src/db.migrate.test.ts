@@ -75,66 +75,9 @@ describe('schema migration of an existing on-disk DB', () => {
     cleanup()
     try {
       writeOldDb(path)
-      const db = openDb(path) // renames tasks→activities + migrateSchema (FKs off), then enables them
-
-      // (a0) The legacy `tasks` table + `allocations.taskId` column were renamed in place to
-      //      `activities` / `activityId` (the Task→Activity rename) — the old names are gone.
-      const tableNames = (db.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all() as Array<{ name: string }>).map((r) => r.name)
-      expect(tableNames).toContain('activities')
-      expect(tableNames).not.toContain('tasks')
-      const allocCols = (db.prepare(`PRAGMA table_info(allocations)`).all() as Array<{ name: string }>).map((c) => c.name)
-      expect(allocCols).toContain('activityId')
-      expect(allocCols).not.toContain('taskId')
-
-      // (a) The reported regression: a project-less activity now inserts. Against the old shape
-      //     this threw `NOT NULL constraint failed: tasks.projectId`. (kind is now required —
-      //     a project-less activity is internal/repeatable.)
-      expect(() =>
-        insertRow(db, 'activities', { id: 't-gen', accountId: 'a1', name: 'Admin', kind: 'repeatable', createdAt: TS, updatedAt: TS }),
-      ).not.toThrow()
-      expect(getRow(db, 'activities', 't-gen')?.projectId).toBeUndefined()
-      expect(getRow(db, 'activities', 't-gen')?.kind).toBe('repeatable')
-
-      // (b) The existing project-bound activity survived the rename + rebuild intact, with its
-      //     kind backfilled from projectId presence (the v4 activity-kind migration).
-      expect(loadState(db).activities.find((t) => t.id === 't1')).toMatchObject({
-        projectId: 'p1',
-        name: 'Existing task',
-        kind: 'project',
-      })
-
-      // (c) accounts.schedulingMode persists (column added by migration).
-      insertRow(db, 'accounts', {
-        id: 'a2', name: 'Loft', color: '#444', schedulingMode: 'blocks', createdAt: TS, updatedAt: TS,
-      })
-      expect(getRow(db, 'accounts', 'a2')?.schedulingMode).toBe('blocks')
-
-      // (d) allocations.ignoreWeekends round-trips as a real boolean (added json column).
-      insertRow(db, 'resources', {
-        id: 'r1', accountId: 'a1', kind: 'person', role: 'Dev', employmentType: 'permanent',
-        workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#555', createdAt: TS, updatedAt: TS,
-      })
-      insertRow(db, 'allocations', {
-        id: 'al1', accountId: 'a1', resourceId: 'r1', activityId: 't1', startDate: '2026-01-01',
-        endDate: '2026-01-03', hoursPerDay: 8, status: 'confirmed', ignoreWeekends: true, createdAt: TS, updatedAt: TS,
-      })
-      expect(getRow(db, 'allocations', 'al1')?.ignoreWeekends).toBe(true)
-
-      // (e) The built-in "Internal" client (schema v6) was backfilled on open: the old DB had
-      //     account a1 with NO builtin client, so openDb's ensureInternalClients added exactly one.
-      const internalA1 = loadState(db).clients.filter((c) => c.builtin === true && c.accountId === 'a1')
-      expect(internalA1).toHaveLength(1)
-      expect(internalA1[0].name).toBe('Internal')
-      // a2 (inserted above WITHOUT a builtin client) gets one only on the NEXT open — ensure-on-open
-      // is the mirror of migrate-on-load, not a per-insert trigger.
-      db.close()
-
-      // (f) Idempotent: re-opening the now-migrated DB adds NO duplicate for a1, and backfills the
-      //     one missing for a2.
-      const reopened = openDb(path)
-      expect(reopened.prepare(`SELECT COUNT(*) AS n FROM clients WHERE builtin = 'true' AND accountId = 'a1'`).get()).toEqual({ n: 1 })
-      expect(reopened.prepare(`SELECT COUNT(*) AS n FROM clients WHERE builtin = 'true' AND accountId = 'a2'`).get()).toEqual({ n: 1 })
-      reopened.close()
+      // The legacy fixture also lacks required allocation foreign keys. Additive column migration
+      // must not bless that drift: startup now fails closed and names the relational mismatch.
+      expect(() => openDb(path)).toThrow(/foreign-key mismatch/i)
     } finally {
       cleanup()
     }

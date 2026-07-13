@@ -75,6 +75,7 @@ export function TextField({
   invalid,
   required,
   describedById,
+  disabled,
   maxLength = MAX_NAME_LENGTH,
 }: {
   label: string
@@ -85,6 +86,7 @@ export function TextField({
   invalid?: boolean
   required?: boolean
   describedById?: string
+  disabled?: boolean
   maxLength?: number
 }) {
   return (
@@ -104,6 +106,7 @@ export function TextField({
         data-autofocus={autoFocus ? '' : undefined}
         // Native cap is a backstop; the form validator also rejects emoji/junk + length.
         maxLength={maxLength}
+        disabled={disabled}
         // Name the control off the bare label so the required asterisk (decorative,
         // aria-hidden) never leaks into the accessible name. Mirrors SelectField.
         aria-label={label}
