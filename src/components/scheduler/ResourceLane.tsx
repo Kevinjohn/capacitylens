@@ -162,6 +162,7 @@ export const ResourceLane = memo(function ResourceLane({
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerup', onUp)
       document.removeEventListener('pointercancel', onCancel)
+      document.removeEventListener('keydown', onKeyDown)
       teardownRef.current = null
     }
     const onUp = (ev: PointerEvent) => {
@@ -186,9 +187,18 @@ export const ResourceLane = memo(function ResourceLane({
       detach()
       setDraw(null)
     }
+    // Keyboard escape hatch: mirrors onCancel — a draw-to-create gesture is pointer-only, so
+    // Escape is otherwise the one platform-standard "back out" gesture with no way in. Drop the
+    // ghost rather than commit whatever span was last previewed.
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return
+      detach()
+      setDraw(null)
+    }
     document.addEventListener('pointermove', onMove)
     document.addEventListener('pointerup', onUp)
     document.addEventListener('pointercancel', onCancel)
+    document.addEventListener('keydown', onKeyDown)
     teardownRef.current = detach
   }
 

@@ -46,7 +46,7 @@
     "gate": "pnpm run paraglide:compile && tsc -b && eslint . && vitest run && vite build",
     "mutation": "pnpm run paraglide:compile && stryker run",
     "test:server": "pnpm --filter capacitylens-server test",
-    "gate:server": "pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server test"
+    "gate:server": "pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server test && eslint server shared"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",

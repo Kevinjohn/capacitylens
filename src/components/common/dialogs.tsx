@@ -213,10 +213,12 @@ export function Modal({
     const markDirty = () => setDirty(true)
     // Native form controls fire input/change. Button-driven toggle controls
     // (e.g. WeekdayPicker) don't — they mutate state on click — so also treat a
-    // click on any aria-pressed toggle inside the panel as an edit. (Plain action
-    // buttons like Cancel/Save/Add aren't aria-pressed, so they don't false-flag.)
+    // click on any aria-pressed toggle, OR an ARIA radio (e.g. SegmentedControl's
+    // role="radio" options, which use aria-checked instead of aria-pressed), inside
+    // the panel as an edit. (Plain action buttons like Cancel/Save/Add are neither, so
+    // they don't false-flag.)
     const onClick = (e: Event) => {
-      if ((e.target as HTMLElement | null)?.closest('[aria-pressed]')) setDirty(true)
+      if ((e.target as HTMLElement | null)?.closest('[aria-pressed],[role="radio"]')) setDirty(true)
     }
     node.addEventListener('input', markDirty)
     node.addEventListener('change', markDirty)

@@ -57,6 +57,29 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   const listRef = useRef<HTMLDivElement>(null)
   // Ref onto the dialog panel for the Tab wrap below.
   const panelRef = useRef<HTMLDivElement>(null)
+  // Ref onto the backdrop (the palette's own root node in the shell tree) so the inert effect
+  // below can find — and later un-inert — its siblings without reaching into AppShell.
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // Unlike the entity-edit Modal (dialogs.tsx), which deliberately leaves the background NOT
+  // aria-hidden/inert (an honest reflection that its backdrop doesn't fully occlude, and Escape
+  // there can be refused by the dirty-guard), the palette has no legitimate reason to expose
+  // background content: it always fully covers the app, and Escape/backdrop-click always close it
+  // outright. Make every sibling of the palette's own root `inert` while it's mounted — this is
+  // the same primitive ResourceLane's BarsLayer uses to pull the work bars out of the tree in
+  // "Time off" mode — so keyboard Tab AND screen-reader browse-mode virtual navigation both stay
+  // inside the dialog, not just the Tab-wrap below (which only covers real Tab key presses).
+  // Restored on unmount so the app is interactive again the instant the palette closes.
+  useEffect(() => {
+    const root = rootRef.current
+    const parent = root?.parentElement
+    if (!root || !parent) return
+    const siblings = Array.from(parent.children).filter((el): el is HTMLElement => el !== root && el instanceof HTMLElement)
+    for (const el of siblings) el.inert = true
+    return () => {
+      for (const el of siblings) el.inert = false
+    }
+  }, [])
 
   // Focus restore: capture the invoker (whatever had focus when the palette opened — the ⌘K
   // press leaves it on a toolbar button, the grid, etc.) and give focus back on unmount.
@@ -93,10 +116,11 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // overlaid on obscured content, so Tab/Shift-Tab must cycle within the panel — otherwise
   // keyboard users tab out into controls they can't see. Usually the input is the only
   // focusable (cmdk options are aria-activedescendant, not tabbable), so the wrap simply
-  // keeps focus on it. Deliberately NO aria-modal: the background siblings are not
-  // aria-hidden/inert (same honesty stance as dialogs.tsx — claiming modal would tell AT
-  // browse mode the rest of the page is gone when it isn't). cmdk's own arrow/Enter handling
-  // is untouched — this listener acts on Tab only.
+  // keeps focus on it. This is belt-and-braces alongside `aria-modal` + the sibling-`inert`
+  // effect above (which already make the background unreachable to both Tab and AT browse
+  // mode) — unlike dialogs.tsx's Modal, the palette's backdrop always fully occludes the app,
+  // so there's no honesty concern with claiming a true modal here. cmdk's own arrow/Enter
+  // handling is untouched — this listener acts on Tab only.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return
@@ -183,6 +207,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   return (
     // Backdrop — click outside to close
     <div
+      ref={rootRef}
       className="fixed inset-0 z-50 flex justify-center bg-black/40 pt-[15vh] backdrop-blur-sm animate-[capacitylens-fade_0.12s_ease-out]"
       onMouseDown={(e) => {
         // Only close if the mousedown was directly on the backdrop (not bubbled)
@@ -193,9 +218,10 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
     >
       <div
         ref={panelRef}
-        // The panel is a labelled dialog so AT announces what opened; aria-modal is deliberately
-        // absent (see the Tab-wrap comment above — the background is not actually isolated).
+        // The panel is a labelled, TRUE modal dialog: aria-modal (plus the inert siblings set up
+        // above) tells AT browse mode the rest of the page really is unreachable while this is open.
         role="dialog"
+        aria-modal="true"
         aria-label={m.palette_dialog_label()}
         className="flex h-fit max-h-[60vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-elevated shadow-pop ring-1 ring-line animate-[capacitylens-pop_0.14s_ease-out]"
         onMouseDown={(e) => e.stopPropagation()}

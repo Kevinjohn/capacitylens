@@ -24,8 +24,8 @@ declare module 'fastify' {
   }
 }
 import { parseData, MAX_IMPORT_RECORDS } from '@capacitylens/shared/data/transfer'
-import type { Resource, Client, Project } from '@capacitylens/shared/types/entities'
-import { remapAndValidateImport, findOwned } from '@capacitylens/shared/domain/mutations'
+import type { AppData, Resource, Client, Project } from '@capacitylens/shared/types/entities'
+import { remapAndValidateImport, findOwned, deleteAccountCascade } from '@capacitylens/shared/domain/mutations'
 // P2.5a lifecycle wiring: the PURE state machine (transitions + the purge eligibility predicate +
 // the resource-PII scrub) and the PURE delete cascades, COMPOSED by the lifecycle routes below. The
 // server owns the clock (passes nowISO in); it never re-derives these rules — single-sourced in shared.
@@ -40,8 +40,11 @@ import {
 } from '@capacitylens/shared/domain/lifecycle'
 import {
   deleteResourceCascade,
+  deleteActivityCascade,
+  deletePhaseCascade,
   deleteProjectCascade,
   deleteClientCascade,
+  deleteDisciplineCascade,
 } from '@capacitylens/shared/lib/integrity'
 import { seed } from '@capacitylens/shared/data/seed'
 import { TABLES } from './tables'
@@ -426,28 +429,37 @@ function stampServerRevision(
   }
 }
 
+// STATE parameter, not `db`: this is a pure existence check against the caller's already-loaded
+// AppData projection (Finding 82 — see the batch handler below, which maintains that projection
+// incrementally instead of re-scanning the DB per op). Every call site now hoists ITS OWN
+// loadState(db) once and threads it through, so this never triggers a fresh read itself.
 function generatedBuiltinReplacement(
-  db: Db,
+  state: AppData,
   table: string,
   row: Record<string, unknown>,
 ): string | null {
   if (table !== 'clients' || row.builtin !== true || typeof row.accountId !== 'string') return null
   const generatedId = `internal:${row.accountId}`
-  return row.id !== generatedId && getRow(db, 'clients', generatedId) ? generatedId : null
+  return row.id !== generatedId && state.clients.some((c) => c.id === generatedId) ? generatedId : null
 }
 
 /** Replace the deterministic auto-created Internal client with a legacy/client-supplied id
- * without firing its ON DELETE CASCADE. Must run inside the caller's transaction. */
+ * without firing its ON DELETE CASCADE. Must run inside the caller's transaction.
+ * `state` is the caller's already-loaded AppData projection (see generatedBuiltinReplacement) —
+ * reused here instead of a fresh loadState(db), so a batch of many such ops stays O(1) DB scans. */
 function replaceGeneratedBuiltin(
   db: Db,
+  state: AppData,
   generatedId: string,
   row: Record<string, unknown>,
 ): void {
-  const projected = loadState(db)
-  projected.clients = projected.clients.filter((client) => client.id !== generatedId)
-  projected.projects = projected.projects.map((project) =>
-    project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
-  )
+  const projected = {
+    ...state,
+    clients: state.clients.filter((client) => client.id !== generatedId),
+    projects: state.projects.map((project) =>
+      project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
+    ),
+  }
   validateWrite(projected, 'clients', row)
 
   // Insert the new FK target first, move every dependent project, then remove the old target.
@@ -464,6 +476,66 @@ function replaceGeneratedBuiltin(
     } as unknown as Record<string, unknown>)
   }
   deleteRow(db, 'clients', generatedId)
+}
+
+/** Mirror of replaceGeneratedBuiltin's DB effect onto an in-memory AppData projection (Finding
+ *  82): swap the old auto-generated builtin client for `row`, re-pointing every project that
+ *  referenced it. Field-exact parity (e.g. bumped `updatedAt`) isn't needed here — this state
+ *  only feeds validateWrite's existence/FK checks for later ops in the same batch, never
+ *  isStaleWrite or the response echo, both of which read the real row via getRow(db, ...). */
+function applyGeneratedBuiltinReplacement(
+  state: AppData,
+  generatedId: string,
+  row: Record<string, unknown>,
+): AppData {
+  return {
+    ...state,
+    clients: state.clients
+      .filter((client) => client.id !== generatedId)
+      .concat(row as unknown as Client),
+    projects: state.projects.map((project) =>
+      project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
+    ),
+  }
+}
+
+/** Upsert one row into an in-memory AppData projection by id — the state-mirror of upsertRow,
+ *  kept in lockstep inside the batch loop so op N's validateWrite sees exactly what ops 1..N-1
+ *  wrote, without re-querying the DB for every op (Finding 82). */
+function upsertInState(state: AppData, table: string, row: Record<string, unknown>): AppData {
+  const data = state as unknown as Record<string, Array<Record<string, unknown>>>
+  const rows = data[table]
+  const idx = rows.findIndex((r) => r.id === row.id)
+  const next = idx === -1 ? [...rows, row] : rows.map((r, i) => (i === idx ? row : r))
+  return { ...state, [table]: next }
+}
+
+/** Delete-cascade an in-memory AppData projection to match the DB's ON DELETE CASCADE / SET NULL
+ *  rules (see the FK comment in server/src/tables.ts), reusing the SAME pure shared cascade
+ *  functions the purge routes already run against a real AppData slice — so this mirror can
+ *  never drift from the schema's actual cascade behaviour. `allocations`/`timeOff` have no
+ *  dependents, so a plain filter is the whole cascade for those two. */
+function deleteFromState(state: AppData, table: string, id: string): AppData {
+  switch (table) {
+    case 'resources':
+      return deleteResourceCascade(state, id)
+    case 'activities':
+      return deleteActivityCascade(state, id)
+    case 'phases':
+      return deletePhaseCascade(state, id)
+    case 'projects':
+      return deleteProjectCascade(state, id)
+    case 'clients':
+      return deleteClientCascade(state, id)
+    case 'disciplines':
+      return deleteDisciplineCascade(state, id)
+    case 'allocations':
+      return { ...state, allocations: state.allocations.filter((a) => a.id !== id) }
+    case 'timeOff':
+      return { ...state, timeOff: state.timeOff.filter((t) => t.id !== id) }
+    default:
+      return state
+  }
 }
 
 /** Produce a server-side lifecycle revision strictly newer than the stored row when possible. */
@@ -1976,13 +2048,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const row = stampServerRevision(
           sanitizeWrite(entity, req.body as Record<string, unknown>, undefined, vis),
         )
-        const generatedReplacement = generatedBuiltinReplacement(db, entity, row)
+        // Loaded ONCE and threaded through both the builtin-replacement check and validateWrite,
+        // rather than each independently re-scanning every table (Finding 82's fix applied here too).
+        const state = loadState(db)
+        const generatedReplacement = generatedBuiltinReplacement(state, entity, row)
         if (generatedReplacement) {
           tx(db, () => {
-            replaceGeneratedBuiltin(db, generatedReplacement, row)
+            replaceGeneratedBuiltin(db, state, generatedReplacement, row)
           })
         } else {
-          validateWrite(loadState(db), entity, row)
+          validateWrite(state, entity, row)
         }
         if (entity === 'accounts') {
           tx(db, () => {
@@ -2073,21 +2148,25 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           })
         }
         const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing)
-        const generatedReplacement = generatedBuiltinReplacement(db, entity, row)
+        // Loaded ONCE and threaded through the builtin-replacement check and both validateWrite
+        // branches below, rather than each independently re-scanning every table (same fix as
+        // the batch handler's Finding 82, applied here for consistency).
+        const state = loadState(db)
+        const generatedReplacement = generatedBuiltinReplacement(state, entity, row)
         if (entity === 'accounts' && !existing) {
           // A company is not usable without its singleton Internal client. Commit both rows as
           // one unit so a constraint/storage failure cannot leave a degraded company behind.
           tx(db, () => {
-            validateWrite(loadState(db), entity, row)
+            validateWrite(state, entity, row)
             upsertRow(db, entity, row)
             upsertRow(db, 'clients', buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>)
           })
         } else if (generatedReplacement) {
           tx(db, () => {
-            replaceGeneratedBuiltin(db, generatedReplacement, row)
+            replaceGeneratedBuiltin(db, state, generatedReplacement, row)
           })
         } else {
-          validateWrite(loadState(db), entity, row)
+          validateWrite(state, entity, row)
           upsertRow(db, entity, row)
         }
         // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
@@ -2388,6 +2467,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const revisions: Array<{ table: string; id: string; createdAt: string; updatedAt: string }> = []
       try {
         tx(db, () => {
+          // Finding 82: loadState(db) is a SELECT * across every table — hoisted ONCE here
+          // instead of once PER OP (a batch of MAX_BATCH_OPS could otherwise force 5 000 full-DB
+          // scans in one transaction). `state` is then advanced in lockstep with every write
+          // below (upsertInState / applyGeneratedBuiltinReplacement / deleteFromState /
+          // deleteAccountCascade) so op N still validates against EXACTLY the state ops 1..N-1
+          // produced — validateWrite reads cross-table refs (assertScopedRefs,
+          // assertAllocationRefs, assertResourceExists), so the projection must track every
+          // scoped table, not just the one each op touches.
+          let state = loadState(db)
           for (const op of ops) {
             const { method, table, id } = op
             if (typeof table !== 'string' || typeof id !== 'string') {
@@ -2441,14 +2529,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                 ),
                 existing,
               )
-              const generatedReplacement = generatedBuiltinReplacement(db, table, clean)
-              if (generatedReplacement) replaceGeneratedBuiltin(db, generatedReplacement, clean)
-              else {
-                validateWrite(loadState(db), table, clean)
+              const generatedReplacement = generatedBuiltinReplacement(state, table, clean)
+              if (generatedReplacement) {
+                replaceGeneratedBuiltin(db, state, generatedReplacement, clean)
+                state = applyGeneratedBuiltinReplacement(state, generatedReplacement, clean)
+              } else {
+                validateWrite(state, table, clean)
                 upsertRow(db, table, clean)
+                state = upsertInState(state, table, clean)
               }
               if (table === 'accounts' && !existing) {
-                upsertRow(db, 'clients', buildInternalClient(id, clean.createdAt as string) as unknown as Record<string, unknown>)
+                const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<string, unknown>
+                upsertRow(db, 'clients', internalClient)
+                state = upsertInState(state, 'clients', internalClient)
               }
               revisions.push({
                 table,
@@ -2469,8 +2562,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               // P2.6b: an account DELETE in the batch is a TENANT ERASURE (control tables + Better Auth
               // PII), same as the direct route. We are ALREADY inside tx() here, so call eraseAccountInTx
               // (NOT eraseAccount — node:sqlite has no nested BEGIN). Scoped deletes stay plain deleteRow.
-              if (table === 'accounts') eraseAccountInTx(db, id)
-              else deleteRow(db, table, id)
+              // Either way, mirror the DB's FK cascade into `state` (deleteAccountCascade /
+              // deleteFromState) so a later op in the SAME batch validates against the post-cascade
+              // truth, not a stale pre-delete snapshot (Finding 82).
+              if (table === 'accounts') {
+                eraseAccountInTx(db, id)
+                state = deleteAccountCascade(state, id)
+              } else {
+                deleteRow(db, table, id)
+                state = deleteFromState(state, table, id)
+              }
             } else {
               throw new ValidationError(`Unknown op method: ${String(method)}`)
             }

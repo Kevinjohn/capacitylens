@@ -1110,7 +1110,9 @@ export const useStore = create<StoreState>()((set, get) => {
       // Enforce the grace window: canPurge is false unless this is a soft-deleted tombstone aged at
       // least PURGE_MIN_AGE_DAYS. A refused purge is a gated affordance, NOT corruption — surface a
       // notice and no-op rather than throw (the throw idiom is reserved for tenancy/integrity bugs).
-      if (!canPurge(existing, todayISO())) {
+      // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would let
+      // the client stay up to ~24h more conservative than the server's own boundary check.
+      if (!canPurge(existing, new Date().toISOString())) {
         get().setNotice(m.notice_purge_grace_window({ days: PURGE_MIN_AGE_DAYS }), 'error')
         return
       }

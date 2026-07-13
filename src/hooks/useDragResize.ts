@@ -81,6 +81,7 @@ export function useDragResize(args: UseDragResizeArgs) {
       document.removeEventListener('pointermove', onMove)
       document.removeEventListener('pointerup', onUp)
       document.removeEventListener('pointercancel', onCancel)
+      document.removeEventListener('keydown', onKeyDown)
       teardownRef.current = null
     }
     const onUp = (ev: PointerEvent) => {
@@ -105,10 +106,20 @@ export function useDragResize(args: UseDragResizeArgs) {
       // listener for every twitch-then-browser-scroll, accumulating across gestures.
       argsRef.current.onCancel?.()
     }
+    // Keyboard escape hatch: a pointer-only gesture has no way to back out once armed (a
+    // resize/move drag has no native "cancel" gesture). Escape mirrors onCancel's teardown
+    // (detach, then the consumer's cancel hook) rather than committing whatever the last
+    // preview was.
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key !== 'Escape') return
+      detach()
+      argsRef.current.onCancel?.()
+    }
 
     document.addEventListener('pointermove', onMove)
     document.addEventListener('pointerup', onUp)
     document.addEventListener('pointercancel', onCancel)
+    document.addEventListener('keydown', onKeyDown)
     teardownRef.current = detach
     return true
   }, [])

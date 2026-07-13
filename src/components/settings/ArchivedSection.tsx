@@ -14,7 +14,6 @@ import { Button, ConfirmDialog } from '../common/ui'
 import { m } from '@/i18n'
 import { can } from '@capacitylens/shared/domain/access'
 import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from '@capacitylens/shared/domain/lifecycle'
-import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import type { AppData, Client, Project, Resource } from '@capacitylens/shared/types/entities'
 
 // Settings → "Archived & deleted" — the client-admin view of the data-lifecycle (P2.5b), the
@@ -203,7 +202,9 @@ export function ArchivedSection() {
           <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_deleted()}</h3>
           <div className="divide-y divide-line">
             {deleted.map((r) => {
-              const purgeable = canPurge(r.raw, todayISO())
+              // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would
+              // let the client stay up to ~24h more conservative than the server's own boundary check.
+              const purgeable = canPurge(r.raw, new Date().toISOString())
               // The "locked" hint only renders (and is only referenced) while the purge button is
               // disabled, so a screen reader hears WHY it can't act yet, not just the button name.
               const hintId = `${hintBaseId}-${r.entity}-${r.id}`

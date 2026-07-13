@@ -60,6 +60,27 @@ export default defineConfig([
     },
   },
 
+  // Type-aware linting for server + shared (Finding 110): these packages previously got Node
+  // globals only (see the plain block above), never a typed parser — so an un-awaited DB write
+  // or Fastify handler promise (e.g. a forgotten `await`/`void` on a route callback) had no rule
+  // able to catch it. Scoped to each package's OWN `src/`, mirroring the app block above, because
+  // that's exactly what server/tsconfig.json and shared/tsconfig.json `include` — a root-level
+  // file like server/vitest.config.ts or shared/vitest.config.ts belongs to neither project, and
+  // projectService errors on a file it can't place in any program.
+  {
+    files: ['server/src/**/*.ts', 'shared/src/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+    },
+  },
+
   // Generated shadcn/ui primitives live here. They legitimately co-export
   // non-component values (variant maps, etc.), which trips the Fast-Refresh
   // rule; turn it off for generated files only, not hand-written components.
