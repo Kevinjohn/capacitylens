@@ -298,7 +298,7 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
     expect((await redeem(app, token, 'attacker-owner-password')).statusCode).toBe(400)
   })
 
-  it('TOCTOU via INVITE-ACCEPT: accepting an owner invite burns an outstanding reset link (no single-account bypass)', async () => {
+  it('accepting an owner invite preserves an existing editor role and its outstanding reset link', async () => {
     const { app, db } = await appWith(PASSWORD_ENV)
     seedAccount(db, 'a1')
     const owner = await member(app, db, 'a1', 'owner@capacitylens.dev', 'owner')
@@ -307,8 +307,8 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
     // Admin-issued link minted while the target is an editor (allowed).
     const token = ((await mint(app, 'a1', editor.userId, owner.cookie)).json() as { token: string }).token
 
-    // The owner mints an OWNER invite (owner-only) and the editor accepts it — promoting the editor
-    // to owner IN PLACE (upsertMember ON CONFLICT), a path the old per-call-site revoke missed.
+    // An invite is an onboarding capability, not an alternate role-management route. Accepting it
+    // must consume the invite without changing the editor's existing membership.
     const inviteRes = await call(app, {
       method: 'POST',
       url: '/api/invites',
@@ -323,10 +323,11 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
       headers: { cookie: editor.cookie },
     })
     expect(accept.statusCode).toBe(200)
+    expect(accept.json()).toMatchObject({ role: 'editor' })
 
-    // The pre-promotion reset link must be dead — it can't redeem into the now-owner identity.
-    expect((await redeem(app, token, 'attacker-owner-password')).statusCode).toBe(400)
-    expect((await signIn(app, 'editor@capacitylens.dev', PASSWORD)).statusCode).toBe(200)
+    // No privilege change occurred, so the editor-scoped reset capability remains valid.
+    expect((await redeem(app, token, 'new-editor-password')).statusCode).toBe(200)
+    expect((await signIn(app, 'editor@capacitylens.dev', 'new-editor-password')).statusCode).toBe(200)
   })
 
   it('TOCTOU via ORG-CREATE: becoming the owner of a new account burns an outstanding reset link', async () => {

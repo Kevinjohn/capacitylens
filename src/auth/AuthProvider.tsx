@@ -226,6 +226,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // visitor onto React Router's bare 404 dead-end; failing the match here instead keeps the login
     // wall as the fallback (a styled screen with a way in), which is the safer degrade.
     if (/^\/reset-password\/[^/]+$/.test(window.location.pathname)) return <>{children}</>
+    // Password invite onboarding must render before a session exists: the invite page either signs
+    // in an existing identity and accepts, or uses the invite-authorized credential-create endpoint
+    // that atomically creates the identity, binds membership, and consumes the token.
+    if (
+      status.authMode === 'password' &&
+      /^\/invite\/[^/]+$/.test(window.location.pathname)
+    ) return <>{children}</>
     return (
       <Suspense fallback={null}>
         {/* Reload on success: bootstrap already ran (and 401ed) without a session, so a

@@ -237,7 +237,7 @@ describe('account-switch orchestrator (P1.13, server mode)', () => {
       // /api/batch — capture the ops carried on the wire.
       const body = JSON.parse(String(init?.body)) as { ops: Wire['ops'] }
       wire.push({ url: u, ops: body.ops })
-      return new Response('{}', { status: 200 })
+      return new Response(JSON.stringify({ ok: true, applied: body.ops?.length ?? 0 }), { status: 200 })
     })
     const adapter = new ServerSyncAdapter('http://api.test', fetchImpl as unknown as typeof fetch)
 
@@ -279,12 +279,7 @@ describe('account-switch orchestrator (P1.13, server mode)', () => {
     detach()
   })
 
-  it('an edit landing WHILE a switch load is in flight is DROPPED and surfaced — never a cross-account save', async () => {
-    // The counterpart of the mid-reload-edit rule (see the conflict suite): during a SWITCH the
-    // store still holds the OLD tenant's slice while the new slice loads, so a mid-load edit
-    // targets the old tenant. Keeping it (or letting its debounce timer fire post-replaceAll)
-    // would diff old-tenant data against the NEW account's snapshot → cross-account deletes. It
-    // must be cancelled + dropped, with the loss surfaced via onError — never silent.
+  it('rebases an edit landing while a switch load is in flight onto the newly active account', async () => {
     const aSlice: AppData = {
       ...emptyAppData(),
       accounts: [{ id: 'a1', name: 'Alpha', color: '#1', createdAt: 't', updatedAt: 't' }],
@@ -323,18 +318,19 @@ describe('account-switch orchestrator (P1.13, server mode)', () => {
     expect(releaseB).not.toBeNull()
 
     // Edit lands mid-switch (still inside the debounce window when B's slice arrives).
-    useStore.getState().addClient({ name: 'Mid-switch edit', color: '#222222' })
+    const edit = useStore.getState().addClient({ name: 'Mid-switch edit', color: '#222222' })
     saveAll.mockClear()
     releaseB!()
     await new Promise((r) => setTimeout(r, 5))
 
-    // B's slice replaced the store (no old-tenant data lingers under B's id)…
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['cb'])
-    // …the dropped edit was SURFACED, not silent…
-    expect(onError).toHaveBeenCalledTimes(1)
-    // …and its debounce timer never fires a cross-account save (400ms > the 300ms window).
+    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['cb', edit.id])
+    expect(useStore.getState().data.clients.find((c) => c.id === edit.id)?.accountId).toBe('b1')
+    expect(onError).not.toHaveBeenCalled()
     await new Promise((r) => setTimeout(r, 400))
-    expect(saveAll).not.toHaveBeenCalled()
+    expect(saveAll).toHaveBeenCalledTimes(1)
+    const saved = saveAll.mock.calls[0][0] as AppData
+    expect(saved.clients.map((c) => c.id)).toEqual(['cb', edit.id])
+    expect(saved.clients.every((c) => c.accountId === 'b1')).toBe(true)
     detach()
   })
 
@@ -710,7 +706,7 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
     detach()
   })
 
-  it('a reload during suspension DROPS the parked edit (typed sticky error, onSuccess still fires) — never flushes it', async () => {
+  it('a reload during suspension rebases and saves the parked edit on the imported slice', async () => {
     const onError = vi.fn()
     const onSuccess = vi.fn()
     const { adapter, saveAll } = recordingAdapter(a2Slice())
@@ -724,11 +720,10 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
     resume()
     await new Promise((r) => setTimeout(r, 5))
 
-    expect(saveAll).not.toHaveBeenCalled() // the stale pre-import edit never reached the server
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['c2']) // authoritative slice installed
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true)
-    // The reload also cleared the generic failure surface — the STICKY drop notice is the loss's
-    // whole surface; a read-only user must not wear "changes aren't saving" forever.
+    expect(saveAll).toHaveBeenCalledTimes(1)
+    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name)).toEqual(['Beta Client', 'Mid-import'])
+    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(['Beta Client', 'Mid-import'])
+    expect(onError).not.toHaveBeenCalled()
     expect(onSuccess).toHaveBeenCalled()
     detach()
   })
@@ -752,19 +747,19 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
     detach()
   })
 
-  it('an edit during the (a′) flush await is PARKED (no re-armed debounce fires mid-load) and dropped + surfaced', async () => {
+  it('an edit during the (a′) flush await is parked, rebased after load, and saved', async () => {
     // Pre-fix, an edit arriving while the entry flush was awaited re-armed a debounce timer at
     // depth 0; the timer fired mid-load, its save was silently eaten by the seedGen guard, and the
     // (c) check couldn't see it — a silent loss. The suspension now covers the WHOLE sequence.
     let releaseSave: (() => void) | null = null
     const slice = a2Slice()
     const loadAll = vi.fn(async () => slice)
-    const saveAll = vi.fn(
-      () =>
-        new Promise<void>((resolve) => {
-          releaseSave = () => resolve()
-        }),
-    )
+    const saveAll = vi.fn((data: AppData) => {
+      void data
+      return new Promise<void>((resolve) => {
+        releaseSave = () => resolve()
+      })
+    })
     const onError = vi.fn()
     const detach = await attachActiveA2({ loadAll, saveAll }, 300, onError) // genuinely debounced
 
@@ -780,8 +775,9 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
     releaseSave!()
     expect(await refresh).toBe('reloaded')
     await new Promise((r) => setTimeout(r, 350))
-    expect(saveAll).toHaveBeenCalledTimes(1) // and never sent post-reseed either
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true) // surfaced
+    expect(saveAll).toHaveBeenCalledTimes(2)
+    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === 'During flush')).toBe(true)
+    expect(onError).not.toHaveBeenCalled()
     detach()
   })
 
@@ -848,13 +844,14 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
 
     release!()
     expect(await refresh).toBe('reloaded')
-    // The page survived: the reload still saw the parked edit and surfaced its drop (over-cautious
-    // when the keepalive landed — documented trade; load-bearing when the keepalive FAILED).
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true)
+    // The page survived: the reload rebases the parked edit and performs a normal confirmed save.
+    expect(saveAll).toHaveBeenCalledTimes(2)
+    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === 'Mid-reload')).toBe(true)
+    expect(onError).not.toHaveBeenCalled()
     detach()
   })
 
-  it('a FAILED keepalive during the pre-load window cannot silently lose the edit (page survives → drop is surfaced)', async () => {
+  it('a failed keepalive during the pre-load window is followed by a normal rebased save', async () => {
     // Pre-fix, the hidden-tab flush CONSUMED `pending` before dataAtLoad was snapshotted; when the
     // swallowed keepalive then failed and the page survived, every signal at (c) read clean and
     // the edit vanished with zero surface.
@@ -881,15 +878,18 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
 
     releaseLoad!()
     expect(await refresh).toBe('reloaded')
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true) // never silent
+    expect(saveAll).toHaveBeenCalledTimes(2)
+    expect(saveAll.mock.calls[1][1]).toBeUndefined()
+    expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === 'Hidden-tab edit')).toBe(true)
+    expect(onError).not.toHaveBeenCalled()
     detach()
   })
 
-  it('a reload superseded by SIGN-OUT after its load resolved DROPS the parked edit — never re-saves a stale tree over the fresh seed', async () => {
+  it('a reload superseded by sign-out rebases and saves only the parked edit against the fresh seed', async () => {
     // The null-switch arm bumps the token but loads nothing, so the superseded load's reseed of
-    // the adapter snapshot stands. Re-scheduling the parked edit (the resume default) would diff
-    // its stale pre-reload tree against that fresh seed and emit DELETEs for rows the reload just
-    // fetched — rows other writers created. It must be dropped + surfaced instead.
+    // the adapter snapshot stands. Re-scheduling the whole parked tree would emit DELETEs for rows
+    // the reload just fetched, so only the operations made during the network window are rebased
+    // onto that seed and saved without reinstalling the signed-out account in the UI.
     let release: (() => void) | null = null
     let hold = false
     const slice = a2Slice()
@@ -922,8 +922,9 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
     release!()
     expect(await refresh).toBe('skipped')
     await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).not.toHaveBeenCalled() // the stale tree was never diffed against the fresh seed
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true) // surfaced
+    expect(saveAll).toHaveBeenCalledTimes(1)
+    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.id)).toEqual(['c2', 'stale-c'])
+    expect(onError).not.toHaveBeenCalled()
     detach()
   })
 
@@ -955,12 +956,8 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
   })
 })
 
-describe('mid-reload edits never reach the server (the drop notice tells the literal truth)', () => {
-  it('an edit during a HELD-OPEN reload is parked, dropped and surfaced — its save never fires', async () => {
-    // Pre-fix, an immediate-mode edit during a slow loadAll POSTed to the server, the older GET
-    // response was installed over it, and the drop toast said the edit "could not be saved" — a
-    // lie (it WAS saved; re-entering it duplicates the row at the next refresh). refreshActive now
-    // suspends writes for the loadAll window, so the drop is literally true.
+describe('mid-reload edits are rebased onto the fresh server slice', () => {
+  it('parks an edit during a held-open reload, then installs and saves it after the response', async () => {
     let release: (() => void) | null = null
     let hold = false
     const slice = a2Slice()
@@ -985,9 +982,10 @@ describe('mid-reload edits never reach the server (the drop notice tells the lit
     release!()
     expect(await refresh).toBe('reloaded')
     await new Promise((r) => setTimeout(r, 5))
-    expect(saveAll).not.toHaveBeenCalled() // dropped, not deferred — no post-reload stale push either
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true)
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['c2'])
+    expect(saveAll).toHaveBeenCalledTimes(1)
+    expect((saveAll.mock.calls[0][0] as AppData).clients.map((c) => c.name)).toEqual(['Beta Client', 'Mid-reload'])
+    expect(onError).not.toHaveBeenCalled()
+    expect(useStore.getState().data.clients.map((c) => c.name)).toEqual(['Beta Client', 'Mid-reload'])
     detach()
   })
 })
@@ -1092,6 +1090,24 @@ describe('batch-conflict resolution (server wins — interim policy until a conf
   // slice (server wins, the local conflicting edit is deliberately discarded), surface the banner
   // via onError, and clear it via the follow-up clean save's onSuccess.
 
+  it('a conflict while replaying the durable queue discards that account entry and retries the load', async () => {
+    const slice = a2Slice()
+    const loadAll = vi
+      .fn<(_accountId?: string) => Promise<AppData>>()
+      .mockRejectedValueOnce(new BatchConflictError('offline edit is stale'))
+      .mockResolvedValue(slice)
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const discardPending = vi.fn()
+    const onError = vi.fn()
+    const detach = await attachActiveA2({ loadAll, saveAll, discardPending }, 0, onError)
+
+    expect(discardPending).toHaveBeenCalledWith('a2')
+    expect(loadAll).toHaveBeenCalledTimes(2)
+    expect(onError.mock.calls.some(([e]) => e instanceof BatchConflictError)).toBe(true)
+    expect(useStore.getState().data.clients.map((client) => client.id)).toEqual(['c2'])
+    detach()
+  })
+
   it('a 409 conflict RELOADS the slice (no abort), does NOT arm the stale-diff retry, and the banner clears', async () => {
     vi.useFakeTimers()
     try {
@@ -1167,14 +1183,13 @@ describe('batch-conflict resolution (server wins — interim policy until a conf
     }
   })
 
-  it('an edit made DURING the conflict reload is DROPPED with a typed sticky-notice error — never re-pushed', async () => {
+  it('an edit made during the conflict reload is rebased without restoring the original conflicted edit', async () => {
     // The reload window race: the 409 triggers refreshActive, and the user edits again while
     // loadAll is on the wire. The server slice is AUTHORITATIVE (server-wins): keeping the local
     // state and letting its save diff against the fresh snapshot would push the WHOLE pre-reload
     // tree — re-landing the exact edit the resolution just declared discarded and DELETE-ing rows
-    // the other writer committed. The mid-load edit must be dropped, surfaced via the typed
-    // ReloadDiscardedEditError (main.tsx raises a sticky notice for it), and the reloaded slice
-    // installed regardless.
+    // the other writer committed. Only the operation made during the reload may be rebased onto the
+    // authoritative slice; the original conflicted edit must stay discarded.
     let hold = false
     let release: (() => void) | null = null
     const slice = a2Slice()
@@ -1206,14 +1221,13 @@ describe('batch-conflict resolution (server wins — interim policy until a conf
     release!() // the reload resolves LAST
     await new Promise((r) => setTimeout(r, 5))
 
-    // Server wins: the reloaded slice is installed, the mid-reload edit is gone from the store…
-    expect(useStore.getState().data.clients.map((c) => c.id)).toEqual(['c2'])
-    // …its loss was surfaced with the TYPED error (→ sticky notice), not silently…
-    expect(onError.mock.calls.some(([e]) => e instanceof ReloadDiscardedEditError)).toBe(true)
-    // …and no save AFTER the reload settled pushed the dropped edit back over the server slice.
-    for (const [payload] of saveAll.mock.calls.slice(savesBeforeReloadSettled)) {
-      expect((payload as AppData).clients.some((c) => c.name === 'During reload')).toBe(false)
-    }
+    const names = useStore.getState().data.clients.map((c) => c.name)
+    expect(names).toEqual(['Beta Client', 'During reload'])
+    expect(names).not.toContain('Conflicted')
+    expect(onError.mock.calls.some(([e]) => e instanceof BatchConflictError)).toBe(true)
+    const postReload = saveAll.mock.calls.slice(savesBeforeReloadSettled).map(([payload]) => payload as AppData)
+    expect(postReload.some((payload) => payload.clients.some((c) => c.name === 'During reload'))).toBe(true)
+    expect(postReload.every((payload) => !payload.clients.some((c) => c.name === 'Conflicted'))).toBe(true)
     detach()
   })
 

@@ -59,12 +59,11 @@ server) on any recent Node.
 **[`docs/self-hosting.md`](docs/self-hosting.md)** is the guide: a static SPA plus the
 SQLite API daemon behind any TLS-terminating proxy, with password auth
 ([Better Auth](https://www.better-auth.com/)) on. `docker-compose.yml` ships the same
-stack as containers. On a fresh instance the **first person to sign up becomes the
-owner** — do that immediately after the first boot; until an owner exists, anyone who can
-reach the URL can claim the instance. After that, sign-up closes; with password auth the
-operator adds each new person's account (see the ["adding people"
-steps](docs/self-hosting.md#4-enabling-authentication) in the self-hosting guide), while SSO mode
-signs new people in automatically. Day-to-day operations (backups, health checks, audit log) live in
+stack as containers. A fresh password instance requires an operator-generated
+`CAPACITYLENS_SETUP_TOKEN`; the first-owner form must present it, so the first network visitor
+cannot claim the deployment. After that, public sign-up closes and invite links let new password
+users set their own credentials and join. See the [authentication steps](docs/self-hosting.md#4-enabling-authentication)
+in the self-hosting guide. Day-to-day operations (backups, health checks, audit log) live in
 [`docs/runbook.md`](docs/runbook.md); what the app does and doesn't collect is in
 [`docs/privacy.md`](docs/privacy.md).
 

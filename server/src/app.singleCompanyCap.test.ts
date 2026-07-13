@@ -97,6 +97,43 @@ describe('single-company cap — POST /api/batch (accounts-PUT pre-scan)', () =>
     expect(res.json()).toEqual({ error: CAP_MESSAGE })
   })
 
+  it('projects all creates in one batch, so two accounts cannot pass against the same empty snapshot', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db)
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: {
+        ops: [
+          { method: 'PUT', table: 'accounts', id: 'first', row: account('first') },
+          { method: 'PUT', table: 'accounts', id: 'second', row: account('second') },
+        ],
+      },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    const state = await call(app, { method: 'GET', url: '/api/state' })
+    expect(state.json().accounts).toEqual([])
+  })
+
+  it('allows an atomic one-for-one account replacement whose projected final count is one', async () => {
+    const db = atCapDb()
+    const app = buildApp(db)
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: {
+        ops: [
+          { method: 'DELETE', table: 'accounts', id: 'a1' },
+          { method: 'PUT', table: 'accounts', id: 'replacement', row: account('replacement') },
+        ],
+      },
+    })
+    expect(res.statusCode).toBe(200)
+    const state = await call(app, { method: 'GET', url: '/api/state' })
+    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(['replacement'])
+  })
+
   it('at-cap: a batch PUT-accounts UPDATE of the EXISTING account still succeeds', async () => {
     const app = buildApp(atCapDb())
     const res = await batchPutAccount(app, 'a1', 'Renamed via batch')

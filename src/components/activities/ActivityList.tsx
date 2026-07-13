@@ -1,24 +1,16 @@
 import { useStore } from '../../store/useStore'
-import { useActiveScopedData, useScopedData } from '../../store/useScopedData'
-import { lifecycleStatus } from '@capacitylens/shared/domain/lifecycle'
+import { useActiveScopedData } from '../../store/useScopedData'
 import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ActivityForm } from './ActivityForm'
 import type { Activity } from '@capacitylens/shared/types/entities'
-import { isServerConfigured } from '../../data/apiConfig'
 import { m } from '@/i18n'
 
 export function ActivityList() {
   const data = useActiveScopedData()
   const activities = data.activities
-  // Label resolution deliberately uses the RAW scoped slice (NOT the active-only projection): the
-  // rows are active-only, but activities have no lifecycle field, so a `project`-kind activity can
-  // outlive its ARCHIVED parent in this list (activeOnly does not orphan-prune — see
-  // shared/domain/lifecycle.ts). Resolving labels against the full slice lets that parent's name
-  // still render (with an "(archived)" hint) instead of mislabelling the activity "Internal".
-  const raw = useScopedData()
-  const projects = raw.projects
-  const clients = raw.clients
+  const projects = data.projects
+  const clients = data.clients
   const del = useStore((s) => s.deleteActivity)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>()
 
@@ -27,20 +19,9 @@ export function ActivityList() {
   const projectLabel = (id: string | undefined) => {
     if (!id) return m.list_activities_internal_label()
     const p = projects.find((x) => x.id === id)
-    // Unresolvable even against the FULL slice: what that MEANS depends on the persistence mode
-    // (mirrors ProjectList.clientName). In SERVER mode the per-account read strips archived/
-    // deleted parents, so this is an archived (or deleted) project — never "Internal" (the
-    // activity's kind is 'project'; that label would be factually wrong). In the DEMO build the
-    // raw slice RETAINS archived projects, so an unresolvable id there is genuinely dangling
-    // data — "(archived project)" would paper over corruption, so it gets the honest
-    // "(no project)" instead.
-    if (!p) return isServerConfigured() ? m.list_activities_archived_project() : m.list_activities_no_project()
+    if (!p) return m.list_activities_no_project()
     const c = clients.find((x) => x.id === p.clientId)
-    const label = c ? `${c.name} / ${p.name}` : p.name
-    // Any non-active ancestor (archived/deleted project OR client) gets the hint, so the user
-    // knows why this project no longer appears on the Projects page.
-    const dormant = lifecycleStatus(p) !== 'active' || (c !== undefined && lifecycleStatus(c) !== 'active')
-    return dormant ? m.list_label_archived({ name: label }) : label
+    return c ? `${c.name} / ${p.name}` : p.name
   }
 
   // Three kinds, three tables. Internal first (the owner's ordering), then repeatable

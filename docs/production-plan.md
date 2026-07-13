@@ -440,11 +440,9 @@ in their ON state.
   is Basic Auth. Do not invite anyone outside the trusted tester group: anyone with
   the URL + creds can edit/wipe the shared dataset. That line moves only when Stage C
   lands.
-- **Stage B — optimistic concurrency.** Leave `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` off:
-  flipping it without a client 409/conflict UI just turns races into error churn
-  (per the migration plan). Per-tester Accounts are this round's mitigation. If the
-  test script deliberately has people co-editing one Account, build the client 409
-  path first — that's the trigger firing.
+- **Stage B — optimistic concurrency (subsequently completed).** The client now handles 409s and
+  the server/Compose default is enabled. `CAPACITYLENS_OPTIMISTIC_CONCURRENCY=0` is an explicit
+  compatibility opt-out, not the normal multi-user posture.
 - **Postgres, Docker, multi-region.** The Forge daemon + SQLite file is the right
   size; Docker adds nothing on this host. Stage E stays parked.
 

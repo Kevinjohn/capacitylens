@@ -42,9 +42,8 @@ const PASSWORD_ENV = {
   CAPACITYLENS_AUTH: 'password',
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
   BETTER_AUTH_URL: 'http://localhost:8787',
-  // P1.7: open email self-registration is CLOSED by default (disableSignUp). These existing
-  // fixtures create users via sign-up/email, so re-open it here until invites (P1.9/P1.10).
-  // The default-closed posture is asserted in its own describe block below with NO flag.
+  // These broad auth fixtures create multiple users through the public sign-up route, so they use
+  // the explicit test/dev escape. The production default-closed posture is asserted separately.
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
 }
 
@@ -249,25 +248,25 @@ describe('social providers (P1.7)', () => {
   })
 })
 
-// P1.7 + first-run setup — open email self-registration is CLOSED by default (the secure
-// default) ONCE A USER EXISTS. The single exception is an EMPTY user table, where the first
-// sign-up bootstraps the owner; the gate is enforced LIVE per request (hooks.before in
-// authFromEnv), so it closes on the very next request after the first user — no restart. The
-// flag CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 keeps its meaning: an interim escape that re-opens
-// sign-up unconditionally until invites (P1.9/P1.10).
+// P1.7 + first-run setup — open email self-registration is closed by default. The single
+// bootstrap exception is an empty user table plus the operator's setup token; the gate is enforced
+// live per request, so it closes on the very next request after the first identity. The explicit
+// CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 escape still re-opens registration unconditionally.
 describe('closed self-registration (P1.7) + first-run bootstrap', () => {
+  const SETUP_TOKEN = 'unit-test-owner-setup-token-0123456789abcdef'
   /** PASSWORD_ENV but with the open-signup escape removed → default-closed posture. */
-  const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV }
+  const CLOSED_ENV: Record<string, string> = { ...PASSWORD_ENV, CAPACITYLENS_SETUP_TOKEN: SETUP_TOKEN }
   delete CLOSED_ENV.CAPACITYLENS_ALLOW_OPEN_SIGNUP
 
   const signUp = (app: FastifyInstance, email = 'late@capacitylens.dev') =>
     call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
+      headers: { 'x-capacitylens-setup-token': SETUP_TOKEN },
       payload: { email, password: 'password-123', name: 'Late' },
     })
 
-  it('allows the FIRST sign-up on an empty user table (owner bootstrap), then closes LIVE', async () => {
+  it('allows the first sign-up only with the operator setup token, then closes live', async () => {
     const app = await appWithAuth(CLOSED_ENV)
     const first = await signUp(app, 'owner@capacitylens.dev')
     expect(first.statusCode).toBe(200)
@@ -278,6 +277,24 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     const second = await signUp(app, 'late@capacitylens.dev')
     expect(second.statusCode).toBe(400)
     expect(cookiesOf(second)).not.toContain('better-auth.session_token')
+  })
+
+  it('refuses a network visitor who lacks the fresh-instance setup token', async () => {
+    const app = await appWithAuth(CLOSED_ENV)
+    const missing = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'attacker@capacitylens.dev', password: 'password-123', name: 'Attacker' },
+    })
+    const wrong = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      headers: { 'x-capacitylens-setup-token': 'wrong-token' },
+      payload: { email: 'attacker@capacitylens.dev', password: 'password-123', name: 'Attacker' },
+    })
+    expect(missing.statusCode).toBe(400)
+    expect(wrong.statusCode).toBe(400)
+    expect(cookiesOf(missing)).not.toContain('better-auth.session_token')
   })
 
   it('allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1', async () => {
@@ -453,6 +470,9 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
           name,
           password,
         ),
+      deleteCredentialUser: async (userId) => {
+        db.prepare(`DELETE FROM user WHERE id = ?`).run(userId)
+      },
     }
 
     await expect(createBootstrapAdmin(db, mode, failingAuth, () => {})).rejects.toMatchObject({
@@ -511,6 +531,15 @@ describe('boot refusal (AuthConfigError)', () => {
     expect(() =>
       authFromEnv(db, { ...PASSWORD_ENV, BETTER_AUTH_SECRET: 'x'.repeat(MIN_BETTER_AUTH_SECRET_LENGTH) }),
     ).not.toThrow()
+  })
+
+  it('password mode refuses a weak first-owner setup token', () => {
+    expect(() =>
+      authFromEnv(openDb(':memory:'), {
+        ...PASSWORD_ENV,
+        CAPACITYLENS_SETUP_TOKEN: 'too-short',
+      }),
+    ).toThrow(/setup_token must be at least 32 bytes/i)
   })
 
   it('sso mode without provider endpoints refuses', () => {

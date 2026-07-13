@@ -104,11 +104,9 @@ build ahead of the trigger.
 ### Stage B — Durability & concurrency hardening
 *Trigger: the shared dataset starts mattering / multiple people edit at once.*
 
-- **Build client-side conflict handling, THEN turn on the flag.**
-  `CAPACITYLENS_OPTIMISTIC_CONCURRENCY=1` only makes the *server* return 409s; there is **no
-  client conflict UI yet** (server README, "Status"). Flipping the flag without the UI
-  just turns races into `persistError`/replay churn. So: build the 409-handling path
-  in `ServerSyncAdapter` first, then enable the flag.
+- **Completed:** client-side 409 handling now reloads authoritative state with an explicit conflict
+  notice, and optimistic concurrency is enabled by default. Operators may set
+  `CAPACITYLENS_OPTIMISTIC_CONCURRENCY=0` only as a deliberate compatibility escape hatch.
 - **Driver swap, only if needed.** The server runs `node:sqlite` on Node 24 (unflagged);
   if a driver regression forces it, swap to `better-sqlite3` / libSQL.
 - **Tested restore**, not just backups — prove a restore works.

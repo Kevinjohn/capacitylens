@@ -111,14 +111,15 @@ client-asserted and `ownsRow` is the only guard.
   (`credentials: 'include'`), and the server deliberately omits
   `Access-Control-Allow-Credentials` for `*` (browsers reject wildcard + credentials) —
   the wildcard only serves non-credentialed API scripting (curl, server-to-server).
-- `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` — `1` to reject a stale overwrite (a write whose
+- `CAPACITYLENS_OPTIMISTIC_CONCURRENCY` — stale writes are rejected by default. Set `0` only to
+  deliberately restore last-writer-wins for a trusted single-writer deployment. A stale write (one whose
   `updatedAt` is older than the stored row) with HTTP 409 `{ error, current }` instead of
   last-writer-wins. Applies to the direct PUT **and** to every PUT op inside `POST /api/batch`
   (the shipped client's real save path) — a stale batch op rolls the whole batch back.
   On a 409 the shipped client resolves the conflict server-wins (it reloads from the server and
   discards the conflicting local edit) until a real conflict UI exists.
 
-Production-hardening flags (all **default OFF** = exactly the behaviour above; the full
+Production-hardening flags (unless noted otherwise; the full
 register with the droplet's values lives in `docs/production-plan.md`):
 
 - `CAPACITYLENS_LOG` — `1` for structured per-request JSON logs (Fastify's bundled pino) and
@@ -170,6 +171,9 @@ register with the droplet's values lives in `docs/production-plan.md`):
   When ≠ `off`:
   - `BETTER_AUTH_SECRET` (32+ chars) and `BETTER_AUTH_URL` — required; boot refuses
     loudly if missing.
+  - `CAPACITYLENS_SETUP_TOKEN` (password mode, fresh user table; at least 32 bytes) — operator secret required by
+    the first-owner form; a fresh password server refuses to boot without it unless open signup or
+    the explicit bootstrap-admin escape is enabled.
   - `CAPACITYLENS_SSO_*` (sso mode only) — `CLIENT_ID` + `CLIENT_SECRET`, plus
     `DISCOVERY_URL` or `AUTHORIZATION_URL` + `TOKEN_URL` (optional `PROVIDER_ID`,
     `SCOPES`). Provider choice is config, not code.
@@ -193,6 +197,7 @@ Confidential time-off notes are enforced on the write side too: a writer whose r
 notes (editor/viewer) has the stored `note` **pinned** through PUT/PATCH/batch — their redacted
 round-trip can't erase a note they never saw, and write echoes / 409 `current` payloads are
 redacted the same as reads. `ownsRow` remains as defense-in-depth beneath the membership gate.
-Optimistic concurrency stays off (last-writer-wins) until a client conflict UI exists. Postgres
+Optimistic concurrency is on by default; the client resolves 409s server-wins while preserving edits
+made during the resolution reload. Postgres
 remains deferred (see `docs/production-plan.md`; `docs/deploy.md` + `docs/runbook.md` for the
 deploy/ops side).

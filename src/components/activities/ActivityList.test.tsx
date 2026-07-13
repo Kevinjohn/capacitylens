@@ -91,10 +91,7 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities).toHaveLength(0)
   })
 
-  // activeOnly deliberately does NOT orphan-prune (shared/domain/lifecycle.ts): an activity under an
-  // archived project stays in this list. Its label must resolve against the FULL scoped slice and
-  // say so — NOT fall back to "Internal" (factually wrong for a kind:'project' activity).
-  it('labels an activity under an ARCHIVED project with the project name + (archived), not "Internal"', () => {
+  it('hides an activity under an archived project', () => {
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
     useStore.getState().addActivity({ name: 'My Activity', kind: 'project', projectId: project.id })
@@ -102,12 +99,11 @@ describe('ActivityList', () => {
 
     render(<ActivityList />)
 
-    const row = within(screen.getByTestId('project-activities')).getByTestId('activity-row')
-    expect(row).toHaveTextContent('Acme / Lightning (archived)')
-    expect(row).not.toHaveTextContent('Internal')
+    expect(screen.queryByText('My Activity')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('project-activities')).not.toBeInTheDocument()
   })
 
-  it('labels an activity whose project has an ARCHIVED client with the full name + (archived)', () => {
+  it('hides an activity whose project belongs to an archived client', () => {
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
     useStore.getState().addActivity({ name: 'My Activity', kind: 'project', projectId: project.id })
@@ -115,8 +111,7 @@ describe('ActivityList', () => {
 
     render(<ActivityList />)
 
-    const row = within(screen.getByTestId('project-activities')).getByTestId('activity-row')
-    expect(row).toHaveTextContent('Acme / Lightning (archived)')
+    expect(screen.queryByText('My Activity')).not.toBeInTheDocument()
   })
 
   // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
@@ -142,26 +137,23 @@ describe('ActivityList', () => {
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
   }
 
-  it('SERVER mode: shows (archived project) when the project id resolves nowhere in the raw slice', () => {
+  it('server mode hides an activity whose project resolves nowhere', () => {
     vi.stubEnv('VITE_CAPACITYLENS_DEMO', '') // server mode is any value other than '1'
     seedOrphanActivity()
 
     render(<ActivityList />)
 
-    expect(screen.getByText('Orphan Activity')).toBeInTheDocument()
-    expect(screen.getByText(/\(archived project\)/)).toBeInTheDocument()
+    expect(screen.queryByText('Orphan Activity')).not.toBeInTheDocument()
     vi.unstubAllEnvs()
   })
 
-  it('DEMO build: shows (no project) for a genuinely dangling project id, not "(archived project)"', () => {
+  it('demo mode also hides an activity whose project resolves nowhere', () => {
     vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1')
     seedOrphanActivity()
 
     render(<ActivityList />)
 
-    expect(screen.getByText('Orphan Activity')).toBeInTheDocument()
-    expect(screen.getByText(/\(no project\)/)).toBeInTheDocument()
-    expect(screen.queryByText(/\(archived project\)/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Orphan Activity')).not.toBeInTheDocument()
     vi.unstubAllEnvs()
   })
 

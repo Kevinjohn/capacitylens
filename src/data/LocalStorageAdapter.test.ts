@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { LocalStorageAdapter } from './LocalStorageAdapter'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { LocalStorageAdapter, LocalStorageConflictError } from './LocalStorageAdapter'
 import { seed } from '@capacitylens/shared/data/seed'
-import { emptyAppData } from '@capacitylens/shared/types/entities'
+import { emptyAppData, SCHEMA_VERSION } from '@capacitylens/shared/types/entities'
 
 const KEY = 'capacitylens/test'
 
@@ -58,5 +58,53 @@ describe('LocalStorageAdapter', () => {
     localStorage.setItem(KEY, 'x')
     adapter.clear()
     expect(localStorage.getItem(KEY)).toBeNull()
+  })
+
+  it('rejects a stale tab instead of overwriting a newer whole-tree revision', async () => {
+    const initial = new LocalStorageAdapter(KEY)
+    await initial.saveAll(seed())
+    const tabA = new LocalStorageAdapter(KEY)
+    const tabB = new LocalStorageAdapter(KEY)
+    const aData = await tabA.loadAll()
+    const bData = await tabB.loadAll()
+
+    await tabA.saveAll({
+      ...aData,
+      clients: [
+        ...aData.clients,
+        { id: 'a-edit', accountId: aData.accounts[0].id, name: 'A', color: '#111111', createdAt: 't', updatedAt: 't' },
+      ],
+    })
+    await expect(
+      tabB.saveAll({
+        ...bData,
+        clients: [
+          ...bData.clients,
+          { id: 'b-edit', accountId: bData.accounts[0].id, name: 'B', color: '#222222', createdAt: 't', updatedAt: 't' },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(LocalStorageConflictError)
+  })
+
+  it('notifies an idle tab of an external revision and adopts it only when accepted', () => {
+    const adapter = new LocalStorageAdapter(KEY)
+    const accepted = seed()
+    const listener = vi.fn(() => true)
+    const unsubscribe = adapter.subscribeExternal(listener)
+    const raw = JSON.stringify({ schemaVersion: SCHEMA_VERSION, revision: 7, data: accepted })
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: raw, storageArea: localStorage }))
+
+    expect(listener).toHaveBeenCalledWith(accepted)
+    unsubscribe()
+  })
+
+  it('treats another tab clearing storage as an external empty revision', () => {
+    const adapter = new LocalStorageAdapter(KEY)
+    const listener = vi.fn(() => true)
+    const unsubscribe = adapter.subscribeExternal(listener)
+    window.dispatchEvent(new StorageEvent('storage', { key: KEY, newValue: null, storageArea: localStorage }))
+
+    expect(listener).toHaveBeenCalledWith(emptyAppData())
+    unsubscribe()
   })
 })

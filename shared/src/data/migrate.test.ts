@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { migrate } from './migrate'
-import { emptyAppData } from '../types/entities'
+import { migrate, UnsupportedSchemaVersionError } from './migrate'
+import { emptyAppData, SCHEMA_VERSION } from '../types/entities'
 
 describe('migrate', () => {
   it('returns empty data for null/garbage', () => {
@@ -16,6 +16,12 @@ describe('migrate', () => {
       clients: [{ id: 'c1', createdAt: 't', updatedAt: 't', name: 'A', color: '#1' }],
     }
     expect(migrate({ schemaVersion: 1, data })).toEqual(data)
+  })
+
+  it('refuses a forward schema instead of normalizing and later overwriting it', () => {
+    expect(() =>
+      migrate({ schemaVersion: SCHEMA_VERSION + 1, data: { ...emptyAppData(), futureTable: [{ id: 'future' }] } }),
+    ).toThrow(UnsupportedSchemaVersionError)
   })
 
   it('accepts a bare AppData (legacy, no wrapper)', () => {

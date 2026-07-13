@@ -46,12 +46,44 @@ export class BatchConflictError extends Error {
   }
 }
 
-// The server hard-rejects batches over MAX_BATCH_OPS = 5000 ops (see server/src/app.ts), and an
-// in-app import can legitimately produce tens of thousands of ops (fresh ids per record + deletes
-// of the replaced slice) — an unchunked POST would 400 deterministically forever, losing the
-// import on reload. 2000 leaves headroom under the server cap and bounds the server's
-// per-request loadState/validate work. Exported for the chunking tests.
-export const MAX_OPS_PER_BATCH = 2000
+// One logical diff is always one server transaction. The client never slices this limit into
+// separately committed prefixes; an over-limit diff fails atomically and remains in the durable
+// write journal. Server-mode imports use their dedicated atomic endpoint.
+export const MAX_OPS_PER_BATCH = 5000
+const KEEPALIVE_BODY_BUDGET = 60 * 1024
+const WRITE_QUEUE_KEY = 'capacitylens/server-write-queue/v1'
+
+interface DurableWrite {
+  revision: string
+  data: AppData
+}
+
+type DurableQueues = Record<string, Record<string, DurableWrite>>
+
+function readDurableQueues(): DurableQueues {
+  try {
+    const raw = localStorage.getItem(WRITE_QUEUE_KEY)
+    if (!raw) return {}
+    const parsed: unknown = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as DurableQueues)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function writeDurableQueues(queues: DurableQueues): boolean {
+  try {
+    if (Object.keys(queues).length === 0) localStorage.removeItem(WRITE_QUEUE_KEY)
+    else localStorage.setItem(WRITE_QUEUE_KEY, JSON.stringify(queues))
+    return true
+  } catch (error) {
+    // Callers distinguish a required write-ahead journal entry from best-effort cleanup.
+    console.warn('ServerSyncAdapter: durable write journal is unavailable', error)
+    return false
+  }
+}
 
 export class ServerSyncAdapter implements PersistenceAdapter {
   private readonly baseUrl: string
@@ -62,7 +94,9 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // Coalesce-to-latest: while a flush is in flight, newer saves just park here and
   // the running flush picks them up. One write path, no overlapping requests.
   private queued: AppData | null = null
+  private queuedRevision: string | null = null
   private inFlight: Promise<void> | null = null
+  private revisionCounter = 0
   // Load generation counter: bumped at the START of every loadAll. A loadAll that is no longer
   // the newest by the time its fetch resolves must NOT seed `lastSynced` — persist.ts's token
   // guard discards that stale slice from the STORE, but without this guard the adapter snapshot
@@ -90,6 +124,68 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   constructor(baseUrl: string, fetchImpl: typeof fetch = fetch.bind(globalThis)) {
     this.baseUrl = baseUrl.replace(/\/$/, '')
     this.fetchImpl = fetchImpl
+  }
+
+  private accountIdFor(data: AppData): string | null {
+    const ids = new Set<string>()
+    for (const account of data.accounts) ids.add(account.id)
+    for (const table of [
+      data.disciplines,
+      data.resources,
+      data.clients,
+      data.projects,
+      data.phases,
+      data.activities,
+      data.allocations,
+      data.timeOff,
+    ]) {
+      for (const row of table) ids.add(row.accountId)
+    }
+    return ids.size === 1 ? [...ids][0] : null
+  }
+
+  private persistPending(data: AppData): string | null {
+    const accountId = this.accountIdFor(data)
+    if (!accountId) return null
+    const nonce = globalThis.crypto?.randomUUID?.() ?? String(++this.revisionCounter)
+    const revision = `${Date.now()}-${nonce}-${++this.revisionCounter}`
+    const queues = readDurableQueues()
+    const backend = (queues[this.baseUrl] ??= {})
+    backend[accountId] = { revision, data }
+    if (!writeDurableQueues(queues)) {
+      throw new Error('The durable write queue is unavailable; the change was not sent.')
+    }
+    return revision
+  }
+
+  private pendingFor(accountId: string): DurableWrite | null {
+    const entry = readDurableQueues()[this.baseUrl]?.[accountId]
+    if (!entry || typeof entry.revision !== 'string' || !entry.data) return null
+    try {
+      return { revision: entry.revision, data: migrate(entry.data) }
+    } catch {
+      return null
+    }
+  }
+
+  private clearPending(accountId: string, revision: string): void {
+    const queues = readDurableQueues()
+    const backend = queues[this.baseUrl]
+    if (!backend || backend[accountId]?.revision !== revision) return
+    delete backend[accountId]
+    if (Object.keys(backend).length === 0) delete queues[this.baseUrl]
+    writeDurableQueues(queues)
+  }
+
+  discardPending(accountId: string): void {
+    const queues = readDurableQueues()
+    const backend = queues[this.baseUrl]
+    if (!backend) return
+    delete backend[accountId]
+    if (Object.keys(backend).length === 0) delete queues[this.baseUrl]
+    if (!writeDurableQueues(queues)) {
+      throw new Error('The durable write queue could not discard the conflicted change.')
+    }
   }
 
   // P3.4: every request carries credentials so an auth-enabled server (CAPACITYLENS_AUTH ≠ off)
@@ -144,7 +240,22 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // EMPTY and sets lastSynced=empty here — accepted because in server mode the SERVER is the source
       // of truth (there's nothing local to overwrite). If such a 200 should instead be a hard failure,
       // reuse the shared hasNonArrayKnownTable guard before migrate and throw LoadError('unavailable').
-      const data = migrate(json)
+      let data = migrate(json)
+      // Replay a crash/offline-surviving desired state before exposing the server slice. The diff
+      // is still one atomic batch; if it conflicts or the network fails the journal remains and the
+      // load fails visibly rather than silently presenting a server copy that omits local work.
+      if (accountId !== undefined) {
+        const pending = this.pendingFor(accountId)
+        // Replay is a new-session recovery path. If this adapter already has a write in flight,
+        // that drain owns the same journal entry; replaying it inside a concurrent refresh would
+        // create a second batch and can deadlock a held request in addition to duplicating work.
+        if (pending && this.inFlight === null) {
+          const pendingOps = diffOps(data, pending.data)
+          if (pendingOps.length > 0) await this.applyBatch(pendingOps)
+          this.clearPending(accountId, pending.revision)
+          data = pending.data
+        }
+      }
       // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
       // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
       // account's slice, so the immediately-following saveAll diffs new-vs-new = ZERO ops, never
@@ -176,10 +287,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   }
 
   async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
+    const revision = this.persistPending(next)
     // Page-teardown flush: send the whole diff as ONE keepalive batch request so it
     // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
-    if (opts?.unload) return this.flushUnload(next)
+    if (opts?.unload) return this.flushUnload(next, revision)
     this.queued = next
+    this.queuedRevision = revision
     this.queuedSeedGen = this.seedGen // pair the parked save with the snapshot it was made against
     if (this.inFlight) return this.inFlight
     this.inFlight = this.drain()
@@ -194,10 +307,15 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // swallowed (the page is going away — a surviving reload re-diffs against the server).
   // Deliberately does NOT advance lastSynced. One ordered, atomic request, so the
   // FK-order race the old per-op Promise.all had on a new-parent+child pair is gone.
-  private async flushUnload(next: AppData): Promise<void> {
+  private async flushUnload(next: AppData, revision: string | null): Promise<void> {
     const ops = diffOps(this.lastSynced, next)
-    if (ops.length === 0) return
-    await this.applyBatch(ops, { keepalive: true }).catch(() => {})
+    const accountId = this.accountIdFor(next)
+    if (ops.length === 0) {
+      if (revision && accountId) this.clearPending(accountId, revision)
+      return
+    }
+    const committed = await this.applyBatch(ops, { keepalive: true })
+    if (committed && revision && accountId) this.clearPending(accountId, revision)
   }
 
   // Drain the queue: diff against lastSynced and apply the whole delta as ONE
@@ -210,8 +328,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   private async drain(): Promise<void> {
     while (this.queued) {
       const target = this.queued
+      const targetRevision = this.queuedRevision
       const targetSeedGen = this.queuedSeedGen
       this.queued = null
+      this.queuedRevision = null
       // A reload SEEDED the snapshot after this save was queued: the state it was diffed-to-be
       // against no longer exists, and diffing it against the fresh seed could cross tenants
       // (see the seedGen doc). Drop it — persist.ts's reload paths have already surfaced or
@@ -230,65 +350,40 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // safe: the server already holds these idempotent ops, so the next diff re-derives anything
       // still relevant against the fresh seed.
       if (targetSeedGen === this.seedGen) this.lastSynced = target
+      const accountId = this.accountIdFor(target)
+      if (targetRevision && accountId) this.clearPending(accountId, targetRevision)
     }
   }
 
-  // Apply the ordered ops to /api/batch in chunks of MAX_OPS_PER_BATCH (the server caps a request
-  // at MAX_BATCH_OPS = 5000 — an unchunked large import would 400 forever).
-  //
-  // The atomicity trade, honestly: each CHUNK is one server-side transaction, so a mid-sequence
-  // failure leaves a PARTIAL write on the server. For a plain failure that is safe: ops are
-  // idempotent upserts/deletes, lastSynced advances (in drain) only after ALL chunks land, and the
-  // throw makes persist.ts retry the FULL remaining diff. For a mid-sequence 409 (optimistic
-  // concurrency) the retry defence does NOT hold — persist.ts resolves a conflict by server-wins
-  // reload, which accepts the committed prefix and discards the unsent suffix. That residual risk
-  // is accepted because no in-app flow produces a >MAX_OPS_PER_BATCH diff anymore: import — the
-  // one legitimate producer — goes through the atomic POST /api/import in server mode, not this
-  // diff path. Ordering is preserved across chunks: diffOps emits ALL upserts (parent-first)
-  // before ALL deletes (child-first) in one ordered list (verified in syncOps.ts —
-  // `[...upserts, ...deletes]`), and consecutive slices of that list POSTed strictly sequentially
-  // keep the global order, so a reparent's new binding still lands before the old parent's delete
-  // even when they fall into different chunks.
-  private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<void> {
-    if (opts?.keepalive) {
-      // Page teardown: dispatch every chunk up-front, no await between dispatches — awaiting
-      // sequentially would get only the first chunk on the wire before the event loop dies (the
-      // same dispatch-all rationale as persist.ts's flushOnUnload). Cross-chunk arrival order is
-      // NOT guaranteed here, so when the flush doesn't fit ONE chunk the DELETE tail is WITHHELD:
-      // a delete chunk arriving before an earlier reparent/upsert chunk would let the server's FK
-      // cascade take the reparented child's unmodified descendants — and since lastSynced never
-      // advances on this path and the page is gone, no later reload could reconstruct them. A
-      // withheld delete is the benign failure by contrast: the next session re-loads the server's
-      // copy, the row merely resurrects, and re-deleting it is one click. (Upsert chunks can still
-      // arrive child-before-parent; that chunk just fails its FK check and rolls back — lost, not
-      // destructive, acceptable for a best-effort flush whose errors are swallowed by the caller.)
-      // Chunking helps here anyway — keepalive caps each request body at ~64KB, so smaller bodies
-      // give more of the flush a chance to survive.
-      const sendable = ops.length > MAX_OPS_PER_BATCH ? ops.filter((op) => op.method === 'PUT') : ops
-      if (sendable.length < ops.length) {
-        // Breadcrumb, not a surface: the page is going away, so a console line is all we can leave.
-        console.warn(`unload flush: withheld ${ops.length - sendable.length} delete op(s) to avoid cross-chunk cascade reordering`)
-      }
-      const chunks: Op[][] = []
-      for (let i = 0; i < sendable.length; i += MAX_OPS_PER_BATCH) chunks.push(sendable.slice(i, i + MAX_OPS_PER_BATCH))
-      await Promise.all(chunks.map((chunk) => this.postBatch(chunk, { keepalive: true })))
-      return
+  // Apply the complete ordered diff as ONE request and therefore ONE SQLite transaction. An
+  // over-limit diff remains in the durable journal; it is never split into committed prefixes.
+  private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<boolean> {
+    if (ops.length > MAX_OPS_PER_BATCH) {
+      throw new Error(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`)
     }
-    const chunks: Op[][] = []
-    for (let i = 0; i < ops.length; i += MAX_OPS_PER_BATCH) chunks.push(ops.slice(i, i + MAX_OPS_PER_BATCH))
-    // Normal drain: strictly sequential so the global upserts-before-deletes order holds server-side.
-    for (const chunk of chunks) await this.postBatch(chunk)
+    const body = JSON.stringify({ ops })
+    if (opts?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
+      // Fetch keepalive has a small aggregate byte budget. The durable journal already owns this
+      // desired state, so skip a predictably rejected teardown request and replay next session.
+      return false
+    }
+    await this.postBatch(ops, body, opts)
+    return true
   }
 
-  // POST one ≤MAX_OPS_PER_BATCH slice of ops to /api/batch; the server applies it in one
+  // POST the complete ≤MAX_OPS_PER_BATCH diff to /api/batch; the server applies it in one
   // transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
-  // mid-batch failure rolls the whole chunk back. keepalive (unload) lets the request outlive
+  // mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
   // the page.
-  private async postBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<void> {
+  private async postBatch(
+    ops: Op[],
+    body = JSON.stringify({ ops }),
+    opts?: { keepalive?: boolean },
+  ): Promise<void> {
     const res = await this.fetchImpl(`${this.baseUrl}/api/batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ops }),
+      body,
       keepalive: opts?.keepalive,
       credentials: 'include',
     })
@@ -306,6 +401,10 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // 401 and swaps to the login screen. Never a silent drop.
       const detail = await res.text().catch(() => '')
       throw new Error(`Batch sync failed (${res.status}) ${detail}`.trim())
+    }
+    const receipt = (await res.json().catch(() => null)) as { ok?: unknown; applied?: unknown } | null
+    if (receipt?.ok !== true || receipt.applied !== ops.length) {
+      throw new Error('Batch sync returned an invalid commit receipt.')
     }
   }
 }

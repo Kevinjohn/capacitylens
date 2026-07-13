@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { timingSafeEqual } from 'node:crypto'
 import { betterAuth } from 'better-auth'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
 import type { BetterAuthOptions } from 'better-auth'
@@ -62,7 +63,14 @@ export interface Auth {
    *  `{ cause }` (the original failure) and states that a rollback was attempted, per
    *  DEFENSIVE-CODING §1.
    */
-  createCredentialUser: (email: string, name: string, password: string) => Promise<{ id: string }>
+  createCredentialUser: (
+    email: string,
+    name: string,
+    password: string,
+    emailVerified?: boolean,
+  ) => Promise<{ id: string }>
+  /** Remove a just-created credential identity when a later invite claim cannot commit. */
+  deleteCredentialUser: (userId: string) => Promise<void>
 }
 
 /** The identity attached to every request in 'off' mode — the seam Stage C will later
@@ -82,9 +90,10 @@ export const DEMO_USER: SessionUser = {
  *
  * `emailVerified` is the IdP-asserted verified-email flag. It defaults to `false` when a
  * provider omits it (see {@link normalizeSessionUser}): an unverifiable provider is treated as
- * unverified. The email-preauth invites in P1.10 bind a session to a pending invite ONLY when
- * `emailVerified === true`, so this flag is load-bearing for that gate — never widen it to
- * "truthy" or default it to `true`.
+ * unverified. SSO email-preauthorised invites bind a session only when `emailVerified === true`;
+ * password deployments instead treat possession of the addressed invite as the verification
+ * ceremony because they have no outbound email-verification service. Never widen the SSO check to
+ * "truthy" or default this flag to `true`.
  */
 export interface SessionUser {
   id: string
@@ -125,6 +134,14 @@ export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
 /** Misconfiguration that must refuse boot loudly (same posture as assertSchemaCurrent) —
  *  the entrypoint catches this, prints the message, and exits 1. */
 export class AuthConfigError extends Error {}
+
+/** Constant-time comparison for the first-run setup secret. Empty/unset secrets never match. */
+function setupTokenMatches(configured: string | undefined, presented: string | null): boolean {
+  if (!configured || !presented) return false
+  const expected = Buffer.from(configured, 'utf8')
+  const actual = Buffer.from(presented, 'utf8')
+  return expected.length === actual.length && timingSafeEqual(expected, actual)
+}
 
 // ── Admin-issued password-reset links (P1.18) ──────────────────────────────────────────────────
 // CapacityLens deliberately has NO email infrastructure (docs/self-hosting.md — a standing
@@ -378,15 +395,20 @@ export function authFromEnv(
 
   // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
   // design (Decisions — social SSO is the primary path; email+password a secondary fallback),
-  // with EXACTLY ONE exception: an EMPTY user table, where the first sign-up is the bootstrap
-  // that creates the owner (there is no one to invite you when no one can sign in). The gate is
-  // enforced LIVE, per request, by the hooks.before below — NOT by Better Auth's static
+  // with EXACTLY ONE bootstrap exception: an EMPTY user table plus the operator-configured setup
+  // token. The first sign-up creates the owner; the token prevents an arbitrary network visitor
+  // from claiming that seat. The gate is enforced LIVE, per request, by the hooks.before below —
+  // NOT by Better Auth's static
   // disableSignUp, because a boot-time boolean cannot express "open while zero users, closed the
   // moment the first user exists": a still-running server would keep signup open until a restart
   // (a hole). CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 keeps its meaning — an INTERIM trusted-instance/dev
   // escape that re-opens signup unconditionally. With neither condition, POST
   // /api/auth/sign-up/email returns the same 400 EMAIL_PASSWORD_SIGN_UP_DISABLED as before.
   const allowOpenSignup = env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'
+  const setupToken = env.CAPACITYLENS_SETUP_TOKEN || undefined
+  if (mode === 'password' && setupToken && Buffer.byteLength(setupToken, 'utf8') < 32) {
+    throw new AuthConfigError('CAPACITYLENS_SETUP_TOKEN must be at least 32 bytes.')
+  }
 
   // First-run owner bootstrap (--create-owner-admin-admin): the well-known bootstrap password
   // ('admin', 5 chars) is below MIN_PASSWORD_LENGTH. Earlier this instance-wide floor was lowered
@@ -445,20 +467,20 @@ export function authFromEnv(
     // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
     socialProviders: socialProvidersFromEnv(env),
     // The LIVE sign-up gate (see the SECURE DEFAULT comment above): allowed when the operator
-    // opted in OR the user table is EMPTY (first-run owner bootstrap). countUsers(db) is consulted
-    // PER REQUEST, never cached at boot — the door must close on the very next request after the
-    // first user exists, without a restart. Race note: two concurrent first sign-ups can both read
-    // zero users; SQLite serializes the writes, so the worst case is simply two users existing —
-    // the second holds no org membership (account_members is a separate control table), so it
-    // gains no tenant access. Accepted: not worth a lock on a once-per-instance path.
-    // NB the benign-race note above covers two legitimate operators; a HOSTILE first claimant on a
-    // publicly exposed fresh instance wins the owner seat outright — documented in
-    // docs/self-hosting.md (complete the owner sign-up immediately after the first auth-enabled
-    // boot).
+    // opted in, or for the empty-table owner bootstrap when the request proves knowledge of the
+    // configured setup secret. countUsers(db) is consulted per request so the bootstrap route
+    // closes immediately after the first identity is created.
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path !== '/sign-up/email') return
-        if (allowOpenSignup || countUsers(db) === 0) return
+        if (allowOpenSignup) return
+        // A fresh password instance is never claimable merely because it is reachable. The
+        // operator configures CAPACITYLENS_SETUP_TOKEN and the owner-setup form presents it in
+        // this header. index.ts also refuses a fresh password boot when the secret is absent.
+        if (
+          countUsers(db) === 0 &&
+          setupTokenMatches(setupToken, ctx.headers?.get('x-capacitylens-setup-token') ?? null)
+        ) return
         // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.20), so the
         // client and tests see one unchanged error shape regardless of which gate closed the door.
         throw APIError.from('BAD_REQUEST', {
@@ -529,8 +551,9 @@ export function authFromEnv(
       // Bound (not bare-referenced): Better Auth's api endpoints resolve their context via `this`.
       requestPasswordReset: (input) => raw.api.requestPasswordReset(input),
     },
-    createCredentialUser: (email, name, password) =>
-      raw.$context.then((ctx) => createCredentialUserWith(ctx, email, name, password)),
+    createCredentialUser: (email, name, password, emailVerified = false) =>
+      raw.$context.then((ctx) => createCredentialUserWith(ctx, email, name, password, emailVerified)),
+    deleteCredentialUser: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUser(userId)),
   }
   return { mode, auth }
 }
@@ -567,9 +590,10 @@ export async function createCredentialUserWith(
   email: string,
   name: string,
   password: string,
+  emailVerified = false,
 ): Promise<{ id: string }> {
   const hash = await ctx.password.hash(password)
-  const user = await ctx.internalAdapter.createUser({ email, name, emailVerified: false })
+  const user = await ctx.internalAdapter.createUser({ email, name, emailVerified })
   try {
     await ctx.internalAdapter.linkAccount({
       userId: user.id,

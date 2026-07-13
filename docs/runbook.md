@@ -150,8 +150,8 @@ AccountPicker next to any existing companies, with 12 resources / 11 clients / 1
 
 ## Testers (P5.1 / P5.3 / Phase 2 #3)
 
-- **Access:** invite-only via **Settings → Members → Invite** (briefly set
-  `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1` while the invitee creates their credential, then unset it);
+- **Access:** invite-only via **Settings → Members → Invite**; the invite page lets a genuinely new
+  password user create their credential without opening public registration;
   forgotten passwords via the admin-issued **Reset password** link on the member row
   (single-use, 24 h). Revoke by removing the membership. First-user bootstrap and the full
   flow are in [`deploy.md`](deploy.md) §7. Attribution is per-user (login + audit log).

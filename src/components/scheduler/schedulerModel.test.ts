@@ -550,21 +550,17 @@ describe('buildSchedulerModel(activeOnly(data), …) — non-active resources va
     expect(model.map((g) => g.title)).not.toContain('QA')
   })
 
-  it('a dangling-but-ACTIVE child of a hidden parent does not throw (no cascade-prune here)', () => {
+  it('hides scheduled work beneath an archived client', () => {
     // An ACTIVE project whose client is ARCHIVED, plus an ACTIVE activity on it, booked to r1.
-    // activeOnly drops the client but keeps the project/activity (no lifecycle field / own status
-    // active) — the view must degrade to a fallback label, never crash. SchedulerGrid + ProjectList
-    // optional-chain every cross-ref, which this exercises through the production model builder.
+    // The retained storage rows must not leak into the normal scheduler projection.
     const d = dataset()
     d.clients.push({ id: 'c-arch', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Gone Co', color: '#8', archivedAt: '2026-05-01T00:00:00.000Z' })
     d.projects.push({ id: 'p-orphan', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Orphan P', clientId: 'c-arch', color: '#9' })
     d.activities.push({ id: 't-orphan', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Orphan T', kind: 'project', projectId: 'p-orphan' })
     d.allocations.push({ id: 'a-orphan', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't-orphan', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
-    // The whole build must not throw despite the archived client being filtered out.
     const model = buildActive(d)
     const barIdsAll = model.flatMap((g) => g.rows).flatMap((r) => r.bars).map((b) => b.allocation.id)
-    // The orphan bar still renders on the active resource r1 (its activity/project survive).
-    expect(barIdsAll).toContain('a-orphan')
+    expect(barIdsAll).not.toContain('a-orphan')
   })
 })
 

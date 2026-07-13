@@ -11,7 +11,7 @@ import {
 } from './controlTables'
 import { resolveRole } from './membership'
 import { authFromEnv, runAuthMigrations, DEMO_USER } from './auth'
-import { PASSWORD_ENV, call, signUp } from './testHelpers'
+import { PASSWORD_ENV, call, cookiesOf, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 // P1.9 — single-use, expiring invite links. POST /api/invites mints a token (gated 'manageInvites',
@@ -177,6 +177,21 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
     expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('viewer')
   })
 
+  it('consumes an invite without changing an existing sole-owner membership', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const owner = await signUp(app, 'sole-owner@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    const created = await createInviteReq(app, { accountId: 'a1', role: 'viewer' }, { cookie: owner.cookie })
+    const token = (created.json() as { token: string }).token
+
+    const accepted = await acceptReq(app, token, { cookie: owner.cookie })
+    expect(accepted.statusCode).toBe(200)
+    expect(accepted.json()).toEqual({ accountId: 'a1', role: 'owner' })
+    expect(resolveRole(db, { id: owner.userId } as never, 'a1')).toBe('owner')
+    expect(getInvite(db, token)?.usedAt).not.toBeNull()
+  })
+
   it('an expired invite is 410, and no membership is bound', async () => {
     const { app, db } = await appWithAuth()
     seedOne(db)
@@ -205,6 +220,70 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
     const b = await signUp(app, 'nobody@capacitylens.dev')
     const res = await acceptReq(app, 'no-such-token', { cookie: b.cookie })
     expect(res.statusCode).toBe(404)
+  })
+})
+
+describe('POST /api/invites/:token/signup — password invite onboarding', () => {
+  it('creates, binds, and signs in a genuinely new preauthorized user while public signup is closed', async () => {
+    const db = openDb(':memory:')
+    const { mode, auth } = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: undefined,
+      CAPACITYLENS_SETUP_TOKEN: 'test-setup-token-0123456789abcdef',
+    })
+    await runAuthMigrations(auth!)
+    const inviter = await auth!.createCredentialUser(
+      'inviter-closed@capacitylens.dev',
+      'Inviter',
+      'password-123',
+    )
+    const app = buildApp(db, { authMode: mode, auth })
+    seedOne(db)
+    upsertMember(db, { accountId: 'a1', userId: inviter.id, role: 'owner', status: 'active', createdAt: TS })
+    const signInInviter = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      payload: { email: 'inviter-closed@capacitylens.dev', password: 'password-123' },
+    })
+    const created = await createInviteReq(
+      app,
+      { accountId: 'a1', role: 'editor', preauthEmail: 'new-person@capacitylens.dev' },
+      { cookie: cookiesOf(signInInviter) },
+    )
+    const token = (created.json() as { token: string }).token
+
+    // Ordinary self-registration is closed once the inviter exists.
+    const publicSignup = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'new-person@capacitylens.dev', password: 'password-123', name: 'New Person' },
+    })
+    expect(publicSignup.statusCode).toBe(400)
+
+    // The bearer invite provides the narrow onboarding route and needs no existing session.
+    const onboard = await call(app, {
+      method: 'POST',
+      url: `/api/invites/${token}/signup`,
+      payload: { email: 'new-person@capacitylens.dev', password: 'password-123', name: 'New Person' },
+    })
+    expect(onboard.statusCode).toBe(201)
+    expect(onboard.json()).toMatchObject({ ok: true, accountId: 'a1', role: 'editor' })
+    expect(getInvite(db, token)?.usedAt).not.toBeNull()
+
+    const signedIn = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      payload: { email: 'new-person@capacitylens.dev', password: 'password-123' },
+    })
+    expect(signedIn.statusCode).toBe(200)
+    const me = await call(app, {
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie: cookiesOf(signedIn) },
+    })
+    expect(me.json().user.emailVerified).toBe(true)
+    expect(resolveRole(db, { id: me.json().user.id } as never, 'a1')).toBe('editor')
+    expect((await acceptReq(app, token, { cookie: cookiesOf(signedIn) })).statusCode).toBe(409)
   })
 })
 
@@ -257,11 +336,12 @@ describe('P1.10 — preauthInviteAllows / normalizeEmail (pure decision matrix)'
     expect(preauthInviteAllows(stored, { email: 'dave@example.com', emailVerified: true })).toBe(false)
   })
 
-  it('preauth + UNVERIFIED + matching email → false (omitted-verification providers ⇒ unverified)', () => {
+  it('preauth + unverified matching email is SSO-denied but password-mode allowed', () => {
     const stored = normalizeEmail('carol@example.com')
     expect(preauthInviteAllows(stored, { email: 'carol@example.com', emailVerified: false })).toBe(
       false,
     )
+    expect(preauthInviteAllows(stored, { email: 'carol@example.com', emailVerified: false }, true)).toBe(true)
   })
 })
 
@@ -354,7 +434,7 @@ describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
     expect(getInvite(db, token)!.usedAt).toBeNull() // NOT consumed — still live for the right caller
   })
 
-  it('preauth + matching email but UNVERIFIED → 403; not consumed (fresh sign-up is unverified)', async () => {
+  it('password mode accepts a matching preauthorized email without a separate verification service', async () => {
     const { app, db } = await appWithAuth()
     seedOne(db)
     const a = await signUp(app, 'pa-inviter2@capacitylens.dev')
@@ -366,12 +446,12 @@ describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
     )
     const token = (created.json() as { token: string }).token
 
-    // Matching email, but a fresh email+password sign-up is unverified (P1.7a) — gate denies.
+    // Password mode proves control of the identity by the signed-in local credential itself.
     const b = await signUp(app, 'newhire@capacitylens.dev')
     const res = await acceptReq(app, token, { cookie: b.cookie })
-    expect(res.statusCode).toBe(403)
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBeNull()
-    expect(getInvite(db, token)!.usedAt).toBeNull()
+    expect(res.statusCode).toBe(200)
+    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('editor')
+    expect(getInvite(db, token)!.usedAt).not.toBeNull()
   })
 
   it('preauth + matching VERIFIED email → 200; role bound; usedAt set (end-to-end)', async () => {

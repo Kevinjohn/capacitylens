@@ -10,9 +10,9 @@ import { m } from '@/i18n'
 // the server reports authMode 'password' or 'sso' AND there is no session — the default
 // deploy (auth off) and the demo build never see it. Driven by Better Auth's React client.
 // The ONE sign-up form is the first-run owner setup: when the server reports `needsSetup`
-// (password mode + zero users — sign-up is open for exactly that one bootstrap account),
+// (password mode + zero users — sign-up requires the operator's setup token),
 // the screen offers "Create the owner account" instead of a dead-end sign-in; every other
-// account is created via invites/admin (self-registration stays closed).
+// password identity is created through a valid invite (self-registration stays closed).
 
 export function LoginScreen({
   authMode,
@@ -28,6 +28,7 @@ export function LoginScreen({
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [setupToken, setSetupToken] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   // Flips true the moment OUR owner-setup submit is refused because someone else's setup
@@ -42,6 +43,7 @@ export function LoginScreen({
   const nameId = useId()
   const emailId = useId()
   const passwordId = useId()
+  const setupTokenId = useId()
   const errorId = useId()
   const setup = authMode === 'password' && needsSetup && !setupClosed
 
@@ -74,7 +76,12 @@ export function LoginScreen({
     try {
       // Better Auth auto-signs-in on sign-up, so success proceeds exactly like a sign-in:
       // onSignedIn() reloads and the boot re-check finds the fresh session cookie.
-      const { error: failure } = await authClient.signUp.email({ email, password, name })
+      const { error: failure } = await authClient.signUp.email({
+        email,
+        password,
+        name,
+        fetchOptions: { headers: { 'x-capacitylens-setup-token': setupToken } },
+      })
       if (failure) {
         // The live per-request gate (server/src/auth.ts) closes the instant a user exists, so a
         // second tab/operator racing our own first-run setup gets refused with this EXACT typed
@@ -178,6 +185,20 @@ export function LoginScreen({
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  aria-describedby={error ? errorId : undefined}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-ink">{m.login_setup_token()}</span>
+                <input
+                  id={setupTokenId}
+                  data-testid="owner-setup-token"
+                  className={inputClass}
+                  type="password"
+                  autoComplete="off"
+                  value={setupToken}
+                  onChange={(e) => setSetupToken(e.target.value)}
+                  placeholder={m.login_setup_token_placeholder()}
                   aria-describedby={error ? errorId : undefined}
                 />
               </label>

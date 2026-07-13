@@ -318,24 +318,19 @@ half-configured.
 CAPACITYLENS_AUTH=password
 BETTER_AUTH_SECRET=<output of: openssl rand -base64 48>
 BETTER_AUTH_URL=https://capacity.example.com
+CAPACITYLENS_SETUP_TOKEN=<output of: openssl rand -base64 32>
 ```
 
 Then restart the daemon (`systemctl restart capacitylens`, or `docker compose up -d`). Better
 Auth creates its own tables (`user`, `session`, `account`, `verification`) inside the **same**
 SQLite file on first boot.
 
-**First user (owner) — no flags needed.** While the `user` table has **zero rows**, the login
-screen offers **Create the owner account** (name / email / password) instead of sign-in — that
-first sign-up is the bootstrap, and the moment it exists, self-registration closes again
-automatically (no restart needed). Just visit the site after the first auth-enabled boot and
-create your account.
-
-> ⚠️ **Claim the instance before (or the moment) it is reachable.** Until the owner account
-> exists, *anyone* who can reach the URL can create it — a scanner that finds a fresh instance
-> first owns it (with zero accounts, any signed-in user may create the first company). Complete
-> the owner sign-up immediately after the first auth-enabled boot, or do the first boot before
-> exposing the site publicly (bind to localhost / firewall it, sign up, then open it up). If you
-> are beaten to it, stop the daemon and delete the DB file — the next boot starts fresh.
+**First user (owner).** While the `user` table has **zero rows**, the login screen offers
+**Create the owner account** (name / email / password / setup token). Enter the configured
+`CAPACITYLENS_SETUP_TOKEN`; possession of that secret is required even when the site is publicly
+reachable. The bootstrap closes immediately after the first identity is created. A fresh password
+instance refuses to boot without this token unless you explicitly enable open signup or the
+bootstrap-admin escape hatch.
 
 For headless/scripted deploys there is an escape hatch: start the daemon once with
 `--create-owner-admin-admin` (or `CAPACITYLENS_CREATE_ADMIN_ADMIN=1`) and, **only if the user
@@ -345,23 +340,12 @@ change that password immediately (Settings → Members → Reset password), then
 With users already present the flag logs one "skipped" line and boots normally; with auth off
 or `sso` it refuses to boot (it's meaningless there).
 
-> **After the first user, signup is invite-only by design — and `password` mode needs one manual
-> step per new user.** Self-service public signup is intentionally **closed**
-> (`CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset): CapacityLens has no email infrastructure (no verification
-> or password-reset mail), so opening signup on a shared instance is a footgun. Note that an
-> **invite binds a role to an already-signed-in user** — it does not, by itself, create a login — so
-> in `password` mode there is no self-serve path for a brand-new person to get in. Two options:
->
-> 1. **Admin-provisioned credential (fine for a small team).** Briefly set
->    `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1`, have the new person create their email + password account (or
->    create it for them via `POST /api/auth/sign-up/email`), then turn the flag **back off**. Once they
->    are signed in, they accept the invite link, which grants the role.
-> 2. **Use `sso` mode instead** (§4b). With SSO the identity provider creates the user on first
->    sign-in, so an invite is all that's needed — no manual credential step. This is the smoother path
->    for anything beyond a handful of password users.
->
-> Full self-serve password onboarding (set-your-password-from-an-invite) needs email delivery, which is
-> a deliberate non-goal today — so treat `password` mode as a small, controlled set of accounts.
+> **After the first user, signup is invite-only by design.** Public self-registration remains closed
+> (`CAPACITYLENS_ALLOW_OPEN_SIGNUP` unset). An Owner/Admin creates an invite in Settings → Members and
+> hands the link to the recipient out of band. A genuinely new password user can open that link, enter
+> their name/email/password, and join; an email-preauthorized invite must match exactly, and possession
+> of that addressed bearer link is the password deployment's verification ceremony. Existing users can
+> sign in from the same page. No temporary open-signup flag or direct database edit is needed.
 
 **Forgotten passwords — admin-issued reset links (no email needed).** An Owner or Admin opens
 **Settings → Members** and clicks **Reset password** on the member's row. That mints a

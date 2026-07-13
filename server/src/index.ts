@@ -22,8 +22,8 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //   CAPACITYLENS_CORS_ORIGIN              CORS allow-list, comma-separated, or '*' to allow
 //                                   any origin. Defaults to the local dev origins so
 //                                   the API is NOT open to every site by default.
-//   CAPACITYLENS_OPTIMISTIC_CONCURRENCY   '1' to reject stale overwrites (409) instead of
-//                                   last-writer-wins.
+//   CAPACITYLENS_OPTIMISTIC_CONCURRENCY   enabled by default; set '0' only to deliberately allow
+//                                   stale last-writer-wins overwrites.
 //   CAPACITYLENS_MULTI_ACCOUNT             '1' to allow more than one company on this instance.
 //                                   Default off: CapacityLens is single-company-per-instance —
 //                                   once the accounts table holds one row, every create-a-company
@@ -79,10 +79,11 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //   BETTER_AUTH_SECRET              required — session signing secret (32+ chars).
 //   BETTER_AUTH_URL                 required — the public origin the browser uses.
 //   CAPACITYLENS_ALLOW_OPEN_SIGNUP        '1' to keep email self-registration open unconditionally
-//                                   (interim trusted-instance/dev escape). Default off: sign-up
-//                                   is closed the moment ONE user exists — the sole exception is
-//                                   an EMPTY user table, where the first sign-up bootstraps the
-//                                   owner (the login screen offers "Create the owner account").
+//                                   (trusted-instance/dev escape). Default off: sign-up is closed
+//                                   except for an EMPTY user table plus CAPACITYLENS_SETUP_TOKEN.
+//   CAPACITYLENS_SETUP_TOKEN              required secret for that first owner sign-up, presented
+//                                   by the setup form. A fresh password instance refuses to boot
+//                                   without it unless open signup/bootstrap-admin was explicit.
 //   CAPACITYLENS_CREATE_ADMIN_ADMIN       '1' (or the --create-owner-admin-admin argv flag — same
 //                                   switch, two spellings) to create a default owner credential
 //                                   admin@admin.admin / password 'admin' at boot, ONLY when
@@ -144,7 +145,7 @@ const port = parsePort(process.env.PORT)
 const host = process.env.CAPACITYLENS_HOST ?? '127.0.0.1'
 const allowReset = process.env.CAPACITYLENS_ALLOW_RESET === '1'
 const corsOrigin = process.env.CAPACITYLENS_CORS_ORIGIN ?? DEFAULT_CORS
-const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY === '1'
+const optimisticConcurrency = process.env.CAPACITYLENS_OPTIMISTIC_CONCURRENCY !== '0'
 // Single-company cap (see AppOptions.multiAccount) — off by default, so a fresh real deploy starts
 // capped to the first company it creates until the operator deliberately opts in to more.
 const multiAccount = process.env.CAPACITYLENS_MULTI_ACCOUNT === '1'
@@ -242,22 +243,28 @@ try {
   // "skipped" line and boot continues (deliberately NOT an error — see its TSDoc).
   if (bootstrapAdmin) await createBootstrapAdmin(db, authMode, auth)
   if (process.env.CAPACITYLENS_SEED_DEMO === '1') seedIfUninitialized(db, seed())
+  if (
+    authMode === 'password' &&
+    countUsers(db) === 0 &&
+    process.env.CAPACITYLENS_ALLOW_OPEN_SIGNUP !== '1' &&
+    !process.env.CAPACITYLENS_SETUP_TOKEN
+  ) {
+    throw new AuthConfigError(
+      'A fresh password instance requires CAPACITYLENS_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).',
+    )
+  }
 } catch (e) {
   refuseToStart(e instanceof Error ? e.message : String(e))
 }
 
-// SETUP OPEN warning (Finding 3, review 2026-07-11): countUsers is read AFTER the bootstrap block
-// above, so if --create-owner-admin-admin just created the well-known admin this boot, this is
-// already false (that path prints its OWN loud framed warning instead). Docs alone don't reach an
-// operator who never reads them before exposing the port — a boot-time line in front of them is
-// the surface that actually gets seen. Not gated on NODE_ENV: the claimability is real in every
-// mode where auth=password (a dev/staging box left open is just as claimable as prod), and this is
-// a warning, not a refusal — first-run setup must stay reachable.
+// SETUP LOCKED notice: countUsers is read after the bootstrap block, so a boot that created the
+// explicit admin credential skips this. The boot interlock above guarantees the token exists here;
+// this line tells the operator why ordinary sign-in cannot work yet without implying the instance
+// is claimable by a network visitor.
 if (authMode === 'password' && countUsers(db) === 0) {
   console.warn(
-    'capacitylens-server: SETUP OPEN — no user accounts exist yet, so sign-up is open to the first ' +
-      'visitor; anyone who can reach this server can claim it as owner. Create the owner account now ' +
-      '(or start once with --create-owner-admin-admin).',
+    'capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the ' +
+      'configured CAPACITYLENS_SETUP_TOKEN.',
   )
 }
 

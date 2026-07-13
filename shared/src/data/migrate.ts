@@ -1,4 +1,4 @@
-import { emptyAppData, SCOPED_KEYS } from '../types/entities'
+import { emptyAppData, SCHEMA_VERSION, SCOPED_KEYS } from '../types/entities'
 import { buildInternalClient } from './internalClient'
 import type { AppData } from '../types/entities'
 
@@ -22,6 +22,16 @@ export const KNOWN_KEYS: string[] = ['accounts', ...SCOPED_KEYS]
 // not mistaken for non-CapacityLens JSON and rejected. The migrate path renames them (migrateV4toV5).
 const LEGACY_KEYS: string[] = ['tasks']
 const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS]
+
+/** Refuse data written by a newer app instead of normalizing away fields this build cannot know. */
+export class UnsupportedSchemaVersionError extends Error {
+  readonly version: number
+  constructor(version: number) {
+    super(`Schema version ${version} is newer than this app supports (${SCHEMA_VERSION}).`)
+    this.name = 'UnsupportedSchemaVersionError'
+    this.version = version
+  }
+}
 
 // Unwrap the object the import shape-guards inspect: either the bare AppData map, or
 // the `data` field of a { schemaVersion, data } export. Returns null if not a plain object.
@@ -173,6 +183,7 @@ export function migrate(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') return emptyAppData()
   const obj = raw as Record<string, unknown>
   const version = typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 0
+  if (version > SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version)
 
   // Accept either a { schemaVersion, data } wrapper or a bare AppData (legacy).
   let data = ('data' in obj ? obj.data : obj) as Record<string, unknown> | undefined

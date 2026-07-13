@@ -141,9 +141,9 @@ export function ImportExport() {
       // cleanliness at one INSTANT — an edit made while the POST is pending would otherwise
       // either land just before the import (and be silently wiped by it) or sit debounced until
       // the post-import reload pushed its stale pre-import rows into the freshly imported slice
-      // (the import remaps ids, so they'd insert cleanly — no 409 stops them). A parked edit is
-      // dropped + surfaced by the reload (the uniform mid-reload policy, sticky notice); resume
-      // (the finally below) handles the edge cases via `committed`: an import that FAILED never
+      // (the import remaps ids, so they'd insert cleanly — no 409 stops them). A successful reload
+      // rebases only the operations made during this window onto the imported slice; resume (the
+      // finally below) handles the edge cases via `committed`: an import that FAILED never
       // replaced the slice, so the parked edit re-schedules; an import that COMMITTED but whose
       // re-hydrate failed/was skipped left the diff snapshot stale, so the parked edit is dropped
       // + surfaced instead — saving it would upsert ghost pre-import rows into the new slice.

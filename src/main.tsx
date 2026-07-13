@@ -72,10 +72,10 @@ if (storageMigrationError && !isServerConfigured()) {
     // re-seeds the diff snapshot atomically (the switch orchestrator). The demo build leaves it inert.
     serverMode: isServerConfigured(),
     onError: (e) => {
-      // A mid-reload edit drop is a DISCRETE loss, not a broken pipeline: the reload that raised
-      // it completes cleanly (and fires onSuccess), sync is healthy afterwards, and a read-only
-      // user would otherwise wear a stale "changes aren't saving" banner forever (no future save
-      // exists to clear it). The STICKY error toast is its whole surface — skip the banner.
+      // Successful reloads rebase edits made during their network window. This typed error is the
+      // exceptional case where an older failed write or committed external replacement cannot be
+      // safely replayed. It is a discrete loss, not an ongoing transport failure, so its sticky
+      // toast is the whole surface — skip the "changes aren't saving" banner.
       if (e instanceof ReloadDiscardedEditError) {
         useStore.getState().setNotice(m.notice_edit_dropped_reload(), 'error')
         return

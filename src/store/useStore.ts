@@ -432,6 +432,51 @@ const stamp = () => {
   return { createdAt: now, updatedAt: now }
 }
 const touch = () => new Date().toISOString()
+const touchAfter = (...timestamps: Array<string | undefined>): string => {
+  let next = Date.now()
+  for (const value of timestamps) {
+    if (!value) continue
+    const parsed = Date.parse(value)
+    if (Number.isFinite(parsed) && parsed >= next) next = parsed + 1
+  }
+  return new Date(next).toISOString()
+}
+const dataTimestamps = (data: AppData): string[] =>
+  (Object.values(data) as Entity[][]).flatMap((rows) => rows.map((row) => row.updatedAt))
+const nextDataRevision = (data: AppData): string =>
+  touchAfter(...dataTimestamps(data))
+
+/**
+ * Undo/redo restores historical values, but `updatedAt` is a synchronization revision rather than
+ * user history. Re-stamp every surviving row whose content changes across the history transition;
+ * otherwise the diff engine either misses a restored FK or the server rejects the old timestamp as
+ * stale. Rows recreated from deletion need no stamp because the server has no current row to beat.
+ */
+function prepareHistoryTarget(current: AppData, target: AppData): AppData {
+  const now = touchAfter(
+    ...dataTimestamps(current),
+    ...dataTimestamps(target),
+  )
+  const retime = <T extends Entity>(beforeRows: T[], targetRows: T[]): T[] => {
+    const beforeById = new Map(beforeRows.map((row) => [row.id, row]))
+    const content = (row: T): string => JSON.stringify({ ...row, updatedAt: undefined })
+    return targetRows.map((row) => {
+      const before = beforeById.get(row.id)
+      return before && content(before) !== content(row) ? { ...row, updatedAt: now } : row
+    })
+  }
+  return {
+    accounts: retime(current.accounts, target.accounts),
+    disciplines: retime(current.disciplines, target.disciplines),
+    resources: retime(current.resources, target.resources),
+    clients: retime(current.clients, target.clients),
+    projects: retime(current.projects, target.projects),
+    phases: retime(current.phases, target.phases),
+    activities: retime(current.activities, target.activities),
+    allocations: retime(current.allocations, target.allocations),
+    timeOff: retime(current.timeOff, target.timeOff),
+  }
+}
 
 const defaultUI = (): SchedulerUI => {
   // Open on the current week: focusDate = this Monday (the grid scrolls it flush to
@@ -468,7 +513,7 @@ export const useStore = create<StoreState>()((set, get) => {
     set((s) => ({ data: producer(s.data), past: [...s.past, s.data].slice(-HISTORY_LIMIT), future: [] }))
 
   const updateById = <T extends Entity>(list: T[], id: ID, patch: Partial<Omit<T, keyof Entity>>): T[] =>
-    list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touch() } : x))
+    list.map((x) => (x.id === id ? { ...x, ...patch, updatedAt: touchAfter(x.updatedAt) } : x))
 
   // Every scoped add* stamps the active account. With no account chosen there's
   // nowhere to file the entity, so we fail loudly rather than create an orphan.
@@ -738,13 +783,13 @@ export const useStore = create<StoreState>()((set, get) => {
     undo: () =>
       set((s) => {
         if (s.past.length === 0) return {}
-        const previous = s.past[s.past.length - 1]
+        const previous = prepareHistoryTarget(s.data, s.past[s.past.length - 1])
         return { data: previous, past: s.past.slice(0, -1), future: [s.data, ...s.future].slice(0, HISTORY_LIMIT) }
       }),
     redo: () =>
       set((s) => {
         if (s.future.length === 0) return {}
-        const next = s.future[0]
+        const next = prepareHistoryTarget(s.data, s.future[0])
         return { data: next, future: s.future.slice(1), past: [...s.past, s.data].slice(-HISTORY_LIMIT) }
       }),
 
@@ -764,7 +809,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deleteDiscipline: (id) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, 'disciplines', id)) return
-      mutate((d) => deleteDisciplineCascade(d, id))
+      mutate((d) => deleteDisciplineCascade(d, id, nextDataRevision(d)))
     },
 
     addResource: (input) => {
@@ -875,7 +920,7 @@ export const useStore = create<StoreState>()((set, get) => {
     deletePhase: (id) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, 'phases', id)) return
-      mutate((d) => deletePhaseCascade(d, id))
+      mutate((d) => deletePhaseCascade(d, id, nextDataRevision(d)))
     },
 
     addActivity: (input) => {
@@ -997,14 +1042,18 @@ export const useStore = create<StoreState>()((set, get) => {
       }
       // archive() THROWS if the row isn't 'active' (defense-in-depth — the UI gates via canArchive
       // first). Surface-not-swallow: let it throw, exactly like the builtin guards above.
-      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => (e.id === id ? { ...archive(e, touch()), updatedAt: touch() } : e)) }))
+      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => {
+        if (e.id !== id) return e
+        const now = touchAfter(e.updatedAt)
+        return { ...archive(e, now), updatedAt: now }
+      }) }))
     },
     unarchiveEntity: (entity, id) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, entity, id)) return
       // No builtin guard: the Internal client can never reach 'archived' (archiveEntity rejects it), so
       // unarchive() would throw 'not archived' anyway. unarchive() THROWS if the row isn't archived.
-      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => (e.id === id ? { ...unarchive(e), updatedAt: touch() } : e)) }))
+      mutate((d) => ({ ...d, [entity]: d[entity].map((e) => (e.id === id ? { ...unarchive(e), updatedAt: touchAfter(e.updatedAt) } : e)) }))
     },
     softDeleteEntity: (entity, id) => {
       if (blockedByViewer()) return
@@ -1022,10 +1071,11 @@ export const useStore = create<StoreState>()((set, get) => {
         ...d,
         [entity]: d[entity].map((e) => {
           if (e.id !== id) return e
-          const t = softDelete(e, touch())
+          const now = touchAfter(e.updatedAt)
+          const t = softDelete(e, now)
           return entity === 'resources'
-            ? { ...obfuscateResource(t as Resource), updatedAt: touch() }
-            : { ...t, updatedAt: touch() }
+            ? { ...obfuscateResource(t as Resource), updatedAt: now }
+            : { ...t, updatedAt: now }
         }),
       }))
     },
@@ -1049,13 +1099,13 @@ export const useStore = create<StoreState>()((set, get) => {
       }
       // Hard purge: physically remove the row AND cascade its children, via the SAME cascade the
       // regular delete* actions use (single-sourced from shared/lib/integrity.ts — no drift).
-      const cascade =
-        entity === 'resources'
-          ? deleteResourceCascade
-          : entity === 'clients'
-            ? deleteClientCascade
-            : deleteProjectCascade
-      mutate((d) => cascade(d, id))
+      mutate((d) => {
+        if (entity === 'resources') return deleteResourceCascade(d, id)
+        const now = nextDataRevision(d)
+        return entity === 'clients'
+          ? deleteClientCascade(d, id, now)
+          : deleteProjectCascade(d, id, now)
+      })
     },
 
     setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom } })),

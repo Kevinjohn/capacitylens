@@ -23,8 +23,16 @@ function hasNonArrayTable(raw: unknown): boolean {
   return TABLE_KEYS.some((k) => k in data && !Array.isArray(data[k]))
 }
 
+export class LocalStorageConflictError extends Error {
+  constructor() {
+    super('This data changed in another tab. Reload before saving again.')
+    this.name = 'LocalStorageConflictError'
+  }
+}
+
 export class LocalStorageAdapter implements PersistenceAdapter {
   private readonly key: string
+  private revision = 0
 
   // The storage key is required (no default): the live key is versioned
   // (`capacitylens/v3`, see main.tsx) and a silent default would read/write an
@@ -47,7 +55,10 @@ export class LocalStorageAdapter implements PersistenceAdapter {
       console.warn('LocalStorageAdapter.loadAll: reading local storage failed', e)
       throw new LoadError('unavailable', 'Local storage could not be read on this device.', { cause: e })
     }
-    if (!raw) return emptyAppData()
+    if (!raw) {
+      this.revision = 0
+      return emptyAppData()
+    }
     // A parse/migrate failure here means the stored bytes are CORRUPT, not absent.
     // Rethrow rather than returning empty: bootstrap must tell these apart so it
     // can refuse to overwrite recoverable-but-unreadable data with a blank save.
@@ -65,6 +76,10 @@ export class LocalStorageAdapter implements PersistenceAdapter {
       throw new LoadError('corrupt', 'Stored CapacityLens data is damaged.')
     }
     try {
+      this.revision =
+        typeof (parsed as { revision?: unknown }).revision === 'number'
+          ? (parsed as { revision: number }).revision
+          : 0
       return migrate(parsed)
     } catch (e) {
       throw new LoadError('corrupt', 'Stored CapacityLens data could not be parsed.', { cause: e })
@@ -93,15 +108,56 @@ export class LocalStorageAdapter implements PersistenceAdapter {
   clear(): void {
     try {
       localStorage.removeItem(this.key)
+      this.revision = 0
     } catch {
       // Nothing to clear / storage unavailable — the reload will reseed anyway.
     }
   }
 
   async saveAll(data: AppData): Promise<void> {
-    const state: PersistedState = { schemaVersion: SCHEMA_VERSION, data }
+    const raw = localStorage.getItem(this.key)
+    if (raw) {
+      try {
+        const current = JSON.parse(raw) as { revision?: unknown }
+        const currentRevision = typeof current.revision === 'number' ? current.revision : 0
+        if (currentRevision !== this.revision) throw new LocalStorageConflictError()
+      } catch (error) {
+        if (error instanceof LocalStorageConflictError) throw error
+        throw new LoadError('corrupt', 'Stored CapacityLens data could not be compared before saving.', {
+          cause: error,
+        })
+      }
+    } else if (this.revision !== 0) {
+      throw new LocalStorageConflictError()
+    }
+    const revision = this.revision + 1
+    const state: PersistedState = { schemaVersion: SCHEMA_VERSION, data, revision }
     // Let quota / private-mode failures reject so callers can surface them
     // instead of silently losing changes.
     localStorage.setItem(this.key, JSON.stringify(state))
+    this.revision = revision
+  }
+
+  subscribeExternal(listener: (data: AppData) => boolean): () => void {
+    if (typeof window === 'undefined') return () => {}
+    const onStorage = (event: StorageEvent) => {
+      if ((event.key !== this.key && event.key !== null) || event.storageArea !== localStorage) return
+      try {
+        if (event.newValue === null) {
+          if (listener(emptyAppData())) this.revision = 0
+          return
+        }
+        const parsed: unknown = JSON.parse(event.newValue)
+        if (hasNonArrayTable(parsed)) return
+        const data = migrate(parsed)
+        if (!listener(data)) return
+        const revision = (parsed as { revision?: unknown }).revision
+        this.revision = typeof revision === 'number' ? revision : 0
+      } catch (error) {
+        console.warn('LocalStorageAdapter: ignored an unreadable cross-tab update', error)
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }
 }

@@ -353,14 +353,28 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
       ],
       projects: [
         { id: 'p-active', accountId: A, name: 'Active P', clientId: 'c-active', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'p-hidden-parent', accountId: A, name: 'Hidden with client', clientId: 'c-archived', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH },
         { id: 'p-archived', accountId: A, name: 'Archived P', clientId: 'c-active', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, archivedAt: T_ARCH },
         { id: 'p-deleted', accountId: A, name: 'Deleted P', clientId: 'c-active', color: '#3b82f6', createdAt: T_ARCH, updatedAt: T_ARCH, deletedAt: T_DEL },
       ],
       // Non-lifecycle child tables — carry a row each to prove pass-through.
-      phases: [{ id: 'ph1', accountId: A, name: 'Build', projectId: 'p-active', createdAt: T_ARCH, updatedAt: T_ARCH }],
-      activities: [{ id: 'act1', accountId: A, name: 'Activity', kind: 'project', projectId: 'p-active', createdAt: T_ARCH, updatedAt: T_ARCH }],
-      allocations: [{ id: 'al1', accountId: A, resourceId: 'r-active', activityId: 'act1', startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', createdAt: T_ARCH, updatedAt: T_ARCH }],
-      timeOff: [{ id: 'to1', accountId: A, resourceId: 'r-active', startDate: '2026-02-01', endDate: '2026-02-03', type: 'holiday', createdAt: T_ARCH, updatedAt: T_ARCH }],
+      phases: [
+        { id: 'ph1', accountId: A, name: 'Build', projectId: 'p-active', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'ph-hidden', accountId: A, name: 'Hidden', projectId: 'p-hidden-parent', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      activities: [
+        { id: 'act1', accountId: A, name: 'Activity', kind: 'project', projectId: 'p-active', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'act-hidden', accountId: A, name: 'Hidden Activity', kind: 'project', projectId: 'p-hidden-parent', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      allocations: [
+        { id: 'al1', accountId: A, resourceId: 'r-active', activityId: 'act1', startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'al-hidden-activity', accountId: A, resourceId: 'r-active', activityId: 'act-hidden', startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'al-hidden-resource', accountId: A, resourceId: 'r-archived', activityId: 'act1', startDate: '2026-01-01', endDate: '2026-01-05', hoursPerDay: 8, status: 'confirmed', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
+      timeOff: [
+        { id: 'to1', accountId: A, resourceId: 'r-active', startDate: '2026-02-01', endDate: '2026-02-03', type: 'holiday', createdAt: T_ARCH, updatedAt: T_ARCH },
+        { id: 'to-hidden', accountId: A, resourceId: 'r-archived', startDate: '2026-02-01', endDate: '2026-02-03', type: 'holiday', createdAt: T_ARCH, updatedAt: T_ARCH },
+      ],
     }
   }
 
@@ -371,14 +385,13 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(out.projects.map((p) => p.id)).toEqual(['p-active'])
   })
 
-  it('passes phases/activities/allocations/timeOff/disciplines/accounts through UNTOUCHED (no lifecycle field)', () => {
+  it('closure-prunes descendants of hidden parents/resources while preserving top-level metadata', () => {
     const input = mixedData()
     const out = activeOnly(input)
-    // Same rows, same references — these tables are never filtered (the design INVARIANT).
-    expect(out.phases).toBe(input.phases)
-    expect(out.activities).toBe(input.activities)
-    expect(out.allocations).toBe(input.allocations)
-    expect(out.timeOff).toBe(input.timeOff)
+    expect(out.phases.map((row) => row.id)).toEqual(['ph1'])
+    expect(out.activities.map((row) => row.id)).toEqual(['act1'])
+    expect(out.allocations.map((row) => row.id)).toEqual(['al1'])
+    expect(out.timeOff.map((row) => row.id)).toEqual(['to1'])
     expect(out.disciplines).toBe(input.disciplines)
     expect(out.accounts).toBe(input.accounts)
   })
@@ -390,7 +403,7 @@ describe('activeOnly — VIEW/read projection that drops non-active resources/cl
     expect(input).toEqual(snapshot) // input deep-unchanged — every archived/deleted row still present
     expect(input.resources).toHaveLength(3)
     expect(input.clients).toHaveLength(3)
-    expect(input.projects).toHaveLength(3)
+    expect(input.projects).toHaveLength(4)
     expect(out).not.toBe(input) // a fresh AppData reference
   })
 

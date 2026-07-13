@@ -830,10 +830,7 @@ describe('CORS allow-list', () => {
     expect(res.headers['access-control-allow-methods']).toContain('POST')
   })
 
-  it('Allow-Headers lists Content-Type AND the bootstrap-token header (the one custom header)', async () => {
-    // x-capacitylens-bootstrap-token is the ONLY custom request header the API accepts (the P1.8
-    // operator path on POST /api/orgs); without it in Allow-Headers, a cross-origin browser caller
-    // of /api/orgs fails the preflight even from an allowed origin.
+  it('Allow-Headers lists JSON plus both operator-secret headers', async () => {
     const { app } = freshApp()
     const res = await call(app, {
       method: 'OPTIONS',
@@ -841,16 +838,17 @@ describe('CORS allow-list', () => {
       headers: {
         origin: 'http://localhost:5173',
         'access-control-request-method': 'POST',
-        'access-control-request-headers': 'content-type, x-capacitylens-bootstrap-token',
+        'access-control-request-headers': 'content-type, x-capacitylens-bootstrap-token, x-capacitylens-setup-token',
       },
     })
     expect(res.statusCode).toBe(204)
     expect(res.headers['access-control-allow-headers']).toContain('Content-Type')
     expect(res.headers['access-control-allow-headers']).toContain('x-capacitylens-bootstrap-token')
+    expect(res.headers['access-control-allow-headers']).toContain('x-capacitylens-setup-token')
   })
 })
 
-describe('optimistic concurrency (opt-in)', () => {
+describe('optimistic concurrency (default-on)', () => {
   it('rejects a stale PUT with 409 when enabled; allows same/newer', async () => {
     const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
     await post(app, 'accounts', account('a1'))
@@ -866,8 +864,8 @@ describe('optimistic concurrency (opt-in)', () => {
     expect((await state(app)).clients[0].name).toBe('Fresh')
   })
 
-  it('is OFF by default: last-writer-wins, no 409', async () => {
-    const { app } = freshApp()
+  it('can be explicitly disabled for a trusted single-writer deployment', async () => {
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: false })
     await post(app, 'accounts', account('a1'))
     await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
     const stale = await put(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Stale', updatedAt: '2026-02-01T00:00:00.000Z' })
@@ -927,8 +925,8 @@ describe('optimistic concurrency (opt-in)', () => {
     expect((await state(app)).clients[0].name).toBe('Acme') // stored row untouched by either
   })
 
-  it('batch: OFF by default — a stale PUT op is last-writer-wins, no 409', async () => {
-    const { app } = freshApp()
+  it('batch: explicit opt-out restores last-writer-wins semantics', async () => {
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: false })
     await post(app, 'accounts', account('a1'))
     await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
     const res = await batch(app, [

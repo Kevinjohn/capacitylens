@@ -145,8 +145,8 @@ export function upsertMember(db: Db, member: AccountMember): void {
        role = excluded.role, status = excluded.status`,
   ).run(member.accountId, member.userId, member.role, member.status, member.createdAt)
   // P1.18 (TOCTOU close): a password-reset link is authorized at MINT time against the user's
-  // membership snapshot THEN — so ANY membership write for this user (a role change, an owner-invite
-  // accepted in place, becoming the owner of a new org, even a lateral move) invalidates that
+  // membership snapshot THEN — so ANY membership write for this user (a role change, becoming the
+  // owner of a new org, even a lateral move) invalidates that
   // authorization and must burn their outstanding reset links, else a link minted while they were
   // lower-tier could redeem into the elevated identity. Centralised HERE, at the single membership
   // -write choke point, precisely so no elevation path (PATCH role, transfer-ownership, invite
@@ -498,11 +498,9 @@ export function normalizeEmail(email: string): string {
  *
  * - `preauthEmail === null` → `true` (a LINK invite: any signed-in caller may accept — P1.9
  *   behaviour, preserved).
- * - `preauthEmail !== null` → `true` ONLY iff BOTH hold:
- *     1. `user.emailVerified === true` — an unverified (or unverifiable-provider) principal NEVER
- *        binds a preauth invite (Decision: providers that omit verification ⇒ treat as unverified).
- *     2. `normalizeEmail(user.email) === preauthEmail` — the stored `preauthEmail` is ALREADY
- *        normalized (at create time), so this compares normalized-vs-normalized.
+ * - `preauthEmail !== null` → the normalized email must match. SSO additionally requires
+ *   `user.emailVerified === true`; password mode does not, because possession of the addressed
+ *   invite is the verification ceremony in deployments with no outbound verification service.
  *
  * Pure: no I/O, no session lookup — the caller passes the already-resolved principal. A `false`
  * result MUST translate to a 403 that binds nothing and consumes nothing (the invite stays live for
@@ -510,18 +508,21 @@ export function normalizeEmail(email: string): string {
  *
  * @param preauthEmail  The invite's pre-authorised email (already normalized), or `null` for a link
  *   invite.
- * @param user          The resolved signed-in principal — its IdP-asserted `email` and the
- *   load-bearing `emailVerified` flag.
+ * @param user          The resolved signed-in principal — its email and, for SSO, the
+ *   load-bearing IdP-asserted `emailVerified` flag.
+ * @param passwordMode  Whether invite possession substitutes for email verification.
  * @returns `true` if this principal may accept this invite, `false` otherwise.
  */
 export function preauthInviteAllows(
   preauthEmail: string | null,
   user: { email: string; emailVerified: boolean },
+  passwordMode = false,
 ): boolean {
   if (preauthEmail === null) return true // link invite: any signed-in caller (P1.9)
-  // Email-preauth invite: bind ONLY for a VERIFIED principal whose verified email matches exactly.
-  // Both sides are normalized (preauthEmail at create, user.email here), so the compare is exact.
-  return user.emailVerified === true && normalizeEmail(user.email) === preauthEmail
+  // Password deployments have no outbound verification service: possession of the
+  // email-addressed invite is their verification ceremony. SSO still requires the IdP's verified
+  // email claim. Both sides are normalized before the exact comparison.
+  return (passwordMode || user.emailVerified === true) && normalizeEmail(user.email) === preauthEmail
 }
 
 /**
@@ -529,7 +530,8 @@ export function preauthInviteAllows(
  * non-empty local part from a non-empty domain. DELIBERATELY not a full RFC 5322 validator: its only
  * job is to reject obvious junk (no `@`, empty side, multiple `@`) before storing a preauth email, so
  * a malformed value can't mint an invite that could never bind. The trust anchor for the actual
- * binding is the IdP-asserted verified email at accept time, not this check.
+ * binding is the signed-in identity plus the bearer invite; SSO additionally requires the IdP's
+ * verified-email assertion.
  *
  * @param email  The (already trimmed) candidate email.
  * @returns `true` if it has a single `@` with non-empty local + domain parts.

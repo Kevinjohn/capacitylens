@@ -30,7 +30,8 @@ import {
 //     database-backed OAuth account-link state stores JSON with the userId at `link.userId`
 // We DELETE all four identity surfaces for a user who loses their last membership. Deleting the
 // `user` row, rather than retaining a scrubbed shell, is also load-bearing for password-mode
-// recovery: first-run signup and bootstrap reopen only when the user table is empty. If a future
+// recovery: setup-token-guarded first-run signup and bootstrap reopen only when the user table is
+// empty. If a future
 // Better Auth version renames/drops any of these columns, the erasure tests
 // (app.erasure.test.ts) fail LOUD on the changed schema rather than silently leaking PII — that is the
 // whole point of pinning the columns here AND asserting them there.

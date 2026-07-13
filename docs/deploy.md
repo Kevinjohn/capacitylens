@@ -93,11 +93,11 @@ cd /home/forge/capacitylens.yourdomain.com
 export NODE_ENV=production
 export CAPACITYLENS_DB=/home/forge/capacitylens-data/capacitylens.db
 
-# Auth (password mode). All three REQUIRED — the server refuses to boot without them
-# under NODE_ENV=production. Secret: openssl rand -base64 48 (min 32 chars).
+# Auth (password mode). Generate both secrets before first boot.
 export CAPACITYLENS_AUTH=password
 export BETTER_AUTH_SECRET='<paste openssl rand -base64 48 output>'
 export BETTER_AUTH_URL=https://capacitylens.yourdomain.com   # the PUBLIC origin
+export CAPACITYLENS_SETUP_TOKEN='<paste openssl rand -base64 32 output>'
 
 # CAPACITYLENS_HTTPS stays OFF: TLS terminates at nginx; the flag reflects the
 # daemon's own protocol (see server/README.md).
@@ -185,20 +185,15 @@ same token-path handling — if you're wiring nginx by hand instead of through F
 3. **Start the daemon.** After the *first* pnpm install (and after any `server/` change),
    a daemon **restart is mandatory** — pnpm replaces the whole `node_modules` layout under
    a running process.
-4. **Bootstrap the first login** (no flags, no restart dance): with **zero users** in the
-   DB, the login screen offers **Create the owner account** — visit the site, fill in
-   name / email / password, and you're in. The moment that first account exists, sign-up
-   closes again **automatically** (no restart).
-
-   > ⚠️ Do this **immediately after the daemon comes up** — the site is already public
-   > (step 2 provisioned SSL), and until the owner exists anyone who reaches the URL can
-   > claim the instance. If a stranger beats you to it, stop the daemon, delete the DB
-   > (step 1), and go again. Then:
+4. **Bootstrap the first login:** with **zero users** in the DB, the login screen offers
+   **Create the owner account** — fill in name / email / password and the configured
+   `CAPACITYLENS_SETUP_TOKEN`. A visitor without that operator secret cannot claim the instance.
+   The moment the first identity exists, sign-up closes again automatically. Then:
    - create the first company when prompted (with zero accounts in the DB, any signed-in
      user may create the first org);
-   - from here on new people join via **Settings → Members → Invite** (briefly set
-     `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1` while they create their credential, then unset it)
-     and forgotten passwords via the admin-issued **Reset password** link on the member
+   - from here on new people join via **Settings → Members → Invite**; the invite page lets a new
+     password user create their credential without opening public registration. Forgotten passwords
+     use the admin-issued **Reset password** link on the member
      row (single-use, 24 h).
 
    *Headless alternative:* start the daemon once with `--create-owner-admin-admin` (or

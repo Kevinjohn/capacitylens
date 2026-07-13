@@ -284,6 +284,8 @@ export const SCHEMA_VERSION = 6
 export interface PersistedState {
   schemaVersion: number
   data: AppData
+  /** Monotonic localStorage compare-and-swap revision (absent on legacy/export blobs). */
+  revision?: number
 }
 
 /** A fresh, empty dataset — the starting point before seeding. */

@@ -114,13 +114,10 @@ export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
  * what "shown in the normal app" means. "Active" is exactly `lifecycleStatus(e) === 'active'`, so the
  * lifecycle state machine stays the single authority (a future state never silently leaks into views).
  *
- * ONLY `resources`/`clients`/`projects` are filtered — they are the ONLY entities carrying the
- * `archivedAt`/`deletedAt` tombstones (P2.1). `phases`/`activities`/`allocations`/`timeOff`/
- * `disciplines`/`accounts` have NO lifecycle field, so they pass through unchanged: a child of a
- * hidden parent (e.g. an active project under an archived client, or an active activity under an
- * archived project) is filtered ONLY by its OWN status — it is NOT cascaded out here. Every
- * cross-reference in the view path is optional-chained, so such a child simply renders a fallback
- * label rather than crashing; this helper deliberately does NOT orphan-prune.
+ * Lifecycle state is inherited by the read projection: projects under hidden clients, phases and
+ * project activities under hidden projects, and allocations/time off whose visible endpoint was
+ * hidden are also removed. Storage and exports retain those rows; normal views do not leak
+ * orphan-labelled descendants or allocation bars after a parent is archived/deleted.
  *
  * INVARIANT — VIEW/READ PROJECTION ONLY. Use this ONLY where the goal is "what the normal app shows":
  * the scheduler/list/picker/palette views and the per-account read. NEVER on an integrity, mutation,
@@ -133,11 +130,37 @@ export function lifecycleStatus(entity: LifecycleFields): LifecycleState {
  */
 export function activeOnly(data: AppData): AppData {
   const isActive = (e: LifecycleFields) => lifecycleStatus(e) === 'active'
+  const resources = data.resources.filter(isActive)
+  const clients = data.clients.filter(isActive)
+  const clientIds = new Set(clients.map((client) => client.id))
+  // Parent lifecycle is inherited by the read projection. An active child beneath an archived or
+  // deleted parent is retained in storage/export, but cannot remain independently visible in the
+  // normal app (which previously left orphan-labelled projects and allocation bars on screen).
+  const projects = data.projects.filter(
+    (project) => isActive(project) && clientIds.has(project.clientId),
+  )
+  const projectIds = new Set(projects.map((project) => project.id))
+  const phases = data.phases.filter((phase) => projectIds.has(phase.projectId))
+  const phaseIds = new Set(phases.map((phase) => phase.id))
+  const activities = data.activities.filter(
+    (activity) =>
+      (activity.projectId === undefined || projectIds.has(activity.projectId)) &&
+      (activity.phaseId === undefined || phaseIds.has(activity.phaseId)),
+  )
+  const resourceIds = new Set(resources.map((resource) => resource.id))
+  const activityIds = new Set(activities.map((activity) => activity.id))
   return {
     ...data,
-    resources: data.resources.filter(isActive),
-    clients: data.clients.filter(isActive),
-    projects: data.projects.filter(isActive),
+    resources,
+    clients,
+    projects,
+    phases,
+    activities,
+    allocations: data.allocations.filter(
+      (allocation) =>
+        resourceIds.has(allocation.resourceId) && activityIds.has(allocation.activityId),
+    ),
+    timeOff: data.timeOff.filter((entry) => resourceIds.has(entry.resourceId)),
   }
 }
 

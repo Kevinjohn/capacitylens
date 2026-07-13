@@ -15,14 +15,12 @@ import type { Role } from '@capacitylens/shared/domain/access'
 // discipline). That is the shipped/default path and MUST stay byte-identical to today's app, which
 // `role: null` → fully editable (see permissionContext.ts) guarantees.
 //
-// FAIL-OPEN: in the auth-on + server path, any fetch failure or a missing/own-account-absent
-// response leaves `role: null` (editable), NOT viewer. The server 403 (P1.5) is the real access
-// boundary; failing CLOSED here could lock a legitimate editor out on a transient blip, while
-// failing open only ever softens client UX — the server still rejects an unauthorised write.
+// FAIL-CLOSED: in the auth-on + server path, pending/failed/missing role resolution is projected as
+// viewer. This prevents an optimistic edit window after every account switch and prevents local UI
+// divergence while the permission endpoint is unavailable. OFF/demo still use null (editable).
 
-/** Narrowing guard for the UNTRUSTED `role` field of each `/api/accounts` entry. The server is
- *  external input — we validate the shape rather than trusting an `as` cast (mirrors AuthProvider's
- *  isAuthMode). An off-spec role degrades to `null` (editable) rather than a bogus enforced role. */
+/** Narrowing guard for the untrusted `role` field of each `/api/accounts` entry. Off-spec data
+ *  degrades to the provider's fail-closed viewer projection. */
 function isRole(v: unknown): v is Role {
   return v === 'owner' || v === 'admin' || v === 'editor' || v === 'viewer'
 }
@@ -32,8 +30,7 @@ function isRole(v: unknown): v is Role {
  *
  * - OFF mode OR the demo build (no server): `role: null`, no fetch — the must-stay-editable path.
  * - auth-on + server + an active account: fetch `GET /api/accounts` ONCE per active account, find
- *   the entry whose `id === activeAccountId`, and set its role. On failure/absence: `role: null`
- *   (fail-open to editable; the server 403 backstops).
+ *   the entry whose `id === activeAccountId`, and set its role. Pending/failure/absence is viewer.
  *
  * The resolved role is ALSO pushed to the store (`setActiveRole`) so the store's defense-in-depth
  * mutation guard (P1.12) can no-op a viewer's optimistic local write — see useStore.assertCanWrite.
@@ -66,13 +63,13 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       // Reset the store role BEFORE the await so a prior tenant's role can't leak across an account
       // switch while the new fetch is in flight (default-editable during the gap). The provider's own
       // value is already null for the new account until the fetch resolves (fetchedRole is keyed below).
-      setActiveRole(null)
+      setActiveRole('viewer')
       try {
         const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include' })
-        if (!res.ok) return // fail-open: leave role null (editable); the server 403 is the backstop.
+        if (!res.ok) return // fail-closed: keep the viewer projection installed above.
         // UNTRUSTED external input: validate the shape rather than trusting an `as` cast. We want the
         // entry for the ACTIVE account; anything off-spec (not an array, missing entry, bad role)
-        // degrades to null (editable) rather than enforcing a bogus role. (The in-effect-async idiom
+        // degrades to viewer. (The in-effect-async idiom
         // mirrors MembersSection: every setState is behind the await, never synchronous in the body.)
         const body: unknown = await res.json()
         const entry = Array.isArray(body)
@@ -80,15 +77,13 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
               typeof a === 'object' && a !== null && (a as { id?: unknown }).id === activeAccountId,
             )
           : undefined
-        const resolved = entry && isRole(entry.role) ? entry.role : null
+        const resolved = entry && isRole(entry.role) ? entry.role : 'viewer'
         if (cancelled) return
         setFetched({ accountId: activeAccountId, role: resolved })
         setActiveRole(resolved)
       } catch {
-        // Fail-OPEN: a transport error (server down / offline / unreadable body) leaves role null
-        // (editable). Locking a legitimate editor out on a transient blip would be worse than the
-        // softened UX; the server 403 still rejects any unauthorised write. Not silent at the data
-        // layer — an actual write would surface its own persistError/403 banner.
+        // Fail-closed: the store and context keep the viewer projection until a later successful
+        // role lookup. No optimistic local mutation can diverge from the server during an outage.
       }
     })()
     return () => {
@@ -103,7 +98,12 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
   // resolved for the CURRENTLY active account (the accountId tag) — a prior tenant's role can't leak
   // across a switch. This computation is what lets the OFF/demo branch above avoid a synchronous
   // setState (the set-state-in-effect lint).
-  const role = enabled && activeAccountId && fetched?.accountId === activeAccountId ? fetched.role : null
+  const role =
+    enabled && activeAccountId
+      ? fetched?.accountId === activeAccountId
+        ? (fetched.role ?? 'viewer')
+        : 'viewer'
+      : null
 
   // Memoise the context value on `role` so a re-render that doesn't change the role keeps the SAME
   // value reference — otherwise every consumer (the affordance hubs across the app) re-renders on any

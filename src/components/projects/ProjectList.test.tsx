@@ -118,19 +118,15 @@ describe('ProjectList', () => {
     expect(screen.getByText('No projects yet.')).toBeInTheDocument()
   })
 
-  // activeOnly hides an archived client from the views but does NOT orphan-prune its still-active
-  // projects (shared/domain/lifecycle.ts). The row must name the archived client (resolved against
-  // the FULL scoped slice) with an (archived) hint — not the misleading "(no client)" fallback.
-  it('shows the client name + (archived) for a project whose client is archived, not "(no client)"', () => {
+  it('hides a project whose client is archived', () => {
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })
     useStore.getState().addProject({ name: 'Alpha Project', clientId: client.id, color: '#ec4899' })
     useStore.getState().archiveEntity('clients', client.id)
 
     render(<ProjectList />)
 
-    expect(screen.getByText('Alpha Project')).toBeInTheDocument()
-    expect(screen.getByText('· Acme Corp (archived)')).toBeInTheDocument()
-    expect(screen.queryByText('· (no client)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Alpha Project')).not.toBeInTheDocument()
+    expect(screen.getByText('No projects yet.')).toBeInTheDocument()
   })
 
   // An unresolvable clientId means different things per mode: in SERVER mode the per-account read
@@ -157,24 +153,21 @@ describe('ProjectList', () => {
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
   }
 
-  it('SERVER mode: shows (archived client) when the client id resolves nowhere in the raw slice', () => {
+  it('server mode hides a project whose client resolves nowhere', () => {
     // Override the file-wide demo stub: server mode is any value other than '1'.
     vi.stubEnv('VITE_CAPACITYLENS_DEMO', '')
     seedOrphanProject()
 
     render(<ProjectList />)
 
-    expect(screen.getByText('Orphan Project')).toBeInTheDocument()
-    expect(screen.getByText('· (archived client)')).toBeInTheDocument()
+    expect(screen.queryByText('Orphan Project')).not.toBeInTheDocument()
   })
 
-  it('DEMO build: shows (no client) for a genuinely dangling client id, not "(archived client)"', () => {
+  it('demo mode also hides a project whose client resolves nowhere', () => {
     seedOrphanProject() // file-wide demo stub applies
 
     render(<ProjectList />)
 
-    expect(screen.getByText('Orphan Project')).toBeInTheDocument()
-    expect(screen.getByText('· (no client)')).toBeInTheDocument()
-    expect(screen.queryByText('· (archived client)')).not.toBeInTheDocument()
+    expect(screen.queryByText('Orphan Project')).not.toBeInTheDocument()
   })
 })

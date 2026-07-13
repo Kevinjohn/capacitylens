@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
 import { ServerSyncAdapter, BatchConflictError, MAX_OPS_PER_BATCH, diffOps, applyOps } from './ServerSyncAdapter'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData, Client, Project } from '@capacitylens/shared/types/entities'
@@ -15,13 +15,29 @@ const project = (id: string, clientId: string, updatedAt = TS1): Project => ({ i
 
 const withData = (over: Partial<AppData>): AppData => ({ ...emptyAppData(), ...over })
 
+const commitReceipt = (init?: RequestInit): Response => {
+  let applied = 0
+  if (typeof init?.body === 'string') {
+    try {
+      applied = (JSON.parse(init.body) as { ops?: unknown[] }).ops?.length ?? 0
+    } catch {
+      // Tests that exercise malformed bodies do not use this helper.
+    }
+  }
+  return new Response(JSON.stringify({ ok: true, applied }), { status: 200 })
+}
+
+beforeEach(() => {
+  localStorage.removeItem('capacitylens/server-write-queue/v1')
+})
+
 describe('auth-awareness (P3.4)', () => {
   it('sends credentials on every request so a session cookie reaches an auth-enabled server', async () => {
     const calls: Array<{ url: string; init?: RequestInit }> = []
     const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init })
       if (String(url).endsWith('/api/state')) return new Response(JSON.stringify(emptyAppData()), { status: 200 })
-      return new Response('{}', { status: 200 })
+      return commitReceipt(init)
     })
     const adapter = new ServerSyncAdapter('http://api.test', fetchImpl as unknown as typeof fetch)
     await adapter.loadAll()
@@ -30,6 +46,26 @@ describe('auth-awareness (P3.4)', () => {
     expect(calls.length).toBeGreaterThanOrEqual(3) // state, meta, batch
     for (const { url, init } of calls) {
       expect(init?.credentials, url).toBe('include')
+    }
+  })
+})
+
+describe('durable write-ahead queue', () => {
+  it('refuses to send when the desired state cannot be journaled durably', async () => {
+    const fetchImpl = okFetch()
+    const adapter = new ServerSyncAdapter('http://api.test', fetchImpl as unknown as typeof fetch)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('quota', 'QuotaExceededError')
+    })
+    try {
+      await expect(adapter.saveAll(withData({ clients: [client('c1')] }))).rejects.toThrow(
+        /durable write queue/i,
+      )
+      expect(fetchImpl).not.toHaveBeenCalled()
+    } finally {
+      setItem.mockRestore()
+      warn.mockRestore()
     }
   })
 })
@@ -91,15 +127,15 @@ describe('applyOps', () => {
 })
 
 function okFetch() {
-  return vi.fn(async () => new Response('{}', { status: 200 }))
+  return vi.fn(async (_url: string, init?: RequestInit) => commitReceipt(init))
 }
 
 describe('ServerSyncAdapter.loadAll', () => {
   it('GETs /api/state (no-arg whole read, OFF/fallback), migrates, and seeds the snapshot so the next save diffs against it', async () => {
     const state = withData({ clients: [client('c1')] })
-    const fetchImpl = vi.fn(async (url: string) => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith('/api/state')) return new Response(JSON.stringify(state), { status: 200 })
-      return new Response('{}', { status: 200 })
+      return commitReceipt(init)
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
     const loaded = await a.loadAll()
@@ -114,10 +150,10 @@ describe('ServerSyncAdapter.loadAll', () => {
     // Per-account hydration (P1.13): the picker chose a1, so we load ONLY a1's slice.
     const a1Slice = withData({ clients: [client('c1')] })
     const urls: string[] = []
-    const fetchImpl = vi.fn(async (url: string) => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       urls.push(url)
       if (url.includes('/api/state')) return new Response(JSON.stringify(a1Slice), { status: 200 })
-      return new Response('{}', { status: 200 })
+      return commitReceipt(init)
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
     const loaded = await a.loadAll('a1')
@@ -139,9 +175,9 @@ describe('ServerSyncAdapter.loadAll', () => {
     const a1Slice = withData({ clients: [a1c] })
     const a2Slice = withData({ clients: [a2c] })
     let nextSlice = a1Slice
-    const fetchImpl = vi.fn(async (url: string) => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes('/api/state')) return new Response(JSON.stringify(nextSlice), { status: 200 })
-      return new Response('{}', { status: 200 })
+      return commitReceipt(init)
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
 
@@ -161,6 +197,31 @@ describe('ServerSyncAdapter.loadAll', () => {
     const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
     expect(ops.every((o) => o.id !== 'c1')).toBe(true) // NEVER touches a1's row
     expect(ops).toEqual([expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c2' })])
+  })
+
+  it('replays a failed write from the durable journal on the next adapter session', async () => {
+    const desired = withData({ clients: [client('c1')] })
+    const offlineFetch = vi.fn(async () => {
+      throw new TypeError('offline')
+    }) as unknown as typeof fetch
+    const first = new ServerSyncAdapter('http://x', offlineFetch)
+    await expect(first.saveAll(desired)).rejects.toThrow('offline')
+    expect(localStorage.getItem('capacitylens/server-write-queue/v1')).toContain('c1')
+
+    const wire: Array<{ url: string; init?: RequestInit }> = []
+    const recoveredFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      wire.push({ url, init })
+      if (url.includes('/api/state')) return new Response(JSON.stringify(emptyAppData()), { status: 200 })
+      return commitReceipt(init)
+    }) as unknown as typeof fetch
+    const recovered = new ServerSyncAdapter('http://x', recoveredFetch)
+    const loaded = await recovered.loadAll('a1')
+
+    expect(loaded.clients.map((row) => row.id)).toEqual(['c1'])
+    expect(batchOps([wire[1].url, wire[1].init])).toEqual([
+      expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c1' }),
+    ])
+    expect(localStorage.getItem('capacitylens/server-write-queue/v1')).toBeNull()
   })
 })
 
@@ -185,9 +246,9 @@ describe('ServerSyncAdapter.saveAll', () => {
 
   it('does NOT advance the snapshot on a failed batch, so the next save replays the delta', async () => {
     let failNext = false
-    const fetchImpl = vi.fn(async (url: string) => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith('/api/batch') && failNext) return new Response('boom', { status: 500 })
-      return new Response('{}', { status: 200 })
+      return commitReceipt(init)
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
 
@@ -257,14 +318,23 @@ describe('ServerSyncAdapter.saveAll', () => {
     expect(err).toBeInstanceOf(BatchConflictError)
   })
 
+  it('rejects an HTTP 2xx that does not prove the complete batch committed', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ ok: true, applied: 0 }), { status: 200 })) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    await expect(a.saveAll(withData({ clients: [client('c1')] }))).rejects.toThrow(
+      'Batch sync returned an invalid commit receipt.',
+    )
+  })
+
   it('coalesces overlapping saves to the latest state', async () => {
     let resolveFirst: (() => void) | null = null
     const fetchImpl = vi.fn(
-      () =>
+      (_url: string, init?: RequestInit) =>
         new Promise<Response>((resolve) => {
           // Hold the very first request open so a second saveAll lands mid-flush.
-          if (!resolveFirst) resolveFirst = () => resolve(new Response('{}', { status: 200 }))
-          else resolve(new Response('{}', { status: 200 }))
+          if (!resolveFirst) resolveFirst = () => resolve(commitReceipt(init))
+          else resolve(commitReceipt(init))
         }),
     ) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
@@ -281,123 +351,56 @@ describe('ServerSyncAdapter.saveAll', () => {
   })
 })
 
-describe('batch chunking (large imports vs the server MAX_BATCH_OPS cap)', () => {
-  // An in-app import can produce tens of thousands of ops (fresh ids + deletes); the server rejects
-  // any single batch over 5000 ops, so the adapter must split the ordered op list into consecutive
-  // ≤MAX_OPS_PER_BATCH chunks POSTed sequentially — order preserved, lastSynced advanced only after
-  // ALL chunks land.
-
+describe('atomic large diffs and unload durability', () => {
   const manyClients = (n: number) => Array.from({ length: n }, (_, i) => client(`c${i}`))
 
-  it('splits 4500 ops into 3 SEQUENTIAL /api/batch POSTs of 2000/2000/500, order preserved', async () => {
+  it('sends 4500 ordinary UI ops as one ordered transaction', async () => {
     const batches: string[][] = []
-    let inFlight = 0
-    let maxInFlight = 0
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith('/api/batch')) {
-        inFlight += 1
-        maxInFlight = Math.max(maxInFlight, inFlight)
         batches.push((JSON.parse(init?.body as string) as { ops: Array<{ id: string }> }).ops.map((o) => o.id))
-        await new Promise((r) => setTimeout(r, 0)) // hold each request open a tick to expose overlap
-        inFlight -= 1
       }
-      return new Response('{}', { status: 200 })
+      return commitReceipt(init)
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
 
     const clients = manyClients(4500)
     await a.saveAll(withData({ clients }))
 
-    expect(batches.map((b) => b.length)).toEqual([MAX_OPS_PER_BATCH, MAX_OPS_PER_BATCH, 500])
-    expect(maxInFlight).toBe(1) // strictly sequential — never overlapping requests
-    // The concatenated chunks are EXACTLY the full ordered op list (no reorder across chunks).
-    expect(batches.flat()).toEqual(clients.map((c) => c.id))
+    expect(batches).toHaveLength(1)
+    expect(batches[0]).toEqual(clients.map((c) => c.id))
   })
 
-  it('a mid-sequence chunk failure does NOT advance the snapshot — the retry re-sends the FULL diff', async () => {
-    // Chunks are individually transactional, so chunk 1 lands and chunk 2 fails → a partial write.
-    // Safe because ops are idempotent upserts/deletes and lastSynced only advances after ALL chunks:
-    // the retry replays the whole 4500-op diff (chunk 1 re-applies as no-op upserts).
-    let batchCount = 0
-    let failSecond = true
-    const fetchImpl = vi.fn(async (url: string) => {
-      if (url.endsWith('/api/batch')) {
-        batchCount += 1
-        if (batchCount === 2 && failSecond) return new Response('boom', { status: 500 })
-      }
-      return new Response('{}', { status: 200 })
-    }) as unknown as typeof fetch
-    const a = new ServerSyncAdapter('http://x', fetchImpl)
-    const data = withData({ clients: manyClients(4500) })
-
-    await expect(a.saveAll(data)).rejects.toThrow('Batch sync failed (500)')
-    expect(batchCount).toBe(2) // chunk 3 never dispatched after chunk 2 failed
-
-    // Retry with the same state: the FULL diff is re-sent as 3 chunks (snapshot did not advance).
-    failSecond = false
-    batchCount = 0
-    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
-    await a.saveAll(data)
-    const sizes = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
-      .filter((c) => String(c[0]).endsWith('/api/batch'))
-      .map((c) => batchOps(c as unknown[]).length)
-    expect(sizes).toEqual([MAX_OPS_PER_BATCH, MAX_OPS_PER_BATCH, 500])
-  })
-
-  it('the unload path dispatches ALL keepalive chunks up-front (no await between dispatches)', async () => {
-    // Page teardown: awaiting between chunks would leave only the first on the wire before the
-    // event loop dies. All chunks must be DISPATCHED before any response resolves.
-    const resolvers: Array<() => void> = []
-    const fetchImpl = vi.fn(
-      () =>
-        new Promise<Response>((resolve) => {
-          resolvers.push(() => resolve(new Response('{}', { status: 200 })))
-        }),
-    ) as unknown as typeof fetch
-    const a = new ServerSyncAdapter('http://x', fetchImpl)
-
-    const p = a.saveAll(withData({ clients: manyClients(4500) }), { unload: true })
-    // All 3 chunk requests are already on the wire — none awaited another's response.
-    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
-    expect(calls).toHaveLength(3)
-    for (const c of calls) {
-      expect((c[1] as RequestInit).keepalive).toBe(true)
-    }
-    resolvers.forEach((r) => r())
-    await p
-  })
-
-  it('a multi-chunk unload flush WITHHOLDS the DELETE tail (concurrent chunks cannot reorder a cascade)', async () => {
-    // Concurrent keepalive chunks have no arrival-order guarantee, so a delete chunk landing
-    // before an earlier reparent/upsert chunk would let the server's FK cascade take unmodified
-    // descendants — unrecoverable, since lastSynced never advances on the unload path and the
-    // page is gone. A withheld delete merely resurrects on the next load (benign by contrast).
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+  it('refuses an over-limit diff before sending anything, leaving its durable journal intact', async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
-    const clients = manyClients(2100)
-    await a.saveAll(withData({ clients })) // sync 2100 rows (2 chunks) so deletes can be diffed
-    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    const data = withData({ clients: manyClients(MAX_OPS_PER_BATCH + 1) })
 
-    // 100 edited PUTs + 2100 DELETEs (> one chunk total) flushed on unload.
-    const edited = clients.slice(0, 100).map((c) => ({ ...c, name: 'Edited', updatedAt: TS2, id: `e-${c.id}` }))
-    await a.saveAll(withData({ clients: edited }), { unload: true })
-
-    const sent = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.flatMap((c) => batchOps(c as unknown[]))
-    expect(sent.every((o) => o.method === 'PUT')).toBe(true) // no DELETE made it onto the wire
-    expect(sent).toHaveLength(100)
-    expect(warn).toHaveBeenCalledOnce() // the withheld tail leaves a breadcrumb
-    warn.mockRestore()
+    await expect(a.saveAll(data)).rejects.toThrow(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`)
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(localStorage.getItem('capacitylens/server-write-queue/v1')).toContain('c5000')
   })
 
-  it('a SINGLE-chunk unload flush keeps its deletes (one request = one ordered transaction)', async () => {
+  it('does not dispatch a keepalive body over the byte budget; the journal survives teardown', async () => {
+    const fetchImpl = okFetch() as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    await a.saveAll(withData({ clients: manyClients(1000) }), { unload: true })
+
+    expect(fetchImpl).not.toHaveBeenCalled()
+    expect(localStorage.getItem('capacitylens/server-write-queue/v1')).toContain('c999')
+  })
+
+  it('a small unload flush is one keepalive transaction and includes every DELETE', async () => {
     const fetchImpl = okFetch() as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
     await a.saveAll(withData({ clients: [client('c1')], projects: [project('p1', 'c1')] }))
     ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
     await a.saveAll(emptyAppData(), { unload: true })
-    const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
-    expect(ops.map((o) => o.method)).toEqual(['DELETE', 'DELETE']) // fits one chunk → deletes ride along
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(1)
+    expect((calls[0][1] as RequestInit).keepalive).toBe(true)
+    expect(batchOps(calls[0]).map((o) => o.method)).toEqual(['DELETE', 'DELETE'])
   })
 })
 
@@ -412,14 +415,14 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     const a1Slice = withData({ clients: [a1c] })
     const a2Slice = withData({ clients: [a2c] })
     let releaseA1: (() => void) | null = null
-    const fetchImpl = vi.fn((url: string) => {
+    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       if (String(url).includes('accountId=a1')) {
         return new Promise<Response>((resolve) => {
           releaseA1 = () => resolve(new Response(JSON.stringify(a1Slice), { status: 200 }))
         })
       }
       if (String(url).includes('accountId=a2')) return Promise.resolve(new Response(JSON.stringify(a2Slice), { status: 200 }))
-      return Promise.resolve(new Response('{}', { status: 200 }))
+      return Promise.resolve(commitReceipt(init))
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
 
@@ -443,10 +446,10 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     // advance is safe because the server already holds the batch's idempotent ops.
     const slice = withData({ clients: [client('c1')] })
     let releaseBatch: (() => void) | null = null
-    const fetchImpl = vi.fn((url: string) => {
+    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       if (String(url).endsWith('/api/batch')) {
         return new Promise<Response>((resolve) => {
-          releaseBatch = () => resolve(new Response('{}', { status: 200 }))
+          releaseBatch = () => resolve(commitReceipt(init))
         })
       }
       return Promise.resolve(new Response(JSON.stringify(slice), { status: 200 }))
@@ -474,10 +477,10 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     const slice = withData({ clients: [client('c1')] })
     let releaseState: (() => void) | null = null
     let releaseBatch: (() => void) | null = null
-    const fetchImpl = vi.fn((url: string) => {
+    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       if (String(url).endsWith('/api/batch')) {
         return new Promise<Response>((resolve) => {
-          releaseBatch = () => resolve(new Response('{}', { status: 200 }))
+          releaseBatch = () => resolve(commitReceipt(init))
         })
       }
       return new Promise<Response>((resolve) => {
@@ -506,10 +509,10 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     // dropped — persist.ts's reload paths surface/re-push whatever edit it carried.
     const slice = withData({ clients: [client('c1')] })
     let releaseBatch: (() => void) | null = null
-    const fetchImpl = vi.fn((url: string) => {
+    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       if (String(url).endsWith('/api/batch')) {
         return new Promise<Response>((resolve) => {
-          const r = () => resolve(new Response('{}', { status: 200 }))
+          const r = () => resolve(commitReceipt(init))
           if (!releaseBatch) releaseBatch = r
           else r() // only the FIRST batch is held
         })

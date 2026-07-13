@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { useStore } from '../../store/useStore'
-import { FieldError } from '../common/ui'
-import { linkButtonClass } from '../common/controls'
+import { authClient } from '../../auth/authClient'
+import { Button, FieldError } from '../common/ui'
+import { inputClass, linkButtonClass } from '../common/controls'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 
@@ -15,9 +16,10 @@ import { m } from '@/i18n'
 // membership; a used/expired/unknown link is refused. This page only renders the outcome — it never
 // re-implements the single-use/expiry policy client-side.
 //
-// AUTH WALL: this route sits inside AuthProvider but OUTSIDE AppShell's tenant gate (see router.tsx),
-// so an unauthenticated visit shows the LoginScreen first; after sign-in AuthProvider reloads onto
-// the same /invite/:token URL and this page runs the accept POST with the now-present cookie.
+// PRE-SESSION ONBOARDING: this route sits inside AuthProvider but outside AppShell's tenant gate.
+// Password mode deliberately carves it out of the login wall so a genuinely new invitee can create
+// a credential through the token-scoped signup endpoint; an existing user can sign in here and the
+// page reloads the same token URL to accept with the resulting session cookie.
 
 type State =
   | { kind: 'working' }
@@ -26,6 +28,7 @@ type State =
   // the Continue link renders only once `activating` is false — see the effect for why.
   | { kind: 'joined'; accountId: string; role: string; activating: boolean }
   | { kind: 'error'; message: string }
+  | { kind: 'auth'; message?: string }
   | { kind: 'local' } // the demo build (no server) — invites are a server-mode feature
 
 // Map the accept endpoint's status codes to the surfaced message. 404/409/410 are the documented
@@ -62,6 +65,11 @@ export function InviteAccept() {
     if (!token) return { kind: 'error', message: m.invite_err_missing_token() }
     return { kind: 'working' }
   })
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const errorId = useId()
   // Fire the accept EXACTLY once. accept is single-use, so we MUST NOT POST twice — React 18/19
   // StrictMode double-invokes effects in dev, and any cleanup-then-rerun would otherwise either send
   // a second (409-ing) POST or, if we abort the first on cleanup, strand the page on "Joining…" with
@@ -117,6 +125,10 @@ export function InviteAccept() {
           }
           return
         }
+        if (res.status === 401) {
+          setState({ kind: 'auth' })
+          return
+        }
         setState({ kind: 'error', message: messageForStatus(res.status, await readApiError(res)) })
       } catch (err) {
         // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
@@ -129,6 +141,52 @@ export function InviteAccept() {
       }
     })()
   }, [token, setActiveAccount, setAccountSummaries])
+
+  const signInAndReload = async (): Promise<void> => {
+    const { error } = await authClient.signIn.email({ email, password })
+    if (error) throw new Error(error.message ?? m.login_failed())
+    window.location.reload()
+  }
+
+  const signIn = async (event: FormEvent) => {
+    event.preventDefault()
+    setBusy(true)
+    setState({ kind: 'auth' })
+    try {
+      await signInAndReload()
+    } catch (error) {
+      setState({ kind: 'auth', message: error instanceof Error ? error.message : m.login_failed() })
+      setBusy(false)
+    }
+  }
+
+  const createAccount = async () => {
+    if (!token) return
+    setBusy(true)
+    setState({ kind: 'auth' })
+    try {
+      const res = await fetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      })
+      if (!res.ok) {
+        throw new Error((await readApiError(res)) ?? messageForStatus(res.status, undefined))
+      }
+      const { error } = await authClient.signIn.email({ email, password })
+      if (error) throw new Error(error.message ?? m.login_failed())
+      // Signup already claimed the invite atomically for this identity. Reload at the app root so
+      // AuthProvider observes the new session without trying to redeem the now-consumed token.
+      window.location.assign('/')
+    } catch (error) {
+      setState({
+        kind: 'auth',
+        message: error instanceof Error ? error.message : m.invite_err_generic(),
+      })
+      setBusy(false)
+    }
+  }
 
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
@@ -159,6 +217,53 @@ export function InviteAccept() {
                 </div>
               )}
             </>
+          )}
+          {state.kind === 'auth' && (
+            <form onSubmit={(event) => void signIn(event)} className="space-y-3" noValidate>
+              <p className="text-sm text-muted">{m.invite_onboard_intro()}</p>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-ink">{m.invite_name()}</span>
+                <input
+                  className={inputClass}
+                  type="text"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  aria-describedby={state.message ? errorId : undefined}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-ink">{m.login_email()}</span>
+                <input
+                  className={inputClass}
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  aria-describedby={state.message ? errorId : undefined}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-ink">{m.login_password()}</span>
+                <input
+                  className={inputClass}
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  aria-describedby={state.message ? errorId : undefined}
+                />
+              </label>
+              <FieldError id={errorId}>{state.message}</FieldError>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button type="submit" variant="ghost" disabled={busy}>
+                  {m.invite_sign_in_accept()}
+                </Button>
+                <Button type="button" disabled={busy} onClick={() => void createAccount()}>
+                  {m.invite_create_account()}
+                </Button>
+              </div>
+            </form>
           )}
           {state.kind === 'error' && (
             <>

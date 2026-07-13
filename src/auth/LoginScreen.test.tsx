@@ -62,6 +62,7 @@ describe('LoginScreen — first-run owner setup (needsSetup)', () => {
     expect(screen.getByLabelText('Name')).toBeInTheDocument()
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toBeInTheDocument()
+    expect(screen.getByLabelText('Setup token')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create owner account' })).toBeInTheDocument()
     // The ordinary sign-in affordances are replaced, not stacked.
     expect(screen.queryByRole('button', { name: 'Sign in' })).not.toBeInTheDocument()
@@ -80,9 +81,15 @@ describe('LoginScreen — first-run owner setup (needsSetup)', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@x.test' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-strong-password' } })
+    fireEvent.change(screen.getByLabelText('Setup token'), { target: { value: 'operator-secret' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create owner account' }))
     await waitFor(() => expect(onSignedIn).toHaveBeenCalled())
-    expect(signUpEmail).toHaveBeenCalledWith({ email: 'owner@x.test', password: 'a-strong-password', name: 'Owner' })
+    expect(signUpEmail).toHaveBeenCalledWith({
+      email: 'owner@x.test',
+      password: 'a-strong-password',
+      name: 'Owner',
+      fetchOptions: { headers: { 'x-capacitylens-setup-token': 'operator-secret' } },
+    })
   })
 
   it('surfaces a sign-up failure inline and describes every field by it (same WCAG contract as sign-in)', async () => {
@@ -98,6 +105,7 @@ describe('LoginScreen — first-run owner setup (needsSetup)', () => {
       expect(screen.getByLabelText('Name')).toHaveAttribute('aria-describedby', errorId)
       expect(screen.getByLabelText('Email')).toHaveAttribute('aria-describedby', errorId)
       expect(screen.getByLabelText('Password')).toHaveAttribute('aria-describedby', errorId)
+      expect(screen.getByLabelText('Setup token')).toHaveAttribute('aria-describedby', errorId)
     })
     // The button recovers (busy reset) so the user can retry after fixing the input.
     expect(screen.getByRole('button', { name: 'Create owner account' })).toBeEnabled()

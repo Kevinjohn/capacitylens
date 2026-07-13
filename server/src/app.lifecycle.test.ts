@@ -161,7 +161,7 @@ describe('P2.5a lifecycle — auth-on 403 permission matrix', () => {
     expect((await readInactive(app, 'a1', cookie)).statusCode).toBe(403)
   })
 
-  it('editor of a1: archive/unarchive/delete → 2xx; purge → 403; read-inactive → 403', async () => {
+  it('editor of a1: archive/unarchive → 2xx; irreversible delete/purge and read-inactive → 403', async () => {
     const { app, db } = await appWithAuth()
     seedStates(db)
     const { cookie, userId } = await signUp(app, 'editor-lc@capacitylens.dev')
@@ -169,8 +169,8 @@ describe('P2.5a lifecycle — auth-on 403 permission matrix', () => {
 
     expect((await lifecycleAction(app, 'clients', 'c1', 'archive', 'a1', cookie)).statusCode).toBe(200)
     expect((await lifecycleAction(app, 'clients', 'cArc', 'unarchive', 'a1', cookie)).statusCode).toBe(200)
-    expect((await lifecycleAction(app, 'resources', 'rArc', 'delete', 'a1', cookie)).statusCode).toBe(200)
-    // purge is admin+ → editor refused even though rDel IS purge-eligible (403 before the interlock).
+    expect((await lifecycleAction(app, 'resources', 'rArc', 'delete', 'a1', cookie)).statusCode).toBe(403)
+    // delete and purge are admin+ because neither has an undelete transition.
     expect((await lifecycleAction(app, 'resources', 'rDel', 'purge', 'a1', cookie)).statusCode).toBe(403)
     expect((await readInactive(app, 'a1', cookie)).statusCode).toBe(403)
   })
@@ -206,7 +206,7 @@ describe('P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     const { app, db } = await appWithAuth()
     seedStates(db)
     const { cookie, userId } = await signUp(app, 'il-delete-active@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
 
     const res = await lifecycleAction(app, 'resources', 'r1', 'delete', 'a1', cookie)
     expect(res.statusCode).toBe(409)
@@ -217,7 +217,7 @@ describe('P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     const { app, db } = await appWithAuth()
     seedStates(db)
     const { cookie, userId } = await signUp(app, 'il-arc-arc@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
 
     const res = await lifecycleAction(app, 'clients', 'cArc', 'archive', 'a1', cookie)
     expect(res.statusCode).toBe(409)
@@ -274,7 +274,7 @@ describe('P2.5a lifecycle — interlock 409s (illegal transitions / precondition
     const { app, db } = await appWithAuth()
     seedStates(db)
     const { cookie, userId } = await signUp(app, 'il-redelete-tombstone@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
 
     // rDel already reads 'deleted'; softDelete requires 'archived', so a re-delete is a 409, not a no-op.
     const res = await lifecycleAction(app, 'resources', 'rDel', 'delete', 'a1', cookie)
@@ -631,15 +631,17 @@ describe('P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect((await lifecycleAction(app, 'resources', 'rBatch', 'archive', 'a1')).statusCode).toBe(200)
 
     // PUT the FULL row (person() omits archivedAt): pre-fix this NULLed the column; now it's pinned.
-    const put = await call(app, { method: 'PUT', url: '/api/resources/rPut', payload: person('rPut', 'a1', { role: 'Lead' }) })
+    const archivedPut = await rowById(app, 'resources', 'a1', 'rPut')
+    const put = await call(app, { method: 'PUT', url: '/api/resources/rPut', payload: person('rPut', 'a1', { role: 'Lead', updatedAt: archivedPut?.updatedAt }) })
     expect(put.statusCode).toBe(200)
     expect(typeof (await rowById(app, 'resources', 'a1', 'rPut'))?.archivedAt).toBe('string')
 
     // Same via the batch sync path (the real client verb) — the changed call site is covered too.
+    const archivedBatch = await rowById(app, 'resources', 'a1', 'rBatch')
     const batch = await call(app, {
       method: 'POST',
       url: '/api/batch',
-      payload: { ops: [{ method: 'PUT', table: 'resources', id: 'rBatch', row: person('rBatch', 'a1', { role: 'Lead' }) }] },
+      payload: { ops: [{ method: 'PUT', table: 'resources', id: 'rBatch', row: person('rBatch', 'a1', { role: 'Lead', updatedAt: archivedBatch?.updatedAt }) }] },
     })
     expect(batch.statusCode).toBe(200)
     expect(typeof (await rowById(app, 'resources', 'a1', 'rBatch'))?.archivedAt).toBe('string')
