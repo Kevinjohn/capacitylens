@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { AppShell } from '../AppShell'
 import { AccountPicker } from './AccountPicker'
 import { AuthContext } from '../../auth/authContext'
+import { AuthProvider } from '../../auth/AuthProvider'
 import { useStore } from '../../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import { makeAccount, makeAppData, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
@@ -26,7 +27,14 @@ vi.mock('../../data/apiConfig', () => ({
 function withCanCreateAccount(canCreateAccount: boolean, ui: ReactNode) {
   return render(
     <AuthContext.Provider
-      value={{ authMode: 'off', user: null, canCreateAccount, multiAccount: canCreateAccount, signOut: async () => {} }}
+      value={{
+        authMode: 'off',
+        user: null,
+        canCreateAccount,
+        multiAccount: canCreateAccount,
+        refreshAuth: async () => {},
+        signOut: async () => {},
+      }}
     >
       {ui}
     </AuthContext.Provider>,
@@ -220,8 +228,9 @@ describe('AccountPicker server-mode list (P1.13)', () => {
     render(<AccountPicker />)
     expect(screen.getByText(/No companies yet/)).toBeInTheDocument()
     expect(screen.getByText(/ask an admin for an invite/)).toBeInTheDocument()
-    // Zero accounts ⇒ the server always reports canCreateAccount: true (no provider here, so the
-    // default context value applies — see authContext.ts's fail-open default).
+    // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
+    // so the default context value applies — see authContext.ts's fail-open default; the live
+    // refetch after a delete is pinned in the refreshAuth describe below).
     expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
   })
 })
@@ -383,6 +392,86 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     expect(screen.getByRole('button', { name: 'Delete Owner Co' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Editor Co' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Viewer Co' })).not.toBeInTheDocument()
+  })
+})
+
+describe('AccountPicker — refreshAuth after org create/delete (canCreateAccount stays fresh)', () => {
+  // The server recomputes canCreateAccount PER REQUEST from mutable state (account count +
+  // membership roles), so the picker re-asks /api/auth/me after every org create/delete. These
+  // tests mount the REAL AuthProvider (the mocked apiConfig above puts it in server mode) so the
+  // whole loop is exercised: boot /me → snapshot, mutate, refetched /me → the flipped value
+  // reaches the picker's affordances. Without the re-ask, deleting the only company on a capped
+  // instance stranded the user on an inviteless empty state with no "New company" button.
+
+  /** One JSON response in the shape the picker's fetch paths consume. */
+  const jsonRes = (status: number, body: unknown) => ({ ok: status < 400, status, json: async () => body })
+
+  it('after a successful DELETE, /api/auth/me is refetched and a flipped canCreateAccount re-surfaces the New company button', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    let meCalls = 0
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/auth/me') {
+        meCalls += 1
+        // Single-company instance: AT the cap on boot, back UNDER it (zero accounts — the
+        // bootstrap exemption) once the only company is deleted.
+        return jsonRes(200, { authMode: 'off', user: null, canCreateAccount: meCalls > 1, multiAccount: false })
+      }
+      if (url === '/api/accounts/a9' && init?.method === 'DELETE') return jsonRes(204, {})
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    useStore.getState().setAccountSummaries([{ id: 'a9', name: 'Only Co', role: 'owner' }])
+    render(
+      <AuthProvider>
+        <AccountPicker />
+      </AuthProvider>,
+    )
+
+    // Boot snapshot: capped — no create affordance while the one company exists.
+    expect(await screen.findByText('Only Co')).toBeInTheDocument()
+    expect(screen.queryByTestId('new-company-button')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Delete Only Co' }))
+    const dialog = screen.getByRole('dialog')
+    await user.type(within(dialog).getByLabelText(/Type/i), 'Only Co')
+    await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
+
+    // The refetched /me flips canCreateAccount → the button (and the "create your first one"
+    // copy) come back WITHOUT a manual reload — the dead end this pins against.
+    expect(await screen.findByTestId('new-company-button')).toBeInTheDocument()
+    expect(screen.getByText(/No companies yet/)).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter((c) => c[0] === '/api/auth/me')).toHaveLength(2)
+  })
+
+  it('after a successful create, /api/auth/me is refetched (a now-capped instance hides the button)', async () => {
+    serverFlag.on = true
+    const user = userEvent.setup()
+    let meCalls = 0
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url === '/api/auth/me') {
+        meCalls += 1
+        // Single-company instance the other way round: creatable at zero accounts, capped after.
+        return jsonRes(200, { authMode: 'off', user: null, canCreateAccount: meCalls === 1, multiAccount: false })
+      }
+      if (url === '/api/orgs' && init?.method === 'POST') return jsonRes(201, { id: 'org-1', name: 'Loft Digital' })
+      throw new Error(`unexpected fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(
+      <AuthProvider>
+        <AccountPicker />
+      </AuthProvider>,
+    )
+
+    await user.click(await screen.findByTestId('new-company-button'))
+    await user.type(screen.getByLabelText('Company name'), 'Loft Digital')
+    await user.click(screen.getByRole('button', { name: 'Create company' }))
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBe('org-1'))
+    // The refetched /me now reports the cap — the flipped value reaches the picker (button gone).
+    await waitFor(() => expect(screen.queryByTestId('new-company-button')).not.toBeInTheDocument())
+    expect(fetchMock.mock.calls.filter((c) => c[0] === '/api/auth/me')).toHaveLength(2)
   })
 })
 

@@ -77,6 +77,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals() // drop any per-test fetch stub so server-mode tests can't leak into each other
 })
 
 describe('ArchivedSection — demo build (store source)', () => {
@@ -189,5 +190,28 @@ describe('ArchivedSection — server mode self-hide', () => {
     await waitFor(() => expect(container.querySelector('[data-testid="archived-section"]')).toBeNull())
     expect(screen.queryByRole('heading', { name: 'Archived & deleted' })).not.toBeInTheDocument()
     expect(requested[0]).toContain('includeInactive=1')
+  })
+
+  // The fetched body is untrusted input: a 200 that is NOT a structurally complete slice (proxy
+  // error page, wrong-version server) must surface as an ERROR notice, not silently render as an
+  // empty archived list the admin would mistake for "nothing archived". The structural gate lives
+  // in the shared fetchInactiveSlice (also DeleteCompanyDialog's "Export first" source).
+  it('surfaces an error notice (not an empty list) when the inactive read returns a malformed body', async () => {
+    cfg.serverOn = true
+    const fetchMock = vi.fn(
+      async () =>
+        ({ ok: true, status: 200, json: async () => ({ definitely: 'not CapacityLens' }) }) as unknown as Response,
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<ArchivedSection />)
+
+    // The structural gate refuses the body and routes it to the section's error surface…
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/incomplete/i))
+    expect(useStore.getState().notice?.tone).toBe('error')
+    // …while the section itself still renders (shown, empty) rather than self-hiding.
+    expect(screen.getByTestId('archived-section')).toBeInTheDocument()
+    expect(screen.queryByTestId('archived-row')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('deleted-row')).not.toBeInTheDocument()
   })
 })

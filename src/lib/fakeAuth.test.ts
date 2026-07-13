@@ -14,6 +14,7 @@ const withAuthMode = (authMode: AuthContextValue['authMode']) => {
     user: null,
     canCreateAccount: true,
     multiAccount: true,
+    refreshAuth: async () => {},
     signOut: async () => {},
   }
   return ({ children }: { children: ReactNode }) =>

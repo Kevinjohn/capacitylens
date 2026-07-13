@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { useStore } from '../store/useStore'
@@ -41,11 +41,15 @@ function boolFieldOr(v: unknown, fallback: boolean): boolean {
   return typeof v === 'boolean' ? v : fallback
 }
 
-/** Ask the server who we are. Total: every failure shape maps to a Status — a 401 means
- *  the login screen; anything else renders the app (the existing ConnectionError /
- *  persistError surfaces describe a broken or unreachable server better than a dead end
- *  here would). Module-scope so the component's effects only subscribe to its result. */
-async function fetchAuthStatus(): Promise<Status> {
+/** Ask the server who we are. Total (never throws): a 401 maps to the login Status, a valid 200
+ *  to a 'pass', and every UNRESOLVABLE shape — a non-401 non-ok response, an off-spec body, a
+ *  network failure — returns `null` ("learned nothing trustworthy") so each caller picks its own
+ *  degrade: boot fails OPEN to `passOpen('off', null)` (rendering the app beats a dead end; the
+ *  ConnectionError / persistError surfaces describe a broken server better), while every
+ *  mid-session re-check (`refreshAuth`, the persistError re-check) keeps the PREVIOUS snapshot
+ *  (stale beats resetting a live session's user/authMode to 'off').
+ *  Module-scope so the component's effects only subscribe to its result. */
+async function fetchAuthStatus(): Promise<Status | null> {
   try {
     const res = await fetch(`${API_BASE}/api/auth/me`, { credentials: 'include' })
     if (res.status === 401) {
@@ -69,13 +73,14 @@ async function fetchAuthStatus(): Promise<Status> {
       const body: unknown = await res.json()
       const rawMode = (body as { authMode?: unknown } | null)?.authMode
       if (!isAuthMode(rawMode)) {
-        console.warn('AuthProvider: /api/auth/me returned an unexpected authMode; treating as off', body)
-        return passOpen('off', null)
+        console.warn('AuthProvider: /api/auth/me returned an unexpected authMode; nothing trustworthy learned', body)
+        return null
       }
       const rawUser = (body as { user?: unknown } | null)?.user
-      // Single-company-per-instance policy: the server computes both fields (multiAccount || zero
-      // accounts exist), fail-open to `true` when absent (an older server, or a response shape we
-      // don't recognise) — see boolFieldOr and AuthContextValue.canCreateAccount.
+      // Company-creation capability: the server computes both fields (canCreateAccount mirrors the
+      // POST /api/orgs gate — the instance cap AND the caller's owner/admin standing), fail-open to
+      // `true` when absent (an older server, or a response shape we don't recognise) — see
+      // boolFieldOr and AuthContextValue.canCreateAccount.
       const canCreateAccount = boolFieldOr((body as { canCreateAccount?: unknown } | null)?.canCreateAccount, true)
       const multiAccount = boolFieldOr((body as { multiAccount?: unknown } | null)?.multiAccount, true)
       return {
@@ -86,14 +91,14 @@ async function fetchAuthStatus(): Promise<Status> {
         multiAccount,
       }
     }
-    return passOpen('off', null)
+    return null // non-401 non-ok: the server answered but told us nothing about the session
   } catch (err) {
     // Deliberate fallback: ANY failure to resolve /me (server down, DNS, CORS, offline, unreadable
-    // body) renders the APP rather than a dead end — the persistError / ConnectionError surfaces
-    // describe a broken/unreachable server better than blocking here would. Not silent: warn so the
-    // cause is discoverable when debugging a flaky server.
-    console.warn('AuthProvider: /api/auth/me check failed; rendering the app as auth-off', err)
-    return passOpen('off', null)
+    // body) reports null — "unresolved" — and the caller degrades (boot renders the APP rather
+    // than a dead end; a refresh keeps its previous snapshot). Not silent: warn so the cause is
+    // discoverable when debugging a flaky server.
+    console.warn('AuthProvider: /api/auth/me check failed', err)
+    return null
   }
 }
 
@@ -105,7 +110,11 @@ async function fetchAuthStatus(): Promise<Status> {
  *   the app as today; a 401 swaps in the lazy LoginScreen; any OTHER failure ALSO renders the app
  *   (deliberate — persistError / ConnectionError describe a broken server better than a dead end).
  * - Re-checks on `persistError` so an expired session (a 401 on a write) swaps to the login screen
- *   rather than letting writes keep failing silently behind the banner.
+ *   rather than letting writes keep failing silently behind the banner; an UNRESOLVED re-check
+ *   keeps the previous snapshot (same policy as refreshAuth — see checkAuth).
+ * - Exposes `refreshAuth` on the context so client actions that change what /me reports (org
+ *   create/delete → a recomputed canCreateAccount) can re-ask mid-session instead of gating UI
+ *   affordances on the boot-time snapshot.
  *
  * `authMode` comes ONLY from the server — there is no client-side auth flag. Don't "fix" the
  * failure-renders-app policy into a hard gate; it's intentional.
@@ -118,19 +127,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
   const persistError = useStore((s) => s.persistError)
 
+  // Ordering guard for EVERY setStatus-from-fetch path (boot, refreshAuth, the persistError
+  // re-check): a monotonically increasing request id, captured when a /me fetch starts. Without it,
+  // a slow, earlier request resolving LATE could overwrite a newer result — e.g. a stale
+  // authenticated snapshot landing on top of a fresh 401 would hide the login screen and strand the
+  // user on a dead session ("changes aren't saving") until a manual reload. Only the latest request
+  // may write; a superseded result is simply dropped (the newer request already told the truth).
+  const authRequestSeq = useRef(0)
+
+  /** The ONE path from a /me fetch to setStatus, so no two checks can interleave badly (see
+   *  `authRequestSeq`). `onNull` picks the degrade when the check resolves nothing trustworthy:
+   *  - 'fail-open' (boot only — there IS no previous snapshot): render the app as auth-off; the
+   *    persistError / ConnectionError surfaces describe a broken server better than a dead end.
+   *  - 'keep-previous' (every mid-session re-check): keep the current snapshot with a warn
+   *    breadcrumb — stale beats resetting a live session's user/authMode to 'off'. */
+  const checkAuth = useCallback((onNull: 'fail-open' | 'keep-previous'): Promise<void> => {
+    const requestId = ++authRequestSeq.current
+    // .then (not await) so setStatus runs in a plain callback — the same shape as subscribing to
+    // an external system, which is what this is (react-hooks/set-state-in-effect is happy with it).
+    return fetchAuthStatus().then((next) => {
+      if (requestId !== authRequestSeq.current) return // superseded by a newer check — drop, don't clobber
+      if (next === null) {
+        if (onNull === 'fail-open') {
+          setStatus(passOpen('off', null))
+        } else {
+          console.warn('AuthProvider: /api/auth/me refresh failed; keeping the previous auth snapshot')
+        }
+        return
+      }
+      setStatus(next)
+    })
+  }, [])
+
   useEffect(() => {
     if (!serverMode) return // demo build: no auth request, ever
-    void fetchAuthStatus().then(setStatus)
-  }, [serverMode])
+    // Boot degrade: an unresolved /me (null) fails OPEN to auth-off — rendering the app beats a
+    // dead end here; the persistError / ConnectionError surfaces describe a broken server better.
+    void checkAuth('fail-open')
+  }, [serverMode, checkAuth])
+
+  // Mid-session re-ask, exposed on the context as `refreshAuth` (see authContext.ts): the server
+  // recomputes canCreateAccount per request from MUTABLE state (account count + membership roles),
+  // so client actions that change that state (org create/delete in AccountPicker) call this to keep
+  // the picker's affordances honest — e.g. deleting the only company must re-surface the "New
+  // company" button (the zero-accounts bootstrap exemption) without a manual reload. TOTAL — never
+  // rejects: an unresolved refresh keeps the PREVIOUS snapshot with a warn breadcrumb, mirroring
+  // the fail-open posture above (the server 403 stays the real enforcer), so callers may safely
+  // `void refreshAuth()`.
+  const refreshAuth = useCallback(async () => {
+    if (!serverMode) return // demo build: no server, the fields already fail open to true
+    await checkAuth('keep-previous')
+  }, [serverMode, checkAuth])
 
   // P3.4: a failing write raises the persistError banner; when the cause is an expired
   // session the re-check sees the 401 and swaps to the login screen, instead of letting
-  // writes keep failing silently behind the banner. A mere network blip re-checks too,
-  // fails the same way, and changes nothing.
+  // writes keep failing silently behind the banner. Same policy as refreshAuth: when the
+  // re-check itself can't resolve /me (null) it KEEPS the current snapshot — a server outage
+  // is exactly when /me is unreachable, and resetting a live authenticated session to
+  // auth-off would drop the sign-out affordance and reshape member-management mid-outage,
+  // with nothing to put it back until a manual reload (this effect only re-runs on
+  // persistError transitions). Only a real answer (a 401, a fresh 'pass') changes state.
   useEffect(() => {
     if (!serverMode || !persistError) return
-    void fetchAuthStatus().then(setStatus)
-  }, [serverMode, persistError])
+    void refreshAuth()
+  }, [serverMode, persistError, refreshAuth])
 
   const signOut = useCallback(async () => {
     // A rejected sign-out — a network error, OR a failed dynamic import of the auth chunk after a
@@ -186,6 +246,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: status.user,
         canCreateAccount: status.canCreateAccount,
         multiAccount: status.multiAccount,
+        refreshAuth,
         signOut,
       }}
     >

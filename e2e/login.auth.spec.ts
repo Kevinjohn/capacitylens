@@ -121,7 +121,10 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
   }) => {
     // P1.13 isolation: a fresh user with NO org bootstrapped sees no companies — the picker lists ONLY
     // the login's memberships, never another tenant's org (the no-arg whole read that leaked all tenants
-    // is closed in auth-on). They CAN still create their own (the New company button is present).
+    // is closed in auth-on). And since canCreateAccount now reflects the caller's actual standing
+    // (owner/admin somewhere — the same predicate POST /api/orgs enforces), a membership-less login
+    // on an instance with existing accounts sees NO "New company" affordance either: the old button
+    // was a dead end (submission always 403'd). The empty state tells them to ask for an invite.
     const lonely = `lonely-${Date.now()}@capacitylens.dev`
     await seedUser(request, lonely)
     await page.goto('/')
@@ -131,9 +134,9 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
 
     // Past the wall, on the picker — but with no company button (no other tenant's org leaked in).
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toBeVisible()
-    await expect(page.getByText(/No companies yet/)).toBeVisible()
+    await expect(page.getByText(/No companies yet — ask an admin for an invite/)).toBeVisible()
     await expect(page.getByRole('button', { name: ORG_NAME, exact: true })).toHaveCount(0)
-    // The escape hatch is intact: they may create their own org.
-    await expect(page.getByRole('button', { name: 'New company' })).toBeVisible()
+    // No doomed create affordance: the server would 403 a membership-less org create.
+    await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0)
   })
 })

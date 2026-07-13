@@ -164,6 +164,7 @@ describe('SettingsView — Account section (auth)', () => {
           user: { id: 'u1', email: 'tester@capacitylens.dev' },
           canCreateAccount: true,
           multiAccount: true,
+          refreshAuth: async () => {},
           signOut,
         }}
       >

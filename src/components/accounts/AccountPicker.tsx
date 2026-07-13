@@ -65,10 +65,13 @@ export function AccountPicker() {
   // the post-"login" screen, so show who's "signed in" + a Sign out back to the demo gate.
   const demoAuthActive = useDemoAuthActive()
   const signOutDemo = useStore((s) => s.signOutDemo)
-  // Single-company-per-instance policy: hide the create affordance once the server reports the
-  // cap is reached (canCreateAccount: false). Fails open to `true` (see authContext.ts) whenever
-  // the fact is unavailable, so a self-hosted/demo build with no policy in place is unaffected.
-  const { canCreateAccount } = useAuth()
+  // Hide the create affordance whenever the server says a create would be refused
+  // (canCreateAccount: false — the single-company cap, or auth-on with no owner/admin standing).
+  // Fails open to `true` (see authContext.ts) whenever the fact is unavailable, so a
+  // self-hosted/demo build with no policy in place is unaffected. `refreshAuth` re-asks /me after
+  // an org create/delete — the server recomputes canCreateAccount per request, so those are exactly
+  // the moments the boot-time snapshot goes stale (see the call sites below).
+  const { canCreateAccount, refreshAuth } = useAuth()
 
   const [creating, setCreating] = useState(false)
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
@@ -133,6 +136,11 @@ export function AccountPicker() {
         resetForm()
         const list = await fetchAccountSummaries()
         if (list !== null) setAccountSummaries(list)
+        // The create changed the facts /me computes (account count, the caller's owner standing) —
+        // re-ask so canCreateAccount tracks it (e.g. the button hides once a capped instance fills
+        // up). refreshAuth is TOTAL (never rejects — degrades to the stale snapshot with a warn),
+        // so fire-and-forget is safe.
+        void refreshAuth()
         return
       }
       // Seed the summary BEFORE activating: setActiveAccount validates ids against
@@ -144,6 +152,9 @@ export function AccountPicker() {
       }
       resetForm()
       setActiveAccount(created.id) // the persist switch orchestrator hydrates the new slice
+      // Same re-ask as the unusable-body branch above: the create moved the server-side facts
+      // behind canCreateAccount. Total, so fire-and-forget is safe.
+      void refreshAuth()
     } catch (e) {
       // A pre-response transport error (server down / offline) — surface it on the form.
       fail(null, errorMessage(e))
@@ -201,6 +212,13 @@ export function AccountPicker() {
       }
       const summaries = useStore.getState().accountSummaries
       setAccountSummaries(summaries.filter((s) => s.id !== id))
+      // The delete flipped the facts /me computes: on a single-company instance, dropping the only
+      // company back to zero accounts makes canCreateAccount true again (the bootstrap exemption).
+      // Without this re-ask the picker would show the "ask an admin for an invite" empty state with
+      // NO "New company" button — a dead end until a manual reload. refreshAuth is TOTAL (an
+      // unresolved refresh keeps the stale value with a warn; the server 403 backstops), so
+      // fire-and-forget is safe.
+      void refreshAuth()
     } catch (e) {
       // A pre-response transport error — surface it; the company is still listed (nothing was removed).
       setNotice(errorMessage(e), 'error')
@@ -281,10 +299,12 @@ export function AccountPicker() {
           {accounts.length === 0 && !creating && (
             <li className="rounded-lg border border-dashed bg-surface px-4 py-8 text-center text-sm text-muted">
               {/* Empty list has two meanings (P1.13): in server/auth-on mode the login simply has NO
-                  memberships yet, so guide them to ask an admin (they may still create their own org
-                  below); in the demo/OFF build there are no companies on this device yet. One copy covers
-                  both honestly — "create your first one" still applies (the New company button is below). */}
-              {m.picker_empty()}
+                  memberships yet; in the demo/OFF build there are no companies on this device yet.
+                  The copy follows canCreateAccount (which now reflects the caller's actual standing,
+                  not just the instance cap): "create your first one" is only promised when the New
+                  company button below will actually render — a membership-less login on a
+                  multi-account instance is told to ask for an invite instead. */}
+              {canCreateAccount ? m.picker_empty() : m.picker_empty_no_create()}
             </li>
           )}
         </ul>
@@ -341,10 +361,12 @@ export function AccountPicker() {
             </div>
           </form>
         ) : (
-          // Single-company-per-instance policy: the button itself disappears at the cap (a stricter
-          // read than disabling it — there's nothing useful to do once it's hidden). The zero-account
-          // empty state above needs no extra gating: zero accounts ⇒ the server always reports
-          // canCreateAccount: true (the bootstrap exemption).
+          // The button itself disappears whenever a create would be refused — the single-company
+          // cap, or auth-on without owner/admin standing (a stricter read than disabling it —
+          // there's nothing useful to do once it's hidden). canCreateAccount is kept FRESH, not
+          // just read at boot: the server recomputes it per /me request, and this picker re-asks
+          // (refreshAuth) after every org create/delete — so deleting the last company re-surfaces
+          // this button via the zero-accounts bootstrap exemption, without a manual reload.
           canCreateAccount && (
             <div className="mt-4">
               <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />

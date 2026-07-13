@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { API_BASE, isServerConfigured } from '../../data/apiConfig'
+import { isServerConfigured } from '../../data/apiConfig'
+import {
+  fetchInactiveSlice,
+  InactiveSliceHttpError,
+  InactiveSliceShapeError,
+} from '../../data/fetchInactiveSlice'
 import { useStore, type LifecycleEntity } from '../../store/useStore'
 import { useInactiveScopedData } from '../../store/useScopedData'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
@@ -104,25 +109,29 @@ export function ArchivedSection() {
     if (!server || !activeAccountId) return
     void (async () => {
       try {
-        const res = await fetch(
-          `${API_BASE}/api/state?accountId=${encodeURIComponent(activeAccountId)}&includeInactive=1`,
-          { credentials: 'include' },
-        )
-        if (res.status === 403) {
-          setGate('hidden') // a non-admin asked for the inactive slice — hide the whole section.
-          return
-        }
-        if (!res.ok) {
-          setGate('shown')
-          setNotice(m.settings_archived_err_load({ status: res.status }), 'error')
-          return
-        }
-        const body = (await res.json()) as AppData
+        // The shared, body-validating reader of the ?includeInactive=1 admin endpoint (also
+        // DeleteCompanyDialog's "Export first" source) — it structure-checks the untrusted body
+        // before migrate(), so a proxy error page / wrong-version partial can no longer render
+        // here as a silently EMPTY archived list; it lands in the catch below instead.
+        const body = await fetchInactiveSlice(activeAccountId)
         setServerRows(collectInactive(body))
         setGate('shown')
       } catch (e) {
+        if (e instanceof InactiveSliceHttpError && e.status === 403) {
+          setGate('hidden') // a non-admin asked for the inactive slice — hide the whole section.
+          return
+        }
+        // Every other failure keeps the section visible and surfaces a notice: prefer the
+        // server's own sentence off a non-OK response, then this section's status-stamped or
+        // incomplete-body message, then the raw network/parse error.
         setGate('shown')
-        setNotice(m.settings_err_server({ error: errorMessage(e) }), 'error')
+        if (e instanceof InactiveSliceHttpError) {
+          setNotice(e.serverMessage ?? m.settings_archived_err_load({ status: e.status }), 'error')
+        } else if (e instanceof InactiveSliceShapeError) {
+          setNotice(m.settings_archived_err_incomplete(), 'error')
+        } else {
+          setNotice(m.settings_err_server({ error: errorMessage(e) }), 'error')
+        }
       }
     })()
   }, [server, activeAccountId, reloadKey, setNotice])

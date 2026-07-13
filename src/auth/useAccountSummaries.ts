@@ -46,10 +46,12 @@ function toSummary(entry: unknown): AccountSummary | null {
  * @param init optional `{ signal }` threaded to the fetch — lets a caller BOUND the read (e.g.
  *             InviteAccept's `AbortSignal.timeout(5000)` best-effort activation step); an abort
  *             lands in the catch below and reports as null like any other failure.
- * @returns the validated list, or null on ANY failure (non-OK status, transport error, abort) —
- *          fail-soft, matching the hook's leave-the-existing-list-alone stance; the caller decides
- *          what a null means for its flow. A non-array body yields an empty list (a real "no
- *          accounts" answer).
+ * @returns the validated list, or null on ANY failure (non-OK status, transport error, abort,
+ *          a 200 whose body is not an array, or a NONEMPTY array in which no row survives
+ *          validation) — fail-soft, matching the hook's leave-the-existing-list-alone stance;
+ *          the caller decides what a null means for its flow. `[]` is reserved for a genuine
+ *          empty array (a real "no accounts" answer). A mixed body keeps its valid rows; every
+ *          dropped row leaves a `console.warn` breadcrumb.
  */
 export async function fetchAccountSummaries(init?: { signal?: AbortSignal }): Promise<AccountSummary[] | null> {
   try {
@@ -57,8 +59,24 @@ export async function fetchAccountSummaries(init?: { signal?: AbortSignal }): Pr
     if (!res.ok) return null
     const body: unknown = await res.json()
     // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
-    // an `as` cast.
-    return Array.isArray(body) ? body.map(toSummary).filter((s): s is AccountSummary => s !== null) : []
+    // an `as` cast. A 200 whose body is NOT an array (a proxy HTML page, a server bug) is MALFORMED,
+    // not "no accounts" — report null (keep-what-you-have, same as a transport error) rather than
+    // an empty list that would blank the picker.
+    if (!Array.isArray(body)) {
+      console.warn('fetchAccountSummaries: /api/accounts returned a non-array body; reporting null (callers keep their existing list)', body)
+      return null
+    }
+    const valid = body.map(toSummary).filter((s): s is AccountSummary => s !== null)
+    if (valid.length < body.length) {
+      // Partial corruption must not be silent (DEFENSIVE-CODING.md §5, handled-but-logged): every
+      // dropped row is a server/proxy bug worth a breadcrumb even when the rest of the list is fine.
+      console.warn(`fetchAccountSummaries: dropped ${body.length - valid.length} malformed /api/accounts row(s)`, body)
+    }
+    // A NONEMPTY array where EVERY row is off-spec is MALFORMED, not "no accounts" — report null
+    // (keep-what-you-have, same as the non-array case above) rather than an [] that would blank
+    // the picker over what is really a broken response. Only a genuinely empty array means [].
+    if (body.length > 0 && valid.length === 0) return null
+    return valid
   } catch (e) {
     // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
     // throw — the callers treat a failed list read as "keep what you have", not an error surface of
@@ -72,8 +90,10 @@ export async function fetchAccountSummaries(init?: { signal?: AbortSignal }): Pr
  * Keep {@link useStore}.accountSummaries — the AccountPicker's account list — in sync (P1.13).
  *
  * - SERVER mode: fetch `GET /api/accounts` once on mount (re-keyed on the active account so a sign-in
- *   or account switch re-pulls a fresh list). On any failure the existing list is LEFT AS-IS (a
- *   transient blip shouldn't blank the picker); a fully-off-spec body yields an empty list.
+ *   or account switch re-pulls a fresh list). On any failure — including a 200 whose body is not
+ *   an array, or a nonempty array with zero valid rows — the existing list is LEFT AS-IS (a
+ *   transient blip or a malformed body shouldn't blank the picker); only a genuine empty array
+ *   empties it.
  * - DEMO build: derive the list from `data.accounts` on every change (no fetch).
  *
  * Renders nothing — it's a side-effect hook mounted high in the tree (alongside the auth providers).

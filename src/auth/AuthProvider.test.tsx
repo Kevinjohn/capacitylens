@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 // P3.3: the auth boundary's three behaviours. The demo build (VITE_CAPACITYLENS_DEMO=1) is a
 // pass-through that performs NO fetch at all; server mode (the default) + authMode 'off' renders
@@ -10,6 +10,7 @@ import { act, render, screen } from '@testing-library/react'
 afterEach(() => {
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
+  vi.restoreAllMocks() // console.warn spies in the refreshAuth describe
 })
 
 const me = (status: number, body: unknown) =>
@@ -32,6 +33,43 @@ async function freshProvider() {
 function Probe({ useAuth }: { useAuth: () => { canCreateAccount: boolean; multiAccount: boolean } }) {
   const { canCreateAccount, multiAccount } = useAuth()
   return <div>{`canCreateAccount:${canCreateAccount} multiAccount:${multiAccount}`}</div>
+}
+
+/** Like {@link Probe} but with a button that triggers `refreshAuth` — the fire-and-forget shape
+ *  (`void`) the real call sites use, which is safe because refreshAuth is total (never rejects). */
+function RefreshProbe({
+  useAuth,
+}: {
+  useAuth: () => { canCreateAccount: boolean; refreshAuth: () => Promise<void> }
+}) {
+  const { canCreateAccount, refreshAuth } = useAuth()
+  return (
+    <button type="button" onClick={() => void refreshAuth()}>
+      refresh<span>{`canCreateAccount:${canCreateAccount}`}</span>
+    </button>
+  )
+}
+
+/** Renders the SESSION-shaped fields off `useAuth()` (authMode + user id) so a test can assert a
+ *  live authenticated snapshot survives — or doesn't — a failing re-check. Hook-as-prop for the
+ *  module-identity reason above. */
+function SessionProbe({
+  useAuth,
+}: {
+  useAuth: () => { authMode: string; user: { id: string } | null }
+}) {
+  const { authMode, user } = useAuth()
+  return <div>{`authMode:${authMode} user:${user?.id ?? 'none'}`}</div>
+}
+
+/** A promise whose resolution the test controls — used to make an EARLIER /me request resolve
+ *  AFTER a later one, pinning the request-ordering guard (authRequestSeq). */
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((r) => {
+    resolve = r
+  })
+  return { promise, resolve }
 }
 
 describe('AuthProvider — demo mode (VITE_CAPACITYLENS_DEMO=1)', () => {
@@ -154,6 +192,68 @@ describe('AuthProvider — server mode', () => {
     act(() => useStore.getState().setPersistError(true))
     expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
   })
+
+  it('persistError re-check that CANNOT resolve /me keeps the live authenticated snapshot (warns, no flip to auth-off)', async () => {
+    // The regression this pins: a server outage raises persistError AND makes /me unreachable at
+    // the same time. The re-check must not reset a live session to passOpen('off', null) — that
+    // drops the sign-out affordance and reshapes member-management mid-outage, and nothing puts it
+    // back until a manual reload. Same keep-previous policy as refreshAuth.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(me(200, { authMode: 'password', user: { id: 'u1', email: 'a@b.test' } }))
+      .mockRejectedValue(new Error('ECONNREFUSED'))
+    vi.stubGlobal('fetch', fetchSpy)
+    const { AuthProvider, useStore, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <SessionProbe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('authMode:password user:u1')).toBeInTheDocument()
+    act(() => useStore.getState().setPersistError(true))
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('refresh failed; keeping the previous auth snapshot')),
+    )
+    // Still the LIVE session — not passOpen('off', null).
+    expect(screen.getByText('authMode:password user:u1')).toBeInTheDocument()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('a STALE refreshAuth resolving after a newer 401 does not overwrite the login status', async () => {
+    // The interleaving this pins (authRequestSeq): refreshAuth fires but its /me hangs; a
+    // persistError re-check then resolves a real 401 and shows the login screen; the stale refresh
+    // finally resolves with the OLD authenticated snapshot. Applying it would hide the login screen
+    // and strand the user on a dead session — the guard must drop the superseded result.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    const slow = deferred<Response>()
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(me(200, { authMode: 'password', user: { id: 'u1', email: 'a@b.test' } }))
+      .mockImplementationOnce(() => slow.promise) // the refreshAuth click — held open by the test
+      .mockResolvedValue(me(401, { authMode: 'password' })) // the persistError re-check
+    vi.stubGlobal('fetch', fetchSpy)
+    const { AuthProvider, useStore, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <RefreshProbe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('button', { name: /refresh/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /refresh/ })) // request #2, still in flight
+    act(() => useStore.getState().setPersistError(true)) // request #3 → 401 → login screen
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    // NOW the stale request resolves with the old authenticated snapshot…
+    await act(async () => {
+      slow.resolve(me(200, { authMode: 'password', user: { id: 'u1', email: 'a@b.test' } }))
+      await slow.promise
+    })
+    // …and must be dropped: the login screen stays, the app does not come back on a dead session.
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /refresh/ })).not.toBeInTheDocument()
+    expect(fetchSpy).toHaveBeenCalledTimes(3)
+  })
 })
 
 // Single-company-per-instance policy: GET /api/auth/me gains canCreateAccount/multiAccount
@@ -228,6 +328,55 @@ describe('AuthProvider — canCreateAccount / multiAccount (single-company-per-i
       </AuthProvider>,
     )
     expect(await screen.findByText('canCreateAccount:true multiAccount:true')).toBeInTheDocument()
+  })
+
+  it('refreshAuth re-asks /api/auth/me and a flipped canCreateAccount reaches consumers', async () => {
+    // The server recomputes canCreateAccount per request (account count + membership roles), so a
+    // consumer that just changed that state (org create/delete) calls refreshAuth — the boot-time
+    // snapshot must not be the last word.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(me(200, { authMode: 'off', user: null, canCreateAccount: false, multiAccount: false }))
+      .mockResolvedValue(me(200, { authMode: 'off', user: null, canCreateAccount: true, multiAccount: false }))
+    vi.stubGlobal('fetch', fetchSpy)
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <RefreshProbe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /refresh/ }))
+    expect(await screen.findByText('canCreateAccount:true')).toBeInTheDocument()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('a FAILED refresh keeps the previous (stale) snapshot with a warn breadcrumb — no crash, no reset', async () => {
+    // Fail-open posture (see fetchAuthStatus): an unresolved refresh must not flip a live session
+    // to authMode 'off' / canCreateAccount true — stale beats wrong, and the server 403 remains
+    // the real enforcer. Handled-but-logged per DEFENSIVE-CODING.md §5.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(me(200, { authMode: 'off', user: null, canCreateAccount: false, multiAccount: false }))
+      .mockRejectedValue(new Error('ECONNREFUSED'))
+    vi.stubGlobal('fetch', fetchSpy)
+    const { AuthProvider, useAuth } = await freshProvider()
+    render(
+      <AuthProvider>
+        <RefreshProbe useAuth={useAuth} />
+      </AuthProvider>,
+    )
+    expect(await screen.findByText('canCreateAccount:false')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /refresh/ }))
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('refresh failed; keeping the previous auth snapshot')),
+    )
+    // Degraded to the STALE value — not reset to the fail-open boot default.
+    expect(screen.getByText('canCreateAccount:false')).toBeInTheDocument()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
   })
 
   it('defaults to true in the demo build (no fetch at all)', async () => {

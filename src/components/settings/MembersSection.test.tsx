@@ -64,6 +64,7 @@ const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   user: { id: 'me', email: 'me@x.io' },
   canCreateAccount: true,
   multiAccount: true,
+  refreshAuth: async () => {},
   signOut: async () => {},
   ...over,
 })
