@@ -5,6 +5,7 @@ import { ColorSwatch, ConfirmDialog, DeleteButton, EditButton, EmptyState, ListP
 import { ProjectForm } from './ProjectForm'
 import type { Project } from '@capacitylens/shared/types/entities'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
+import { isServerConfigured } from '../../data/apiConfig'
 import { m } from '@/i18n'
 
 export function ProjectList() {
@@ -20,11 +21,15 @@ export function ProjectList() {
   const { archive } = useLifecycleActions()
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Project>()
 
-  // "(no client)" remains ONLY for a genuinely dangling clientId (corrupt data) — an archived
-  // client found in the raw slice renders as "Name (archived)" instead.
+  // Unresolvable even against the FULL slice: what that MEANS depends on the persistence mode.
+  // In SERVER mode the per-account read strips archived/deleted parents, so an active project
+  // under an ARCHIVED client lands here — say that ("(archived client)"), which mirrors
+  // ActivityList's "(archived project)" label for the same server-mode gap. In the DEMO build the
+  // raw slice RETAINS archived clients, so an unresolvable id there is genuinely dangling data —
+  // "(archived client)" would paper over corruption, so it gets the honest "(no client)" instead.
   const clientName = (id: string) => {
     const c = clients.find((x) => x.id === id)
-    if (!c) return m.list_projects_no_client()
+    if (!c) return isServerConfigured() ? m.list_projects_archived_client() : m.list_projects_no_client()
     return lifecycleStatus(c) === 'active' ? c.name : m.list_label_archived({ name: c.name })
   }
 

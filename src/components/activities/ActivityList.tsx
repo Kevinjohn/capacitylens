@@ -5,6 +5,7 @@ import { useCrudListState } from '../../hooks/useCrudListState'
 import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '../common/ui'
 import { ActivityForm } from './ActivityForm'
 import type { Activity } from '@capacitylens/shared/types/entities'
+import { isServerConfigured } from '../../data/apiConfig'
 import { m } from '@/i18n'
 
 export function ActivityList() {
@@ -26,10 +27,14 @@ export function ActivityList() {
   const projectLabel = (id: string | undefined) => {
     if (!id) return m.list_activities_internal_label()
     const p = projects.find((x) => x.id === id)
-    // Unresolvable even against the FULL slice: in server mode the per-account read strips
-    // archived/deleted parents, so this is an archived (or deleted) project — never "Internal"
-    // (the activity's kind is 'project'; that label would be factually wrong).
-    if (!p) return m.list_activities_archived_project()
+    // Unresolvable even against the FULL slice: what that MEANS depends on the persistence mode
+    // (mirrors ProjectList.clientName). In SERVER mode the per-account read strips archived/
+    // deleted parents, so this is an archived (or deleted) project — never "Internal" (the
+    // activity's kind is 'project'; that label would be factually wrong). In the DEMO build the
+    // raw slice RETAINS archived projects, so an unresolvable id there is genuinely dangling
+    // data — "(archived project)" would paper over corruption, so it gets the honest
+    // "(no project)" instead.
+    if (!p) return isServerConfigured() ? m.list_activities_archived_project() : m.list_activities_no_project()
     const c = clients.find((x) => x.id === p.clientId)
     const label = c ? `${c.name} / ${p.name}` : p.name
     // Any non-active ancestor (archived/deleted project OR client) gets the hint, so the user

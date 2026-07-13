@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ActivityList } from './ActivityList'
 import { useStore } from '../../store/useStore'
-import { resetStoreWithAccount } from '../../test/fixtures'
+import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../../test/fixtures'
 
 beforeEach(() => resetStoreWithAccount())
 
@@ -117,6 +117,52 @@ describe('ActivityList', () => {
 
     const row = within(screen.getByTestId('project-activities')).getByTestId('activity-row')
     expect(row).toHaveTextContent('Acme / Lightning (archived)')
+  })
+
+  // An unresolvable projectId means different things per mode (mirrors ProjectList's clientName
+  // tests): in SERVER mode the per-account read strips archived parents from the slice, so it
+  // reads as "(archived project)"; in the DEMO build the raw slice retains archived projects, so
+  // it is genuinely dangling data and must NOT be dressed up as archival.
+  const seedOrphanActivity = () => {
+    useStore.getState().replaceAll(
+      makeAppData({
+        activities: [
+          {
+            id: 'act-orphan',
+            accountId: DEFAULT_ACCOUNT_ID,
+            createdAt: 't',
+            updatedAt: 't',
+            name: 'Orphan Activity',
+            kind: 'project',
+            projectId: 'nonexistent-project',
+          },
+        ],
+      }),
+    )
+    useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
+  }
+
+  it('SERVER mode: shows (archived project) when the project id resolves nowhere in the raw slice', () => {
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '') // server mode is any value other than '1'
+    seedOrphanActivity()
+
+    render(<ActivityList />)
+
+    expect(screen.getByText('Orphan Activity')).toBeInTheDocument()
+    expect(screen.getByText(/\(archived project\)/)).toBeInTheDocument()
+    vi.unstubAllEnvs()
+  })
+
+  it('DEMO build: shows (no project) for a genuinely dangling project id, not "(archived project)"', () => {
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '1')
+    seedOrphanActivity()
+
+    render(<ActivityList />)
+
+    expect(screen.getByText('Orphan Activity')).toBeInTheDocument()
+    expect(screen.getByText(/\(no project\)/)).toBeInTheDocument()
+    expect(screen.queryByText(/\(archived project\)/)).not.toBeInTheDocument()
+    vi.unstubAllEnvs()
   })
 
   it('confirms before deleting and removes the activity from the list', async () => {

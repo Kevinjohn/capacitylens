@@ -53,18 +53,37 @@ export function findOwned<K extends ScopedEntityKey>(
  * Every foreign key on a new/updated scoped record must point at a row in the
  * SAME account. Only the FK fields actually PRESENT on `rec` are checked, so it
  * works for both a full add and a partial update patch.
+ *
+ * `existing` (updates only) is the currently-stored row the write targets — pass the
+ * `findOwned` result so its tenancy is already proven. When a checked FK field equals
+ * the existing row's value, its EXISTENCE check is skipped: the reference was validated
+ * when it was written, and in SERVER mode the client's hydrated slice is ACTIVE-ONLY
+ * (readSlice strips archived/soft-deleted clients/projects), so re-checking an unchanged
+ * parent id against the slice would falsely reject every UNRELATED edit (a rename, a
+ * colour change) of a row whose parent is archived. A CHANGED id is still validated
+ * strictly, so this never weakens tenancy — you can't MOVE a record onto a parent the
+ * slice can't prove is yours. (The server needs no such relaxation: its validateWrite
+ * runs against the full DB, where an archived parent still exists.)
  */
 export function assertScopedRefs(
   data: AppData,
   accountId: ID,
   key: ScopedEntityKey,
   rec: Record<string, unknown>,
+  existing?: ScopedEntity | Record<string, unknown>,
 ): void {
   const present = (field: string) => rec[field] !== undefined && rec[field] !== null
+  // Reading loose field names off the stored row is safe — an absent field is undefined, which can
+  // only ever equal an equally-absent patch field (a no-op skip). The widened accepted type lets
+  // call sites pass a typed entity (interfaces lack the implicit index signature) without a copy.
+  const prev = existing as Record<string, unknown> | undefined
+  // Unchanged-on-update: see the doc comment — an id identical to the stored row's was
+  // already proven in-account at its own write time.
+  const unchanged = (field: string) => prev !== undefined && rec[field] === prev[field]
   const inAccount = (table: ScopedEntity[], id: unknown): boolean =>
     typeof id === 'string' && table.some((e) => e.id === id && belongsToAccount(e, accountId))
   const need = (field: string, table: ScopedEntity[], msg: string) => {
-    if (present(field) && !inAccount(table, rec[field])) throw new Error(msg)
+    if (present(field) && !unchanged(field) && !inAccount(table, rec[field])) throw new Error(msg)
   }
   switch (key) {
     case 'projects':
@@ -91,7 +110,11 @@ export function assertScopedRefs(
       // A phase belongs to exactly one project, so an activity's phase must be a phase OF
       // the activity's own project — otherwise the activity is silently double-bound to two
       // projects, and deleting the phase's project orphans the activity's phaseId.
-      if (present('phaseId')) {
+      // Skipped when BOTH ids are unchanged from the stored row: the pair was proven coherent
+      // at its own write time, and in server mode a phase under an archived project may be
+      // absent from the active-only slice (same rationale as `unchanged` above). Touching
+      // EITHER id re-runs the full coherence check.
+      if (present('phaseId') && !(unchanged('phaseId') && unchanged('projectId'))) {
         // Resolve the in-account phase ONCE: its absence is the "belong to this company"
         // failure (same check `need` would do), and its projectId feeds the coherence
         // check below — no second scan of data.phases.

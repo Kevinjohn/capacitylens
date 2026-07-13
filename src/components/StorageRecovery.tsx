@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { storageAdapter } from '../data/storageAdapter'
+import { readLegacyRaw, removeLegacyKeys } from '../data/storageMigration'
 import { downloadTextFile } from '../lib/download'
 import { errorMessage } from '../lib/errorMessage'
 import { Button, ConfirmDialog } from './common/ui'
@@ -7,9 +8,11 @@ import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 
 // Shown when bootstrap found stored data it could NOT read (corrupt JSON / failed
-// migrate). Autosave is deliberately not attached in that state, so the original
-// bytes are still on disk — this screen lets the user salvage them ("Download raw")
-// before resetting, rather than silently starting from empty and overwriting them.
+// migrate) — or when the legacy-key migration failed to carry the primary blob forward
+// (main.tsx's storageMigrationError branch, demo build only). Autosave is deliberately
+// not attached in that state, so the original bytes are still on disk — this screen lets
+// the user salvage them ("Download raw") before resetting, rather than silently starting
+// from empty and overwriting them.
 export function StorageRecovery() {
   const [confirming, setConfirming] = useState(false)
   // This is the data-SALVAGE screen, so a failure of the salvage itself must be VISIBLE here —
@@ -18,10 +21,13 @@ export function StorageRecovery() {
   const [error, setError] = useState<string | null>(null)
 
   const downloadRaw = () => {
-    const raw = storageAdapter.readRaw()
+    // Legacy fallback: when this screen was reached via a FAILED key migration, `capacitylens/v3`
+    // was never written — the recoverable bytes still live under the legacy `floaty/v3` key, so
+    // fall back to it rather than telling the user there's nothing to save.
+    const raw = storageAdapter.readRaw() ?? readLegacyRaw()
     if (raw === null) {
-      // readRaw() returns null when storage can't be read at all — don't hand the user an EMPTY
-      // file they'd mistake for a real backup. Tell them instead.
+      // Neither key readable — don't hand the user an EMPTY file they'd mistake for a real backup.
+      // Tell them instead.
       setError(m.storage_download_error())
       return
     }
@@ -33,11 +39,14 @@ export function StorageRecovery() {
     }
   }
 
-  // Clear the unreadable data and reload — bootstrap then reseeds from scratch. storageAdapter.clear()
-  // swallows its own storage errors by design (the reload re-attempts and reseeds anyway), so this
-  // can't throw; the reload always runs.
+  // Clear the unreadable data and reload — bootstrap then reseeds from scratch. The legacy
+  // `floaty/*` keys must go too: leaving them would let the next boot's migration re-copy the same
+  // unreadable blob forward and land right back here (resurrect/re-loop). Both helpers swallow
+  // their own storage errors by design (the reload re-attempts and reseeds anyway), so this can't
+  // throw; the reload always runs.
   const reset = () => {
     storageAdapter.clear()
+    removeLegacyKeys()
     window.location.reload()
   }
 

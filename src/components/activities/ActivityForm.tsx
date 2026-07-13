@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { useActiveScopedData } from '../../store/useScopedData'
+import { useActiveScopedData, useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
@@ -25,6 +25,10 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
   const data = useActiveScopedData()
   const projects = data.projects
   const clients = data.clients
+  // The RAW scoped slice, for the archived-parent label only (see projectOptions below): the demo
+  // build still holds an archived project in the raw slice (so we can show its name); in server
+  // mode the per-account read strips it, so the label degrades to the generic "(current, archived)".
+  const raw = useScopedData()
 
   const [name, setName] = useState(activity?.name ?? '')
   const [kind, setKind] = useState<ActivityKind>(activity?.kind ?? 'project')
@@ -38,6 +42,22 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
     const client = clients.find((c) => c.id === p.clientId)
     return { value: p.id, label: client ? `${client.name} / ${p.name}` : p.name }
   })
+  // Editing a project-kind activity whose project is ARCHIVED: the active-only options above don't
+  // contain it, so without this the select would silently blank and an unrelated edit (rename)
+  // couldn't round-trip the unchanged projectId. Append the current id as a DISABLED option — it
+  // stays selected/submittable as the current value (the store's unchanged-parent relaxation
+  // accepts it), but can't be picked back once the user chooses an active project.
+  if (activity?.projectId && !projects.some((p) => p.id === activity.projectId)) {
+    const rawProject = raw.projects.find((p) => p.id === activity.projectId)
+    const rawClient = rawProject && raw.clients.find((c) => c.id === rawProject.clientId)
+    projectOptions.push({
+      value: activity.projectId,
+      label: rawProject
+        ? m.list_label_archived({ name: rawClient ? `${rawClient.name} / ${rawProject.name}` : rawProject.name })
+        : m.form_option_current_archived(),
+      disabled: true,
+    })
+  }
 
   const onKindChange = (next: ActivityKind) => {
     setKind(next)

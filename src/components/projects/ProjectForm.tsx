@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useStore } from '../../store/useStore'
-import { useActiveScopedData } from '../../store/useScopedData'
+import { useActiveScopedData, useScopedData } from '../../store/useScopedData'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
@@ -17,6 +17,10 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const update = useStore((s) => s.updateProject)
   const data = useActiveScopedData()
   const clients = data.clients
+  // The RAW scoped slice, for the archived-parent label only (see clientOptions below): in the demo
+  // build an archived client is still in the raw slice (so we can show its name); in server mode the
+  // per-account read strips it entirely, so the label degrades to the generic "(current, archived)".
+  const rawClients = useScopedData().clients
 
   const [name, setName] = useState(project?.name ?? '')
   const [clientId, setClientId] = useState(project?.clientId ?? '')
@@ -24,6 +28,19 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const { error, errorField, errorId, fail } = useFieldError()
 
   const clientOptions: Option[] = clients.map((c) => ({ value: c.id, label: c.name }))
+  // Editing a project whose client is ARCHIVED: the active-only options above don't contain it, so
+  // without this the select would silently blank and an unrelated edit (rename, colour) couldn't
+  // round-trip the unchanged clientId. Append the current id as a DISABLED option — it stays
+  // selected/submittable as the current value (the store's unchanged-parent relaxation accepts it),
+  // but can't be picked back once the user chooses an active client.
+  if (project && !clients.some((c) => c.id === project.clientId)) {
+    const raw = rawClients.find((c) => c.id === project.clientId)
+    clientOptions.push({
+      value: project.clientId,
+      label: raw ? m.list_label_archived({ name: raw.name }) : m.form_option_current_archived(),
+      disabled: true,
+    })
+  }
 
   const submit = () => {
     const trimmed = validateName(name, fail)

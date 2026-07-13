@@ -239,6 +239,54 @@ describe('assertScopedRefs', () => {
       'Resource discipline must belong to this company.',
     )
   })
+
+  // The unchanged-on-update relaxation (5th arg `existing`): in SERVER mode the client's hydrated
+  // slice is ACTIVE-ONLY, so an unchanged parent id pointing at an ARCHIVED parent (absent from
+  // `data`) must not block an unrelated edit. A CHANGED id is still validated strictly.
+  describe('unchanged parent id on update (existing row passed)', () => {
+    it('passes an UNCHANGED clientId even when the client is absent from data (archived parent)', () => {
+      const existing = project('p1', A1, 'c-archived')
+      // No clients at all — the archived parent was stripped from the slice.
+      expect(() =>
+        assertScopedRefs(base(), A1, 'projects', { name: 'Renamed', clientId: 'c-archived' }, existing),
+      ).not.toThrow()
+    })
+
+    it('still rejects a CHANGED clientId that is absent from data', () => {
+      const existing = project('p1', A1, 'c-archived')
+      expect(() =>
+        assertScopedRefs(base(), A1, 'projects', { clientId: 'c-other' }, existing),
+      ).toThrow('Project must reference a client in this company.')
+    })
+
+    it('passes an UNCHANGED projectId+phaseId pair even when both are absent from data', () => {
+      const existing = activity('t1', A1, 'p-archived', 'ph-archived')
+      const merged = { ...existing, name: 'Renamed' }
+      expect(() => assertScopedRefs(base(), A1, 'activities', merged, existing)).not.toThrow()
+    })
+
+    it('re-runs the full phase coherence check when the phaseId CHANGES', () => {
+      const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')] }
+      const existing = activity('t1', A1, 'p1', 'ph-old')
+      const merged = { ...existing, phaseId: 'ph-new' } // changed → must resolve, and it can't
+      expect(() => assertScopedRefs(data, A1, 'activities', merged, existing)).toThrow(
+        'Activity phase must belong to this company.',
+      )
+    })
+
+    it('passes an UNCHANGED placeholder projectId even when the project is absent from data', () => {
+      const existing = placeholder('r1', A1, 'p-archived')
+      expect(() =>
+        assertScopedRefs(base(), A1, 'resources', { name: 'Renamed', projectId: 'p-archived' }, existing),
+      ).not.toThrow()
+    })
+
+    it('without `existing` (an ADD) the check stays strict', () => {
+      expect(() => assertScopedRefs(base(), A1, 'projects', { clientId: 'c-archived' })).toThrow(
+        'Project must reference a client in this company.',
+      )
+    })
+  })
 })
 
 describe('assertAllocationRefs', () => {

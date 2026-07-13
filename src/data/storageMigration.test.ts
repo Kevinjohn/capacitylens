@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { migrateLegacyStorageKeys, migrateLegacyStorage } from './storageMigration'
+import {
+  migrateLegacyStorageKeys,
+  migrateLegacyStorage,
+  readLegacyRaw,
+  removeLegacyKeys,
+  LEGACY_STORAGE_KEY,
+} from './storageMigration'
 import { STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
 
 // A minimal but faithful Storage implementation (insertion-ordered like the real one) so we can test
@@ -111,6 +117,86 @@ describe('migrateLegacyStorageKeys', () => {
     // The legacy data was NOT carried forward — the caller must see exactly why.
     expect(() => migrateLegacyStorageKeys(store)).toThrow(quota)
   })
+
+  // Two-tier severity: only the PRIMARY blob (floaty/v3) is tenant data. A failed DEVICE-PREF copy
+  // is the §5 degrade — warn + skip — so a full pref store can never block boot into the recovery
+  // screen over a lost view toggle.
+  it('DEGRADES (warns, keeps going) when a device-pref copy fails, still migrating the rest', () => {
+    const store = makeStore({ 'floaty/theme': 'dark', 'floaty/v3': 'DATA', 'floaty/sidebar': 'open' })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const quota = new Error('QuotaExceededError')
+    const realSet = store.setItem.bind(store)
+    store.setItem = (k: string, v: string) => {
+      // Only the pref copies fail; the primary blob write succeeds.
+      if (k !== STORAGE_KEY_PREFIX + 'v3') throw quota
+      realSet(k, v)
+    }
+
+    expect(() => migrateLegacyStorageKeys(store)).not.toThrow()
+    expect(store.getItem('capacitylens/v3')).toBe('DATA') // the blob still landed
+    expect(store.getItem('capacitylens/theme')).toBeNull() // pref skipped, not fatal
+    expect(warn).toHaveBeenCalledTimes(2) // one breadcrumb per skipped pref
+
+    warn.mockRestore()
+  })
+
+  it('still PROPAGATES when the PRIMARY blob copy fails, even if pref copies would degrade', () => {
+    const store = makeStore({ 'floaty/theme': 'dark', 'floaty/v3': 'DATA' })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const quota = new Error('QuotaExceededError')
+    store.setItem = () => {
+      throw quota
+    }
+
+    expect(() => migrateLegacyStorageKeys(store)).toThrow(quota)
+    warn.mockRestore()
+  })
+})
+
+describe('recovery-screen legacy helpers', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    sessionStorage.clear()
+  })
+
+  it('readLegacyRaw returns the legacy floaty/v3 blob, and null when absent', () => {
+    expect(readLegacyRaw()).toBeNull()
+    localStorage.setItem(LEGACY_STORAGE_KEY, 'LEGACY-BYTES')
+    expect(readLegacyRaw()).toBe('LEGACY-BYTES')
+  })
+
+  it('removeLegacyKeys removes every floaty/* key from BOTH storages, leaving other keys intact', () => {
+    localStorage.setItem('floaty/v3', 'DATA')
+    localStorage.setItem('floaty/theme', 'dark')
+    localStorage.setItem('capacitylens/v3', 'NEW')
+    localStorage.setItem('other-tool', 'keep')
+    sessionStorage.setItem('floaty/rotateHintDismissed', '1')
+
+    removeLegacyKeys()
+
+    expect(localStorage.getItem('floaty/v3')).toBeNull()
+    expect(localStorage.getItem('floaty/theme')).toBeNull()
+    expect(sessionStorage.getItem('floaty/rotateHintDismissed')).toBeNull()
+    // Non-legacy keys untouched — reset must not nuke the new key here (storageAdapter.clear owns
+    // that) or unrelated origin keys.
+    expect(localStorage.getItem('capacitylens/v3')).toBe('NEW')
+    expect(localStorage.getItem('other-tool')).toBe('keep')
+  })
+
+  it('removeLegacyKeys degrades (warns, does not throw) when a store is unavailable', () => {
+    sessionStorage.setItem('floaty/theme', 'dark')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const spy = vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('SecurityError')
+    })
+
+    expect(() => removeLegacyKeys()).not.toThrow()
+    expect(sessionStorage.getItem('floaty/theme')).toBeNull() // the healthy store still cleaned
+    expect(warn).toHaveBeenCalled()
+
+    spy.mockRestore()
+    warn.mockRestore()
+  })
 })
 
 describe('migrateLegacyStorage', () => {
@@ -175,6 +261,37 @@ describe('migrateLegacyStorage', () => {
     // The other (healthy) store still migrated.
     expect(sessionStorage.getItem('capacitylens/theme')).toBe('dark')
     expect(warn).toHaveBeenCalled()
+
+    spy.mockRestore()
+    warn.mockRestore()
+  })
+
+  // The tenant blob only ever lived in LOCALSTORAGE (storageAdapter.ts), so a stray sessionStorage
+  // `floaty/v3` failing to copy is a §5 degrade (warn + continue) — NOT the boot-blocking recovery
+  // screen the localStorage primary-blob failure earns.
+  it('DEGRADES (warns, does not throw) when a stray sessionStorage floaty/v3 copy fails', () => {
+    localStorage.setItem('floaty/theme', 'dark') // healthy localStorage still migrates
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // A sessionStorage whose reads work (so the availability probe passes) but whose writes fail —
+    // the quota shape, hit while copying a stray floaty/v3 that the app never wrote.
+    const map = new Map<string, string>([['floaty/v3', 'STRAY']])
+    const brokenWrite = {
+      get length() {
+        return map.size
+      },
+      key: (i: number) => [...map.keys()][i] ?? null,
+      getItem: (k: string) => map.get(k) ?? null,
+      setItem() {
+        throw new Error('QuotaExceededError')
+      },
+      removeItem() {},
+      clear() {},
+    } as unknown as Storage
+    const spy = vi.spyOn(window, 'sessionStorage', 'get').mockReturnValue(brokenWrite)
+
+    expect(() => migrateLegacyStorage()).not.toThrow()
+    expect(localStorage.getItem('capacitylens/theme')).toBe('dark') // localStorage unaffected
+    expect(warn).toHaveBeenCalled() // the skip leaves a breadcrumb, not silence
 
     spy.mockRestore()
     warn.mockRestore()

@@ -244,6 +244,10 @@ export function DateField({
 export interface Option {
   value: string
   label: string
+  /** Renders the option un-pickable while still SELECTABLE-by-value: a select whose current value
+   *  is a disabled option keeps showing it (the "(current, archived)" parent case — the unchanged
+   *  id must round-trip), but the user can't move BACK to it after choosing something else. */
+  disabled?: boolean
 }
 
 export function SelectField({
@@ -283,7 +287,7 @@ export function SelectField({
       >
         {placeholder !== undefined && <option value="">{placeholder}</option>}
         {options.map((o) => (
-          <option key={o.value} value={o.value}>
+          <option key={o.value} value={o.value} disabled={o.disabled}>
             {o.label}
           </option>
         ))}

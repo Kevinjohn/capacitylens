@@ -133,8 +133,12 @@ describe('ProjectList', () => {
     expect(screen.queryByText('· (no client)')).not.toBeInTheDocument()
   })
 
-  it('shows (no client) when project has an unresolved client id', () => {
-    // Seed via replaceAll to inject a project with an orphaned clientId
+  // An unresolvable clientId means different things per mode: in SERVER mode the per-account read
+  // strips archived parents from the slice, so it reads as "archived client"; in the DEMO build the
+  // raw slice retains archived clients, so it is genuinely dangling data and must NOT be dressed up
+  // as archival.
+  const seedOrphanProject = () => {
+    // Seed via replaceAll to inject a project whose client is absent from the slice
     useStore.getState().replaceAll(
       makeAppData({
         projects: [
@@ -151,10 +155,26 @@ describe('ProjectList', () => {
       }),
     )
     useStore.getState().setActiveAccount(DEFAULT_ACCOUNT_ID)
+  }
+
+  it('SERVER mode: shows (archived client) when the client id resolves nowhere in the raw slice', () => {
+    // Override the file-wide demo stub: server mode is any value other than '1'.
+    vi.stubEnv('VITE_CAPACITYLENS_DEMO', '')
+    seedOrphanProject()
+
+    render(<ProjectList />)
+
+    expect(screen.getByText('Orphan Project')).toBeInTheDocument()
+    expect(screen.getByText('· (archived client)')).toBeInTheDocument()
+  })
+
+  it('DEMO build: shows (no client) for a genuinely dangling client id, not "(archived client)"', () => {
+    seedOrphanProject() // file-wide demo stub applies
 
     render(<ProjectList />)
 
     expect(screen.getByText('Orphan Project')).toBeInTheDocument()
     expect(screen.getByText('· (no client)')).toBeInTheDocument()
+    expect(screen.queryByText('· (archived client)')).not.toBeInTheDocument()
   })
 })

@@ -786,7 +786,10 @@ export const useStore = create<StoreState>()((set, get) => {
       if (blockedByViewer()) return
       const existing = findOwned(get().data, 'resources', id)
       if (!existing) return
-      assertScopedRefs(get().data, existing.accountId, 'resources', patch)
+      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
+      // placeholder projectId whose project is ARCHIVED (absent from the server-mode active-only
+      // slice) must not block an unrelated edit; a CHANGED projectId is still validated strictly.
+      assertScopedRefs(get().data, existing.accountId, 'resources', patch, existing)
       // Flipping a resource to external while it still owns loaded work / time-off would orphan those
       // dependents (the scheduler hides external capacity + time-off). Reject the flip on the MERGED
       // kind, throw-before-mutate so the failure is atomic. A no-op when the resource isn't becoming
@@ -844,7 +847,10 @@ export const useStore = create<StoreState>()((set, get) => {
       if (blockedByViewer()) return
       const existing = findOwned(get().data, 'projects', id)
       if (!existing) return
-      assertScopedRefs(get().data, existing.accountId, 'projects', patch)
+      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): in server mode
+      // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
+      // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
+      assertScopedRefs(get().data, existing.accountId, 'projects', patch, existing)
       mutate((d) => ({ ...d, projects: updateById(d.projects, id, patch) }))
     },
 
@@ -861,7 +867,9 @@ export const useStore = create<StoreState>()((set, get) => {
       if (blockedByViewer()) return
       const existing = findOwned(get().data, 'phases', id)
       if (!existing) return
-      assertScopedRefs(get().data, existing.accountId, 'phases', patch)
+      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs) — same
+      // archived-parent rationale as updateProject above.
+      assertScopedRefs(get().data, existing.accountId, 'phases', patch, existing)
       mutate((d) => ({ ...d, phases: updateById(d.phases, id, patch) }))
     },
     deletePhase: (id) => {
@@ -887,7 +895,10 @@ export const useStore = create<StoreState>()((set, get) => {
       // touching only projectId OR only phaseId must still be checked for activity↔phase coherence
       // against the row's OTHER field — else a phaseId-only patch is wrongly rejected, or a
       // projectId-only patch silently leaves a stale cross-project phaseId the server rejects.
-      assertScopedRefs(get().data, existing.accountId, 'activities', { ...existing, ...patch })
+      // `existing` enables the unchanged-parent relaxation (see assertScopedRefs): an unchanged
+      // projectId whose project is ARCHIVED (absent from the server-mode active-only slice) must
+      // not block an unrelated edit; a CHANGED projectId is still validated strictly.
+      assertScopedRefs(get().data, existing.accountId, 'activities', { ...existing, ...patch }, existing)
       mutate((d) => ({ ...d, activities: updateById(d.activities, id, patch) }))
     },
     deleteActivity: (id) => {
