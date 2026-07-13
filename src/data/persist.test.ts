@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { attachPersistence, bootstrap, flushPendingWrites, refreshActiveAccountSlice, ReloadDiscardedEditError, suspendServerWrites } from './persist'
 import { LocalStorageAdapter } from './LocalStorageAdapter'
-import { ServerSyncAdapter, BatchConflictError } from './ServerSyncAdapter'
+import { ServerSyncAdapter, BatchConflictError, BatchTooLargeError } from './ServerSyncAdapter'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { useStore } from '../store/useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
@@ -1253,6 +1253,44 @@ describe('batch-conflict resolution (server wins — interim policy until a conf
       expect(onSuccess).toHaveBeenCalled()
       // The optimistic edit survived (no server-wins reload for a transient failure).
       expect(useStore.getState().data.clients.some((c) => c.name === 'Transient')).toBe(true)
+      detach()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('an over-limit failure (BatchTooLargeError) is TERMINAL — no backoff retry, banner via onError', async () => {
+    // Unlike a transient failure (the regression pin above), an over-limit diff would throw on EVERY
+    // backoff attempt (the atomic batch refuses to split it), so persist.ts must STOP retrying — no
+    // self-sustaining error wedge — while still surfacing the banner. It is NOT a conflict either, so
+    // it must not trigger a server-wins reload. The durable journal keeps the desired state; a later,
+    // smaller diff clears the banner.
+    vi.useFakeTimers()
+    try {
+      const { adapter, loadAll, saveAll } = recordingAdapter(a2Slice())
+      const onError = vi.fn()
+      const onSuccess = vi.fn()
+      const detachP = attachActiveA2(adapter, 0, onError, onSuccess)
+      await vi.advanceTimersByTimeAsync(5)
+      const detach = await detachP
+      const loadsAfterPick = loadAll.mock.calls.length
+      saveAll.mockClear()
+      onSuccess.mockClear() // the pick's successful reload fires onSuccess by design
+      saveAll.mockRejectedValue(new BatchTooLargeError('Atomic sync exceeds the 5000-operation server limit.'))
+
+      useStore.getState().addClient({ name: 'Too Big', color: '#222222' })
+      await vi.advanceTimersByTimeAsync(0) // the save attempt → throws BatchTooLargeError
+      expect(onError).toHaveBeenCalledTimes(1) // the banner surfaced "changes aren't saving"
+      expect(onError.mock.calls[0][0]).toBeInstanceOf(BatchTooLargeError)
+      const savesAfterEdit = saveAll.mock.calls.length // exactly the one over-limit attempt
+      expect(savesAfterEdit).toBe(1)
+
+      // 35s covers every backoff step: a TRANSIENT error re-attempts across it, a TERMINAL one does
+      // not — and it never reloads (that is the conflict path, not this one).
+      await vi.advanceTimersByTimeAsync(35_000)
+      expect(saveAll.mock.calls.length).toBe(savesAfterEdit) // no background retry armed
+      expect(loadAll.mock.calls.length).toBe(loadsAfterPick) // terminal, not a server-wins reload
+      expect(onError).toHaveBeenCalledTimes(1) // surfaced once, not looped
       detach()
     } finally {
       vi.useRealTimers()

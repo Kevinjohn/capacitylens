@@ -432,7 +432,12 @@ const stamp = () => {
   return { createdAt: now, updatedAt: now }
 }
 const touch = () => new Date().toISOString()
-const touchAfter = (...timestamps: Array<string | undefined>): string => {
+// Take an ARRAY, not rest args: the whole-tenant callers (nextDataRevision, prepareHistoryTarget)
+// pass one timestamp per row, and spreading tens of thousands of rows as function arguments can
+// overflow the engine's argument limit (RangeError), failing an undo/redo or cascade-delete
+// outright. Iterating an array is unbounded-safe. `touchAfter` keeps the ergonomic variadic shape
+// for the many few-arg callers by delegating here.
+const touchAfterAll = (timestamps: Array<string | undefined>): string => {
   let next = Date.now()
   for (const value of timestamps) {
     if (!value) continue
@@ -441,10 +446,11 @@ const touchAfter = (...timestamps: Array<string | undefined>): string => {
   }
   return new Date(next).toISOString()
 }
+const touchAfter = (...timestamps: Array<string | undefined>): string => touchAfterAll(timestamps)
 const dataTimestamps = (data: AppData): string[] =>
   (Object.values(data) as Entity[][]).flatMap((rows) => rows.map((row) => row.updatedAt))
 const nextDataRevision = (data: AppData): string =>
-  touchAfter(...dataTimestamps(data))
+  touchAfterAll(dataTimestamps(data))
 
 /**
  * Undo/redo restores historical values, but `updatedAt` is a synchronization revision rather than
@@ -453,10 +459,7 @@ const nextDataRevision = (data: AppData): string =>
  * stale. Rows recreated from deletion need no stamp because the server has no current row to beat.
  */
 function prepareHistoryTarget(current: AppData, target: AppData): AppData {
-  const now = touchAfter(
-    ...dataTimestamps(current),
-    ...dataTimestamps(target),
-  )
+  const now = touchAfterAll(dataTimestamps(current).concat(dataTimestamps(target)))
   const retime = <T extends Entity>(beforeRows: T[], targetRows: T[]): T[] => {
     const beforeById = new Map(beforeRows.map((row) => [row.id, row]))
     const content = (row: T): string => JSON.stringify({ ...row, updatedAt: undefined })

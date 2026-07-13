@@ -67,6 +67,23 @@ export class BatchConflictError extends Error {
   }
 }
 
+/**
+ * Thrown when a single logical diff exceeds {@link MAX_OPS_PER_BATCH}. The atomic design refuses to
+ * split it into separately-committed prefixes (that would reintroduce the reparent-before-delete
+ * FK-order race the single transaction exists to prevent), so this is a TERMINAL, non-retryable
+ * condition — re-sending the identical over-limit diff throws forever, unlike a transient network
+ * failure. A TYPED error (not the generic batch failure) so persist.ts can special-case it: surface
+ * the banner plus a clear sticky notice and STOP the exponential-backoff retry loop, while the
+ * durable write journal keeps the desired state so no edit is silently dropped. The banner clears
+ * when a later, smaller diff (the user removing fewer items at once) lands.
+ */
+export class BatchTooLargeError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'BatchTooLargeError'
+  }
+}
+
 // One logical diff is always one server transaction. The client never slices this limit into
 // separately committed prefixes; an over-limit diff fails atomically and remains in the durable
 // write journal. Server-mode imports use their dedicated atomic endpoint.
@@ -463,34 +480,51 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // over-limit diff remains in the durable journal; it is never split into committed prefixes.
   private async applyBatch(ops: Op[], opts?: { keepalive?: boolean }): Promise<CommittedRevision[] | null> {
     if (ops.length > MAX_OPS_PER_BATCH) {
-      throw new Error(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`)
+      throw new BatchTooLargeError(`Atomic sync exceeds the ${MAX_OPS_PER_BATCH}-operation server limit.`)
     }
-    const body = JSON.stringify({ ops })
+    // Rebase PUT preconditions, then serialize ONCE — the same body feeds both the keepalive
+    // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
+    const body = JSON.stringify({ ops: this.rebaseForWire(ops) })
     if (opts?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
       // Fetch keepalive has a small aggregate byte budget. The durable journal already owns this
       // desired state, so skip a predictably rejected teardown request and replay next session.
       return null
     }
-    return this.postBatch(ops, body, opts)
+    return this.postBatch(body, ops.length, opts)
+  }
+
+  // updatedAt on the wire is a concurrency precondition: rebase each PUT onto the last authoritative
+  // server revision while retaining every locally edited field. A Map per touched table keeps this
+  // O(ops + rows) — a linear .find per op degraded a whole-table re-timestamp (undo/redo touching
+  // every allocation) to O(ops × rows) on the hot save path. Maps are built lazily, so a batch that
+  // touches one table never indexes the rest.
+  private rebaseForWire(ops: Op[]): Op[] {
+    const indexByTable = new Map<Op['table'], Map<string, { updatedAt: string }>>()
+    const indexFor = (table: Op['table']): Map<string, { updatedAt: string }> => {
+      let index = indexByTable.get(table)
+      if (!index) {
+        index = new Map(this.lastSynced[table].map((row) => [row.id, row] as const))
+        indexByTable.set(table, index)
+      }
+      return index
+    }
+    return ops.map((op) => {
+      if (op.method !== 'PUT' || !op.row) return op
+      const existing = indexFor(op.table).get(op.id)
+      return existing ? { ...op, row: { ...op.row, updatedAt: existing.updatedAt } } : op
+    })
   }
 
   // POST the complete ≤MAX_OPS_PER_BATCH diff to /api/batch; the server applies it in one
   // transaction (upserts parent-first, then deletes child-first — see syncOps.diffOps), so a
   // mid-batch failure rolls the whole transaction back. keepalive (unload) lets the request outlive
-  // the page.
+  // the page. `body` is the already-serialized, PUT-rebased wire payload; `opCount` is the op total
+  // the server receipt must echo back.
   private async postBatch(
-    ops: Op[],
-    body = JSON.stringify({ ops }),
+    body: string,
+    opCount: number,
     opts?: { keepalive?: boolean },
   ): Promise<CommittedRevision[]> {
-    // updatedAt on the wire is a concurrency precondition. Rebase an update onto the last
-    // authoritative server revision while retaining every locally edited field.
-    const wireOps = ops.map((op) => {
-      if (op.method !== 'PUT' || !op.row) return op
-      const existing = this.lastSynced[op.table].find((row) => row.id === op.id)
-      return existing ? { ...op, row: { ...op.row, updatedAt: existing.updatedAt } } : op
-    })
-    body = JSON.stringify({ ops: wireOps })
     const res = await this.request(
       `${this.baseUrl}/api/batch`,
       {
@@ -522,17 +556,18 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       throw new Error(`Batch sync failed (${res.status}) ${detail}`.trim())
     }
     const receipt = (await res.json().catch(() => null)) as { ok?: unknown; applied?: unknown; revisions?: unknown; auditWarning?: unknown } | null
-    if (receipt?.ok !== true || receipt.applied !== ops.length) {
+    if (receipt?.ok !== true || receipt.applied !== opCount) {
       throw new Error('Batch sync returned an invalid commit receipt.')
     }
     if (receipt.auditWarning === true || res.headers.get('x-capacitylens-audit-warning') === 'true') {
       announceAuditWarning()
     }
     if (!Array.isArray(receipt.revisions)) return [] // compatibility with older servers
+    const knownTables = emptyAppData() // hoisted: one shape probe for the whole receipt, not one per revision
     const revisions = receipt.revisions.filter((revision): revision is CommittedRevision => {
       if (!revision || typeof revision !== 'object') return false
       const value = revision as Partial<CommittedRevision>
-      return typeof value.table === 'string' && Object.hasOwn(emptyAppData(), value.table) &&
+      return typeof value.table === 'string' && Object.hasOwn(knownTables, value.table) &&
         typeof value.id === 'string' && typeof value.createdAt === 'string' && typeof value.updatedAt === 'string'
     })
     if (revisions.length !== receipt.revisions.length) {

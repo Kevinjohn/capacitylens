@@ -6,7 +6,7 @@ import { downloadTextFile } from '../lib/download'
 import { errorMessage } from '../lib/errorMessage'
 import { readApiError } from '../lib/readApiError'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
-import { apiFetch } from '../data/requestTimeout'
+import { apiFetch, API_BULK_TIMEOUT_MS } from '../data/requestTimeout'
 import { fetchInactiveSlice } from '../data/fetchInactiveSlice'
 import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from '../data/persist'
 import { useRole } from '../auth/permissionContext'
@@ -162,12 +162,19 @@ export function ImportExport() {
       let committed = false
       let safeToResume = true
       try {
-        const res = await apiFetch(`${API_BASE}/api/import`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ accountId, data: incoming }),
-        })
+        const res = await apiFetch(
+          `${API_BASE}/api/import`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ accountId, data: incoming }),
+          },
+          // The atomic slice replacement is a BULK op like /api/state and /api/batch — give it the
+          // 120s bound so a large-but-valid import isn't aborted at the 15s interactive deadline
+          // into the "timed out, result unverified" branch even though it committed server-side.
+          API_BULK_TIMEOUT_MS,
+        )
         if (!res.ok) {
           // Prefer the server's user-facing sentence (e.g. the purge-gate 403 or a parseData 400).
           setNotice((await readApiError(res)) ?? m.data_import_failed({ status: res.status }), 'error')

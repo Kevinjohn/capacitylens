@@ -37,6 +37,13 @@ describe('parseBackupConfig (fail-closed)', () => {
       parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_INTERVAL_MIN: '15', CAPACITYLENS_BACKUP_KEEP: '4' }),
     ).toEqual({ dir: '/tmp/x', intervalMin: 15, keep: 4 })
   })
+
+  it('FLOORS a fractional keep >= 1 rather than reverting to the default (100.5 -> 100)', () => {
+    // Regression: an integer-only guard silently reverted a fractional override to 48, a SMALLER
+    // backup window than the operator configured. Flooring keeps their intent; sub-1 still falls back.
+    expect(parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_KEEP: '100.5' }))
+      .toEqual({ dir: '/tmp/x', intervalMin: 60, keep: 100 })
+  })
 })
 
 describe('startBackups', () => {

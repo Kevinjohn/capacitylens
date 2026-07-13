@@ -18,7 +18,7 @@ import { useStore } from './store/useStore'
 import { persistenceAdapter } from './data/storageAdapter'
 import { isDemoMode, isServerConfigured } from './data/apiConfig'
 import { bootstrap, ReloadDiscardedEditError } from './data/persist'
-import { BatchConflictError } from './data/ServerSyncAdapter'
+import { BatchConflictError, BatchTooLargeError } from './data/ServerSyncAdapter'
 import { seed } from '@capacitylens/shared/data/seed'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { applyThemeToDom, watchSystemTheme } from './lib/theme'
@@ -86,6 +86,11 @@ if (storageMigrationError && !isServerConfigured()) {
       // be cleared sub-second by the resolution's follow-up clean save, before the user could
       // read it — and the user's edit is about to be DISCARDED by the server-wins reload.
       if (e instanceof BatchConflictError) useStore.getState().setNotice(m.notice_sync_conflict(), 'error')
+      // An over-limit diff can't sync atomically and persist.ts has STOPPED retrying it (terminal,
+      // not transient), so the bare "changes aren't saving" banner would leave the user with no idea
+      // WHY or what to do. A sticky notice tells them: change fewer items at once. Their other work
+      // is unaffected and the banner lifts once a smaller diff lands.
+      if (e instanceof BatchTooLargeError) useStore.getState().setNotice(m.notice_sync_too_large(), 'error')
     },
     // Recovery: once a write lands again (e.g. the server comes back), take the
     // "changes aren't saving" banner back down. Guarded so a normal save doesn't

@@ -62,8 +62,11 @@ export function parseBackupConfig(env: Record<string, string | undefined>): Back
     dir,
     intervalMin: positive(env.CAPACITYLENS_BACKUP_INTERVAL_MIN, 60),
     keep: (() => {
+      // Floor a positive finite value (100.5 → 100) rather than rejecting it — an integer-only
+      // guard silently reverted a fractional override to the default 48, a smaller backup window
+      // than the operator asked for. Sub-1, NaN and negatives still fall back to the default.
       const n = Number(env.CAPACITYLENS_BACKUP_KEEP)
-      return Number.isInteger(n) && n >= 1 ? n : 48
+      return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 48
     })(),
   }
 }

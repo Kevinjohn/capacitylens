@@ -3,7 +3,7 @@ import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import type { StoreState } from '../store/useStore'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
-import { BatchConflictError } from './ServerSyncAdapter'
+import { BatchConflictError, BatchTooLargeError } from './ServerSyncAdapter'
 import { applyOps, diffOps } from './syncOps'
 
 // Persistence is wired OUTSIDE the store so the store stays a pure state
@@ -251,6 +251,18 @@ export function attachPersistence(
                 resolvingConflict = false
               })
           }
+          return
+        }
+        // An over-limit diff is TERMINAL, not transient: the atomic batch refuses to split it, so
+        // the identical over-limit diff would throw on every backoff attempt — a permanent
+        // auto-retrying banner. Surface it (onError already raised the banner + a clear sticky
+        // notice) and STOP: never arm the exponential-backoff loop against a diff that can't land.
+        // The durable write journal keeps the desired state, so nothing is dropped, and the banner
+        // clears once a later, smaller diff (the user changing fewer items at once) syncs.
+        // retryStrandedWrite's focus/online re-attempt is event-driven, not a busy loop; it simply
+        // re-surfaces the same honest error while the delta is still over-limit.
+        if (serverMode && e instanceof BatchTooLargeError) {
+          cancelRetry()
           return
         }
         scheduleRetry()

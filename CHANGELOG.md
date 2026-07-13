@@ -10,6 +10,53 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-07-13
+
+A high-effort code-review remediation round over the 0.15.8 tree: seven fixes, one reliability
+hardening, and two deliberate-design decisions confirmed and left intact. The findings cluster in
+the server-sync save path and the bulk-operation timeout tier.
+
+### Fixed
+
+- **Bulk operations no longer abort at the 15-second interactive timeout.** Whole-tenant company
+  deletion (`DELETE /api/accounts/:id`) and atomic import (`POST /api/import`) now use the 120s
+  bulk bound — the same as the whole-slice load, batch sync, and inactive-slice export — so a
+  large but healthy tenant on a slow server isn't cut off part-way through. Company deletion also
+  **reconciles the account list from the server** when the request times out (the erase may have
+  committed server-side) instead of reporting a spurious "delete failed" and leaving a
+  now-deleted company in the picker that errors when re-clicked.
+- **Backup retention honours a fractional `CAPACITYLENS_BACKUP_KEEP` again.** A value like `100.5`
+  now floors to `100` rather than silently reverting to the default of `48` — a smaller backup
+  window than the operator configured, discovered only when an old restore point was already gone.
+- **Undo/redo and cascade-deletes stay safe on very large tenants.** The revision-timestamp
+  helper no longer spreads one argument per row into a function call, which on a big enough
+  account could overflow the engine's argument limit and fail the action outright.
+
+### Changed
+
+- **An over-sized sync is now a clear terminal error, not a permanent retry loop.** A single
+  change whose diff exceeds the atomic batch limit (5000 operations) previously retried the
+  identical, never-landing diff forever behind a stuck "changes aren't saving" banner. It now
+  surfaces a plain-language notice — *change or delete fewer items at a time* — and stops
+  retrying; the pending change is preserved in the durable write journal and the banner clears
+  once a smaller change syncs. The one-transaction atomicity guarantee is unchanged (the diff is
+  never split into partially-committed pieces).
+
+### Performance
+
+- **Leaner server-sync save path.** The per-write PUT rebase is now O(operations + rows) via an
+  id-keyed map instead of a linear table scan per operation (which was quadratic on a
+  whole-table re-timestamp such as a large undo/redo); each batch is JSON-serialized once rather
+  than twice; and a throwaway empty-data allocation per commit-receipt revision was removed.
+
+### Notes
+
+- Two behaviours the review flagged were confirmed **deliberate** and left as-is: an edit made
+  during an in-flight import is intentionally *not* flushed on tab-close (flushing it would insert
+  stale pre-import rows into the freshly imported data), and data written by a *newer* app version
+  is intentionally refused rather than loaded with unknown fields silently dropped (which would
+  lose them on the next save).
+
 ## [0.15.8] — 2026-07-13
 
 The last four P3/P4 findings the review re-triaged as "overstated — verify before acting":

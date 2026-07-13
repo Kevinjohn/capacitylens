@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
-import { apiFetch } from '../../data/requestTimeout'
+import { apiFetch, API_BULK_TIMEOUT_MS } from '../../data/requestTimeout'
 import { useStore } from '../../store/useStore'
 import { useAuth } from '../../auth/authContext'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
@@ -203,10 +203,15 @@ export function AccountPicker() {
     if (deleting) return
     setDeleting(true)
     try {
-      const res = await apiFetch(`${API_BASE}/api/accounts/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
+      const res = await apiFetch(
+        `${API_BASE}/api/accounts/${encodeURIComponent(id)}`,
+        { method: 'DELETE', credentials: 'include' },
+        // Whole-tenant erasure is a BULK op — a transactional cascade over every scoped row plus
+        // members' orphaned identities — so it gets the 120s bound, not the 15s interactive one. A
+        // large tenant on a healthy-but-slow server must not be aborted mid-erase into a spurious
+        // "delete failed" while the server actually committed the removal.
+        API_BULK_TIMEOUT_MS,
+      )
       if (!res.ok) {
         setNotice((await readApiError(res)) ?? m.picker_err_delete({ status: res.status }), 'error')
         return
@@ -221,7 +226,25 @@ export function AccountPicker() {
       // fire-and-forget is safe.
       void refreshAuth()
     } catch (e) {
-      // A pre-response transport error — surface it; the company is still listed (nothing was removed).
+      // A timeout/abort says only that the BROWSER stopped waiting — the transactional erasure may
+      // already have COMMITTED server-side. Asserting "nothing was removed" here would leave a
+      // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
+      // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out
+      // if the erase committed; a failed re-read leaves the list untouched, same as before).
+      const name = typeof e === 'object' && e !== null && 'name' in e ? String((e as { name?: unknown }).name) : ''
+      if (name === 'TimeoutError' || name === 'AbortError') {
+        const fresh = await fetchAccountSummaries()
+        if (fresh) {
+          setAccountSummaries(fresh)
+          void refreshAuth() // the reconciled count may have re-flipped the bootstrap "can create" facts
+        }
+        setNotice(
+          'Deleting the company timed out. The list was refreshed — check whether it was removed before retrying.',
+          'warning',
+        )
+        return
+      }
+      // A genuine pre-response transport error — surface it; the company is still listed (nothing was removed).
       setNotice(errorMessage(e), 'error')
     } finally {
       setDeleting(false)

@@ -639,6 +639,7 @@
   "notice_purge_grace_window": "Can only be permanently deleted {days} days after deletion.",
   "notice_sync_conflict": "Someone else changed this company's data, so your last edit conflicted and was not saved. The latest copy has been reloaded — please re-apply your change.",
   "notice_edit_dropped_reload": "Your latest changes could not be saved before this company's data reloaded — please re-apply them.",
+  "notice_sync_too_large": "This change is too large to save in one step. Try changing or deleting fewer items at a time; your other changes are unaffected.",
   "field_required": "Required",
   "field_required_legend": "Required field",
   "weekday_short_mon": "Mon",
