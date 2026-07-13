@@ -16,8 +16,16 @@ export function serializeData(data: AppData): string {
 
 // Guard against a JSON bomb / runaway file: a real agency dataset is thousands of
 // rows, not millions. Refuse anything wildly out of range rather than locking the
-// main thread trying to remap and render it. (Pairs with the file-size cap at the
-// upload site in ImportExport.)
+// main thread (client import) or the server event loop trying to remap it.
+//
+// NOT redundant with the 5 MiB byte caps (ImportExport's client file-size check and
+// the server's request BODY_LIMIT): those bound the payload SIZE, this bounds the
+// record COUNT — a different axis. Real exports run ~100–400 bytes/record, so a 5 MiB
+// file holds well under this cap and the byte cap fires first there. But `parseData`
+// also runs on the server's POST /api/import, where a HOSTILE body of many near-empty
+// records (`{}` compacts to ~3 bytes) fits well over a million inside the 5 MiB
+// BODY_LIMIT — so this count cap is the live backstop that actually bites on that path.
+// (I.e. the error is reachable, not dead code; keep it.)
 export const MAX_IMPORT_RECORDS = 200_000
 
 export function parseData(json: string): AppData {

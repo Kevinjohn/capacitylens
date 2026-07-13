@@ -88,14 +88,15 @@ export function AllocationModal(props: AllocationModalProps) {
   const seedEnd = editing?.endDate ?? create?.endDate
   const initialDaysOpts = { workingDays: initialResource?.workingDays, ignoreWeekends: editing?.ignoreWeekends ?? false }
   const initialDaysOver = seedEnd ? Math.max(1, spanDays(initialStart, seedEnd, initialDaysOpts)) : 1
-  // These two hold a NaN while the user has the field empty or part-typed: NumberField.onChange
-  // emits NaN for empty/garbage input and only clamps to a real number on blur. We deliberately
-  // do NOT guard the NaN here — it's contained by downstream guards so a transient NaN can never
-  // reach the store: (1) endDateForSpan clamps the span to [1, MAX_SPAN_DAYS] (a NaN collapses to a
-  // valid 1-day span, never an Invalid Date into format()); and (2) the submit-path load guard
-  // requires effHoursPerDay to be finite AND in (0, MAX_HOURS_PER_DAY], which rejects both a NaN
-  // daysOfWork (NaN fails > 0) AND a NaN daysOver (hoursPerDayFor(daysOfWork, NaN, …) returns NaN,
-  // and NaN fails Number.isFinite) — so a part-typed "Days over" can't slip a 0-hour save through.
+  // These two can read 0 while the user has the field empty mid-edit: for <input type=number>,
+  // NumberField emits Number("") === 0 (NOT NaN — see fields.tsx), and the derived hours arithmetic
+  // below can then go 0 or non-finite. We deliberately do NOT guard that here — it's contained by
+  // downstream guards so nothing bad reaches the store: (1) endDateForSpan clamps the span to
+  // [1, MAX_SPAN_DAYS] (a 0/NaN collapses to a valid 1-day span, never an Invalid Date into
+  // format()); and (2) the submit-path load guard requires effHoursPerDay to be finite AND in
+  // (0, MAX_HOURS_PER_DAY], which rejects both a 0/NaN daysOfWork (fails > 0) AND a 0/NaN daysOver
+  // (hoursPerDayFor(daysOfWork, 0/NaN, …) is non-finite or 0, failing the guard) — so a part-typed
+  // "Days over" can't slip a 0-hour save through.
   const [daysOver, setDaysOver] = useState(initialDaysOver)
   const [daysOfWork, setDaysOfWork] = useState(
     editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,

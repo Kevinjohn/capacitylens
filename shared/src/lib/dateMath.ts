@@ -170,11 +170,19 @@ export function countWorkingDays(start: ISODate, end: ISODate, workingDays: Week
 /** The end date such that [start, end] contains exactly `count` working days —
  *  i.e. `end` lands on the `count`-th working day at/after `start`.
  *
- *  Guards against the degenerate cases that would otherwise loop forever or make
- *  no sense: if `count <= 0`, `workingDays` is empty, or `workingDays.length >= 7`
- *  (treated as a full/every-calendar-day week, matching isWeekendAware — which is
- *  false at length >= 7), it falls back to a raw inclusive calendar span. A hard
- *  iteration cap is also kept as a backstop so a bad `workingDays` can never hang. */
+ *  Guards against the degenerate cases that would otherwise make no sense: if
+ *  `count <= 0`, `workingDays` is empty, or `workingDays.length >= 7` (treated as a
+ *  full/every-calendar-day week, matching isWeekendAware — which is false at length
+ *  >= 7), it falls back to a raw inclusive calendar span.
+ *
+ *  Closed-form (O(1)), not a day-by-day scan — the drag-resize gesture math calls this
+ *  per pointer move, and an absurd input (1-working-day week × ~100-year span) would
+ *  otherwise spin ~255k iterations. Any 7 consecutive calendar days contain exactly `d`
+ *  working days (each weekday appears once per week), so the working-day offsets repeat
+ *  with period 7: offset(k + d) === offset(k) + 7. The count-th working day is therefore
+ *  `fullWeeks` whole weeks past `start` plus the offset of the `remaining`-th working day
+ *  within a single week window (a <= 7-step resolve, itself O(1)). Counting DISTINCT
+ *  weekdays keeps a degenerate array like [1,1,1] (length 3, but only Mondays) correct. */
 export function endDateForWorkingDays(
   start: ISODate,
   count: number,
@@ -183,16 +191,21 @@ export function endDateForWorkingDays(
   if (count <= 0 || workingDays.length === 0 || workingDays.length >= 7) {
     return addDaysISO(start, Math.max(0, count - 1))
   }
-  const maxScan = count * 7 + 7 // backstop: far more than enough to find `count`
-  let found = 0
-  for (let i = 0; i < maxScan; i++) {
-    const day = addDaysISO(start, i)
-    if (isWorkingWeekday(day, workingDays)) {
-      found++
-      if (found === count) return day
+  const working = new Set(workingDays)
+  const d = working.size // distinct working weekdays, 1..6 in this branch
+  const startWd = weekdayOf(start)
+  const fullWeeks = Math.floor((count - 1) / d)
+  const remaining = count - fullWeeks * d // 1..d — always found within the week below
+  let seen = 0
+  let offsetInWeek = 0
+  for (let j = 0; j < 7; j++) {
+    if (working.has((((startWd + j) % 7) as Weekday))) {
+      seen++
+      if (seen === remaining) {
+        offsetInWeek = j
+        break
+      }
     }
   }
-  // Unreachable in practice (count working days always exist within maxScan);
-  // return the last scanned day rather than throw.
-  return addDaysISO(start, maxScan - 1)
+  return addDaysISO(start, fullWeeks * 7 + offsetInWeek)
 }

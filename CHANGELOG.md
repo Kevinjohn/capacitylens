@@ -10,6 +10,32 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.15.8] — 2026-07-13
+
+The last four P3/P4 findings the review re-triaged as "overstated — verify before acting":
+two turned out to need a fix, two needed a correction to the record rather than the code.
+
+### Changed
+
+- **`endDateForWorkingDays` is now an O(1) closed form** instead of a day-by-day scan. It's
+  called per pointer-move during drag-resize, where a pathological input (a one-day working
+  week over a ~100-year span) could previously spin ~255k iterations. Working-day offsets
+  repeat with period 7, so the result is computed arithmetically; a brute-force cross-check
+  test (7 starts × 6 patterns × 40 counts) locks it to the previous behaviour byte-for-byte.
+
+### Documentation
+
+- **Corrected the `NumberField` "transient NaN" comments** (fields.tsx and its AllocationModal
+  echo). For `<input type=number>` the browser reports `value` as a valid numeric string or
+  `""`, so `Number(value)` is finite or `Number("") === 0` — never `NaN`. The real residual is
+  only that the field can't be held visually blank mid-edit; no behaviour changed.
+- **Sharpened the `MAX_IMPORT_RECORDS` comment** to note the 200k cap is a live server-side
+  backstop, not dead code: `parseData` also runs on `POST /api/import`, where a hostile body of
+  many near-empty records exceeds the cap well inside the 5 MiB request-body limit.
+- **Recorded the missing e2e page-error/console gate** as a deliberate known harness gap (in
+  `e2e/helpers.ts`), with the reason it's deferred (a fixture would touch all 45 spec files, and
+  a naive gate flakes on a benign WebKit dev-server chunk-load error) and the trigger to add it.
+
 ## [0.15.7] — 2026-07-13
 
 Two ops-hardening items from the same P3/P4 backlog: the API container no longer runs as
@@ -529,7 +555,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.7...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.8...HEAD
+[0.15.8]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.8
 [0.15.7]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.7
 [0.15.6]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.6
 [0.15.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.1

@@ -1,7 +1,7 @@
 {
   "name": "capacitylens-server",
   "private": true,
-  "version": "0.15.7",
+  "version": "0.15.8",
   "license": "AGPL-3.0-only",
   "type": "module",
   "description": "SQLite-backed entity-level REST API for CapacityLens. Imports the shared domain-core from ../src so server validation IS client validation.",

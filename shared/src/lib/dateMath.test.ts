@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import type { Weekday } from '../types/entities'
 import {
   addDaysISO,
   countWorkingDays,
@@ -211,5 +212,61 @@ describe('endDateForWorkingDays', () => {
     // actually works ~1 day in 7. That's exactly what distinguishes ">= 7" (fallback,
     // start + 4) from a scan that would otherwise land 4 WEEKS later.
     expect(endDateForWorkingDays('2026-06-01', 5, [1, 1, 1, 1, 1, 1, 1])).toBe('2026-06-05')
+  })
+
+  it('lands on the count-th working day at/after start', () => {
+    // 2026-06-01 is a Monday; Mon–Fri working week.
+    expect(endDateForWorkingDays('2026-06-01', 1, [1, 2, 3, 4, 5])).toBe('2026-06-01') // start itself
+    expect(endDateForWorkingDays('2026-06-01', 5, [1, 2, 3, 4, 5])).toBe('2026-06-05') // Fri
+    expect(endDateForWorkingDays('2026-06-01', 6, [1, 2, 3, 4, 5])).toBe('2026-06-08') // next Mon
+  })
+
+  it('skips forward when start is itself a non-working day', () => {
+    // 2026-06-06 is a Saturday; the 1st working day at/after it is Mon 2026-06-08.
+    expect(endDateForWorkingDays('2026-06-06', 1, [1, 2, 3, 4, 5])).toBe('2026-06-08')
+  })
+
+  it('handles a sparse working week (Mon/Wed/Fri) using DISTINCT weekdays', () => {
+    // From Mon 2026-06-01: Mon(1) Wed(3) Fri(5) Mon(8) → the 4th working day is 2026-06-08.
+    expect(endDateForWorkingDays('2026-06-01', 4, [1, 3, 5])).toBe('2026-06-08')
+    // Degenerate [1,1,1] (length 3, only Mondays): the 3rd Monday from 2026-06-01.
+    expect(endDateForWorkingDays('2026-06-01', 3, [1, 1, 1])).toBe('2026-06-15')
+  })
+
+  it('matches a brute-force day-scan across a matrix of starts/patterns/counts', () => {
+    // The O(1) closed form must be byte-for-byte identical to the obvious day-by-day
+    // scan it replaced — so cross-check it against that scan as an independent oracle
+    // over every start weekday, several working-week shapes, and a wide count range.
+    const reference = (start: string, count: number, workingDays: Weekday[]): string => {
+      if (count <= 0 || workingDays.length === 0 || workingDays.length >= 7) {
+        return addDaysISO(start, Math.max(0, count - 1))
+      }
+      const maxScan = count * 7 + 7
+      let found = 0
+      for (let i = 0; i < maxScan; i++) {
+        const day = addDaysISO(start, i)
+        if (workingDays.includes(weekdayOf(day))) {
+          found++
+          if (found === count) return day
+        }
+      }
+      return addDaysISO(start, maxScan - 1)
+    }
+    const patterns: Weekday[][] = [
+      [1, 2, 3, 4, 5], // Mon–Fri
+      [0, 6], // weekend only
+      [1, 3, 5], // Mon/Wed/Fri
+      [2], // Tuesdays only
+      [1, 1, 1], // degenerate: length 3 but only Mondays
+      [0, 1, 2, 3, 4, 5], // six-day week
+    ]
+    for (let s = 0; s < 7; s++) {
+      const start = addDaysISO('2026-06-01', s) // covers every start weekday
+      for (const pattern of patterns) {
+        for (let count = 1; count <= 40; count++) {
+          expect(endDateForWorkingDays(start, count, pattern)).toBe(reference(start, count, pattern))
+        }
+      }
+    }
   })
 })

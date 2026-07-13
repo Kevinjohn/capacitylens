@@ -12,6 +12,18 @@ import { expect, type Locator, type Page } from '@playwright/test'
 // and noon gives a wide margin against host/browser timezone offsets.
 const FIXED_NOW = new Date('2026-06-03T12:00:00')
 
+// KNOWN HARNESS GAP (deliberate, low priority): the suite has NO global `page.on('pageerror')`
+// / `console.error` gate, so a route that throws but still renders the element a spec asserts on
+// could pass silently. In practice most specs assert specific post-nav content, so a hard crash
+// (which drops to the ErrorBoundary) already fails them — the gap is only the narrow "threw but
+// the asserted node happened to render anyway" case. We do NOT close it with a naive listener:
+// (1) it would have to be a `test.extend` fixture and all 45 spec files import `{ test }` straight
+// from '@playwright/test', so retrofitting is broad churn for a P4; and (2) a naive gate FLAKES on
+// WebKit's benign dev-server "Importing a module script failed" chunk race (caught by the
+// ErrorBoundary, absent from the prod bundle), so any real gate must allowlist that exact message,
+// scoped to WebKit. If a route-crash regression ever slips through, THAT is the trigger to add the
+// allowlisted fixture — not before.
+
 /** Click through the once-per-device "What CapacityLens is" intro page if this load shows it
  *  (`capacitylens/introSeen` — skipped once dismissed). Waits for the intro's Continue button OR
  *  `landedOn`, whichever renders first, and clicks Continue only when the intro is up, so neither
