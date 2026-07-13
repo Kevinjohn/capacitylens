@@ -110,8 +110,11 @@ Adjust the `pnpm` path to `which pnpm` on your host, and put your `BETTER_AUTH_*
 
 ### Serve the SPA + proxy /api
 
-The block below is the repo's [`nginx.conf`](../nginx.conf) with only three lines changed: the
-`server_name`, `root`, and `proxy_pass` (to your domain, your build path, and your local daemon):
+The block below is the repo's [`nginx.conf`](../nginx.conf) with only three values changed: the
+`server_name`, `root`, and `proxy_pass` (to your domain, your build path, and your local daemon).
+Don't trim the security headers or the invite/reset location — the headers are the SPA's only
+clickjacking/sniff/referrer protection (nginx serves the HTML, not Fastify), and the
+invite/reset block keeps single-use bearer tokens out of your access log:
 
 ```nginx
 server {
@@ -120,6 +123,19 @@ server {
 
     root /opt/capacitylens/dist;
     index index.html;
+
+    # Security headers mirroring the API's helmet posture (server/src/app.ts): nginx, not
+    # Fastify, serves the actual HTML, and index.html's meta CSP can only carry object-src/
+    # base-uri — a meta tag cannot express frame-ancestors, so without these headers the SPA
+    # ships with no clickjacking/sniff/referrer protection at all. `always` keeps them on
+    # error responses too. nginx inheritance rule: a location with ANY add_header of its own
+    # drops every inherited one, so each location below that sets Cache-Control must repeat
+    # this exact set. /api/ has no add_header and inherits these alongside helmet's — safe,
+    # because the values are identical or strictly tighter (duplicate CSPs are both enforced).
+    add_header Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'none'" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
 
     # Compression for text assets (Vite emits hashed JS/CSS).
     gzip on;
@@ -130,6 +146,12 @@ server {
     location /assets/ {
         expires 1y;
         add_header Cache-Control "public, max-age=31536000, immutable";
+        # Re-declared: this location's Cache-Control add_header drops the inherited
+        # server-level set (see the security-header comment above).
+        add_header Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'none'" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-Content-Type-Options "nosniff" always;
         try_files $uri =404;
     }
 
@@ -146,11 +168,36 @@ server {
         proxy_read_timeout 60s;
     }
 
+    # /invite/<token> and /reset-password/<token> (src/router.tsx) carry single-use bearer
+    # secrets in the URL path, and the default access log records the full request line —
+    # so these must NEVER reach the access log (the Fastify-side log redaction only covers
+    # /api paths). Serves the same SPA fallback as `location /`, but index.html is served
+    # in-place: a try_files fallback (last parameter) would internally REDIRECT to
+    # /index.html, finishing — and being access-logged with the original token-bearing
+    # $request line — in `location /`, defeating `access_log off` here.
+    location ~ ^/(invite|reset-password)/ {
+        access_log off;
+        add_header Cache-Control "no-cache";
+        # Re-declared: this location's Cache-Control add_header drops the inherited
+        # server-level set (see the security-header comment above).
+        add_header Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'none'" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files /index.html =404;
+    }
+
     # SPA history-API fallback: unknown paths return index.html so client-side
     # routes (react-router) resolve. index.html itself is never cached so a fresh
     # deploy is picked up immediately.
     location / {
         add_header Cache-Control "no-cache";
+        # Re-declared: this location's Cache-Control add_header drops the inherited
+        # server-level set (see the security-header comment above).
+        add_header Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'none'" always;
+        add_header X-Frame-Options "DENY" always;
+        add_header Referrer-Policy "no-referrer" always;
+        add_header X-Content-Type-Options "nosniff" always;
         try_files $uri $uri/ /index.html;
     }
 }

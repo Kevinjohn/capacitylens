@@ -76,7 +76,7 @@ Wrap the boundary where the world is untrusted or fallible. Every one of these s
 | **Untrusted input** | import payloads, `/api/*` bodies, an auth `/me` response | sanitize/validate, never trust an `as` cast |
 | **Runtime/env** | `crypto.randomUUID`, `Intl.DateTimeFormat(tz)`, `matchMedia`, `import.meta.env` | clear thrown message or documented default + `console.warn` |
 | **Store-mutation call sites** | `add*/update*/delete*` in form & gesture handlers | catch → `fail(null, e.message)` / `setNotice(msg,'error')` |
-| **Browser file ops** | `downloadTextFile` (backup-before-delete!) | **throw** — a failed backup must block the destructive step |
+| **Browser file ops** | `downloadTextFile` (backup-before-delete!) | **throw** — a failed backup never saves a partial file and surfaces loudly (the export itself stays optional) |
 
 If you add a new one of these, guard it and pick a surface from §1.
 

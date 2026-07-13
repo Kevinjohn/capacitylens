@@ -128,9 +128,18 @@ Notes on what you're choosing here:
 
 ## 6. Nginx — SPA fallback + `/api` proxy (both required)
 
-Site → **⋯** → **Edit Nginx Configuration**:
+Site → **⋯** → **Edit Nginx Configuration**. Forge splices what you paste into its
+generated `server { … }` block, so top-level `add_header` lines and `location` blocks are
+both valid here:
 
 ```nginx
+# Security headers (helmet parity — nginx serves the HTML, so Fastify's helmet can't
+# add these for you; a meta CSP cannot express frame-ancestors).
+add_header Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'none'" always;
+add_header X-Frame-Options "DENY" always;
+add_header Referrer-Policy "no-referrer" always;
+add_header X-Content-Type-Options "nosniff" always;
+
 # Real URLs (createBrowserRouter): without this, refreshing /projects 404s.
 location / {
     try_files $uri $uri/ /index.html;
@@ -144,7 +153,26 @@ location /api/ {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
+
+# Invite/reset links carry single-use bearer tokens in the URL PATH — they must never
+# reach access.log (the daemon's log redaction only covers /api requests).
+location ~ ^/(invite|reset-password)/ {
+    access_log off;
+    add_header Cache-Control "no-cache";
+    # Re-declared: nginx inheritance — a location with ANY add_header of its own drops
+    # every inherited one, so the server-level security set must be repeated here.
+    add_header Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'none'" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    # index.html served IN-PLACE: a $uri-style fallback would internally redirect to
+    # location /, where the token-bearing request line gets access-logged anyway.
+    try_files /index.html =404;
+}
 ```
+
+(The repo's [`nginx.conf`](../nginx.conf) is the reference for all of this — same headers,
+same token-path handling — if you're wiring nginx by hand instead of through Forge.)
 
 ## 7. First deploy + first user (bootstrap)
 

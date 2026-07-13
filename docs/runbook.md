@@ -111,30 +111,42 @@ boot-guard refuses anyway (the daemon will not start with it under `NODE_ENV=pro
 A fresh daemon boots **EMPTY** — the two-company demo seed (Studio North / Loft Digital) is an
 explicit opt-in (`CAPACITYLENS_SEED_DEMO=1`), never automatic. The Cohesion Labs dataset
 (`_input/cohesion-labs-import.json`, 166 records) imports into its own Account — create
-the Account first, then import **into** it (run on the droplet from the repo root). Two
-auth-on caveats: loopback bypasses Nginx but **not** app-level auth, so these direct API
-calls need a signed-in session cookie — the easy path is the app's own import as a
-signed-in Owner; and creating an additional Account 403s unless
-`CAPACITYLENS_MULTI_ACCOUNT=1` (the default instance is single-company):
+the Account first, then import **into** it. **The easy path is the app itself:** sign in as
+the Owner, create the "Cohesion Labs" company from the account picker, switch to it, and use
+the sidebar **Import** — done, skip the curl below.
+
+For the direct API route (run on the droplet from the repo root), three auth-on facts:
+loopback bypasses Nginx but **not** app-level auth, so every call below needs a signed-in
+session cookie; account creation goes through **`POST /api/orgs`** — the generic
+`POST /api/accounts` is closed under auth-on and 403s with "Accounts cannot be created
+through this endpoint when authentication is on. Use POST /api/orgs." (`/api/orgs` atomically
+creates the account, its built-in Internal client, and **your Owner membership**, which is
+what entitles the follow-up import); and the single-company cap applies to `/api/orgs` too —
+once any account exists, creating another 403s ("This instance allows a single company. Set
+CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.") unless `CAPACITYLENS_MULTI_ACCOUNT=1` is set in
+the daemon's environment (restart required):
 
 ```sh
-NOW=$(node -e "console.log(new Date().toISOString())")
-curl -s -X POST http://127.0.0.1:8787/api/accounts -H 'content-type: application/json' \
-  -d "{\"id\":\"a-cohesion\",\"name\":\"Cohesion Labs\",\"color\":\"#3b82f6\",\"createdAt\":\"$NOW\",\"updatedAt\":\"$NOW\"}"
+# 1. Sign in once; the session cookie lands in the jar:
+curl -s -c /tmp/cl-session.txt -X POST http://127.0.0.1:8787/api/auth/sign-in/email \
+  -H 'content-type: application/json' \
+  -d '{"email":"<owner email>","password":"<owner password>"}'
+# 2. Create the Account (id optional — server-generated if omitted; timestamps are server-set):
+curl -s -b /tmp/cl-session.txt -X POST http://127.0.0.1:8787/api/orgs \
+  -H 'content-type: application/json' \
+  -d '{"id":"a-cohesion","name":"Cohesion Labs"}'
+# 3. Import into it (same cookie — import is admin+-gated per account; step 2 made you Owner):
 node -e "
 const data = require('./_input/cohesion-labs-import.json');
-fetch('http://127.0.0.1:8787/api/import', {
-  method: 'POST',
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ accountId: 'a-cohesion', data }),
-}).then(async (r) => console.log(r.status, await r.text()))"
+console.log(JSON.stringify({ accountId: 'a-cohesion', data }))" \
+  | curl -s -b /tmp/cl-session.txt -X POST http://127.0.0.1:8787/api/import \
+      -H 'content-type: application/json' --data-binary @-
+rm /tmp/cl-session.txt
 ```
 
 Expected: `200 {"imported":166,"skipped":0,…}`. *Verify:* Cohesion Labs appears in the
 AccountPicker next to any existing companies, with 12 resources / 11 clients / 12 projects /
 30 tasks / 79 allocations / 20 time-off entries; existing companies are untouched.
-(Loopback as above bypasses Nginx, but with auth on the daemon still requires a session —
-see the caveat at the top of this section.)
 
 ## Testers (P5.1 / P5.3 / Phase 2 #3)
 

@@ -50,8 +50,9 @@ preview. Scoped access goes through the `useScopedData` / `scopedTables()` seam.
 - **Colours are preset swatches only** (no custom hex), and a resource's colour derives from its
   discipline — no per-resource colour control.
 - **Forms reject; import + server strip/repair.** Non-CapacityLens JSON is shape-checked
-  (`looksLikeCapacityLens`) before migrate so it can't wipe data; import is confirmed + undoable, with
-  caps on file size + record count.
+  (`looksLikeCapacityLens`) before migrate so it can't wipe data; import is confirmed (undoable in
+  the demo build; in server mode it is the atomic, admin-only `POST /api/import` — NOT undoable,
+  affordance purge-gated client-side), with caps on file size + record count.
 - **Surface, never swallow.** A `catch` exists only to re-throw with more context, route the error
   to a visible surface (`FieldError`/a `Sonner toast` driven by `setNotice` (the hand-rolled
   `Toast` is retired)/typed `LoadError`/503), or degrade to a

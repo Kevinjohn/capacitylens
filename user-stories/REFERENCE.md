@@ -35,10 +35,15 @@ If the app changes, update this file first, then the affected stories.
    (read-only **English** — `data-testid="create-language"`; English-only until Paraglide). These
    three are set ONCE here and are then **disabled** in Settings; the server rejects a later
    change with **409**.
-   **Single-company-per-instance policy:** a server-backed deploy defaults to ONE company
-   (`CAPACITYLENS_MULTI_ACCOUNT` unset) — once an account already exists, `GET /api/auth/me`
-   reports `canCreateAccount: false` and the **`New company`** button is HIDDEN entirely (not
-   merely disabled); a direct `POST /api/accounts` still 403s regardless, so this is UX only. The
+   **Single-company-per-instance policy + caller standing:** a server-backed deploy defaults to
+   ONE company (`CAPACITYLENS_MULTI_ACCOUNT` unset) — once an account already exists,
+   `GET /api/auth/me` reports `canCreateAccount: false` and the **`New company`** button is
+   HIDDEN entirely (not merely disabled). Under auth-on the flag ALSO requires the caller's
+   standing (the same predicate `POST /api/orgs` enforces): only a user who is owner/admin of
+   SOME account — or any user on a zero-account instance — may create, so an editor-only or
+   membership-less login never sees the button (its empty picker says "ask an admin for an
+   invite" instead of "create your first one"); a direct `POST /api/accounts` still 403s
+   regardless, so this is UX only. The
    button stays visible whenever the fact is unavailable or doesn't apply: the demo build (no
    server, no cap), a zero-account instance (the bootstrap exemption — you must be able to create
    the FIRST company), an older server that predates these fields, or a deploy with
@@ -508,7 +513,9 @@ on one of its bars, e.g. "Ty now over capacity on 1 day." or "Ty: no capacity co
 stay silent — they give sighted feedback),
 `timeoff-block`, `utilization`, `overall-utilization`, `allocation-popover`,
 `scheduler-empty`, `timeoff-row`, `discipline-row`, `external-row`, `export-data`, `import-data`,
-`import-input`, `fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
+`import-input`, `import-busy` (the server-mode "Importing data…" blocking dialog's status text —
+shown for the few seconds of POST + re-hydrate; not dismissable, locks all editing/switching),
+`fake-sign-in` (the demo sign-in's account row — auth-off deploys only),
 `intro-continue` (the post-login "What CapacityLens is" page's Continue button; shown once per device),
 `getting-started` (the schedule's first-run checklist card; only while the active account has an
 incomplete onboarding step and it hasn't been dismissed), `getting-started-tour` (its **Show me
@@ -517,8 +524,8 @@ button; sets `capacitylens/gettingStartedDismissed`),
 `create-language` (company-create form's read-only Language row — **English**), `settings-language`
 (Settings → Calendar's read-only Language row — **English**; both frozen, P1.14),
 `new-company-button` (the company picker's **New company** button; HIDDEN — not merely disabled —
-once the server reports the single-company-per-instance cap is reached, i.e.
-`GET /api/auth/me`'s `canCreateAccount: false`),
+whenever `GET /api/auth/me` reports `canCreateAccount: false`: the single-company cap is reached,
+or under auth-on the caller lacks owner/admin standing on any account),
 `clear-local-storage` (Settings → Local data danger button; opens a destructive confirm),
 `archived-section` (Settings → Archived & deleted; shows in local mode and for admins on an auth-on
 server, self-hidden on a 403), `archived-row` (one per archived resource/client/project; carries a

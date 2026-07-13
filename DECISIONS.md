@@ -121,8 +121,18 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   clamp hours, fresh id when missing), drops dangling **required** FKs (mirrors cascade) and
   unbinds dangling **optional** ones (mirrors set-null); one id-map **per table**.
 - **Shape-checked before migrate** (`looksLikeCapacityLens`) so non-CapacityLens JSON can't wipe data;
-  **confirmation dialog** + **undoable** `importData`; honest delta ("imported N, M skipped").
+  **confirmation dialog**; honest delta ("imported N, M skipped").
+- **Two import paths by mode.** Demo build: the **undoable** store `importData` (⌘Z restores).
+  Server mode: the **atomic, purge-gated `POST /api/import`** + orchestrated re-hydrate — NOT
+  undoable (the dialog says so), and the affordance is purge-gated client-side (`role === null`
+  stays importable — the OFF/demo guard). Never replay a slice replacement through `/api/batch`:
+  that runs at editor tier and a mid-sequence 409 leaves a silent partial import.
 - **Caps** on file size + record count (self-DoS / JSON-bomb).
+- **The server-mode import window is a UI LOCK.** A non-dismissable "Importing data…" dialog +
+  `dirtyForm` semantics block all editing, lifecycle actions, company switching, undo/palette and
+  prompt on tab close for the seconds of POST + re-hydrate — so no edit can exist to be parked,
+  lost, or misattributed. The persistence write-suspension seam stays as defence-in-depth, and a
+  loss warning raised during the re-hydrate outranks the import success notice (one-notice app).
 
 ## Error handling & comments (open-source posture)
 - **Surface, never swallow** — the standard is **[`DEFENSIVE-CODING.md`](DEFENSIVE-CODING.md)**
@@ -135,6 +145,12 @@ promoted call changes (so the digest can't drift). See [`CLAUDE.md`](CLAUDE.md).
   write boundary (`mutations.ts`, store, `server/validate.ts`) throws a **user-safe message**; the
   UI catches and shows it. Typed/classified errors (`LoadError`, `ValidationError`, `AuthConfigError`)
   over stringly-typed ones.
+- **Unchanged-parent relaxation on updates (2026-07-12):** `assertScopedRefs` takes the stored row
+  (`existing`) on updates and SKIPS the existence check for an FK equal to the stored value — in
+  server mode the hydrated slice is active-only, so an unchanged id pointing at an ARCHIVED parent
+  must not block an unrelated edit (rename/colour). A CHANGED id and every add stay strict; the
+  server needs no relaxation (`validateWrite` runs against the full DB). Forms surface the archived
+  parent as a disabled-but-selected "(current, archived)" option so the id round-trips.
 - **Some `try/catch` is harmful by design.** Pure functions, hot render paths, the store's
   deliberate integrity throws, and total helpers (`errorMessage`) carry guard-comments saying *not*
   to wrap them — wrapping would hide corruption. Add safety as a clamp/early-return in the pure core.
