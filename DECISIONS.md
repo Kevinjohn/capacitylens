@@ -65,3 +65,14 @@ This is the short, present-tense record of decisions that constrain future work.
 - CapacityLens names and logos are not granted by the software licence. See `TRADEMARKS.md`.
 - Licensing, privacy terms and trademark boundaries require professional legal review before the
   hosted service launches.
+
+## Continuous integration
+
+- Local green gates are the pre-launch source of truth. Automatic GitHub runner jobs are skipped
+  while the repository is private; maintainers run the complete remote gate manually when it adds
+  value rather than on every development push.
+- Making the repository public automatically restores CI for pull requests, `main`, release tags
+  and the scheduled canary. Public-repository standard runners are the intended long-term posture.
+- Private CodeQL is not enabled. CodeQL stays dormant until the repository is public rather than
+  consuming runner time on an upload GitHub will reject.
+- Dependabot continues its monthly root-workspace updates independently of the runner policy.

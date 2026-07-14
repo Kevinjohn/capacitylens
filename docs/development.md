@@ -46,6 +46,34 @@ pnpm run e2e:all
 
 Keep specs browser-agnostic. Screenshots and axe checks are the visual/accessibility oracles.
 
+## GitHub Actions policy
+
+During pre-launch development the repository is private and local checks are the source of truth.
+Push, pull-request and scheduled workflow events may appear in GitHub as **skipped**, but they do
+not start a hosted runner. This prevents small development pushes and Dependabot pull requests
+from repeatedly consuming the private-repository Actions allowance.
+
+Run the complete remote gate deliberately from **GitHub → Actions → gate → Run workflow**, or:
+
+```bash
+gh workflow run gate.yml --ref main
+```
+
+A manual gate runs the code gates, production dependency audit, Chromium E2E suite and Docker
+Compose smoke test. CodeQL remains skipped while the repository is private because private code
+scanning is not enabled.
+
+When the repository becomes public, the workflow conditions automatically restore:
+
+- code gates and Chromium E2E for pull requests, pushes to `main`, release tags and the monthly
+  canary;
+- Docker Compose smoke tests for pull requests and manual dispatches;
+- CodeQL for pull requests, `main` and its weekly schedule.
+
+Standard GitHub-hosted runners are free for public repositories. Dependabot's monthly npm, GitHub
+Actions and Docker updates remain enabled while private; pnpm is updated from `/` because the root
+workspace owns the shared lockfile.
+
 ## Repository map
 
 - `shared/src/types/entities.ts` — canonical data model.
