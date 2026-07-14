@@ -353,8 +353,8 @@ describe('MembersSection — invite mint', () => {
 
     fireEvent.click(screen.getByTestId('invite-submit'))
 
-    await waitFor(() => expect(screen.queryByTestId('invite-link')).not.toBeInTheDocument())
-    expect(screen.getByRole('alert')).toHaveTextContent(/could not create invite/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/one-time link was lost|unknown invite/i)
+    expect(screen.queryByTestId('invite-link')).not.toBeInTheDocument()
   })
 })
 

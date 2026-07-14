@@ -8,7 +8,7 @@ import {
   applyOps,
 } from './ServerSyncAdapter'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
-import type { AppData, Client, Project } from '@capacitylens/shared/types/entities'
+import type { Account, AppData, Client, Project } from '@capacitylens/shared/types/entities'
 
 // Unit tests for the diff engine and the sync flush, with a fake fetch. Proves:
 // the diff classifies create/update/delete correctly, orders parent-before-child for
@@ -21,6 +21,16 @@ const client = (id: string, updatedAt = TS1): Client => ({ id, accountId: 'a1', 
 const project = (id: string, clientId: string, updatedAt = TS1): Project => ({ id, accountId: 'a1', name: 'Web', clientId, color: '#3b82f6', createdAt: TS1, updatedAt })
 
 const withData = (over: Partial<AppData>): AppData => ({ ...emptyAppData(), ...over })
+const account = (id: string): Account => ({ id, name: `Account ${id}`, color: '#5c34d4', createdAt: TS1, updatedAt: TS1 })
+const scopedData = (accountId: string, over: Partial<AppData>): AppData =>
+  withData({
+    ...over,
+    accounts: [account(accountId)],
+    clients: [
+      ...(over.clients ?? []),
+      { id: `internal:${accountId}`, accountId, name: 'Internal', color: '#9c3ace', builtin: true, createdAt: TS1, updatedAt: TS1 },
+    ],
+  })
 
 const commitReceipt = (init?: RequestInit): Response => {
   let applied = 0
@@ -40,6 +50,7 @@ describe('auth-awareness (P3.4)', () => {
     const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       calls.push({ url: String(url), init })
       if (String(url).endsWith('/api/state')) return new Response(JSON.stringify(emptyAppData()), { status: 200 })
+      if (String(url).endsWith('/api/meta')) return new Response(JSON.stringify({ hasData: false }), { status: 200 })
       return commitReceipt(init)
     })
     const adapter = new ServerSyncAdapter('http://api.test', fetchImpl as unknown as typeof fetch)
@@ -90,8 +101,8 @@ describe('diffOps', () => {
   })
 
   it('tags a scoped-entity DELETE with its owning account; accounts (top-level) carry none', () => {
-    const account = { id: 'a1', name: 'Co', color: '#3b82f6', createdAt: TS1, updatedAt: TS1 }
-    const ops = diffOps(withData({ accounts: [account], clients: [client('c1')] }), emptyAppData())
+    const row = { id: 'a1', name: 'Co', color: '#5c34d4', createdAt: TS1, updatedAt: TS1 }
+    const ops = diffOps(withData({ accounts: [row], clients: [client('c1')] }), emptyAppData())
     expect(ops.find((o) => o.table === 'clients')).toMatchObject({ method: 'DELETE', id: 'c1', accountId: 'a1' })
     expect(ops.find((o) => o.table === 'accounts')?.accountId).toBeUndefined()
   })
@@ -122,7 +133,7 @@ describe('ServerSyncAdapter.loadAll', () => {
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
     const loaded = await a.loadAll()
-    expect(loaded.clients).toHaveLength(1)
+    expect(loaded.clients.some((row) => row.id === 'c1')).toBe(true)
     // Saving the identical state must emit zero writes (snapshot == loaded).
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length
     await a.saveAll(state)
@@ -138,7 +149,7 @@ describe('ServerSyncAdapter.loadAll', () => {
 
   it('loadAll(accountId) GETs /api/state?accountId= and seeds the snapshot to THAT slice (zero ops on an identical save)', async () => {
     // Per-account hydration (P1.13): the picker chose a1, so we load ONLY a1's slice.
-    const a1Slice = withData({ clients: [client('c1')] })
+    const a1Slice = scopedData('a1', { clients: [client('c1')] })
     const urls: string[] = []
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       urls.push(url)
@@ -147,7 +158,7 @@ describe('ServerSyncAdapter.loadAll', () => {
     }) as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
     const loaded = await a.loadAll('a1')
-    expect(loaded.clients).toHaveLength(1)
+    expect(loaded.clients.map((row) => row.id).sort()).toEqual(['c1', 'internal:a1'])
     expect(urls[0]).toBe('http://x/api/state?accountId=a1') // scoped read, not the whole tree
     // Snapshot == the loaded a1 slice, so re-saving it emits ZERO ops.
     const callsBefore = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length
@@ -162,8 +173,8 @@ describe('ServerSyncAdapter.loadAll', () => {
     // achieves this by calling loadAll(a2), which re-seeds the snapshot to a2's slice.
     const a1c = client('c1') // accountId 'a1'
     const a2c: Client = { id: 'c2', accountId: 'a2', name: 'Beta', color: '#3b82f6', createdAt: TS1, updatedAt: TS1 }
-    const a1Slice = withData({ clients: [a1c] })
-    const a2Slice = withData({ clients: [a2c] })
+    const a1Slice = scopedData('a1', { clients: [a1c] })
+    const a2Slice = scopedData('a2', { clients: [a2c] })
     let nextSlice = a1Slice
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes('/api/state')) return new Response(JSON.stringify(nextSlice), { status: 200 })
@@ -183,7 +194,7 @@ describe('ServerSyncAdapter.loadAll', () => {
 
     // And an EDIT to a2 emits only the a2 op (a PUT c2), never a delete of c1.
     ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
-    await a.saveAll(withData({ clients: [{ ...a2c, name: 'Beta II', updatedAt: TS2 }] }))
+    await a.saveAll(scopedData('a2', { clients: [{ ...a2c, name: 'Beta II', updatedAt: TS2 }] }))
     const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
     expect(ops.every((o) => o.id !== 'c1')).toBe(true) // NEVER touches a1's row
     expect(ops).toEqual([expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c2' })])
@@ -240,6 +251,34 @@ describe('ServerSyncAdapter.saveAll', () => {
     const init = calls[0][1] as RequestInit
     expect(init.keepalive).toBe(true)
     expect(batchOps(calls[0])).toHaveLength(2) // all ops in one ordered request
+  })
+
+  it('dispatches the latest snapshot with keepalive when an ordinary batch is still in flight', async () => {
+    let releaseFirst: (() => void) | undefined
+    const fetchImpl = vi.fn((_url: string, init?: RequestInit) => {
+      if (!releaseFirst) {
+        return new Promise<Response>((resolve) => {
+          releaseFirst = () => resolve(commitReceipt(init))
+        })
+      }
+      return Promise.resolve(commitReceipt(init))
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    const ordinary = a.saveAll(withData({ clients: [client('c1')] }))
+    expect(releaseFirst).toBeTypeOf('function')
+    const teardown = a.saveAll(withData({ clients: [client('c1'), client('c2')] }), { unload: true })
+
+    // The pagehide call must put the latest state on the wire immediately; it cannot wait for the
+    // ordinary response because the document may be terminated first.
+    const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(2)
+    expect((calls[1][1] as RequestInit).keepalive).toBe(true)
+    expect(batchOps(calls[1]).map((op) => op.id)).toEqual(['c1', 'c2'])
+
+    releaseFirst!()
+    await Promise.all([ordinary, teardown])
+    expect(fetchImpl).toHaveBeenCalledTimes(2) // no later non-keepalive drain of the parked state
   })
 
   it('carries the owning account on a scoped DELETE op; accounts (top-level) carry none', async () => {
@@ -421,8 +460,8 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     // tenants (DELETEs for a2's rows + PUTs of a1's).
     const a1c = client('c1') // accountId 'a1'
     const a2c: Client = { id: 'c2', accountId: 'a2', name: 'Beta', color: '#3b82f6', createdAt: TS1, updatedAt: TS1 }
-    const a1Slice = withData({ clients: [a1c] })
-    const a2Slice = withData({ clients: [a2c] })
+    const a1Slice = scopedData('a1', { clients: [a1c] })
+    const a2Slice = scopedData('a2', { clients: [a2c] })
     let releaseA1: (() => void) | null = null
     const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       if (String(url).includes('accountId=a1')) {
@@ -443,7 +482,7 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
 
     // An a2 edit must diff against the a2 snapshot: one PUT, and NEVER a delete of a2's rows
     // (which a stale a1 snapshot would produce).
-    await a.saveAll(withData({ clients: [{ ...a2c, name: 'Beta II', updatedAt: TS2 }] }))
+    await a.saveAll(scopedData('a2', { clients: [{ ...a2c, name: 'Beta II', updatedAt: TS2 }] }))
     const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
     expect(ops).toEqual([expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c2' })])
   })
@@ -453,7 +492,7 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     // completed in that window, advancing would overwrite the fresh seed with the pre-reload
     // target (snapshot ≠ store). The generation check makes the reload's seed win; the skipped
     // advance is safe because the server already holds the batch's idempotent ops.
-    const slice = withData({ clients: [client('c1')] })
+    const slice = scopedData('a1', { clients: [client('c1')] })
     let releaseBatch: (() => void) | null = null
     const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       if (String(url).endsWith('/api/batch')) {
@@ -483,7 +522,7 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     // The guard must key on seeds (seedGen), not load starts — otherwise the batch's settle
     // re-advances lastSynced to its pre-reload target, snapshot desyncs from store, and the next
     // save diffs across states (cross-tenant deletes in the switch case).
-    const slice = withData({ clients: [client('c1')] })
+    const slice = scopedData('a1', { clients: [client('c1')] })
     let releaseState: (() => void) | null = null
     let releaseBatch: (() => void) | null = null
     const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
@@ -516,7 +555,7 @@ describe('snapshot generation guard (superseded loads / in-flight batches)', () 
     // snapshot before drain picks the parked save up, diffing it against the FRESH seed could
     // emit cross-state ops (DELETEs of rows the parked save's tenant never had). It must be
     // dropped — persist.ts's reload paths surface/re-push whatever edit it carried.
-    const slice = withData({ clients: [client('c1')] })
+    const slice = scopedData('a1', { clients: [client('c1')] })
     let releaseBatch: (() => void) | null = null
     const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       if (String(url).endsWith('/api/batch')) {

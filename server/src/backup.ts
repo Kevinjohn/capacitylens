@@ -48,26 +48,22 @@ const TMP_RE = /^capacitylens-\d{8}-\d{6}(-\d{3})?\.db\.tmp$/
 // the thing that corrupts it). A fixed constant rather than 2× the interval because the interval
 // is operator-tunable down to seconds, which would defeat the margin.
 const TMP_SWEEP_AGE_MS = 60 * 60_000
+export const MAX_BACKUP_INTERVAL_MIN = 35_000
+export const MAX_BACKUP_KEEP = 10_000
 
 /** Fail-closed env parse: no CAPACITYLENS_BACKUP_DIR ⇒ null ⇒ backups don't exist. The numeric
  *  knobs are only read when backups are on; junk falls back to the documented defaults. */
 export function parseBackupConfig(env: Record<string, string | undefined>): BackupConfig | null {
   const dir = env.CAPACITYLENS_BACKUP_DIR
   if (!dir) return null
-  const positive = (raw: string | undefined, fallback: number) => {
+  const boundedInteger = (raw: string | undefined, fallback: number, max: number) => {
     const n = Number(raw)
-    return Number.isFinite(n) && n > 0 ? n : fallback
+    return Number.isSafeInteger(n) && n >= 1 && n <= max ? n : fallback
   }
   return {
     dir,
-    intervalMin: positive(env.CAPACITYLENS_BACKUP_INTERVAL_MIN, 60),
-    keep: (() => {
-      // Floor a positive finite value (100.5 → 100) rather than rejecting it — an integer-only
-      // guard silently reverted a fractional override to the default 48, a smaller backup window
-      // than the operator asked for. Sub-1, NaN and negatives still fall back to the default.
-      const n = Number(env.CAPACITYLENS_BACKUP_KEEP)
-      return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 48
-    })(),
+    intervalMin: boundedInteger(env.CAPACITYLENS_BACKUP_INTERVAL_MIN, 60, MAX_BACKUP_INTERVAL_MIN),
+    keep: boundedInteger(env.CAPACITYLENS_BACKUP_KEEP, 48, MAX_BACKUP_KEEP),
   }
 }
 

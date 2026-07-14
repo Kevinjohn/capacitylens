@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useCallback, useId, useState } from 'react'
 
 export interface FieldError {
   /** The current error message, or null. */
@@ -18,9 +18,9 @@ export function useFieldError(): FieldError {
   const [error, setError] = useState<string | null>(null)
   const [errorField, setErrorField] = useState<string | null>(null)
   const errorId = useId()
-  const fail = (field: string | null, message: string) => {
+  const fail = useCallback((field: string | null, message: string) => {
     setError(message)
     setErrorField(field)
-  }
+  }, [])
   return { error, errorField, errorId, fail }
 }

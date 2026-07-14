@@ -16,9 +16,9 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig, type AuditRecord, type 
 
 const TS = '2026-01-01T00:00:00.000Z'
 const meta = () => ({ createdAt: TS, updatedAt: TS })
-const account = (id: string) => ({ id, name: 'Studio', color: '#3b82f6', ...meta() })
-const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
-const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
+const account = (id: string) => ({ id, name: 'Studio', color: '#5c34d4', ...meta() })
+const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#5c34d4', ...meta() })
+const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#5c34d4', ...meta() })
 const person = (id: string, accountId: string) => ({
   id,
   accountId,
@@ -27,7 +27,7 @@ const person = (id: string, accountId: string) => ({
   employmentType: 'permanent',
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
-  color: '#3b82f6',
+  color: '#5c34d4',
   ...meta(),
 })
 const timeOff = (id: string, accountId: string, resourceId: string, o: Record<string, unknown> = {}) => ({
@@ -250,17 +250,17 @@ describe('batch → one line per op (6)', () => {
       url: '/api/batch',
       payload: body({
         ops: [
-          { method: 'PUT', table: 'clients', id: 'c2', row: client('c2', 'a1') },
-          { method: 'DELETE', table: 'clients', id: 'c2', accountId: 'a1' },
+          { method: 'PUT', table: 'disciplines', id: 'd2', row: { id: 'd2', accountId: 'a1', name: 'Design', color: '#5c34d4', sortOrder: 0, ...meta() } },
+          { method: 'DELETE', table: 'disciplines', id: 'd2', accountId: 'a1' },
         ],
       }),
     })
     expect(res.statusCode).toBe(200)
     const fresh = lines().slice(before)
     expect(fresh).toHaveLength(2)
-    expect(fresh[0]).toMatchObject({ action: 'create', entity: 'clients', id: 'c2' })
+    expect(fresh[0]).toMatchObject({ action: 'create', entity: 'disciplines', id: 'd2' })
     expect(fresh[0].changedFields).toContain('name')
-    expect(fresh[1]).toMatchObject({ action: 'delete', entity: 'clients', id: 'c2', changedFields: [] })
+    expect(fresh[1]).toMatchObject({ action: 'delete', entity: 'disciplines', id: 'd2', changedFields: [] })
   })
 })
 

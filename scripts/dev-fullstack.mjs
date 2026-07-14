@@ -15,6 +15,7 @@
 
 import { spawn } from 'node:child_process'
 import net from 'node:net'
+import { parsePort } from './port.mjs'
 
 // Fail fast, in the launcher's own process, with the fix in the message. Without this, an old
 // Node surfaces as a raw "No such built-in module: node:sqlite" from inside the API child's tsx
@@ -34,10 +35,10 @@ if (!Number.isInteger(nodeMajor) || nodeMajor < 24) {
 // vite.config.ts's proxy target MUST use the same `CAPACITYLENS_DEV_API_PORT ?? 8787` default so the
 // launcher and the Vite proxy stay in lockstep (the 8787 is the shared default, not a copy to drift).
 // NB this is the DEV-proxy API port, distinct from serve-dist.mjs's bare API_PORT (its dist-serving port).
-const API_PORT = Number(process.env.CAPACITYLENS_DEV_API_PORT ?? 8787)
+const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, 'CAPACITYLENS_DEV_API_PORT')
 // Vite is strictPort:true on 5173 (vite.config.ts), so a collision there is a hard EADDRINUSE AFTER
 // the API child has already booted. Pre-flight it too (below), symmetric with the API check.
-const WEB_PORT = 5173
+const WEB_PORT = parsePort(5173, 5173, 'WEB_PORT')
 
 /**
  * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe —

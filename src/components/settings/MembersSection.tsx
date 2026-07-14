@@ -174,7 +174,7 @@ function CopyableLinkBlock({
  * is read-only for an admin; the sole owner is protected). The server enforces all of it regardless.
  */
 export function MembersSection() {
-  const { authMode } = useAuth()
+  const { authMode, refreshAuth } = useAuth()
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setNotice = useStore((s) => s.setNotice)
   const { error, errorField, errorId, fail } = useFieldError()
@@ -196,6 +196,7 @@ export function MembersSection() {
   const [resetLink, setResetLink] = useState<
     { userId: string; link: string; member: string; expiresAt: string } | null
   >(null)
+  const [unknownResetFor, setUnknownResetFor] = useState<string | null>(null)
   // Bumped after every mutation to re-run the fetch effect (a re-read keeps the list authoritative).
   const [reloadKey, setReloadKey] = useState(0)
   const requestGeneration = useRef(0)
@@ -213,6 +214,24 @@ export function MembersSection() {
   const endAction = () => {
     actionLock.current = null
     setBusyAction(null)
+  }
+  const reconcileUnknownMutation = async (message: string): Promise<void> => {
+    try {
+      const [memberResponse, inviteResponse] = await Promise.all([
+        apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members`, { credentials: 'include' }),
+        apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites`, { credentials: 'include' }),
+      ])
+      if (!memberResponse.ok || !inviteResponse.ok) throw new Error('The authoritative lists could not be reloaded.')
+      const nextMembers = parseMembers(await memberResponse.json())
+      const nextInvites = parseInvites(await inviteResponse.json())
+      if (!nextMembers || !nextInvites) throw new Error('The authoritative lists were malformed.')
+      setMembers(nextMembers)
+      setInvites(nextInvites)
+      await refreshAuth()
+      setNotice(`${message} Memberships and invites were reloaded; verify the result before retrying.`, 'warning')
+    } catch (reloadError) {
+      fail(null, `${message} Reload the page before retrying. ${errorMessage(reloadError)}`)
+    }
   }
 
   // Fetch (and re-fetch on reloadKey) the members + invites. The setState calls live inside the async
@@ -300,7 +319,7 @@ export function MembersSection() {
       if (resetLink?.userId === mem.userId) setResetLink(null)
       reload()
     } catch (e) {
-      fail(null, m.settings_err_server({ error: errorMessage(e) }))
+      await reconcileUnknownMutation(`The role change had an unknown outcome. ${errorMessage(e)}`)
     } finally {
       endAction()
     }
@@ -321,7 +340,7 @@ export function MembersSection() {
       setNotice(m.settings_members_removed())
       reload()
     } catch (e) {
-      fail(null, m.settings_err_server({ error: errorMessage(e) }))
+      await reconcileUnknownMutation(`The member removal had an unknown outcome. ${errorMessage(e)}`)
     } finally {
       endAction()
     }
@@ -356,7 +375,7 @@ export function MembersSection() {
       }
       reload()
     } catch (e) {
-      fail(null, m.settings_err_server({ error: errorMessage(e) }))
+      await reconcileUnknownMutation(`The ownership transfer had an unknown outcome. ${errorMessage(e)}`)
     } finally {
       endAction()
     }
@@ -367,6 +386,7 @@ export function MembersSection() {
   // link out of the write-once block below and hands it over directly. `mem` is NOT `m` (i18n).
   const resetPassword = async (mem: Member) => {
     if (!beginAction(`reset:${mem.userId}`)) return
+    if (unknownResetFor === mem.userId) setUnknownResetFor(null)
     setResetLink(null)
     try {
       const res = await apiFetch(
@@ -379,7 +399,8 @@ export function MembersSection() {
       }
       const body = parseTokenResponse(await res.json())
       if (!body?.expiresAt) {
-        fail(null, m.settings_members_err_reset({ status: res.status }))
+        setUnknownResetFor(mem.userId)
+        await reconcileUnknownMutation('A reset token was minted but its one-time value was lost. Use the reset action again only to deliberately replace it.')
         return
       }
       // Write-once: build + show the link straight from this response and never again. `userId` is
@@ -392,8 +413,10 @@ export function MembersSection() {
         expiresAt: body.expiresAt,
       })
       setNotice(m.settings_members_reset_created())
+      setUnknownResetFor(null)
     } catch (e) {
-      fail(null, m.settings_err_server({ error: errorMessage(e) }))
+      setUnknownResetFor(mem.userId)
+      await reconcileUnknownMutation(`The reset-token request had an unknown outcome. Its value may be lost; using reset again will replace it. ${errorMessage(e)}`)
     } finally {
       endAction()
     }
@@ -424,7 +447,9 @@ export function MembersSection() {
       }
       const body = parseTokenResponse(await res.json())
       if (!body) {
-        fail('invite', m.settings_members_err_create_invite({ status: res.status }))
+        const message = 'An invite was created but its one-time link was lost. Revoke the unknown invite before creating a replacement.'
+        await reconcileUnknownMutation(message)
+        fail(null, message)
         return
       }
       // The token is write-once: build + show the link straight from this response and never again.
@@ -433,7 +458,7 @@ export function MembersSection() {
       setNotice(m.settings_members_invite_created())
       reload()
     } catch (e) {
-      fail('invite', m.settings_err_server({ error: errorMessage(e) }))
+      await reconcileUnknownMutation(`The invite creation had an unknown outcome. Revoke any new unknown invite before creating another. ${errorMessage(e)}`)
     } finally {
       endAction()
     }
@@ -453,7 +478,7 @@ export function MembersSection() {
       setNotice(m.settings_members_invite_revoked())
       reload()
     } catch (e) {
-      fail(null, m.settings_err_server({ error: errorMessage(e) }))
+      await reconcileUnknownMutation(`The invite revocation had an unknown outcome. ${errorMessage(e)}`)
     } finally {
       endAction()
     }

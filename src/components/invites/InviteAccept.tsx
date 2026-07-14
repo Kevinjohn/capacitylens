@@ -13,6 +13,7 @@ import { m } from '@/i18n'
 import { validateText } from '../../lib/validation'
 import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import type { Role } from '@capacitylens/shared/domain/access'
 
 // Invite accept page (P1.9; route /invite/:token). On mount, in SERVER mode, it POSTs
 // `${API_BASE}/api/invites/:token/accept` (credentials included so the session cookie rides along).
@@ -46,6 +47,8 @@ function messageForStatus(status: number, bodyError: string | undefined): string
   if (status === 401) return m.invite_err_signin()
   return m.invite_err_generic()
 }
+const isRole = (value: unknown): value is Role =>
+  value === 'owner' || value === 'admin' || value === 'editor' || value === 'viewer'
 
 /**
  * Invite-accept page for `/invite/:token` (P1.9).
@@ -102,12 +105,21 @@ export function InviteAccept() {
         })
         if (res.ok) {
           const body = (await res.json().catch(() => ({}))) as { accountId?: string; role?: string }
-          const accountId = typeof body.accountId === 'string' ? body.accountId : ''
+          const accountId = typeof body.accountId === 'string' && body.accountId.length > 0 ? body.accountId : ''
+          if (!accountId || !isRole(body.role)) {
+            const list = await fetchAccountSummaries()
+            if (list !== null) setAccountSummaries(list)
+            setState({
+              kind: 'error',
+              message: 'The invite may have been accepted, but the server returned an invalid result. The company list was refreshed; continue to the app to verify membership.',
+            })
+            return
+          }
           // Show the SUCCESS FIRST: the single-use token is consumed the moment the POST succeeds,
           // so the outcome must never be held hostage to the follow-up summaries fetch — a hanging
           // GET would strand the user on "Joining…" with the membership already granted and the
           // link already dead. The activation below is a bounded best-effort extra.
-          setState({ kind: 'joined', accountId, role: body.role ?? '', activating: accountId !== '' })
+          setState({ kind: 'joined', accountId, role: body.role, activating: true })
           if (accountId !== '') {
             // Switch the active company to the one just joined so the Continue link lands in it.
             // This route mounts OUTSIDE AppShell, so useAccountSummaries hasn't run here: the joined
@@ -138,9 +150,11 @@ export function InviteAccept() {
         // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
         // message rather than a dead end, and log the real cause for debugging.
         console.error('InviteAccept: accept request failed', err)
+        const list = await fetchAccountSummaries()
+        if (list !== null) setAccountSummaries(list)
         setState({
           kind: 'error',
-          message: m.invite_err_network(),
+          message: 'The invite request had an unknown outcome. Your company list was refreshed; continue to the app to check whether you joined before retrying the link.',
         })
       }
     })()
@@ -196,9 +210,20 @@ export function InviteAccept() {
       // AuthProvider observes the new session without trying to redeem the now-consumed token.
       window.location.assign('/')
     } catch (error) {
+      const transportFailure = error instanceof TypeError ||
+        (error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError'))
+      if (transportFailure) {
+        const signInResult = await authClient.signIn.email({ email: cleanEmail, password })
+        if (!signInResult.error) {
+          window.location.assign('/')
+          return
+        }
+      }
       setState({
         kind: 'auth',
-        message: error instanceof Error ? error.message : m.invite_err_generic(),
+        message: transportFailure
+          ? 'Account creation had an unknown outcome. Try signing in with these credentials before creating another account.'
+          : error instanceof Error ? error.message : m.invite_err_generic(),
       })
       setBusy(false)
     }

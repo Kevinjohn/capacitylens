@@ -6,12 +6,17 @@ import {
   assertScopedRefs,
 } from '@capacitylens/shared/domain/mutations'
 import { sanitizeImportedRecord, sanitizeAccount } from '@capacitylens/shared/lib/sanitizeImport'
-import { wouldAddSecondBuiltin } from '@capacitylens/shared/data/internalClient'
-import { isHexColor } from '@capacitylens/shared/lib/color'
+import {
+  INTERNAL_CLIENT_COLOR,
+  INTERNAL_CLIENT_NAME,
+  wouldAddSecondBuiltin,
+} from '@capacitylens/shared/data/internalClient'
+import { isPresetColor } from '@capacitylens/shared/lib/color'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
 import { SCHEDULING_MODES, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
 import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities'
+import { TABLES } from './tables'
 
 // The server is the integrity boundary for direct API writes. Two layers, both
 // reusing the SAME shared domain-core the client uses (so server rules can't drift
@@ -50,7 +55,7 @@ export function assertIdPresent(row: Record<string, unknown>): void {
   }
 }
 
-const FALLBACK_COLOR = '#6366f1'
+const FALLBACK_COLOR = '#5c34d4'
 // Derived from SCOPED_KEYS — the single source of truth — so a new entity added to
 // AppData is automatically treated as scoped without an update here.
 const isScopedKey = (table: string): table is ScopedEntityKey =>
@@ -70,6 +75,25 @@ export interface SanitizeWriteOptions {
    * need not pass it.
    */
   canSeeTimeOffNote?: boolean
+}
+
+/** Copy only columns accepted by the table codec. Generic request bodies are untrusted; keeping
+ * extra properties would leak them into audit metadata and response echoes even though SQLite
+ * silently ignores them. */
+export function acceptedWriteFields(
+  table: string,
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  const spec = TABLES[table]
+  if (!spec) return {}
+  const accepted = new Set(spec.columns.map((column) => column.name))
+  return Object.fromEntries(Object.entries(row).filter(([key]) => accepted.has(key)))
+}
+
+export function acceptedFieldNames(table: string, row: unknown): string[] {
+  return row && typeof row === 'object'
+    ? Object.keys(acceptedWriteFields(table, row as Record<string, unknown>))
+    : []
 }
 
 /**
@@ -97,9 +121,9 @@ export function sanitizeWrite(
   opts: SanitizeWriteOptions = {},
 ): Record<string, unknown> {
   assertIdPresent(row)
-  const copy = { ...row }
+  const copy = acceptedWriteFields(table, row)
   if (table === 'accounts') {
-    copy.color = typeof copy.color === 'string' && isHexColor(copy.color) ? copy.color.trim() : FALLBACK_COLOR
+    copy.color = isPresetColor(copy.color) ? copy.color.trim().toLowerCase() : FALLBACK_COLOR
     if (typeof copy.name === 'string') copy.name = cleanText(copy.name)
     // schedulingMode is an OPTIONAL enum (absent = 'hourly'). Drop a junk value rather
     // than persisting a mode the scheduler's hourly/days/blocks switch can't handle — the
@@ -157,7 +181,25 @@ const SCOPED_REF_TABLES: ScopedEntityKey[] = ['projects', 'phases', 'activities'
  * entity (it carries id/accountId/timestamps). Throws ValidationError on any
  * violation so the route can map it to 400 rather than leaking it as a 500.
  */
-export function validateWrite(state: AppData, table: string, row: Record<string, unknown>): void {
+export function validateWrite(
+  state: AppData,
+  table: string,
+  row: Record<string, unknown>,
+  existing?: Record<string, unknown>,
+): void {
+  if (isLifecycleEntityKey(table) && typeof existing?.deletedAt === 'string') {
+    throw new ValidationError('Soft-deleted records can only be changed through lifecycle endpoints.')
+  }
+  const accountId = row.accountId as string
+  const deletedParent = (() => {
+    if (table === 'projects') return state.clients.find((parent) => parent.id === row.clientId && parent.accountId === accountId)
+    if (table === 'phases' || table === 'activities') return state.projects.find((parent) => parent.id === row.projectId && parent.accountId === accountId)
+    if (table === 'allocations' || table === 'timeOff') return state.resources.find((parent) => parent.id === row.resourceId && parent.accountId === accountId)
+    return undefined
+  })()
+  if (deletedParent?.deletedAt) {
+    throw new ValidationError('Records beneath a soft-deleted parent cannot be changed through generic endpoints.')
+  }
   // A client carries no outbound FK, but the built-in Internal client is a SINGLETON: exactly one per
   // account. This is the SERVER-REJECT enforcement point (3) of the single-Internal invariant — the
   // direct API is the integrity boundary and the only write path that CAN set `builtin: true`. The
@@ -176,6 +218,18 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
     //      excludes builtin); it is purely a direct/crafted-request guard. Updating the SAME builtin
     //      (matching id, builtin still true) is fine.
     const existing = state.clients.find((c) => c.id === row.id)
+    if (existing?.builtin === true) {
+      if (
+        row.builtin !== true ||
+        row.name !== INTERNAL_CLIENT_NAME ||
+        row.color !== INTERNAL_CLIENT_COLOR
+      ) {
+        throw new ValidationError('The built-in Internal client cannot be modified.')
+      }
+    }
+    if (row.builtin === true && (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)) {
+      throw new ValidationError('The built-in Internal client has a fixed name and colour.')
+    }
     if (existing?.builtin === true && row.builtin !== true) {
       throw new ValidationError('The built-in Internal client cannot be converted to a regular client.')
     }
@@ -196,9 +250,8 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
       // carry accountId, which the DB's FK enforces).
       return
     }
-    const accountId = row.accountId as string
     if (SCOPED_REF_TABLES.includes(table as ScopedEntityKey)) {
-      assertScopedRefs(state, accountId, table as ScopedEntityKey, row)
+      assertScopedRefs(state, accountId, table as ScopedEntityKey, row, existing)
       // `row` is the full merged entity (PUT carries the whole row; PATCH merges {...existing, ...body}),
       // so `row.kind` is the kind the resource WILL have. Reject a flip-to-external that would orphan
       // existing loaded work / time-off — `state` is loaded BEFORE the write, so it still holds those
@@ -210,12 +263,19 @@ export function validateWrite(state: AppData, table: string, row: Record<string,
       return
     }
     if (table === 'allocations') {
-      assertAllocationRefs(state, accountId, row.resourceId as string, row.activityId as string, row.hoursPerDay as number)
+      assertAllocationRefs(
+        state,
+        accountId,
+        row.resourceId as string,
+        row.activityId as string,
+        row.hoursPerDay as number,
+        existing as never,
+      )
       assertDateRange(row.startDate as string, row.endDate as string)
       return
     }
     if (table === 'timeOff') {
-      assertResourceExists(state, accountId, row.resourceId as string)
+      assertResourceExists(state, accountId, row.resourceId as string, existing as never)
       assertDateRange(row.startDate as string, row.endDate as string)
       return
     }

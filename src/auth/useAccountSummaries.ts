@@ -63,11 +63,15 @@ function toSummary(entry: unknown): AccountSummary | null {
  *          empty array (a real "no accounts" answer). A mixed body keeps its valid rows; every
  *          dropped row leaves a `console.warn` breadcrumb.
  */
-export async function fetchAccountSummaries(init?: { signal?: AbortSignal }): Promise<AccountSummary[] | null> {
+export async function fetchAccountSummaries(init?: {
+  signal?: AbortSignal
+  acceptEffects?: () => boolean
+}): Promise<AccountSummary[] | null> {
+  const acceptEffects = init?.acceptEffects ?? (() => true)
   const cachedFallback = async (): Promise<AccountSummary[] | null> => {
     const cached = await readCachedAccountSummaries()
     if (!cached) return null
-    setOfflineReadState(true, cached.savedAt)
+    if (acceptEffects()) setOfflineReadState(true, cached.savedAt)
     return cached.value
   }
   try {
@@ -92,16 +96,21 @@ export async function fetchAccountSummaries(init?: { signal?: AbortSignal }): Pr
     // (keep-what-you-have, same as the non-array case above) rather than an [] that would blank
     // the picker over what is really a broken response. Only a genuinely empty array means [].
     if (body.length > 0 && valid.length === 0) return null
-    setOfflineReadState(false)
-    void cacheAccountSummaries(valid).catch((error) =>
-      console.warn('fetchAccountSummaries: the offline account list could not be updated', error),
-    )
+    if (acceptEffects()) {
+      setOfflineReadState(false)
+      void cacheAccountSummaries(valid).catch((error) =>
+        console.warn('fetchAccountSummaries: the offline account list could not be updated', error),
+      )
+    }
     return valid
   } catch (e) {
     // Fail-soft by contract (see @returns): a transport error/abort is reported as null, never a
     // throw — the callers treat a failed list read as "keep what you have", not an error surface of
     // its own. Breadcrumb per DEFENSIVE-CODING.md §5: handled-but-logged, never totally silent.
     console.warn('fetchAccountSummaries: /api/accounts read failed; reporting null (callers keep their existing list)', e)
+    const transportFailure = e instanceof TypeError ||
+      (e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError'))
+    if (!transportFailure) return null
     try {
       return await cachedFallback()
     } catch (cacheError) {
@@ -140,7 +149,7 @@ export function useAccountSummaries(): void {
     void (async () => {
       // A null list (non-OK / transport error) leaves the existing list untouched — a blip shouldn't
       // blank the picker (the server 403 backstops); a real read/write surfaces its own banner.
-      const list = await fetchAccountSummaries()
+      const list = await fetchAccountSummaries({ acceptEffects: () => !cancelled })
       if (cancelled || list === null) return
       setAccountSummaries(list)
     })()

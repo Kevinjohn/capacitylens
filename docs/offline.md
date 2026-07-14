@@ -19,4 +19,8 @@ Signing out clears that user's cached identity and snapshots before ending the s
 “Clear device data” clears the offline cache and CapacityLens preferences. Browser or operating
 system storage eviction can remove the cache earlier than seven days.
 
+Application-shell caches are versioned and reconciled during service-worker upgrades so obsolete
+hashed bundles are removed. Disabling offline access unregisters active, waiting and installing
+CapacityLens workers before deleting all CapacityLens shell-cache versions.
+
 Offline access does not change the server source of truth, backup requirements or session expiry.

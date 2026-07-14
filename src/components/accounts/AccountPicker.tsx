@@ -157,8 +157,16 @@ export function AccountPicker() {
       // behind canCreateAccount. Total, so fire-and-forget is safe.
       void refreshAuth()
     } catch (e) {
-      // A pre-response transport error (server down / offline) — surface it on the form.
-      fail(null, errorMessage(e))
+      // Once dispatched, a transport rejection cannot tell us whether the atomic create committed.
+      // Reconcile first and close the form so an immediate retry cannot mint a duplicate company.
+      const list = await fetchAccountSummaries()
+      if (list !== null) setAccountSummaries(list)
+      await refreshAuth()
+      resetForm()
+      setNotice(
+        `The create request had an unknown outcome. The company list was refreshed; check it before trying again. ${errorMessage(e)}`,
+        'warning',
+      )
     } finally {
       setSubmitting(false)
     }
@@ -231,21 +239,13 @@ export function AccountPicker() {
       // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
       // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out
       // if the erase committed; a failed re-read leaves the list untouched, same as before).
-      const name = typeof e === 'object' && e !== null && 'name' in e ? String((e as { name?: unknown }).name) : ''
-      if (name === 'TimeoutError' || name === 'AbortError') {
-        const fresh = await fetchAccountSummaries()
-        if (fresh) {
-          setAccountSummaries(fresh)
-          void refreshAuth() // the reconciled count may have re-flipped the bootstrap "can create" facts
-        }
-        setNotice(
-          'Deleting the company timed out. The list was refreshed — check whether it was removed before retrying.',
-          'warning',
-        )
-        return
-      }
-      // A genuine pre-response transport error — surface it; the company is still listed (nothing was removed).
-      setNotice(errorMessage(e), 'error')
+      const fresh = await fetchAccountSummaries()
+      if (fresh !== null) setAccountSummaries(fresh)
+      await refreshAuth()
+      setNotice(
+        `The delete request had an unknown outcome. The company list was refreshed — verify it before retrying. ${errorMessage(e)}`,
+        'warning',
+      )
     } finally {
       setDeleting(false)
       setConfirming(null)

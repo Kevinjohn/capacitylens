@@ -8,13 +8,14 @@
 //   PORT=…  API_PORT=…            # overrides
 
 import { createServer, request as httpRequest } from 'node:http'
-import { createReadStream, existsSync, statSync } from 'node:fs'
+import { createReadStream, existsSync } from 'node:fs'
 import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parsePort } from './port.mjs'
 
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url))
-const PORT = Number(process.env.PORT ?? 4173)
-const API_PORT = Number(process.env.API_PORT ?? 8787)
+const PORT = parsePort(process.env.PORT, 4173, 'PORT')
+const API_PORT = parsePort(process.env.API_PORT, 8787, 'API_PORT')
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -39,13 +40,24 @@ createServer((req, res) => {
     const upstream = httpRequest(
       { host: '127.0.0.1', port: API_PORT, path: req.url, method: req.method, headers: req.headers },
       (up) => {
+        up.on('error', (error) => {
+          console.error('serve-dist: upstream response failed', error)
+          if (res.headersSent) res.destroy(error)
+          else {
+            res.writeHead(502, { 'content-type': 'application/json' })
+            res.end('{"error":"upstream unavailable"}')
+          }
+        })
         res.writeHead(up.statusCode ?? 502, up.headers)
         up.pipe(res)
       },
     )
-    upstream.on('error', () => {
-      res.writeHead(502, { 'content-type': 'application/json' })
-      res.end('{"error":"upstream unavailable"}')
+    upstream.on('error', (error) => {
+      if (res.headersSent) res.destroy(error)
+      else {
+        res.writeHead(502, { 'content-type': 'application/json' })
+        res.end('{"error":"upstream unavailable"}')
+      }
     })
     req.pipe(upstream)
     return
@@ -64,16 +76,27 @@ createServer((req, res) => {
   // An earlier version 404'd EVERY missing extensioned path — stricter than nginx, so the
   // rehearsal failed requests (e.g. a missing /favicon.ico) that production serves as the SPA.
   const path = normalize((req.url ?? '/').split('?')[0]).replace(/^([.][.][/\\])+/, '')
-  const file = join(DIST, path)
-  const isRealFile = existsSync(file) && statSync(file).isFile()
-  if (path.startsWith('/assets/') && !isRealFile) {
-    res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
-    res.end('404 not found')
-    return
+  // createReadStream can open a directory and emit EISDIR only after its `open` event. Avoid
+  // committing a 200 for the dist directory at GET /; the SPA root is index.html.
+  const requested = path === '/' ? join(DIST, 'index.html') : join(DIST, path)
+  const serve = (target, fallbackAllowed) => {
+    const stream = createReadStream(target)
+    stream.once('open', () => {
+      res.writeHead(200, { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' })
+      stream.pipe(res)
+    })
+    stream.on('error', (error) => {
+      if (res.headersSent) {
+        res.destroy(error)
+      } else if (fallbackAllowed) {
+        serve(join(DIST, 'index.html'), false)
+      } else {
+        res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' })
+        res.end('404 not found')
+      }
+    })
   }
-  const target = isRealFile ? file : join(DIST, 'index.html')
-  res.writeHead(200, { 'content-type': MIME[extname(target)] ?? 'application/octet-stream' })
-  createReadStream(target).pipe(res)
+  serve(requested, !path.startsWith('/assets/'))
 }).listen(PORT, '127.0.0.1', () => {
   console.log(`serve-dist: http://127.0.0.1:${PORT} (dist/ + /api → 127.0.0.1:${API_PORT})`)
 })

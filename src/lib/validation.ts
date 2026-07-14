@@ -1,4 +1,4 @@
-import { isHexColor } from '@capacitylens/shared/lib/color'
+import { isPresetColor } from '@capacitylens/shared/lib/color'
 import { hasDisallowedChars, MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
 import { m } from '@/i18n'
 
@@ -78,7 +78,7 @@ export function validateName(value: string, fail: Fail, field = 'name'): string 
 
 /** Require a 6-digit hex colour. Returns true if valid, else calls fail() and returns false. */
 export function validateHex(value: string, fail: Fail, field = 'color'): boolean {
-  if (!isHexColor(value)) {
+  if (!isPresetColor(value)) {
     fail(field, m.validation_hex_invalid())
     return false
   }
@@ -89,7 +89,12 @@ export function validateHex(value: string, fail: Fail, field = 'color'): boolean
  *  every day (reads as permanently over-allocated), so the form must reject it — the
  *  import path repairs an empty set, but the form is the only path that could persist one. */
 export function validateWorkingDays(days: number[], fail: Fail, field = 'workingDays'): boolean {
-  if (!Array.isArray(days) || days.length === 0) {
+  if (
+    !Array.isArray(days) ||
+    days.length === 0 ||
+    new Set(days).size !== days.length ||
+    days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+  ) {
     fail(field, m.validation_working_days_required())
     return false
   }

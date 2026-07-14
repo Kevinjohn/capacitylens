@@ -56,8 +56,8 @@ function seedTwo(db: Db): void {
   d.accounts = [account('a1'), account('a2')]
   d.clients = [client('c1', 'a1'), client('c2', 'a2')]
   d.projects = [project('p1', 'a1', 'c1'), project('p2', 'a2', 'c2')]
-  d.resources = [person('r1', 'a1')]
-  d.timeOff = [timeOff('to1', 'a1', 'r1', SENTINEL_TIMEOFF_NOTE)]
+  d.resources = [person('r1', 'a1'), person('r2', 'a2')]
+  d.timeOff = [timeOff('to1', 'a1', 'r1', SENTINEL_TIMEOFF_NOTE), timeOff('to-a2', 'a2', 'r2')]
   insertAll(db, d as unknown as AppData)
 }
 
@@ -99,9 +99,9 @@ const putClient = (app: FastifyInstance, accountId: string, id: string, cookie?:
 const patchClient = (app: FastifyInstance, id: string, cookie?: string) =>
   call(app, { method: 'PATCH', url: `/api/clients/${id}`, payload: { name: 'Renamed' }, headers: cookie ? { cookie } : {} })
 
-/** DELETE the seeded project p1/p2 (scoped delete needs ?accountId=). */
+/** DELETE a seeded non-lifecycle row (scoped delete needs ?accountId=). */
 const deleteProject = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
-  call(app, { method: 'DELETE', url: `/api/projects/${id}?accountId=${accountId}`, headers: cookie ? { cookie } : {} })
+  call(app, { method: 'DELETE', url: `/api/timeOff/${id === 'p1' ? 'to1' : 'to-a2'}?accountId=${accountId}`, headers: cookie ? { cookie } : {} })
 
 /** A batch that upserts a NEW client into `accountId`. */
 const batchInto = (app: FastifyInstance, accountId: string, id: string, cookie?: string) =>
@@ -668,7 +668,7 @@ describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)',
   // authorize() short-circuits to true on its first line, so resolveRole/can never run.
   function offApp(): FastifyInstance {
     const db = openDb(':memory:')
-    const app = buildApp(db, { allowReset: true })
+    const app = buildApp(db, { allowReset: true, optimisticConcurrency: false })
     seedTwo(db)
     return app
   }

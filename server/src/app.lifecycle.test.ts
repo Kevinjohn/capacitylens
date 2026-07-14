@@ -380,7 +380,7 @@ describe('P2.5a lifecycle — built-in Internal client cannot be archived/delete
 describe('P2.5a lifecycle — OFF mode is allow-all (the #1 invariant)', () => {
   function offApp(): { app: FastifyInstance; db: Db } {
     const db = openDb(':memory:')
-    const app = buildApp(db)
+    const app = buildApp(db, { optimisticConcurrency: false })
     seedStates(db)
     return { app, db }
   }
@@ -539,7 +539,7 @@ describe('P2.1 write guards — generic writes cannot forge tombstones or un-fla
 
   const offAppWith = (data: Partial<Record<string, unknown[]>>): { app: FastifyInstance; db: Db } => {
     const db = openDb(':memory:')
-    const app = buildApp(db)
+    const app = buildApp(db, { optimisticConcurrency: false })
     insertAll(db, { ...emptyAppData(), ...data } as unknown as AppData)
     return { app, db }
   }
@@ -606,7 +606,7 @@ describe('P2.1 write guards — generic writes cannot forge tombstones or un-fla
     expect((active.json().resources as Array<{ id: string }>).some((r) => r.id === 'r1')).toBe(false)
   })
 
-  it('PATCH of an unrelated field on a SOFT-DELETED client preserves BOTH tombstones (worst case: no un-delete route exists)', async () => {
+  it('rejects a generic PATCH of a soft-deleted client', async () => {
     const { app } = offAppWith({ accounts: [account('a1')], clients: [client('c1', 'a1')] })
     // archived-first interlock, then soft-delete: the row now carries deletedAt (and archivedAt).
     expect((await lifecycleAction(app, 'clients', 'c1', 'archive', 'a1')).statusCode).toBe(200)
@@ -614,12 +614,12 @@ describe('P2.1 write guards — generic writes cannot forge tombstones or un-fla
     const before = await rowById(app, 'clients', 'a1', 'c1')
     expect(typeof before?.deletedAt).toBe('string') // really soft-deleted
 
-    const res = await call(app, { method: 'PATCH', url: '/api/clients/c1', payload: { color: '#ff00ff' } })
-    expect(res.statusCode).toBe(200)
+    const res = await call(app, { method: 'PATCH', url: '/api/clients/c1', payload: { color: '#da2d92' } })
+    expect(res.statusCode).toBe(400)
     const after = await rowById(app, 'clients', 'a1', 'c1')
     expect(after?.deletedAt).toBe(before?.deletedAt) // soft-delete tombstone intact
     expect(after?.archivedAt).toBe(before?.archivedAt) // archive tombstone intact
-    expect(after?.color).toBe('#ff00ff') // the legit field DID change
+    expect(after?.color).toBe(before?.color)
     // Still DELETED: absent from the DEFAULT (active-only) read — not resurrected.
     const active = await call(app, { method: 'GET', url: '/api/state?accountId=a1' })
     expect((active.json().clients as Array<{ id: string }>).some((c) => c.id === 'c1')).toBe(false)

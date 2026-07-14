@@ -28,6 +28,7 @@ type State =
   | { kind: 'form' }
   | { kind: 'working' }
   | { kind: 'done' }
+  | { kind: 'unknown' }
   | { kind: 'local' } // the demo build (no server) — password reset is a server-mode feature
 
 /**
@@ -98,8 +99,8 @@ export function ResetPassword() {
       // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
       // message rather than a dead end, and log the real cause for debugging.
       console.error('ResetPassword: reset request failed', err)
-      setError(m.reset_err_network())
-      setState({ kind: 'form' })
+      setError(null)
+      setState({ kind: 'unknown' })
     }
   }
 
@@ -156,10 +157,12 @@ export function ResetPassword() {
               )}
             </form>
           )}
-          {state.kind === 'done' && (
+          {(state.kind === 'done' || state.kind === 'unknown') && (
             <div className="space-y-3">
               <p role="status" data-testid="reset-success" className="text-sm font-medium text-ink">
-                {m.reset_success()}
+                {state.kind === 'done'
+                  ? m.reset_success()
+                  : 'The reset request had an unknown outcome. Try signing in with the new password; request a replacement reset link only if sign-in fails.'}
               </p>
               <div className="flex justify-end">
                 {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean

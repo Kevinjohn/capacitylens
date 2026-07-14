@@ -47,6 +47,7 @@ import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } fr
 import type { Role } from '@capacitylens/shared/domain/access'
 import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@capacitylens/shared/types/entities'
+import { isPresetColor, NEUTRAL_COLOR, PRESET_COLORS } from '@capacitylens/shared/lib/color'
 import type {
   Account,
   Allocation,
@@ -557,8 +558,17 @@ export const useStore = create<StoreState>()((set, get) => {
   // any day. The form guards this, but the store is the last line so no path can persist
   // it. (The import path instead REPAIRS an empty set to Mon–Fri — see sanitizeImport.)
   const assertWorkingDays = (days: Weekday[]): void => {
-    if (!days || days.length === 0) throw new Error('A resource must have at least one working day.')
+    if (
+      !Array.isArray(days) ||
+      days.length === 0 ||
+      new Set(days).size !== days.length ||
+      days.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+    ) {
+      throw new Error('At least one working day is required, using unique whole-number weekdays from 0 to 6.')
+    }
   }
+  const repairColor = (color: unknown, allowNeutral = false): string =>
+    isPresetColor(color) || (allowNeutral && color === NEUTRAL_COLOR) ? color : PRESET_COLORS[0]
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
@@ -605,6 +615,7 @@ export const useStore = create<StoreState>()((set, get) => {
         placeholdersEnabled: false,
         externalEnabled: false,
         ...input,
+        color: repairColor(input.color),
         id: newId(),
         ...ts,
       }
@@ -627,7 +638,8 @@ export const useStore = create<StoreState>()((set, get) => {
     },
     updateAccount: (id, patch) => {
       if (blockedByViewer()) return
-      mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, patch) }))
+      const safePatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color) }
+      mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, safePatch) }))
     },
     // Cascade-drop every scoped entity belonging to this account; if it was the
     // active one, fall back to the picker.
@@ -697,7 +709,29 @@ export const useStore = create<StoreState>()((set, get) => {
     // undo/redo stack, never in AppData/export.
     setAccountSummaries: (list) => set({ accountSummaries: list }),
 
-    replaceAll: (data) => set({ data, past: [], future: [] }),
+    replaceAll: (data) => set((state) => {
+      const previouslyHadActiveAccount = state.activeAccountId
+        ? state.data.accounts.some((candidate) => candidate.id === state.activeAccountId)
+        : false
+      const account = state.activeAccountId
+        ? data.accounts.find((candidate) => candidate.id === state.activeAccountId)
+        : undefined
+      // Same-account refreshes reconcile server state in the background and must preserve the
+      // week the user is viewing. Re-anchor only when setActiveAccount had to use its temporary
+      // GMT/Monday fallback because the selected account was absent from the previous slice.
+      if (!account || previouslyHadActiveAccount) return { data, past: [], future: [] }
+      const weekStart = startOfWeekISO(todayISO(account.timezone ?? 'Etc/GMT'), account.weekStartsOn ?? 1)
+      return {
+        data,
+        past: [],
+        future: [],
+        ui: {
+          ...state.ui,
+          originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
+          focusDate: weekStart,
+        },
+      }
+    }),
     // Replace only the active account's slice; other accounts and the account
     // list itself are untouched. Undoable via ⌘Z.
     //
@@ -808,7 +842,7 @@ export const useStore = create<StoreState>()((set, get) => {
       }),
 
     addDiscipline: (input) => {
-      const e: Discipline = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      const e: Discipline = { ...input, ...(input.color === undefined ? {} : { color: repairColor(input.color) }), id: newId(), accountId: requireAccount(), ...stamp() }
       // Viewer no-op (P1.12 defense-in-depth): build the entity so the return type holds, but skip
       // the persist — nothing lands in state. Server 403 is the real backstop; see blockedByViewer.
       if (blockedByViewer()) return e
@@ -818,7 +852,8 @@ export const useStore = create<StoreState>()((set, get) => {
     updateDiscipline: (id, patch) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, 'disciplines', id)) return
-      mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, patch) }))
+      const safePatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color) }
+      mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, safePatch) }))
     },
     deleteDiscipline: (id) => {
       if (blockedByViewer()) return
@@ -831,7 +866,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // Viewer no-op (P1.12 defense-in-depth): gate BEFORE the integrity asserts so a read-only user's
       // optimistic write neither validates nor persists. Build the (clamped) entity so the return type
       // holds; it never lands in state. Server 403 is the real backstop; see blockedByViewer.
-      const e: Resource = { ...input, workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
+      const e: Resource = { ...input, color: repairColor(input.color, input.kind === 'external'), workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
       if (blockedByViewer()) return e
       assertScopedRefs(get().data, accountId, 'resources', input)
       assertWorkingDays(input.workingDays)
@@ -855,10 +890,11 @@ export const useStore = create<StoreState>()((set, get) => {
       // external. Mirrors the server's validateWrite resources branch — same shared assert, no drift.
       assertResourceKindAllowsDependents(get().data, existing.accountId, id, patch.kind ?? existing.kind)
       if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays)
+      const colorPatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color, (patch.kind ?? existing.kind) === 'external') }
       const safePatch =
         patch.workingHoursPerDay !== undefined
-          ? { ...patch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
-          : patch
+          ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
+          : colorPatch
       mutate((d) => ({ ...d, resources: updateById(d.resources, id, safePatch) }))
     },
 
@@ -871,7 +907,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // break the "exactly one Internal per account" invariant. See Draft<Client>.
       const safe: Record<string, unknown> = { ...input }
       delete safe.builtin
-      const e: Client = { ...(safe as Draft<Client>), id: newId(), accountId: requireAccount(), ...stamp() }
+      const e: Client = { ...(safe as Draft<Client>), color: repairColor(safe.color), id: newId(), accountId: requireAccount(), ...stamp() }
       // Viewer no-op (P1.12 defense-in-depth): build the entity for the return type, skip the persist.
       if (blockedByViewer()) return e
       mutate((d) => ({ ...d, clients: [...d.clients, e] }))
@@ -890,12 +926,13 @@ export const useStore = create<StoreState>()((set, get) => {
       // store-strip enforcement point (1); canonical doc in shared/src/data/internalClient.ts).
       const safePatch: Record<string, unknown> = { ...patch }
       delete safePatch.builtin
+      if (safePatch.color !== undefined) safePatch.color = repairColor(safePatch.color)
       mutate((d) => ({ ...d, clients: updateById(d.clients, id, safePatch as Patch<Client>) }))
     },
 
     addProject: (input) => {
       const accountId = requireAccount()
-      const e: Project = { ...input, id: newId(), accountId, ...stamp() }
+      const e: Project = { ...input, color: repairColor(input.color), id: newId(), accountId, ...stamp() }
       // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
       if (blockedByViewer()) return e
       assertScopedRefs(get().data, accountId, 'projects', input)
@@ -910,7 +947,8 @@ export const useStore = create<StoreState>()((set, get) => {
       // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
       // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
       assertScopedRefs(get().data, existing.accountId, 'projects', patch, existing)
-      mutate((d) => ({ ...d, projects: updateById(d.projects, id, patch) }))
+      const safePatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color) }
+      mutate((d) => ({ ...d, projects: updateById(d.projects, id, safePatch) }))
     },
 
     addPhase: (input) => {
@@ -993,6 +1031,7 @@ export const useStore = create<StoreState>()((set, get) => {
         patch.resourceId ?? existing.resourceId,
         patch.activityId ?? existing.activityId,
         patch.hoursPerDay ?? existing.hoursPerDay,
+        existing,
       )
       // Validate the EFFECTIVE range (merged with the existing row), so a
       // note/status/reassign-only patch isn't rejected for omitting dates.
@@ -1027,7 +1066,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // after a resource kind-flip) would 400 on the server while succeeding here — diverging local and
       // synced state. Matching the merged-row check makes the store reject exactly what the server does.
       // It's a pure read — a date-only patch on a valid (non-external) resource still passes.
-      assertResourceExists(get().data, existing.accountId, patch.resourceId ?? existing.resourceId)
+      assertResourceExists(get().data, existing.accountId, patch.resourceId ?? existing.resourceId, existing)
       assertDateRange(patch.startDate ?? existing.startDate, patch.endDate ?? existing.endDate)
       mutate((d) => ({ ...d, timeOff: updateById(d.timeOff, id, patch) }))
     },

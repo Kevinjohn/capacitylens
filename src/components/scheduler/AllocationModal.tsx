@@ -198,11 +198,15 @@ export function AllocationModal(props: AllocationModalProps) {
       requiredMessage: m.form_allocation_err_new_activity_name(),
     })
     if (cleanActivityName === null) return
-    const activity = projectId
-      ? addActivity({ name: cleanActivityName, kind: 'project', projectId })
-      : addActivity({ name: cleanActivityName, kind: 'repeatable' })
-    setActivityId(activity.id)
-    setNewActivityName('')
+    try {
+      const activity = projectId
+        ? addActivity({ name: cleanActivityName, kind: 'project', projectId })
+        : addActivity({ name: cleanActivityName, kind: 'repeatable' })
+      setActivityId(activity.id)
+      setNewActivityName('')
+    } catch (error) {
+      fail(null, error instanceof Error ? error.message : m.form_allocation_err_save_failed())
+    }
   }
 
   const submit = () => {
@@ -311,7 +315,7 @@ export function AllocationModal(props: AllocationModalProps) {
         activityId: editing.activityId,
         startDate: editing.startDate,
         endDate: editing.endDate,
-        hoursPerDay: editing.hoursPerDay,
+        hoursPerDay: mode === 'blocks' ? 0 : editing.hoursPerDay,
         status: editing.status,
         note: cleanNote ? cleanNote : undefined,
         ignoreWeekends: editing.ignoreWeekends,

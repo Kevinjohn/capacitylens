@@ -49,7 +49,13 @@ import {
 } from '@capacitylens/shared/lib/integrity'
 import { seed } from '@capacitylens/shared/data/seed'
 import { TABLES } from './tables'
-import { validateWrite, sanitizeWrite, ValidationError, type SanitizeWriteOptions } from './validate'
+import {
+  acceptedFieldNames,
+  validateWrite,
+  sanitizeWrite,
+  ValidationError,
+  type SanitizeWriteOptions,
+} from './validate'
 import {
   type Db,
   deleteRow,
@@ -178,8 +184,8 @@ export interface AppOptions {
   authMode?: AuthMode
   /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
   auth?: Auth | null
-  /** CORS allow-list: a comma-separated origin list, or an EXPLICIT '*' to allow any
-   *  origin. Defaults FAIL-CLOSED to the localhost allow-list (DEFAULT_CORS) when
+  /** CORS allow-list: a comma-separated list of explicit origins. Wildcards are rejected because
+   *  the browser client always uses cookie credentials. Defaults to the localhost allow-list when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
    *  entrypoint (index.ts) passes the CAPACITYLENS_CORS_ORIGIN override. */
   corsOrigin?: string
@@ -245,17 +251,31 @@ const LOG_REDACT_PATHS = [
 // is the ONLY path-borne secret in the API; every other URL passes through unchanged. Anchored to
 // the exact `/api/invites/<token>/accept` shape (optionally with a query string) so a normal path
 // is never mangled. The match is on the path-with-query string pino logs (req.url).
-const INVITE_ACCEPT_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/accept(?:[?#].*)?)$/
+const INVITE_OPERATION_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup))(.*)$/
 // `url` is typed unknown because the serializer may also run over a hand-built `{ req: {...} }`
 // record (e.g. app.log.info(...)) whose url is absent; a non-string passes through untouched.
-const redactInviteTokenUrl = (url: unknown): string | undefined =>
-  typeof url === 'string' ? url.replace(INVITE_ACCEPT_URL_RE, '$1[redacted]$2') : undefined
+const redactSecretUrl = (url: unknown): string | undefined => {
+  if (typeof url !== 'string') return undefined
+  const inviteSafe = url.replace(INVITE_OPERATION_URL_RE, '$1[redacted]$2$3')
+  try {
+    const parsed = new URL(inviteSafe, 'http://capacitylens.invalid')
+    for (const key of ['token', 'code', 'state']) {
+      if (parsed.searchParams.has(key)) parsed.searchParams.set(key, '[redacted]')
+    }
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    return inviteSafe
+  }
+}
+
+export const MAX_RATE_LIMIT = 1_000_000
 
 /** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
  *  unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit). */
 export function parseRateLimit(raw: string | undefined): number {
   if (!raw || !/^\d+$/.test(raw)) return 0
-  return Number(raw)
+  const parsed = Number(raw)
+  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= MAX_RATE_LIMIT ? parsed : 0
 }
 
 /** Node's IncomingHttpHeaders → web Headers, for Better Auth's web-standard API
@@ -347,7 +367,6 @@ function accountFieldsFrozen(
 // Requests with no Origin (curl, server-to-server, Playwright's APIRequestContext)
 // are unaffected — CORS only governs browser cross-origin reads.
 function resolveCorsOrigin(reqOrigin: string | undefined, allow: string): string | null {
-  if (allow === '*') return '*'
   const list = allow.split(',').map((s) => s.trim()).filter(Boolean)
   return reqOrigin && list.includes(reqOrigin) ? reqOrigin : null
 }
@@ -413,14 +432,14 @@ function isStaleWrite(
 ): existing is Record<string, unknown> {
   // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactNoteEcho inside
   // the 409 branch, which needs the `existing`-is-present narrowing the old inline check gave.)
-  return (
-    existing !== undefined &&
-    typeof existing.updatedAt === 'string' &&
-    typeof row.updatedAt === 'string' &&
-    Number.isFinite(Date.parse(existing.updatedAt)) &&
-    Number.isFinite(Date.parse(row.updatedAt)) &&
-    Date.parse(existing.updatedAt) > Date.parse(row.updatedAt)
-  )
+  if (existing === undefined) return false
+  if (
+    typeof existing.updatedAt !== 'string' ||
+    typeof row.updatedAt !== 'string' ||
+    !Number.isFinite(Date.parse(existing.updatedAt)) ||
+    !Number.isFinite(Date.parse(row.updatedAt))
+  ) return true
+  return Date.parse(existing.updatedAt) > Date.parse(row.updatedAt)
 }
 
 /** The server owns persistence timestamps; request timestamps are only precondition versions. */
@@ -683,7 +702,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             req(req: FastifyRequest) {
               return {
                 method: req.method,
-                url: redactInviteTokenUrl(req.url),
+                url: redactSecretUrl(req.url),
                 hostname: req.hostname,
                 remoteAddress: req.ip,
                 remotePort: req.socket?.remotePort,
@@ -695,6 +714,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   })
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
+  if (corsOrigin.split(',').some((origin) => origin.trim() === '*')) {
+    throw new Error('CORS requires explicit origins when cookie authentication is enabled.')
+  }
   // 500s with logging ON go through the request-scoped logger (one parseable JSON line,
   // correlated with the request); OFF keeps today's bare console.error.
   const sendFail = (reply: FastifyReply, err: unknown) =>
@@ -782,7 +804,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // behind the Nginx proxy every socket is loopback, so rateLimitTrustForwarded swaps the
   // key to the first X-Forwarded-For hop there (and only there). 429s flow through the
   // setErrorHandler above, so the refusal is the API's usual { error } JSON shape.
-  const rateLimitMax = opts.rateLimit ?? 0
+  const configuredRateLimit = opts.rateLimit ?? 0
+  const rateLimitMax = Number.isSafeInteger(configuredRateLimit) &&
+    configuredRateLimit > 0 && configuredRateLimit <= MAX_RATE_LIMIT
+    ? configuredRateLimit
+    : 0
   if (rateLimitMax > 0) {
     void app.register(rateLimitPlugin, {
       max: rateLimitMax,
@@ -842,8 +868,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
 
   // changedFields for an audit line = the wire body/row's field NAMES (never values). This is the
   // ONLY thing ever derived from a body for the audit trail — the #1 no-PII invariant.
-  const fieldNames = (o: unknown): string[] =>
-    o && typeof o === 'object' ? Object.keys(o as Record<string, unknown>) : []
+  const fieldNames = acceptedFieldNames
 
   // Record one audit line and, ONLY on a write failure, set the uniform warning header. The header
   // (not a body field) is the warning mechanism on ALL six routes — it keeps entity row payloads
@@ -952,14 +977,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     const origin = resolveCorsOrigin(req.headers.origin, corsOrigin)
     if (origin) {
       reply.header('Access-Control-Allow-Origin', origin)
-      if (origin !== '*') {
-        reply.header('Vary', 'Origin')
-        // P3.4: the client sends credentials: 'include' on every request, and the browser
-        // refuses a credentialed cross-origin response without this header. Only ever
-        // paired with a REFLECTED allow-listed origin — credentials with '*' are invalid
-        // (and browsers reject them), so the wildcard stays uncredentialed by design.
-        reply.header('Access-Control-Allow-Credentials', 'true')
-      }
+      reply.header('Vary', 'Origin')
+      reply.header('Access-Control-Allow-Credentials', 'true')
     }
     reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
     reply.header('Access-Control-Expose-Headers', 'x-capacitylens-audit-warning')
@@ -1262,7 +1281,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         })
         audit(reply, {
           ts: now, userId: req.user!.id, accountId: id, action: 'create', entity: 'accounts', id,
-          changedFields: fieldNames(accountRow),
+          changedFields: fieldNames('accounts', accountRow),
         })
         return reply.code(201).send(accountRow)
       } catch (err) {
@@ -2033,6 +2052,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!req.body || typeof req.body !== 'object') {
         return reply.code(400).send({ error: 'A request body is required.' })
       }
+      const requestRow = req.body as Record<string, unknown>
+      if (typeof requestRow.id !== 'string') {
+        return reply.code(400).send({ error: 'A string id is required.' })
+      }
+      if (isScopedTable(entity) && typeof requestRow.accountId !== 'string') {
+        return reply.code(400).send({ error: 'A string accountId is required.' })
+      }
+      if (entity === 'clients' && requestRow.builtin === true) {
+        return reply.code(400).send({ error: 'The built-in Internal client is managed by the server.' })
+      }
       // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is CLOSED when auth is
       // on: the old "onboarding exemption" (a freshly-signed-up user holds no membership yet, so
       // this create was left ungated) became an authz bypass once POST /api/orgs landed — see
@@ -2051,8 +2080,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
       }
       if (isScopedTable(entity)) {
-        const body = req.body as { accountId?: string }
-        if (!authorize(req, reply, body.accountId!, 'write')) return
+        if (!authorize(req, reply, requestRow.accountId as string, 'write')) return
       }
       try {
         // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
@@ -2086,7 +2114,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           action: 'create',
           entity,
           id: row.id as string,
-          changedFields: fieldNames(row),
+          changedFields: fieldNames(entity, row),
         })
         return reply.code(201).send(row)
       } catch (err) {
@@ -2100,14 +2128,23 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.put('/api/:entity/:id', (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+        return reply.code(400).send({ error: 'A request body is required.' })
+      }
       const body = req.body as Record<string, unknown>
       if (body?.id !== id) return reply.code(400).send({ error: 'Body id must match the URL id.' })
+      if (isScopedTable(entity) && typeof body.accountId !== 'string') {
+        return reply.code(400).send({ error: 'A string accountId is required.' })
+      }
       // P1.5 write gate (scoped tables): membership + write tier for the body's accountId. The
       // ownsRow immutability guard below still runs — authorize gates WHO may write, ownsRow keeps
       // accountId immutable.
       if (isScopedTable(entity) && !authorize(req, reply, body.accountId as string, 'write')) return
       try {
         const existing = getRow(db, entity, id)
+        if (entity === 'clients' && existing?.builtin === true) {
+          return reply.code(400).send({ error: 'The built-in Internal client cannot be modified.' })
+        }
         // Account CREATE via upsert (`entity === 'accounts' && !existing` — no row at this id yet)
         // is CLOSED when auth is on, same as the generic POST: the old onboarding exemption is an
         // authz bypass now that POST /api/orgs exists (see ACCOUNT_CREATE_CLOSED_MESSAGE). Checked
@@ -2170,7 +2207,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // A company is not usable without its singleton Internal client. Commit both rows as
           // one unit so a constraint/storage failure cannot leave a degraded company behind.
           tx(db, () => {
-            validateWrite(state, entity, row)
+            validateWrite(state, entity, row, existing)
             upsertRow(db, entity, row)
             upsertRow(db, 'clients', buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>)
           })
@@ -2179,7 +2216,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             replaceGeneratedBuiltin(db, state, generatedReplacement, row)
           })
         } else {
-          validateWrite(state, entity, row)
+          validateWrite(state, entity, row, existing)
           upsertRow(db, entity, row)
         }
         // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
@@ -2190,7 +2227,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           action: existing ? 'update' : 'create',
           entity,
           id,
-          changedFields: fieldNames(body),
+          changedFields: fieldNames(entity, body),
         })
         // The echo redaction (see redactNoteEcho): the pin re-attached a note the writer may not
         // see, and a write response is a read.
@@ -2212,9 +2249,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!req.body || typeof req.body !== 'object') {
         return reply.code(400).send({ error: 'A request body is required.' })
       }
+      if (
+        isScopedTable(entity) &&
+        'accountId' in (req.body as Record<string, unknown>) &&
+        typeof (req.body as Record<string, unknown>).accountId !== 'string'
+      ) {
+        return reply.code(400).send({ error: 'accountId must be a string when provided.' })
+      }
       try {
         const existing = getRow(db, entity, id)
         if (!existing) return reply.code(404).send({ error: 'Not found' })
+        if (entity === 'clients' && existing.builtin === true) {
+          return reply.code(400).send({ error: 'The built-in Internal client cannot be modified.' })
+        }
         // P1.5 account-write gate (see the PUT route): `accounts` isn't scoped, so the merged-accountId
         // authorize below never runs for it. A PATCH always targets an EXISTING row (404 above), so this
         // is always an UPDATE → require membership + write tier for the account's own id. OFF: no-op allow.
@@ -2261,7 +2308,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           })
         }
         const stamped = stampServerRevision(merged, existing)
-        validateWrite(loadState(db), entity, stamped)
+        validateWrite(loadState(db), entity, stamped, existing)
         upsertRow(db, entity, stamped)
         // P1.15 audit (post-commit). changedFields = the PATCH req.body keys (the fields the caller
         // actually sent), NOT the merged row's keys — a patch's intent is the keys it touched.
@@ -2272,7 +2319,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           action: 'patch',
           entity,
           id,
-          changedFields: fieldNames(req.body),
+          changedFields: fieldNames(entity, req.body),
         })
         // The echo redaction (see redactNoteEcho): the merge carried the stored note into `merged`,
         // and a write response is a read — don't hand a note-blind patcher the redacted field.
@@ -2285,6 +2332,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.delete('/api/:entity/:id', (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
+      if (isLifecycleEntity(entity)) {
+        return reply.code(400).send({ error: 'Use the dedicated lifecycle endpoints for this entity.' })
+      }
       // Scope a scoped-table delete to its owning account — the server analog of the
       // client's MANDATORY findOwned guard. A scoped delete MUST assert an owning account:
       // omitting it can't prove ownership, so we refuse with 400 (rather than deleting by id,
@@ -2357,6 +2407,38 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply
           .code(400)
           .send({ error: `A batch may contain at most ${MAX_BATCH_OPS} operations.` })
+      }
+      const deletedAccountIds = new Set<string>()
+      for (const rawOp of ops as unknown[]) {
+        if (!rawOp || typeof rawOp !== 'object' || Array.isArray(rawOp)) {
+          return reply.code(400).send({ error: 'Each op must be an object.' })
+        }
+        const op = rawOp as Partial<BatchOp>
+        if (op.method !== 'PUT' && op.method !== 'DELETE') {
+          return reply.code(400).send({ error: `Unknown op method: ${String(op.method)}` })
+        }
+        if (typeof op.table !== 'string' || !isKnownTable(op.table) || typeof op.id !== 'string') {
+          return reply.code(400).send({ error: 'Each op needs a known table and string id.' })
+        }
+        if (op.method === 'PUT') {
+          if (!op.row || typeof op.row !== 'object' || Array.isArray(op.row) || op.row.id !== op.id) {
+            return reply.code(400).send({ error: 'Each PUT op needs a row whose id matches the op id.' })
+          }
+          if (isScopedTable(op.table) && typeof op.row.accountId !== 'string') {
+            return reply.code(400).send({ error: 'A scoped PUT op needs a string accountId.' })
+          }
+          if (op.table === 'accounts' && deletedAccountIds.has(op.id)) {
+            return reply.code(400).send({ error: 'An account cannot be deleted and recreated with the same id in one batch.' })
+          }
+        } else {
+          if (isLifecycleEntity(op.table)) {
+            return reply.code(400).send({ error: 'Use the dedicated lifecycle endpoints for lifecycle entities.' })
+          }
+          if (isScopedTable(op.table) && typeof op.accountId !== 'string') {
+            return reply.code(400).send({ error: 'A scoped DELETE op needs a string accountId.' })
+          }
+          if (op.table === 'accounts') deletedAccountIds.add(op.id)
+        }
       }
       // P1.5 write gate — PRE-SCAN before the tx opens so the batch is rejected WHOLE (one 403, no
       // partial write) if ANY op targets an account the caller may not write. A scoped PUT derives
@@ -2488,6 +2570,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // assertAllocationRefs, assertResourceExists), so the projection must track every
           // scoped table, not just the one each op touches.
           let state = loadState(db)
+          const mintedInternalIds = new Set<string>()
           for (const op of ops) {
             if (!op || typeof op !== 'object') {
               throw new ValidationError('Each op must be an object.')
@@ -2504,6 +2587,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               }
               // accountId is immutable (ownsRow): a write must not re-home an existing row.
               const existing = getRow(db, table, id)
+              if (table === 'clients' && existing?.builtin === true) {
+                if (mintedInternalIds.has(id)) {
+                  revisions.push({
+                    table,
+                    id,
+                    createdAt: existing.createdAt as string,
+                    updatedAt: existing.updatedAt as string,
+                  })
+                  continue
+                }
+                throw new ValidationError('The built-in Internal client cannot be modified.')
+              }
               if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
                 throw new ValidationError('That record belongs to a different company.')
               }
@@ -2549,7 +2644,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                 replaceGeneratedBuiltin(db, state, generatedReplacement, clean)
                 state = applyGeneratedBuiltinReplacement(state, generatedReplacement, clean)
               } else {
-                validateWrite(state, table, clean)
+                validateWrite(state, table, clean, existing)
                 upsertRow(db, table, clean)
                 state = upsertInState(state, table, clean)
               }
@@ -2557,6 +2652,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                 const internalClient = buildInternalClient(id, clean.createdAt as string) as unknown as Record<string, unknown>
                 upsertRow(db, 'clients', internalClient)
                 state = upsertInState(state, 'clients', internalClient)
+                mintedInternalIds.add(internalClient.id as string)
               }
               revisions.push({
                 table,
@@ -2611,7 +2707,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   action: auditedAction,
                   entity: op.table,
                   id: op.id,
-                  changedFields: fieldNames(op.row),
+                  changedFields: fieldNames(op.table, op.row),
                 }
               : {
                   ts,

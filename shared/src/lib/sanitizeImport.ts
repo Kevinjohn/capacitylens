@@ -1,4 +1,5 @@
-import { isHexColor, NEUTRAL_COLOR } from './color'
+import { isPresetColor, NEUTRAL_COLOR } from './color'
+import { INTERNAL_CLIENT_COLOR } from '../data/internalClient'
 import { cleanText } from './strings'
 import {
   clampHoursPerDay,
@@ -14,7 +15,7 @@ import {
 // would otherwise have guarded — so a negative/NaN hoursPerDay, a junk status enum, or
 // a non-hex colour can't land in the store and render as broken geometry.
 
-const FALLBACK_COLOR = '#6366f1' // brand
+const FALLBACK_COLOR = '#5c34d4'
 const VALID_STATUS = ['confirmed', 'tentative', 'completed'] as const
 const VALID_KIND = ['person', 'placeholder', 'external'] as const
 const VALID_ACTIVITY_KIND = ['project', 'internal', 'repeatable'] as const
@@ -42,7 +43,7 @@ const clampAllocHours = (v: unknown, fallback: number): number =>
 // '  #aabbcc  ' passes validation but is stored verbatim, and the colour math then
 // NaN-fails on it and the bar renders the fallback grey (with the junk persisted).
 const safeColor = (v: unknown, fallback = FALLBACK_COLOR): string =>
-  typeof v === 'string' && isHexColor(v) ? v.trim() : fallback
+  isPresetColor(v) ? v.trim().toLowerCase() : fallback
 
 const safeInt = (v: unknown, fallback: number): number =>
   typeof v === 'number' && Number.isSafeInteger(v) ? v : fallback
@@ -198,7 +199,7 @@ export function sanitizeImportedRecord(
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       break
     case 'clients':
-      rec.color = safeColor(rec.color)
+      rec.color = rec.builtin === true ? INTERNAL_CLIENT_COLOR : safeColor(rec.color)
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
       // `builtin` is an OPTIONAL boolean (true only for the Internal pseudo-client). This is
       // DEFENSIVE NORMALISATION for a hand-edited / legacy file: drop anything that isn't strictly

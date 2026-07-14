@@ -1,8 +1,8 @@
-import { migrate, KNOWN_KEYS } from '@capacitylens/shared/data/migrate'
 import type { AppData, ID } from '@capacitylens/shared/types/entities'
 import { readApiError } from '../lib/readApiError'
 import { API_BASE } from './apiConfig'
 import { apiFetch, API_BULK_TIMEOUT_MS } from './requestTimeout'
+import { validateAccountSlice } from './validateAccountSlice'
 
 // The ONE client-side reader of the purge-gated admin endpoint
 // `GET /api/state?accountId=…&includeInactive=1` (the P2.6 complete per-tenant read: archived +
@@ -71,13 +71,7 @@ export async function fetchInactiveSlice(accountId: ID): Promise<AppData> {
   )
   if (!res.ok) throw new InactiveSliceHttpError(res.status, await readApiError(res))
   const body: unknown = await res.json()
-  if (
-    !body ||
-    typeof body !== 'object' ||
-    Array.isArray(body) ||
-    KNOWN_KEYS.some((key) => !Array.isArray((body as Record<string, unknown>)[key]))
-  ) {
-    throw new InactiveSliceShapeError()
-  }
-  return migrate(body)
+  const data = validateAccountSlice(body, accountId)
+  if (!data) throw new InactiveSliceShapeError()
+  return data
 }

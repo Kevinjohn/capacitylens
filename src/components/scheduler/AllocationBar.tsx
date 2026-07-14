@@ -69,7 +69,10 @@ function capacityAnnouncement(resourceId: ID): string {
   // External parties carry no capacity — there is no over/under to report; speak nothing.
   if (!resource || !isCapacityTracked(resource)) return ''
   const name = resourceDisplayName(resource)
-  const allocs = data.allocations.filter((a) => a.resourceId === resourceId)
+  const blocksMode = schedulingModeFor(data, useStore.getState().activeAccountId) === 'blocks'
+  const allocs = data.allocations
+    .filter((a) => a.resourceId === resourceId)
+    .map((allocation) => blocksMode ? { ...allocation, hoursPerDay: 0 } : allocation)
   if (allocs.length === 0) return m.scheduler_sr_announce_clear({ name })
   // The over-marker spans every day the resource has work; bound the scan to that union extent…
   const timeOff = data.timeOff.filter((t) => t.resourceId === resourceId)
@@ -160,7 +163,12 @@ export const AllocationBar = memo(function AllocationBar({
   // change forced ResourceLane to re-render across a toggle — see BarsLayer's TSDoc.)
   // (The dim/glow re-skin is a separate, CSS-only flip driven by `data-draw-mode` on the grid — see
   // index.css.)
-  const [preview, setPreview] = useState<{ mode: DragMode; deltaDays: number; deltaY: number } | null>(null)
+  const [preview, setPreview] = useState<{
+    mode: DragMode
+    deltaDays: number
+    deltaY: number
+    targetResourceId: ID | null
+  } | null>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const resourceId = bar.allocation.resourceId
   // The assignee's working days drive weekend-aware moves (extend across non-working
@@ -243,9 +251,9 @@ export const AllocationBar = memo(function AllocationBar({
       // Pin this row on the FIRST move so a mid-gesture vertical scroll can't virtualise it
       // out of the DOM and tear down the document pointer listeners (losing the drag).
       if (!preview) setDraggingAllocation(bar.allocation.id)
-      setPreview({ mode, deltaDays, deltaY })
+      const target = mode === 'move' ? laneAt(lanesRef.current, pointer.clientX, pointer.clientY) : null
+      setPreview({ mode, deltaDays, deltaY, targetResourceId: target?.id ?? null })
       if (mode === 'move') {
-        const target = laneAt(lanesRef.current, pointer.clientX, pointer.clientY)
         setDropTarget(target && target.id !== resourceId ? target.el : null)
       }
     },
@@ -314,9 +322,11 @@ export const AllocationBar = memo(function AllocationBar({
         let advisory = ''
         // External parties have no capacity — skip the over-capacity / time-off advisory for them.
         if (resource && isCapacityTracked(resource)) {
-          const others = data.allocations.filter((a) => a.resourceId === effResourceId && a.id !== bar.allocation.id)
+          const others = data.allocations
+            .filter((a) => a.resourceId === effResourceId && a.id !== bar.allocation.id)
+            .map((allocation) => isBlocks ? { ...allocation, hoursPerDay: 0 } : allocation)
           const overTimeOff = data.timeOff.filter((t) => t.resourceId === effResourceId)
-          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, reconciledHours, bar.allocation.ignoreWeekends)
+          const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, isBlocks ? 0 : reconciledHours, bar.allocation.ignoreWeekends)
           const bits: string[] = []
           if (overDays) bits.push(overDays === 1 ? m.scheduler_advisory_over_one({ count: overDays }) : m.scheduler_advisory_over_other({ count: overDays }))
           if (timeOffDays) bits.push(timeOffDays === 1 ? m.scheduler_advisory_timeoff_one({ count: timeOffDays }) : m.scheduler_advisory_timeoff_other({ count: timeOffDays }))
@@ -351,8 +361,10 @@ export const AllocationBar = memo(function AllocationBar({
             const src = computeFor(resourceId)
             const srcPatch = src.hours !== bar.allocation.hoursPerDay ? { hoursPerDay: src.hours } : null
             updateAllocation(bar.allocation.id, { ...src.dates, ...srcPatch })
-          } catch {
-            setNotice(m.scheduler_toast_move_failed(), 'error')
+          } catch (fallbackError) {
+            const primary = e instanceof Error ? e.message : m.scheduler_toast_move_rejected()
+            const fallback = fallbackError instanceof Error ? fallbackError.message : m.scheduler_toast_move_failed()
+            setNotice(`${primary} ${fallback}`, 'error')
             return
           }
         }
@@ -373,11 +385,14 @@ export const AllocationBar = memo(function AllocationBar({
       // model used to place bar.x / bar.width — so the preview is pixel-identical even when the
       // range crosses a narrowed weekend.
       const cur = { startDate: bar.allocation.startDate, endDate: bar.allocation.endDate }
+      const previewWorkingDays = preview.targetResourceId && preview.targetResourceId !== resourceId
+        ? useStore.getState().data.resources.find((resource) => resource.id === preview.targetResourceId)?.workingDays
+        : workingDays
       const geo = snappedBarGeometry(
         preview.mode,
         cur,
         preview.deltaDays,
-        { workingDays, ignoreWeekends: bar.allocation.ignoreWeekends },
+        { workingDays: previewWorkingDays, ignoreWeekends: bar.allocation.ignoreWeekends },
         geom,
       )
       left = geo.left

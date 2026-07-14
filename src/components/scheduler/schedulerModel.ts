@@ -114,6 +114,7 @@ export function buildSchedulerModel(
   // renders when externals are hidden. A pure VIEW pref: external data is untouched and reappears
   // when re-enabled. See selectors.ts / DECISIONS.md.
   externalEnabled: boolean,
+  blocksMode = false,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
@@ -238,7 +239,13 @@ export function buildSchedulerModel(
         // HIDDEN tentative one is correctly treated as unmatched — not rendered as a
         // full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
         const dimmed = workFilterActive && !allAllocs.some(allocVisible)
-        const visibleAllocs = dimmed ? allAllocs.filter(notTentativeHidden) : allAllocs.filter(allocVisible)
+        const timelineStart = days[0]
+        const timelineEnd = days[days.length - 1]
+        const intersectsTimeline = (row: { startDate: ISODate; endDate: ISODate }) =>
+          timelineStart !== undefined && timelineEnd !== undefined &&
+          row.endDate >= timelineStart && row.startDate <= timelineEnd
+        const visibleAllocs = (dimmed ? allAllocs.filter(notTentativeHidden) : allAllocs.filter(allocVisible))
+          .filter(intersectsTimeline)
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
         const bars: BarLayout[] = visibleAllocs.map((a) => {
@@ -259,15 +266,18 @@ export function buildSchedulerModel(
         })
         // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
         // External rows carry none — flat, unmarked day cells and no time-off blocks.
+        const capacityAllocs = blocksMode
+          ? allAllocs.map((allocation) => ({ ...allocation, hoursPerDay: 0 }))
+          : allAllocs
         const dayStates: DayState[] = isExternal
           ? days.map(() => ({ over: false, unavailable: false }))
           : days.map((d) => {
-              const cap = dayCapacity(resource, d, allAllocs, resTimeOff)
+              const cap = dayCapacity(resource, d, capacityAllocs, resTimeOff)
               return { over: cap.over, unavailable: cap.available === 0 }
             })
         const timeOff: TimeOffBlock[] = isExternal
           ? []
-          : resTimeOff.map((t) => ({
+          : resTimeOff.filter(intersectsTimeline).map((t) => ({
               id: t.id,
               x: geom.xForDateInGeom(t.startDate),
               width: geom.widthForDates(t.startDate, t.endDate),
@@ -280,10 +290,10 @@ export function buildSchedulerModel(
         // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
         // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
         // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
-        const utilization = isExternal ? 0 : utilizationOf(resource, allAllocs, resTimeOff, visStart, visEnd)
+        const utilization = isExternal ? 0 : utilizationOf(resource, capacityAllocs, resTimeOff, visStart, visEnd)
         let overSoon = false
         if (!isExternal) {
-          for (const c of capacityForWindow(resource, allAllocs, resTimeOff, overStart, overEnd)) {
+          for (const c of capacityForWindow(resource, capacityAllocs, resTimeOff, overStart, overEnd)) {
             if (c.allocated > c.available) {
               overSoon = true
               break

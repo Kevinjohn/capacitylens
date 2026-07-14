@@ -16,9 +16,15 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 // branch. The vi.hoisted box hoists above the mock factory (a bare `let` would throw "Cannot access
 // before initialization") — mirrors ArchivedSection.test.tsx's pattern.
 const cfg = vi.hoisted(() => ({ base: 'http://api.test' }))
+const refreshControl = vi.hoisted(() => ({
+  outcome: 'unattached' as 'reloaded' | 'skipped' | 'failed' | 'unattached',
+}))
 vi.mock('../data/apiConfig', () => ({
   API_BASE: cfg.base,
   isServerConfigured: () => true,
+}))
+vi.mock('../data/persist', () => ({
+  refreshActiveAccountSlice: async () => refreshControl.outcome,
 }))
 
 // The reloaded slice the stubbed loadAll returns — a recognisable AppData so we can prove replaceAll
@@ -39,6 +45,7 @@ beforeEach(() => {
   resetStoreWithAccount() // seeds + activates DEFAULT_ACCOUNT_ID (the hook reads activeAccountId from it)
   loadAll.mockClear()
   loadAll.mockResolvedValue(reloadedSlice)
+  refreshControl.outcome = 'unattached'
 })
 afterEach(() => {
   vi.restoreAllMocks()
@@ -172,4 +179,24 @@ describe('useLifecycleActions — SERVER mode dispatch', () => {
     expect(useStore.getState().data.clients.some((c) => c.id === 'c-reloaded')).toBe(false)
     expect(useStore.getState().notice).toBeNull() // and no spurious error surfaced
   })
+
+  it.each(['skipped', 'failed'] as const)(
+    'does not report transport-failure reconciliation as successful when refresh returns %s',
+    async (outcome) => {
+      refreshControl.outcome = outcome
+      const onReloaded = vi.fn()
+      vi.stubGlobal('fetch', vi.fn(async () => {
+        throw new TypeError('connection lost')
+      }))
+      const { result } = renderHook(() => useLifecycleActions(onReloaded))
+
+      await result.current.archive('clients', 'c-1')
+
+      expect(onReloaded).not.toHaveBeenCalled()
+      expect(loadAll).not.toHaveBeenCalled()
+      expect(useStore.getState().notice?.tone).toBe('error')
+      expect(useStore.getState().notice?.message).toContain('could not be reconciled')
+      expect(useStore.getState().notice?.message).toContain(`(${outcome})`)
+    },
+  )
 })

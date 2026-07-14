@@ -1,6 +1,10 @@
 import { DatabaseSync } from 'node:sqlite'
 import { emptyAppData, isEmpty, SCHEMA_VERSION } from '@capacitylens/shared/types/entities'
-import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
+import {
+  buildInternalClient,
+  INTERNAL_CLIENT_COLOR,
+  INTERNAL_CLIENT_NAME,
+} from '@capacitylens/shared/data/internalClient'
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
 import type { AppData } from '@capacitylens/shared/types/entities'
 
@@ -117,6 +121,9 @@ function ensureInternalClients(db: Db): void {
         continue
       }
       const retainedId = builtins[0].id
+      db.prepare(
+        `UPDATE clients SET name = ?, color = ?, builtin = 'true' WHERE id = ? AND accountId = ?`,
+      ).run(INTERNAL_CLIENT_NAME, INTERNAL_CLIENT_COLOR, retainedId, id)
       for (const duplicate of builtins.slice(1)) {
         db.prepare(`UPDATE projects SET clientId = ? WHERE clientId = ?`).run(retainedId, duplicate.id)
         db.prepare(`DELETE FROM clients WHERE id = ?`).run(duplicate.id)

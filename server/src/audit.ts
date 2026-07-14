@@ -68,6 +68,7 @@ export interface FileAuditSinkOptions {
 }
 
 const DEFAULT_MAX_BYTES = 64 * 1024 * 1024 // 64 MiB
+export const MAX_AUDIT_BYTES = 1024 * 1024 * 1024 * 1024 // 1 TiB operator-safety ceiling
 
 /**
  * A file-backed sink: one `\n`-terminated `appendFileSync` per record. The single synchronous,
@@ -86,6 +87,9 @@ const DEFAULT_MAX_BYTES = 64 * 1024 * 1024 // 64 MiB
  */
 export function fileAuditSink(file: string, log: (msg: string) => void, opts: FileAuditSinkOptions = {}): AuditSink {
   const maxBytes = opts.maxBytes ?? DEFAULT_MAX_BYTES
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_AUDIT_BYTES) {
+    throw new RangeError(`maxBytes must be a safe integer from 1 to ${MAX_AUDIT_BYTES}.`)
+  }
   let degraded = false
   let loggedOnce = false
   return {

@@ -85,9 +85,10 @@ describe('validateText (optional fields)', () => {
 })
 
 describe('validateHex', () => {
-  it('accepts a 6-digit hex and rejects anything else', () => {
+  it('accepts a canonical preset colour and rejects arbitrary hex values', () => {
     const fail = vi.fn()
-    expect(validateHex('#3b82f6', fail)).toBe(true)
+    expect(validateHex('#5c34d4', fail)).toBe(true)
+    expect(validateHex('#3b82f6', fail)).toBe(false)
     expect(validateHex('nope', fail)).toBe(false)
     expect(fail).toHaveBeenCalledWith('color', validationMessages().hexInvalid)
   })

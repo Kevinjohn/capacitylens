@@ -18,12 +18,23 @@ export const API_BULK_TIMEOUT_MS = 120_000
 function anySignal(signals: AbortSignal[]): AbortSignal {
   if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals)
   const controller = new AbortController()
+  const listeners = new Map<AbortSignal, () => void>()
+  const cleanup = () => {
+    for (const [signal, listener] of listeners) signal.removeEventListener('abort', listener)
+    listeners.clear()
+  }
   for (const signal of signals) {
     if (signal.aborted) {
       controller.abort(signal.reason)
+      cleanup()
       break
     }
-    signal.addEventListener('abort', () => controller.abort(signal.reason), { once: true })
+    const listener = () => {
+      cleanup()
+      controller.abort(signal.reason)
+    }
+    listeners.set(signal, listener)
+    signal.addEventListener('abort', listener, { once: true })
   }
   return controller.signal
 }

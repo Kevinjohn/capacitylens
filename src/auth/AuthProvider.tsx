@@ -4,6 +4,7 @@ import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { requestSignal } from '../data/requestTimeout'
 import { useStore } from '../store/useStore'
 import { AuthContext, type AuthMode, type AuthProviderInfo, type AuthUser } from './authContext'
+import { validateAuthUser } from './validateAuthUser'
 import {
   cacheAuthSnapshot,
   clearOfflineDataForCurrentUser,
@@ -39,9 +40,6 @@ function passOpen(authMode: AuthMode, user: AuthUser | null): Status {
 function isAuthMode(v: unknown): v is AuthMode {
   return v === 'off' || v === 'password' || v === 'sso'
 }
-function isAuthUser(v: unknown): v is AuthUser {
-  return typeof v === 'object' && v !== null && typeof (v as { id?: unknown }).id === 'string'
-}
 function isAuthProvider(v: unknown): v is AuthProviderInfo {
   if (typeof v !== 'object' || v === null) return false
   const provider = v as Partial<AuthProviderInfo>
@@ -71,29 +69,38 @@ function boolFieldOr(v: unknown, fallback: boolean): boolean {
  *  and transport/status/shape failures map to an explicit error. Boot must never reinterpret a
  *  broken authentication service as auth-off; mid-session callers may retain their last snapshot.
  *  Module-scope so the component's effects only subscribe to its result. */
-async function fetchAuthStatus(): Promise<Status | null> {
+async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | null> {
   try {
     const res = await fetch(`${API_BASE}/api/auth/me`, {
       credentials: 'include',
       signal: requestSignal(), // the one shared request-timeout/abort seam (15s + AbortSignal.any fallback)
     })
     if (res.status === 401) {
-      setOfflineReadState(false)
       // The 401 body carries authMode so the login screen knows which form to show, plus the
       // first-run `needsSetup` signal (password mode + zero users on the server).
-      const body = (await res.json().catch(() => ({}))) as {
+      const body: unknown = await res.json()
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return { kind: 'error', message: 'The authentication service returned an invalid configuration.' }
+      }
+      const loginBody = body as {
         authMode?: string
         needsSetup?: unknown
         providers?: unknown
       }
+      if (
+        (loginBody.authMode !== 'password' && loginBody.authMode !== 'sso') ||
+        !Array.isArray(loginBody.providers) ||
+        !loginBody.providers.every(isAuthProvider)
+      ) return { kind: 'error', message: 'The authentication service returned an invalid configuration.' }
+      if (acceptEffects()) setOfflineReadState(false)
       return {
         kind: 'login',
-        authMode: body.authMode === 'sso' ? 'sso' : 'password',
-        providers: providersFrom(body.providers),
+        authMode: loginBody.authMode,
+        providers: providersFrom(loginBody.providers),
         // FAIL-CLOSED: only a literal `true` (a server that computed "password mode + empty user
         // table") shows the owner-setup form — absent (an older server) or junk means the
         // ordinary sign-in, never a create-account form on a populated instance.
-        needsSetup: body.needsSetup === true,
+        needsSetup: loginBody.needsSetup === true,
       }
     }
     if (res.ok) {
@@ -108,7 +115,8 @@ async function fetchAuthStatus(): Promise<Status | null> {
         return { kind: 'error', message: 'The authentication service returned an invalid response.' }
       }
       const rawUser = (body as { user?: unknown } | null)?.user
-      if (rawMode !== 'off' && !isAuthUser(rawUser)) {
+      const user = validateAuthUser(rawUser)
+      if (rawMode !== 'off' && !user) {
         console.warn('AuthProvider: /api/auth/me returned auth-on without a valid user', body)
         return { kind: 'error', message: 'The authentication service returned an invalid response.' }
       }
@@ -121,12 +129,12 @@ async function fetchAuthStatus(): Promise<Status | null> {
       const next: Status = {
         kind: 'pass',
         authMode: rawMode,
-        user: isAuthUser(rawUser) ? rawUser : null,
+        user,
         canCreateAccount,
         multiAccount,
       }
-      setOfflineReadState(false)
-      if (next.user) {
+      if (acceptEffects()) setOfflineReadState(false)
+      if (next.user && acceptEffects()) {
         void cacheAuthSnapshot({
           authMode: next.authMode,
           user: next.user,
@@ -145,9 +153,9 @@ async function fetchAuthStatus(): Promise<Status | null> {
       err instanceof TypeError || (err instanceof DOMException && err.name === 'AbortError')
     if (transportFailure) {
       try {
-        const cached = await readCachedAuthSnapshot()
+        const cached = await readCachedAuthSnapshot({ acceptEffects })
         if (cached) {
-          setOfflineReadState(true, cached.savedAt)
+          if (acceptEffects()) setOfflineReadState(true, cached.savedAt)
           return {
             kind: 'pass',
             authMode: cached.value.authMode,
@@ -212,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const requestId = ++authRequestSeq.current
     // .then (not await) so setStatus runs in a plain callback — the same shape as subscribing to
     // an external system, which is what this is (react-hooks/set-state-in-effect is happy with it).
-    return fetchAuthStatus().then((next) => {
+    return fetchAuthStatus(() => requestId === authRequestSeq.current).then((next) => {
       if (requestId !== authRequestSeq.current) return // superseded by a newer check — drop, don't clobber
       if (next === null || (next.kind === 'error' && onNull === 'keep-previous')) {
         if (onNull === 'fail-open') {

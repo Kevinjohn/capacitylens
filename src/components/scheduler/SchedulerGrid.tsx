@@ -222,6 +222,8 @@ export function SchedulerGrid() {
   const visibleWeeksLabel =
     ui.zoom === 1 ? m.scheduler_visible_weeks_label_one({ count: ui.zoom }) : m.scheduler_visible_weeks_label_other({ count: ui.zoom })
 
+  const blocksMode = useStore((s) => (s.data.accounts.find((a) => a.id === s.activeAccountId)?.schedulingMode ?? 'hourly') === 'blocks')
+
   const model = useMemo(
     () =>
       buildSchedulerModel(
@@ -236,8 +238,9 @@ export function SchedulerGrid() {
         disciplinesEnabled,
         placeholdersEnabled,
         externalEnabled,
+        blocksMode,
       ),
-    [data, geom, days, visStart, visEnd, overStart, overEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled],
+    [data, geom, days, visStart, visEnd, overStart, overEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled, blocksMode],
   )
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null
@@ -467,8 +470,11 @@ export function SchedulerGrid() {
   }, [])
   // When a drag ENDS, catch the window up to any scrolling done while it was frozen.
   useEffect(() => {
-    if (!dragging && scrollRef.current) setScrollTop(scrollRef.current.scrollTop)
-  }, [dragging])
+    if (!dragging && scrollRef.current) {
+      setScrollTop(scrollRef.current.scrollTop)
+      setLeftEdgeIdx(geom.indexAt(scrollRef.current.scrollLeft))
+    }
+  }, [dragging, geom])
 
   const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => (
     <div

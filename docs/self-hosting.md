@@ -30,6 +30,10 @@ CAPACITYLENS_SETUP_TOKEN=<second generated value>
 CAPACITYLENS_HTTPS=1
 ```
 
+If the browser and API are intentionally on different origins, set
+`CAPACITYLENS_CORS_ORIGIN` to the exact comma-separated browser origins. `*` is rejected because
+CapacityLens authenticates browser requests with cookies.
+
 Then:
 
 ```bash
@@ -58,6 +62,11 @@ environment after setup if your deployment process permits; it cannot create a s
 - Proxy overwrites forwarding headers and the API cannot be reached around it.
 
 The complete variable register and defaults are in `.env.example`.
+
+Numeric operational settings accept bounded whole numbers only: rate limiting is at most 1,000,000
+requests/minute, backup intervals at most 35,000 minutes, retained snapshots at most 10,000, and
+audit rotation at most 1,048,576 MiB. Invalid values fall back to their documented safe defaults
+(or disable rate limiting).
 
 ## Experimental SSO/social
 

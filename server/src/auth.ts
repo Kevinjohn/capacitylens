@@ -518,12 +518,36 @@ export function authFromEnv(
   }
   if (!allowOpenSignup) {
     db.exec(`CREATE TABLE IF NOT EXISTS capacitylens_bootstrap_claim (
-      id INTEGER PRIMARY KEY CHECK (id = 1), claimedAt TEXT NOT NULL
+      id INTEGER PRIMARY KEY CHECK (id = 1), claimedAt TEXT NOT NULL, claimToken TEXT NOT NULL
     )`)
+    const claimColumns = db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all() as Array<{ name: string }>
+    if (!claimColumns.some((column) => column.name === 'claimToken')) {
+      db.exec(`ALTER TABLE capacitylens_bootstrap_claim ADD COLUMN claimToken TEXT`)
+    }
     // A crash before user creation must not permanently strand first-run setup.
     db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE claimedAt < ?`).run(
       new Date(Date.now() - 5 * 60_000).toISOString(),
     )
+  }
+  const acquireBootstrapClaim = (): string => {
+    const claimToken = randomBytes(24).toString('base64url')
+    try {
+      db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt, claimToken) VALUES (1, ?, ?)`).run(
+        new Date().toISOString(),
+        claimToken,
+      )
+      return claimToken
+    } catch (error) {
+      const sqlite = error as { code?: unknown; errcode?: unknown; message?: unknown }
+      const collision = sqlite.errcode === 19 ||
+        (typeof sqlite.code === 'string' && sqlite.code.startsWith('SQLITE_CONSTRAINT')) ||
+        (typeof sqlite.message === 'string' && /constraint failed.*capacitylens_bootstrap_claim/i.test(sqlite.message))
+      if (!collision) throw error
+      throw APIError.from('CONFLICT', {
+        message: 'First-owner setup is already in progress.',
+        code: 'BOOTSTRAP_ALREADY_IN_PROGRESS',
+      })
+    }
   }
 
   // The password floor remains unconditional, including when the optional bootstrap-owner flag
@@ -574,13 +598,9 @@ export function authFromEnv(
             // Only the first identity needs the cross-request bootstrap claim. Later external
             // identities are independently authorised by their live pre-authorised invite.
             if (countUsers(db) === 0) {
-              try {
-                db.prepare(`INSERT INTO capacitylens_bootstrap_claim (id, claimedAt) VALUES (1, ?)`).run(
-                  new Date().toISOString(),
-                )
-              } catch {
+              if (!(context as { bootstrapClaimToken?: unknown }).bootstrapClaimToken) {
                 throw APIError.from('CONFLICT', {
-                  message: 'First-owner setup is already in progress.',
+                  message: 'First-owner setup did not hold its bootstrap claim.',
                   code: 'BOOTSTRAP_ALREADY_IN_PROGRESS',
                 })
               }
@@ -632,15 +652,23 @@ export function authFromEnv(
     // closes immediately after the first identity is created.
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path !== '/sign-up/email') return
         if (allowOpenSignup) return
+        if (externalIdentityPath(ctx.path)) {
+          if (countUsers(db) === 0) {
+            return { context: { bootstrapClaimToken: acquireBootstrapClaim() } }
+          }
+          return
+        }
+        if (ctx.path !== '/sign-up/email') return
         // A fresh password instance is never claimable merely because it is reachable. The
         // operator configures CAPACITYLENS_SETUP_TOKEN and the owner-setup form presents it in
         // this header. index.ts also refuses a fresh password boot when the secret is absent.
         if (
           countUsers(db) === 0 &&
           setupTokenMatches(setupToken, ctx.headers?.get('x-capacitylens-setup-token') ?? null)
-        ) return
+        ) {
+          return { context: { bootstrapClaimToken: acquireBootstrapClaim() } }
+        }
         // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.20), so the
         // client and tests see one unchanged error shape regardless of which gate closed the door.
         throw APIError.from('BAD_REQUEST', {
@@ -652,7 +680,10 @@ export function authFromEnv(
         // Open signup never creates the claim table. Closed signup releases its claim on both
         // success and failure so erasing the sole identity can reopen setup in the same process.
         if (!allowOpenSignup && (ctx.path === '/sign-up/email' || externalIdentityPath(ctx.path))) {
-          db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1`).run()
+          const claimToken = (ctx as { bootstrapClaimToken?: unknown }).bootstrapClaimToken
+          if (typeof claimToken === 'string') {
+            db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken)
+          }
         }
       }),
     },

@@ -1,7 +1,7 @@
-import { KNOWN_KEYS } from '@capacitylens/shared/data/migrate'
-import { migrate } from '@capacitylens/shared/data/migrate'
-import { SCOPED_KEYS, type AppData } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 import type { AuthMode, AuthUser } from '../auth/authContext'
+import { validateAuthUser } from '../auth/validateAuthUser'
+import { validateAccountSlice } from './validateAccountSlice'
 
 const OFFLINE_PREF_KEY = 'capacitylens/offlineRead'
 const DB_NAME = 'capacitylens-offline-v1'
@@ -116,9 +116,7 @@ const ROLES = new Set(['owner', 'admin', 'editor', 'viewer'])
 
 function validateAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
   if (!isRecord(value) || !['off', 'password', 'sso'].includes(String(value.authMode))) return null
-  if (!isRecord(value.user) || typeof value.user.id !== 'string' || value.user.id.length === 0) return null
-  if (value.user.name !== undefined && typeof value.user.name !== 'string') return null
-  if (value.user.email !== undefined && typeof value.user.email !== 'string') return null
+  if (!validateAuthUser(value.user)) return null
   if (typeof value.canCreateAccount !== 'boolean' || typeof value.multiAccount !== 'boolean') return null
   return value as unknown as OfflineAuthSnapshot
 }
@@ -135,18 +133,6 @@ function validateAccountSummaries(value: unknown): OfflineAccountSummary[] | nul
     ) return null
   }
   return value as OfflineAccountSummary[]
-}
-
-function validateAccountSlice(value: unknown, accountId: string): AppData | null {
-  if (!isRecord(value) || KNOWN_KEYS.some((key) => !Array.isArray(value[key]))) return null
-  for (const key of KNOWN_KEYS) {
-    if (!(value[key] as unknown[]).every(isRecord)) return null
-  }
-  if (!(value.accounts as Array<Record<string, unknown>>).every((row) => row.id === accountId)) return null
-  for (const key of SCOPED_KEYS) {
-    if (!(value[key] as Array<Record<string, unknown>>).every((row) => row.accountId === accountId)) return null
-  }
-  return migrate(value)
 }
 
 async function deleteKey(key: string): Promise<void> {
@@ -200,15 +186,25 @@ export async function setOfflineReadEnabled(enabled: boolean): Promise<void> {
     const registrations = await navigator.serviceWorker.getRegistrations()
     await Promise.all(
       registrations
-        .filter((registration) => registration.active?.scriptURL.endsWith('/offline-worker.js'))
+        .filter((registration) => [registration.active, registration.waiting, registration.installing]
+          .some((worker) => worker?.scriptURL.endsWith('/offline-worker.js')))
         .map((registration) => registration.unregister()),
     )
-    if (typeof caches !== 'undefined') await caches.delete('capacitylens-shell-v1')
+    if (typeof caches !== 'undefined') {
+      const names = await caches.keys()
+      await Promise.all(names.filter((name) => name.startsWith('capacitylens-shell-')).map((name) => caches.delete(name)))
+    }
   } catch (error) {
     // A failed enable must fail closed: without a working shell cache the preference would promise
     // offline access that cannot actually boot. A failed disable remains disabled even if browser
     // cleanup itself was blocked; the stale worker contains no tenant data and is never consulted.
-    if (enabled) localStorage.removeItem(OFFLINE_PREF_KEY)
+    if (enabled) {
+      try {
+        localStorage.removeItem(OFFLINE_PREF_KEY)
+      } catch (cleanupError) {
+        console.warn('offlineCache: failed to clean up after offline enablement failed', cleanupError)
+      }
+    }
     throw error
   }
 }
@@ -221,11 +217,13 @@ export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<
 }
 
 /** Restore the last verified identity for an offline boot. Never fabricates a session. */
-export async function readCachedAuthSnapshot(): Promise<CachedRecord<OfflineAuthSnapshot> | null> {
+export async function readCachedAuthSnapshot(opts: { acceptEffects?: () => boolean } = {}): Promise<CachedRecord<OfflineAuthSnapshot> | null> {
   if (!offlineReadEnabled()) return null
   const record = await getValidated(authKey(), validateAuthSnapshot)
-  if (record) scope = { origin: originKey(), userId: record.value.user.id }
-  else scope = null
+  if (opts.acceptEffects?.() ?? true) {
+    if (record) scope = { origin: originKey(), userId: record.value.user.id }
+    else scope = null
+  }
   return record
 }
 

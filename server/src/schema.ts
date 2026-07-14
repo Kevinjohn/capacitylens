@@ -83,7 +83,8 @@ export function migrateSchema(db: Db): void {
   // NOT NULL (before general, no-project activities), and `kind` is a required column added in v4
   // that SQLite can't ALTER-ADD as NOT NULL to a table with rows. Either condition → rebuild
   // to the current shape (nullable projectId, kind backfilled from projectId presence).
-  const needsActivitiesRebuild = isNotNull(db, 'activities', 'projectId') || !hasColumn(db, 'activities', 'kind')
+  const activitiesHadKind = hasColumn(db, 'activities', 'kind')
+  const needsActivitiesRebuild = isNotNull(db, 'activities', 'projectId') || !activitiesHadKind
   if (additions.length === 0 && !needsActivitiesRebuild) return // already current — nothing to do
 
   tx(db, () => {
@@ -92,7 +93,7 @@ export function migrateSchema(db: Db): void {
     for (const [table, name] of additions) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} TEXT`)
     // SQLite can't relax a NOT NULL in place, so rebuild activities when the old constraint
     // is still there. Skipped entirely on a current-shape DB.
-    if (needsActivitiesRebuild) rebuildActivitiesTable(db)
+    if (needsActivitiesRebuild) rebuildActivitiesTable(db, activitiesHadKind)
   })
 }
 
@@ -101,17 +102,18 @@ export function migrateSchema(db: Db): void {
  *  it to the current shape —
  *  nullable projectId AND a required `kind` column — while preserving rows + the foreign keys
  *  other tables hold against activities(id). The target DDL mirrors the `activities` block in SCHEMA_SQL.
- *  `kind` is BACKFILLED from the only signal an old row carried: a project-bound activity is
- *  'project', a project-less one 'repeatable' (matching the client-side v3→v4 migrate). A row
- *  reaching here never already has a `kind` column (the rebuild trigger requires it missing or
- *  the old projectId NOT NULL constraint), so recomputing can't clobber an explicit value.
+ *  `kind` is preserved when the source schema already has it. Only genuinely pre-kind schemas
+ *  derive it from projectId presence ('project' versus 'repeatable').
  *
  *  ASSUMPTION (true today, verified): `activities` has NO indexes, triggers, or extra constraints
  *  beyond the inline column ones. The drop+rename silently discards any such auxiliary object, so
  *  if one is ever added to `activities`, this rebuild must be updated to recreate it AFTER the rename —
  *  otherwise a migration would quietly lose it. (If that risk grows, gate with a PRAGMA index_list
  *  check that throws on anything unexpected.) */
-function rebuildActivitiesTable(db: Db): void {
+function rebuildActivitiesTable(db: Db, sourceHasKind: boolean): void {
+  const kindExpression = sourceHasKind
+    ? 'kind'
+    : `CASE WHEN projectId IS NOT NULL THEN 'project' ELSE 'repeatable' END`
   db.exec(`
     CREATE TABLE activities_new (
       id TEXT PRIMARY KEY,
@@ -124,7 +126,7 @@ function rebuildActivitiesTable(db: Db): void {
     );
     INSERT INTO activities_new (id, accountId, name, kind, projectId, phaseId, createdAt, updatedAt)
       SELECT id, accountId, name,
-        CASE WHEN projectId IS NOT NULL THEN 'project' ELSE 'repeatable' END,
+        ${kindExpression},
         projectId, phaseId, createdAt, updatedAt FROM activities;
     DROP TABLE activities;
     ALTER TABLE activities_new RENAME TO activities;

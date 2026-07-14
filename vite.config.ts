@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import { fileURLToPath } from 'node:url'
+import { parsePort } from './scripts/port.mjs'
+
+const devApiPort = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, 'CAPACITYLENS_DEV_API_PORT')
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -46,7 +49,7 @@ export default defineConfig({
       '/api': {
         // Keep this `CAPACITYLENS_DEV_API_PORT ?? 8787` default identical to scripts/dev-fullstack.mjs's
         // API_PORT so the launcher and this proxy stay in lockstep (the 8787 is the shared default).
-        target: `http://localhost:${process.env.CAPACITYLENS_DEV_API_PORT ?? 8787}`,
+        target: `http://localhost:${devApiPort}`,
         changeOrigin: true,
       },
     },

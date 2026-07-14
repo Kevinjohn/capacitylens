@@ -3,7 +3,7 @@ import { validateAllocationAssignment, validateDateRange } from '../lib/integrit
 import { sanitizeImportedRecord } from '../lib/sanitizeImport'
 import { buildInternalClient, internalClientFor, INTERNAL_CLIENT_COLOR, INTERNAL_CLIENT_NAME } from '../data/internalClient'
 import { belongsToAccount, notInAccount } from './tenancy'
-import { obfuscateResource } from './lifecycle'
+import { lifecycleStatus, obfuscateResource } from './lifecycle'
 import { isExternalResource, SCOPED_KEYS, scopedTables } from '../types/entities'
 import type {
   Allocation,
@@ -82,7 +82,10 @@ export function assertScopedRefs(
   // already proven in-account at its own write time.
   const unchanged = (field: string) => prev !== undefined && rec[field] === prev[field]
   const inAccount = (table: ScopedEntity[], id: unknown): boolean =>
-    typeof id === 'string' && table.some((e) => e.id === id && belongsToAccount(e, accountId))
+    typeof id === 'string' && table.some((e) =>
+      e.id === id && belongsToAccount(e, accountId) &&
+      lifecycleStatus(e as unknown as { archivedAt?: ISOTimestamp; deletedAt?: ISOTimestamp }) === 'active'
+    )
   const need = (field: string, table: ScopedEntity[], msg: string) => {
     if (present(field) && !unchanged(field) && !inAccount(table, rec[field])) throw new Error(msg)
   }
@@ -157,11 +160,25 @@ export function assertAllocationRefs(
   resourceId: ID,
   activityId: ID,
   hoursPerDay: number,
+  existing?: Pick<Allocation, 'resourceId' | 'activityId'>,
 ): void {
   const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
   const activity = data.activities.find((act) => act.id === activityId && belongsToAccount(act, accountId))
   if (!resource || !activity) {
     throw new Error('Allocation must reference an existing resource and activity in this company.')
+  }
+  if (existing?.resourceId !== resourceId && lifecycleStatus(resource) !== 'active') {
+    throw new Error('Allocation must reference an active resource in this company.')
+  }
+  const project = activity.projectId
+    ? data.projects.find((candidate) => candidate.id === activity.projectId && belongsToAccount(candidate, accountId))
+    : undefined
+  if (
+    existing?.activityId !== activityId &&
+    project &&
+    lifecycleStatus(project) !== 'active'
+  ) {
+    throw new Error('Allocation must reference an activity under an active project.')
   }
   const v = validateAllocationAssignment(resource, activity.projectId)
   // `errors[0]` is guaranteed present: every validator sets ok=false and pushes a message in the
@@ -229,10 +246,18 @@ export function assertDateRange(startDate?: ISODate, endDate?: ISODate): void {
  * omits externals from the picker AND rejects a crafted pick, so enforce the SAME rule here
  * so a direct store / API write can't persist an invisible orphan.
  */
-export function assertResourceExists(data: AppData, accountId: ID, resourceId: ID): void {
+export function assertResourceExists(
+  data: AppData,
+  accountId: ID,
+  resourceId: ID,
+  existing?: Pick<TimeOff, 'resourceId'>,
+): void {
   const resource = data.resources.find((r) => r.id === resourceId && belongsToAccount(r, accountId))
   if (!resource) {
     throw new Error('Time off must reference an existing resource in this company.')
+  }
+  if (existing?.resourceId !== resourceId && lifecycleStatus(resource) !== 'active') {
+    throw new Error('Time off must reference an active resource in this company.')
   }
   if (isExternalResource(resource)) {
     throw new Error('Time off can’t be recorded for an external / 3rd-party resource.')

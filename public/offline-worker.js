@@ -1,4 +1,4 @@
-const SHELL_CACHE = 'capacitylens-shell-v1'
+const SHELL_CACHE = 'capacitylens-shell-v2'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -11,7 +11,12 @@ self.addEventListener('install', (event) => {
       const assets = [...html.matchAll(/(?:src|href)="(\/[^"?#]+)"/g)]
         .map((match) => match[1])
         .filter((path) => !path.startsWith('/api/'))
+      const shellPaths = new Set(['/', ...assets])
       await cache.addAll([...new Set(assets)])
+      const cachedRequests = await cache.keys()
+      await Promise.all(cachedRequests
+        .filter((request) => !shellPaths.has(new URL(request.url).pathname))
+        .map((request) => cache.delete(request)))
       await self.skipWaiting()
     })(),
   )

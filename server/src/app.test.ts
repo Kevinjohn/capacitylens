@@ -36,9 +36,9 @@ function freshApp(allowReset = true, extra: Partial<AppOptions> = {}): { app: Fa
   return { app: buildApp(openDb(':memory:'), { allowReset, optimisticConcurrency: false, ...extra }) }
 }
 
-const account = (id: string) => ({ id, name: 'Studio', color: '#3b82f6', ...meta() })
-const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#3b82f6', ...meta() })
-const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#3b82f6', ...meta() })
+const account = (id: string) => ({ id, name: 'Studio', color: '#5c34d4', ...meta() })
+const client = (id: string, accountId: string) => ({ id, accountId, name: 'Acme', color: '#5c34d4', ...meta() })
+const project = (id: string, accountId: string, clientId: string) => ({ id, accountId, name: 'Web', clientId, color: '#5c34d4', ...meta() })
 const activity = (id: string, accountId: string, projectId: string, phaseId?: string) => ({ id, accountId, name: 'Activity', kind: 'project', projectId, phaseId, ...meta() })
 const person = (id: string, accountId: string) => ({
   id,
@@ -48,7 +48,7 @@ const person = (id: string, accountId: string) => ({
   employmentType: 'permanent',
   workingHoursPerDay: 8,
   workingDays: [1, 2, 3, 4, 5],
-  color: '#3b82f6',
+  color: '#5c34d4',
   ...meta(),
 })
 const placeholder = (id: string, accountId: string, projectId?: string) => ({ ...person(id, accountId), kind: 'placeholder', projectId })
@@ -138,14 +138,15 @@ describe('CRUD round-trip', () => {
     expect(withoutRevision(s.allocations[0])).toEqual(withoutRevision(allocation('al1', 'a1', 'r1', 't1')))
   })
 
-  it('PATCH updates fields; DELETE removes', async () => {
+  it('PATCH updates fields; DELETE removes a non-lifecycle row', async () => {
     const { app } = freshApp()
     await scaffold(app)
     const res = await patch(app, 'clients', 'c1', { ...client('c1', 'a1'), name: 'Renamed' })
     expect(res.statusCode).toBe(200)
     expect(res.json().name).toBe('Renamed')
-    expect((await del(app, 'clients', 'c1', 'a1')).statusCode).toBe(204)
-    expect((await state(app)).clients).toHaveLength(0)
+    await post(app, 'disciplines', { id: 'd1', accountId: 'a1', name: 'Design', color: '#5c34d4', sortOrder: 0, ...meta() })
+    expect((await del(app, 'disciplines', 'd1', 'a1')).statusCode).toBe(204)
+    expect((await state(app)).disciplines).toHaveLength(0)
   })
 
   it('PATCH on a missing id is 404; unknown entity is 404', async () => {
@@ -169,7 +170,7 @@ describe('CRUD round-trip', () => {
     expect(r.employmentType).toBe('permanent')
     expect(r.workingHoursPerDay).toBe(8)
     expect(r.workingDays).toEqual([1, 2, 3, 4, 5])
-    expect(r.color).toBe('#3b82f6')
+    expect(r.color).toBe('#5c34d4')
   })
 
   it('refuses to re-home an existing row to another account (accountId is immutable)', async () => {
@@ -183,16 +184,17 @@ describe('CRUD round-trip', () => {
     expect((await state(app)).clients[0].accountId).toBe('a1')
   })
 
-  it('scopes a delete to its owning account: a cross-account delete is refused (404), the row stays', async () => {
+  it('scopes a non-lifecycle delete to its owning account', async () => {
     const { app } = freshApp()
     await scaffold(app) // c1 belongs to a1
     await post(app, 'accounts', account('a2'))
-    // Asserting the WRONG account (a2) refuses with 404 and leaves c1 in place…
-    expect((await call(app, { method: 'DELETE', url: '/api/clients/c1?accountId=a2' })).statusCode).toBe(404)
-    expect((await state(app)).clients).toHaveLength(1)
+    await post(app, 'disciplines', { id: 'd1', accountId: 'a1', name: 'Design', color: '#5c34d4', sortOrder: 0, ...meta() })
+    // Asserting the WRONG account refuses with 404 and leaves the row in place…
+    expect((await call(app, { method: 'DELETE', url: '/api/disciplines/d1?accountId=a2' })).statusCode).toBe(404)
+    expect((await state(app)).disciplines).toHaveLength(1)
     // …the correct owner deletes it.
-    expect((await call(app, { method: 'DELETE', url: '/api/clients/c1?accountId=a1' })).statusCode).toBe(204)
-    expect((await state(app)).clients).toHaveLength(0)
+    expect((await call(app, { method: 'DELETE', url: '/api/disciplines/d1?accountId=a1' })).statusCode).toBe(204)
+    expect((await state(app)).disciplines).toHaveLength(0)
   })
 
   it('refuses a scoped delete that omits accountId (the by-id bypass is closed → 400)', async () => {
@@ -224,10 +226,10 @@ describe('CRUD round-trip', () => {
     expect((await call(app, { method: 'GET', url: '/api/meta' })).json()).toEqual({ hasData: true })
   })
 
-  it('DELETE is idempotent (missing id still 204 when the owner is asserted)', async () => {
+  it('DELETE is idempotent for non-lifecycle tables (missing id still 204 when the owner is asserted)', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
-    expect((await del(app, 'clients', 'ghost', 'a1')).statusCode).toBe(204)
+    expect((await del(app, 'phases', 'ghost', 'a1')).statusCode).toBe(204)
   })
 
   it('PUT upserts idempotently: first call creates, second overwrites (no conflict)', async () => {
@@ -259,18 +261,18 @@ describe('CRUD round-trip', () => {
   })
 })
 
-describe('cascade deletes (DB foreign keys mirror the store cascades)', () => {
-  it('deleting a client cascades to projects, activities and allocations but not resources', async () => {
+describe('generic lifecycle deletion guard', () => {
+  it('rejects deleting a client and leaves its full subtree intact', async () => {
     const { app } = freshApp()
     await scaffold(app)
     await post(app, 'allocations', allocation('al1', 'a1', 'r1', 't1'))
-    await del(app, 'clients', 'c1', 'a1')
+    expect((await del(app, 'clients', 'c1', 'a1')).statusCode).toBe(400)
     const s = await state(app)
-    expect(s.clients).toHaveLength(0)
-    expect(s.projects).toHaveLength(0)
-    expect(s.activities).toHaveLength(0)
-    expect(s.allocations).toHaveLength(0)
-    expect(s.resources).toHaveLength(1) // resource survives
+    expect(s.clients).toHaveLength(1)
+    expect(s.projects).toHaveLength(1)
+    expect(s.activities).toHaveLength(1)
+    expect(s.allocations).toHaveLength(1)
+    expect(s.resources).toHaveLength(1)
   })
 
   it('deleting a discipline ungroups resources (SET NULL, not delete)', async () => {
@@ -287,26 +289,24 @@ describe('cascade deletes (DB foreign keys mirror the store cascades)', () => {
 })
 
 describe('batch sync (/api/batch — transactional, ordered)', () => {
-  it('reparent + delete of the OLD parent in one batch preserves the moved subtree', async () => {
+  it('rejects a lifecycle DELETE before executing any batch operation', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
     await post(app, 'clients', client('c1', 'a1'))
     await post(app, 'clients', client('c2', 'a1'))
     await post(app, 'projects', project('p1', 'a1', 'c1')) // p1 under c1
     await post(app, 'activities', activity('t1', 'a1', 'p1'))
-    // One batch: move p1 to c2 (upsert), then delete c1. Upserts-before-deletes inside a
-    // single tx means p1's new clientId lands BEFORE c1's ON DELETE CASCADE runs — so p1
-    // and its descendant t1 survive (the bug this fix closes would cascade-delete them).
+    // The forbidden lifecycle DELETE rejects the whole request before the preceding reparent runs.
     const res = await batch(app, [
       { method: 'PUT', table: 'projects', id: 'p1', row: { ...project('p1', 'a1', 'c2'), updatedAt: '2026-02-01T00:00:00.000Z' } },
       { method: 'DELETE', table: 'clients', id: 'c1', accountId: 'a1' },
     ])
-    expect(res.statusCode).toBe(200)
+    expect(res.statusCode).toBe(400)
     const s = await state(app)
-    expect(s.clients.map((c: { id: string }) => c.id)).toEqual(['c2'])
+    expect(s.clients.map((c: { id: string }) => c.id)).toEqual(['c1', 'c2'])
     expect(s.projects).toHaveLength(1)
-    expect(s.projects[0].clientId).toBe('c2') // reparented, not cascade-deleted
-    expect(s.activities).toHaveLength(1) // descendant preserved
+    expect(s.projects[0].clientId).toBe('c1')
+    expect(s.activities).toHaveLength(1)
   })
 
   it('rolls the WHOLE batch back if any op fails (atomic)', async () => {
@@ -463,7 +463,7 @@ describe('validation (shared domain-core) rejects bad writes with 400', () => {
 })
 
 describe('built-in Internal client is a per-account singleton on direct writes', () => {
-  it('reparents Internal projects before replacing the generated client id', async () => {
+  it('rejects replacing the generated Internal client id', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
     await post(app, 'projects', project('p-internal', 'a1', 'internal:a1'))
@@ -472,39 +472,40 @@ describe('built-in Internal client is a per-account singleton on direct writes',
     await post(app, 'allocations', allocation('al1', 'a1', 'r1', 't-internal'))
 
     const replacement = await post(app, 'clients', { ...client('legacy-internal', 'a1'), builtin: true })
-    expect(replacement.statusCode).toBe(201)
-    const snapshot = await state(app)
-    expect(snapshot.projects.find((p: { id: string }) => p.id === 'p-internal')?.clientId).toBe('legacy-internal')
+    expect(replacement.statusCode).toBe(400)
+    const snapshot = (await call(app, { method: 'GET', url: '/api/state?accountId=a1' })).json()
+    expect(snapshot.projects.find((p: { id: string }) => p.id === 'p-internal')?.clientId).toBe('internal:a1')
     expect(snapshot.activities.some((a: { id: string }) => a.id === 't-internal')).toBe(true)
     expect(snapshot.allocations.some((a: { id: string }) => a.id === 'al1')).toBe(true)
   })
 
-  it('rejects a SECOND builtin client for an account (internalClientFor is first-match)', async () => {
+  it('rejects every generic attempt to create a builtin client', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
-    expect((await post(app, 'clients', { ...client('c-int', 'a1'), builtin: true })).statusCode).toBe(201)
+    expect((await post(app, 'clients', { ...client('c-int', 'a1'), builtin: true })).statusCode).toBe(400)
     const dup = await post(app, 'clients', { ...client('c-int2', 'a1'), builtin: true })
     expect(dup.statusCode).toBe(400)
     expect(dup.json().error).toMatch(/built-in|Internal/i)
   })
 
-  it('allows updating the SAME builtin client (matching id)', async () => {
+  it('rejects generic updates to the generated builtin client', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))
-    await post(app, 'clients', { ...client('c-int', 'a1'), builtin: true })
-    const res = await put(app, 'clients', 'c-int', { ...client('c-int', 'a1'), builtin: true })
-    expect(res.statusCode).toBe(200)
+    const res = await put(app, 'clients', 'internal:a1', { ...client('internal:a1', 'a1'), name: 'Renamed', builtin: true })
+    expect(res.statusCode).toBe(400)
   })
 
-  it('allows a builtin in EACH account independently', async () => {
+  it('creates one protected builtin in each account', async () => {
     // multiAccount: true — this test deliberately creates a SECOND company on one instance, which
     // the default single-company cap would otherwise 403 (see app.singleCompanyCap.test.ts for the
     // cap's own coverage); this test is about per-account builtin scoping, not the cap.
     const { app } = freshApp(true, { multiAccount: true })
     await post(app, 'accounts', account('a1'))
     await post(app, 'accounts', account('a2'))
-    expect((await post(app, 'clients', { ...client('c-int-1', 'a1'), builtin: true })).statusCode).toBe(201)
-    expect((await post(app, 'clients', { ...client('c-int-2', 'a2'), builtin: true })).statusCode).toBe(201)
+    expect((await post(app, 'clients', { ...client('c-int-1', 'a1'), builtin: true })).statusCode).toBe(400)
+    expect((await post(app, 'clients', { ...client('c-int-2', 'a2'), builtin: true })).statusCode).toBe(400)
+    const snapshot = (await call(app, { method: 'GET', url: '/api/state' })).json()
+    expect(snapshot.clients.filter((c: { builtin?: boolean }) => c.builtin)).toHaveLength(2)
   })
 })
 
@@ -625,7 +626,7 @@ describe('value-level sanitization on direct writes (server is the integrity bou
   it('stores a validated account colour without surrounding whitespace', async () => {
     const { app } = freshApp()
     expect((await post(app, 'accounts', { ...account('a1'), color: '  #aAbBcC  ' })).statusCode).toBe(201)
-    expect((await state(app)).accounts[0].color).toBe('#aAbBcC')
+    expect((await state(app)).accounts[0].color).toBe('#5c34d4')
   })
 
   it('repairs junk enums / colour / hours / workingDays on POST instead of persisting them', async () => {
@@ -649,7 +650,7 @@ describe('value-level sanitization on direct writes (server is the integrity bou
     expect(r.employmentType).toBe('permanent')
     expect(r.workingHoursPerDay).toBe(8)
     expect(r.workingDays).toEqual([1, 2, 3, 4, 5])
-    expect(r.color).toBe('#6366f1')
+    expect(r.color).toBe('#5c34d4')
   })
 
   it('repairs a bad allocation status / hours on PUT', async () => {
@@ -833,10 +834,8 @@ describe('CORS allow-list', () => {
     expect(evil.headers['access-control-allow-origin']).toBeUndefined()
   })
 
-  it("echoes '*' only when corsOrigin is explicitly '*'", async () => {
-    const app = buildApp(openDb(':memory:'), { corsOrigin: '*' })
-    const res = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
-    expect(res.headers['access-control-allow-origin']).toBe('*')
+  it("rejects '*' because credentialed CORS requires explicit origins", () => {
+    expect(() => buildApp(openDb(':memory:'), { corsOrigin: '*' })).toThrow(/explicit/i)
   })
 
   it('reflects an allowed origin and omits the header for a disallowed one', async () => {
@@ -847,16 +846,14 @@ describe('CORS allow-list', () => {
     expect(bad.headers['access-control-allow-origin']).toBeUndefined()
   })
 
-  it('pairs Allow-Credentials with a reflected origin, never with the wildcard (P3.4)', async () => {
+  it('pairs Allow-Credentials with every reflected explicit origin (P3.4)', async () => {
     // The client sends credentials: 'include' on every request; a credentialed
-    // cross-origin response without this header is refused by the browser. With '*'
-    // the header must be absent — credentialed wildcards are invalid by spec.
+    // cross-origin response without this header is refused by the browser.
     const { app } = freshApp()
     const reflected = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://localhost:5173' } })
     expect(reflected.headers['access-control-allow-credentials']).toBe('true')
-    const wildcard = buildApp(openDb(':memory:'), { corsOrigin: '*' })
-    const starred = await call(wildcard, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
-    expect(starred.headers['access-control-allow-credentials']).toBeUndefined()
+    const disallowed = await call(app, { method: 'GET', url: '/api/health', headers: { origin: 'http://evil.test' } })
+    expect(disallowed.headers['access-control-allow-credentials']).toBeUndefined()
   })
 
   it('answers a write preflight with 204 + CORS headers (no OPTIONS route exists)', async () => {
@@ -969,9 +966,7 @@ describe('optimistic concurrency (default-on)', () => {
     expect((await state(app)).clients[0].name).toBe('Fresh')
   })
 
-  it('batch: same skip conditions as the direct PUT — a row with NO updatedAt is never a 409', async () => {
-    // A body without updatedAt skips the concurrency compare on BOTH paths (non-string ⇒ never a
-    // conflict); the server supplies its own persistence revision on both paths.
+  it('requires a valid updatedAt precondition on every existing-row update', async () => {
     const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
     await post(app, 'accounts', account('a1'))
     await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
@@ -981,9 +976,9 @@ describe('optimistic concurrency (default-on)', () => {
       { method: 'PUT', table: 'clients', id: 'c1', row: { ...noStamp, name: 'NoStamp' } },
     ])
     const viaPut = await put(app, 'clients', 'c1', { ...noStamp, name: 'NoStamp' })
-    expect(viaBatch.statusCode).toBe(viaPut.statusCode) // identical semantics…
-    expect(viaBatch.statusCode).toBe(200) // …and specifically NOT a 409 conflict
-    expect((await state(app)).clients[0].name).toBe('NoStamp')
+    expect(viaBatch.statusCode).toBe(viaPut.statusCode)
+    expect(viaBatch.statusCode).toBe(409)
+    expect((await state(app)).clients[0].name).toBe('Acme')
   })
 
   it('batch: explicit opt-out restores last-writer-wins semantics', async () => {
@@ -1024,7 +1019,7 @@ describe('batch op-count cap (MAX_BATCH_OPS)', () => {
       { method: 'PUT', table: 'clients', id: 'c1', row: client('c1', 'a1') },
       ...Array.from({ length: MAX_BATCH_OPS - 1 }, (_, i) => ({
         method: 'DELETE',
-        table: 'clients',
+        table: 'phases',
         id: `ghost-${i}`,
         accountId: 'a1',
       })),

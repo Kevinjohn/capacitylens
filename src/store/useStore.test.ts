@@ -149,6 +149,28 @@ describe('store scheduler UI', () => {
     expect(useStore.getState().ui.originDate).toBe(addDaysISO('2026-09-06', -PAST_BUFFER_DAYS))
   })
 
+  it('preserves the visible week when refreshing the currently loaded account', () => {
+    s().goToDate('2026-09-09')
+    const before = { originDate: s().ui.originDate, focusDate: s().ui.focusDate }
+
+    s().replaceAll(makeAppData({ accounts: [makeAccount()] }))
+
+    expect({ originDate: s().ui.originDate, focusDate: s().ui.focusDate }).toEqual(before)
+  })
+
+  it('re-anchors after the first slice for a selected account replaces the temporary fallback', () => {
+    const accountId = 'late-account'
+    s().setAccountSummaries([{ id: accountId, name: 'Late account', role: 'owner' }])
+    s().setActiveAccount(accountId) // absent locally: temporarily anchored with GMT/Monday
+    s().goToDate('2026-09-09')
+
+    s().replaceAll(makeAppData({ accounts: [makeAccount({ id: accountId, weekStartsOn: 0 })] }))
+
+    expect(weekdayOf(s().ui.focusDate)).toBe(0)
+    expect(s().ui.focusDate).not.toBe('2026-09-06') // today's week, not the previously panned week
+    expect(s().ui.originDate).toBe(addDaysISO(s().ui.focusDate, -PAST_BUFFER_DAYS))
+  })
+
   it('setSnapToWeekStart persists to its own key, is OFF the undo stack, and is NOT in export', () => {
     // Device-global pref (default ON). Turning it off writes the 'off' literal and updates the
     // reactive store value.

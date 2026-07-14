@@ -248,13 +248,8 @@ export function ImportExport() {
         }
         const skippedNote = skipped > 0 ? (skipped === 1 ? m.data_skipped_note_one({ count: skipped }) : m.data_skipped_note_other({ count: skipped })) : ''
         setNotice(imported === 1 ? m.data_imported_server_one({ count: imported, skipped: skippedNote }) : m.data_imported_server_other({ count: imported, skipped: skippedNote }))
-      } catch (e) {
-        const name = typeof e === 'object' && e !== null && 'name' in e
-          ? String((e as { name?: unknown }).name)
-          : ''
-        if (name !== 'TimeoutError' && name !== 'AbortError') throw e
-
-        // An abort says only that the browser stopped waiting; the synchronous server import may
+      } catch {
+        // Any post-dispatch transport rejection says only that the browser stopped waiting; the atomic import may
         // already have committed. Treat the outcome as unknown, never resume against the stale
         // pre-import snapshot, and reconcile from the authoritative slice first.
         committed = true
@@ -263,12 +258,12 @@ export function ImportExport() {
           safeToResume = false // leave persistence suspended until a reload performs a clean boot read
           keepBlockedUntilReload = true
           setNotice(
-            'The import timed out and its result could not be verified. Reload this page before making changes.',
+            'The import result could not be verified. Reload this page before making changes.',
             'error',
           )
         } else {
           setNotice(
-            'The import timed out, so the latest server data was reloaded. Check the imported records before continuing.',
+            'The import outcome was unknown, so the latest server data was reloaded. Check the imported records before continuing.',
             'warning',
           )
         }

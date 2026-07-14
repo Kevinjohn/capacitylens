@@ -120,7 +120,7 @@ describe('AuthProvider — server mode', () => {
 
   it('a 401 replaces the app with the login screen (password form)', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
-    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password' })))
+    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', providers: [] })))
     const { AuthProvider } = await freshProvider()
     render(
       <AuthProvider>
@@ -137,7 +137,7 @@ describe('AuthProvider — server mode', () => {
     window.history.pushState({}, '', '/invite/invite-token')
     try {
       vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
-      vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password' })))
+      vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', providers: [] })))
       const { AuthProvider } = await freshProvider()
       render(
         <AuthProvider>
@@ -153,7 +153,7 @@ describe('AuthProvider — server mode', () => {
 
   it('a 401 with needsSetup:true shows the first-run owner-setup form instead of sign-in', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
-    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', needsSetup: true })))
+    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', needsSetup: true, providers: [] })))
     const { AuthProvider } = await freshProvider()
     render(
       <AuthProvider>
@@ -169,7 +169,7 @@ describe('AuthProvider — server mode', () => {
     // A proxy page or an off-spec server must never conjure a create-account form on a populated
     // instance — only a literal `true` counts.
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
-    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', needsSetup: 'yes' })))
+    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', needsSetup: 'yes', providers: [] })))
     const { AuthProvider } = await freshProvider()
     render(
       <AuthProvider>
@@ -223,7 +223,7 @@ describe('AuthProvider — server mode', () => {
     const fetchSpy = vi
       .fn()
       .mockResolvedValueOnce(me(200, { authMode: 'password', user: { id: 'u1', email: 'a@b.test' } }))
-      .mockResolvedValue(me(401, { authMode: 'password' }))
+      .mockResolvedValue(me(401, { authMode: 'password', providers: [] }))
     vi.stubGlobal('fetch', fetchSpy)
     const { AuthProvider, useStore } = await freshProvider()
     render(
@@ -276,7 +276,7 @@ describe('AuthProvider — server mode', () => {
       .fn()
       .mockResolvedValueOnce(me(200, { authMode: 'password', user: { id: 'u1', email: 'a@b.test' } }))
       .mockImplementationOnce(() => slow.promise) // the refreshAuth click — held open by the test
-      .mockResolvedValue(me(401, { authMode: 'password' })) // the persistError re-check
+      .mockResolvedValue(me(401, { authMode: 'password', providers: [] })) // the persistError re-check
     vi.stubGlobal('fetch', fetchSpy)
     const { AuthProvider, useStore, useAuth } = await freshProvider()
     render(

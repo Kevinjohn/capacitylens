@@ -34,7 +34,7 @@ function atCapDb(): Db {
 
 describe('single-company cap — POST /api/accounts (generic create)', () => {
   it('at-cap (an account already exists), default opts: a NEW account -> 403 policy message', async () => {
-    const app = buildApp(atCapDb())
+    const app = buildApp(atCapDb(), { optimisticConcurrency: false })
     const res = await call(app, { method: 'POST', url: '/api/accounts', payload: account('brandNew') })
     expect(res.statusCode).toBe(403)
     expect(res.json()).toEqual({ error: CAP_MESSAGE })
@@ -76,7 +76,7 @@ describe('single-company cap — PUT /api/accounts/:id (create-via-upsert)', () 
 
 describe('single-company cap — PATCH /api/accounts/:id (never a create — sanity)', () => {
   it('at-cap: PATCH of the EXISTING account still succeeds, unaffected by the cap', async () => {
-    const app = buildApp(atCapDb())
+    const app = buildApp(atCapDb(), { optimisticConcurrency: false })
     const res = await call(app, { method: 'PATCH', url: '/api/accounts/a1', payload: { name: 'Patched' } })
     expect(res.statusCode).toBe(200)
   })

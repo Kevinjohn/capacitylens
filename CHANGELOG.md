@@ -10,6 +10,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.17.2] — 2026-07-14
+
+### Fixed
+
+- Protected lifecycle entities and the built-in Internal client from generic deletion or mutation,
+  required optimistic-concurrency preconditions, and hardened batch validation, account recreation,
+  migrations, request logging, CORS and bounded server configuration.
+- Made Blocks mode consume zero effective capacity throughout the scheduler, filtered off-screen
+  records before layout, aligned cross-resource drag previews with their target working week, and
+  refreshed horizontal utilisation after dragging.
+- Reconciled account, import, invite, password-reset, lifecycle and membership mutations after any
+  transport failure so a committed-but-lost response cannot invite an unsafe retry.
+
 ## [0.17.1] — 2026-07-14
 
 ### Fixed

@@ -11,7 +11,7 @@ const TS2 = '2026-06-01T12:00:00.000Z'
 export const FIXTURE_ACCOUNT: Account = {
   id: 'fix-a1',
   name: 'Fixture Studio',
-  color: '#1a2b3c',
+  color: '#5c34d4',
   schedulingMode: 'days',
   timezone: 'Europe/London',
   weekStartsOn: 0,
@@ -29,11 +29,9 @@ export const FIXTURE_CLIENT: Client = {
   id: 'fix-c1',
   accountId: 'fix-a1',
   name: 'Fixture Client',
-  color: '#aabbcc',
-  // Built-in flag set so the round-trip test proves the new optional column persists (true/false →
-  // JSON column, omitted when absent). The built-in Internal client owns real projects, so a project
-  // (FIXTURE_PROJECT) pointing at it is valid.
-  builtin: true,
+  color: '#da2d92',
+  // A generic fixture must remain a regular client: the built-in Internal client can only be
+  // created and repaired by the account lifecycle path.
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
@@ -46,7 +44,7 @@ export const FIXTURE_DISCIPLINE: Discipline = {
   id: 'fix-d1',
   accountId: 'fix-a1',
   name: 'Fixture Discipline',
-  color: '#ddeeff',
+  color: '#9c3ace',
   sortOrder: 7,
   createdAt: TS1,
   updatedAt: TS2,
@@ -57,7 +55,7 @@ export const FIXTURE_PROJECT: Project = {
   accountId: 'fix-a1',
   name: 'Fixture Project',
   clientId: 'fix-c1',
-  color: '#112233',
+  color: '#2d75da',
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,
@@ -86,7 +84,7 @@ export const FIXTURE_RESOURCE: Resource = {
   workingHoursPerDay: 6,
   workingDays: [1, 2, 3],
   projectId: 'fix-p1',
-  color: '#445566',
+  color: '#3ace6b',
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,

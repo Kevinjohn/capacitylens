@@ -54,5 +54,11 @@ export function cleanText(value: string, opts: { multiline?: boolean; maxLength?
   out = multiline ? out.replace(/[^\S\n]+/g, ' ').replace(/\n{3,}/g, '\n\n') : out.replace(/\s+/g, ' ')
   out = out.trim()
   const max = opts.maxLength ?? (multiline ? MAX_NOTE_LENGTH : MAX_NAME_LENGTH)
-  return out.length > max ? out.slice(0, max).trim() : out
+  if (out.length <= max) return out
+  let truncated = ''
+  for (const ch of out) {
+    if (truncated.length + ch.length > max) break
+    truncated += ch
+  }
+  return truncated.trim()
 }

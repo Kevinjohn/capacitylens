@@ -146,6 +146,43 @@ export function ensureControlTables(db: Db): void {
       db.exec(`DROP TABLE invites; ALTER TABLE invites_new RENAME TO invites;`)
     })
   }
+  const idColumn = (db.prepare(`PRAGMA table_info(invites)`).all() as Array<{
+    name: string
+    notnull: number
+  }>).find((column) => column.name === 'id')
+  if (!legacyPlaintextInvites && idColumn?.notnull !== 1) {
+    tx(db, () => {
+      const rows = db.prepare(`SELECT tokenHash, id FROM invites`).all() as Array<{
+        tokenHash: string
+        id: string | null
+      }>
+      const ids = new Set<string>()
+      const updateId = db.prepare(`UPDATE invites SET id = ? WHERE tokenHash = ?`)
+      for (const row of rows) {
+        let id = row.id
+        while (!id || ids.has(id)) id = newInviteId()
+        ids.add(id)
+        updateId.run(id, row.tokenHash)
+      }
+      db.exec(`
+        DROP TABLE IF EXISTS invites_new;
+        CREATE TABLE invites_new (
+          tokenHash TEXT NOT NULL PRIMARY KEY,
+          id TEXT NOT NULL UNIQUE,
+          accountId TEXT NOT NULL,
+          role TEXT NOT NULL,
+          preauthEmail TEXT,
+          expiresAt TEXT NOT NULL,
+          usedAt TEXT,
+          createdAt TEXT NOT NULL
+        );
+        INSERT INTO invites_new (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
+          SELECT tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt FROM invites;
+        DROP TABLE invites;
+        ALTER TABLE invites_new RENAME TO invites;
+      `)
+    })
+  }
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);`)
 }
 

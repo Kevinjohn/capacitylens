@@ -19,9 +19,9 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //                                   Otherwise auth-off in production refuses to boot — the
 //                                   demo dataset would be world-readable/writable (see
 //                                   productionGuard.ts).
-//   CAPACITYLENS_CORS_ORIGIN              CORS allow-list, comma-separated, or '*' to allow
-//                                   any origin. Defaults to the local dev origins so
-//                                   the API is NOT open to every site by default.
+//   CAPACITYLENS_CORS_ORIGIN              Explicit CORS allow-list, comma-separated. Wildcards
+//                                   are rejected because browser requests use cookie credentials.
+//                                   Defaults to the local development origins.
 //   CAPACITYLENS_OPTIMISTIC_CONCURRENCY   enabled by default; set '0' only to deliberately allow
 //                                   stale last-writer-wins overwrites.
 //   CAPACITYLENS_MULTI_ACCOUNT             '1' to allow more than one company on this instance.
@@ -47,8 +47,8 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //                                   surface the audit-sink state: { ok: true, db: true,
 //                                   audit: 'ok' | 'degraded' } (200) or 503 { ok: false }.
 //                                   Default off = unconditional { ok: true }.
-//   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across /api/* (positive
-//                                   integer; unset/0/non-numeric = off, fail-closed).
+//   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across /api/* (safe integer
+//                                   1–1,000,000; unset/invalid = off, fail-closed).
 //                                   /api/health is exempt.
 //   CAPACITYLENS_BOOTSTRAP_TOKEN          shared secret enabling constrained org-creation via
 //                                   POST /api/orgs (header x-capacitylens-bootstrap-token)
@@ -57,9 +57,9 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //                                   then first-run-only or an existing Owner/Admin).
 //   CAPACITYLENS_BACKUP_DIR               set to a directory to enable periodic online DB
 //                                   snapshots there (default off — no timer, no writes).
-//   CAPACITYLENS_BACKUP_INTERVAL_MIN      snapshot cadence in minutes (default 60; only read
-//                                   when backups are on).
-//   CAPACITYLENS_BACKUP_KEEP              rolling retention count (default 48; oldest pruned).
+//   CAPACITYLENS_BACKUP_INTERVAL_MIN      snapshot cadence in whole minutes (default 60,
+//                                   maximum 35,000; only read when backups are on).
+//   CAPACITYLENS_BACKUP_KEEP              rolling retention count (default 48, maximum 10,000).
 //   CAPACITYLENS_AUDIT                    append-only JSONL audit log of every AppData mutation
 //                                   (one line {ts,userId,accountId,action,entity,id,changedFields};
 //                                   changedFields are field NAMES only — never values, so no PII
@@ -68,8 +68,8 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //   CAPACITYLENS_AUDIT_FILE               the audit JSONL path (default: capacitylens-audit.jsonl
 //                                   beside the DB; a ':memory:' DB falls back to a CWD-relative file).
 //   CAPACITYLENS_AUDIT_MAX_MB             size-based rotation cap for the audit JSONL, in
-//                                   megabytes (positive integer; default 64; junk/non-positive
-//                                   falls back to the default). At/above the cap, the current
+//                                   megabytes (safe integer 1–1,048,576; default 64; invalid values
+//                                   fall back to the default). At/above the cap, the current
 //                                   file is renamed to <file>.1 (replacing any existing .1)
 //                                   before the next line is appended, bounding on-disk usage to
 //                                   ~2x the cap. Only read when audit is on.
@@ -124,12 +124,10 @@ function parsePort(raw: string | undefined): number {
 // Fail-SOFT numeric parse (mirrors parseBackupConfig's `positive`, not parsePort's refuseToStart):
 // this only bounds the audit log's on-disk size, not a security-relevant gate, so a missing/junk
 // value falls back to the documented 64 MiB default rather than refusing to boot.
-function parseAuditMaxMb(raw: string | undefined): number {
+export function parseAuditMaxMb(raw: string | undefined): number {
   const n = Number(raw)
-  // Floor a fractional value (e.g. 100.5 → 100) rather than rejecting it to the 64 MiB default: this
-  // is a fail-SOFT size bound, so honouring the operator's rounded intent beats silently shrinking
-  // the rotation size. Only a non-finite / <1 value falls back to the documented default.
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 64
+  const maxMb = 1024 * 1024
+  return Number.isSafeInteger(n) && n >= 1 && n <= maxMb ? n : 64
 }
 
 // Safety interlock before anything opens: the test-only reset route must be impossible
@@ -187,13 +185,12 @@ try {
 // Auth (P3.1/P3.2): parsed + initialised before the app exists; any misconfiguration
 // (bad CAPACITYLENS_AUTH value, missing secret/URL in password/sso mode) refuses to boot
 // loudly. In 'off' mode authFromEnv returns null without reading any BETTER_AUTH_* env.
-// Better Auth trusts the same browser origins the CORS allow-list names ('*' trusts
-// none extra — the same-origin deploy needs none).
+// Better Auth trusts the same explicit browser origins as the CORS allow-list.
 let authMode: ReturnType<typeof authFromEnv>['mode']
 let auth: ReturnType<typeof authFromEnv>['auth']
 try {
   ;({ mode: authMode, auth } = authFromEnv(db, process.env, {
-    trustedOrigins: corsOrigin === '*' ? undefined : corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
+    trustedOrigins: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
   }))
 } catch (err) {
   if (err instanceof AuthConfigError) {

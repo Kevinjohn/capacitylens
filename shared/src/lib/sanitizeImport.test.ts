@@ -15,7 +15,7 @@ describe('sanitizeImportedRecord', () => {
       employmentType: 'permanent',
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
-      color: '#6366f1',
+      color: '#5c34d4',
     })
   })
 
@@ -97,15 +97,13 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('timeOff', { type: 'vacation' }).type).toBe('other')
   })
 
-  it('trims a padded hex colour rather than storing it verbatim', () => {
-    // isHexColor trims before validating, so a padded value passes — but it must be
-    // STORED trimmed, else downstream colour math NaN-fails on the whitespace.
-    expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color).toBe('#aAbBcC')
+  it('repairs a padded non-preset hex colour to the canonical default', () => {
+    expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color).toBe('#5c34d4')
   })
 
   it('falls back a malformed / overlong colour to the safe default', () => {
-    expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe('#6366f1') // 8 digits
-    expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe('#6366f1') // 3 digits
+    expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe('#5c34d4') // 8 digits
+    expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe('#5c34d4') // 3 digits
   })
 
   it('normalizes sloppily-padded dates to canonical YYYY-MM-DD so the record is kept', () => {
@@ -164,7 +162,7 @@ describe('sanitizeImportedRecord', () => {
 
   it('repairs a discipline colour only when present (an absent colour stays absent)', () => {
     expect(sanitizeImportedRecord('disciplines', { name: 'D' }).color).toBeUndefined()
-    expect(sanitizeImportedRecord('disciplines', { name: 'D', color: 'notahex' }).color).toBe('#6366f1')
+    expect(sanitizeImportedRecord('disciplines', { name: 'D', color: 'notahex' }).color).toBe('#5c34d4')
   })
 
   it('drops a non-true builtin flag on an imported client, keeping only an explicit true', () => {

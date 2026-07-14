@@ -382,7 +382,10 @@ self-gates by trying to read the member list and rendering **nothing** if the se
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button — the token is write-once and never
-  shown again.
+  shown again. If any membership, invite or reset-token mutation loses its response after dispatch,
+  the section reloads memberships, invites and authentication before enabling a retry. A lost invite
+  or reset-token response is reported as an unknown one-time token; the operator must deliberately
+  revoke or replace it rather than accidentally minting duplicates.
 - **Outstanding invites** — a row per invite (`data-testid="invite-row"`) with role / preauth-email
   or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
   carries the secret token.
@@ -684,6 +687,11 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   out-of-range or fractional values are rejected rather than rounded or clamped. Resource working
   hours likewise must be finite, greater than 0 and no more than 24 hours/day.
   The previewed "…h/day" hint always equals what saves.
+- **Blocks mode has zero effective consumption.** Switching an existing company from Hours or Days
+  to Blocks leaves historical hour values stored so switching back restores the prior schedule, but
+  those values contribute zero to utilisation, capacity warnings, announcements, drag previews,
+  keyboard moves and duplication for as long as Blocks is active. New and duplicated blocks persist
+  zero hours. Switching back makes the preserved historical values effective again.
 - **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
   the 1/2/4/6/8-week range anchored at the left edge of the view — so **switching the range toggle

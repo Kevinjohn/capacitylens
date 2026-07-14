@@ -11,6 +11,7 @@ import {
   setOfflineReadState,
 } from './offlineCache'
 import { requestSignal, API_REQUEST_TIMEOUT_MS, API_BULK_TIMEOUT_MS } from './requestTimeout'
+import { validateAccountSlice } from './validateAccountSlice'
 
 // diffOps/applyOps now live in ./syncOps (the pure diff/apply core). Re-exported here
 // so existing import sites (e.g. ServerSyncAdapter.test.ts) keep resolving them from
@@ -246,13 +247,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       ) {
         throw new Error('The server returned an invalid state payload.')
       }
-      const data = migrate(json)
-      setOfflineReadState(false)
-      if (accountId !== undefined) {
-        void cacheAccountSlice(accountId, data).catch((error) =>
-          console.warn('ServerSyncAdapter: the offline account snapshot could not be updated', error),
-        )
-      }
+      const data = accountId === undefined ? migrate(json) : validateAccountSlice(json, accountId)
+      if (!data) throw new Error('The server returned a cross-tenant or incomplete state payload.')
       // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
       // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
       // account's slice, so the immediately-following saveAll diffs new-vs-new = ZERO ops, never
@@ -262,6 +258,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       if (myGen === this.loadGen) {
         this.lastSynced = data
         this.seedGen += 1 // announce the seed to drain() — see the seedGen doc
+        setOfflineReadState(false)
+        if (accountId !== undefined) {
+          void cacheAccountSlice(accountId, data).catch((error) =>
+            console.warn('ServerSyncAdapter: the offline account snapshot could not be updated', error),
+          )
+        }
       }
       return data
     } catch (e) {
@@ -271,14 +273,14 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         (e instanceof DOMException && e.name === 'AbortError')
       if (accountId === undefined && transportFailure) {
         try {
-          const cachedIdentity = await readCachedAuthSnapshot()
+          const cachedIdentity = await readCachedAuthSnapshot({ acceptEffects: () => myGen === this.loadGen })
           if (cachedIdentity) {
             const empty = emptyAppData()
             if (myGen === this.loadGen) {
               this.lastSynced = empty
               this.seedGen += 1
             }
-            setOfflineReadState(true, cachedIdentity.savedAt)
+            if (myGen === this.loadGen) setOfflineReadState(true, cachedIdentity.savedAt)
             return empty
           }
         } catch (cacheError) {
@@ -293,7 +295,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
               this.lastSynced = cached.value
               this.seedGen += 1
             }
-            setOfflineReadState(true, cached.savedAt)
+            if (myGen === this.loadGen) setOfflineReadState(true, cached.savedAt)
             return cached.value
           }
         } catch (cacheError) {
@@ -314,14 +316,34 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   async hasExisting(): Promise<boolean> {
     const res = await this.request(`${this.baseUrl}/api/meta`, { credentials: 'include' })
     if (!res.ok) throw new Error(`Failed to read meta (${res.status})`)
-    const json = (await res.json()) as { hasData?: boolean }
-    return json.hasData === true
+    const json: unknown = await res.json()
+    if (
+      !json || typeof json !== 'object' || Array.isArray(json) ||
+      typeof (json as { hasData?: unknown }).hasData !== 'boolean'
+    ) {
+      throw new Error('The server returned an invalid meta payload.')
+    }
+    return (json as { hasData: boolean }).hasData
   }
 
   async saveAll(next: AppData, opts?: { unload?: boolean }): Promise<void> {
     // Page-teardown flush: send the whole diff as ONE keepalive batch request so it
     // survives the unload (a plain fetch would be cancelled mid-flight). See applyBatch.
-    if (opts?.unload) return this.flushUnload(next)
+    if (opts?.unload) {
+      if (this.inFlight) {
+        // drain() has already dispatched its current target. Do not merely park this newer
+        // snapshot behind that ordinary request: page teardown can terminate the tab before the
+        // drain gets another turn. Clear any older parked target and synchronously dispatch the
+        // latest complete delta as a keepalive request. The complete lastSynced→next diff is
+        // intentional: it remains self-contained if the earlier request is lost in transit.
+        this.queued = null
+        const ordinaryFlush = this.inFlight
+        const teardownFlush = this.flushUnload(next)
+        await Promise.all([ordinaryFlush, teardownFlush])
+        return
+      }
+      return this.flushUnload(next)
+    }
     this.queued = next
     this.queuedSeedGen = this.seedGen // pair the parked save with the snapshot it was made against
     if (this.inFlight) return this.inFlight

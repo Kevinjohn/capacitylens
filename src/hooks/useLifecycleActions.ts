@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { persistenceAdapter } from '../data/storageAdapter'
-import { refreshActiveAccountSlice } from '../data/persist'
+import { refreshActiveAccountSlice, type RefreshOutcome } from '../data/persist'
 import { useStore, type LifecycleEntity } from '../store/useStore'
 import { errorMessage } from '../lib/errorMessage'
 import { readApiError } from '../lib/readApiError'
@@ -67,7 +67,7 @@ export interface LifecycleActions {
  * with no orchestrator there is no debounce/retry state to clobber, so it is safe there. The demo
  * build never calls this (its store actions already mutate `data`).
  */
-async function reloadFromServer(accountId: string): Promise<void> {
+async function reloadFromServer(accountId: string): Promise<Exclude<RefreshOutcome, 'unattached'>> {
   // STALE-TENANT GUARD: the lifecycle POST may resolve AFTER the user switched company, so re-read
   // the CURRENT active account and skip the reload when it no longer matches the account the
   // mutation ran in. The mutation already committed server-side (it shows on that account's next
@@ -75,13 +75,15 @@ async function reloadFromServer(accountId: string): Promise<void> {
   // stale reload must not fight it — the bare fallback below would install the OLD tenant's slice
   // under the NEW active id (cross-tenant display → cross-tenant writes). persist.ts's
   // refreshActive carries the same guard at its own altitude; this one also covers the fallback.
-  if (useStore.getState().activeAccountId !== accountId) return
+  if (useStore.getState().activeAccountId !== accountId) return 'skipped'
   // Anything but 'unattached' means the orchestrator OWNED the call — including 'skipped' (a
   // failed save's edits win; the committed change appears on the next successful refresh) and
   // 'failed' (surfaced via the persist banner). Only the no-orchestrator case may fall back.
-  if ((await refreshActiveAccountSlice(accountId)) !== 'unattached') return
+  const outcome = await refreshActiveAccountSlice(accountId)
+  if (outcome !== 'unattached') return outcome
   const slice = await persistenceAdapter.loadAll(accountId)
   useStore.getState().replaceAll(slice)
+  return 'reloaded'
 }
 
 /**
@@ -125,11 +127,24 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
         }
         // The dedicated routes write the DB out-of-band from the snapshot-diff sync, so a reload is
         // REQUIRED to refresh the active views + re-seed the adapter snapshot (see reloadFromServer).
-        await reloadFromServer(activeAccountId)
-        onReloaded?.()
+        if ((await reloadFromServer(activeAccountId)) === 'reloaded') onReloaded?.()
       } catch (e) {
-        // A transport error (server down / offline) — surface it; do not swallow.
-        setNotice(m.settings_err_server({ error: errorMessage(e) }), 'error')
+        try {
+          const outcome = await reloadFromServer(activeAccountId)
+          if (outcome !== 'reloaded') {
+            throw new Error(`Authoritative reload did not complete (${outcome}).`, { cause: e })
+          }
+          onReloaded?.()
+          setNotice(
+            `The lifecycle request had an unknown outcome, so the latest company data was reloaded. ${errorMessage(e)}`,
+            'warning',
+          )
+        } catch (reloadError) {
+          setNotice(
+            `The lifecycle request had an unknown outcome and could not be reconciled. Reload before retrying. ${errorMessage(reloadError)}`,
+            'error',
+          )
+        }
       }
     },
     [activeAccountId, setNotice, onReloaded],
