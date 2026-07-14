@@ -41,6 +41,8 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('disciplines', { sortOrder: 5, name: 'D' }).sortOrder).toBe(5)
     expect(sanitizeImportedRecord('disciplines', { sortOrder: 'x', name: 'D' }).sortOrder).toBe(0)
     expect(sanitizeImportedRecord('disciplines', { sortOrder: NaN, name: 'D' }).sortOrder).toBe(0)
+    expect(sanitizeImportedRecord('disciplines', { sortOrder: 1.5, name: 'D' }).sortOrder).toBe(0)
+    expect(sanitizeImportedRecord('disciplines', { sortOrder: Number.MAX_SAFE_INTEGER + 1, name: 'D' }).sortOrder).toBe(0)
   })
 
   it('keeps only 0–6 integer weekdays, dropping out-of-range and non-numbers', () => {
@@ -51,6 +53,38 @@ describe('sanitizeImportedRecord', () => {
     // an ARRAY that filters empty still falls back to Mon–Fri (not to [], which would model a
     // no-working-day resource).
     expect(sanitizeImportedRecord('resources', { workingDays: [9] }).workingDays).toEqual([1, 2, 3, 4, 5])
+    expect(sanitizeImportedRecord('resources', { workingDays: [1.5, 2] }).workingDays).toEqual([2])
+  })
+
+  it('drops non-string optional text and non-boolean weekend flags', () => {
+    expect(sanitizeImportedRecord('resources', { name: 42, role: 'R' }).name).toBeUndefined()
+    expect(sanitizeImportedRecord('allocations', { note: {}, ignoreWeekends: 'false' })).not.toHaveProperty('note')
+    expect(sanitizeImportedRecord('allocations', { ignoreWeekends: 'false' })).not.toHaveProperty('ignoreWeekends')
+    expect(sanitizeImportedRecord('allocations', { ignoreWeekends: false }).ignoreWeekends).toBe(false)
+  })
+
+  it('repairs fields that are incoherent with the resource kind', () => {
+    const person = sanitizeImportedRecord('resources', { kind: 'person', role: 'R', projectId: 'p1' })
+    expect(person.projectId).toBeUndefined()
+
+    const external = sanitizeImportedRecord('resources', {
+      kind: 'external',
+      role: 'Partner',
+      disciplineId: 'd1',
+      projectId: 'p1',
+      employmentType: 'contractor',
+      workingHoursPerDay: 12,
+      workingDays: [1],
+      color: '#abcdef',
+    })
+    expect(external).toMatchObject({
+      employmentType: 'permanent',
+      workingHoursPerDay: 8,
+      workingDays: [1, 2, 3, 4, 5],
+      color: '#9ca3af',
+    })
+    expect(external.disciplineId).toBeUndefined()
+    expect(external.projectId).toBeUndefined()
   })
 
   it('keeps valid values untouched', () => {

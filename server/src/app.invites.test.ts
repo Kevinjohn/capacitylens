@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, loadState, type Db } from './db'
@@ -232,6 +232,35 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
     expect(getInvite(db, 'expired-token-xyz')!.usedAt).toBeNull() // not consumed
   })
 
+  it.each([
+    ['exactly at expiry', '2026-07-14T12:00:00.000Z'],
+    ['a corrupt expiry', 'not-a-date'],
+  ])('treats %s as expired', async (label, expiresAt) => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const user = await signUp(app, `expiry-${label.replaceAll(' ', '-')}@capacitylens.dev`)
+    const token = `expiry-${label}`
+    createInvite(db, {
+      token,
+      id: token,
+      accountId: 'a1',
+      role: 'editor',
+      preauthEmail: null,
+      expiresAt,
+      usedAt: null,
+      createdAt: TS,
+    })
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime('2026-07-14T12:00:00.000Z')
+      const res = await acceptReq(app, token, { cookie: user.cookie })
+      expect(res.statusCode).toBe(410)
+      expect(resolveRole(db, { id: user.userId } as never, 'a1')).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('an unknown token is 404', async () => {
     const { app, db } = await appWithAuth()
     seedOne(db)
@@ -274,7 +303,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
     const publicSignup = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'new-person@capacitylens.dev', password: 'password-123', name: 'New Person' },
+      payload: { email: '  NEW-PERSON@capacitylens.dev  ', password: 'password-123', name: '  New 💩  Person  ' },
     })
     expect(publicSignup.statusCode).toBe(400)
 
@@ -300,6 +329,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
       headers: { cookie: cookiesOf(signedIn) },
     })
     expect(me.json().user.emailVerified).toBe(true)
+    expect(me.json().user.name).toBe('New Person')
     expect(resolveRole(db, { id: me.json().user.id } as never, 'a1')).toBe('editor')
     expect((await acceptReq(app, token, { cookie: cookiesOf(signedIn) })).statusCode).toBe(409)
   })
@@ -404,7 +434,7 @@ describe('POST /api/invites (P1.10 create) — preauthEmail', () => {
     const { cookie, userId } = await signUp(app, 'owner3@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
 
-    for (const bad of ['not-an-email', 'two@@at.io', '@nolocal.io', 'nodomain@']) {
+    for (const bad of ['not-an-email', 'two@@at.io', '@nolocal.io', 'nodomain@', `${'a'.repeat(250)}@x.io`]) {
       const res = await createInviteReq(
         app,
         { accountId: 'a1', role: 'editor', preauthEmail: bad },

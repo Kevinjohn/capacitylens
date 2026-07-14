@@ -1,7 +1,7 @@
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
-import { migrate } from '@capacitylens/shared/data/migrate'
+import { KNOWN_KEYS, migrate } from '@capacitylens/shared/data/migrate'
 import { diffOps, type Op } from './syncOps'
 import { announceAuditWarning } from '../lib/auditWarning'
 import {
@@ -86,6 +86,13 @@ export class BatchTooLargeError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'BatchTooLargeError'
+  }
+}
+
+export class KeepaliveNotDispatchedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'KeepaliveNotDispatchedError'
   }
 }
 
@@ -231,12 +238,12 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // below and mapped to LoadError('unavailable') → the connection-error screen; it does NOT reach
       // migrate(). So migrate() only ever sees a body that already parsed as JSON.
       const json: unknown = await res.json()
-      // Reject only a body that isn't a JSON object at all (null / array / primitive) — real garbage.
-      // A MISSING or off-shape table key is tolerated: migrate() coerces every known table to [] via
-      // normalize(), so a version-skewed server that omits a table the newer client expects still
-      // hydrates and keeps working, rather than hard-failing the whole load to the connection-error
-      // screen during a rolling deploy.
-      if (!json || typeof json !== 'object' || Array.isArray(json)) {
+      if (
+        !json ||
+        typeof json !== 'object' ||
+        Array.isArray(json) ||
+        KNOWN_KEYS.some((key) => !Array.isArray((json as Record<string, unknown>)[key]))
+      ) {
         throw new Error('The server returned an invalid state payload.')
       }
       const data = migrate(json)
@@ -326,8 +333,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     }
   }
 
-  // Best-effort final flush on page teardown: one keepalive batch request, errors
-  // swallowed (the page is going away — a surviving reload re-diffs against the server).
+  // Final flush on page teardown: one keepalive batch request. Errors propagate to the persistence
+  // orchestrator so a page that survives (for example via bfcache) can surface and retry them.
   // Deliberately does NOT advance lastSynced. One ordered, atomic request, so the
   // FK-order race the old per-op Promise.all had on a new-parent+child pair is gone.
   private async flushUnload(next: AppData): Promise<void> {
@@ -387,9 +394,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
     // byte-budget check and the request, so a large batch isn't JSON.stringified twice per save.
     const body = JSON.stringify({ ops: this.rebaseForWire(ops) })
     if (opts?.keepalive && new TextEncoder().encode(body).byteLength > KEEPALIVE_BODY_BUDGET) {
-      // Fetch keepalive has a small aggregate byte budget. Skip a predictably rejected teardown
-      // request; the user-facing save pipeline remains responsible for surfacing any unsaved state.
-      return null
+      throw new KeepaliveNotDispatchedError('The pending change was too large for a page-teardown keepalive request.')
     }
     return this.postBatch(body, ops.length, opts)
   }

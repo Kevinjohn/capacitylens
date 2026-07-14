@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
@@ -13,6 +13,7 @@ import {
   type Role,
 } from '@capacitylens/shared/domain/access'
 import { apiFetch } from '../../data/requestTimeout'
+import { MAX_EMAIL_LENGTH } from '@capacitylens/shared/lib/strings'
 
 // Member-management section (P1.11), shown in Settings ONLY on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
@@ -44,6 +45,52 @@ interface InviteSummary {
   expiresAt: string
   usedAt: string | null
   createdAt: string
+}
+
+const KNOWN_ROLES = new Set<Role>(['owner', 'admin', 'editor', 'viewer'])
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === 'object' && !Array.isArray(value)
+const isTimestamp = (value: unknown): value is string =>
+  typeof value === 'string' && Number.isFinite(Date.parse(value))
+
+function parseMembers(value: unknown): Member[] | null {
+  if (!isRecord(value) || !Array.isArray(value.members)) return null
+  for (const row of value.members) {
+    if (
+      !isRecord(row) ||
+      typeof row.userId !== 'string' || row.userId.length === 0 ||
+      !KNOWN_ROLES.has(row.role as Role) ||
+      row.status !== 'active' ||
+      !isTimestamp(row.createdAt) ||
+      !(row.name === null || typeof row.name === 'string') ||
+      !(row.email === null || typeof row.email === 'string') ||
+      typeof row.isSelf !== 'boolean' ||
+      typeof row.mayResetPassword !== 'boolean'
+    ) return null
+  }
+  return value.members as Member[]
+}
+
+function parseInvites(value: unknown): InviteSummary[] | null {
+  if (!isRecord(value) || !Array.isArray(value.invites)) return null
+  for (const row of value.invites) {
+    if (
+      !isRecord(row) ||
+      typeof row.id !== 'string' || row.id.length === 0 ||
+      !KNOWN_ROLES.has(row.role as Role) ||
+      !(row.preauthEmail === null || typeof row.preauthEmail === 'string') ||
+      !isTimestamp(row.expiresAt) ||
+      !(row.usedAt === null || isTimestamp(row.usedAt)) ||
+      !isTimestamp(row.createdAt)
+    ) return null
+  }
+  return value.invites as InviteSummary[]
+}
+
+function parseTokenResponse(value: unknown): { token: string; expiresAt?: string } | null {
+  if (!isRecord(value) || typeof value.token !== 'string' || value.token.length === 0) return null
+  if (value.expiresAt !== undefined && !isTimestamp(value.expiresAt)) return null
+  return { token: value.token, ...(typeof value.expiresAt === 'string' ? { expiresAt: value.expiresAt } : {}) }
 }
 
 // Each role's label is a GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS
@@ -151,43 +198,77 @@ export function MembersSection() {
   >(null)
   // Bumped after every mutation to re-run the fetch effect (a re-read keeps the list authoritative).
   const [reloadKey, setReloadKey] = useState(0)
+  const requestGeneration = useRef(0)
+  const actionLock = useRef<string | null>(null)
+  const [busyAction, setBusyAction] = useState<string | null>(null)
 
   const enabled = authMode !== 'off' && isServerConfigured()
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
+  const beginAction = (key: string): boolean => {
+    if (actionLock.current !== null) return false
+    actionLock.current = key
+    setBusyAction(key)
+    return true
+  }
+  const endAction = () => {
+    actionLock.current = null
+    setBusyAction(null)
+  }
 
   // Fetch (and re-fetch on reloadKey) the members + invites. The setState calls live inside the async
   // IIFE — behind an `await` — never synchronously in the effect body (the InviteAccept idiom), so
   // there's no cascading-render setState-in-effect. A 403 on the members read self-gates the section.
   useEffect(() => {
     if (!enabled || !activeAccountId) return
+    const generation = ++requestGeneration.current
+    let cancelled = false
+    const current = () => !cancelled && requestGeneration.current === generation
     void (async () => {
       try {
         const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members`, {
           credentials: 'include',
         })
         if (res.status === 403) {
+          if (!current()) return
           setGate('hidden') // a viewer/editor (or non-member) — hide the whole section.
           return
         }
         if (!res.ok) {
+          if (!current()) return
           setGate('shown')
           fail(null, m.settings_members_err_load({ status: res.status }))
           return
         }
-        const body = (await res.json()) as { members: Member[] }
-        setMembers(body.members)
+        const membersBody = parseMembers(await res.json())
+        if (!current()) return
+        if (!membersBody) throw new Error('The server returned an invalid members response.')
+        setMembers(membersBody)
         setGate('shown')
         // Invites are a separate, also-gated read; failure there is non-fatal to the member list.
         const invRes = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites`, {
           credentials: 'include',
         })
-        if (invRes.ok) setInvites(((await invRes.json()) as { invites: InviteSummary[] }).invites)
+        if (!invRes.ok) {
+          if (!current()) return
+          const message = (await readApiError(invRes)) ?? m.settings_members_err_load({ status: invRes.status })
+          if (!current()) return
+          fail(null, message)
+          return
+        }
+        const invitesBody = parseInvites(await invRes.json())
+        if (!current()) return
+        if (!invitesBody) throw new Error('The server returned an invalid invites response.')
+        setInvites(invitesBody)
       } catch (e) {
+        if (!current()) return
         // A transport error (server down/offline) — surface it; do not swallow.
         setGate('shown')
         fail(null, m.settings_err_server({ error: errorMessage(e) }))
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [enabled, activeAccountId, reloadKey, fail])
 
   if (!enabled) return null // OFF / demo build: the section does not exist.
@@ -200,6 +281,7 @@ export function MembersSection() {
   // `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
   const changeRole = async (mem: Member, nextRole: Role) => {
     if (nextRole === mem.role) return
+    if (!beginAction(`role:${mem.userId}`)) return
     try {
       const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'PATCH',
@@ -219,11 +301,14 @@ export function MembersSection() {
       reload()
     } catch (e) {
       fail(null, m.settings_err_server({ error: errorMessage(e) }))
+    } finally {
+      endAction()
     }
   }
 
   // NB: the param is `mem`, NOT `m` — see changeRole above (`m` is the i18n catalogue, not a Member).
   const removeMember = async (mem: Member) => {
+    if (!beginAction(`remove:${mem.userId}`)) return
     try {
       const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'DELETE',
@@ -237,6 +322,8 @@ export function MembersSection() {
       reload()
     } catch (e) {
       fail(null, m.settings_err_server({ error: errorMessage(e) }))
+    } finally {
+      endAction()
     }
   }
 
@@ -246,6 +333,7 @@ export function MembersSection() {
   // but it's immediate like removeMember above; the re-read reflects the new owner. `mem` is NOT `m`
   // (the i18n catalogue). The server (transferOwnership gate) is the real backstop; this is courtesy UI.
   const transferOwnership = async (mem: Member) => {
+    if (!beginAction(`transfer:${mem.userId}`)) return
     try {
       const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/transfer-ownership`, {
         method: 'POST',
@@ -269,6 +357,8 @@ export function MembersSection() {
       reload()
     } catch (e) {
       fail(null, m.settings_err_server({ error: errorMessage(e) }))
+    } finally {
+      endAction()
     }
   }
 
@@ -276,6 +366,7 @@ export function MembersSection() {
   // hidden otherwise; the server 400s regardless). No email is ever sent — the admin copies the
   // link out of the write-once block below and hands it over directly. `mem` is NOT `m` (i18n).
   const resetPassword = async (mem: Member) => {
+    if (!beginAction(`reset:${mem.userId}`)) return
     setResetLink(null)
     try {
       const res = await apiFetch(
@@ -286,7 +377,11 @@ export function MembersSection() {
         fail(null, (await readApiError(res)) ?? m.settings_members_err_reset({ status: res.status }))
         return
       }
-      const body = (await res.json()) as { token: string; expiresAt: string }
+      const body = parseTokenResponse(await res.json())
+      if (!body?.expiresAt) {
+        fail(null, m.settings_members_err_reset({ status: res.status }))
+        return
+      }
       // Write-once: build + show the link straight from this response and never again. `userId` is
       // carried so a later membership write on this member can clear the stale block (see the
       // changeRole / transferOwnership clears above).
@@ -299,12 +394,19 @@ export function MembersSection() {
       setNotice(m.settings_members_reset_created())
     } catch (e) {
       fail(null, m.settings_err_server({ error: errorMessage(e) }))
+    } finally {
+      endAction()
     }
   }
 
   const submitInvite = async () => {
     setMintedLink(null)
     const trimmed = invitePreauth.trim()
+    if (trimmed.length > MAX_EMAIL_LENGTH || (trimmed.length > 0 && !/^[^@\s]+@[^@\s]+$/.test(trimmed))) {
+      fail('invite', m.identity_err_email())
+      return
+    }
+    if (!beginAction('invite:create')) return
     try {
       const res = await apiFetch(`${API_BASE}/api/invites`, {
         method: 'POST',
@@ -320,7 +422,11 @@ export function MembersSection() {
         fail('invite', (await readApiError(res)) ?? m.settings_members_err_create_invite({ status: res.status }))
         return
       }
-      const body = (await res.json()) as { token: string }
+      const body = parseTokenResponse(await res.json())
+      if (!body) {
+        fail('invite', m.settings_members_err_create_invite({ status: res.status }))
+        return
+      }
       // The token is write-once: build + show the link straight from this response and never again.
       setMintedLink(`${window.location.origin}/invite/${body.token}`)
       setInvitePreauth('')
@@ -328,10 +434,13 @@ export function MembersSection() {
       reload()
     } catch (e) {
       fail('invite', m.settings_err_server({ error: errorMessage(e) }))
+    } finally {
+      endAction()
     }
   }
 
   const revokeInvite = async (id: string) => {
+    if (!beginAction(`invite:revoke:${id}`)) return
     try {
       const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites/${id}`, {
         method: 'DELETE',
@@ -345,6 +454,8 @@ export function MembersSection() {
       reload()
     } catch (e) {
       fail(null, m.settings_err_server({ error: errorMessage(e) }))
+    } finally {
+      endAction()
     }
   }
 
@@ -418,19 +529,19 @@ export function MembersSection() {
                       value={mem.role}
                       onChange={(v) => void changeRole(mem, v as Role)}
                       options={roleOptions(myRole)}
-                      disabled={roleSelectDisabled}
+                      disabled={roleSelectDisabled || busyAction !== null}
                     />
                   </span>
                 ) : (
                   <span className="text-sm capitalize text-muted">{mem.role}</span>
                 )}
                 {mayReset && (
-                  <Button variant="ghost" testId="member-reset-password" onClick={() => void resetPassword(mem)}>
+                  <Button variant="ghost" testId="member-reset-password" disabled={busyAction !== null} onClick={() => void resetPassword(mem)}>
                     {m.settings_member_reset_password()}
                   </Button>
                 )}
                 {mayRemove && (
-                  <Button variant="danger" testId="member-remove" onClick={() => void removeMember(mem)}>
+                  <Button variant="danger" testId="member-remove" disabled={busyAction !== null} onClick={() => void removeMember(mem)}>
                     {m.settings_member_remove()}
                   </Button>
                 )}
@@ -438,7 +549,7 @@ export function MembersSection() {
                     demote me), distinct from the change-role dropdown's promote-to-owner (which keeps
                     the caller an owner too). Hidden for everyone else; the server gate is the backstop. */}
                 {myRole === 'owner' && !mem.isSelf && mem.role !== 'owner' && (
-                  <Button variant="ghost" testId="member-make-owner" onClick={() => void transferOwnership(mem)}>
+                  <Button variant="ghost" testId="member-make-owner" disabled={busyAction !== null} onClick={() => void transferOwnership(mem)}>
                     {m.settings_member_make_owner()}
                   </Button>
                 )}
@@ -486,6 +597,7 @@ export function MembersSection() {
                 aria-label={m.settings_invite_role_aria()}
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as Role)}
+                disabled={busyAction !== null}
                 className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
               >
                 {roleOptions(myRole).map((o) => (
@@ -504,13 +616,15 @@ export function MembersSection() {
                 aria-label={m.settings_invite_preauth_aria()}
                 type="email"
                 value={invitePreauth}
+                maxLength={MAX_EMAIL_LENGTH}
                 onChange={(e) => setInvitePreauth(e.target.value)}
+                disabled={busyAction !== null}
                 placeholder={m.settings_invite_preauth_placeholder()}
                 className="w-full rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
               />
             </label>
           </div>
-          <Button testId="invite-submit" onClick={() => void submitInvite()}>
+          <Button testId="invite-submit" disabled={busyAction !== null} onClick={() => void submitInvite()}>
             {m.settings_invite_submit()}
           </Button>
         </div>
@@ -541,7 +655,7 @@ export function MembersSection() {
                   {inv.preauthEmail ? m.settings_invite_suffix_email({ email: inv.preauthEmail }) : m.settings_invite_suffix_link()}
                   {inv.usedAt ? m.settings_invite_suffix_used() : m.settings_invite_suffix_expires({ date: inv.expiresAt.slice(0, 10) })}
                 </span>
-                <Button variant="ghost" testId="invite-revoke" onClick={() => void revokeInvite(inv.id)}>
+                <Button variant="ghost" testId="invite-revoke" disabled={busyAction !== null} onClick={() => void revokeInvite(inv.id)}>
                   {m.settings_invite_revoke()}
                 </Button>
               </div>

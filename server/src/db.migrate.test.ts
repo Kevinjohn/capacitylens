@@ -61,6 +61,49 @@ function writeOldDb(path: string): void {
 }
 
 describe('schema migration of an existing on-disk DB', () => {
+  it('folds duplicate Internal clients before installing the singleton index', () => {
+    const path = join(tmpdir(), `capacitylens-internal-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+    cleanup()
+    try {
+      const legacy = openDb(path)
+      legacy.exec(`DROP INDEX clients_one_builtin_per_account`)
+      insertRow(legacy, 'accounts', {
+        id: 'a1', name: 'Studio', color: '#111111', createdAt: TS, updatedAt: TS,
+      })
+      insertRow(legacy, 'clients', {
+        id: 'internal:a1', accountId: 'a1', name: 'Internal', color: '#9c3ace', builtin: true,
+        createdAt: TS, updatedAt: TS,
+      })
+      insertRow(legacy, 'clients', {
+        id: 'legacy-internal', accountId: 'a1', name: 'Internal', color: '#9c3ace', builtin: true,
+        createdAt: '2025-01-01T00:00:00.000Z', updatedAt: TS,
+      })
+      insertRow(legacy, 'projects', {
+        id: 'p1', accountId: 'a1', clientId: 'legacy-internal', name: 'Legacy', color: '#111111',
+        createdAt: TS, updatedAt: TS,
+      })
+      legacy.close()
+
+      const repaired = openDb(path)
+      const state = loadState(repaired)
+      expect(state.clients.filter((client) => client.accountId === 'a1' && client.builtin)).toHaveLength(1)
+      expect(state.clients.find((client) => client.builtin)?.id).toBe('internal:a1')
+      expect(state.projects.find((project) => project.id === 'p1')?.clientId).toBe('internal:a1')
+      expect(() => insertRow(repaired, 'clients', {
+        id: 'another-internal', accountId: 'a1', name: 'Internal', color: '#9c3ace', builtin: true,
+        createdAt: TS, updatedAt: TS,
+      })).toThrow(/unique/i)
+      repaired.close()
+    } finally {
+      cleanup()
+    }
+  })
+
   it('upgrades an old-shape DB (NOT NULL projectId, missing new columns) to current', () => {
     const path = join(tmpdir(), `capacitylens-migrate-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {

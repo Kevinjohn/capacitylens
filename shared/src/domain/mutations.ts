@@ -272,6 +272,16 @@ export function remapAndValidateImport(
   incoming: AppData,
   now: ISOTimestamp,
 ): { data: AppData; imported: number; skipped: number } {
+  const incomingRows = Object.fromEntries(
+    SCOPED_KEYS.map((key) => {
+      const rows = Array.isArray(incoming[key]) ? (incoming[key] as unknown[]) : []
+      return [key, rows.filter((row): row is Record<string, unknown> => !!row && typeof row === 'object' && !Array.isArray(row))]
+    }),
+  ) as Record<ScopedEntityKey, Array<Record<string, unknown>>>
+  const malformedIncoming = SCOPED_KEYS.reduce(
+    (count, key) => count + ((Array.isArray(incoming[key]) ? incoming[key].length : 0) - incomingRows[key].length),
+    0,
+  )
   // FK remap tables, ONE PER ENTITY TYPE. A source id is only meaningful within its own
   // table, so a single GLOBAL map keyed on the bare id string would let a CROSS-TABLE id
   // collision (two records in different tables that corruptly share an id) misroute every
@@ -284,8 +294,8 @@ export function remapAndValidateImport(
     Map<ID, ID>
   >
   for (const key of SCOPED_KEYS) {
-    for (const e of incoming[key] as Array<{ id?: unknown }>) {
-      if (typeof e?.id === 'string' && !idMaps[key].has(e.id)) idMaps[key].set(e.id, newId())
+    for (const e of incomingRows[key]) {
+      if (typeof e.id === 'string' && !idMaps[key].has(e.id)) idMaps[key].set(e.id, newId())
     }
   }
   // Each foreign-key field points at exactly one table, so a ref is remapped via THAT
@@ -318,7 +328,7 @@ export function remapAndValidateImport(
   const brought: Record<string, Array<Record<string, unknown>>> = {}
   for (const key of SCOPED_KEYS) {
     const ownIds = idMaps[key]
-    brought[key] = (incoming[key] as unknown as Array<Record<string, unknown>>).map((e) => {
+    brought[key] = incomingRows[key].map((e) => {
       // `ownIds.get(e.id) as ID` is sound: the FIRST loop above seeded this table's map with a
       // fresh id for EVERY record bearing a string id, so any record reaching here with a string
       // id is guaranteed to have an entry. A missing/non-string id falls to a fresh newId().
@@ -486,8 +496,8 @@ export function remapAndValidateImport(
   // (records merely unbound from a dangling optional FK still land). Incoming builtins are excluded
   // from BOTH sides so the auto-added Internal never shows up as imported or skipped.
   const totalIncoming = SCOPED_KEYS.reduce(
-    (n, key) => n + countable(key, (incoming[key] as unknown as Array<Record<string, unknown>> | undefined) ?? []),
-    0,
+    (n, key) => n + countable(key, incomingRows[key]),
+    malformedIncoming,
   )
   return { data: result, imported, skipped: totalIncoming - imported }
 }

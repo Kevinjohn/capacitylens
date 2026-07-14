@@ -680,6 +680,9 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   **days mode**, a *Days of work* spread over too few *Days over* (e.g. 5 days of work in a 1-day span =
   40h/day) is **rejected** ("That's more than 24h a day. Increase Days over or reduce Days of work.")
   rather than saved as a quietly-clamped 24h; **hourly mode** likewise rejects a *Hours / day* above 24.
+  *Days over* itself must be a whole number from 1 through 36,500 in both Days and Blocks modes;
+  out-of-range or fractional values are rejected rather than rounded or clamped. Resource working
+  hours likewise must be finite, greater than 0 and no more than 24 hours/day.
   The previewed "…h/day" hint always equals what saves.
 - **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —

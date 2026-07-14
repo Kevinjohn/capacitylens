@@ -33,8 +33,8 @@ export const INTERNAL_CLIENT_NAME = 'Internal'
  *  palette, distinct from NEUTRAL_COLOR which is reserved for external resources). */
 export const INTERNAL_CLIENT_COLOR = '#9c3ace'
 
-/** Build a fresh Internal client for one account: a real Client with `builtin: true`, a brand-new
- *  id, the reserved name + colour, and the given timestamps. */
+/** Build the Internal client for one account: a real Client with `builtin: true`, its deterministic
+ *  account-derived id, the reserved name + colour, and the given timestamps. */
 export function buildInternalClient(accountId: ID, now: ISOTimestamp): Client {
   return {
     id: `internal:${accountId}`,
@@ -51,7 +51,9 @@ export function buildInternalClient(accountId: ID, now: ISOTimestamp): Client {
  *  `builtin` flag (id-independent so it survives import-remap). First match wins — the seed /
  *  addAccount / migrate paths guarantee at most one per account. */
 export function internalClientFor(clients: Client[], accountId: ID): Client | undefined {
-  return clients.find((c) => c.builtin === true && c.accountId === accountId)
+  return clients.find(
+    (c) => !!c && typeof c === 'object' && c.builtin === true && c.accountId === accountId,
+  )
 }
 
 /** True when this client is the protected built-in (cannot be renamed or deleted). */
@@ -72,31 +74,62 @@ export function wouldAddSecondBuiltin(clients: Client[], accountId: ID, id: ID):
 }
 
 /**
- * Ensure EVERY account in `data` has exactly one built-in Internal client. Idempotent: an account
- * that already has a `builtin` client is left untouched, so this is safe to run repeatedly and on
- * already-migrated data (it never creates a duplicate). Returns a NEW AppData when it added any
- * client, or the SAME reference when nothing changed (so a no-op migration round-trips deep-equal).
+ * Ensure EVERY account in `data` has exactly one built-in Internal client. When legacy/corrupt data
+ * contains duplicates, the generated id is preferred, otherwise the oldest/id-first row is retained;
+ * projects are rewired to it and the extras are removed. Returns the same reference when no repair
+ * is needed.
  *
- * OWNERSHIP CONTRACT — this is a BACKFILL, not a live-create trigger. A NEWLY created account gets
- * its Internal from the CLIENT, not from this function: the web store's `addAccount` mints the
- * account AND its Internal atomically (one per account holds the instant the tenant exists), and in
- * server mode the two reach the server as separate entity writes that establish the floor through
- * the normal sync path. The server deliberately does NOT auto-mint on a `POST /api/accounts` — that
- * would make the client's own Internal write a SECOND builtin and `wouldAddSecondBuiltin` would
- * reject it, breaking sync. So run this only at boot/load/import to fix up seeded, migrated, or
- * legacy data that predates the per-account Internal (the server mirrors it in db.ts's
- * `ensureInternalClients`, also boot-only; import folds the same step into remapAndValidateImport).
- * It is NOT a per-account-insert hook.
+ * The web store and server account-create routes also mint an Internal atomically. This helper is
+ * the load/import backstop for legacy or externally seeded data.
  *
  * @param now timestamp stamped on any newly-created Internal client.
  */
 export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData {
   const added: Client[] = []
-  for (const account of data.accounts) {
-    if (!internalClientFor(data.clients, account.id)) {
-      added.push(buildInternalClient(account.id, now))
-    }
+  const duplicateIds = new Map<ID, ID>()
+  const retained = new Set<ID>()
+  const builtinsByAccount = new Map<ID, Client[]>()
+  for (const client of data.clients) {
+    if (
+      !client ||
+      typeof client !== 'object' ||
+      typeof client.id !== 'string' ||
+      typeof client.accountId !== 'string' ||
+      client.builtin !== true
+    ) continue
+    const rows = builtinsByAccount.get(client.accountId)
+    if (rows) rows.push(client)
+    else builtinsByAccount.set(client.accountId, [client])
   }
-  if (added.length === 0) return data
-  return { ...data, clients: [...data.clients, ...added] }
+  for (const account of data.accounts) {
+    if (!account || typeof account !== 'object' || typeof account.id !== 'string') continue
+    const generatedId = `internal:${account.id}`
+    const builtins = builtinsByAccount.get(account.id)
+    if (!builtins || builtins.length === 0) {
+      added.push(buildInternalClient(account.id, now))
+      continue
+    }
+    builtins.sort((left, right) => {
+      if (left.id === generatedId) return -1
+      if (right.id === generatedId) return 1
+      const leftCreatedAt = typeof left.createdAt === 'string' ? left.createdAt : ''
+      const rightCreatedAt = typeof right.createdAt === 'string' ? right.createdAt : ''
+      return leftCreatedAt.localeCompare(rightCreatedAt) || left.id.localeCompare(right.id)
+    })
+    retained.add(builtins[0].id)
+    for (const duplicate of builtins.slice(1)) duplicateIds.set(duplicate.id, builtins[0].id)
+  }
+  if (added.length === 0 && duplicateIds.size === 0) return data
+  const clients = data.clients.filter((client) => {
+    if (!client || typeof client !== 'object' || client.builtin !== true) return true
+    return retained.has(client.id) || !duplicateIds.has(client.id)
+  })
+  const projects = duplicateIds.size === 0
+    ? data.projects
+    : data.projects.map((project) => {
+        if (!project || typeof project !== 'object') return project
+        const replacement = duplicateIds.get(project.clientId)
+        return replacement ? { ...project, clientId: replacement } : project
+      })
+  return { ...data, clients: [...clients, ...added], projects }
 }

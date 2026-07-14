@@ -499,6 +499,19 @@ describe('remapAndValidateImport', () => {
     expect(skipped).toBe(3) // 2 bad allocations + 1 dangling time-off
   })
 
+  it('skips null and primitive import rows instead of dereferencing them', () => {
+    const malformed = {
+      ...emptyAppData(),
+      clients: [null, 42, client('src-c', 'src-acct')],
+    } as unknown as AppData
+
+    const { data, imported, skipped } = remapAndValidateImport(base(), A1, malformed, TS)
+
+    expect(imported).toBe(1)
+    expect(skipped).toBe(2)
+    expect(data.clients.some((candidate) => !candidate.builtin && candidate.name === 'Acme')).toBe(true)
+  })
+
   it('coerces an external resource’s allocation load to 0 and drops external time-off', () => {
     // A hand-edited file: an external resource carries a non-zero allocation load (impossible via the
     // form) and a time-off entry (meaningless — externals have no capacity). Import keeps the booking

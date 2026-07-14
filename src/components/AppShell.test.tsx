@@ -4,6 +4,8 @@ import { MemoryRouter } from 'react-router-dom'
 import { AppShell } from './AppShell'
 import { useStore } from '../store/useStore'
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
+import { attachPersistence } from '../data/persist'
+import { emptyAppData } from '@capacitylens/shared/types/entities'
 
 vi.mock('../data/apiConfig', () => ({
   API_BASE: '',
@@ -34,6 +36,26 @@ function renderAppShell(initialEntries: string[] = ['/']) {
     </MemoryRouter>,
   )
 }
+
+it('guards navigation while a persistence write is still unacknowledged', () => {
+  const detachPersistence = attachPersistence(
+    useStore,
+    { loadAll: async () => emptyAppData(), saveAll: async () => {} },
+    300,
+  )
+  const { unmount } = renderAppShell()
+  act(() => {
+    useStore.getState().addClient({ name: 'Unsaved client', color: '#111111' })
+  })
+
+  const event = new Event('beforeunload', { cancelable: true }) as BeforeUnloadEvent
+  window.dispatchEvent(event)
+
+  expect(useStore.getState().dirtyForm).toBe(false)
+  expect(event.defaultPrevented).toBe(true)
+  unmount()
+  detachPersistence()
+})
 
 describe('AppShell navigation links', () => {
   it('renders all expected nav links', () => {

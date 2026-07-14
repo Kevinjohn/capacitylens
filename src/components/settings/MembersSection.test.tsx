@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MembersSection } from './MembersSection'
 import { AuthContext, type AuthContextValue } from '../../auth/authContext'
@@ -25,6 +25,7 @@ interface RawMember {
   name?: string | null
   email?: string | null
   isSelf?: boolean
+  mayResetPassword?: boolean
 }
 
 /** Build a fetch mock that answers the members read (and a benign empty invites read). 403 on the
@@ -46,6 +47,7 @@ function mockFetch(members: RawMember[] | { status: number }) {
             name: null,
             email: `${m.userId}@x.io`,
             isSelf: false,
+            mayResetPassword: false,
             ...m,
           })),
         }),
@@ -101,6 +103,18 @@ describe('MembersSection — self-gate', () => {
       </AuthContext.Provider>,
     )
     expect(container.firstChild).toBeNull()
+  })
+
+  it('surfaces a malformed member response instead of trusting it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ members: [{ userId: 'me', role: 'owner' }] }),
+    }) as unknown as Response))
+    renderSection()
+
+    expect(await screen.findByText(/invalid members response/i)).toBeInTheDocument()
+    expect(screen.queryByTestId('member-row')).not.toBeInTheDocument()
   })
 })
 
@@ -241,8 +255,8 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
           status: 200,
           json: async () => ({
             members: [
-              { userId: 'me', role: 'owner', status: 'active', createdAt: 'x', name: null, email: 'me@x.io', isSelf: true },
-              { userId: 'ed', role: 'editor', status: 'active', createdAt: 'x', name: null, email: 'ed@x.io', isSelf: false },
+              { userId: 'me', role: 'owner', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'me@x.io', isSelf: true, mayResetPassword: false },
+              { userId: 'ed', role: 'editor', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'ed@x.io', isSelf: false, mayResetPassword: false },
             ],
           }),
         } as unknown as Response
@@ -264,6 +278,34 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
     // The server's own message is preferred over the generic fallback (body.error ?? …).
     expect(await screen.findByText('Only the owner can transfer ownership.')).toBeInTheDocument()
   })
+
+  it('permits only one member mutation while an action is in flight', async () => {
+    let release: (() => void) | null = null
+    const reads = mockFetch([
+      { userId: 'me', role: 'owner', isSelf: true },
+      { userId: 'ed', role: 'editor' },
+    ])
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (init?.method === 'POST' || init?.method === 'DELETE' || init?.method === 'PATCH') {
+        return new Promise<Response>((resolve) => {
+          release = () => resolve({ ok: true, status: 204, json: async () => ({}) } as unknown as Response)
+        })
+      }
+      return reads(url, init)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    const editorRow = (await screen.findAllByTestId('member-row')).find((row) => within(row).queryByText(/ed@x\.io/))!
+
+    fireEvent.click(within(editorRow).getByTestId('member-make-owner'))
+    fireEvent.click(within(editorRow).getByTestId('member-remove'))
+
+    const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== 'GET')
+    expect(mutations).toHaveLength(1)
+    expect(String(mutations[0][0])).toContain('/transfer-ownership')
+    release!()
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBeGreaterThan(3))
+  })
 })
 
 describe('MembersSection — invite mint', () => {
@@ -276,7 +318,7 @@ describe('MembersSection — invite mint', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            members: [{ userId: 'me', role: 'owner', status: 'active', createdAt: 'x', name: null, email: 'me@x.io', isSelf: true }],
+            members: [{ userId: 'me', role: 'owner', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'me@x.io', isSelf: true, mayResetPassword: false }],
           }),
         } as unknown as Response
       }
@@ -295,6 +337,24 @@ describe('MembersSection — invite mint', () => {
     await user.click(screen.getByTestId('invite-submit'))
     const link = await screen.findByTestId('invite-link')
     expect(link).toHaveTextContent('/invite/TOK123')
+  })
+
+  it('refuses a malformed token response instead of constructing an undefined link', async () => {
+    const reads = mockFetch([{ userId: 'me', role: 'owner', isSelf: true }])
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith('/api/invites') && init?.method === 'POST') {
+        return { ok: true, status: 201, json: async () => ({ role: 'editor' }) } as unknown as Response
+      }
+      return reads(url, init)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    fireEvent.click(screen.getByTestId('invite-submit'))
+
+    await waitFor(() => expect(screen.queryByTestId('invite-link')).not.toBeInTheDocument())
+    expect(screen.getByRole('alert')).toHaveTextContent(/could not create invite/i)
   })
 })
 

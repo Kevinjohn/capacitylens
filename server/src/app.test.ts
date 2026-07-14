@@ -346,6 +346,17 @@ describe('batch sync (/api/batch — transactional, ordered)', () => {
     expect((await batch(app, [{ method: 'PUT', table: 'clients', id: 'c1', row: { id: 'OTHER' } }])).statusCode).toBe(400)
     expect((await call(app, { method: 'POST', url: '/api/batch', payload: body({ nope: true }) })).statusCode).toBe(400)
   })
+
+  it('rejects a null operation as a validation error instead of throwing a 500', async () => {
+    const { app } = freshApp()
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: body({ ops: [null] }),
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/object/i)
+  })
 })
 
 describe('validation (shared domain-core) rejects bad writes with 400', () => {
@@ -611,6 +622,12 @@ describe('guards', () => {
 })
 
 describe('value-level sanitization on direct writes (server is the integrity boundary)', () => {
+  it('stores a validated account colour without surrounding whitespace', async () => {
+    const { app } = freshApp()
+    expect((await post(app, 'accounts', { ...account('a1'), color: '  #aAbBcC  ' })).statusCode).toBe(201)
+    expect((await state(app)).accounts[0].color).toBe('#aAbBcC')
+  })
+
   it('repairs junk enums / colour / hours / workingDays on POST instead of persisting them', async () => {
     const { app } = freshApp()
     await post(app, 'accounts', account('a1'))

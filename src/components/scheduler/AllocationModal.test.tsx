@@ -223,7 +223,7 @@ describe('AllocationModal days mode', () => {
 
     expect(onClose).not.toHaveBeenCalled()
     expect(addAllocation).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent(/more than 24h a day/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(/days over must be a whole number from 1/i)
     expect(useStore.getState().data.allocations).toHaveLength(0)
     addAllocation.mockRestore()
   })
@@ -314,6 +314,21 @@ describe('AllocationModal blocks mode', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 0 })
+  })
+
+  it('rejects a fractional Days over value instead of rounding the saved span', async () => {
+    enableBlocks()
+    const resource = useStore.getState().addResource({ ...person('Tyler'), workingDays: [1, 2, 3, 4, 5] })
+    const user = userEvent.setup()
+    render(<AllocationModal create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={vi.fn()} />)
+
+    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
+    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '1.5' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/whole number from 1/i)
+    expect(useStore.getState().data.allocations).toHaveLength(0)
   })
 })
 

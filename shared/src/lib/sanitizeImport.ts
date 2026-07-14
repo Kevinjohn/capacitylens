@@ -1,6 +1,12 @@
-import { isHexColor } from './color'
+import { isHexColor, NEUTRAL_COLOR } from './color'
 import { cleanText } from './strings'
-import { clampHoursPerDay, clampWorkingHoursPerDay, type ScopedEntityKey, type Weekday } from '../types/entities'
+import {
+  clampHoursPerDay,
+  clampWorkingHoursPerDay,
+  externalCapacityDefaults,
+  type ScopedEntityKey,
+  type Weekday,
+} from '../types/entities'
 
 // Import is the one write path that bypasses the form validators (a hand-edited or
 // corrupt file never went through them). The store already drops allocations/time-off
@@ -39,7 +45,7 @@ const safeColor = (v: unknown, fallback = FALLBACK_COLOR): string =>
   typeof v === 'string' && isHexColor(v) ? v.trim() : fallback
 
 const safeInt = (v: unknown, fallback: number): number =>
-  typeof v === 'number' && Number.isFinite(v) ? v : fallback
+  typeof v === 'number' && Number.isSafeInteger(v) ? v : fallback
 
 // Repair a sloppily-formatted date to the canonical zero-padded "YYYY-MM-DD". The whole
 // app relies on dates being zero-padded so they sort chronologically as strings (see
@@ -60,7 +66,7 @@ const normalizeISODate = (v: unknown): unknown => {
 // 7-day worker. Collapse to the distinct sorted weekdays so length reflects real coverage.
 const safeWorkingDays = (v: unknown): Weekday[] => {
   if (!Array.isArray(v)) return [1, 2, 3, 4, 5]
-  const days = v.filter((d): d is Weekday => typeof d === 'number' && d >= 0 && d <= 6)
+  const days = v.filter((d): d is Weekday => Number.isInteger(d) && d >= 0 && d <= 6)
   const unique = [...new Set(days)].sort((a, b) => a - b)
   return unique.length ? unique : [1, 2, 3, 4, 5]
 }
@@ -68,7 +74,12 @@ const safeWorkingDays = (v: unknown): Weekday[] => {
 // Strip emoji / control / zero-width junk from a free-text field in place (the forms
 // reject it; import can't, so it repairs). No-op on a missing/non-string field.
 const cleanField = (rec: Record<string, unknown>, field: string, multiline = false): void => {
-  if (typeof rec[field] === 'string') rec[field] = cleanText(rec[field] as string, { multiline })
+  if (rec[field] === undefined) return
+  if (typeof rec[field] !== 'string') {
+    delete rec[field]
+    return
+  }
+  rec[field] = cleanText(rec[field] as string, { multiline })
 }
 
 // Like cleanField, but for a REQUIRED text column (the server schema marks these NOT NULL).
@@ -151,10 +162,18 @@ export function sanitizeImportedRecord(
   switch (key) {
     case 'resources':
       rec.kind = oneOf(rec.kind, VALID_KIND, 'person')
-      rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, 'permanent')
-      rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay)
-      rec.workingDays = safeWorkingDays(rec.workingDays)
-      rec.color = safeColor(rec.color)
+      if (rec.kind === 'external') {
+        Object.assign(rec, externalCapacityDefaults())
+        rec.color = NEUTRAL_COLOR
+        delete rec.disciplineId
+        delete rec.projectId
+      } else {
+        rec.employmentType = oneOf(rec.employmentType, VALID_EMPLOYMENT, 'permanent')
+        rec.workingHoursPerDay = clampHours(rec.workingHoursPerDay)
+        rec.workingDays = safeWorkingDays(rec.workingDays)
+        rec.color = safeColor(rec.color)
+        if (rec.kind !== 'placeholder') delete rec.projectId
+      }
       cleanField(rec, 'name') // resources.name is optional (nullable)
       cleanRequiredField(rec, 'role', 'Team member') // resources.role is NOT NULL
       normalizeLifecycleFields(rec)
@@ -162,6 +181,7 @@ export function sanitizeImportedRecord(
     case 'allocations':
       rec.status = oneOf(rec.status, VALID_STATUS, 'confirmed')
       rec.hoursPerDay = clampAllocHours(rec.hoursPerDay, 8)
+      if (typeof rec.ignoreWeekends !== 'boolean') delete rec.ignoreWeekends
       rec.startDate = normalizeISODate(rec.startDate)
       rec.endDate = normalizeISODate(rec.endDate)
       cleanField(rec, 'note', true)

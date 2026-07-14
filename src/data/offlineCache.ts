@@ -1,4 +1,6 @@
-import type { AppData } from '@capacitylens/shared/types/entities'
+import { KNOWN_KEYS } from '@capacitylens/shared/data/migrate'
+import { migrate } from '@capacitylens/shared/data/migrate'
+import { SCOPED_KEYS, type AppData } from '@capacitylens/shared/types/entities'
 import type { AuthMode, AuthUser } from '../auth/authContext'
 
 const OFFLINE_PREF_KEY = 'capacitylens/offlineRead'
@@ -73,18 +75,78 @@ async function put<T>(record: CachedRecord<T>): Promise<void> {
 async function get<T>(key: string): Promise<CachedRecord<T> | null> {
   const db = await openOfflineDb()
   try {
-    const record = await new Promise<CachedRecord<T> | undefined>((resolve, reject) => {
+    const record = await new Promise<unknown>((resolve, reject) => {
       const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key)
-      request.onsuccess = () => resolve(request.result as CachedRecord<T> | undefined)
+      request.onsuccess = () => resolve(request.result)
       request.onerror = () => reject(request.error ?? new Error('The offline cache could not be read.'))
     })
     if (!record) return null
-    if (Date.now() - record.savedAt <= MAX_AGE_MS) return record
+    if (!isRecord(record)) {
+      await deleteKey(key)
+      return null
+    }
+    const savedAt = record.savedAt
+    const age = typeof savedAt === 'number' ? Date.now() - savedAt : Number.NaN
+    if (record.key === key && Number.isFinite(savedAt) && age >= 0 && age <= MAX_AGE_MS && 'value' in record) {
+      return record as unknown as CachedRecord<T>
+    }
     await deleteKey(key)
     return null
   } finally {
     db.close()
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
+}
+
+async function getValidated<T>(key: string, validate: (value: unknown) => T | null): Promise<CachedRecord<T> | null> {
+  const record = await get<unknown>(key)
+  if (!record) return null
+  const value = validate(record.value)
+  if (value === null) {
+    await deleteKey(key)
+    return null
+  }
+  return { key: record.key, savedAt: record.savedAt, value }
+}
+
+const ROLES = new Set(['owner', 'admin', 'editor', 'viewer'])
+
+function validateAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
+  if (!isRecord(value) || !['off', 'password', 'sso'].includes(String(value.authMode))) return null
+  if (!isRecord(value.user) || typeof value.user.id !== 'string' || value.user.id.length === 0) return null
+  if (value.user.name !== undefined && typeof value.user.name !== 'string') return null
+  if (value.user.email !== undefined && typeof value.user.email !== 'string') return null
+  if (typeof value.canCreateAccount !== 'boolean' || typeof value.multiAccount !== 'boolean') return null
+  return value as unknown as OfflineAuthSnapshot
+}
+
+function validateAccountSummaries(value: unknown): OfflineAccountSummary[] | null {
+  if (!Array.isArray(value)) return null
+  for (const row of value) {
+    if (
+      !isRecord(row) ||
+      typeof row.id !== 'string' ||
+      row.id.length === 0 ||
+      typeof row.name !== 'string' ||
+      !ROLES.has(String(row.role))
+    ) return null
+  }
+  return value as OfflineAccountSummary[]
+}
+
+function validateAccountSlice(value: unknown, accountId: string): AppData | null {
+  if (!isRecord(value) || KNOWN_KEYS.some((key) => !Array.isArray(value[key]))) return null
+  for (const key of KNOWN_KEYS) {
+    if (!(value[key] as unknown[]).every(isRecord)) return null
+  }
+  if (!(value.accounts as Array<Record<string, unknown>>).every((row) => row.id === accountId)) return null
+  for (const key of SCOPED_KEYS) {
+    if (!(value[key] as Array<Record<string, unknown>>).every((row) => row.accountId === accountId)) return null
+  }
+  return migrate(value)
 }
 
 async function deleteKey(key: string): Promise<void> {
@@ -161,8 +223,9 @@ export async function cacheAuthSnapshot(snapshot: OfflineAuthSnapshot): Promise<
 /** Restore the last verified identity for an offline boot. Never fabricates a session. */
 export async function readCachedAuthSnapshot(): Promise<CachedRecord<OfflineAuthSnapshot> | null> {
   if (!offlineReadEnabled()) return null
-  const record = await get<OfflineAuthSnapshot>(authKey())
+  const record = await getValidated(authKey(), validateAuthSnapshot)
   if (record) scope = { origin: originKey(), userId: record.value.user.id }
+  else scope = null
   return record
 }
 
@@ -173,7 +236,7 @@ export async function cacheAccountSummaries(summaries: OfflineAccountSummary[]):
 
 export async function readCachedAccountSummaries(): Promise<CachedRecord<OfflineAccountSummary[]> | null> {
   if (!offlineReadEnabled() || !scope) return null
-  return get(scopedKey('accounts'))
+  return getValidated(scopedKey('accounts'), validateAccountSummaries)
 }
 
 export async function cacheAccountSlice(accountId: string, data: AppData): Promise<void> {
@@ -183,7 +246,7 @@ export async function cacheAccountSlice(accountId: string, data: AppData): Promi
 
 export async function readCachedAccountSlice(accountId: string): Promise<CachedRecord<AppData> | null> {
   if (!offlineReadEnabled() || !scope) return null
-  return get(scopedKey('slice', `:${accountId}`))
+  return getValidated(scopedKey('slice', `:${accountId}`), (value) => validateAccountSlice(value, accountId))
 }
 
 /** Publish whether the currently rendered slice came from the offline cache. */
@@ -220,8 +283,9 @@ export async function clearOfflineDataForCurrentUser(): Promise<void> {
         const cursor = request.result
         if (!cursor) return
         const key = String(cursor.key)
-        const scopedPrefix = currentScope ? `:${currentScope.origin}:${currentScope.userId}` : null
-        if (key === authKey() || (scopedPrefix && key.includes(scopedPrefix))) cursor.delete()
+        const accountsKey = currentScope ? `accounts:${currentScope.origin}:${currentScope.userId}` : null
+        const slicePrefix = currentScope ? `slice:${currentScope.origin}:${currentScope.userId}:` : null
+        if (key === authKey() || key === accountsKey || (slicePrefix && key.startsWith(slicePrefix))) cursor.delete()
         cursor.continue()
       }
       request.onerror = () => reject(request.error ?? new Error('The offline cache could not be cleared.'))

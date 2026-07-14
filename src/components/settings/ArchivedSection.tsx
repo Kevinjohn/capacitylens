@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { isServerConfigured } from '../../data/apiConfig'
 import {
   fetchInactiveSlice,
@@ -95,6 +95,7 @@ export function ArchivedSection() {
   // Bumped after every successful mutation to re-run the inactive fetch (server) — the MembersSection
   // reloadKey idiom. (The demo build re-renders off the store directly, so the bump is a harmless no-op.)
   const [reloadKey, setReloadKey] = useState(0)
+  const requestGeneration = useRef(0)
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
 
   // Confirm-dialog targets: a soft-delete (archived → tombstone) and a permanent purge each need
@@ -106,6 +107,9 @@ export function ArchivedSection() {
 
   useEffect(() => {
     if (!server || !activeAccountId) return
+    const generation = ++requestGeneration.current
+    let cancelled = false
+    const current = () => !cancelled && requestGeneration.current === generation
     void (async () => {
       try {
         // The shared, body-validating reader of the ?includeInactive=1 admin endpoint (also
@@ -113,9 +117,11 @@ export function ArchivedSection() {
         // before migrate(), so a proxy error page / wrong-version partial can no longer render
         // here as a silently EMPTY archived list; it lands in the catch below instead.
         const body = await fetchInactiveSlice(activeAccountId)
+        if (!current()) return
         setServerRows(collectInactive(body))
         setGate('shown')
       } catch (e) {
+        if (!current()) return
         if (e instanceof InactiveSliceHttpError && e.status === 403) {
           setGate('hidden') // a non-admin asked for the inactive slice — hide the whole section.
           return
@@ -133,6 +139,9 @@ export function ArchivedSection() {
         }
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [server, activeAccountId, reloadKey, setNotice])
 
   // The rows to render: server fetch in server mode, the store slice in the demo build.

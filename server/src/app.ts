@@ -14,6 +14,7 @@ import {
 } from './auth'
 import { betterAuthAdapter, type AuthAdapter } from './authAdapter'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import { cleanText } from '@capacitylens/shared/lib/strings'
 
 // The identity requireUser attaches to every gated request. Session/identity
 // plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
@@ -67,6 +68,7 @@ import {
   countOwners,
   createInvite,
   getInvite,
+  InviteAlreadyUsedError,
   getMemberRole,
   getUsersByIds,
   listInvitesForAccount,
@@ -106,11 +108,16 @@ import { type AuditRecord, type AuditSink, noopAuditSink } from './audit'
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024
 
+const inviteIsExpired = (expiresAt: string, now = Date.now()): boolean => {
+  const expiry = Date.parse(expiresAt)
+  return !Number.isFinite(expiry) || now >= expiry
+}
+
 // Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
-// path). BODY_LIMIT bounds request BYTES, but not request WORK: every PUT op re-runs loadState()
-// — a full scan of ALL tables — for validation, so op COUNT is the real cost driver, and a
-// small-bodied but op-dense batch could otherwise pin the single-writer SQLite file for the whole
-// tx. 5 000 is generous headroom over the largest realistic full-slice diff the client sync
+// path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
+// authorized, validated and applied to the in-memory projection, so op COUNT is still a real cost
+// driver; a small-bodied but op-dense batch could otherwise pin the single-writer SQLite file for
+// the whole tx. 5 000 is generous headroom over the largest realistic full-slice diff the client sync
 // adapter produces (a whole busy agency's slice is low-thousands of rows) while bounding a
 // crafted/looping flood. Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
 // Exported for the test that pins the boundary.
@@ -453,6 +460,10 @@ function replaceGeneratedBuiltin(
   generatedId: string,
   row: Record<string, unknown>,
 ): void {
+  const accountId = row.accountId
+  if (typeof accountId !== 'string') {
+    throw new Error('Internal-client replacement requires a string accountId.')
+  }
   const projected = {
     ...state,
     clients: state.clients.filter((client) => client.id !== generatedId),
@@ -462,9 +473,10 @@ function replaceGeneratedBuiltin(
   }
   validateWrite(projected, 'clients', row)
 
-  // Insert the new FK target first, move every dependent project, then remove the old target.
-  // The transaction makes the brief two-builtin state invisible and rolls all three phases back
-  // together on any failure.
+  // Temporarily unflag the old row before inserting the replacement so the partial unique index is
+  // never violated. The old FK target remains present until every dependent project has moved.
+  db.prepare(`UPDATE clients SET builtin = NULL WHERE id = ? AND accountId = ? AND builtin = 'true'`)
+    .run(generatedId, accountId)
   upsertRow(db, 'clients', row)
   for (const project of projected.projects.filter((project) => project.clientId === row.id)) {
     const existing = getRow(db, 'projects', project.id)
@@ -687,6 +699,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // correlated with the request); OFF keeps today's bare console.error.
   const sendFail = (reply: FastifyReply, err: unknown) =>
     fail(reply, err, logOn ? (e: unknown) => reply.log.error(e) : undefined)
+  const inviteFail = (reply: FastifyReply, err: unknown) =>
+    err instanceof InviteAlreadyUsedError
+      ? reply.code(409).send({ error: err.message })
+      : sendFail(reply, err)
 
   /**
    * Error classifier for the P2.5a lifecycle routes. The pure state machine (archive/unarchive/
@@ -1377,7 +1393,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (invite.usedAt !== null) {
           return reply.code(409).send({ error: 'This invite has already been used.' })
         }
-        if (Date.now() > Date.parse(invite.expiresAt)) {
+        if (inviteIsExpired(invite.expiresAt)) {
           return reply.code(410).send({ error: 'This invite has expired.' })
         }
         if (!getRow(db, 'accounts', invite.accountId)) {
@@ -1423,7 +1439,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         })
         return reply.code(200).send({ accountId: invite.accountId, role: effectiveRole })
       } catch (err) {
-        return sendFail(reply, err)
+        return inviteFail(reply, err)
       }
     })
 
@@ -1438,17 +1454,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (invite.usedAt !== null) {
         return reply.code(409).send({ error: 'This invite has already been used.' })
       }
-      if (Date.now() > Date.parse(invite.expiresAt)) {
+      if (inviteIsExpired(invite.expiresAt)) {
         return reply.code(410).send({ error: 'This invite has expired.' })
       }
       if (!getRow(db, 'accounts', invite.accountId)) {
         return reply.code(410).send({ error: 'The company for this invite no longer exists.' })
       }
       const body = (req.body ?? {}) as { email?: unknown; name?: unknown; password?: unknown }
-      if (typeof body.email !== 'string' || !looksLikeEmail(body.email)) {
+      const email = typeof body.email === 'string' ? normalizeEmail(body.email) : ''
+      if (!looksLikeEmail(email)) {
         return reply.code(400).send({ error: 'A valid email address is required.' })
       }
-      if (typeof body.name !== 'string' || body.name.trim().length === 0) {
+      const name = typeof body.name === 'string' ? cleanText(body.name) : ''
+      if (name.length === 0) {
         return reply.code(400).send({ error: 'Name is required.' })
       }
       if (
@@ -1460,7 +1478,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           error: `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.`,
         })
       }
-      const email = normalizeEmail(body.email)
       if (invite.preauthEmail !== null && email !== invite.preauthEmail) {
         return reply.code(403).send({ error: 'This invite is reserved for a different email address.' })
       }
@@ -1469,7 +1486,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // create an unverified identity but remain valid because their acceptance is not email-bound.
         const user = await auth.createCredentialUser(
           email,
-          body.name.trim(),
+          name,
           body.password,
           invite.preauthEmail !== null,
         )
@@ -1480,10 +1497,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // row and single-use stamp are atomic; if sign-in is interrupted, the user can sign in later.
           tx(db, () => {
             const live = getInvite(db, token)
+            if (live?.usedAt !== null && live?.usedAt !== undefined) throw new InviteAlreadyUsedError()
             if (
               !live ||
-              live.usedAt !== null ||
-              Date.now() > Date.parse(live.expiresAt) ||
+              inviteIsExpired(live.expiresAt) ||
               !getRow(db, 'accounts', live.accountId)
             ) {
               throw new Error('This invite can no longer be claimed.')
@@ -1515,7 +1532,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         })
         return reply.code(201).send({ ok: true, accountId: invite.accountId, role: invite.role })
       } catch (err) {
-        return sendFail(reply, err)
+        return inviteFail(reply, err)
       }
     })
 
@@ -2003,16 +2020,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     })
 
-    // A bare account write (entity === 'accounts') deliberately does NOT auto-mint that account's
-    // built-in Internal client. Runtime Internal creation is the CLIENT's job: the web store's
-    // addAccount mints the account AND its Internal atomically, and they reach here as TWO separate
-    // entity writes (a /api/batch whose ordered ops put the account before the client — see
-    // syncOps.UPSERT_ORDER). If the server minted one here too, that client-sent Internal would be a
-    // SECOND builtin and validateWrite would reject it (wouldAddSecondBuiltin), breaking sync. So the
-    // floor is established by the client's own write, not here; openDb's ensureInternalClients is a
-    // BOOT-TIME backfill for seeded/migrated/legacy data, NOT a per-insert trigger. A direct-API
-    // account POST that does not ALSO write an Internal is an unsupported/degraded path the web app
-    // never takes (that account has no Internal until the next server restart backfills it).
+    // Account creation mints its built-in Internal in the same transaction below. A later client
+    // write carrying its own deterministic Internal is handled as a generated-row replacement.
     app.post('/api/:entity', (req, reply) => {
       const { entity } = req.params as { entity: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
@@ -2334,17 +2343,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // re-binding upsert commits before the old parent's DELETE cascades, so the cascade
     // finds nothing to take — and guarantees a mid-batch failure rolls back, leaving the
     // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
-    // per-entity routes use; loadState() inside the tx reflects earlier ops, so a child
-    // validates against the parent a sibling op just upserted.
+    // per-entity routes use; one in-memory state projection is loaded inside the transaction and
+    // advanced after each op, so a child validates against a parent a sibling op just upserted.
     app.post('/api/batch', (req, reply) => {
       const body = req.body as { ops?: unknown }
       if (!body || !Array.isArray(body.ops)) {
         return reply.code(400).send({ error: 'ops array is required' })
       }
       const ops = body.ops as BatchOp[]
-      // MAX_BATCH_OPS (see its doc comment): op COUNT — not just body bytes — bounds request work,
-      // because each PUT op below re-runs loadState() (a full scan of all tables). Rejected here,
-      // BEFORE the pre-scan and the tx, so an over-cap batch does no per-op work and writes nothing.
+      // MAX_BATCH_OPS (see its doc comment): op COUNT — not just body bytes — bounds request work.
+      // Rejected before the pre-scan and transaction, so an over-cap batch does no per-op work.
       if (ops.length > MAX_BATCH_OPS) {
         return reply
           .code(400)
@@ -2481,6 +2489,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // scoped table, not just the one each op touches.
           let state = loadState(db)
           for (const op of ops) {
+            if (!op || typeof op !== 'object') {
+              throw new ValidationError('Each op must be an object.')
+            }
             const { method, table, id } = op
             if (typeof table !== 'string' || typeof id !== 'string') {
               throw new ValidationError('Each op needs a string table and id.')

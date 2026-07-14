@@ -6,6 +6,9 @@ import { authClient } from './authClient'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 import type { AuthProviderInfo } from './authContext'
+import { validateText } from '../lib/validation'
+import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 
 // The flag-gated login wall (production plan P3.3; US-NAV-10). Only ever rendered when
 // the server reports authMode 'password' or 'sso' AND there is no session — the default
@@ -74,15 +77,29 @@ export function LoginScreen({
 
   const createOwner = async (e: FormEvent) => {
     e.preventDefault()
+    const cleanName = validateText(name, (_field, message) => setError(message), {
+      field: 'name',
+      requiredMessage: m.identity_err_name(),
+    })
+    if (cleanName === null) return
+    const cleanEmail = email.trim().toLowerCase()
+    if (cleanEmail.length === 0 || cleanEmail.length > MAX_EMAIL_LENGTH || !/^[^@\s]+@[^@\s]+$/.test(cleanEmail)) {
+      setError(m.identity_err_email())
+      return
+    }
+    if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+      setError(m.identity_err_password({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH }))
+      return
+    }
     setBusy(true)
     setError(null)
     try {
       // Better Auth auto-signs-in on sign-up, so success proceeds exactly like a sign-in:
       // onSignedIn() reloads and the boot re-check finds the fresh session cookie.
       const { error: failure } = await authClient.signUp.email({
-        email,
+        email: cleanEmail,
         password,
-        name,
+        name: cleanName,
         fetchOptions: { headers: { 'x-capacitylens-setup-token': setupToken } },
       })
       if (failure) {
@@ -162,6 +179,7 @@ export function LoginScreen({
                   type="text"
                   autoComplete="name"
                   value={name}
+                  maxLength={MAX_NAME_LENGTH}
                   onChange={(e) => setName(e.target.value)}
                   // Same form-level error contract as sign-in: describe every field by the one
                   // error only while it's showing (WCAG 3.3.1).
@@ -178,6 +196,7 @@ export function LoginScreen({
                   type="email"
                   autoComplete="email"
                   value={email}
+                  maxLength={MAX_EMAIL_LENGTH}
                   onChange={(e) => setEmail(e.target.value)}
                   aria-describedby={error ? errorId : undefined}
                 />
@@ -191,6 +210,8 @@ export function LoginScreen({
                   type="password"
                   autoComplete="new-password"
                   value={password}
+                  minLength={MIN_PASSWORD_LENGTH}
+                  maxLength={MAX_PASSWORD_LENGTH}
                   onChange={(e) => setPassword(e.target.value)}
                   aria-describedby={error ? errorId : undefined}
                 />
@@ -226,6 +247,7 @@ export function LoginScreen({
                   type="email"
                   autoComplete="email"
                   value={email}
+                  maxLength={MAX_EMAIL_LENGTH}
                   onChange={(e) => setEmail(e.target.value)}
                   // Describe by the form-level error only while it's showing, so the reason is
                   // re-announced when focus returns to this field (WCAG 3.3.1).
@@ -241,6 +263,7 @@ export function LoginScreen({
                   type="password"
                   autoComplete="current-password"
                   value={password}
+                  maxLength={MAX_PASSWORD_LENGTH}
                   onChange={(e) => setPassword(e.target.value)}
                   aria-describedby={error ? errorId : undefined}
                 />

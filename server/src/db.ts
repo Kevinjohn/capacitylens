@@ -7,7 +7,7 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
 // keep resolving it from this module; the single definition lives in shared/types.
 export { isEmpty }
-import { TABLES, SCHEMA_SQL, CREATE_ORDER, SCOPED_ORDER } from './tables'
+import { TABLES, SCHEMA_SQL, CREATE_ORDER, SCOPED_ORDER, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from './tables'
 import { tx } from './txn'
 import { toRow, fromRow, type Row } from './rowCodec'
 import { migrateSchema, assertSchemaCurrent, renameLegacyActivityTables } from './schema'
@@ -83,19 +83,10 @@ export function openDb(path: string): Db {
   // before the marker existed), so /api/meta doesn't mistake it for a fresh DB and seed
   // a second copy on top of it.
   if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db)
-  // Built-in "Internal" client per account (schema v6): mirror the shared migrate (migrateV5toV6)
-  // so a server-loaded dataset written by an older server, or seeded externally, also gets exactly
-  // one builtin Internal client per account. Idempotent — only inserts where one is missing. Runs
-  // BEFORE foreign keys are enabled (the insert references accounts(id), already present).
-  //
-  // This is a BOOT-TIME BACKFILL, NOT the runtime path. A LIVE account created through the API gets
-  // its Internal from the CLIENT — the web store's addAccount mints account+Internal atomically and
-  // syncs them as separate entity writes (account before client). The server must NOT auto-mint on
-  // account-create: the client's own Internal would then be a second builtin and validateWrite's
-  // wouldAddSecondBuiltin would reject it, breaking sync. See shared ensureInternalClients' ownership
-  // contract. So an account POSTed via the API without a paired Internal write stays Internal-less
-  // until the next open backfills it — an unsupported/degraded path the web app never takes.
+  // Reconcile legacy missing/duplicate Internal rows before installing the database singleton guard.
+  // Runtime account creation also mints the account + Internal atomically.
   ensureInternalClients(db)
+  db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL)
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
   db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
   return db
@@ -103,9 +94,9 @@ export function openDb(path: string): Db {
 
 /**
  * Ensure EVERY account in the DB has exactly one built-in Internal client (`builtin: true`).
- * IDEMPOTENT: a single LEFT-JOIN query finds accounts with no builtin client and inserts one each,
- * so it never creates a duplicate and is safe on every open (fresh / seeded / already-migrated). The
- * server mirror of the shared `migrateV5toV6`; identifies the Internal client by the FLAG, not an id.
+ * Missing rows are inserted; duplicate rows are deterministically folded into the generated id when
+ * present (otherwise the oldest/id-first row), with dependent projects rewired before deletion. The
+ * partial unique index is installed after this repair and prevents recurrence.
  *
  * Stays SQL (set-based, runs inside the DB) rather than calling the shared TS helper, but the CANONICAL
  * definition of "the account's builtin Internal" lives in shared `internalClientFor` /
@@ -113,16 +104,24 @@ export function openDb(path: string): Db {
  * inserted row is built by the shared `buildInternalClient` factory so the row shape can't drift.
  */
 function ensureInternalClients(db: Db): void {
-  const accountsMissing = db
-    .prepare(
-      `SELECT a.id AS id FROM accounts a
-       WHERE NOT EXISTS (SELECT 1 FROM clients c WHERE c.accountId = a.id AND c.builtin = 'true')`,
-    )
-    .all() as Array<{ id: string }>
-  if (accountsMissing.length === 0) return
+  const accounts = db.prepare(`SELECT id FROM accounts ORDER BY id`).all() as Array<{ id: string }>
   const now = new Date().toISOString()
   tx(db, () => {
-    for (const { id } of accountsMissing) insertRowRaw(db, 'clients', buildInternalClient(id, now) as unknown as Row)
+    for (const { id } of accounts) {
+      const builtins = db.prepare(
+        `SELECT id FROM clients WHERE accountId = ? AND builtin = 'true'
+         ORDER BY CASE WHEN id = ? THEN 0 ELSE 1 END, createdAt, id`,
+      ).all(id, `internal:${id}`) as Array<{ id: string }>
+      if (builtins.length === 0) {
+        insertRowRaw(db, 'clients', buildInternalClient(id, now) as unknown as Row)
+        continue
+      }
+      const retainedId = builtins[0].id
+      for (const duplicate of builtins.slice(1)) {
+        db.prepare(`UPDATE projects SET clientId = ? WHERE clientId = ?`).run(retainedId, duplicate.id)
+        db.prepare(`DELETE FROM clients WHERE id = ?`).run(duplicate.id)
+      }
+    }
   })
 }
 

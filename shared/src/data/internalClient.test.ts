@@ -36,6 +36,26 @@ describe('built-in Internal client', () => {
     expect(twice.clients.filter((c) => c.builtin)).toHaveLength(2)
   })
 
+  it('deterministically folds duplicate builtins and rewires their projects', () => {
+    const generated = { ...buildInternalClient('a1', TS), id: 'internal:a1' }
+    const duplicate: Client = {
+      ...buildInternalClient('a1', '2025-01-01T00:00:00.000Z'),
+      id: 'legacy-internal',
+    }
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      clients: [duplicate, generated],
+      projects: [{ id: 'p1', accountId: 'a1', clientId: duplicate.id, createdAt: TS, updatedAt: TS, name: 'P', color: '#111111' }],
+    }
+
+    const repaired = ensureInternalClients(data, TS)
+
+    expect(repaired.clients.filter((client) => client.builtin)).toEqual([generated])
+    expect(repaired.projects[0].clientId).toBe(generated.id)
+    expect(ensureInternalClients(repaired, TS)).toBe(repaired)
+  })
+
   it('migrate (v5→v6) backfills one Internal per account, idempotently and without duplicating a pre-existing one', () => {
     const blob = {
       schemaVersion: 5,
@@ -71,10 +91,10 @@ describe('built-in Internal client', () => {
     expect(parseData(serializeData(data))).toEqual(data)
   })
 
-  it('buildInternalClient mints a fresh id and the reserved name/colour with builtin:true', () => {
+  it('buildInternalClient uses the deterministic id and reserved name/colour with builtin:true', () => {
     const c = buildInternalClient('a9', TS)
     expect(c).toMatchObject({ accountId: 'a9', name: INTERNAL_CLIENT_NAME, builtin: true })
-    expect(c.id).toBeTruthy()
+    expect(c.id).toBe('internal:a9')
   })
 
   // wouldAddSecondBuiltin is the server-reject predicate (validate.ts). These cases pin it to the

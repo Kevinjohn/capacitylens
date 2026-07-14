@@ -22,6 +22,7 @@ import { m, syncLocaleFromAccount } from '@/i18n'
 import { LINKS } from '../lib/navLinks'
 import { AUDIT_WARNING_EVENT } from '../lib/auditWarning'
 import { useOfflineState } from '../data/useOfflineState'
+import { hasUnsavedPersistenceWrites } from '../data/persist'
 
 export function AppShell() {
   // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, the demo build
@@ -98,10 +99,12 @@ export function AppShell() {
     document.title = match ? `${match[1]()} · ${APP_NAME}` : APP_NAME
   }, [pathname, activeLanguage])
 
-  // Warn before a tab close / refresh would discard an open form's unsaved edits.
+  // Warn before a tab close / refresh would discard an open form or an unacknowledged persistence
+  // write. The persistence check is live at event time, so an in-flight failure need not trigger a
+  // React render before it gains protection.
   useEffect(() => {
-    if (!dirtyForm) return
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyForm && !hasUnsavedPersistenceWrites()) return
       e.preventDefault()
       e.returnValue = ''
     }

@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import type { Role } from '@capacitylens/shared/domain/access'
+import { cleanText, MAX_EMAIL_LENGTH } from '@capacitylens/shared/lib/strings'
 import { revokeResetTokensForUser } from './auth'
 import type { Db } from './db'
 import { tx } from './txn'
@@ -390,7 +391,10 @@ export function getUsersByIds(
   const rows = db
     .prepare(`SELECT id, name, email FROM user WHERE id IN (${placeholders})`)
     .all(...ids) as Array<{ id: string; name: string | null; email: string | null }>
-  for (const r of rows) map.set(r.id, { name: r.name ?? null, email: r.email ?? null })
+  for (const r of rows) {
+    const name = typeof r.name === 'string' ? cleanText(r.name) : ''
+    map.set(r.id, { name: name || null, email: r.email ?? null })
+  }
   return map
 }
 
@@ -579,6 +583,7 @@ export function preauthInviteAllows(
  * @returns `true` if it has a single `@` with non-empty local + domain parts.
  */
 export function looksLikeEmail(email: string): boolean {
+  if (email.length > MAX_EMAIL_LENGTH || email !== email.trim()) return false
   const at = email.indexOf('@')
   // Exactly one '@', and it is neither the first nor the last character.
   return at > 0 && at === email.lastIndexOf('@') && at < email.length - 1
@@ -596,8 +601,17 @@ export function looksLikeEmail(email: string): boolean {
  * @param token   The invite token to consume.
  * @param usedAt  The ISO-8601 instant to stamp as the consumption time.
  */
+export class InviteAlreadyUsedError extends Error {
+  constructor() {
+    super('This invite has already been used.')
+    this.name = 'InviteAlreadyUsedError'
+  }
+}
+
 export function markInviteUsed(db: Db, token: string, usedAt: string): void {
-  db.prepare(`UPDATE invites SET usedAt = ? WHERE tokenHash = ? AND usedAt IS NULL`).run(usedAt, inviteTokenHash(token))
+  const result = db.prepare(`UPDATE invites SET usedAt = ? WHERE tokenHash = ? AND usedAt IS NULL`)
+    .run(usedAt, inviteTokenHash(token))
+  if (result.changes !== 1) throw new InviteAlreadyUsedError()
 }
 
 /** One row of {@link listInvitesForAccount} — an account's outstanding-invite summary for the

@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { persistenceAdapter } from '../data/storageAdapter'
 import { refreshActiveAccountSlice } from '../data/persist'
@@ -95,6 +95,7 @@ async function reloadFromServer(accountId: string): Promise<void> {
  *                     reload, so a caller maintaining its own inactive-row list can re-fetch it.
  */
 export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
+  const mutationInFlight = useRef(false)
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setNotice = useStore((s) => s.setNotice)
   const archiveEntity = useStore((s) => s.archiveEntity)
@@ -163,10 +164,16 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
 
   const run = useCallback(
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
-      if (isServerConfigured()) {
-        await dispatchServer(verb, entity, id)
-      } else {
-        dispatchLocal(verb, entity, id)
+      if (mutationInFlight.current) return
+      mutationInFlight.current = true
+      try {
+        if (isServerConfigured()) {
+          await dispatchServer(verb, entity, id)
+        } else {
+          dispatchLocal(verb, entity, id)
+        }
+      } finally {
+        mutationInFlight.current = false
       }
     },
     [dispatchServer, dispatchLocal],

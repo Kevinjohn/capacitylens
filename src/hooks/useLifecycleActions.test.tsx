@@ -53,6 +53,24 @@ function stubFetch(response: Partial<Response> & { json?: () => Promise<unknown>
 }
 
 describe('useLifecycleActions — SERVER mode dispatch', () => {
+  it('ignores an overlapping lifecycle mutation until the first transition settles', async () => {
+    let release: (() => void) | null = null
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
+      release = () => resolve({ ok: true, status: 200, json: async () => ({}) } as unknown as Response)
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useLifecycleActions())
+
+    const first = result.current.archive('clients', 'c-1')
+    const overlapping = result.current.purge('clients', 'c-1')
+    expect(fetchMock).toHaveBeenCalledOnce()
+    await expect(overlapping).resolves.toBeUndefined()
+    release!()
+    await first
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
   it.each([
     ['archive', 'archive'],
     ['unarchive', 'unarchive'],

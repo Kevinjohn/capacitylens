@@ -33,7 +33,8 @@ export function spanDays(start: ISODate, end: ISODate, opts: DaysModeOpts): numb
 }
 
 /** Inverse of `spanDays`: the end date such that [start, end] spans exactly
- *  `daysOver` days under the same working-day rule. */
+ *  `daysOver` days under the same working-day rule. Interactive callers validate a whole-number
+ *  domain value first; the clamp remains a defensive boundary for imported/programmatic input. */
 export function endDateForSpan(start: ISODate, daysOver: number, opts: DaysModeOpts): ISODate {
   // Clamp to [1, MAX_SPAN_DAYS]: a NaN/huge daysOver would otherwise derive a date past the
   // 4-digit-year range and make the consumer's format() throw a RangeError mid-render.

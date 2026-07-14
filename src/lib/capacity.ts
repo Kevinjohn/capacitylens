@@ -189,11 +189,9 @@ export function capacityAdvisory(
   return { overDays, timeOffDays }
 }
 
-/** Over-allocated on a working day inside the window — the near-term "overbooked"
- *  radar. Unlike the per-day over-marker (which also flags a TIME-OFF day a working
- *  allocation covers, and a weekend an allocation opts into via `ignoreWeekends`), this
- *  skips every zero-capacity day, so neither a holiday nor an ordinary allocation merely
- *  spanning a weekend reads as overbooked. */
+/** Over-allocated inside the window — the near-term radar. Strictly allocated > available,
+ * including time-off days and non-working days explicitly opted into via `ignoreWeekends`.
+ * An ordinary allocation merely spanning a weekend allocates zero there and remains non-over. */
 export function overAllocatedInWindow(
   resource: Resource,
   allocations: Allocation[],
@@ -202,6 +200,6 @@ export function overAllocatedInWindow(
   end: ISODate,
 ): boolean {
   return capacityForWindow(resource, allocations, timeOff, start, end).some(
-    (day) => day.available > 0 && day.allocated > day.available,
+    (day) => day.allocated > day.available,
   )
 }

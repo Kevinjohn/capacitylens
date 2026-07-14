@@ -9,6 +9,7 @@ import { resourceDisplayName } from '../../lib/metadata'
 import { ResourceForm } from './ResourceForm'
 import { ExternalForm } from '../external/ExternalForm'
 import { externalExplainer } from '../../lib/externalCopy'
+import { NEUTRAL_COLOR } from '../../lib/palette'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
 import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
@@ -141,7 +142,7 @@ export function ResourceList() {
               {externals.map((r) => (
                 <li key={r.id} data-testid="external-row" className="flex items-center justify-between px-3 py-2">
                   <span className="flex flex-wrap items-center gap-2">
-                    <ColorSwatch color={r.color} />
+                    <ColorSwatch color={NEUTRAL_COLOR} />
                     <span className="font-medium">{r.name ?? r.role}</span>
                     {r.name && r.role && <span className="text-sm text-muted">· {r.role}</span>}
                   </span>

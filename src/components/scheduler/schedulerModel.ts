@@ -276,18 +276,15 @@ export function buildSchedulerModel(
             }))
         // The DISPLAYED utilisation % runs over the VISIBLE window [visStart, visEnd]; the
         // `overSoon` red flag runs over the FIXED forward window [overStart, overEnd] — two
-        // deliberately separate signals (see the param doc above). Both ignore zero-capacity days
-        // (weekends / time off) so an allocation that merely spans them doesn't inflate the % past
-        // 100% or trip the flag — like the per-day over-marker (dayStates.over), whose weekend-aware
-        // `allocated` likewise leaves a merely-spanned weekend un-flagged (it still flags a time-off
-        // day a working allocation covers, and an `ignoreWeekends` weekend). External rows are skipped
-        // entirely: utilisation 0, never overbooked. `utilization` reuses the pure capacity helper.
+        // deliberately separate signals (see the param doc above). Utilisation ignores zero-capacity
+        // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
+        // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
+        // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
         const utilization = isExternal ? 0 : utilizationOf(resource, allAllocs, resTimeOff, visStart, visEnd)
         let overSoon = false
         if (!isExternal) {
           for (const c of capacityForWindow(resource, allAllocs, resTimeOff, overStart, overEnd)) {
-            // Working day, genuinely over (skip zero-capacity weekend/time-off days).
-            if (c.available > 0 && c.allocated > c.available) {
+            if (c.allocated > c.available) {
               overSoon = true
               break
             }

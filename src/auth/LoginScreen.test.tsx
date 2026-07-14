@@ -96,6 +96,9 @@ describe('LoginScreen — first-run owner setup (needsSetup)', () => {
     signUpEmail.mockResolvedValue({ error: { message: 'Password too short' } })
     const onSignedIn = vi.fn()
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />)
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@x.test' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-strong-password' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create owner account' }))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Password too short')
@@ -119,6 +122,9 @@ describe('LoginScreen — first-run owner setup (needsSetup)', () => {
     })
     const onSignedIn = vi.fn()
     render(<LoginScreen authMode="password" needsSetup onSignedIn={onSignedIn} />)
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Owner' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'owner@x.test' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'a-strong-password' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create owner account' }))
 
     // The dead end is fixed: the screen switches to the ordinary sign-in form...

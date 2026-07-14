@@ -137,6 +137,7 @@ export function ImportExport() {
     const accountId = useStore.getState().activeAccountId
     if (accountId === null) throw new Error('Import requires an active company.')
     setImportBusy(true)
+    let keepBlockedUntilReload = false
     try {
       // Land any still-debounced pre-import edit against the PRE-import state FIRST — otherwise
       // the post-import reload's own entry flush would diff that edit against the pre-import
@@ -260,6 +261,7 @@ export function ImportExport() {
         const outcome = await refreshActiveAccountSlice(accountId)
         if (outcome === 'failed' || outcome === 'skipped' || outcome === 'unattached') {
           safeToResume = false // leave persistence suspended until a reload performs a clean boot read
+          keepBlockedUntilReload = true
           setNotice(
             'The import timed out and its result could not be verified. Reload this page before making changes.',
             'error',
@@ -277,7 +279,7 @@ export function ImportExport() {
       // A rejected fetch (server down / network error) — the import did NOT happen; say so.
       setNotice(errorMessage(e) || m.data_import_failed({ status: 0 }), 'error')
     } finally {
-      setImportBusy(false)
+      if (!keepBlockedUntilReload) setImportBusy(false)
     }
   }
 
@@ -289,12 +291,16 @@ export function ImportExport() {
       void confirmServerImport(incoming)
       return
     }
-    // importData → requireAccount() throws if there's no active account, but ImportExport only ever
-    // renders behind AppShell's tenant gate, so an account is always active here — confirmImport
-    // can't throw on that path today. (Cross-file invariant; if this panel is ever rendered outside
-    // the gate, add a guard. Don't wrap importData in a swallowing try/catch — its throws matter.)
-    const { imported, skipped } = importData(pendingImport.data)
+    const incoming = pendingImport.data
     setPendingImport(null)
+    let imported: number
+    let skipped: number
+    try {
+      ;({ imported, skipped } = importData(incoming))
+    } catch (e) {
+      setNotice(errorMessage(e) || m.data_import_failed({ status: 0 }), 'error')
+      return
+    }
     // When EVERY record was dropped (imported === 0) the store no-ops — it pushes NO undo
     // entry — so we must NOT tell the user to press ⌘Z (that would revert their PREVIOUS,
     // unrelated edit). Report the failure instead.

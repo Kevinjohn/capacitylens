@@ -1,7 +1,7 @@
 // The CapacityLens shape guards (looksLikeCapacityLens / hasNonArrayKnownTable) live in migrate.ts —
 // next to the migrate they gate, so the "is this even CapacityLens" check and the transform it
 // protects can't drift (mirrors schedule/diary). Imported back here for the parse path.
-import { migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from './migrate'
+import { importCandidate, KNOWN_KEYS, migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from './migrate'
 import { SCHEMA_VERSION } from '../types/entities'
 import type { AppData, PersistedState } from '../types/entities'
 
@@ -44,6 +44,14 @@ export function parseData(json: string): AppData {
   // letting migrate() silently coerce it to [] and under-report the loss. See above.
   if (hasNonArrayKnownTable(raw)) {
     throw new Error('This file is damaged: a data table is not a list. Nothing was imported.')
+  }
+  const candidate = importCandidate(raw)!
+  const rawTotal = [...KNOWN_KEYS, 'tasks'].reduce(
+    (n, key) => n + (Array.isArray(candidate[key]) ? candidate[key].length : 0),
+    0,
+  )
+  if (rawTotal > MAX_IMPORT_RECORDS) {
+    throw new Error(`This file has too many records (${rawTotal.toLocaleString()}).`)
   }
   const data = migrate(raw)
   // NOTE: this `total` counts EVERY table on AppData (it includes `accounts`), because here we're

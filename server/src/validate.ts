@@ -99,7 +99,7 @@ export function sanitizeWrite(
   assertIdPresent(row)
   const copy = { ...row }
   if (table === 'accounts') {
-    copy.color = typeof copy.color === 'string' && isHexColor(copy.color) ? copy.color : FALLBACK_COLOR
+    copy.color = typeof copy.color === 'string' && isHexColor(copy.color) ? copy.color.trim() : FALLBACK_COLOR
     if (typeof copy.name === 'string') copy.name = cleanText(copy.name)
     // schedulingMode is an OPTIONAL enum (absent = 'hourly'). Drop a junk value rather
     // than persisting a mode the scheduler's hourly/days/blocks switch can't handle — the

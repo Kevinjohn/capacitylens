@@ -262,13 +262,11 @@ describe('overAllocatedInWindow', () => {
     expect(overAllocatedInWindow(r, allocs, [], '2026-06-01', '2026-06-14')).toBe(false)
   })
 
-  it('is false on a zero-capacity day even when an ignoreWeekends allocation books hours there', () => {
-    // Deliberately narrower than the per-day over-marker: this radar skips EVERY zero-capacity
-    // day, including one an allocation opts into via ignoreWeekends (unlike dayCapacity's `over`).
+  it('is true on a zero-capacity day when an ignoreWeekends allocation books hours there', () => {
     const allocs = [
       makeAlloc({ startDate: '2026-06-06', endDate: '2026-06-06', hoursPerDay: 5, ignoreWeekends: true }),
     ]
-    expect(overAllocatedInWindow(r, allocs, [], '2026-06-06', '2026-06-06')).toBe(false)
+    expect(overAllocatedInWindow(r, allocs, [], '2026-06-06', '2026-06-06')).toBe(true)
   })
 })
 

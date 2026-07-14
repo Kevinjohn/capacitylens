@@ -15,6 +15,9 @@ import {
   listInvitesForAccount,
   revokeInvite,
   pruneInvites,
+  markInviteUsed,
+  InviteAlreadyUsedError,
+  looksLikeEmail,
   type AccountMember,
 } from './controlTables'
 import type { Db } from './db'
@@ -193,6 +196,12 @@ describe('getUsersByIds', () => {
     expect(map.get('u-2')).toEqual({ name: null, email: 'bob@x.io' })
     expect(map.has('ghost')).toBe(false) // no row → absent (caller degrades to null)
   })
+
+  it('sanitizes identity names at the member-read boundary', () => {
+    const db = dbWithUsers()
+    db.prepare(`UPDATE user SET name = ? WHERE id = ?`).run('  Alice 💩   Example  ', 'u-1')
+    expect(getUsersByIds(db, ['u-1']).get('u-1')?.name).toBe('Alice Example')
+  })
 })
 
 const TS_FUTURE = '2999-01-01T00:00:00.000Z'
@@ -220,6 +229,20 @@ describe('createInvite / getInvite — non-secret id (P1.11)', () => {
 
   it('newInviteId mints distinct ids', () => {
     expect(newInviteId()).not.toBe(newInviteId())
+  })
+})
+
+describe('invite validation and single-use consumption', () => {
+  it('enforces the shared email-length ceiling', () => {
+    expect(looksLikeEmail('person@example.com')).toBe(true)
+    expect(looksLikeEmail(`${'a'.repeat(250)}@x.io`)).toBe(false)
+  })
+
+  it('throws a typed conflict when the conditional consume loses the race', () => {
+    const db = freshDb()
+    createInvite(db, invite({ token: 'race-token', id: 'race-invite' }))
+    markInviteUsed(db, 'race-token', TS)
+    expect(() => markInviteUsed(db, 'race-token', TS)).toThrow(InviteAlreadyUsedError)
   })
 })
 

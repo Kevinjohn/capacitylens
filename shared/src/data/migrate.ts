@@ -1,5 +1,5 @@
 import { emptyAppData, SCHEMA_VERSION, SCOPED_KEYS } from '../types/entities'
-import { buildInternalClient } from './internalClient'
+import { buildInternalClient, ensureInternalClients } from './internalClient'
 import type { AppData } from '../types/entities'
 
 // Turns whatever was persisted (any version, or garbage) into a complete,
@@ -164,16 +164,22 @@ function migrateV4toV5(data: Record<string, unknown>): Record<string, unknown> {
 function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
   if (!Array.isArray(data.accounts) || data.accounts.length === 0) return data
   const clients = Array.isArray(data.clients) ? [...data.clients] : []
-  const hasBuiltin = (accountId: unknown): boolean =>
-    clients.some((c) => !!c && typeof c === 'object' && (c as Record<string, unknown>).builtin === true && (c as Record<string, unknown>).accountId === accountId)
+  const accountsWithBuiltin = new Set(
+    clients.flatMap((client) => {
+      if (!client || typeof client !== 'object') return []
+      const rec = client as Record<string, unknown>
+      return rec.builtin === true && typeof rec.accountId === 'string' ? [rec.accountId] : []
+    }),
+  )
   // Migrated rows are newly created here; a fixed timestamp keeps the migration deterministic.
   const now = '2026-01-01T00:00:00.000Z'
   let added = false
   for (const account of data.accounts) {
     if (!account || typeof account !== 'object') continue
     const accountId = (account as Record<string, unknown>).id
-    if (typeof accountId !== 'string' || hasBuiltin(accountId)) continue
+    if (typeof accountId !== 'string' || accountsWithBuiltin.has(accountId)) continue
     clients.push(buildInternalClient(accountId, now))
+    accountsWithBuiltin.add(accountId)
     added = true
   }
   return added ? { ...data, clients } : data
@@ -201,5 +207,5 @@ export function migrate(raw: unknown): AppData {
     data = migrateV5toV6(data)
   }
 
-  return normalize(data as Partial<AppData> | undefined)
+  return ensureInternalClients(normalize(data as Partial<AppData> | undefined), '2026-01-01T00:00:00.000Z')
 }

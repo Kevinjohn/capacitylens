@@ -10,10 +10,16 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.17.1] — 2026-07-14
+
 ### Fixed
 
 - Prevented a pending week-snap callback from jumping the schedule back to its buffered start when
   changing the visible week range immediately after navigating to a date.
+- Hardened persistence, offline snapshots, imports, membership administration and lifecycle actions
+  so failed or stale asynchronous work cannot silently discard, cross tenant boundaries or overwrite
+  newer state. Invalid form and API values are now rejected or repaired consistently at their shared
+  boundaries.
 
 ### Security
 

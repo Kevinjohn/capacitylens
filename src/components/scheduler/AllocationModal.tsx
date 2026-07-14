@@ -88,15 +88,8 @@ export function AllocationModal(props: AllocationModalProps) {
   const seedEnd = editing?.endDate ?? create?.endDate
   const initialDaysOpts = { workingDays: initialResource?.workingDays, ignoreWeekends: editing?.ignoreWeekends ?? false }
   const initialDaysOver = seedEnd ? Math.max(1, spanDays(initialStart, seedEnd, initialDaysOpts)) : 1
-  // These two can read 0 while the user has the field empty mid-edit: for <input type=number>,
-  // NumberField emits Number("") === 0 (NOT NaN — see fields.tsx), and the derived hours arithmetic
-  // below can then go 0 or non-finite. We deliberately do NOT guard that here — it's contained by
-  // downstream guards so nothing bad reaches the store: (1) endDateForSpan clamps the span to
-  // [1, MAX_SPAN_DAYS] (a 0/NaN collapses to a valid 1-day span, never an Invalid Date into
-  // format()); and (2) the submit-path load guard requires effHoursPerDay to be finite AND in
-  // (0, MAX_HOURS_PER_DAY], which rejects both a 0/NaN daysOfWork (fails > 0) AND a 0/NaN daysOver
-  // (hoursPerDayFor(daysOfWork, 0/NaN, …) is non-finite or 0, failing the guard) — so a part-typed
-  // "Days over" can't slip a 0-hour save through.
+  // NumberField can expose a transient 0 while the user clears the number input. Submission below
+  // validates daysOver explicitly; the defensive 1 used for the live preview is never persisted.
   const [daysOver, setDaysOver] = useState(initialDaysOver)
   const [daysOfWork, setDaysOfWork] = useState(
     editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,
@@ -128,13 +121,13 @@ export function AllocationModal(props: AllocationModalProps) {
   // the assignee's working week; in hourly mode the typed fields are used as-is.
   const workingHoursPerDay = selectedResource?.workingHoursPerDay ?? initialWhpd
   const daysOpts = { workingDays: selectedResource?.workingDays, ignoreWeekends }
-  // Effective end date + hours, derived TOGETHER in one expression (so they can't desync) from the
-  // assignee kind + the account's scheduling mode:
+  // Effective end date + hours from the assignee kind + the account's scheduling mode:
   //   external → a plain typed start/end span, no load (hoursPerDay 0);
   //   blocks   → a (start, days-over) span, no load (0);
   //   days     → a (start, days-over) span, hours rescaled to fit the work volume;
   //   hourly   → the typed end + hours as-is.
-  const spanEnd = startDate ? endDateForSpan(startDate, daysOver, daysOpts) : endDate
+  const validDaysOver = Number.isSafeInteger(daysOver) && daysOver >= 1 && daysOver <= MAX_SPAN_DAYS
+  const spanEnd = startDate ? endDateForSpan(startDate, validDaysOver ? daysOver : 1, daysOpts) : endDate
   const { endDate: effEndDate, hoursPerDay: effHoursPerDay } = isExternal
     ? { endDate, hoursPerDay: 0 }
     : isBlocks
@@ -232,16 +225,21 @@ export function AllocationModal(props: AllocationModalProps) {
         return
       }
     } else if (isBlocks) {
-      // A block is just a span: start + days over (>= 1, so always valid). The end
-      // date is derived and load is ignored, so there's nothing else to validate.
       if (!startDate) {
         fail('dates', m.form_allocation_err_start_required())
         return
       }
+      if (!validDaysOver) {
+        fail('daysOver', m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }))
+        return
+      }
     } else if (isDays) {
-      // End date is derived, so it can never be reversed; only the start is typed.
       if (!startDate) {
         fail('dates', m.form_allocation_err_start_required())
+        return
+      }
+      if (!validDaysOver) {
+        fail('daysOver', m.form_allocation_err_days_over_range({ max: MAX_SPAN_DAYS }))
         return
       }
       if (!(daysOfWork > 0)) {
@@ -430,7 +428,7 @@ export function AllocationModal(props: AllocationModalProps) {
               <DateField label={m.form_allocation_start_date_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <NumberField label={m.form_allocation_days_over_label()} value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
+              <NumberField label={m.form_allocation_days_over_label()} value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} invalid={errorField === 'daysOver'} describedById={errorId} />
             </div>
           </div>
           {startDate && endDateHint && (
@@ -447,7 +445,7 @@ export function AllocationModal(props: AllocationModalProps) {
               <NumberField label={m.form_allocation_days_of_work_label()} value={daysOfWork} onChange={setDaysOfWork} min={0} step={0.5} required invalid={errorField === 'daysOfWork'} describedById={errorId} />
             </div>
             <div className="flex-1">
-              <NumberField label={m.form_allocation_days_over_label()} value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} />
+              <NumberField label={m.form_allocation_days_over_label()} value={daysOver} onChange={setDaysOver} min={1} max={MAX_SPAN_DAYS} step={1} invalid={errorField === 'daysOver'} describedById={errorId} />
             </div>
           </div>
           {startDate && endDateHint && (

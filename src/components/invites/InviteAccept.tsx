@@ -10,6 +10,9 @@ import { Button, FieldError } from '../common/ui'
 import { inputClass, linkButtonClass } from '../common/controls'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
+import { validateText } from '../../lib/validation'
+import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 
 // Invite accept page (P1.9; route /invite/:token). On mount, in SERVER mode, it POSTs
 // `${API_BASE}/api/invites/:token/accept` (credentials included so the session cookie rides along).
@@ -163,6 +166,18 @@ export function InviteAccept() {
 
   const createAccount = async () => {
     if (!token) return
+    const report = (_field: string | null, message: string) => setState({ kind: 'auth', message })
+    const cleanName = validateText(name, report, { field: 'name', requiredMessage: m.identity_err_name() })
+    if (cleanName === null) return
+    const cleanEmail = email.trim().toLowerCase()
+    if (cleanEmail.length === 0 || cleanEmail.length > MAX_EMAIL_LENGTH || !/^[^@\s]+@[^@\s]+$/.test(cleanEmail)) {
+      report('email', m.identity_err_email())
+      return
+    }
+    if (password.length < MIN_PASSWORD_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+      report('password', m.identity_err_password({ min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH }))
+      return
+    }
     setBusy(true)
     setState({ kind: 'auth' })
     try {
@@ -170,12 +185,12 @@ export function InviteAccept() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name: cleanName, email: cleanEmail, password }),
       })
       if (!res.ok) {
         throw new Error((await readApiError(res)) ?? messageForStatus(res.status, undefined))
       }
-      const { error } = await authClient.signIn.email({ email, password })
+      const { error } = await authClient.signIn.email({ email: cleanEmail, password })
       if (error) throw new Error(error.message ?? m.login_failed())
       // Signup already claimed the invite atomically for this identity. Reload at the app root so
       // AuthProvider observes the new session without trying to redeem the now-consumed token.
@@ -229,6 +244,7 @@ export function InviteAccept() {
                   type="text"
                   autoComplete="name"
                   value={name}
+                  maxLength={MAX_NAME_LENGTH}
                   onChange={(event) => setName(event.target.value)}
                   aria-describedby={state.message ? errorId : undefined}
                 />
@@ -240,6 +256,7 @@ export function InviteAccept() {
                   type="email"
                   autoComplete="email"
                   value={email}
+                  maxLength={MAX_EMAIL_LENGTH}
                   onChange={(event) => setEmail(event.target.value)}
                   aria-describedby={state.message ? errorId : undefined}
                 />
@@ -251,6 +268,8 @@ export function InviteAccept() {
                   type="password"
                   autoComplete="current-password"
                   value={password}
+                  minLength={MIN_PASSWORD_LENGTH}
+                  maxLength={MAX_PASSWORD_LENGTH}
                   onChange={(event) => setPassword(event.target.value)}
                   aria-describedby={state.message ? errorId : undefined}
                 />

@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { attachPersistence, bootstrap, flushPendingWrites, refreshActiveAccountSlice, ReloadDiscardedEditError, suspendServerWrites } from './persist'
+import {
+  attachPersistence,
+  bootstrap,
+  flushPendingWrites,
+  hasUnsavedPersistenceWrites,
+  refreshActiveAccountSlice,
+  ReloadDiscardedEditError,
+  suspendServerWrites,
+} from './persist'
 import { InMemoryDemoAdapter } from './InMemoryDemoAdapter'
 import { ServerSyncAdapter, BatchConflictError, BatchTooLargeError } from './ServerSyncAdapter'
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
@@ -42,6 +50,65 @@ describe('attachPersistence', () => {
     window.dispatchEvent(new Event('pagehide'))
     expect((await adapter.loadAll()).clients).toHaveLength(1) // flushed synchronously
     detach()
+  })
+
+  it('uses the normal save path when a surviving tab becomes hidden', async () => {
+    const saveAll = vi.fn().mockResolvedValue(undefined)
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    const detach = attachPersistence(useStore, { loadAll: async () => emptyAppData(), saveAll }, 300)
+    useStore.getState().addClient({ name: 'Hidden tab', color: '#111111' })
+
+    document.dispatchEvent(new Event('visibilitychange'))
+    await Promise.resolve()
+
+    expect(saveAll).toHaveBeenCalledOnce()
+    expect(saveAll.mock.calls[0][1]).toBeUndefined()
+    visibility.mockRestore()
+    detach()
+  })
+
+  it('keeps a newer failed teardown snapshot dirty when an older normal save later succeeds', async () => {
+    vi.useFakeTimers()
+    try {
+      let releaseFirst: (() => void) | null = null
+      const normalSnapshots: AppData[] = []
+      const saveAll = vi.fn((data: AppData, opts?: { unload?: boolean }): Promise<void> => {
+        if (opts?.unload) return Promise.reject(new Error('keepalive dropped'))
+        normalSnapshots.push(data)
+        if (normalSnapshots.length === 1) {
+          return new Promise((resolve) => {
+            releaseFirst = resolve
+          })
+        }
+        return Promise.resolve()
+      })
+      const onError = vi.fn()
+      const detach = attachPersistence(
+        useStore,
+        { loadAll: async () => emptyAppData(), saveAll },
+        300,
+        onError,
+      )
+
+      useStore.getState().addClient({ name: 'First', color: '#111111' })
+      await vi.advanceTimersByTimeAsync(300) // first normal save is now in flight
+      useStore.getState().addClient({ name: 'Latest', color: '#222222' }) // still debounced
+      window.dispatchEvent(new Event('pagehide')) // newer teardown save rejects
+      await Promise.resolve()
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'keepalive dropped' }))
+      expect(hasUnsavedPersistenceWrites()).toBe(true)
+
+      releaseFirst!() // the older success must not cancel the newer snapshot's retry
+      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(normalSnapshots).toHaveLength(2)
+      expect(normalSnapshots[1].clients.some((client) => client.name === 'Latest')).toBe(true)
+      expect(hasUnsavedPersistenceWrites()).toBe(false)
+      detach()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('reports a failed write via onError, then a recovered write via onSuccess', async () => {
@@ -881,7 +948,8 @@ describe('suspendServerWrites (the import write-suspension seam)', () => {
     expect(saveAll).toHaveBeenCalledTimes(2)
     expect(saveAll.mock.calls[1][1]).toBeUndefined()
     expect((saveAll.mock.calls[1][0] as AppData).clients.some((c) => c.name === 'Hidden-tab edit')).toBe(true)
-    expect(onError).not.toHaveBeenCalled()
+    expect(onError).toHaveBeenCalledOnce()
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'keepalive dropped' }))
     detach()
   })
 

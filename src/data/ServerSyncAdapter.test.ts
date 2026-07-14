@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
-import { ServerSyncAdapter, BatchConflictError, MAX_OPS_PER_BATCH, diffOps, applyOps } from './ServerSyncAdapter'
+import {
+  ServerSyncAdapter,
+  BatchConflictError,
+  KeepaliveNotDispatchedError,
+  MAX_OPS_PER_BATCH,
+  diffOps,
+  applyOps,
+} from './ServerSyncAdapter'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData, Client, Project } from '@capacitylens/shared/types/entities'
 
@@ -120,6 +127,13 @@ describe('ServerSyncAdapter.loadAll', () => {
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length
     await a.saveAll(state)
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls)
+  })
+
+  it('rejects an incomplete state payload instead of normalizing missing tables to empty arrays', async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ accounts: [] }), { status: 200 }))
+    const adapter = new ServerSyncAdapter('http://x', fetchImpl as unknown as typeof fetch)
+
+    await expect(adapter.loadAll()).rejects.toThrow('invalid state payload')
   })
 
   it('loadAll(accountId) GETs /api/state?accountId= and seeds the snapshot to THAT slice (zero ops on an identical save)', async () => {
@@ -380,7 +394,8 @@ describe('atomic large diffs and unload behaviour', () => {
     const fetchImpl = okFetch() as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
 
-    await a.saveAll(withData({ clients: manyClients(1000) }), { unload: true })
+    await expect(a.saveAll(withData({ clients: manyClients(1000) }), { unload: true }))
+      .rejects.toBeInstanceOf(KeepaliveNotDispatchedError)
 
     expect(fetchImpl).not.toHaveBeenCalled()
   })

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ResourceForm } from './ResourceForm'
 import { useStore } from '../../store/useStore'
@@ -78,6 +78,20 @@ describe('ResourceForm placeholder binding', () => {
 })
 
 describe('ResourceForm working days', () => {
+  it('rejects working hours above the shared daily maximum', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ResourceForm kind="person" onClose={onClose} />)
+
+    await user.type(screen.getByLabelText('Name'), 'Alice')
+    fireEvent.change(screen.getByLabelText('Working hours / day'), { target: { value: '40' } })
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/no more than 24/i)
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.resources).toHaveLength(0)
+  })
+
   it('blocks saving a resource with no working days selected', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()

@@ -19,7 +19,7 @@ import {
 } from '../common/ui'
 import { employmentTypeOptions } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
-import type { EmploymentType, Resource, ResourceKind, Weekday } from '@capacitylens/shared/types/entities'
+import { MAX_HOURS_PER_DAY, type EmploymentType, type Resource, type ResourceKind, type Weekday } from '@capacitylens/shared/types/entities'
 
 /**
  * Add/edit a person or a placeholder. The richest validation path in the app.
@@ -99,8 +99,8 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
       fail('projectId', m.form_resource_err_placeholder_project())
       return
     }
-    if (!(hours > 0)) {
-      fail('hours', m.form_resource_err_hours_gt_zero())
+    if (!(Number.isFinite(hours) && hours > 0 && hours <= MAX_HOURS_PER_DAY)) {
+      fail('hours', m.form_resource_err_hours_range({ max: MAX_HOURS_PER_DAY }))
       return
     }
     // A resource with zero working days has zero capacity every day (reads as
@@ -170,7 +170,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
       {isPlaceholder && (
         <SelectField label={m.form_resource_bound_project_label()} value={projectId} onChange={setProjectId} options={projectOptions} placeholder={m.form_resource_select_project_placeholder()} required invalid={errorField === 'projectId'} describedById={errorId} />
       )}
-      <NumberField label={m.form_resource_working_hours_label()} value={hours} onChange={setHours} min={0} max={24} invalid={errorField === 'hours'} describedById={errorId} />
+      <NumberField label={m.form_resource_working_hours_label()} value={hours} onChange={setHours} min={0} max={MAX_HOURS_PER_DAY} invalid={errorField === 'hours'} describedById={errorId} />
       <WeekdayPicker label={m.form_resource_working_days_label()} value={workingDays} onChange={setWorkingDays} invalid={errorField === 'workingDays'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
     </Modal>

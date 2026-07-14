@@ -343,3 +343,9 @@ CREATE TABLE IF NOT EXISTS timeOff (
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 `
+
+/** Installed after boot-time duplicate repair so existing databases can be reconciled first. */
+export const INTERNAL_CLIENT_UNIQUE_INDEX_SQL = `
+CREATE UNIQUE INDEX IF NOT EXISTS clients_one_builtin_per_account
+ON clients(accountId) WHERE builtin = 'true';
+`

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ImportExport } from './ImportExport'
 import { useStore } from '../store/useStore'
 import { PermissionContext } from '../auth/permissionContext'
@@ -109,6 +109,21 @@ describe('ImportExport – Import', () => {
 
     expect(useStore.getState().data.resources.length).toBeGreaterThan(0)
     expect(useStore.getState().data.resources).toHaveLength(seedData.resources.length)
+  })
+
+  it('surfaces a local import failure instead of throwing from the confirmation handler', async () => {
+    render(<ImportExport />)
+    const file = new File([serializeData(seed())], 'data.json', { type: 'application/json' })
+    const input = screen.getByTestId('import-input')
+    Object.defineProperty(input, 'files', { value: [file], writable: false })
+    fireEvent.change(input)
+    await screen.findByRole('button', { name: 'Replace data' })
+
+    act(() => useStore.getState().setActiveAccount(null))
+    fireEvent.click(screen.getByRole('button', { name: 'Replace data' }))
+
+    expect(useStore.getState().notice?.tone).toBe('error')
+    expect(useStore.getState().notice?.message).toMatch(/active account/i)
   })
 
   it('shows a confirmation summary and does NOT replace data until confirmed', async () => {
@@ -501,6 +516,8 @@ describe('ImportExport – server mode (atomic /api/import, purge-gated)', () =>
     await importAndConfirm(incoming())
     await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/reload this page/i))
     expect(resumeSpy.calls).toEqual([])
+    expect(screen.getByTestId('import-busy')).toBeInTheDocument()
+    expect(screen.getByTestId('import-data')).toBeDisabled()
   })
 
   it('hides the Import affordance from an editor (purge-tier, mirrors the server gate) but keeps Export', () => {

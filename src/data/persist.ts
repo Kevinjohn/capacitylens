@@ -36,6 +36,12 @@ let registeredFlushPending: (() => Promise<boolean>) | null = null
 // caller reports the slice WAS replaced but no reload reseeded the snapshot (dropParkedEdits).
 // refreshActive also suspends around its own whole sequence for the same reasons.
 let registeredSuspendWrites: (() => (opts?: { dropParkedEdits?: boolean }) => void) | null = null
+let registeredHasUnsavedWrites: (() => boolean) | null = null
+
+/** Live, synchronous guard for beforeunload/UI decisions. */
+export function hasUnsavedPersistenceWrites(): boolean {
+  return registeredHasUnsavedWrites?.() ?? false
+}
 
 /**
  * Suspend the orchestrator's writes and return a resume function. While suspended, edits are
@@ -126,8 +132,8 @@ export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutc
  *     (max 5 attempts), so a transient failure self-heals without waiting for the next edit.
  *  4. A STRANDED write (failed AND budget exhausted) is re-attempted when the connection plausibly
  *     recovers — the `online` event, or the tab becoming visible again (gated on a real failure).
- *  5. On page teardown (`pagehide` / `visibilitychange→hidden`) a PENDING debounced write is
- *     flushed through the adapter's keepalive `unload` path.
+ *  5. `visibilitychange→hidden` flushes through the normal serialized path while the page survives;
+ *     `pagehide` uses the adapter's keepalive teardown path.
  */
 export function attachPersistence(
   store: StoreApi<StoreState>,
@@ -140,6 +146,10 @@ export function attachPersistence(
   let timer: ReturnType<typeof setTimeout> | null = null
   let lastData = store.getState().data
   let pending: AppData | null = null // data awaiting a debounced write
+  // Latest locally changed snapshot not yet confirmed by the adapter. Unlike `pending`, this remains
+  // set while a request is in flight and after a failure, so lifecycle events cannot mistake a
+  // dispatched-but-unacknowledged edit for clean state.
+  let unacknowledged: AppData | null = null
   let retryTimer: ReturnType<typeof setTimeout> | null = null
   let retryAttempts = 0
   let failedSinceSuccess = false // a write failed and hasn't recovered — gates the online/visible re-attempt
@@ -190,7 +200,7 @@ export function attachPersistence(
   let lastRefreshAt = 0
 
   const save = (data: AppData) => {
-    pending = null
+    if (pending === data) pending = null
     // Two-arg then so a throw inside onSuccess isn't misreported as a save error.
     // onSuccess lets the caller CLEAR a prior error state once a write lands again
     // — essential for the server adapter, where a transient network blip sets the
@@ -198,10 +208,16 @@ export function attachPersistence(
     // for the in-memory demo adapter).
     const round = adapter.saveAll(data).then(
       () => {
-        retryAttempts = 0
-        failedSinceSuccess = false
-        cancelRetry()
-        onSuccess?.()
+        const acknowledgesLatest = unacknowledged === data || unacknowledged === null
+        if (unacknowledged === data) unacknowledged = null
+        // A normal save that started before a newer teardown flush must not erase that newer flush's
+        // failure state. Otherwise it cancels the retry while the newer snapshot remains unsaved.
+        if (acknowledgesLatest) {
+          retryAttempts = 0
+          failedSinceSuccess = false
+          cancelRetry()
+          onSuccess?.()
+        }
       },
       (e: unknown) => {
         failedSinceSuccess = true
@@ -279,7 +295,7 @@ export function attachPersistence(
     if (suspendDepth > 0) return // suspended: a replay would race the suspending operation's slice replacement
     cancelRetry()
     retryAttempts = 0
-    save(store.getState().data)
+    save(unacknowledged ?? store.getState().data)
   }
 
   // A failed write (e.g. the server is briefly unreachable) is retried in the
@@ -296,18 +312,17 @@ export function attachPersistence(
     retryAttempts += 1
     retryTimer = setTimeout(() => {
       retryTimer = null
-      save(store.getState().data)
+      save(unacknowledged ?? store.getState().data)
     }, delay)
   }
 
-  // Flush a PENDING debounced write on page teardown via the adapter's `unload` path: it
+  // Flush the latest UNACKNOWLEDGED write on page teardown via the adapter's `unload` path: it
   // DISPATCHES every op up-front (keepalive), where a normal sequential server drain would
   // only get the first request on the wire before the event loop dies. CONDITIONAL on
-  // `pending`: once the debounce has settled there's nothing to flush, so we never re-write
-  // already-persisted data (an unconditional write would, e.g., resurrect it after an
-  // external storage clear, and is wasteful besides).
+  // The snapshot remains tracked until the adapter confirms it, including while an ordinary save
+  // is already in flight.
   const flushOnUnload = () => {
-    // Under an EXTERNAL suspension (the server-mode import): a parked `pending` predates a slice
+    // Under an EXTERNAL suspension (the server-mode import): a parked edit predates a slice
     // replacement that may already be committed server-side — pushing it via keepalive would diff
     // it against the stale pre-import snapshot and upsert ghost rows into the imported slice.
     // Decline; a successful import reload rebases it, while a failed re-hydrate's explicit resume
@@ -315,21 +330,39 @@ export function attachPersistence(
     // suspension deliberately does NOT block this flush: until loadAll resolves the snapshot is
     // still the pre-reload one (and the post-resolve stretch to replaceAll is synchronous — no
     // unload event can interleave), so the keepalive diff is self-vs-self and SAFE — declining
-    // would silently lose an edit made during a reload window on every tab close. The cost when
-    // the page merely HIDES (not closes) mid-reload: the flushed edit lands server-side, the
-    // reload then rebases it and confirms it through the ordinary save path.
+    // would silently lose an edit made during a reload window on every tab close.
     if (externalSuspendDepth > 0) return
     cancelDebounce()
-    if (!pending) return
-    const data = pending
-    // Under an INTERNAL suspension, dispatch WITHOUT consuming: the reload's (c) check and the
-    // finally-resume still own the parked edit's fate. Consuming it here made a FAILED keepalive
-    // invisible — the page survived (tab merely hidden, not closed), `pending` was gone before
-    // dataAtLoad was snapshotted, and the edit vanished with zero surface. Leaving it parked
-    // costs at most a duplicate dispatch (PUT upserts are idempotent) plus the documented
-    // duplicate confirmed save when the keepalive DID land.
-    if (suspendDepth === 0) pending = null
-    void adapter.saveAll(data, { unload: true }).catch(() => {})
+    const data = unacknowledged
+    if (!data) return
+    // Never consume before confirmation. If pagehide was a bfcache transition and the page survives,
+    // success clears this exact snapshot; failure is surfaced and enters the normal retry machinery.
+    void adapter.saveAll(data, { unload: true }).then(
+      () => {
+        const acknowledgesLatest = unacknowledged === data || unacknowledged === null
+        if (unacknowledged === data) unacknowledged = null
+        if (pending === data) pending = null
+        if (acknowledgesLatest) {
+          retryAttempts = 0
+          failedSinceSuccess = false
+          cancelRetry()
+          onSuccess?.()
+        }
+      },
+      (error: unknown) => {
+        failedSinceSuccess = true
+        onError?.(error)
+        scheduleRetry()
+      },
+    )
+  }
+
+  // visibilitychange is an ordinary surviving-page event, not teardown. Flush through the normal
+  // serialized adapter queue so failures surface/retry and an existing save cannot be overtaken.
+  const flushWhileAlive = () => {
+    if (externalSuspendDepth > 0) return
+    cancelDebounce()
+    if (unacknowledged) save(unacknowledged)
   }
 
   // Set by the account-switch orchestrator (below) around its replaceAll(newSlice) so the data
@@ -343,6 +376,7 @@ export function attachPersistence(
     lastData = state.data
     // The orchestrator's slice load is not a user edit — track lastData (done) but DON'T save it.
     if (loadingSlice) return
+    unacknowledged = state.data
     // Suspended (a slice replacement is in flight): PARK the edit — record it in `pending` with no
     // timer so nothing sends it. It is rebased by a successful reload, or re-scheduled on resume
     // when the suspending operation failed before any reload.
@@ -453,6 +487,7 @@ export function attachPersistence(
       if (suspendDepth > 0 || !pending) return
       if (opts.dropParkedEdits) {
         pending = null
+        unacknowledged = null
         onError?.(
           new ReloadDiscardedEditError(
             'An edit arrived while this company’s data was being replaced and could not be saved.',
@@ -540,6 +575,7 @@ export function attachPersistence(
           if (currentData !== dataAtLoad || pending !== null) {
             const rebased = applyOps(slice, diffOps(dataAtSequenceStart, currentData))
             pending = null
+            unacknowledged = rebased
             save(rebased)
             if (inFlightSave) await inFlightSave
           }
@@ -565,8 +601,10 @@ export function attachPersistence(
         const editBase = externalSuspendDepth > 0 && externalBaseData ? externalBaseData : dataAtSequenceStart
         installed = applyOps(slice, diffOps(editBase, currentData))
         pending = installed
+        unacknowledged = installed
       } else if (lostFailedEdits) {
         pending = null
+        unacknowledged = null
         onError?.(
           new ReloadDiscardedEditError(
             'An edit could not be saved before this company’s data reloaded.',
@@ -578,6 +616,7 @@ export function attachPersistence(
       store.getState().replaceAll(installed)
       lastData = store.getState().data
       loadingSlice = false
+      if (!editedMidLoad) unacknowledged = null
       // The store now holds the server's authoritative slice and the snapshot is re-seeded to it —
       // writes are CLEAN by construction, whatever their history. Clear the failure state and fire
       // onSuccess (mirrors the 409 arm's follow-up empty save, which exists for the same reason):
@@ -636,10 +675,9 @@ export function attachPersistence(
     : null
 
   // The debounce window can outlive the tab. `pagehide` is the reliable close/navigate signal
-  // (fires for the bfcache case where `beforeunload` doesn't); `visibilitychange → hidden`
-  // covers tab switches and mobile. Both route through flushOnUnload (dispatch-all). On a real
-  // close, visibilitychange → hidden fires FIRST — while the page is still alive to dispatch —
-  // so it does the flush and the subsequent pagehide is a no-op (`pending` already consumed).
+  // (including bfcache) and uses keepalive; `visibilitychange → hidden` covers ordinary tab switches
+  // and mobile lifecycle changes through the normal serialized save path. The unacknowledged snapshot
+  // remains tracked until either path confirms it, so either event may safely follow the other.
   // Coming BACK to the tab (or the browser firing `online`) re-attempts a stranded write.
   // Refresh-on-focus (P1.16): when the user returns to the tab/window, re-hydrate the active
   // account's slice so a change made in another tab/device shows up — REUSING refreshActive (the
@@ -687,7 +725,7 @@ export function attachPersistence(
           if (pending) save(pending) // consumes pending, sets inFlightSave synchronously
           if (inFlightSave) await inFlightSave
         }
-        return !failedSinceSuccess
+        return !failedSinceSuccess && unacknowledged === null
       }
     : null
   if (myRegisteredFlush) registeredFlushPending = myRegisteredFlush
@@ -696,11 +734,14 @@ export function attachPersistence(
   // variant of beginSuspension, registered for the server-mode import.
   const myRegisteredSuspend = serverMode ? () => beginSuspension(true) : null
   if (myRegisteredSuspend) registeredSuspendWrites = myRegisteredSuspend
+  const myRegisteredHasUnsaved = () =>
+    unacknowledged !== null || pending !== null || inFlightSave !== null || failedSinceSuccess
+  registeredHasUnsavedWrites = myRegisteredHasUnsaved
 
   const onPageHide = () => flushOnUnload()
   const onVisibility = () => {
     if (typeof document === 'undefined') return
-    if (document.visibilityState === 'hidden') flushOnUnload()
+    if (document.visibilityState === 'hidden') flushWhileAlive()
     else {
       retryStrandedWrite()
       maybeRefreshOnFocus() // returning via tab-switch/mobile also re-hydrates (throttled)
@@ -726,12 +767,14 @@ export function attachPersistence(
     if (myRegisteredRefresh && registeredRefreshActive === myRegisteredRefresh) registeredRefreshActive = null
     if (myRegisteredFlush && registeredFlushPending === myRegisteredFlush) registeredFlushPending = null
     if (myRegisteredSuspend && registeredSuspendWrites === myRegisteredSuspend) registeredSuspendWrites = null
+    if (registeredHasUnsavedWrites === myRegisteredHasUnsaved) registeredHasUnsavedWrites = null
     if (canListen) {
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('online', onOnline)
       window.removeEventListener('focus', onFocus)
       document.removeEventListener('visibilitychange', onVisibility)
     }
+    flushWhileAlive()
     cancelDebounce() // cancel any pending debounced write
     cancelRetry() // cancel any pending background retry
   }

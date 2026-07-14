@@ -7,6 +7,7 @@ import type { SocialProviders } from 'better-auth/social-providers'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
 import { getMigrations } from 'better-auth/db/migration'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import { cleanText } from '@capacitylens/shared/lib/strings'
 import type { Db } from './db'
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
@@ -136,11 +137,12 @@ interface RawSessionUser {
  * unverifiable provider can never present as verified.
  */
 export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
+  const name = cleanText(typeof raw.name === 'string' ? raw.name : '')
   return {
     id: raw.id,
     email: raw.email,
     emailVerified: raw.emailVerified ?? false,
-    name: raw.name,
+    name: name || 'User',
   }
 }
 
@@ -541,22 +543,24 @@ export function authFromEnv(
       user: {
         create: {
           before: async (user, context) => {
+            const cleanedName = cleanText(typeof user.name === 'string' ? user.name : '')
+            const sanitizedUser = { ...user, name: cleanedName || 'User' }
             // Internal credential creation is reachable only through CapacityLens's own
             // invite/bootstrap services and deliberately has no web request context.
-            if (!context?.path) return
+            if (!context?.path) return { data: sanitizedUser }
             const emailSignup = context.path === '/sign-up/email'
             const externalSignup = externalIdentityPath(context.path)
-            if (!emailSignup && !externalSignup) return
+            if (!emailSignup && !externalSignup) return { data: sanitizedUser }
 
             // Open EMAIL registration never opens external identity creation as a side effect.
             // Social/OIDC remains verified-email + invitation/allow-list gated in every posture.
-            if (externalSignup && !externalIdentityAllowed(db, env, user)) {
+            if (externalSignup && !externalIdentityAllowed(db, env, sanitizedUser)) {
               throw APIError.from('FORBIDDEN', {
                 message: 'This identity is not invited to this CapacityLens instance.',
                 code: 'EXTERNAL_IDENTITY_NOT_INVITED',
               })
             }
-            if (allowOpenSignup) return
+            if (allowOpenSignup) return { data: sanitizedUser }
 
             // The route-level check may have observed zero users concurrently with another
             // request. Re-check at the actual user insertion boundary and fail closed once the
@@ -581,6 +585,7 @@ export function authFromEnv(
                 })
               }
             }
+            return { data: sanitizedUser }
           },
         },
       },
@@ -753,7 +758,8 @@ export async function createCredentialUserWith(
   emailVerified = false,
 ): Promise<{ id: string }> {
   const hash = await ctx.password.hash(password)
-  const user = await ctx.internalAdapter.createUser({ email, name, emailVerified })
+  const cleanedName = cleanText(name)
+  const user = await ctx.internalAdapter.createUser({ email, name: cleanedName || 'User', emailVerified })
   try {
     await ctx.internalAdapter.linkAccount({
       userId: user.id,

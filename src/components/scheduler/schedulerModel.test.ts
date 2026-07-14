@@ -716,7 +716,7 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(model.at(-1)!.rows[0].overSoon).toBe(false)
   })
 
-  it('overSoon requires a REAL working day (available > 0): an ignoreWeekends weekend booking is over per-day but does not trip overSoon', () => {
+  it('overSoon follows strict allocated > available on an opted-in weekend', () => {
     const d = dataset()
     // r1 works Mon–Fri; 2026-06-06 is a Saturday (available = 0 for r1 regardless of ignoreWeekends
     // — that flag only affects whether the allocation counts hours there, not the resource's
@@ -724,6 +724,6 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     d.allocations.push({ id: 'a-sat', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't1', startDate: '2026-06-06', endDate: '2026-06-06', hoursPerDay: 8, status: 'confirmed', ignoreWeekends: true })
     const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
     const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!
-    expect(r1.overSoon).toBe(false)
+    expect(r1.overSoon).toBe(true)
   })
 })

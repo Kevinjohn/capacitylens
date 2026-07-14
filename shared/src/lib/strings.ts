@@ -6,6 +6,8 @@
 
 /** Max length for a single-line name / role / label. */
 export const MAX_NAME_LENGTH = 100
+/** Practical maximum for an email address accepted by identity/invite forms and server writes. */
+export const MAX_EMAIL_LENGTH = 254
 /** Max length for a multi-line note. */
 export const MAX_NOTE_LENGTH = 1000
 
