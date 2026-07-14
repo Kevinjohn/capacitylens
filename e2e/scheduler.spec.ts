@@ -229,7 +229,12 @@ test.describe('Scheduler', () => {
       await expect
         .poll(async () => {
           const next = { overall: await pct(), tyler: await tylerPct() }
-          const stable = next.overall === prev.overall && next.tyler === prev.tyler
+          // On a slower runner the account shell can render an initial 0%/0% frame before the
+          // seeded scheduler model settles. Two fast reads of that placeholder are not evidence
+          // that the zoom calculation has finished, so require the known seeded rows to carry
+          // real utilisation before accepting a stable pair.
+          const populated = next.overall > 0 && next.tyler > 0
+          const stable = populated && next.overall === prev.overall && next.tyler === prev.tyler
           prev = next
           return stable
         })

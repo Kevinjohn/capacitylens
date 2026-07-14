@@ -3,10 +3,10 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    # Dependabot does NOT traverse pnpm workspace members from the root entry
-    # (dependabot-core#10758) — server/ holds fastify & friends, so list every
-    # workspace directory explicitly or they are never scanned.
-    directories: ["/", "/server", "/shared"]
+    # pnpm owns one lockfile for the whole workspace. Current Dependabot/pnpm
+    # tooling rejects member-directory updates when pnpm-workspace.yaml and the
+    # lockfile live above them, so scan and update the workspace from its root.
+    directory: /
     schedule:
       interval: monthly
     groups:
