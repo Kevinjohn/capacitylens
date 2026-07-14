@@ -102,6 +102,17 @@ variables above. Serve `dist/` with nginx, route `/api/` to `127.0.0.1:8787` wit
 Do not run the daemon from an interactive shell or store the database inside a directory replaced
 by deploys.
 
+### Release-directory deployments
+
+Platforms that build into versioned release directories and switch a stable `current` symlink must
+coordinate that switch with the long-running API process. Build the new release while the existing
+process continues serving traffic, stop the process immediately before activation and release
+cleanup, then restart it from the stable path and verify `/api/health`.
+
+Do not purge a release while a service still has that release as its working directory. Keep the
+database, backups, environment file and operational logs outside the release tree so activation and
+rollback cannot replace persistent state.
+
 ## Upgrades
 
 1. Confirm an off-host backup and a recent restore test.

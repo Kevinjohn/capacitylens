@@ -10,6 +10,14 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.19.1] — 2026-07-14
+
+### Changed
+
+- Documented the safe process handoff for release-directory deployments so long-running API
+  services release the previous checkout before activation cleanup and restart from the stable
+  release path afterward.
+
 ## [0.19.0] — 2026-07-14
 
 - Polished company onboarding and first-run guidance: empty picker choices are now explicit, company
@@ -700,7 +708,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.1
 [0.19.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.0
 [0.18.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.18.0
 [0.15.8]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.8
