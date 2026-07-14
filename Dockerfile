@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # One reproducible build, two non-root runtime targets: the SQLite API and nginx SPA.
 
-FROM node:24-bookworm-slim@sha256:cb4e8f7c443347358b7875e717c29e27bf9befc8f5a26cf18af3c3dec80e58c5 AS deps
+FROM node:26-bookworm-slim@sha256:793dcf7e4fd720d5752b2d63e120e24e64571fafc4cfec87962a2fdb71e0cf30 AS deps
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
@@ -31,7 +31,7 @@ RUN pnpm run build
 FROM source AS server-deploy
 RUN pnpm --filter capacitylens-server deploy --prod --legacy /prod/server
 
-FROM node:24-bookworm-slim@sha256:cb4e8f7c443347358b7875e717c29e27bf9befc8f5a26cf18af3c3dec80e58c5 AS api
+FROM node:26-bookworm-slim@sha256:793dcf7e4fd720d5752b2d63e120e24e64571fafc4cfec87962a2fdb71e0cf30 AS api
 WORKDIR /app/server
 ENV NODE_ENV=production
 ENV CAPACITYLENS_HOST=0.0.0.0
