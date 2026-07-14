@@ -10,6 +10,17 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Security
+
+- Hardened both Compose services with read-only root filesystems, dropped Linux capabilities and
+  `no-new-privileges`. The web image now runs nginx as an unprivileged user, both base images are
+  digest-pinned, and the web health check verifies the same-origin API proxy before reporting ready.
+
+### Changed
+
+- Split the Docker build graph so the API image no longer compiles the frontend and the web image
+  no longer creates the server deployment bundle.
+
 ## [0.17.0] — 2026-07-14
 
 The public-release hardening round. This release establishes a clean open-source baseline while
