@@ -52,3 +52,9 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 
 Run `pnpm run gate`, `pnpm run gate:server` and `pnpm run e2e`. Cross-browser and mutation suites
 are documented in `docs/development.md`. Keep E2E specs browser-agnostic.
+
+## GitHub CI policy
+
+- For patch-version-only changes, skip GitHub CI by default.
+- For minor-version changes, ask the user whether GitHub CI should be run before proceeding.
+- For major-version changes, GitHub CI must be run; do not skip it.
