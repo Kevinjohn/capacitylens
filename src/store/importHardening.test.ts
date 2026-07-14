@@ -39,7 +39,7 @@ describe('importData hardening', () => {
     expect(r.kind).toBe('person')
     expect(r.employmentType).toBe('permanent')
     expect(r.workingHoursPerDay).toBe(8)
-    expect(r.color).toBe('#5c34d4')
+    expect(r.color).toBe('#2d75da')
   })
 
   it('returns a delta summary counting records kept vs. dropped as invalid', () => {

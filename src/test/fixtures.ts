@@ -24,7 +24,7 @@ export function makeAccount(overrides: Partial<Account> = {}): Account {
     createdAt: TS,
     updatedAt: TS,
     name: 'Test Co',
-    color: '#6366f1',
+    color: '#2d75da',
     ...overrides,
   }
 }
@@ -43,7 +43,7 @@ export function makeResourceDraft(overrides: Partial<Draft<Resource>> = {}): Dra
     employmentType: 'permanent',
     workingHoursPerDay: 8,
     workingDays: WORKDAYS,
-    color: '#6366f1',
+    color: '#2d75da',
     ...overrides,
   }
 }

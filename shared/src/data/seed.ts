@@ -18,21 +18,21 @@ const LOFT = 'a-loft'
 export function seed(): AppData {
   return {
     accounts: [
-      { id: STUDIO, createdAt: TS, updatedAt: TS, name: 'Studio North', color: '#5c34d4' },
+      { id: STUDIO, createdAt: TS, updatedAt: TS, name: 'Studio North', color: '#2d75da' },
       { id: LOFT, createdAt: TS, updatedAt: TS, name: 'Loft Digital', color: '#2d75da' },
     ],
     disciplines: [
-      { id: 'd-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Design', color: '#5c34d4', sortOrder: 0 },
+      { id: 'd-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Design', color: '#2d75da', sortOrder: 0 },
       { id: 'd-dev', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Development', color: '#3ace6b', sortOrder: 1 },
       { id: 'd-copy', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Copywriting', color: '#ed841b', sortOrder: 2 },
       { id: 'd-loft-design', accountId: LOFT, createdAt: TS, updatedAt: TS, name: 'Design', color: '#2d75da', sortOrder: 0 },
     ],
     resources: [
-      { id: 'r-tyler', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Tyler Nix', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#5c34d4' },
+      { id: 'r-tyler', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Tyler Nix', role: 'Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#2d75da' },
       { id: 'r-pam', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Pam Gonzalez', role: 'PR & Brand', disciplineId: 'd-copy', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#ed841b' },
       { id: 'r-nike', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Nike Spiros', role: 'Web Developer', disciplineId: 'd-dev', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#3ace6b' },
       { id: 'r-alex', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'person', name: 'Alex Rivera', role: 'Front End (freelance)', disciplineId: 'd-dev', employmentType: 'freelancer', workingHoursPerDay: 8, workingDays: [1, 2, 3], color: '#2d75da' },
-      { id: 'r-ph-designer', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'placeholder', role: 'Senior Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#9c3ace', projectId: 'p-acme' },
+      { id: 'r-ph-designer', accountId: STUDIO, createdAt: TS, updatedAt: TS, kind: 'placeholder', role: 'Senior Designer', disciplineId: 'd-design', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#2d75da', projectId: 'p-acme' },
       // External / 3rd-party partner studio: assignable to activities but has NO capacity/utilisation —
       // renders neutral in its own band at the bottom of the schedule (see ResourceKind). Its
       // working hours/days are unused silent defaults.

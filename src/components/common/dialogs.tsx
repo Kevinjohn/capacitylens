@@ -22,14 +22,14 @@ type ButtonVariant = 'primary' | 'ghost' | 'danger'
 // CapacityLens's three button NAMES mapped onto shadcn's button aesthetic (Button base in
 // ../ui/button) via a plain Record lookup (capacitylens's original idiom — no second same-named
 // cva). The colours bind to capacitylens's own --c-* brand/danger tokens (the bg-brand* /
-// bg-danger* utilities) rather than shadcn's slate --primary, so the indigo brand identity
-// holds. `primary` is a solid brand fill: brand-strong is tuned so white ink clears WCAG AA
-// in light AND dark (see index.css). `danger` is the destructive read: capacitylens's AA-safe
+// bg-danger* utilities) rather than shadcn's slate --primary. `primary` is the positive-action
+// fill: green makes create/save/continue actions immediately distinct from blue navigation and
+// identity accents. `danger` is the destructive read: capacitylens's AA-safe
 // SOFT red pairing (bg-danger-soft + danger-soft-ink), which clears AA in BOTH themes —
 // solid bg-danger + white would only read ~2.7:1 against the light-coral dark token. `ghost`
 // is the quiet outline.
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: 'bg-brand-strong text-white hover:bg-brand-strong/90 shadow-xs',
+  primary: 'bg-ok-strong text-ok-strong-ink hover:bg-ok-strong/90 shadow-xs',
   ghost: 'border bg-surface text-ink hover:bg-canvas shadow-xs',
   danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger-soft/80 shadow-xs',
 }
@@ -213,12 +213,12 @@ export function Modal({
     const markDirty = () => setDirty(true)
     // Native form controls fire input/change. Button-driven toggle controls
     // (e.g. WeekdayPicker) don't — they mutate state on click — so also treat a
-    // click on any aria-pressed toggle, OR an ARIA radio (e.g. SegmentedControl's
+    // click on any aria-pressed toggle, ARIA switch, OR an ARIA radio (e.g. SegmentedControl's
     // role="radio" options, which use aria-checked instead of aria-pressed), inside
     // the panel as an edit. (Plain action buttons like Cancel/Save/Add are neither, so
     // they don't false-flag.)
     const onClick = (e: Event) => {
-      if ((e.target as HTMLElement | null)?.closest('[aria-pressed],[role="radio"]')) setDirty(true)
+      if ((e.target as HTMLElement | null)?.closest('[aria-pressed],[role="radio"],[role="switch"]')) setDirty(true)
     }
     node.addEventListener('input', markDirty)
     node.addEventListener('change', markDirty)

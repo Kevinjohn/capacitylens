@@ -76,7 +76,8 @@ function GettingStartedCard() {
     <section
       aria-label={m.gs_title()}
       data-testid="getting-started"
-      className="m-3 mb-0 max-w-xl rounded-lg border border-line bg-surface p-4 shadow-sm"
+      role="dialog"
+      className="getting-started-popover rounded-lg border border-line bg-surface p-4 shadow-lg ring-1 ring-line"
     >
       <h2 className="text-sm font-semibold text-ink">{m.gs_title()}</h2>
       <p className="mb-3 mt-0.5 text-xs text-muted">{m.gs_subtitle()}</p>

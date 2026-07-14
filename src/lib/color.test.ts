@@ -49,7 +49,7 @@ describe('readableTextColor', () => {
   })
   it('uses white on dark/saturated backgrounds', () => {
     expect(readableTextColor('#1c2230')).toBe('#ffffff')
-    expect(readableTextColor('#4f46e5')).toBe('#ffffff') // indigo
+    expect(readableTextColor('#2563eb')).toBe('#ffffff') // blue
   })
   it('falls back to dark ink for malformed input', () => {
     expect(readableTextColor('#abc')).toBe('#1c2230')
@@ -114,6 +114,18 @@ describe('design-token contrast (--c-faint, WCAG 1.4.3 AA)', () => {
   })
 })
 
+describe('action and identity token contrast', () => {
+  it('keeps the light-theme blue readable on white and the green action fill readable with white ink', () => {
+    expect(contrastRatio('#2563eb', '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5)
+  })
+
+  it('keeps the dark-theme blue identity visible on charcoal and the green action fill readable', () => {
+    expect(contrastRatio('#60a5fa', '#161922')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
 // AllocationBar focus indicator — the dual-tone ring (WCAG 1.4.11, Non-text Contrast ≥3:1). The two
 // ring colours below mirror --c-focus-ink / --c-focus-halo in src/index.css (jsdom can't resolve CSS
 // vars, so pin them here and FAIL the gate if the CSS changes without updating these). The ring is a
@@ -124,7 +136,7 @@ describe('design-token contrast (--c-faint, WCAG 1.4.3 AA)', () => {
 // This guard FAILS the prior single-halo approach: that used ONE light edge (white in light / near-
 // white #e7eaf0 in dark). On the LIGHT over-cell rose (#fb9ea1) white reads only ~2.0:1, so a
 // single-light-edge max would be <3 and this assertion would fail; the dark edge (#1c2230) rescues it
-// at ~7.95:1. (The brand indigo outline, kept as an identity layer, is NOT counted here.)
+// at ~7.95:1. (The brand blue outline, kept as an identity layer, is NOT counted here.)
 describe('AllocationBar focus ring (dual-tone, WCAG 1.4.11 non-text ≥3:1)', () => {
   const RING_INK = '#1c2230' // --c-focus-ink (near-black edge — wins on pale grounds)
   const RING_HALO = '#ffffff' // --c-focus-halo (near-white edge — wins on dark grounds)

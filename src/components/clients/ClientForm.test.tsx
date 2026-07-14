@@ -5,6 +5,7 @@ import { ClientForm } from './ClientForm'
 import { useStore } from '../../store/useStore'
 import { colorName } from '../../lib/palette'
 import { resetStoreWithAccount } from '../../test/fixtures'
+import { PermissionContext } from '../../auth/permissionContext'
 
 beforeEach(() => {
   resetStoreWithAccount()
@@ -12,6 +13,56 @@ beforeEach(() => {
 })
 
 describe('ClientForm – add mode', () => {
+  it('defaults privacy off and requires a code name when the owner enables it', async () => {
+    const user = userEvent.setup()
+    render(<ClientForm onClose={vi.fn()} />)
+
+    const privacy = screen.getByRole('switch', { name: 'Use a code name' })
+    expect(privacy).toHaveAttribute('aria-checked', 'false')
+    expect(screen.queryByLabelText('Code name')).not.toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('Name'), 'Embargoed Client')
+    await user.click(privacy)
+    expect(screen.getByLabelText('Code name')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByLabelText('Code name')).toHaveAttribute('aria-invalid', 'true')
+    expect(useStore.getState().data.clients).toHaveLength(0)
+  })
+
+  it('stores the real name and an unquoted code name when privacy is enabled', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ClientForm onClose={onClose} />)
+
+    await user.type(screen.getByLabelText('Name'), 'Real Client Ltd')
+    await user.click(screen.getByRole('switch', { name: 'Use a code name' }))
+    await user.type(screen.getByLabelText('Code name'), ' “Northstar” ')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(onClose).toHaveBeenCalledOnce()
+    expect(useStore.getState().data.clients[0]).toMatchObject({
+      name: 'Real Client Ltd',
+      isPrivate: true,
+      codeName: 'Northstar',
+    })
+  })
+
+  it('rejects a code name that becomes empty after display quotes are removed', async () => {
+    const user = userEvent.setup()
+    const onClose = vi.fn()
+    render(<ClientForm onClose={onClose} />)
+
+    await user.type(screen.getByLabelText('Name'), 'Embargoed Client')
+    await user.click(screen.getByRole('switch', { name: 'Use a code name' }))
+    await user.type(screen.getByLabelText('Code name'), '""')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(screen.getByLabelText('Code name')).toHaveAttribute('aria-invalid', 'true')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(useStore.getState().data.clients).toHaveLength(0)
+  })
+
   it('shows an error and does not close when saving with a blank name', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
@@ -137,6 +188,24 @@ describe('ClientForm – Enter key submission', () => {
 })
 
 describe('ClientForm – edit mode', () => {
+  it('hides owner-only privacy controls and locks the redacted name for a non-owner', () => {
+    const client = useStore.getState().addClient({
+      name: '"Northstar"',
+      color: '#ff0000',
+      isPrivate: true,
+      codeName: undefined,
+    })
+    render(
+      <PermissionContext.Provider value={{ role: 'editor' }}>
+        <ClientForm client={client} onClose={vi.fn()} />
+      </PermissionContext.Provider>,
+    )
+
+    expect(screen.queryByRole('switch', { name: 'Use a code name' })).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toBeDisabled()
+    expect(screen.getByText('Only an account owner can change this private name.')).toBeInTheDocument()
+  })
+
   it('pre-fills the name field with the existing client name', () => {
     const client = useStore.getState().addClient({ name: 'Old Name', color: '#ff0000' })
     render(<ClientForm client={client} onClose={vi.fn()} />)

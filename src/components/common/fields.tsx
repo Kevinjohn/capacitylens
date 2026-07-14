@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
 import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from '../../lib/palette'
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
@@ -63,6 +63,52 @@ export function RequiredLegend() {
     <p className="text-xs text-muted">
       <span className="font-medium text-danger">*</span> {m.field_required_legend()}
     </p>
+  )
+}
+
+/** Accessible on/off field using the same switch treatment as Settings. Kept in the shared field
+ * kit so client/project privacy controls cannot drift in label, target size, or keyboard semantics. */
+export function SwitchField({
+  label,
+  description,
+  checked,
+  onChange,
+  disabled = false,
+}: {
+  label: string
+  description?: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+}) {
+  const descriptionId = useId()
+  return (
+    <div className="flex items-center justify-between gap-4 py-1">
+      <span>
+        <span className="block text-sm font-medium text-ink">{label}</span>
+        {description && <span id={descriptionId} className="block text-xs text-muted">{description}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        aria-describedby={description ? descriptionId : undefined}
+        onClick={() => onChange(!checked)}
+        disabled={disabled}
+        className={cn(
+          'relative h-6 w-10 shrink-0 rounded-full transition disabled:opacity-60',
+          checked ? 'bg-brand' : 'bg-line',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all',
+            checked ? 'left-[18px]' : 'left-0.5',
+          )}
+        />
+      </button>
+    </div>
   )
 }
 

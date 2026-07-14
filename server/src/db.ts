@@ -6,6 +6,7 @@ import {
   INTERNAL_CLIENT_NAME,
 } from '@capacitylens/shared/data/internalClient'
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
+import { redactPrivateNames } from '@capacitylens/shared/domain/privateNames'
 import type { AppData } from '@capacitylens/shared/types/entities'
 
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
@@ -219,6 +220,10 @@ export function loadState(db: Db): AppData {
  * `true`, the note is returned as stored. This is a payload-narrowing rule, not a request gate: the
  * read is already authorized; this only decides which columns leave the server.
  *
+ * PRIVATE-NAME PROJECTION: `opts.includePrivateNames` is REQUIRED. When false, private client and
+ * project real names are replaced with their quoted code names and the raw `codeName` field is
+ * removed. Only account owners pass true; every other role is narrowed before serialization.
+ *
  * LIFECYCLE PROJECTION (P2.4): `opts.includeInactive` is REQUIRED, mirroring `includeTimeOffNote` (no
  * silent default — every caller DECIDES). When `false` (the normal app read), the SHARED `activeOnly`
  * helper is applied AFTER the note redaction, dropping every NON-active (archived OR soft-deleted)
@@ -232,6 +237,8 @@ export function loadState(db: Db): AppData {
  * @param accountId  The account whose slice to read.
  * @param opts.includeTimeOffNote  REQUIRED. `true` keeps each time-off `note`; `false` strips it
  *                                 (owner/admin-only field — redacted before it leaves the server).
+ * @param opts.includePrivateNames REQUIRED. `true` keeps real private names; `false` substitutes
+ *                                 quoted code names and strips the raw codeName field.
  * @param opts.includeInactive  REQUIRED. `false` drops archived/soft-deleted resources/clients/projects
  *                              (the normal app read); `true` returns every row (the P2.5 admin read).
  * @returns An AppData containing ONLY `accountId`'s data (every key present; arrays may be empty).
@@ -239,7 +246,7 @@ export function loadState(db: Db): AppData {
 export function readSlice(
   db: Db,
   accountId: string,
-  opts: { includeTimeOffNote: boolean; includeInactive: boolean },
+  opts: { includeTimeOffNote: boolean; includeInactive: boolean; includePrivateNames: boolean },
 ): AppData {
   const data = emptyAppData() as unknown as Record<string, Row[]>
   // The single global table: read the ONE account by id (0 or 1 row), via the same codec loadState uses.
@@ -263,13 +270,18 @@ export function readSlice(
   if (!opts.includeTimeOffNote) {
     for (const row of data['timeOff']) delete (row as Record<string, unknown>).note
   }
+  // Private real names are owner-only. Replace them with the consistently quoted code name and
+  // remove the raw codeName field before this slice can be serialized or cached by a non-owner.
+  const visibleData = opts.includePrivateNames
+    ? (data as unknown as AppData)
+    : redactPrivateNames(data as unknown as AppData)
   // P2.4 lifecycle projection: for the NORMAL app read (includeInactive:false), drop every NON-active
   // (archived/soft-deleted) resource/client/project via the SHARED activeOnly helper — the SAME rule
   // the client views use (useActiveScopedData), so the two halves can't drift. Applied AFTER the note
   // redaction so the projection runs over the already-redacted slice. includeInactive:true (P2.5's
   // admin read) returns the full slice untouched. The dropped rows stay in the DB + export.
-  if (!opts.includeInactive) return activeOnly(data as unknown as AppData)
-  return data as unknown as AppData
+  if (!opts.includeInactive) return activeOnly(visibleData)
+  return visibleData
 }
 
 /** Persistent "this dataset has been initialised" marker, set on the first write. Unlike

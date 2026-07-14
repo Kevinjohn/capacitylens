@@ -19,7 +19,8 @@ five look-around stops, no navigation, no forced actions — the where, not the 
 
 1. Open the app, click through the demo sign-in (US-NAV-11), and create a **New company** (any
    name). Continue through the intro page (US-NAV-12).
-2. The schedule shows the **Getting started** card above the toolbar: four steps, all pending. The
+2. The schedule shows the floating **Getting started** card over the schedule without shifting the
+   toolbar or grid: four steps, all pending. The
    first three are links; the fourth (**Assign them to the project**) carries a hint about
    clicking/dragging on a person's row.
 3. Click **Add your first client** → you land on the Clients page. Add a client, then return to

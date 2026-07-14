@@ -9,7 +9,7 @@ import { serializeData } from '@capacitylens/shared/data/transfer'
 import { makeResourceDraft, resetStoreWithAccount } from '../test/fixtures'
 
 // ImportExport now branches on the persistence mode (demo = the undoable store import;
-// server = the atomic, purge-gated POST /api/import). Mock apiConfig with a mutable flag
+// server = the atomic, owner-gated POST /api/import). Mock apiConfig with a mutable flag
 // (the AccountPicker.test pattern) so each block pins the mode it exercises; the legacy
 // import tests below are the DEMO-build behaviour.
 const serverFlag = { on: false }
@@ -255,7 +255,7 @@ async function importAndConfirm(json: string) {
   fireEvent.click(screen.getByRole('button', { name: 'Replace data' }))
 }
 
-describe('ImportExport – server mode (atomic /api/import, purge-gated)', () => {
+describe('ImportExport – server mode (atomic /api/import, owner-gated)', () => {
   const incoming = () =>
     serializeData({
       ...emptyAppData(),
@@ -323,18 +323,18 @@ describe('ImportExport – server mode (atomic /api/import, purge-gated)', () =>
     expect(useStore.getState().notice?.message).not.toMatch(/undo|⌘Z/i) // a server import is NOT undoable
   })
 
-  it("surfaces the server's own error sentence on a non-OK response (e.g. the purge-gate 403)", async () => {
+  it("surfaces the server's own error sentence on a non-OK response (e.g. the owner gate's 403)", async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ error: 'Only an admin can import data.' }), { status: 403, headers: { 'Content-Type': 'application/json' } }),
+        new Response(JSON.stringify({ error: 'Only the account owner can import data.' }), { status: 403, headers: { 'Content-Type': 'application/json' } }),
       ),
     )
 
     render(<ImportExport />)
     await importAndConfirm(incoming())
 
-    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/only an admin can import/i))
+    await waitFor(() => expect(useStore.getState().notice?.message).toMatch(/only the account owner can import/i))
     expect(useStore.getState().notice?.tone).toBe('error')
   })
 
@@ -520,9 +520,9 @@ describe('ImportExport – server mode (atomic /api/import, purge-gated)', () =>
     expect(screen.getByTestId('import-data')).toBeDisabled()
   })
 
-  it('hides the Import affordance from an editor (purge-tier, mirrors the server gate) but keeps Export', () => {
+  it.each(['admin', 'editor'] as const)('hides Import from a server-backed %s but keeps Export', (role) => {
     render(
-      <PermissionContext.Provider value={{ role: 'editor' }}>
+      <PermissionContext.Provider value={{ role }}>
         <ImportExport />
       </PermissionContext.Provider>,
     )
@@ -530,9 +530,9 @@ describe('ImportExport – server mode (atomic /api/import, purge-gated)', () =>
     expect(screen.getByTestId('export-data')).toBeInTheDocument()
   })
 
-  it('keeps Import for an admin, and for a null role (OFF/demo/not-yet-fetched regression guard)', () => {
+  it('keeps Import for an owner and a null role (OFF/demo regression guard)', () => {
     const { unmount } = render(
-      <PermissionContext.Provider value={{ role: 'admin' }}>
+      <PermissionContext.Provider value={{ role: 'owner' }}>
         <ImportExport />
       </PermissionContext.Provider>,
     )

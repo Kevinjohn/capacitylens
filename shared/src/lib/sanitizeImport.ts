@@ -1,6 +1,7 @@
 import { isPresetColor, NEUTRAL_COLOR } from './color'
 import { INTERNAL_CLIENT_COLOR } from '../data/internalClient'
 import { cleanText } from './strings'
+import { normalizeCodeName, PRIVATE_CODE_NAME_FALLBACK } from '../domain/privateNames'
 import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
@@ -15,7 +16,7 @@ import {
 // would otherwise have guarded — so a negative/NaN hoursPerDay, a junk status enum, or
 // a non-hex colour can't land in the store and render as broken geometry.
 
-const FALLBACK_COLOR = '#5c34d4'
+const FALLBACK_COLOR = '#2d75da'
 const VALID_STATUS = ['confirmed', 'tentative', 'completed'] as const
 const VALID_KIND = ['person', 'placeholder', 'external'] as const
 const VALID_ACTIVITY_KIND = ['project', 'internal', 'repeatable'] as const
@@ -91,6 +92,20 @@ const cleanField = (rec: Record<string, unknown>, field: string, multiline = fal
 const cleanRequiredField = (rec: Record<string, unknown>, field: string, fallback: string): void => {
   const cleaned = typeof rec[field] === 'string' ? cleanText(rec[field] as string) : ''
   rec[field] = cleaned.length > 0 ? cleaned : fallback
+}
+
+/** Keep the two optional privacy fields coherent. Public is represented by absence; malformed
+ * private imports fail closed to a neutral code name rather than exposing the real name. */
+const normalizePrivateNameFields = (rec: Record<string, unknown>): void => {
+  if (rec.isPrivate !== true) {
+    delete rec.isPrivate
+    delete rec.codeName
+    return
+  }
+  const cleaned = typeof rec.codeName === 'string'
+    ? normalizeCodeName(cleanText(rec.codeName))
+    : ''
+  rec.codeName = cleaned || PRIVATE_CODE_NAME_FALLBACK
 }
 
 /** Normalize lifecycle tombstones through the state machine's stored invariants. Invalid values
@@ -210,11 +225,18 @@ export function sanitizeImportedRecord(
       // one per account (keeps the FIRST, re-stamping its name/colour, and folds any duplicates into
       // it). This sanitiser still runs per-record there, so a kept builtin's flag survives untouched.
       if (rec.builtin !== true) delete rec.builtin
+      // The built-in Internal bucket is never embargoed. A normal client keeps a coherent optional
+      // privacy pair (isPrivate:true + non-empty codeName), defaulting to public when absent/junk.
+      if (rec.builtin === true) {
+        delete rec.isPrivate
+        delete rec.codeName
+      } else normalizePrivateNameFields(rec)
       normalizeLifecycleFields(rec)
       break
     case 'projects':
       rec.color = safeColor(rec.color)
       cleanRequiredField(rec, 'name', 'Untitled') // name is NOT NULL
+      normalizePrivateNameFields(rec)
       normalizeLifecycleFields(rec)
       break
     case 'phases':

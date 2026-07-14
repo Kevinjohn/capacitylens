@@ -15,7 +15,7 @@ describe('sanitizeImportedRecord', () => {
       employmentType: 'permanent',
       workingHoursPerDay: 8,
       workingDays: [1, 2, 3, 4, 5],
-      color: '#5c34d4',
+      color: '#2d75da',
     })
   })
 
@@ -98,12 +98,12 @@ describe('sanitizeImportedRecord', () => {
   })
 
   it('repairs a padded non-preset hex colour to the canonical default', () => {
-    expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color).toBe('#5c34d4')
+    expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color).toBe('#2d75da')
   })
 
   it('falls back a malformed / overlong colour to the safe default', () => {
-    expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe('#5c34d4') // 8 digits
-    expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe('#5c34d4') // 3 digits
+    expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe('#2d75da') // 8 digits
+    expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe('#2d75da') // 3 digits
   })
 
   it('normalizes sloppily-padded dates to canonical YYYY-MM-DD so the record is kept', () => {
@@ -162,13 +162,45 @@ describe('sanitizeImportedRecord', () => {
 
   it('repairs a discipline colour only when present (an absent colour stays absent)', () => {
     expect(sanitizeImportedRecord('disciplines', { name: 'D' }).color).toBeUndefined()
-    expect(sanitizeImportedRecord('disciplines', { name: 'D', color: 'notahex' }).color).toBe('#5c34d4')
+    expect(sanitizeImportedRecord('disciplines', { name: 'D', color: 'notahex' }).color).toBe('#2d75da')
   })
 
   it('drops a non-true builtin flag on an imported client, keeping only an explicit true', () => {
     expect(sanitizeImportedRecord('clients', { name: 'C', builtin: 'yes' }).builtin).toBeUndefined()
     expect(sanitizeImportedRecord('clients', { name: 'C', builtin: false }).builtin).toBeUndefined()
     expect(sanitizeImportedRecord('clients', { name: 'C', builtin: true }).builtin).toBe(true)
+  })
+
+  it.each(['clients', 'projects'] as const)('%s keeps a coherent private code-name pair', (key) => {
+    expect(sanitizeImportedRecord(key, {
+      name: 'Real name',
+      isPrivate: true,
+      codeName: '  “Northstar”  ',
+    })).toMatchObject({ isPrivate: true, codeName: 'Northstar' })
+
+    const publicRow = sanitizeImportedRecord(key, {
+      name: 'Public name',
+      isPrivate: false,
+      codeName: 'Must be removed',
+    })
+    expect(publicRow).not.toHaveProperty('isPrivate')
+    expect(publicRow).not.toHaveProperty('codeName')
+  })
+
+  it.each(['clients', 'projects'] as const)('%s repairs a private row with no usable code name', (key) => {
+    expect(sanitizeImportedRecord(key, { name: 'Real name', isPrivate: true, codeName: '""' }).codeName)
+      .toBe('Confidential')
+  })
+
+  it('never allows the built-in Internal client to become private', () => {
+    const out = sanitizeImportedRecord('clients', {
+      name: 'Internal',
+      builtin: true,
+      isPrivate: true,
+      codeName: 'Hidden internal',
+    })
+    expect(out).not.toHaveProperty('isPrivate')
+    expect(out).not.toHaveProperty('codeName')
   })
 
   it('does NOT give a phase an activity kind (its case must not fall through to activities)', () => {

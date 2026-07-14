@@ -650,7 +650,7 @@ describe('value-level sanitization on direct writes (server is the integrity bou
     expect(r.employmentType).toBe('permanent')
     expect(r.workingHoursPerDay).toBe(8)
     expect(r.workingDays).toEqual([1, 2, 3, 4, 5])
-    expect(r.color).toBe('#5c34d4')
+    expect(r.color).toBe('#2d75da')
   })
 
   it('repairs a bad allocation status / hours on PUT', async () => {

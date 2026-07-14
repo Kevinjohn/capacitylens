@@ -19,7 +19,7 @@ import { validateName } from '../../lib/validation'
 import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
 import { MembersSection } from './MembersSection'
 import { ArchivedSection } from './ArchivedSection'
-import { supportedTimeZones } from '../../lib/timezones'
+import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
 import { cn } from '@/lib/utils'
 import { externalExplainer } from '../../lib/externalCopy'
 import { m } from '@/i18n'
@@ -281,7 +281,7 @@ export function SettingsView() {
               >
                 {tzOptions.map((tz) => (
                   <option key={tz} value={tz}>
-                    {tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz}
+                    {timeZoneOptionLabel(tz, tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz)}
                   </option>
                 ))}
               </select>

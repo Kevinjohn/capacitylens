@@ -20,6 +20,9 @@ test.describe('getting started checklist', () => {
     await openNewCompany(page, 'Fresh Co')
     const card = page.getByTestId('getting-started')
     await expect(card).toBeVisible()
+    // The checklist floats over the scheduler chrome; it must not consume a row in the schedule
+    // layout or push the toolbar/grid down on a first visit.
+    await expect(card).toHaveCSS('position', 'absolute')
 
     // All four steps are pending — the first three are links to where the step happens.
     // (The account's built-in Internal client must NOT tick the client step.)
@@ -33,7 +36,7 @@ test.describe('getting started checklist', () => {
     await clientStep.click()
     await expect(page).toHaveURL(/\/clients$/)
     await page.getByRole('button', { name: 'Add client' }).click()
-    await page.getByLabel('Name').fill('Acme')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Acme')
     await page.getByRole('button', { name: 'Save' }).click()
 
     // …then back on the schedule the client step is done (no longer a link) and the rest remain.

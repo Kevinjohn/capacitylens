@@ -6,11 +6,13 @@ import type { AppData, Project } from '@capacitylens/shared/types/entities'
 import { archiveImpact } from '@capacitylens/shared/domain/lifecycle'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
+import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. */
 function projectArchiveMessage(data: AppData, project: Project): string {
-  const base = m.list_projects_archive_message({ name: project.name })
+  const name = project.isPrivate === true ? nameForQuotedContext(project.name) : project.name
+  const base = m.list_projects_archive_message({ name })
   const { allocations } = archiveImpact(data, 'projects', project.id)
   return allocations > 0 ? `${base} ${m.list_projects_archive_cascade({ allocations })}` : base
 }

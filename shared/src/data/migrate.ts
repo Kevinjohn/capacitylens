@@ -185,6 +185,14 @@ function migrateV5toV6(data: Record<string, unknown>): Record<string, unknown> {
   return added ? { ...data, clients } : data
 }
 
+// v6 → v7 added optional `isPrivate` / `codeName` fields to clients and projects. No transform is
+// needed: absence is deliberately the public default, and the import sanitiser repairs malformed
+// present values after migration. Keeping the version step explicit documents why v7 is structural
+// metadata only rather than an omitted migration.
+function migrateV6toV7(data: Record<string, unknown>): Record<string, unknown> {
+  return data
+}
+
 export function migrate(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') return emptyAppData()
   const obj = raw as Record<string, unknown>
@@ -205,6 +213,9 @@ export function migrate(raw: unknown): AppData {
   }
   if (data && typeof data === 'object' && version < 6) {
     data = migrateV5toV6(data)
+  }
+  if (data && typeof data === 'object' && version < 7) {
+    data = migrateV6toV7(data)
   }
 
   return ensureInternalClients(normalize(data as Partial<AppData> | undefined), '2026-01-01T00:00:00.000Z')

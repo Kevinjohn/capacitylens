@@ -7,13 +7,15 @@ import type { AppData, Client } from '@capacitylens/shared/types/entities'
 import { archiveImpact } from '@capacitylens/shared/domain/lifecycle'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
+import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
  *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
  *  the admin sees exactly what an archive pulls out of the schedule (counts via the pure
  *  archiveImpact, which diffs the same activeOnly projection the view uses). */
 function clientArchiveMessage(data: AppData, client: Client): string {
-  const base = m.list_clients_archive_message({ name: client.name })
+  const name = client.isPrivate === true ? nameForQuotedContext(client.name) : client.name
+  const base = m.list_clients_archive_message({ name })
   const { projects, allocations } = archiveImpact(data, 'clients', client.id)
   return projects + allocations > 0
     ? `${base} ${m.list_clients_archive_cascade({ projects, allocations })}`

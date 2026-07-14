@@ -61,7 +61,7 @@ const timeOff = (id: string, accountId: string, resourceId: string, note?: strin
  *  P2.4); the isolation/shape tests want the FULL slice, so they pass both `true` (every note + every
  *  archived/deleted row). The note redaction (P1.6) and the lifecycle projection (P2.4) each get their
  *  own describe block where the relevant flag is flipped. */
-const FULL = { includeTimeOffNote: true, includeInactive: true } as const
+const FULL = { includeTimeOffNote: true, includeInactive: true, includePrivateNames: true } as const
 
 /** A full two-account dataset: a1 and a2 each carry rows in every scoped table. */
 function seedTwoAccounts(): AppData {
@@ -179,14 +179,53 @@ describe('readSlice — P1.6 time-off note redaction', () => {
   }
 
   it('includeTimeOffNote:true keeps the note', () => {
-    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: true, includeInactive: true })
+    const slice = readSlice(seedWithNote(), 'a1', {
+      includeTimeOffNote: true,
+      includeInactive: true,
+      includePrivateNames: true,
+    })
     expect((slice.timeOff[0] as { note?: string }).note).toBe(NOTE)
   })
 
   it('includeTimeOffNote:false STRIPS the note key (absent, not null)', () => {
-    const slice = readSlice(seedWithNote(), 'a1', { includeTimeOffNote: false, includeInactive: true })
+    const slice = readSlice(seedWithNote(), 'a1', {
+      includeTimeOffNote: false,
+      includeInactive: true,
+      includePrivateNames: true,
+    })
     expect('note' in slice.timeOff[0]).toBe(false)
     expect((slice.timeOff[0] as { note?: string }).note).toBeUndefined()
+  })
+})
+
+describe('readSlice — private client/project name redaction', () => {
+  function seedPrivateNames(): Db {
+    const db = openDb(':memory:')
+    const d = seedTwoAccounts() as unknown as Record<string, unknown[]>
+    d.clients = [
+      { ...client('c1', 'a1'), name: 'Real Client', isPrivate: true, codeName: 'Northstar' },
+      client('c2', 'a2'),
+    ]
+    d.projects = [
+      { ...project('p1', 'a1', 'c1'), name: 'Real Project', isPrivate: true, codeName: 'Aurora' },
+      project('p2', 'a2', 'c2'),
+    ]
+    insertAll(db, d as unknown as AppData)
+    return db
+  }
+
+  it('includePrivateNames:true preserves owner-visible stored fields', () => {
+    const slice = readSlice(seedPrivateNames(), 'a1', FULL)
+    expect(slice.clients[0]).toMatchObject({ name: 'Real Client', isPrivate: true, codeName: 'Northstar' })
+    expect(slice.projects[0]).toMatchObject({ name: 'Real Project', isPrivate: true, codeName: 'Aurora' })
+  })
+
+  it('includePrivateNames:false replaces both real names with quoted code names', () => {
+    const slice = readSlice(seedPrivateNames(), 'a1', { ...FULL, includePrivateNames: false })
+    expect(slice.clients[0]).toMatchObject({ name: '"Northstar"', isPrivate: true })
+    expect(slice.projects[0]).toMatchObject({ name: '"Aurora"', isPrivate: true })
+    expect(slice.clients[0]).not.toHaveProperty('codeName')
+    expect(slice.projects[0]).not.toHaveProperty('codeName')
   })
 })
 
@@ -223,7 +262,11 @@ describe('readSlice — P2.4 lifecycle projection (includeInactive)', () => {
   }
 
   it('includeInactive:false returns ONLY the active resource/client/project rows', () => {
-    const slice = readSlice(seedLifecycleMix(), 'a1', { includeTimeOffNote: true, includeInactive: false })
+    const slice = readSlice(seedLifecycleMix(), 'a1', {
+      includeTimeOffNote: true,
+      includeInactive: false,
+      includePrivateNames: true,
+    })
     expect(slice.resources.map((r) => r.id)).toEqual(['r-active'])
     expect(slice.clients.map((c) => c.id)).toEqual(['c-active'])
     expect(slice.projects.map((p) => p.id)).toEqual(['p-active'])
@@ -234,7 +277,11 @@ describe('readSlice — P2.4 lifecycle projection (includeInactive)', () => {
   })
 
   it('includeInactive:true returns ALL rows (active + archived + soft-deleted)', () => {
-    const slice = readSlice(seedLifecycleMix(), 'a1', { includeTimeOffNote: true, includeInactive: true })
+    const slice = readSlice(seedLifecycleMix(), 'a1', {
+      includeTimeOffNote: true,
+      includeInactive: true,
+      includePrivateNames: true,
+    })
     expect(slice.resources.map((r) => r.id).sort()).toEqual(['r-active', 'r-archived'])
     expect(slice.clients.map((c) => c.id).sort()).toEqual(['c-active', 'c-deleted'])
     expect(slice.projects.map((p) => p.id).sort()).toEqual(['p-active', 'p-deleted'])

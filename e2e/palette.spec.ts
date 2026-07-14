@@ -176,14 +176,14 @@ test.describe('Command palette', () => {
     await page.getByRole('button', { name: 'Add client' }).click()
 
     // Make the form dirty by typing in the Name field
-    await page.getByLabel('Name').fill('Dirty Client')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Dirty Client')
 
     // Now press ControlOrMeta+K — the palette must NOT appear
     await page.keyboard.press('ControlOrMeta+k')
     await expect(page.getByTestId('command-palette')).not.toBeVisible()
 
     // The modal (form) must still be visible
-    await expect(page.getByLabel('Name')).toBeVisible()
+    await expect(page.getByRole('textbox', { name: 'Name', exact: true })).toBeVisible()
 
     // The unsaved-changes notice must appear
     await expect(

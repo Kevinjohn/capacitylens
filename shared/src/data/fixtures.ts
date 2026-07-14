@@ -11,7 +11,7 @@ const TS2 = '2026-06-01T12:00:00.000Z'
 export const FIXTURE_ACCOUNT: Account = {
   id: 'fix-a1',
   name: 'Fixture Studio',
-  color: '#5c34d4',
+  color: '#2d75da',
   schedulingMode: 'days',
   timezone: 'Europe/London',
   weekStartsOn: 0,
@@ -30,6 +30,8 @@ export const FIXTURE_CLIENT: Client = {
   accountId: 'fix-a1',
   name: 'Fixture Client',
   color: '#da2d92',
+  isPrivate: true,
+  codeName: 'Fixture Northstar',
   // A generic fixture must remain a regular client: the built-in Internal client can only be
   // created and repaired by the account lifecycle path.
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
@@ -44,7 +46,7 @@ export const FIXTURE_DISCIPLINE: Discipline = {
   id: 'fix-d1',
   accountId: 'fix-a1',
   name: 'Fixture Discipline',
-  color: '#9c3ace',
+  color: '#2d75da',
   sortOrder: 7,
   createdAt: TS1,
   updatedAt: TS2,
@@ -56,6 +58,8 @@ export const FIXTURE_PROJECT: Project = {
   name: 'Fixture Project',
   clientId: 'fix-c1',
   color: '#2d75da',
+  isPrivate: true,
+  codeName: 'Fixture Aurora',
   // Lifecycle timestamps set to PRESENT (non-default-absent) values so the server round-trip test
   // proves the new optional archivedAt/deletedAt columns persist a present value, not just absence.
   archivedAt: TS1,

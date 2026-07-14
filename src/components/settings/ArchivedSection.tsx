@@ -14,6 +14,7 @@ import { Button, ConfirmDialog } from '../common/ui'
 import { m } from '@/i18n'
 import { can } from '@capacitylens/shared/domain/access'
 import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from '@capacitylens/shared/domain/lifecycle'
+import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
 import type { AppData, Client, Project, Resource } from '@capacitylens/shared/types/entities'
 
 // Settings → "Archived & deleted" — the client-admin view of the data-lifecycle (P2.5b), the
@@ -60,6 +61,15 @@ function collectInactive(data: AppData): Row[] {
   push('clients', data.clients)
   push('projects', data.projects)
   return out
+}
+
+/** Confirmation messages add their own quotes. Strip the read projection's outer quote pair from a
+ * private client/project first so a code name still appears with exactly one pair. */
+function confirmationName(row: Row): string {
+  if (row.entity === 'resources') return row.name
+  return (row.raw as Client | Project).isPrivate === true
+    ? nameForQuotedContext(row.name)
+    : row.name
 }
 
 const TYPE_LABEL: Record<LifecycleEntity, () => string> = {
@@ -256,7 +266,7 @@ export function ArchivedSection() {
       {confirmingDelete && (
         <ConfirmDialog
           title={m.settings_archived_delete_title()}
-          message={m.settings_archived_delete_message({ name: confirmingDelete.name })}
+          message={m.settings_archived_delete_message({ name: confirmationName(confirmingDelete) })}
           confirmLabel={m.settings_archived_delete()}
           onConfirm={() => {
             void actions.softDelete(confirmingDelete.entity, confirmingDelete.id)
@@ -269,7 +279,7 @@ export function ArchivedSection() {
       {confirmingPurge && (
         <ConfirmDialog
           title={m.settings_archived_purge_title()}
-          message={m.settings_archived_purge_message({ name: confirmingPurge.name })}
+          message={m.settings_archived_purge_message({ name: confirmationName(confirmingPurge) })}
           confirmLabel={m.settings_archived_purge_confirm()}
           onConfirm={() => {
             void actions.purge(confirmingPurge.entity, confirmingPurge.id)

@@ -30,12 +30,17 @@ If the app changes, update this file first, then the affected stories.
    persisted). Pick **Studio North** to see the seeded data these stories describe. (A second
    seeded company, *Loft Digital*, is near-empty.) While "signed in", the picker shows
    *"Signed in as Jordan Avery"* with a **Sign out** link. **`New company`**
-   (`data-testid="new-company-button"`) opens an inline create form (P1.14) that captures, besides
-   name + colour, the three **frozen-after-creation** fields: **Week starts on** (segmented
-   Monday/Sunday, default Monday), **Timezone** (select, default `GMT`), and **Language**
-   (read-only **English** — `data-testid="create-language"`; English-only until Paraglide). These
-   three are set ONCE here and are then **disabled** in Settings; the server rejects a later
-   change with **409**.
+   (`data-testid="new-company-button"`) opens an inline create form that captures the company
+   name and the three **frozen-after-creation** fields: **Week starts on** (segmented
+   Monday/Sunday, default Monday), **Timezone** (select, default `GMT`, with its UTC offset shown),
+   and **Language** (read-only **English** — `data-testid="create-language"`; English-only until
+   Paraglide). Company colour uses the default preset automatically rather than asking for a
+   one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
+   Settings; the server rejects a later change with **409**.
+   When there are no companies and the caller may create one, the picker presents only two next
+   steps: **New company** or **Ask an admin for an invite**. A caller without create permission sees
+   only the invite step. With one or more companies already listed, the subtitle says
+   *"Choose a company to plan, or create another one."*
    **Single-company-per-instance policy + caller standing:** a server-backed deploy defaults to
    ONE company (`CAPACITYLENS_MULTI_ACCOUNT` unset) — once an account already exists,
    `GET /api/auth/me` reports `canCreateAccount: false` and the **`New company`** button is
@@ -60,8 +65,9 @@ If the app changes, update this file first, then the affected stories.
    **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
    (`capacitylens/introSeen`, default off, never in `AppData`/export) and is skipped thereafter. The
    wording is **placeholder copy** (single-sourced in `src/lib/introCopy.ts`), pending a human edit.
-6. On an account that still has an onboarding step to do, the schedule shows a **Getting
-   started** checklist card (`data-testid="getting-started"`) above the toolbar, with four
+6. On an account that still has an onboarding step to do, the schedule shows a floating **Getting
+   started** checklist card (`data-testid="getting-started"`) over the schedule without shifting
+   the toolbar or grid, with four
    state-driven steps — **Add your first client / project / person** (links to those pages) and
    **Assign them to the project** (done once any allocation exists). A step ticks itself off from
    the account's actual data (the built-in Internal client does NOT count as "your first
@@ -99,7 +105,12 @@ parties no longer have their own nav link — they moved INTO the **Resources** 
 (see *External / 3rd parties* under Domain rules); the old `/external` URL still resolves but
 **redirects to `/resources`** so saved bookmarks don't 404. Each link
 carries a small decorative icon (`aria-hidden`; the accessible name stays the label text). The
-**Data** section (**Export JSON** / **Import JSON**) sits below the nav links. The company block —
+**Data** section (**Export JSON** / **Import JSON**) sits below the nav links. In an authenticated
+server deployment, **Import JSON** is owner-only because a slice replacement can author or erase
+owner-confidential client/project identities; **Export JSON** remains available at its existing
+role tiers and is server-redacted for non-owners. The local demo and auth-off deploy remain
+owner-equivalent.
+The company block —
 the active company name plus a **Switch company** control (which returns to the company picker) —
 is pinned to the **bottom** of the sidebar, below a divider beneath the Data section. (It used to
 sit at the top; pinning it to the bottom keeps the logo + collapse toggle as the first item in
@@ -187,6 +198,11 @@ buttons), `Colour (…)` (a swatch-picker trigger — its name carries the curre
 colour swatches, each button labelled by a human-readable name like `Blue dark` /
 `Red bright`, not a hex), `Start`, `End`, `Hours / day`, `Status`,
 `Note`, `Assignee`, `Project`, `Activity`, `Resource`, plus `Company` + `Descriptor` (the External form).
+Client and project forms also expose an owner-only `Use a code name` switch, **off by default**.
+Turning it on reveals the required `Code name` field (placeholder `e.g. Northstar`) and the hint
+`Quotation marks are added automatically.` Non-owners editing an already-private row do not see the
+switch/code-name field; its redacted `Name` is disabled with `Only an account owner can change this
+private name.`
 The **activity form** has an `Activity kind` radiogroup (`Project` / `Internal` / `Repeatable`); the
 `Project` field shows (and is required) only for the `Project` kind — internal/repeatable
 activities are project-less.
@@ -552,6 +568,14 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
   may carry a phase), `internal` (project-less internal work), or `repeatable` (project-less,
   reusable across projects). Internal/repeatable activities carry no project or phase. The Activities page
   shows three sections — `internal-activities`, `repeatable-activities`, `project-activities` (testids).
+- **Private client/project names.** A normal client or project may be marked private by an account
+  **owner** and given a required code name. The real `name` and raw `codeName` remain persisted, but
+  only owners receive them from the server. Admins, editors and viewers receive the code name in the
+  `name` field with exactly one pair of quotation marks (for example **`"Northstar"`**) and no raw
+  `codeName`, so the same quoted label flows through lists, filters, the scheduler, allocation bars,
+  forms and the command palette. Non-owner writes pin the stored privacy fields, preventing a
+  redacted sync round-trip from replacing the real name. Privacy is **off by default**, applies only
+  to clients/projects, and never applies to the built-in Internal client.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a *second* Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it

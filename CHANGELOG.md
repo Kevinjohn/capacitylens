@@ -10,6 +10,33 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-07-14
+
+- Polished company onboarding and first-run guidance: empty picker choices are now explicit, company
+  colours use the default preset, timezones show their UTC offsets, and the checklist floats over the
+  schedule without shifting its toolbar or grid.
+- Refreshed the visual language with accessible blue identity accents, green positive-action buttons,
+  and blue defaults for new companies and resources.
+
+## [0.18.0] — 2026-07-14
+
+Private work can now stay discreet across the agency without losing its real identity in
+CapacityLens.
+
+### Added
+
+- Clients and projects can now be marked private and given an owner-managed code name. The account
+  owner continues to see and edit the real name, while everyone else sees only the code name in
+  quotes throughout the scheduling UI. Privacy is off by default, so existing workflows are
+  unchanged until an owner deliberately enables it.
+
+### Security
+
+- Private names are protected at the server boundary as well as in the interface: reads, exports,
+  write responses and conflict responses expose only code names to non-owners. Protected fields
+  cannot be overwritten by redacted sync data, and whole-account imports are owner-only so a
+  non-owner's redacted export can never replace the real client or project names.
+
 ## [0.17.2] — 2026-07-14
 
 ### Fixed
@@ -673,7 +700,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.8...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.0
+[0.18.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.18.0
 [0.15.8]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.8
 [0.15.7]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.7
 [0.15.6]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.6

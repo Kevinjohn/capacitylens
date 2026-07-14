@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   can,
   canSeeTimeOffNote,
+  canSeePrivateNames,
   isAtLeast,
   canManageMemberRole,
   canRemoveMember,
@@ -115,6 +116,17 @@ describe('canSeeTimeOffNote(role) — field-level rule (owner/admin only)', () =
   })
   it('viewer may NOT see the time-off note', () => {
     expect(canSeeTimeOffNote('viewer')).toBe(false)
+  })
+})
+
+describe('canSeePrivateNames(role) — field-level rule (owner only)', () => {
+  it.each([
+    ['owner', true],
+    ['admin', false],
+    ['editor', false],
+    ['viewer', false],
+  ] as const)('%s → %s', (role, expected) => {
+    expect(canSeePrivateNames(role)).toBe(expected)
   })
 })
 

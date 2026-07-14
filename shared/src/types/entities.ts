@@ -117,6 +117,12 @@ export interface Resource extends ScopedEntity {
 export interface Client extends ScopedEntity {
   name: string
   color: string
+  /** When true, only account owners receive `name`; every other role receives the quoted
+   *  `codeName` in its place. Absent = public (the default). */
+  isPrivate?: boolean
+  /** Owner-managed cover name for a private client. Stored without quotation marks; the read
+   *  projection adds them consistently wherever the code name is displayed. */
+  codeName?: string
   /** True ONLY for the built-in "Internal" pseudo-client — exactly one per account, created by
    *  seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
    *  internal/repeatable activity buckets under it for display + filtering. Absent/false = a normal,
@@ -139,6 +145,12 @@ export interface Project extends ScopedEntity {
   name: string
   clientId: ID // REQUIRED — a project must belong to a client
   color: string
+  /** When true, only account owners receive `name`; every other role receives the quoted
+   *  `codeName` in its place. Absent = public (the default). */
+  isPrivate?: boolean
+  /** Owner-managed cover name for a private project. Stored without quotation marks; the read
+   *  projection adds them consistently wherever the code name is displayed. */
+  codeName?: string
   /** ISO 8601 timestamp of when this project was archived (soft, reversible): hidden from
    *  scheduling but fully retained. Absent = active (not archived). Part of the
    *  Active→Archived→Soft-deleted→Purged lifecycle; set/cleared only by the state machine in
@@ -278,8 +290,9 @@ export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'w
 /** Bump when the persisted shape changes; drives data/migrate.ts. (v4 added Activity.kind;
  *  v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
  *  `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
- *  with `builtin: true` — the "Internal" pseudo-client.) */
-export const SCHEMA_VERSION = 6
+ *  with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
+ *  fields, whose absent values already represent the public default.) */
+export const SCHEMA_VERSION = 7
 
 export interface PersistedState {
   schemaVersion: number

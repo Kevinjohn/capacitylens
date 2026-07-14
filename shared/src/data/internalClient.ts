@@ -29,9 +29,9 @@ import type { AppData, Client, ID, ISOTimestamp } from '../types/entities'
 /** The display name of the built-in Internal client (also recognised on import/migrate). */
 export const INTERNAL_CLIENT_NAME = 'Internal'
 
-/** A preset swatch colour for the Internal client (Purple bright — a valid `#rrggbb` from the
+/** A preset swatch colour for the Internal client (Blue bright — a valid `#rrggbb` from the
  *  palette, distinct from NEUTRAL_COLOR which is reserved for external resources). */
-export const INTERNAL_CLIENT_COLOR = '#9c3ace'
+export const INTERNAL_CLIENT_COLOR = '#2d75da'
 
 /** Build the Internal client for one account: a real Client with `builtin: true`, its deterministic
  *  account-derived id, the reserved name + colour, and the given timestamps. */

@@ -6,7 +6,7 @@ test.describe('Disciplines', () => {
   test('adds a discipline and shows it in the list and as a schedule group', async ({ page }) => {
     await openApp(page, 'Studio North', '/disciplines')
     await page.getByRole('button', { name: 'Add discipline' }).click()
-    await page.getByLabel('Name').fill('Strategy')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Strategy')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('discipline-row').filter({ hasText: 'Strategy' })).toBeVisible()
   })
@@ -14,7 +14,7 @@ test.describe('Disciplines', () => {
   test('edits a discipline and reflects the change in the list', async ({ page }) => {
     await openApp(page, 'Studio North', '/disciplines')
     await page.getByTestId('discipline-row').filter({ hasText: 'Design' }).getByRole('button', { name: 'Edit' }).click()
-    await page.getByLabel('Name').fill('Product Design')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Product Design')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('discipline-row').filter({ hasText: 'Product Design' })).toBeVisible()
   })

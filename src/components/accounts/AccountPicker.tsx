@@ -9,9 +9,9 @@ import { can } from '@capacitylens/shared/domain/access'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
-import { validateHex, validateName } from '../../lib/validation'
-import { AddButton, Avatar, Button, ColorField, DeleteButton, FieldError, SegmentedControl, TextField } from '../common/ui'
-import { supportedTimeZones } from '../../lib/timezones'
+import { validateName } from '../../lib/validation'
+import { AddButton, Avatar, Button, DeleteButton, FieldError, SegmentedControl, TextField } from '../common/ui'
+import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { AccountSummary } from '../../store/useStore'
@@ -22,6 +22,8 @@ import { m } from '@/i18n'
 // the three fields the server FREEZES after creation (a later change → 409). They're captured here,
 // with concrete defaults (never undefined: an unset frozen value can't be set later), and disabled
 // in Settings. English-only until P1.5.1 (Paraglide), so Language is a fixed display, not a chooser.
+// Company colour keeps the default preset automatically; there is no one-off colour decision in
+// the onboarding path.
 // Each option's `label` is a GETTER (`() => m.key()`), not a pre-resolved string — the AppShell LINKS
 // pattern (P1.5.2). Resolving at import would freeze the label to the load-time locale; the getter
 // defers it to render so an account/locale switch re-resolves the text (mapped at the call site).
@@ -84,7 +86,6 @@ export function AccountPicker() {
   // right after a successful delete. Demo-mode delete is synchronous and never sets it.
   const [deleting, setDeleting] = useState(false)
   const [name, setName] = useState('')
-  const [color, setColor] = useState<string>(DEFAULT_COLORS.account)
   // The three frozen-after-creation fields (P1.14), captured here with concrete defaults.
   const [weekStartsOn, setWeekStartsOn] = useState<0 | 1>(DEFAULT_WEEK_STARTS_ON)
   const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE)
@@ -95,7 +96,6 @@ export function AccountPicker() {
   const resetForm = () => {
     setCreating(false)
     setName('')
-    setColor(DEFAULT_COLORS.account)
     setWeekStartsOn(DEFAULT_WEEK_STARTS_ON)
     setTimezone(DEFAULT_TIMEZONE)
   }
@@ -114,7 +114,7 @@ export function AccountPicker() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed, color, weekStartsOn, timezone, language: DEFAULT_LANGUAGE }),
+        body: JSON.stringify({ name: trimmed, color: DEFAULT_COLORS.account, weekStartsOn, timezone, language: DEFAULT_LANGUAGE }),
       })
       if (!res.ok) {
         // The server's message (single-company cap / org-create gate) is the useful one; the
@@ -179,7 +179,6 @@ export function AccountPicker() {
     if (submitting) return
     const trimmed = validateName(name, fail)
     if (!trimmed) return
-    if (!validateHex(color, fail)) return
     // Pass the three frozen fields as CONCRETE values (never undefined): the server freezes them after
     // creation, so an unset value here could never be set later — stranding the user (P1.14, TRAP 4).
     if (isServerConfigured()) {
@@ -190,7 +189,7 @@ export function AccountPicker() {
     // uncaught React error. (addAccount is the one CRUD action that works with no active account —
     // bootstrapping the first tenant.)
     try {
-      const account = addAccount({ name: trimmed, color, weekStartsOn, timezone, language: DEFAULT_LANGUAGE })
+      const account = addAccount({ name: trimmed, color: DEFAULT_COLORS.account, weekStartsOn, timezone, language: DEFAULT_LANGUAGE })
       resetForm()
       setActiveAccount(account.id)
     } catch (e) {
@@ -290,48 +289,59 @@ export function AccountPicker() {
         )}
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-          <h1 className="text-lg font-semibold text-ink">{m.picker_title()}</h1>
+          <h1 className="text-lg font-semibold text-ink">
+            {accounts.length === 0 ? m.picker_empty_title() : m.picker_title()}
+          </h1>
           {/* At the single-company cap the create affordance is hidden (see below), so the
               subtitle must not promise "or create a new one" — that copy would point at nothing. */}
           <p className="text-sm text-muted">
-            {canCreateAccount ? m.picker_subtitle() : m.picker_subtitle_capped()}
+            {accounts.length === 0
+              ? canCreateAccount
+                ? m.picker_empty_subtitle()
+                : m.picker_empty_subtitle_no_create()
+              : canCreateAccount
+                ? m.picker_subtitle()
+                : m.picker_subtitle_capped()}
           </p>
         </div>
 
-        <ul className="space-y-2">
-          {accounts.map((a) => (
-            <li key={a.id} className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setActiveAccount(a.id)}
-                className="flex flex-1 items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-ink shadow-sm transition hover:bg-canvas"
-              >
-                {/* AccountSummary carries no colour (it's the minimal server-sourced shape — P1.13), so
-                    the picker swatch uses the default account colour. The real per-account colour shows
-                    once the slice is loaded; the picker pre-loads only id/name/role. */}
-                <Avatar name={a.name} color={DEFAULT_COLORS.account} />
-                <span className="font-medium">{a.name}</span>
-              </button>
-              {/* Company deletion is owner-only server-side, so every non-owner summary gets no
-                  Delete affordance at all — offering one would let them type-to-confirm an
-                  irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
-              {can(a.role, 'deleteAccount') && (
-                <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
-              )}
-            </li>
-          ))}
-          {accounts.length === 0 && !creating && (
-            <li className="rounded-lg border border-dashed bg-surface px-4 py-8 text-center text-sm text-muted">
-              {/* Empty list has two meanings (P1.13): in server/auth-on mode the login simply has NO
-                  memberships yet; in the demo/OFF build there are no companies on this device yet.
-                  The copy follows canCreateAccount (which now reflects the caller's actual standing,
-                  not just the instance cap): "create your first one" is only promised when the New
-                  company button below will actually render — a membership-less login on a
-                  multi-account instance is told to ask for an invite instead. */}
-              {canCreateAccount ? m.picker_empty() : m.picker_empty_no_create()}
-            </li>
-          )}
-        </ul>
+        {accounts.length === 0 && !creating ? (
+          <div data-testid="company-empty-options" className="mt-4 space-y-2">
+            {canCreateAccount && (
+              <div className="rounded-lg border border-line bg-surface p-3 shadow-sm">
+                <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />
+                <p className="mt-2 text-xs text-muted">{m.picker_empty_create_hint()}</p>
+              </div>
+            )}
+            <div className="rounded-lg border border-line bg-surface px-3 py-3 text-sm text-muted shadow-sm">
+              {m.picker_empty_invite()}
+            </div>
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {accounts.map((a) => (
+              <li key={a.id} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveAccount(a.id)}
+                  className="flex flex-1 items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-ink shadow-sm transition hover:bg-canvas"
+                >
+                  {/* AccountSummary carries no colour (it's the minimal server-sourced shape — P1.13), so
+                      the picker swatch uses the default account colour. The real per-account colour shows
+                      once the slice is loaded; the picker pre-loads only id/name/role. */}
+                  <Avatar name={a.name} color={DEFAULT_COLORS.account} />
+                  <span className="font-medium">{a.name}</span>
+                </button>
+                {/* Company deletion is owner-only server-side, so every non-owner summary gets no
+                    Delete affordance at all — offering one would let them type-to-confirm an
+                    irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
+                {can(a.role, 'deleteAccount') && (
+                  <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
 
         {creating ? (
           <form noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="mt-4 space-y-3 rounded-lg border border-line bg-surface p-4">
@@ -343,7 +353,6 @@ export function AccountPicker() {
               invalid={errorField === 'name'}
               describedById={errorId}
             />
-            <ColorField label={m.picker_colour()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
             {/* The three calendar/locale facts captured at creation and FROZEN afterwards (P1.14). */}
             <div>
               <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_week_start()}</p>
@@ -366,7 +375,7 @@ export function AccountPicker() {
               >
                 {tzOptions.map((tz) => (
                   <option key={tz} value={tz}>
-                    {tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz}
+                    {timeZoneOptionLabel(tz, tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz)}
                   </option>
                 ))}
               </select>
@@ -391,7 +400,7 @@ export function AccountPicker() {
           // just read at boot: the server recomputes it per /me request, and this picker re-asks
           // (refreshAuth) after every org create/delete — so deleting the last company re-surfaces
           // this button via the zero-accounts bootstrap exemption, without a manual reload.
-          canCreateAccount && (
+          accounts.length > 0 && canCreateAccount && (
             <div className="mt-4">
               <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />
             </div>

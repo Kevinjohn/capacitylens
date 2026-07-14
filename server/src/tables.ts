@@ -78,6 +78,9 @@ const COLS_clients = [
   { name: 'accountId' },
   { name: 'name' },
   { name: 'color' },
+  // Optional privacy pair: absent = public. Stored code names exclude display quotation marks.
+  { name: 'isPrivate', json: true, optional: true },
+  { name: 'codeName', optional: true },
   // JSON so node:sqlite (which can't bind a raw boolean) round-trips it as "true"/"false";
   // absent → NULL → omitted on read, matching the client object. True only for the built-in
   // Internal pseudo-client (one per account).
@@ -103,6 +106,9 @@ const COLS_projects = [
   { name: 'name' },
   { name: 'clientId' },
   { name: 'color' },
+  // Optional privacy pair: absent = public. Stored code names exclude display quotation marks.
+  { name: 'isPrivate', json: true, optional: true },
+  { name: 'codeName', optional: true },
   // Lifecycle timestamps (P2.1) — plain TEXT, absent → NULL → omitted on read. Inert plumbing today.
   { name: 'archivedAt', optional: true },
   { name: 'deletedAt', optional: true },
@@ -279,7 +285,7 @@ CREATE TABLE IF NOT EXISTS accounts (
 CREATE TABLE IF NOT EXISTS clients (
   id TEXT NOT NULL PRIMARY KEY,
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-  name TEXT NOT NULL, color TEXT NOT NULL, builtin TEXT,
+  name TEXT NOT NULL, color TEXT NOT NULL, isPrivate TEXT, codeName TEXT, builtin TEXT,
   archivedAt TEXT, deletedAt TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
@@ -294,7 +300,7 @@ CREATE TABLE IF NOT EXISTS projects (
   accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   clientId TEXT NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  color TEXT NOT NULL,
+  color TEXT NOT NULL, isPrivate TEXT, codeName TEXT,
   archivedAt TEXT, deletedAt TEXT,
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );

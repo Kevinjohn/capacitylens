@@ -65,6 +65,22 @@ describe('ClientList archive flow', () => {
     // Gone from the active-only management list.
     expect(screen.queryByText('Acme')).not.toBeInTheDocument()
   })
+
+  it('keeps exactly one quote pair around a redacted private code name in confirmation copy', async () => {
+    const user = userEvent.setup()
+    useStore.getState().addClient({
+      name: '"Northstar"',
+      color: '#111111',
+      isPrivate: true,
+      codeName: undefined,
+    })
+    render(<ClientList />)
+
+    await user.click(screen.getByRole('button', { name: 'Archive "Northstar"' }))
+    const dialog = screen.getByRole('dialog', { name: 'Archive client?' })
+    expect(dialog).toHaveTextContent('Archive "Northstar"?')
+    expect(dialog).not.toHaveTextContent('""Northstar""')
+  })
 })
 
 // The built-in Internal client is a behind-the-scenes data anchor, NOT a user-managed client, so it

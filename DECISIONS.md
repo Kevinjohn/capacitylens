@@ -35,8 +35,12 @@ This is the short, present-tense record of decisions that constrain future work.
   hygiene, not authorization.
 - Forms reject invalid input. Import and server boundaries repair safe values, drop unsafe rows
   and preserve referential integrity.
-- Server imports are atomic and not undoable.
+- Server imports are atomic, not undoable and owner-only; a non-owner's redacted export is not a
+  safe source for a whole-slice replacement of owner-confidential client/project identities.
 - Theme and display preferences are device-global and outside account exports.
+- Client/project privacy is opt-in and owner-managed. Real names and raw code names remain stored;
+  only account owners receive them. Every other role receives the quoted code name, and non-owner
+  writes preserve the protected stored fields. The built-in Internal client is always public.
 
 ## Offline
 

@@ -7,7 +7,7 @@ test.describe('CRUD + demo lifecycle', () => {
     await page.getByRole('link', { name: 'Projects' }).click()
     await page.getByRole('button', { name: 'Add project' }).click()
 
-    await page.getByLabel('Name').fill('Clientless Project')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Clientless Project')
     await page.getByRole('button', { name: 'Save' }).click()
 
     await expect(page.getByRole('alert')).toContainText(/must belong to a client/i)
@@ -18,7 +18,7 @@ test.describe('CRUD + demo lifecycle', () => {
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
 
-    await page.getByLabel('Name').fill('Persisted Client')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Persisted Client')
     await page.getByRole('button', { name: 'Save' }).click()
 
     await expect(page.getByText('Persisted Client')).toBeVisible()
@@ -34,7 +34,7 @@ test.describe('CRUD + demo lifecycle', () => {
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
-    await page.getByLabel('Name').fill('RoundTrip Co')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('RoundTrip Co')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText('RoundTrip Co')).toBeVisible()
 

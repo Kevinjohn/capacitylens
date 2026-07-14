@@ -9,7 +9,7 @@ test.describe('Resources', () => {
     await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add resource' }).click()
 
-    await page.getByLabel('Name').fill('Dana Lee')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Dana Lee')
     await page.getByLabel('Role').fill('Motion Designer')
     await page.getByLabel('Discipline').selectOption({ label: 'Design' })
     await page.getByRole('button', { name: 'Save' }).click()
@@ -80,7 +80,7 @@ test.describe('Resources', () => {
   test('rejects zero working hours', async ({ page }) => {
     await openApp(page, 'Studio North', '/resources')
     await page.getByRole('button', { name: 'Add resource' }).click()
-    await page.getByLabel('Name').fill('Edge Case')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Edge Case')
     await page.getByLabel('Role').fill('Tester')
 
     await page.getByLabel('Working hours / day').fill('0')

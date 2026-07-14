@@ -135,6 +135,24 @@ describe('ArchivedSection — demo build (store source)', () => {
     expect(r.name).toMatch(/^Removed person #/)
   })
 
+  it('keeps one quote pair around a private code name in archived confirmation copy', async () => {
+    const user = userEvent.setup()
+    seed({
+      clients: [client({
+        name: '"Northstar"',
+        isPrivate: true,
+        codeName: undefined,
+        archivedAt: TS,
+      })],
+    })
+    render(<ArchivedSection />)
+
+    await user.click(screen.getByRole('button', { name: 'Delete "Northstar"' }))
+    const dialog = screen.getByRole('dialog', { name: 'Delete this item?' })
+    expect(dialog).toHaveTextContent('Delete "Northstar"?')
+    expect(dialog).not.toHaveTextContent('""Northstar""')
+  })
+
   // A RENDER test, not an obfuscation proof: that the admin view DISPLAYS a resource tombstone's
   // already-scrubbed name verbatim. (The scrub itself is proven by the soft-delete test above and the
   // store's softDeleteEntity spec — this only seeds an already-obfuscated name and checks it shows.)

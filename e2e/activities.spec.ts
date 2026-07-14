@@ -8,7 +8,7 @@ test.describe('Activities', () => {
 
     // Internal kind → project picker hidden, lands in the "Internal activities" section.
     await page.getByRole('button', { name: 'Add activity' }).click()
-    await page.getByLabel('Name').fill('Internal sync')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Internal sync')
     await page.getByRole('radio', { name: 'Internal' }).click()
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
@@ -17,7 +17,7 @@ test.describe('Activities', () => {
 
     // Repeatable kind → reusable across projects, lands in the "Repeatable activities" section.
     await page.getByRole('button', { name: 'Add activity' }).click()
-    await page.getByLabel('Name').fill('Discovery workshop')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Discovery workshop')
     await page.getByRole('radio', { name: 'Repeatable' }).click()
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
@@ -27,7 +27,7 @@ test.describe('Activities', () => {
     // Project kind (the default) → bound to a project, lands in the "Project activities" section,
     // labelled with its client / project.
     await page.getByRole('button', { name: 'Add activity' }).click()
-    await page.getByLabel('Name').fill('Spec review')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Spec review')
     await page.getByLabel('Project').selectOption('p-acme')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
@@ -38,7 +38,7 @@ test.describe('Activities', () => {
   test('edits an activity name', async ({ page }) => {
     await openApp(page, 'Studio North', '/activities')
     await page.getByTestId('activity-row').filter({ hasText: 'CMS Review' }).getByRole('button', { name: 'Edit' }).click()
-    await page.getByLabel('Name').fill('CMS Build')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('CMS Build')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('activity-row').filter({ hasText: 'CMS Build' })).toBeVisible()
   })

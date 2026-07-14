@@ -98,6 +98,7 @@ import {
 import { eraseAccount, eraseAccountInTx } from './erasure'
 import {
   can,
+  canSeePrivateNames,
   canManageMemberRole,
   canRemoveMember,
   canResetMemberAcrossAccounts,
@@ -105,6 +106,7 @@ import {
   type Action,
   type Role,
 } from '@capacitylens/shared/domain/access'
+import { redactPrivateName } from '@capacitylens/shared/domain/privateNames'
 import { tx } from './txn'
 import { newId } from '@capacitylens/shared/lib/id'
 import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
@@ -430,7 +432,7 @@ function isStaleWrite(
   existing: Record<string, unknown> | undefined,
   row: Record<string, unknown>,
 ): existing is Record<string, unknown> {
-  // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactNoteEcho inside
+  // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactWriteEcho inside
   // the 409 branch, which needs the `existing`-is-present narrowing the old inline check gave.)
   if (existing === undefined) return false
   if (
@@ -575,10 +577,12 @@ function nextRevision(updatedAt: unknown): string {
   return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString()
 }
 
-/** The "writer may see the time-off note" SanitizeWriteOptions — the overwhelmingly common case
- *  (every non-timeOff table, auth OFF, owner/admin). One frozen module-level instance so the hot
- *  write paths don't allocate a fresh options object per row/op. */
-const NOTE_VISIBLE: SanitizeWriteOptions = Object.freeze({ canSeeTimeOffNote: true })
+/** Fully visible writer context (unaffected tables, auth OFF, or an owner). One frozen module-level
+ * instance keeps the hot generic write paths allocation-free. */
+const ALL_FIELDS_VISIBLE: SanitizeWriteOptions = Object.freeze({
+  canSeeTimeOffNote: true,
+  canSeePrivateNames: true,
+})
 
 /** SELECT COUNT(*) FROM accounts — the cap's sole precondition. Same query POST /api/orgs used
  *  before the cap existed; kept as one function so every enforcement point reads the identical
@@ -926,45 +930,39 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     return true
   }
 
-  /**
-   * P1.6 write-side note visibility: the SanitizeWriteOptions for one write, deciding whether the
-   * CALLER may see the time-off `note` — the exact same rule the read path applies (readSlice's
-   * `includeTimeOffNote`, from `canSeeTimeOffNote`; auth OFF ⇒ trusted-local, always visible).
-   * sanitizeWrite uses it to PIN `note` to the stored value for a note-blind writer, so an
-   * editor's round-tripped (redacted) row can't NULL a note they never received.
-   *
-   * Only `timeOff` writes pay the membership lookup — every other table short-circuits to visible
-   * (the option is inert there), so the generic write paths gain no per-request DB cost. The
-   * `accountId` param is `unknown` (it comes straight off an untrusted body); a non-string
-   * fail-closes to not-visible, which only ever PRESERVES data (the ownsRow/authorize guards
-   * reject such a body independently).
-   */
-  function noteVisibilityFor(
+  /** Writer visibility for the two field-level confidentiality policies. Only time off and
+   * client/project writes pay the membership lookup; a non-string account id fails closed. */
+  function fieldVisibilityFor(
     req: FastifyRequest,
     table: string,
     accountId: unknown,
   ): SanitizeWriteOptions {
-    if (table !== 'timeOff' || authMode === 'off') return NOTE_VISIBLE
+    if ((table !== 'timeOff' && table !== 'clients' && table !== 'projects') || authMode === 'off') {
+      return ALL_FIELDS_VISIBLE
+    }
     const role = typeof accountId === 'string' ? resolveRole(db, req.user!, accountId) : null
-    return { canSeeTimeOffNote: role !== null && canSeeTimeOffNote(role) }
+    return {
+      canSeeTimeOffNote: role !== null && canSeeTimeOffNote(role),
+      canSeePrivateNames: role !== null && canSeePrivateNames(role),
+    }
   }
 
-  /**
-   * Redact the time-off `note` from a write's RESPONSE echo for a note-blind writer. A write
-   * response is a read: the pin above stores the existing note back into the written row, and
-   * PATCH's merge carries the stored note too — echoing either would hand an editor/viewer-tier
-   * caller the very field readSlice redacts from all their reads (P1.6). Returns the row
-   * unchanged whenever the writer may see the note (owner/admin, auth OFF, or any other table).
-   */
-  function redactNoteEcho(
+  /** Apply both field-level confidentiality projections to write/conflict/lifecycle response echoes.
+   * A write response is also a read and must never bypass the main state-read policy. */
+  function redactWriteEcho(
     table: string,
     row: Record<string, unknown>,
     vis: SanitizeWriteOptions,
   ): Record<string, unknown> {
-    if (table !== 'timeOff' || vis.canSeeTimeOffNote !== false) return row
-    const rest = { ...row }
-    delete rest.note
-    return rest
+    let visible = row
+    if (table === 'timeOff' && vis.canSeeTimeOffNote === false) {
+      visible = { ...visible }
+      delete visible.note
+    }
+    if ((table === 'clients' || table === 'projects') && vis.canSeePrivateNames === false) {
+      visible = redactPrivateName(visible as unknown as Client | Project) as unknown as Record<string, unknown>
+    }
+    return visible
   }
 
   // No app-level auth in this phase. CORS is the only cross-origin gate, so the
@@ -1159,6 +1157,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
         const role = authMode === 'off' ? null : resolveRole(db, req.user!, accountId)
         const includeTimeOffNote = authMode === 'off' || (role !== null && canSeeTimeOffNote(role))
+        const includePrivateNames = authMode === 'off' || (role !== null && canSeePrivateNames(role))
         // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
         // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
         // purge (admin+, `can(role, 'purge')`) — the lifecycle-management tier — so an editor/viewer
@@ -1181,7 +1180,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // P2.4: the NORMAL app read HIDES archived/soft-deleted resources/clients/projects — pass
         // includeInactive:false so readSlice drops them server-side (the same rule the client views
         // apply via useActiveScopedData). The P2.5a admin read passes true to retain them.
-        return store.readSlice(accountId, { includeTimeOffNote, includeInactive: wantsInactive })
+        return store.readSlice(accountId, { includeTimeOffNote, includeInactive: wantsInactive, includePrivateNames })
       }
       // No ?accountId=. The auth-on cross-tenant whole-read is now CLOSED (P1.13 — the P1.4
       // carry-forward): a logged-in user must hydrate PER ACCOUNT via ?accountId= (the client picker
@@ -1896,7 +1895,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // includeInactive:true so we can SEE an already-archived/deleted row (and 409 on it, rather than
         // 404). includeTimeOffNote:TRUE is LOAD-BEARING — we write the WHOLE slice back via
         // replaceAccountSlice, so a note stripped from the read would be ERASED on persist.
-        const slice = store.readSlice(accountId, { includeTimeOffNote: true, includeInactive: true })
+        const slice = store.readSlice(accountId, {
+          includeTimeOffNote: true,
+          includeInactive: true,
+          includePrivateNames: true,
+        })
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id) // cross-account → throw; absent → null
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'archived')) return
@@ -1913,7 +1916,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           changedFields: ['archivedAt'],
         })
-        return reply.code(200).send(next)
+        return reply.code(200).send(redactWriteEcho(
+          entity,
+          next as unknown as Record<string, unknown>,
+          fieldVisibilityFor(req, entity, accountId),
+        ))
       } catch (err) {
         return lifecycleFail(reply, err)
       }
@@ -1925,7 +1932,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const accountId = lifecyclePreamble(req, reply, entity, 'write')
       if (accountId === null) return
       try {
-        const slice = store.readSlice(accountId, { includeTimeOffNote: true, includeInactive: true })
+        const slice = store.readSlice(accountId, {
+          includeTimeOffNote: true,
+          includeInactive: true,
+          includePrivateNames: true,
+        })
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'unarchived')) return
@@ -1942,7 +1953,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           changedFields: ['archivedAt'],
         })
-        return reply.code(200).send(next)
+        return reply.code(200).send(redactWriteEcho(
+          entity,
+          next as unknown as Record<string, unknown>,
+          fieldVisibilityFor(req, entity, accountId),
+        ))
       } catch (err) {
         return lifecycleFail(reply, err)
       }
@@ -1957,7 +1972,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const accountId = lifecyclePreamble(req, reply, entity, 'purge')
       if (accountId === null) return
       try {
-        const slice = store.readSlice(accountId, { includeTimeOffNote: true, includeInactive: true })
+        const slice = store.readSlice(accountId, {
+          includeTimeOffNote: true,
+          includeInactive: true,
+          includePrivateNames: true,
+        })
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'deleted')) return
@@ -1996,7 +2015,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // never its value. A non-resource delete touches only deletedAt.
           changedFields: entity === 'resources' ? ['deletedAt', 'name'] : ['deletedAt'],
         })
-        return reply.code(200).send(next)
+        return reply.code(200).send(redactWriteEcho(
+          entity,
+          next as unknown as Record<string, unknown>,
+          fieldVisibilityFor(req, entity, accountId),
+        ))
       } catch (err) {
         return lifecycleFail(reply, err)
       }
@@ -2010,7 +2033,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const accountId = lifecyclePreamble(req, reply, entity, 'purge')
       if (accountId === null) return
       try {
-        const slice = store.readSlice(accountId, { includeTimeOffNote: true, includeInactive: true })
+        const slice = store.readSlice(accountId, {
+          includeTimeOffNote: true,
+          includeInactive: true,
+          includePrivateNames: true,
+        })
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'purged')) return
@@ -2085,7 +2112,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       try {
         // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
         // to preserve; they could never read back a note they authored) — see sanitizeWrite.
-        const vis = noteVisibilityFor(req, entity, (req.body as { accountId?: unknown }).accountId)
+        const vis = fieldVisibilityFor(req, entity, (req.body as { accountId?: unknown }).accountId)
         const row = stampServerRevision(
           sanitizeWrite(entity, req.body as Record<string, unknown>, undefined, vis),
         )
@@ -2185,7 +2212,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // write (their round-tripped row was redacted, so a bare upsert would NULL a note they
         // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
         // the 409 conflict payload included.
-        const vis = noteVisibilityFor(req, entity, body.accountId)
+        const vis = fieldVisibilityFor(req, entity, body.accountId)
         // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the
         // predicate is isStaleWrite, SHARED with the batch loop so the two paths can't drift.
         // The 409's `current` payload is a READ of the stored row, so it gets the same note
@@ -2194,7 +2221,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (opts.optimisticConcurrency !== false && isStaleWrite(existing, body)) {
           return reply.code(409).send({
             error: 'The record was modified more recently on the server.',
-            current: redactNoteEcho(entity, existing, vis),
+            current: redactWriteEcho(entity, existing, vis),
           })
         }
         const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing)
@@ -2229,9 +2256,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           changedFields: fieldNames(entity, body),
         })
-        // The echo redaction (see redactNoteEcho): the pin re-attached a note the writer may not
-        // see, and a write response is a read.
-        return reply.code(200).send(redactNoteEcho(entity, row, vis))
+        // A write response is a read: apply the same note/private-name projections as /api/state.
+        return reply.code(200).send(redactWriteEcho(entity, row, vis))
       } catch (err) {
         return sendFail(reply, err)
       }
@@ -2270,7 +2296,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // caller's PATCH body can't include one they never received), but the pin also stops a
         // crafted note change/clear riding a patch. accountId for the role lookup = the body's
         // override if present (then refused by ownsRow below), else the stored row's.
-        const vis = noteVisibilityFor(
+        const vis = fieldVisibilityFor(
           req,
           entity,
           (req.body as { accountId?: unknown }).accountId ?? existing.accountId,
@@ -2304,7 +2330,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         ) {
           return reply.code(409).send({
             error: 'The record was modified more recently on the server.',
-            current: redactNoteEcho(entity, existing, vis),
+            current: redactWriteEcho(entity, existing, vis),
           })
         }
         const stamped = stampServerRevision(merged, existing)
@@ -2321,9 +2347,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           id,
           changedFields: fieldNames(entity, req.body),
         })
-        // The echo redaction (see redactNoteEcho): the merge carried the stored note into `merged`,
-        // and a write response is a read — don't hand a note-blind patcher the redacted field.
-        return reply.code(200).send(redactNoteEcho(entity, stamped, vis))
+        // The merge carries stored protected fields into `merged`; apply the normal read projection.
+        return reply.code(200).send(redactWriteEcho(entity, stamped, vis))
       } catch (err) {
         return sendFail(reply, err)
       }
@@ -2521,24 +2546,24 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const accountId = op.method === 'PUT' ? (op.row as { accountId?: string } | undefined)?.accountId : op.accountId
         if (!authorize(req, reply, accountId as string, 'write')) return
       }
-      // P1.6 note visibility, memoized PER REQUEST: noteVisibilityFor pays a resolveRole
-      // membership query for every timeOff row, and a batch may carry up to MAX_BATCH_OPS of them
+      // Field visibility, memoized PER REQUEST: fieldVisibilityFor pays a resolveRole membership
+      // query for every timeOff/client/project row, and a batch may carry up to MAX_BATCH_OPS of them
       // — each op would otherwise re-run the identical lookup inside the write tx. Memoizing by
       // accountId is exact, not approximate: the caller (req.user) is fixed for the request, and
       // their role cannot change mid-transaction (tx() serializes on the single SQLite connection
       // membership writes also go through, so no interleaved role edit can land while the batch
-      // runs). Non-timeOff tables short-circuit inside noteVisibilityFor to the frozen
-      // NOTE_VISIBLE constant — no lookup, no allocation — so only distinct timeOff accountIds
+      // runs). Unaffected tables short-circuit to the frozen ALL_FIELDS_VISIBLE constant — no
+      // lookup, no allocation — so only distinct protected-field accountIds
       // (in practice: one) ever populate the cache.
-      const noteVisCache = new Map<string, SanitizeWriteOptions>()
-      const noteVisFor = (table: string, accountId: unknown): SanitizeWriteOptions => {
-        if (table !== 'timeOff' || typeof accountId !== 'string') {
-          return noteVisibilityFor(req, table, accountId) // no-lookup short-circuits; nothing to cache
+      const fieldVisCache = new Map<string, SanitizeWriteOptions>()
+      const fieldVisFor = (table: string, accountId: unknown): SanitizeWriteOptions => {
+        if ((table !== 'timeOff' && table !== 'clients' && table !== 'projects') || typeof accountId !== 'string') {
+          return fieldVisibilityFor(req, table, accountId) // no-lookup short-circuits; nothing to cache
         }
-        const cached = noteVisCache.get(accountId)
+        const cached = fieldVisCache.get(accountId)
         if (cached) return cached
-        const vis = noteVisibilityFor(req, table, accountId)
-        noteVisCache.set(accountId, vis)
+        const vis = fieldVisibilityFor(req, table, accountId)
+        fieldVisCache.set(accountId, vis)
         return vis
       }
       // Classify each op against the projected sequence, not merely the final/pre-batch DB. This
@@ -2625,7 +2650,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                 // note for a note-blind writer, exactly like the write echo (P1.6) — the conflict
                 // path must not hand an editor the very field readSlice redacts.
                 throw new StaleWriteError(
-                  redactNoteEcho(table, existing, noteVisFor(table, (row as { accountId?: unknown }).accountId)),
+                  redactWriteEcho(table, existing, fieldVisFor(table, (row as { accountId?: unknown }).accountId)),
                 )
               }
               // P1.6: pin the time-off `note` for a note-blind writer — the batch is the client's
@@ -2635,7 +2660,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   table,
                   row as Record<string, unknown>,
                   existing,
-                  noteVisFor(table, (row as { accountId?: unknown }).accountId),
+                  fieldVisFor(table, (row as { accountId?: unknown }).accountId),
                 ),
                 existing,
               )
@@ -2748,7 +2773,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!body || typeof body.accountId !== 'string') {
         return reply.code(400).send({ error: 'accountId is required' })
       }
-      // Import is gated 'purge' (admin+), NOT 'write' (editor), for two reasons:
+      // Import first requires 'purge', NOT 'write' (editor), because:
       //   (1) it is DESTRUCTIVE slice replacement — replaceAccountSlice deletes the account's
       //       entire scoped slice and re-inserts the import, the same hard-delete semantics the
       //       purge tier exists for (cf. the accounts-DELETE vectors); and
@@ -2756,8 +2781,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       //       existing-row pins (e.g. the P1.6 timeOff note pin) can never match a stored row.
       //       At 'write' tier a note-blind editor could erase every owner-confidential timeOff
       //       note (their own exports are note-redacted) or fabricate notes wholesale.
-      // OFF mode keeps the open behaviour (demo/e2e parity — authorize no-ops there).
+      // It is then narrowed to OWNER in auth-on mode: admins receive private clients/projects with
+      // quoted cover names and no raw codeName. Their own valid export therefore cannot safely be
+      // used as a replacement — it would turn the cover name into the persisted real name and repair
+      // the missing code name to "Confidential", destroying the owner-only identity. OFF mode keeps
+      // the open behaviour (demo/e2e parity — authorize no-ops there).
       if (!authorize(req, reply, body.accountId, 'purge')) return
+      if (authMode !== 'off') {
+        const role = resolveRole(db, req.user!, body.accountId)
+        if (role === null || !canSeePrivateNames(role)) {
+          return reply.code(403).send({ error: 'Only the account owner can import data.' })
+        }
+      }
       let incoming
       try {
         incoming = parseData(JSON.stringify(body.data ?? {}))

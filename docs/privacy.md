@@ -12,6 +12,14 @@ identities, linked providers, sessions, invitations and password-reset state.
 The audit log records who changed which entity and field names, but not field values. Online
 database snapshots contain the full database and must be protected like production data.
 
+Clients and projects can optionally store a code name alongside the real name. This is an access-
+control feature, not database encryption: real names remain in SQLite, operator backups and owner
+exports. Authenticated API reads expose real names and raw code-name settings only to the account
+owner; admins, editors and viewers receive only the quoted code-name projection. Their writes also
+preserve the protected fields they were not allowed to read. Whole-slice server imports are
+owner-only because a non-owner export deliberately lacks the protected identity fields required for
+a lossless restore.
+
 ## Browser storage
 
 The demo stores scheduling data only in memory and resets on refresh. Device preferences use
@@ -22,6 +30,10 @@ IndexedDB for up to seven days, plus an application-shell cache. It is read-only
 writes. It is not independently encrypted; browser-profile access implies cache access. Sign-out
 removes the current user's cached snapshots; “Clear device data” removes every CapacityLens cache
 and preference stored by that browser profile. See `docs/offline.md`.
+
+Offline snapshots contain the same role-filtered payload last returned by the server: a non-owner's
+snapshot contains code names, while an owner's snapshot may contain real private names. Protect an
+owner's browser profile accordingly.
 
 ## Network behavior
 

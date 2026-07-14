@@ -17,8 +17,9 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 ## How (end-to-end)
 **Capture (at creation):**
 1. From the company picker, click **New company**.
-2. The inline form shows **Company name**, **Colour**, **Week starts on** (Monday/Sunday, default
-   Monday), **Timezone** (default *GMT*), and a read-only **Language** row (**English**).
+2. The inline form shows **Company name**, **Week starts on** (Monday/Sunday, default Monday),
+   **Timezone** (default *GMT*, with its UTC offset shown), and a read-only **Language** row
+   (**English**). The company colour uses the default preset automatically.
 3. Choose e.g. **Sunday** and **Europe/London**, type a name, click **Create company** → you land in
    the app for the new company.
 

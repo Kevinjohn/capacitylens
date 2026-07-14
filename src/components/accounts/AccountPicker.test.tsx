@@ -222,16 +222,28 @@ describe('AccountPicker server-mode list (P1.13)', () => {
     expect(useStore.getState().activeAccountId).toBe('a2')
   })
 
-  it('shows the no-accounts help state when summaries are empty, AND the New company button (bootstrap exemption)', () => {
+  it('keeps the empty picker focused on the two next steps', () => {
     useStore.getState().replaceAll(emptyAppData())
     useStore.getState().setAccountSummaries([])
     render(<AccountPicker />)
-    expect(screen.getByText(/No companies yet/)).toBeInTheDocument()
-    expect(screen.getByText(/ask an admin for an invite/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Start planning' })).toBeInTheDocument()
+    expect(screen.getByText('Create a company to start planning, or ask an admin for an invite.')).toBeInTheDocument()
+    expect(screen.getByTestId('company-empty-options')).toBeInTheDocument()
+    expect(screen.getByText('Set up a new company and start planning right away.')).toBeInTheDocument()
+    expect(screen.getByText('Ask an admin for an invite to join an existing company.')).toBeInTheDocument()
+    expect(screen.queryByText(/No companies yet/)).not.toBeInTheDocument()
     // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
     // so the default context value applies — see authContext.ts's fail-open default; the live
     // refetch after a delete is pinned in the refreshAuth describe below).
     expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
+  })
+
+  it('does not ask new-company onboarding users to choose a colour', async () => {
+    const user = userEvent.setup()
+    render(<AccountPicker />)
+    await user.click(screen.getByRole('button', { name: 'New company' }))
+    expect(screen.queryByText('Colour')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Colour \(/ })).not.toBeInTheDocument()
   })
 })
 
@@ -439,10 +451,10 @@ describe('AccountPicker — refreshAuth after org create/delete (canCreateAccoun
     await user.type(within(dialog).getByLabelText(/Type/i), 'Only Co')
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
-    // The refetched /me flips canCreateAccount → the button (and the "create your first one"
-    // copy) come back WITHOUT a manual reload — the dead end this pins against.
+    // The refetched /me flips canCreateAccount → the button (and the empty two-choice state)
+    // come back WITHOUT a manual reload — the dead end this pins against.
     expect(await screen.findByTestId('new-company-button')).toBeInTheDocument()
-    expect(screen.getByText(/No companies yet/)).toBeInTheDocument()
+    expect(screen.getByTestId('company-empty-options')).toBeInTheDocument()
     expect(fetchMock.mock.calls.filter((c) => c[0] === '/api/auth/me')).toHaveLength(2)
   })
 
@@ -484,15 +496,15 @@ describe('AccountPicker — single-company-per-instance policy (canCreateAccount
     expect(screen.queryByTestId('new-company-button')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'New company' })).not.toBeInTheDocument()
     // The subtitle must not promise a create affordance that isn't rendered.
-    expect(screen.getByText('Pick a company to plan.')).toBeInTheDocument()
-    expect(screen.queryByText('Pick a company to plan, or create a new one.')).not.toBeInTheDocument()
+    expect(screen.getByText('Choose a company to plan.')).toBeInTheDocument()
+    expect(screen.queryByText('Choose a company to plan, or create another one.')).not.toBeInTheDocument()
   })
 
   it('shows the "New company" button when the auth context allows another company', () => {
     seedAccounts(makeAccount({ name: 'Studio North' }))
     withCanCreateAccount(true, <AccountPicker />)
     expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
-    expect(screen.getByText('Pick a company to plan, or create a new one.')).toBeInTheDocument()
+    expect(screen.getByText('Choose a company to plan, or create another one.')).toBeInTheDocument()
   })
 
   it('REGRESSION GUARD: no AuthContext provider (demo build / older callers) fails OPEN — button stays visible', () => {

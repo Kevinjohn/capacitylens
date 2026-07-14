@@ -79,6 +79,24 @@ describe('ProjectList', () => {
     expect(dialog).toHaveTextContent(/Archived & deleted/)
   })
 
+  it('keeps exactly one quote pair around a redacted private code name in confirmation copy', async () => {
+    const user = userEvent.setup()
+    const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111111' })
+    useStore.getState().addProject({
+      name: '"Aurora"',
+      clientId: client.id,
+      color: '#ec4899',
+      isPrivate: true,
+      codeName: undefined,
+    })
+    render(<ProjectList />)
+
+    await user.click(screen.getByRole('button', { name: 'Archive "Aurora"' }))
+    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
+    expect(dialog).toHaveTextContent('Archive "Aurora"?')
+    expect(dialog).not.toHaveTextContent('""Aurora""')
+  })
+
   it('cancels archival and keeps the project active', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme Corp', color: '#111' })

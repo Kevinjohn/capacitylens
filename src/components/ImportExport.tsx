@@ -10,7 +10,7 @@ import { apiFetch, API_BULK_TIMEOUT_MS } from '../data/requestTimeout'
 import { fetchInactiveSlice } from '../data/fetchInactiveSlice'
 import { flushPendingWrites, refreshActiveAccountSlice, suspendServerWrites } from '../data/persist'
 import { useRole } from '../auth/permissionContext'
-import { can } from '@capacitylens/shared/domain/access'
+import { can, canSeePrivateNames } from '@capacitylens/shared/domain/access'
 import { ConfirmDialog, Modal } from './common/ui'
 import { m } from '@/i18n'
 import type { AppData } from '@capacitylens/shared/types/entities'
@@ -57,12 +57,13 @@ export function ImportExport() {
   const role = useRole()
   const serverMode = isServerConfigured()
   const activeAccountId = useStore((s) => s.activeAccountId)
-  // Import is 'purge'-tier (admin+) in server mode, mirroring the server's own POST /api/import
-  // gate: a slice REPLACEMENT is destructive (and id-remapping bypasses field-level write pins,
-  // e.g. the owner-confidential timeOff note pin), so an editor must not see the affordance.
-  // `role === null` stays importable — that is the OFF/demo/not-yet-fetched regression guard
+  // Import is owner-only in server mode, mirroring the server's own POST /api/import gate: a slice
+  // REPLACEMENT is destructive and id-remapping bypasses field-level write pins. In particular, an
+  // admin's valid redacted export has no private codeName/real-name fields and must never be accepted
+  // as a replacement that destroys those owner-confidential identities.
+  // `role === null` stays importable — that is the OFF/demo/no-provider regression guard
   // (see permissionContext.ts); the server 403 remains the authoritative backstop either way.
-  const canImport = !serverMode || role === null || can(role, 'purge')
+  const canImport = !serverMode || role === null || canSeePrivateNames(role)
   // A parsed-but-not-yet-applied import, awaiting the user's confirmation. Import
   // is a full replace, so we never apply it silently — confirm first, and the
   // apply goes through the undoable history path so ⌘Z restores the old data.
@@ -123,10 +124,10 @@ export function ImportExport() {
     }
   }
 
-  // SERVER-mode import goes through the ATOMIC, purge-gated POST /api/import — one server-side
+  // SERVER-mode import goes through the ATOMIC, owner-gated POST /api/import — one server-side
   // transaction that replaces the slice via the same remap+validate the store runs — NOT through
   // the local store + batch sync. Replaying a slice replacement as /api/batch diff ops would
-  // (a) run at editor tier, bypassing the server's admin-only import policy, and (b) chunk a
+  // (a) run at editor tier, bypassing the server's owner-only import policy, and (b) chunk a
   // large import into multiple transactions, where a mid-sequence 409 commits a silent PARTIAL
   // import. The store is then re-hydrated from the server (refreshActiveAccountSlice), so what
   // the user sees is exactly what the server committed. The trade, stated in the dialog copy:

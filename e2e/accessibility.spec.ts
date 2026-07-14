@@ -64,7 +64,7 @@ test.describe('Keyboard & accessibility', () => {
     await page.getByRole('button', { name: 'Add client' }).click()
     await page.getByRole('button', { name: 'Save' }).click() // blank name
 
-    const name = page.getByLabel('Name')
+    const name = page.getByRole('textbox', { name: 'Name', exact: true })
     await expect(name).toHaveAttribute('aria-invalid', 'true')
     const describedBy = await name.getAttribute('aria-describedby')
     expect(describedBy).toBeTruthy()

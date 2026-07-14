@@ -12,7 +12,7 @@ export function ErrorFallback({ message }: { message?: string }) {
       <p className="max-w-md text-sm text-muted">{message || m.boundary_message()}</p>
       <button
         type="button"
-        className="rounded-md bg-brand-strong px-3 py-1.5 text-sm font-medium text-white"
+        className="rounded-md bg-ok-strong px-3 py-1.5 text-sm font-medium text-ok-strong-ink"
         onClick={() => window.location.reload()}
       >
         {m.boundary_reload()}

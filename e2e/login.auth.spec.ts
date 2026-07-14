@@ -113,7 +113,7 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
     await page.getByLabel('Email').fill(BOOTSTRAP_ADMIN.email)
     await page.getByLabel('Password').fill(BOOTSTRAP_ADMIN.password)
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Start planning' })).toBeVisible()
   })
 
   test('a login with NO memberships sees an EMPTY picker (tenant isolation — no cross-tenant leak)', async ({
@@ -134,8 +134,8 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
     await page.getByRole('button', { name: 'Sign in' }).click()
 
     // Past the wall, on the picker — but with no company button (no other tenant's org leaked in).
-    await expect(page.getByRole('heading', { name: 'Choose a company' })).toBeVisible()
-    await expect(page.getByText(/No companies yet — ask an admin for an invite/)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Start planning' })).toBeVisible()
+    await expect(page.getByText('Ask an admin for an invite to join a company.')).toBeVisible()
     await expect(page.getByRole('button', { name: ORG_NAME, exact: true })).toHaveCount(0)
     // No doomed create affordance: the server would 403 a membership-less org create.
     await expect(page.getByRole('button', { name: 'New company' })).toHaveCount(0)

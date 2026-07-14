@@ -26,10 +26,10 @@ export const selectChevronStyle: CSSProperties = {
   backgroundSize: '1rem',
 }
 
-/** A <Link>/<a> styled as the kit's primary Button. The shared Button (./ui) takes an onClick, not
+/** A <Link>/<a> styled as the kit's positive-action Button. The shared Button (./ui) takes an onClick, not
  *  a child element, so it can't wrap a router <Link> or a plain full-load anchor — both InviteAccept
  *  (a router <Link> back into the SPA) and ResetPassword (a full-load <a>, since there is no session
- *  to route within) need the identical brand-strong-fill affordance without duplicating the class
+ *  to route within) need the identical green positive-action affordance without duplicating the class
  *  string byte-for-byte. */
 export const linkButtonClass =
-  'inline-flex items-center justify-center rounded-md bg-brand-strong px-3 py-1.5 text-sm font-medium text-white shadow-xs hover:bg-brand-strong/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand'
+  'inline-flex items-center justify-center rounded-md bg-ok-strong px-3 py-1.5 text-sm font-medium text-ok-strong-ink shadow-xs hover:bg-ok-strong/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand'

@@ -26,7 +26,7 @@ test.describe('database-backed persistence', () => {
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
-    await page.getByLabel('Name').fill('Persisted DB Co')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Persisted DB Co')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByText('Persisted DB Co')).toBeVisible()
 
@@ -47,7 +47,7 @@ test.describe('database-backed persistence', () => {
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
-    await page.getByLabel('Name').fill('Rename Me Co')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Rename Me Co')
     await page.getByRole('button', { name: 'Save' }).click()
     const row = page.getByTestId('client-row').filter({ hasText: 'Rename Me Co' })
     await expect(row).toBeVisible()
@@ -55,7 +55,7 @@ test.describe('database-backed persistence', () => {
     await row.getByRole('button', { name: 'Edit' }).click()
     // Scope the field to the Edit dialog: the row's "Archive Rename Me Co" button (P2.5b) also matches
     // a bare getByLabel('Name') — "Re*name* Me Co" contains "Name" — so an unscoped lookup is ambiguous.
-    await page.getByRole('dialog').getByLabel('Name').fill('Renamed Co')
+    await page.getByRole('dialog').getByRole('textbox', { name: 'Name', exact: true }).fill('Renamed Co')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('client-row').filter({ hasText: 'Renamed Co' })).toBeVisible()
     await settle(page)
@@ -75,7 +75,7 @@ test.describe('database-backed persistence', () => {
     await openApp(page)
     await page.getByRole('link', { name: 'Clients' }).click()
     await page.getByRole('button', { name: 'Add client' }).click()
-    await page.getByLabel('Name').fill('Doomed Co')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Doomed Co')
     await page.getByRole('button', { name: 'Save' }).click()
     const row = page.getByTestId('client-row').filter({ hasText: 'Doomed Co' })
     await expect(row).toBeVisible()

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify'
 import { buildApp } from './app'
-import { openDb, insertAll, type Db } from './db'
+import { openDb, insertAll, getRow, type Db } from './db'
 import { upsertMember } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
@@ -59,6 +59,18 @@ function seedTwo(db: Db): void {
   d.resources = [person('r1', 'a1'), person('r2', 'a2')]
   d.timeOff = [timeOff('to1', 'a1', 'r1', SENTINEL_TIMEOFF_NOTE), timeOff('to-a2', 'a2', 'r2')]
   insertAll(db, d as unknown as AppData)
+}
+
+const REAL_CLIENT_NAME = 'SENTINEL_REAL_CLIENT_NAME'
+const REAL_PROJECT_NAME = 'SENTINEL_REAL_PROJECT_NAME'
+
+/** Add owner-only names to the a1 client/project without changing the broad authz fixture shape. */
+function seedPrivateNames(db: Db): void {
+  seedTwo(db)
+  db.prepare('UPDATE clients SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?')
+    .run(REAL_CLIENT_NAME, JSON.stringify(true), 'Northstar', 'c1')
+  db.prepare('UPDATE projects SET name = ?, isPrivate = ?, codeName = ? WHERE id = ?')
+    .run(REAL_PROJECT_NAME, JSON.stringify(true), 'Aurora', 'p1')
 }
 
 /** Build an auth-on (password) app over a fresh in-memory DB, returning both so the test can seed.
@@ -189,7 +201,7 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await importInto(app, 'a1', 'vc4', cookie)).statusCode).toBe(403)
   })
 
-  it('editor of a1: read → 200; every row-level write to a1 → 2xx; import → 403 (purge tier)', async () => {
+  it('editor of a1: read → 200; every row-level write to a1 → 2xx; import → 403 (owner-only)', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie, userId } = await signUp(app, 'editor@capacitylens.dev')
@@ -202,11 +214,11 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(204)
     expect((await batchInto(app, 'a1', 'ec3', cookie)).statusCode).toBe(200)
     // Import is NOT an editor write: it replaces the whole slice AND (all ids remapped) bypasses
-    // the P1.6 note pin — gated 'purge' (admin+). See the dedicated import-tier suite below.
+    // the P1.6 note pin — ultimately gated to owner. See the dedicated import-tier suite below.
     expect((await importInto(app, 'a1', 'ec4', cookie)).statusCode).toBe(403)
   })
 
-  it.each(['admin', 'owner'] as const)('%s of a1: writes to a1 → 2xx (tier ≥ editor)', async (role) => {
+  it.each(['admin', 'owner'] as const)('%s of a1: row writes succeed; only owner may import', async (role) => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie, userId } = await signUp(app, `${role}@capacitylens.dev`)
@@ -218,7 +230,7 @@ describe('P1.5 authorize — auth-on 403 matrix', () => {
     expect((await patchClient(app, 'c1', cookie)).statusCode).toBe(200)
     expect((await deleteProject(app, 'a1', 'p1', cookie)).statusCode).toBe(204)
     expect((await batchInto(app, 'a1', `${role}-c3`, cookie)).statusCode).toBe(200)
-    expect((await importInto(app, 'a1', `${role}-c4`, cookie)).statusCode).toBe(200)
+    expect((await importInto(app, 'a1', `${role}-c4`, cookie)).statusCode).toBe(role === 'owner' ? 200 : 403)
   })
 
   it('generic account create is CLOSED auth-on: POST /api/accounts → 403 directing to /api/orgs', async () => {
@@ -512,12 +524,14 @@ describe('P1.5 authorize — account hard-delete is owner-only, both vectors gat
   })
 })
 
-describe("P1.5 authorize — /api/import is admin-tier ('purge'), not editor-tier", () => {
+describe('P1.5 authorize — /api/import is owner-only', () => {
   // Import is a destructive delete-all + re-insert of the tenant slice (replaceAccountSlice) — the
   // purge tier's hard-delete semantics — AND it bypasses field-level write pins: every id is
   // remapped, so the P1.6 timeOff note pin can never match a stored row. At 'write' tier a
   // note-blind editor could erase every owner-confidential note simply by importing their own
-  // (note-redacted) export. OFF mode stays open (see the OFF-mode allow-all suite).
+  // (note-redacted) export. Client/project privacy makes the final tier stricter still: an admin's
+  // export is name-redacted, so only an owner has a lossless slice suitable for replacement. OFF
+  // mode stays open (see the OFF-mode allow-all suite).
 
   const importSlice = (app: FastifyInstance, accountId: string, cookie: string) => {
     // A realistic attack payload: the editor's own export of a1 — note-LESS by construction
@@ -530,7 +544,7 @@ describe("P1.5 authorize — /api/import is admin-tier ('purge'), not editor-tie
     return call(app, { method: 'POST', url: '/api/import', payload: { accountId, data }, headers: { cookie } })
   }
 
-  it.each(['viewer', 'editor'] as const)('%s of a1 → 403 and the slice (sentinel note included) survives', async (role) => {
+  it.each(['viewer', 'editor', 'admin'] as const)('%s of a1 → 403 and the slice (sentinel note included) survives', async (role) => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const { cookie, userId } = await signUp(app, `${role}-import@capacitylens.dev`)
@@ -543,15 +557,46 @@ describe("P1.5 authorize — /api/import is admin-tier ('purge'), not editor-tie
     expect((db.prepare(`SELECT COUNT(*) AS n FROM clients WHERE id = 'c1'`).get() as { n: number }).n).toBe(1)
   })
 
-  it.each(['admin', 'owner'] as const)('%s of a1 → 200 (a note-VISIBLE role may replace the slice, note included)', async (role) => {
+  it('owner of a1 → 200 (the full-fidelity role may replace the slice)', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
-    const { cookie, userId } = await signUp(app, `${role}-import@capacitylens.dev`)
-    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+    const { cookie, userId } = await signUp(app, 'owner-import@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
 
     const res = await importSlice(app, 'a1', cookie)
     expect(res.statusCode).toBe(200)
     expect(res.json().imported).toBeGreaterThan(0)
+  })
+
+  it('refuses an admin re-import of their redacted export without changing private database names', async () => {
+    const { app, db } = await appWithAuth()
+    seedPrivateNames(db)
+    const { cookie, userId } = await signUp(app, 'admin-redacted-import@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
+
+    const exported = await getState(app, 'a1', cookie)
+    expect(exported.statusCode).toBe(200)
+    expect(exported.json().clients.find((row: { id: string }) => row.id === 'c1')).toMatchObject({
+      name: '"Northstar"',
+      isPrivate: true,
+    })
+
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/import',
+      payload: { accountId: 'a1', data: exported.json() },
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json().error).toMatch(/account owner/i)
+    expect(getRow(db, 'clients', 'c1')).toMatchObject({
+      name: REAL_CLIENT_NAME,
+      codeName: 'Northstar',
+    })
+    expect(getRow(db, 'projects', 'p1')).toMatchObject({
+      name: REAL_PROJECT_NAME,
+      codeName: 'Aurora',
+    })
   })
 })
 
@@ -660,6 +705,152 @@ describe('P1.5 authorize — account WRITE (PUT/PATCH/batch) is gated, not just 
     expect((await putAccount(app, 'a1')).statusCode).toBe(200)
     expect((await patchAccount(app, 'a1')).statusCode).toBe(200)
     expect((await batchPutAccount(app, 'a1')).statusCode).toBe(200)
+  })
+})
+
+describe('private client/project names — owner-only server projection', () => {
+  it.each([
+    ['owner', REAL_CLIENT_NAME, REAL_PROJECT_NAME, true],
+    ['admin', '"Northstar"', '"Aurora"', false],
+    ['editor', '"Northstar"', '"Aurora"', false],
+    ['viewer', '"Northstar"', '"Aurora"', false],
+  ] as const)('%s receives the correct client/project identity fields', async (role, clientName, projectName, seesCodeNameField) => {
+    const { app, db } = await appWithAuth()
+    seedPrivateNames(db)
+    const { cookie, userId } = await signUp(app, `private-read-${role}@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
+
+    const res = await getState(app, 'a1', cookie)
+    expect(res.statusCode).toBe(200)
+    const body = res.json() as AppData
+    expect(body.clients.find((row) => row.id === 'c1')?.name).toBe(clientName)
+    expect(body.projects.find((row) => row.id === 'p1')?.name).toBe(projectName)
+    expect('codeName' in body.clients.find((row) => row.id === 'c1')!).toBe(seesCodeNameField)
+    expect('codeName' in body.projects.find((row) => row.id === 'p1')!).toBe(seesCodeNameField)
+    if (role !== 'owner') {
+      expect(res.body).not.toContain(REAL_CLIENT_NAME)
+      expect(res.body).not.toContain(REAL_PROJECT_NAME)
+    }
+  })
+
+  it('pins real names and privacy settings when an editor PATCHes or batch-round-trips redacted rows', async () => {
+    const { app, db } = await appWithAuth()
+    seedPrivateNames(db)
+    const { cookie, userId } = await signUp(app, 'private-editor@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+
+    const patched = await call(app, {
+      method: 'PATCH',
+      url: '/api/clients/c1',
+      payload: { name: 'Attempted overwrite', isPrivate: false, codeName: 'Attempted code' },
+      headers: { cookie },
+    })
+    expect(patched.statusCode).toBe(200)
+    expect(patched.json()).toMatchObject({ name: '"Northstar"', isPrivate: true })
+    expect(patched.body).not.toContain(REAL_CLIENT_NAME)
+
+    const visible = (await getState(app, 'a1', cookie)).json() as AppData
+    const redactedClient = visible.clients.find((row) => row.id === 'c1')!
+    const redactedProject = visible.projects.find((row) => row.id === 'p1')!
+    const batch = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: {
+        ops: [
+          { method: 'PUT', table: 'clients', id: 'c1', row: { ...redactedClient, color: '#da2d92' } },
+          { method: 'PUT', table: 'projects', id: 'p1', row: { ...redactedProject, color: '#2d75da' } },
+        ],
+      },
+      headers: { cookie },
+    })
+    expect(batch.statusCode).toBe(200)
+
+    expect(getRow(db, 'clients', 'c1')).toMatchObject({
+      name: REAL_CLIENT_NAME,
+      isPrivate: true,
+      codeName: 'Northstar',
+      color: '#da2d92',
+    })
+    expect(getRow(db, 'projects', 'p1')).toMatchObject({
+      name: REAL_PROJECT_NAME,
+      isPrivate: true,
+      codeName: 'Aurora',
+      color: '#2d75da',
+    })
+  })
+
+  it('redacts a private lifecycle response while retaining the real database name', async () => {
+    const { app, db } = await appWithAuth()
+    seedPrivateNames(db)
+    const { cookie, userId } = await signUp(app, 'private-archive-editor@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/projects/p1/archive',
+      payload: { accountId: 'a1' },
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toMatchObject({ name: '"Aurora"', isPrivate: true })
+    expect(res.body).not.toContain(REAL_PROJECT_NAME)
+    expect(getRow(db, 'projects', 'p1')).toMatchObject({ name: REAL_PROJECT_NAME, codeName: 'Aurora' })
+  })
+
+  it('redacts the current row in an optimistic-concurrency conflict response', async () => {
+    const { app, db } = await appWithAuth({ optimisticConcurrency: true })
+    seedPrivateNames(db)
+    const { cookie, userId } = await signUp(app, 'private-conflict-editor@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'editor', status: 'active', createdAt: TS })
+    const stale = ((await getState(app, 'a1', cookie)).json() as AppData).clients
+      .find((row) => row.id === 'c1')!
+    db.prepare('UPDATE clients SET updatedAt = ? WHERE id = ?')
+      .run('2026-02-01T00:00:00.000Z', 'c1')
+
+    const res = await call(app, {
+      method: 'PUT',
+      url: '/api/clients/c1',
+      payload: stale,
+      headers: { cookie },
+    })
+    expect(res.statusCode).toBe(409)
+    expect(res.json().current).toMatchObject({ name: '"Northstar"', isPrivate: true })
+    expect(res.json().current).not.toHaveProperty('codeName')
+    expect(res.body).not.toContain(REAL_CLIENT_NAME)
+  })
+
+  it('strips attempted privacy fields from a non-owner create, while an owner may update them', async () => {
+    const editorSetup = await appWithAuth()
+    seedPrivateNames(editorSetup.db)
+    const editor = await signUp(editorSetup.app, 'private-create-editor@capacitylens.dev')
+    upsertMember(editorSetup.db, { accountId: 'a1', userId: editor.userId, role: 'editor', status: 'active', createdAt: TS })
+    const created = await call(editorSetup.app, {
+      method: 'POST',
+      url: '/api/clients',
+      payload: { ...client('editor-private', 'a1'), name: 'Editor client', isPrivate: true, codeName: 'Shadow' },
+      headers: { cookie: editor.cookie },
+    })
+    expect(created.statusCode).toBe(201)
+    expect(created.json()).toMatchObject({ name: 'Editor client' })
+    expect(created.json()).not.toHaveProperty('isPrivate')
+    expect(created.json()).not.toHaveProperty('codeName')
+
+    const ownerSetup = await appWithAuth()
+    seedPrivateNames(ownerSetup.db)
+    const owner = await signUp(ownerSetup.app, 'private-update-owner@capacitylens.dev')
+    upsertMember(ownerSetup.db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    const updated = await call(ownerSetup.app, {
+      method: 'PATCH',
+      url: '/api/projects/p1',
+      payload: { name: 'Owner renamed project', isPrivate: true, codeName: ' “Nova” ' },
+      headers: { cookie: owner.cookie },
+    })
+    expect(updated.statusCode).toBe(200)
+    expect(updated.json()).toMatchObject({
+      name: 'Owner renamed project',
+      isPrivate: true,
+      codeName: 'Nova',
+    })
   })
 })
 

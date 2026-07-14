@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
-import { supportedTimeZones } from './timezones'
+import { supportedTimeZones, timeZoneOffsetLabel, timeZoneOptionLabel } from './timezones'
 
 afterEach(() => {
   vi.restoreAllMocks()
@@ -30,5 +30,20 @@ describe('supportedTimeZones', () => {
       'Asia/Tokyo',
       'Australia/Sydney',
     ])
+  })
+})
+
+describe('time zone option labels', () => {
+  it('shows a numeric UTC offset for a zero-offset zone', () => {
+    expect(timeZoneOffsetLabel('Etc/GMT', new Date('2026-07-01T12:00:00.000Z'))).toBe('UTC+00:00')
+    expect(timeZoneOptionLabel('Etc/GMT', 'GMT', new Date('2026-07-01T12:00:00.000Z'))).toBe('GMT (UTC+00:00)')
+  })
+
+  it('reflects daylight-saving offsets for named zones', () => {
+    const summer = new Date('2026-07-01T12:00:00.000Z')
+    const winter = new Date('2026-01-01T12:00:00.000Z')
+    expect(timeZoneOffsetLabel('Europe/London', summer)).toBe('UTC+01:00')
+    expect(timeZoneOffsetLabel('Europe/London', winter)).toBe('UTC+00:00')
+    expect(timeZoneOptionLabel('America/New_York', 'America/New_York', summer)).toBe('America/New_York (UTC-04:00)')
   })
 })

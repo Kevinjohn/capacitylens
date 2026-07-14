@@ -10,10 +10,10 @@ import { m } from '@/i18n'
 export const DEFAULT_COLORS = {
   client: '#2d75da', // blue
   project: '#da2d92', // pink
-  discipline: '#5c34d4', // blue-purple
-  resource: '#5c34d4', // blue-purple
-  placeholder: '#9c3ace', // purple
-  account: '#5c34d4', // blue-purple
+  discipline: '#2d75da', // blue
+  resource: '#2d75da', // blue
+  placeholder: '#2d75da', // blue
+  account: '#2d75da', // blue
 } as const
 
 // Swatches shown in the ColorField popup — a 13-column × 4-row grid (52 colours).

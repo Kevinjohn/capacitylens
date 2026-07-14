@@ -75,6 +75,9 @@ export interface SanitizeWriteOptions {
    * need not pass it.
    */
   canSeeTimeOffNote?: boolean
+  /** Whether the writer may manage/read private client/project real-name fields. False for every
+   * authenticated role except owner; trusted-local/off mode passes true. */
+  canSeePrivateNames?: boolean
 }
 
 /** Copy only columns accepted by the table codec. Generic request bodies are untrusted; keeping
@@ -168,6 +171,22 @@ export function sanitizeWrite(
     if (table === 'timeOff' && opts.canSeeTimeOffNote === false) {
       if (typeof existing?.note === 'string') cleaned.note = existing.note
       else delete cleaned.note
+    }
+    // Private identity fields are owner-only. A non-owner round-trips a private row whose `name`
+    // is already the quoted code name and whose raw `codeName` was removed by the read projection;
+    // pin all three fields to disk so an unrelated colour/client edit cannot overwrite the real
+    // name. For public rows/creates, strip attempted privacy fields while still allowing the public
+    // name itself to be authored by ordinary editors.
+    if ((table === 'clients' || table === 'projects') && opts.canSeePrivateNames === false) {
+      if (existing?.isPrivate === true) {
+        cleaned.name = existing.name
+        cleaned.isPrivate = true
+        if (typeof existing.codeName === 'string') cleaned.codeName = existing.codeName
+        else delete cleaned.codeName
+      } else {
+        delete cleaned.isPrivate
+        delete cleaned.codeName
+      }
     }
     return cleaned
   }

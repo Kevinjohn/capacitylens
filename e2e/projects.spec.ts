@@ -6,7 +6,7 @@ test.describe('Projects', () => {
   test('rejects a project without a client and adds one with a client', async ({ page }) => {
     await openApp(page, 'Studio North', '/projects')
     await page.getByRole('button', { name: 'Add project' }).click()
-    await page.getByLabel('Name').fill('Apollo')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Apollo')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('alert')).toContainText(/must belong to a client/i)
 
@@ -18,7 +18,7 @@ test.describe('Projects', () => {
   test('edits a project name', async ({ page }) => {
     await openApp(page, 'Studio North', '/projects')
     await page.getByTestId('project-row').filter({ hasText: 'Brand Themes' }).getByRole('button', { name: 'Edit' }).click()
-    await page.getByLabel('Name').fill('Brand Refresh')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Brand Refresh')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('project-row').filter({ hasText: 'Brand Refresh' })).toBeVisible()
   })

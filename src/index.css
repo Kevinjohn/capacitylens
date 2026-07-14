@@ -53,6 +53,8 @@
   --color-danger-cell: var(--c-danger-cell);
   --color-warn: var(--c-warn);
   --color-ok: var(--c-ok);
+  --color-ok-strong: var(--c-ok-strong);
+  --color-ok-strong-ink: var(--c-ok-strong-ink);
 
   /* One deliberate micro-text size (11px) for the dense labels — replaces the
      scattered text-[10px]/text-[11px] near-duplicates. */
@@ -76,8 +78,11 @@
   --c-ink: #1c2230;
   --c-muted: #5b6472;
   --c-faint: #677080; /* darkened one step from #6b7280 (which was 4.43:1 on --c-base, sub-AA): now 4.58:1 on the canvas, 4.99:1 on --c-surface — clears WCAG AA (4.5:1) for small text on BOTH grounds */
-  --c-brand: #6366f1;
-  --c-brand-strong: #4f46e5;
+  /* CapacityLens blue: identity and state. Keep the light theme dark enough for
+     small labels and focus indicators; the dark theme can use a brighter blue
+     without losing contrast against the charcoal surfaces. */
+  --c-brand: #2563eb;
+  --c-brand-strong: #1d4ed8;
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 14%, white);
   --c-brand-soft-ink: var(--c-brand-strong);
   /* Dual-tone allocation-bar focus ring (WCAG 1.4.11) — see `.scheduler-bar:focus-visible`. A fixed
@@ -90,7 +95,9 @@
   --c-danger-soft-ink: #be123c; /* a step darker than --c-danger to clear AA on the tint */
   --c-danger-cell: color-mix(in oklab, var(--c-danger) 50%, white); /* clear rose-red → ~rgb(251,158,161); empty cell, no AA bound */
   --c-warn: #d97706;
-  --c-ok: #059669;
+  --c-ok: #047857;
+  --c-ok-strong: #047857;
+  --c-ok-strong-ink: #ffffff;
   color-scheme: light;
 
   /* ── shadcn stock tokens (light) ──────────────────────────────────────────
@@ -133,16 +140,18 @@
   --c-ink: #e7eaf0;
   --c-muted: #a3acbd;
   --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
-  --c-brand: #818cf8;
-  --c-brand-strong: #4f46e5; /* deep enough that white button text clears AA (4.5:1) on dark too */
+  --c-brand: #60a5fa;
+  --c-brand-strong: #2563eb; /* deep enough that white control text clears AA on dark too */
   --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
-  --c-brand-soft-ink: #c7d2fe; /* pale indigo — brand-strong would vanish on the dark tint */
+  --c-brand-soft-ink: #bfdbfe; /* pale blue — brand-strong would vanish on the dark tint */
   --c-danger: #fb7185;
   --c-danger-soft: color-mix(in oklab, var(--c-danger) 22%, #0e1016);
   --c-danger-soft-ink: #fda4af;
   --c-danger-cell: color-mix(in oklab, var(--c-danger) 60%, #0e1016); /* unmistakable dark red → ~rgb(147,73,86); empty cell, no AA bound */
   --c-warn: #fbbf24;
   --c-ok: #34d399;
+  --c-ok-strong: #047857;
+  --c-ok-strong-ink: #ffffff;
   color-scheme: dark;
 
   /* ── shadcn stock tokens (dark) ───────────────────────────────────────────
@@ -290,6 +299,25 @@ input[type="radio"] {
   }
 }
 
+/* First-run guidance floats over the scheduler chrome so it is useful without stealing vertical
+   space from the grid. The panel is intentionally non-modal: the schedule remains visible behind
+   it, and its links/buttons are the only controls that need to be reached before dismissing it. */
+.getting-started-popover {
+  position: absolute;
+  z-index: 40;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: min(28rem, calc(100% - 1.5rem));
+  max-height: calc(100% - 1.5rem);
+  overflow-y: auto;
+  pointer-events: none;
+}
+
+.getting-started-popover button,
+.getting-started-popover a {
+  pointer-events: auto;
+}
+
 /* Diagonal light-grey hatch for placeholder ("slot") resource rows on the schedule,
    marking them as not-yet-a-real-person. Only the lines are painted (transparent gaps),
    so it layers over whatever background-color the element already carries. */
@@ -311,7 +339,7 @@ input[type="radio"] {
    (ResourceLane → BarsLayer): that layer is the SOLE subscriber to the mode, so it alone re-renders
    on toggle — the lanes and their AllocationBars bail because every prop they receive stays a
    stable ref across the toggle (see BarsLayer's TSDoc). Amber (the `warn` token) reads as
-   "out / away", distinct from brand (indigo) and over (red). This is a first-pass treatment;
+   "out / away", distinct from brand (blue) and over (red). This is a first-pass treatment;
    the visual is expected to be refined later. */
 /* Allocation-bar focus indicator — a DUAL-TONE ring (WCAG 1.4.11, Non-text Contrast ≥3:1).
    A single-edge indicator can't pass: the bar can sit on an over-capacity day whose cell is a PALE
@@ -322,13 +350,13 @@ input[type="radio"] {
    fill). Against ANY adjacency at least one edge clears 3:1: the dark edge wins on the pale light
    over-cell / pale swatches / light canvas+weekend, the light edge wins on the dark over-cell / dark
    swatches / dark canvas+weekend. The fixed pair covers both extremes, so it needs no theme variant.
-   Pinned + asserted in src/lib/color.test.ts ("AllocationBar focus ring …"). The indigo (--color-brand)
+   Pinned + asserted in src/lib/color.test.ts ("AllocationBar focus ring …"). The blue (--color-brand)
    outline is an IDENTITY layer only — conformance comes from the dark+light pair, not from it.
    box-shadow is NOT clipped by the bar's own overflow-hidden. On focus this box-shadow overrides the
    resting `ring-1 ring-black/5` + `shadow-sm` (box-shadow is one property, not additive) — intentional:
    the bold focus ring replaces the faint resting ring while focused. */
 .scheduler-bar:focus-visible {
-  outline: 2px solid var(--color-brand); /* identity layer (indigo) — NOT relied on for contrast */
+  outline: 2px solid var(--color-brand); /* identity layer (blue) — NOT relied on for contrast */
   outline-offset: 2px;
   box-shadow:
     0 0 0 1px var(--c-focus-ink), /* near-black edge — wins on pale grounds */

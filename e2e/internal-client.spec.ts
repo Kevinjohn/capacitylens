@@ -20,7 +20,7 @@ test.describe('Internal client', () => {
     // isn't persisted).
     await page.getByRole('link', { name: 'Projects' }).click()
     await page.getByRole('button', { name: 'Add project' }).click()
-    await page.getByLabel('Name').fill('Quarterly planning')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Quarterly planning')
     await page.getByLabel('Client').selectOption({ label: 'Internal' })
     await page.getByRole('button', { name: 'Save' }).click()
 
@@ -34,7 +34,7 @@ test.describe('Internal client', () => {
   test('an activity can be created under Internal with no project (internal kind)', async ({ page }) => {
     await openApp(page, 'Studio North', '/activities')
     await page.getByRole('button', { name: 'Add activity' }).click()
-    await page.getByLabel('Name').fill('Team retro')
+    await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Team retro')
     // Internal kind → project picker is hidden; the activity is project-less and buckets under Internal.
     await page.getByRole('radio', { name: 'Internal' }).click()
     await expect(page.getByLabel('Project')).toHaveCount(0)
