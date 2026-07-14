@@ -2,6 +2,7 @@ name: CodeQL
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches: [main]
   schedule:
@@ -19,6 +20,10 @@ concurrency:
 jobs:
   analyze:
     name: JavaScript / TypeScript
+    # This private repository does not currently have private code scanning enabled. Avoid burning
+    # runner minutes on an analysis GitHub will reject; the workflow activates automatically once
+    # the repository is public, where standard hosted runners and public code scanning are free.
+    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

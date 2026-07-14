@@ -12,6 +12,11 @@ on:
   schedule:
     - cron: '17 6 3 * *'
 
+# Pre-launch cost control: automatic events may create a workflow record while the repository is
+# private, but every runner-backed job below is skipped. A manual dispatch still runs the complete
+# gate on demand. Once the repository is public, automatic PR/main/tag/monthly coverage resumes;
+# standard GitHub-hosted runners are free for public repositories.
+
 concurrency:
   group: gate-${{ github.ref }}
   cancel-in-progress: true
@@ -22,7 +27,7 @@ permissions:
 jobs:
   dco:
     name: DCO sign-off
-    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    if: github.event.repository.private == false && github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -45,6 +50,7 @@ jobs:
 
   gate:
     name: typecheck · lint · unit · build (+ server)
+    if: github.event_name == 'workflow_dispatch' || github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -61,6 +67,7 @@ jobs:
 
   e2e:
     name: e2e (Chromium)
+    if: github.event_name == 'workflow_dispatch' || github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -87,7 +94,7 @@ jobs:
     # PR/dispatch only, like e2e's intent — this rebuilds two Docker images plus a
     # server boot, so it's kept off the monthly schedule/tag-push cadence rather than
     # widening the trigger list above (jobs can't declare their own `on:`).
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.repository.private == false)
     env:
       # NODE_ENV=production is baked into the api image (Dockerfile), and auth is OFF
       # by default (no CAPACITYLENS_AUTH in this smoke) — server/src/productionGuard.ts

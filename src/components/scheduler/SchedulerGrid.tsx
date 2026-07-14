@@ -272,7 +272,18 @@ export function SchedulerGrid() {
   const prevDaysRef = useRef(days)
   const prevZoomRef = useRef(ui.zoom)
   const prevRecenterRef = useRef(ui.recenterToken)
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // A scroll event from the OLD geometry may still have a queued rAF / idle-snap timer when a
+    // zoom, pan or recenter changes the geometry. Letting that callback run would interpret the
+    // NEW scrollLeft with OLD column widths and can jump the grid back to its buffered origin.
+    // Cancel stale work before reading/repositioning the new geometry; the programmatic write
+    // below emits a fresh scroll event whose callback closes over the current geometry.
+    if (scrollRaf.current) {
+      cancelAnimationFrame(scrollRaf.current)
+      scrollRaf.current = 0
+    }
+    clearTimeout(snapTimer.current)
+    snapTimer.current = 0
     const prevGeom = prevGeomRef.current
     const prevDays = prevDaysRef.current
     const prevZoom = prevZoomRef.current
@@ -311,7 +322,7 @@ export function SchedulerGrid() {
 
   // Re-centre when the user clicks Today / picks a date (which bumps recenterToken).
   const recenterToken = ui.recenterToken
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (recenterToken === 0 || !scrollRef.current) return
     scrollRef.current.scrollLeft = focusXRef.current
   }, [recenterToken])

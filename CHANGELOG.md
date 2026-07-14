@@ -10,6 +10,11 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevented a pending week-snap callback from jumping the schedule back to its buffered start when
+  changing the visible week range immediately after navigating to a date.
+
 ### Security
 
 - Hardened both Compose services with read-only root filesystems, dropped Linux capabilities and

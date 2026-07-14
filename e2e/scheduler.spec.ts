@@ -206,6 +206,13 @@ test.describe('Scheduler', () => {
 
   test('the week-range toggle recomputes utilisation over the visible window (US-SCH-14)', async ({ page }) => {
     await openApp(page)
+    // Own the visible window explicitly instead of relying on the global frozen clock plus the
+    // grid's first-measure scroll effect. A slow CI render can otherwise leave this test looking
+    // at a zero-utilisation window outside the June seed even though the same fixture is stable
+    // locally. June 1 is the shared left edge this zoom comparison is actually meant to exercise.
+    await page.getByLabel('Jump to date').fill('2026-06-01')
+    await expect(page.getByLabel('Jump to date')).toHaveValue('2026-06-01')
+    await expect(page.getByText('Jun 2026')).toBeVisible()
     const overall = page.getByTestId('overall-utilization')
     const pct = async () => Number.parseInt((await overall.textContent())?.replace('%', '') ?? '', 10)
 
