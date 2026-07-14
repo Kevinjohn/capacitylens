@@ -10,6 +10,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.19.3] — 2026-07-14
+
+### Changed
+
+- Published a metadata-only patch release after the acceptance-story documentation landed in
+  0.19.2. No application behaviour changed.
+
 ## [0.19.2] — 2026-07-14
 
 ### Changed
@@ -715,7 +722,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.2...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.3...HEAD
+[0.19.3]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.3
 [0.19.2]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.2
 [0.19.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.1
 [0.19.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.0
