@@ -62,7 +62,7 @@ export default defineConfig({
     exclude: ['e2e/**', 'node_modules/**', 'dist/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text-summary', 'html'],
+      reporter: ['text-summary', 'html', 'lcov'],
       include: ['src/**/*.{ts,tsx}', 'shared/src/**/*.ts'],
       exclude: [
         '**/*.test.{ts,tsx}',

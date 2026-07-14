@@ -1,0 +1,68 @@
+name: docker
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+
+# Pre-launch cost control: automatic runs are skipped while the repository is private; a manual
+# dispatch still validates the images and production smoke path. Once public, PR/main/tag coverage
+# resumes and this workflow supplies the README's dedicated Docker build badge.
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: Compose build + production smoke
+    if: github.event_name == 'workflow_dispatch' || github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # NODE_ENV=production is baked into the api image (Dockerfile), and auth is OFF by default
+      # in this smoke. The production guard requires explicit consent for this trusted CI-only setup.
+      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1'
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # ubuntu-latest ships Docker and the Compose plugin.
+      - name: Build both Docker Compose targets
+        run: docker compose build
+      - name: Start the production stack
+        run: docker compose up -d
+      - name: Wait for API health through nginx
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/api/health; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "api never became healthy" >&2
+          exit 1
+      - name: Smoke test security headers
+        run: |
+          headers="$(curl -fsS -D - -o /dev/null http://localhost:8080/)"
+          echo "$headers"
+          echo "$headers" | grep -qi '^content-security-policy:'
+          echo "$headers" | grep -qi '^x-frame-options:'
+          echo "$headers" | grep -qi '^x-content-type-options:'
+          echo "$headers" | grep -qi '^referrer-policy:'
+      - name: Smoke test request body limit
+        run: |
+          dd if=/dev/zero of=/tmp/oversize.bin bs=1M count=7
+          status="$(curl -s -o /dev/null -w '%{http_code}' -X POST --data-binary @/tmp/oversize.bin http://localhost:8080/)"
+          echo "status=$status"
+          test "$status" = "413"
+      - name: Show Compose logs on failure
+        if: failure()
+        run: docker compose logs
+      - name: Stop the production stack
+        if: always()
+        run: docker compose down --volumes

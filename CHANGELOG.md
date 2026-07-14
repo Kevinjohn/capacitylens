@@ -10,6 +10,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.19.4] — 2026-07-14
+
+### Changed
+
+- Added dedicated E2E, coverage, OpenSSF Scorecard and Docker build signals to the public project
+  README and CI workflows.
+
 ## [0.19.3] — 2026-07-14
 
 ### Changed
@@ -722,7 +729,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.3...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.4...HEAD
+[0.19.4]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.4
 [0.19.3]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.3
 [0.19.2]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.2
 [0.19.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.1

@@ -59,16 +59,24 @@ Run the complete remote gate deliberately from **GitHub → Actions → gate →
 gh workflow run gate.yml --ref main
 ```
 
-A manual gate runs the code gates, production dependency audit, Chromium E2E suite and Docker
-Compose smoke test. CodeQL remains skipped while the repository is private because private code
-scanning is not enabled.
+A manual gate runs the code gates and production dependency audit. Chromium E2E and Docker Compose
+smoke tests are separate workflows so their README badges report independent status. The gate also
+uploads `coverage/lcov.info` to Codecov when the repository has a `CODECOV_TOKEN` secret. CodeQL and
+Scorecard remain skipped while the repository is private because their public result services are not
+enabled for this repository.
 
 When the repository becomes public, the workflow conditions automatically restore:
 
-- code gates and Chromium E2E for pull requests, pushes to `main`, release tags and the monthly
-  canary;
-- Docker Compose smoke tests for pull requests and manual dispatches;
+- code gates for pull requests, pushes to `main`, release tags and the monthly canary;
+- Chromium E2E for pull requests, pushes to `main`, release tags and its monthly canary;
+- Docker Compose builds and production smoke tests for pull requests, pushes to `main` and release
+  tags;
 - CodeQL for pull requests, `main` and its weekly schedule.
+- OpenSSF Scorecard for `main` and its weekly schedule.
+
+The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`; uploads
+are deliberately skipped until that secret exists. Scorecard needs `publish_results: true` and its
+OIDC permission, which are configured in `.github/workflows/scorecard.yml`.
 
 Standard GitHub-hosted runners are free for public repositories. Dependabot's monthly npm, GitHub
 Actions and Docker updates remain enabled while private; pnpm is updated from `/` because the root

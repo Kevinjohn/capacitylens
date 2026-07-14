@@ -49,7 +49,7 @@ jobs:
           exit "$failed"
 
   gate:
-    name: typecheck · lint · unit · build (+ server)
+    name: typecheck · lint · unit · build (+ server + audit)
     if: github.event_name == 'workflow_dispatch' || github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -62,80 +62,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run gate
+      - name: Upload test coverage to Codecov
+        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+        with:
+          files: ./coverage/lcov.info
+          flags: unit
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}
       - run: pnpm run gate:server
       - run: pnpm audit --prod --audit-level high
-
-  e2e:
-    name: e2e (Chromium)
-    if: github.event_name == 'workflow_dispatch' || github.event.repository.private == false
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm run e2e
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: failure()
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
-
-  docker:
-    name: docker compose build + production nginx smoke
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    # PR/dispatch only, like e2e's intent — this rebuilds two Docker images plus a
-    # server boot, so it's kept off the monthly schedule/tag-push cadence rather than
-    # widening the trigger list above (jobs can't declare their own `on:`).
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.repository.private == false)
-    env:
-      # NODE_ENV=production is baked into the api image (Dockerfile), and auth is OFF
-      # by default (no CAPACITYLENS_AUTH in this smoke) — server/src/productionGuard.ts
-      # refuses to boot that combination unless this is set; without it the api
-      # container restart-loops and the health/header checks below never see a 200.
-      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1'
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      # ubuntu-latest ships Docker + the compose plugin; no extra setup action needed.
-      - name: docker compose build (validates both the api and web Dockerfile targets)
-        run: docker compose build
-      - name: docker compose up
-        run: docker compose up -d
-      - name: Wait for API health (through the nginx proxy at :8080/api/health)
-        run: |
-          for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8080/api/health; then
-              echo
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "api never became healthy" >&2
-          exit 1
-      - name: Smoke test / (nginx) — 200 + production security headers present
-        run: |
-          headers="$(curl -fsS -D - -o /dev/null http://localhost:8080/)"
-          echo "$headers"
-          echo "$headers" | grep -qi '^content-security-policy:'
-          echo "$headers" | grep -qi '^x-frame-options:'
-          echo "$headers" | grep -qi '^x-content-type-options:'
-          echo "$headers" | grep -qi '^referrer-policy:'
-      - name: Smoke test client_max_body_size — >6MB body rejected with 413
-        run: |
-          dd if=/dev/zero of=/tmp/oversize.bin bs=1M count=7
-          status="$(curl -s -o /dev/null -w '%{http_code}' -X POST --data-binary @/tmp/oversize.bin http://localhost:8080/)"
-          echo "status=$status"
-          test "$status" = "413"
-      - name: docker compose logs
-        if: failure()
-        run: docker compose logs
-      - name: docker compose down
-        if: always()
-        run: docker compose down --volumes
