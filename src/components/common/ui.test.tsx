@@ -68,8 +68,14 @@ describe('Button', () => {
   })
 
   it('renders danger variant', () => {
-    render(<Button variant="danger">Danger</Button>)
-    expect(screen.getByRole('button', { name: 'Danger' })).toBeInTheDocument()
+    render(
+      <>
+        <Button>Primary</Button>
+        <Button variant="danger">Danger</Button>
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'Primary' })).toHaveClass('bg-ok-strong', 'text-ok-strong-ink')
+    expect(screen.getByRole('button', { name: 'Danger' })).toHaveClass('bg-danger-soft', 'text-danger-soft-ink')
   })
 })
 

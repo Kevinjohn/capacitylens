@@ -32,9 +32,9 @@ If the app changes, update this file first, then the affected stories.
    *"Signed in as Jordan Avery"* with a **Sign out** link. **`New company`**
    (`data-testid="new-company-button"`) opens an inline create form that captures the company
    name and the three **frozen-after-creation** fields: **Week starts on** (segmented
-   Monday/Sunday, default Monday), **Timezone** (select, default `GMT`, with its UTC offset shown),
-   and **Language** (read-only **English** — `data-testid="create-language"`; English-only until
-   Paraglide). Company colour uses the default preset automatically rather than asking for a
+   Monday/Sunday, default Monday), **Timezone** (select, default `GMT`, with its numeric UTC offset
+   shown in every option), and **Language** (read-only **English** — `data-testid="create-language"`;
+   English-only until Paraglide). Company colour uses the default preset automatically rather than asking for a
    one-off choice during onboarding. These three are set ONCE here and are then **disabled** in
    Settings; the server rejects a later change with **409**.
    When there are no companies and the caller may create one, the picker presents only two next
@@ -269,7 +269,8 @@ see *Scheduler toolbar* above) re-anchors to the week start regardless of this s
 
 **Calendar (per-account, FROZEN after creation — P1.14).** Settings → **Calendar** shows the
 account's **Week starts on** (segmented Monday/Sunday, default Monday), **Timezone** (select,
-default `GMT`), and a read-only **Language** row (`data-testid="settings-language"`, **English**).
+default `GMT`; every option includes the numeric UTC offset, e.g. `Europe/London (UTC+01:00)`),
+and a read-only **Language** row (`data-testid="settings-language"`, **English**).
 All three are **disabled** here — they are captured ONCE in the company-create form (see *Launching
 the app* above) and are then **frozen**: the section carries the explainer *"Set when the company
 was created and can't be changed."*, and the server rejects a direct change to any of the three
@@ -576,6 +577,24 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
   forms and the command palette. Non-owner writes pin the stored privacy fields, preventing a
   redacted sync round-trip from replacing the real name. Privacy is **off by default**, applies only
   to clients/projects, and never applies to the built-in Internal client.
+
+  The complete acceptance contract is split across five runnable stories so every boundary remains
+  traceable when tests change:
+
+  | Criterion | Required behaviour | Story |
+  |---|---|---|
+  | Client setup | Owner-only switch; public by default; required, normalised code name; real name retained | `US-CLI-05` |
+  | Project setup | Same privacy controls while preserving the required client relationship | `US-PRJ-05` |
+  | Role projection | Owner sees real/raw values; admin/editor/viewer see one quoted code name everywhere | `US-PRI-01` |
+  | Server integrity | Non-owner creates cannot author privacy; writes pin protected fields; every response path stays redacted | `US-PRI-02` |
+  | Portability/upgrade | Role-safe export, owner-only server import, fail-closed repair and v6→v7 public defaults | `US-DAT-07` |
+
+  “Everywhere” includes active and archived client/project lists, filters and pickers, project/client
+  compound labels, scheduler bars and popovers, forms, confirmation dialogs and the command palette.
+  Quotation marks are display chrome: straight or curly outer quotes are removed before storage, and
+  the non-owner projection adds exactly one pair of straight double quotes. A private code name that
+  becomes empty after normalisation is invalid in forms; a malformed imported private row is repaired
+  fail-closed to `Confidential` instead of exposing its real name.
 - **The built-in "Internal" client.** Every account has exactly one **built-in** client named
   **Internal** (the store rejects renaming/deleting it; the write boundary also rejects a direct API write
   that would create a *second* Internal, so the one-per-account rule holds on every path). It is a behind-the-scenes data anchor, so it
@@ -716,6 +735,12 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
   those values contribute zero to utilisation, capacity warnings, announcements, drag previews,
   keyboard moves and duplication for as long as Blocks is active. New and duplicated blocks persist
   zero hours. Switching back makes the preserved historical values effective again.
+- **Visual language.** Blue semantic tokens (`brand`) identify CapacityLens, navigation and links;
+  green semantic tokens (`ok-strong`) identify positive actions such as Create, Save, Add and
+  Continue; red semantic tokens (`danger` / `danger-soft`) identify destructive actions. These
+  roles remain distinct and WCAG-AA readable in light and dark themes. User-selected client,
+  project and discipline swatches remain entity data colours, while new accounts and resources use
+  the default blue preset.
 - **Utilisation %** (left-column label "Utilisation · Nw" where N tracks the week-range toggle, and
   each discipline header's "N% avg utilisation") is computed over the currently **VISIBLE window** —
   the 1/2/4/6/8-week range anchored at the left edge of the view — so **switching the range toggle
@@ -732,5 +757,7 @@ scoped-write contract; a missing/empty one is a **400**). OFF mode is allow-all 
 - Each story is **end-to-end**: it starts from a defined state (usually the seeded app)
   and is runnable by a human with no prior setup.
 - **Acceptance criteria** are written as checkable assertions (✅) — a tester can tick each.
+- Cross-cutting/security-sensitive criteria carry stable IDs (for example `PRI-WRITE-01`) so a
+  future automated test can name the exact contract it covers rather than only the broad story.
 - Each story names its **Linked E2E test(s)** (file + test title) so the automated coverage
   is traceable to the manual script.

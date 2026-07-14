@@ -18,7 +18,7 @@ through the areas below ticking each ✅. Reload to reset the in-memory demo to 
 **How to run the automated coverage:** `pnpm run e2e` (Playwright drives the real app),
 `pnpm test` (Vitest unit/component), and the axe a11y oracle in `e2e/a11y.spec.ts`.
 
-88 stories across 13 areas. The **Automated coverage** column names the spec file(s) whose
+117 stories across 15 areas. The **Automated coverage** column names the spec file(s) whose
 tests assert the story's acceptance criteria; some intrinsically-visual or environment-only
 stories (loading gate, storage-failure banner, toast auto-dismiss, error boundary, the today
 line's position, the visible-window quick-create default, the drag-onto-placeholder rejection)
@@ -41,6 +41,11 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-NAV-08](navigation/US-NAV-08-command-palette.md) | Command palette (⌘K / Ctrl+K) | `e2e/palette.spec.ts` |
 | [US-NAV-09](navigation/US-NAV-09-mobile-affordances.md) | Mobile affordances (sidebar rail + rotate hint) | `e2e/mobile.spec.ts` |
 | [US-NAV-10](navigation/US-NAV-10-login-screen.md) | Login screen (flag-gated; `CAPACITYLENS_AUTH` deploys only) | `e2e/login.auth.spec.ts` (auth-backed project) |
+| [US-NAV-11](navigation/US-NAV-11-fake-sign-in.md) | Trusted-local fake sign-in | `e2e/navigation.spec.ts` |
+| [US-NAV-12](navigation/US-NAV-12-intro-page.md) | First-run intro page | `e2e/navigation.spec.ts` |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md) | Getting-started checklist and tour | `e2e/getting-started.spec.ts` |
+| [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Company picker and company-creation choices | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts` |
+| [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md) | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/color.test.ts` + `e2e/a11y.spec.ts` |
 
 ## Resources — `resources/`
 | Story | Title | Automated coverage |
@@ -70,6 +75,8 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-CLI-01](clients/US-CLI-01-add-client.md) | Add a client | `e2e/clients.spec.ts` |
 | [US-CLI-02](clients/US-CLI-02-edit-client.md) | Edit a client | `e2e/clients.spec.ts` |
 | [US-CLI-03](clients/US-CLI-03-delete-client-cascade.md) | Delete a client (cascade) | `e2e/clients.spec.ts` + unit (`integrity.test.ts`) |
+| [US-CLI-04](clients/US-CLI-04-internal-client.md) | Built-in Internal client | `e2e/internal-client.spec.ts` |
+| [US-CLI-05](clients/US-CLI-05-private-client-code-name.md) | Mark a client private with a code name | `e2e/clients.spec.ts` + unit (`ClientForm.test.tsx`) |
 
 ## Projects — `projects/`
 | Story | Title | Automated coverage |
@@ -78,6 +85,13 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-PRJ-02](projects/US-PRJ-02-edit-project.md) | Edit a project | `e2e/projects.spec.ts` |
 | [US-PRJ-03](projects/US-PRJ-03-delete-project-cascade.md) | Delete a project (cascade) | `e2e/projects.spec.ts` + unit (`integrity.test.ts`) |
 | [US-PRJ-04](projects/US-PRJ-04-manage-phases.md) | Manage phases in a project | manual — n/a (Phase UI hidden) |
+| [US-PRJ-05](projects/US-PRJ-05-private-project-code-name.md) | Mark a project private with a code name | unit (`ProjectForm.test.tsx`) + manual |
+
+## Privacy & confidential names — `privacy/`
+| Story | Title | Automated coverage |
+|---|---|---|
+| [US-PRI-01](privacy/US-PRI-01-role-safe-private-name-display.md) | Role-safe private-name display across the app | server authz + component tests; cross-surface manual |
+| [US-PRI-02](privacy/US-PRI-02-preserve-private-identities-on-writes.md) | Preserve private identities across server writes | `server/src/app.authz.test.ts` + tenant-store tests |
 
 ## Activities — `activities/`
 | Story | Title | Automated coverage |
@@ -152,6 +166,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-FIL-05](filters/US-FIL-05-hide-tentative.md) | Hide tentative | `e2e/filters.spec.ts` |
 | [US-FIL-06](filters/US-FIL-06-clear-filters.md) | Clear all filters | `e2e/filters.spec.ts` |
 | [US-FIL-07](filters/US-FIL-07-empty-state.md) | Filtered empty state | `e2e/filters.spec.ts` |
+| [US-FIL-08](filters/US-FIL-08-filter-activity.md) | Filter by activity | `e2e/filters.spec.ts` |
 
 ## Settings — `settings/`
 | Story | Title | Automated coverage |
@@ -188,3 +203,4 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-DAT-04](data/US-DAT-04-reject-non-capacitylens.md) | Reject a non-CapacityLens file | `e2e/data.spec.ts` |
 | [US-DAT-05](data/US-DAT-05-persist-reload.md) | Persist across reload | `e2e/crud.spec.ts` |
 | [US-DAT-06](data/US-DAT-06-seed-and-no-reseed.md) | Seed on first run, no re-seed after clear | `e2e/data.spec.ts` + `e2e/crud.spec.ts` |
+| [US-DAT-07](data/US-DAT-07-private-name-portability.md) | Export, import and upgrade private names safely | server authz + import unit tests; v6→v7 manual gap |

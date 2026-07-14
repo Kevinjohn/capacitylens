@@ -1,5 +1,14 @@
 import { describe, it, expect } from 'vitest'
-import { SWATCH_COLUMNS, SWATCHES, colorName, swatchLabel } from './palette'
+import { DEFAULT_COLORS, SWATCH_COLUMNS, SWATCHES, colorName, swatchLabel } from './palette'
+
+describe('DEFAULT_COLORS', () => {
+  it('uses the refreshed blue family for new accounts and resources', () => {
+    expect(DEFAULT_COLORS.account).toBe('#2d75da')
+    expect(DEFAULT_COLORS.resource).toBe('#2d75da')
+    expect(DEFAULT_COLORS.placeholder).toBe('#2d75da')
+    expect(DEFAULT_COLORS.discipline).toBe('#2d75da')
+  })
+})
 
 describe('SWATCHES', () => {
   it('is a 13x4 grid of distinct, valid hex colours', () => {

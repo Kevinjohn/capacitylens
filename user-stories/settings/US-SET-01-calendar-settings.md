@@ -1,6 +1,6 @@
 # US-SET-01 — Team calendar settings are set at creation, then frozen
 
-**Area:** Settings · **Persona:** Studio manager · **Linked E2E:** `e2e/onboarding.spec.ts` (capture at creation + disabled in Settings), `e2e/settings-calendar.spec.ts` (frozen/disabled), `e2e/onboarding.db.spec.ts` (server 409)
+**Area:** Settings · **Persona:** Studio manager · **Linked automated coverage:** `e2e/onboarding.spec.ts` (capture at creation + disabled in Settings), `e2e/settings-calendar.spec.ts` (frozen/disabled + Settings axe), `e2e/onboarding.db.spec.ts` (server 409), `src/lib/timezones.test.ts` (numeric UTC offset labels and DST)
 
 ## Goal
 Set the team's language, week-start day and time zone **when the company is created** so the
@@ -18,7 +18,7 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 **Capture (at creation):**
 1. From the company picker, click **New company**.
 2. The inline form shows **Company name**, **Week starts on** (Monday/Sunday, default Monday),
-   **Timezone** (default *GMT*, with its UTC offset shown), and a read-only **Language** row
+   **Timezone** (default *GMT*, with its numeric UTC offset shown in every option), and a read-only **Language** row
    (**English**). The company colour uses the default preset automatically.
 3. Choose e.g. **Sunday** and **Europe/London**, type a name, click **Create company** → you land in
    the app for the new company.
@@ -31,6 +31,9 @@ week-start or time zone after work is scheduled would silently re-interpret ever
 ## Acceptance criteria
 - The company-create form captures Week-starts-on, Timezone and Language with concrete defaults
   (Monday / GMT / English); creating passes them to the new account.
+- Every Timezone option shows both its display name and a numeric offset such as **GMT
+  (UTC+00:00)** or **Europe/London (UTC+01:00)** for the date being represented; the offset helper
+  handles daylight-saving changes rather than showing an unexplained IANA identifier alone.
 - In Settings, the **Calendar** section's Week-starts-on segmented control and Timezone select are
   **disabled**; a read-only **Language** row reads **English**; the freeze explainer is shown.
 - Company **name** and **Disciplines** stay editable.

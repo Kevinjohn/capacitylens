@@ -4,34 +4,50 @@
 [![CodeQL](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml/badge.svg)](https://github.com/Kevinjohn/capacitylens/actions/workflows/codeql.yml)
 [![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
 
-**A calm, week-by-week view of who is busy, free, or over capacity.**
+**Week-by-week capacity planning for small agencies.**
 
-CapacityLens is a deliberately focused resource scheduler for small agencies. It keeps people,
-clients, projects, activities, allocations and time off in one visual plan without turning into a
-timesheet, finance system or project-management suite.
+CapacityLens makes it easy to see who is busy, available or over capacity, then adjust the plan
+before schedules become problems.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/schedule-dark.png">
   <img alt="CapacityLens schedule showing people, allocation bars, utilisation, time off and an over-capacity day." src="docs/screenshots/schedule-light.png">
 </picture>
 
-## What it does
+## What it is
 
-- Plans work in a 1, 2, 4 or 8 week window.
-- Separates daily over-capacity, visible-window utilisation and the fixed 14-day warning signal.
-- Models clients → projects → activities and people → allocations, with account-level isolation.
-- Supports people, placeholders and capacity-free external partners.
-- Includes lifecycle management, JSON import/export, undo/redo, keyboard navigation, light/dark
-  themes and accessible automated checks.
-- Stores the source of truth in one SQLite file, with audit logging and online snapshots.
+CapacityLens is a deliberately small, self-hosted resource scheduler for agencies that plan work
+in weekly blocks.
 
-Budgets, billing, timesheets, hour-by-hour workflows and mobile scheduling are intentional
-non-goals.
+- Plan clients → projects → activities and people → allocations → time off in one visual schedule.
+- View a 1, 2, 4 or 8 week window.
+- See daily over-capacity, visible-window **Utilisation**, and a separate 14-day forward warning.
+- Include employees, placeholders and capacity-free external partners.
+- Keep accounts isolated with role-based access and a SQLite source of truth.
+- Import and export JSON, undo and redo changes, and use keyboard-friendly light or dark themes.
 
-## Try it without setup
+## What it is not
 
-The demo is editable but intentionally temporary: it runs entirely in memory and resets when the
-page reloads. It never creates an account or writes scheduling data to browser storage.
+CapacityLens is not a:
+
+- budget, billing or financial planning system;
+- timesheet or time-tracking tool;
+- hour-by-hour scheduling system;
+- project-management suite or CRM; or
+- mobile-first scheduling app.
+
+Those boundaries are intentional. CapacityLens is for a clear weekly view of resource capacity,
+not for managing every part of agency operations.
+
+## Who it is for
+
+Agency owners, studio or operations leads, resource planners and project leads who need a shared
+answer to: “Who can take on this work, and when?”
+
+## Try it
+
+The demo is editable but temporary. It runs in memory, resets on reload and never stores schedule
+data in browser storage.
 
 ```bash
 corepack enable
@@ -39,10 +55,11 @@ pnpm install
 pnpm run dev:demo
 ```
 
-Open <http://127.0.0.1:5173>. Node 24 is required for the full stack; the current version is pinned
-in `.nvmrc`.
+Open <http://127.0.0.1:5173>.
 
 ## Run the full stack
+
+Node 24 and pnpm are required. The pinned Node version is in `.nvmrc`.
 
 ```bash
 nvm use
@@ -51,65 +68,68 @@ pnpm install
 pnpm run dev
 ```
 
-This starts the SQLite API on `:8787` and the web app on `:5173`. Development seeds sample data;
-a fresh production instance starts empty.
+This starts the web app on `:5173` and the SQLite API on `:8787`. Development mode includes sample
+data; a fresh production instance starts empty.
 
-For a self-hosted deployment:
+For a persistent deployment, start with the [self-hosting guide](docs/self-hosting.md).
 
-```bash
-cp .env.example .env
-# Set CAPACITYLENS_AUTH=password, BETTER_AUTH_SECRET, BETTER_AUTH_URL and
-# CAPACITYLENS_SETUP_TOKEN before exposing the service.
-docker compose up --build -d
-```
+## Stack
 
-Read the [self-hosting guide](docs/self-hosting.md) before using it on the public internet.
+| Area | Technology | Purpose |
+| --- | --- | --- |
+| Web app | React, TypeScript, Vite, Tailwind CSS | The schedule and settings UI |
+| Client state | Zustand | UI state, persistence orchestration and undo/redo |
+| Shared domain | TypeScript in `shared/` | Types, validation, migrations and scheduling rules |
+| API and auth | Fastify and Better Auth | HTTP API, sessions and account authorization |
+| Database | Node’s built-in SQLite driver | Persistent server-side source of truth |
+| Verification | Vitest, Testing Library, Playwright and axe | Unit, integration, browser and accessibility checks |
+| Deployment | Docker Compose or Node 24 | Self-hosted production and development environments |
 
-## Authentication and offline reading
+The browser uses the API in normal builds. Only `VITE_CAPACITYLENS_DEMO=1` selects the temporary
+in-memory demo adapter.
 
-Email/password authentication is the stable default. Google, Microsoft, GitHub and generic OIDC
-can be enabled alongside it, but are marked **experimental** until the project has broader
-provider interoperability evidence. External identities must provide a verified email and must
-match an unused invitation; the first SSO identity must be explicitly allow-listed by the
-operator. `CAPACITYLENS_AUTH=sso` removes the password route when an operator is ready for
-SSO-only access.
+## Authentication and offline access
 
-Offline access is a device opt-in. It caches the app shell and the last verified account snapshot
-for at most seven days. Offline mode is strictly read-only: no create, update, delete or queued
-sync is possible. Sign-out and “Clear device data” remove the cached identity and snapshots.
-See [offline access](docs/offline.md) and [authentication](docs/authentication.md).
+- Password authentication is the stable default. Social providers and generic OIDC are experimental.
+- Optional offline access stores a verified snapshot for up to seven days.
+- Offline mode is read-only: it never queues or synchronises edits.
+- The SQLite database remains the source of truth.
 
-## Architecture
+Read the details in [authentication](docs/authentication.md) and [offline access](docs/offline.md).
 
-- `src/` — React, Zustand and the tested scheduler view-model.
-- `shared/` — pure types, validation, integrity, migrations and domain rules used by both sides.
-- `server/` — Fastify, Better Auth and Node's built-in SQLite driver.
-
-The browser talks through a `PersistenceAdapter`. Normal builds use the API; only
-`VITE_CAPACITYLENS_DEMO=1` selects the in-memory adapter. There is no storage fallback if the
-server is unavailable.
-
-## Quality bar
+## Checks for contributors
 
 ```bash
-pnpm run gate         # typecheck, lint, coverage-gated tests, production build
+pnpm run gate         # client typecheck, lint, tests, coverage and production build
 pnpm run gate:server  # server/shared typecheck and tests
-pnpm run e2e          # Chromium: demo, database and auth flows
+pnpm run e2e          # Chromium demo, database and authentication flows
 ```
 
-CI repeats these checks, audits production dependencies, smoke-tests the containers and runs
-CodeQL. The larger browser and mutation suites are documented in [development](docs/development.md).
+See [development](docs/development.md) for cross-browser, mutation and GitHub Actions checks.
 
-## Project documents
+## Documentation
 
-- [Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md)
-- [Security policy](SECURITY.md) · [Privacy](docs/privacy.md)
-- [Self-hosting](docs/self-hosting.md) · [Operations](docs/runbook.md)
-- [Standing decisions](DECISIONS.md) · [Changelog](CHANGELOG.md)
+### Using and operating CapacityLens
+
+- [Self-hosting](docs/self-hosting.md) — Docker Compose, environment variables, upgrades and deployment.
+- [Authentication](docs/authentication.md) — password, social and OIDC modes.
+- [Offline access](docs/offline.md) — device cache behavior and limitations.
+- [Operations runbook](docs/runbook.md) — health checks, backups, restore drills and incidents.
+- [Privacy](docs/privacy.md) — stored data, browser storage and operator responsibilities.
+
+### Developing CapacityLens
+
+- [Development guide](docs/development.md) — repository map, checks, test data and local workflows.
+- [Server README](server/README.md) — API, authorization, persistence and backup boundaries.
+- [Standing decisions](DECISIONS.md) — decisions that shape the product and architecture.
+- [Changelog](CHANGELOG.md) — released and upcoming changes.
+
+### Project policies
+
+[Contributing](CONTRIBUTING.md) · [Governance](GOVERNANCE.md) · [Support](SUPPORT.md) ·
+[Security policy](SECURITY.md) · [Trademarks](TRADEMARKS.md)
 
 ## License
 
-CapacityLens is licensed under [AGPL-3.0-only](LICENSE). Network operators of a modified version
-must offer the corresponding source to its users. Product names and logos are addressed
-separately in [TRADEMARKS.md](TRADEMARKS.md). This licensing posture should receive professional
-legal review before a commercial hosted service launches.
+CapacityLens is licensed under [AGPL-3.0-only](LICENSE). Product names and logos are addressed
+separately in [TRADEMARKS.md](TRADEMARKS.md).

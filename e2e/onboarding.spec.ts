@@ -19,6 +19,8 @@ test.describe('onboarding: capture-then-freeze language / week-start / time zone
     await expect(page.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
     const tz = page.getByLabel('Timezone')
     await expect(tz).toHaveValue('Etc/GMT')
+    await expect(tz.locator('option[value="Etc/GMT"]')).toHaveText('GMT (UTC+00:00)')
+    await expect(tz.locator('option[value="Europe/London"]')).toHaveText('Europe/London (UTC+01:00)')
     await expect(page.getByTestId('create-language')).toHaveText('English')
 
     // Capture a non-default week-start and time zone, then create.

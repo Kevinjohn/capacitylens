@@ -65,6 +65,21 @@ test.describe('Navigation & shell', () => {
     await expect(page.getByRole('link', { name: 'Clients' })).not.toHaveAttribute('aria-current', 'page')
   })
 
+  test('uses blue identity, green positive actions and red destructive actions', async ({ page }) => {
+    await openApp(page)
+
+    await expect(page.getByText('CapacityLens', { exact: true }).first()).toHaveClass(/text-brand/)
+
+    await page.getByRole('link', { name: 'Clients', exact: true }).click()
+    await page.getByRole('button', { name: 'Add client' }).click()
+    const clientDialog = page.getByRole('dialog', { name: 'Add client' })
+    await expect(clientDialog.getByRole('button', { name: 'Save' })).toHaveClass(/bg-ok-strong/)
+    await clientDialog.getByRole('button', { name: 'Cancel' }).click()
+
+    await page.getByRole('link', { name: 'Settings', exact: true }).click()
+    await expect(page.getByTestId('clear-local-storage')).toHaveClass(/bg-danger-soft/)
+  })
+
   test('renders in dark mode', async ({ page }) => {
     // Dark is now an explicit preference, not OS-driven: seed the stored theme so
     // the pre-paint script in index.html resolves the app to dark.

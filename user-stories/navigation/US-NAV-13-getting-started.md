@@ -36,6 +36,8 @@ five look-around stops, no navigation, no forced actions — the where, not the 
 - The card (`data-testid="getting-started"`) appears on the schedule **only** when the active
   account has at least one incomplete step AND it hasn't been dismissed on this device. A fully
   set-up (seeded) company never shows it.
+- The card is an overlay in the schedule chrome: showing or hiding it does not change the toolbar or
+  grid's top position, and it stays within the schedule viewport at desktop and narrow widths.
 - Steps derive from real data: the built-in **Internal** client does **not** tick the client step;
   any allocation ticks the assign step. Completed steps render struck-through with a check and a
   screen-reader "Done:" prefix; pending steps 1–3 are links to `/clients`, `/projects`,

@@ -20,6 +20,7 @@ test.describe('Calendar settings (frozen after creation)', () => {
     await expect(sundayBtn).toHaveAttribute('aria-checked', 'false')
     const tzSelect = page.getByLabel('Timezone')
     await expect(tzSelect).toHaveValue('Etc/GMT')
+    await expect(tzSelect.locator('option[value="Etc/GMT"]')).toHaveText('GMT (UTC+00:00)')
 
     // …but every control is disabled (the freeze).
     await expect(mondayBtn).toBeDisabled()

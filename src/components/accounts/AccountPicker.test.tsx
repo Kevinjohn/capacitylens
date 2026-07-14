@@ -231,11 +231,24 @@ describe('AccountPicker server-mode list (P1.13)', () => {
     expect(screen.getByTestId('company-empty-options')).toBeInTheDocument()
     expect(screen.getByText('Set up a new company and start planning right away.')).toBeInTheDocument()
     expect(screen.getByText('Ask an admin for an invite to join an existing company.')).toBeInTheDocument()
+    expect(screen.getByTestId('company-empty-options').children).toHaveLength(2)
     expect(screen.queryByText(/No companies yet/)).not.toBeInTheDocument()
     // Zero accounts ⇒ the server reports canCreateAccount: true when re-asked (no provider here,
     // so the default context value applies — see authContext.ts's fail-open default; the live
     // refetch after a delete is pinned in the refreshAuth describe below).
     expect(screen.getByTestId('new-company-button')).toBeInTheDocument()
+  })
+
+  it('shows only the invite step when an empty picker caller cannot create a company', () => {
+    useStore.getState().replaceAll(emptyAppData())
+    useStore.getState().setAccountSummaries([])
+    withCanCreateAccount(false, <AccountPicker />)
+
+    expect(screen.getByRole('heading', { name: 'Start planning' })).toBeInTheDocument()
+    expect(screen.getByText('Ask an admin for an invite to join an existing company.')).toBeInTheDocument()
+    expect(screen.queryByTestId('new-company-button')).not.toBeInTheDocument()
+    expect(screen.getByTestId('company-empty-options').children).toHaveLength(1)
+    expect(screen.queryByText(/Create a company to start planning/)).not.toBeInTheDocument()
   })
 
   it('does not ask new-company onboarding users to choose a colour', async () => {

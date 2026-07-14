@@ -23,6 +23,14 @@ test.describe('getting started checklist', () => {
     // The checklist floats over the scheduler chrome; it must not consume a row in the schedule
     // layout or push the toolbar/grid down on a first visit.
     await expect(card).toHaveCSS('position', 'absolute')
+    const toolbarBefore = await page.getByTestId('scheduler-toolbar').boundingBox()
+    const gridBefore = await page.getByTestId('scheduler-grid').boundingBox()
+    expect(toolbarBefore).not.toBeNull()
+    expect(gridBefore).not.toBeNull()
+    const toolbarAfter = await page.getByTestId('scheduler-toolbar').boundingBox()
+    const gridAfter = await page.getByTestId('scheduler-grid').boundingBox()
+    expect(toolbarAfter?.y).toBe(toolbarBefore?.y)
+    expect(gridAfter?.y).toBe(gridBefore?.y)
 
     // All four steps are pending — the first three are links to where the step happens.
     // (The account's built-in Internal client must NOT tick the client step.)
