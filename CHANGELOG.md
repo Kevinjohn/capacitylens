@@ -1,0 +1,664 @@
+# Changelog
+
+All notable changes to CapacityLens are recorded here. The format follows
+[Keep a Changelog](https://keepachangelog.com/), and the project uses
+[Semantic Versioning](https://semver.org/) — while pre-1.0, **minor** versions carry
+new features and **patch** versions carry fixes.
+
+> Entries before 0.6.0 use the project's former name **"Floaty"** (and the `FLOATY_*` env prefix),
+> since renamed to **CapacityLens** / `CAPACITYLENS_*`.
+
+## [Unreleased]
+
+## [0.17.0] — 2026-07-14
+
+The public-release hardening round. This release establishes a clean open-source baseline while
+keeping the hosted product wrapper outside this repository.
+
+### Added
+
+- Opt-in, seven-day offline reading for previously opened accounts. Offline mode is explicitly
+  read-only, scoped to the verified signed-in user and browser origin, and never queues writes.
+- Experimental Google, GitHub, Microsoft and generic OIDC sign-in alongside the stable
+  email/password flow. External identities require verified email and an existing invitation (or
+  an explicit first-user bootstrap allowlist).
+- Public governance, support, trademark, authentication and offline-operation documentation.
+- DCO enforcement, CodeQL scanning, production dependency auditing, pinned CI actions and a
+  production-container smoke test.
+
+### Changed
+
+- The public demo is now an editable in-memory sandbox. It stores no scheduling data and resets to
+  the sample dataset on reload.
+- Authentication configuration fails closed: incomplete provider credentials, unsafe public URLs
+  and invalid SSO bootstrap configuration stop startup with an actionable error.
+- The runtime API image contains production server dependencies only and runs as an unprivileged
+  user. Browser E2E uses the same-origin API topology enforced by the production CSP.
+- Public-facing documentation and fixtures were rewritten for a standalone open-source repository;
+  internal review records, deployment archaeology and private project references were removed.
+
+### Security
+
+- Session-cookie security is derived from the validated public HTTPS URL rather than proxy request
+  headers. Unknown roles degrade to read-only access.
+- Import lifecycle timestamps are canonicalized, invalid chronology is repaired, and erased-resource
+  personal data is obfuscated immediately.
+- Entity identifiers are constrained to URL-safe bounded values; the CSP no longer permits arbitrary
+  HTTP(S) connections.
+
+## [0.16.0] — 2026-07-13
+
+A high-effort code-review remediation round over the 0.15.8 tree: seven fixes, one reliability
+hardening, and two deliberate-design decisions confirmed and left intact. The findings cluster in
+the server-sync save path and the bulk-operation timeout tier.
+
+### Fixed
+
+- **Bulk operations no longer abort at the 15-second interactive timeout.** Whole-tenant company
+  deletion (`DELETE /api/accounts/:id`) and atomic import (`POST /api/import`) now use the 120s
+  bulk bound — the same as the whole-slice load, batch sync, and inactive-slice export — so a
+  large but healthy tenant on a slow server isn't cut off part-way through. Company deletion also
+  **reconciles the account list from the server** when the request times out (the erase may have
+  committed server-side) instead of reporting a spurious "delete failed" and leaving a
+  now-deleted company in the picker that errors when re-clicked.
+- **Backup retention honours a fractional `CAPACITYLENS_BACKUP_KEEP` again.** A value like `100.5`
+  now floors to `100` rather than silently reverting to the default of `48` — a smaller backup
+  window than the operator configured, discovered only when an old restore point was already gone.
+- **Undo/redo and cascade-deletes stay safe on very large tenants.** The revision-timestamp
+  helper no longer spreads one argument per row into a function call, which on a big enough
+  account could overflow the engine's argument limit and fail the action outright.
+
+### Changed
+
+- **An over-sized sync is now a clear terminal error, not a permanent retry loop.** A single
+  change whose diff exceeds the atomic batch limit (5000 operations) previously retried the
+  identical, never-landing diff forever behind a stuck "changes aren't saving" banner. It now
+  surfaces a plain-language notice — *change or delete fewer items at a time* — and stops
+  retrying; the pending change is preserved in the durable write journal and the banner clears
+  once a smaller change syncs. The one-transaction atomicity guarantee is unchanged (the diff is
+  never split into partially-committed pieces).
+
+### Performance
+
+- **Leaner server-sync save path.** The per-write PUT rebase is now O(operations + rows) via an
+  id-keyed map instead of a linear table scan per operation (which was quadratic on a
+  whole-table re-timestamp such as a large undo/redo); each batch is JSON-serialized once rather
+  than twice; and a throwaway empty-data allocation per commit-receipt revision was removed.
+
+### Notes
+
+- Two behaviours the review flagged were confirmed **deliberate** and left as-is: an edit made
+  during an in-flight import is intentionally *not* flushed on tab-close (flushing it would insert
+  stale pre-import rows into the freshly imported data), and data written by a *newer* app version
+  is intentionally refused rather than loaded with unknown fields silently dropped (which would
+  lose them on the next save).
+
+## [0.15.8] — 2026-07-13
+
+The last four P3/P4 findings the review re-triaged as "overstated — verify before acting":
+two turned out to need a fix, two needed a correction to the record rather than the code.
+
+### Changed
+
+- **`endDateForWorkingDays` is now an O(1) closed form** instead of a day-by-day scan. It's
+  called per pointer-move during drag-resize, where a pathological input (a one-day working
+  week over a ~100-year span) could previously spin ~255k iterations. Working-day offsets
+  repeat with period 7, so the result is computed arithmetically; a brute-force cross-check
+  test (7 starts × 6 patterns × 40 counts) locks it to the previous behaviour byte-for-byte.
+
+### Documentation
+
+- **Corrected the `NumberField` "transient NaN" comments** (fields.tsx and its AllocationModal
+  echo). For `<input type=number>` the browser reports `value` as a valid numeric string or
+  `""`, so `Number(value)` is finite or `Number("") === 0` — never `NaN`. The real residual is
+  only that the field can't be held visually blank mid-edit; no behaviour changed.
+- **Sharpened the `MAX_IMPORT_RECORDS` comment** to note the 200k cap is a live server-side
+  backstop, not dead code: `parseData` also runs on `POST /api/import`, where a hostile body of
+  many near-empty records exceeds the cap well inside the 5 MiB request-body limit.
+- **Recorded the missing e2e page-error/console gate** as a deliberate known harness gap (in
+  `e2e/helpers.ts`), with the reason it's deferred (a fixture would touch all 45 spec files, and
+  a naive gate flakes on a benign WebKit dev-server chunk-load error) and the trigger to add it.
+
+## [0.15.7] — 2026-07-13
+
+Two ops-hardening items from the same P3/P4 backlog: the API container no longer runs as
+root, and off-host backups are documented as a required, scheduled step rather than an aside.
+
+### Changed
+
+- **The `api` Docker container runs as the unprivileged `node` user** instead of root. The DB
+  and backups volume mounts are created owned by `node` so a fresh volume initialises writable,
+  and the corepack cache is pinned to a world-readable path (`COREPACK_HOME`) so the pinned
+  `pnpm` still resolves offline at container start.
+
+### Documentation
+
+- **Off-host backups are now a recommended cron, not a passing mention.** The self-hosting and
+  runbook guides state plainly that on-host snapshots die with the disk/droplet/volume and give
+  a concrete scheduled `rsync` (with `restic`/`rclone`/`scp` as equivalents), because a copy on
+  a second machine is the real backup.
+
+## [0.15.6] — 2026-07-13
+
+A remediation round drawn from the P3/P4 review backlog: one server-performance fix,
+several accessibility/interaction fixes, and hardening of the lint and CI safety nets.
+
+### Fixed
+
+- **Batch writes no longer re-scan the whole database on every operation.** Each write in a
+  batch used to reload the entire multi-tenant dataset to validate cross-entity references, so
+  a large (authenticated) sync could grow quadratically and monopolise the single writer. The
+  batch now loads state once and keeps an in-memory projection in lockstep with the database's
+  cascade rules, validating each operation against the running result of the ones before it.
+- **Changing only an activity's _kind_ is now guarded against silent loss.** Editing just the
+  Project / Internal / Repeatable segment and then pressing Escape (or clicking the backdrop)
+  now raises the unsaved-changes notice instead of discarding the change.
+- **Purge availability uses the exact 30-day instant.** The "delete permanently" affordance
+  compared against date-midnight, so it could stay disabled for up to a day past the real
+  boundary; it now uses the precise timestamp the server enforces.
+
+### Changed
+
+- **The command palette is now a proper modal for assistive technology** — it sets `aria-modal`
+  and marks the background `inert`, so screen-reader browse mode can no longer wander through
+  the obscured application behind it.
+- **Escape cancels an in-flight gesture on the schedule** — a drag/resize of an allocation, or a
+  draw-to-create, can now be abandoned mid-gesture with Escape (reverting cleanly, no commit).
+
+### Internal
+
+- Type-aware ESLint (`no-floating-promises` / `no-misused-promises`) now covers the `server/`
+  and `shared/` workspaces and runs as part of `gate:server`.
+- CI builds the Docker images and smoke-tests the Compose + Nginx deployment (health endpoint,
+  security headers, and the 6 MB request-body limit) on pull requests and on demand.
+
+## [0.15.5] — 2026-07-13
+
+A fix-only round on top of the invite-token-hashing / auth rework, closing two
+`/code-review` passes (high effort, workflow-backed + independent verify).
+
+### Fixed
+
+- **Tiered API deadlines (no more slow-server sync wedge).** The rework applied one
+  15s request timeout to every API call, including the three bulk operations. Aborting an
+  in-flight `POST /api/batch` left the sync snapshot un-advanced, so the client retried the
+  identical diff forever against a merely-slow (but healthy) server and the "saving…" banner
+  never cleared. Requests are now tiered: interactive calls keep 15s; the whole-slice load,
+  the atomic batch write, and the full inactive-slice export get a 120s bulk bound; and the
+  keepalive unload flush gets no deadline at all (a timeout on a request meant to outlive the
+  page is self-contradictory — the durable write journal is the guard there).
+- **Used invites stay visible to admins.** The member-management invite list dropped used and
+  expired links, and the prune step deleted used ones, so an accepted invite vanished from the
+  admin view. Used invites now remain listed (only expired-and-unused links are pruned).
+- **Archive confirmation now spells out the cascade.** Archiving a client or project opens a
+  confirmation that names how many projects and allocations will drop out of the schedule
+  underneath it (counts derived from the same active-view projection, so they can't drift).
+- **Sign-out always returns to the login screen** — the page now reloads whether the
+  `signOut` call succeeds or fails, so a failed network call can't strand a signed-out session
+  in a logged-in-looking UI.
+- **Audit-degradation warnings surface on lifecycle actions** (the archive/restore/delete path
+  now flows through the shared `apiFetch`, which forwards the server's audit-warning header).
+- **Bootstrap admin password stays a generated secret in production.** A test-only
+  `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD` override pins it for the auth e2e server; production
+  keeps the random secret, and the production guard warns if the override is ever set there.
+- Smaller hardening: `AbortSignal.any` fallback for Safari 17.0–17.3; unknown-role accounts
+  degrade to a safe default instead of disappearing; import size limit and error-recovery
+  routing (`unavailable` vs `corrupt`) corrected; MiB (not MB) import-size math; nginx body
+  limit aligned with the server cap.
+
+## [0.15.1] — 2026-07-12
+
+A fix-only round: an external 23-finding review (21 confirmed) plus a follow-up
+/code-review over the fixes themselves. Verified green across gate (1433 unit),
+gate:server (457), and Chromium e2e 183/183.
+
+### Fixed
+
+- **Silent data loss**: a failed save can no longer be clobbered by the focus-refresh or the
+  archive/delete/purge reload (the retried edit used to diff to zero ops and vanish); lifecycle
+  reloads flush pending edits first, and a reload resolving after a company switch can no longer
+  install the previous tenant's data under the new one.
+- **Companies, invites and deletes work end-to-end on auth-enabled deploys**: "New company" now
+  uses the atomic `POST /api/orgs` (it used to appear to work, error, and vanish on reload);
+  deleting a company whose data isn't loaded actually deletes it; the Delete button only shows
+  for owner/admin roles; an accepted invite's Continue lands inside the joined company.
+- **Large imports sync**: saves are chunked under the server's batch cap (an import over ~5000
+  records used to fail forever and be lost on reload).
+- **Confidential time-off notes** can no longer be erased or read back by editors through any
+  write path — including write echoes, conflict payloads, and `/api/import` (now admin-only
+  under auth, since it replaces the whole slice).
+- **Boot resilience**: a full/blocked browser storage no longer locks a server-backed install
+  behind the local-storage recovery screen (its data lives on the server); the demo build keeps
+  the recovery flow.
+- **Security headers & token hygiene** (self-hosting): the packaged nginx now sends the same
+  clickjacking/sniffing headers as the API and keeps invite/reset tokens out of its access log.
+- Smaller fixes: stale-write conflicts resolve cleanly (server-wins) instead of wedging the
+  sync retry loop; command-palette focus returns to the invoking control and Tab stays
+  contained; "Copy invite link" reports failure when the clipboard is unavailable; children of
+  archived parents are labelled with the parent's name instead of "Internal"/"(no client)";
+  backups can't collide or overlap; Docker Compose can genuinely disable backups; assorted
+  stale operator docs brought up to the auth-on posture.
+
+## [0.15.0] — 2026-07-11
+
+The open-source launch-prep release: a stranger can now find, run, and trust the project
+without reading the maintainer's mind. Verified green across gate (1403 unit), gate:server
+(436), Chromium e2e 183/183, WebKit + Firefox core specs 168/168 each, and a 94.04%
+mutation round.
+
+### Added
+- **First-run owner setup.** On a fresh password-auth instance (zero users) the login wall
+  offers **Create the owner account**; sign-up is gated live per request and closes the
+  moment the first user exists — the `ALLOW_OPEN_SIGNUP` first-login dance is retired.
+  `/api/auth/me`'s 401 carries `needsSetup`, and losing the first-run race flips the form
+  to sign-in with an explanation instead of dead-ending. A **"SETUP OPEN"** boot warning
+  fires whenever password mode starts with zero users (until the owner exists, anyone who
+  can reach the server can claim it — also called out in the self-hosting/deploy docs).
+- **Headless bootstrap flag.** `--create-owner-admin-admin` / `CAPACITYLENS_CREATE_ADMIN_ADMIN=1`
+  creates the well-known `admin@admin.admin` / `admin` owner on an **empty** user table only,
+  through Better Auth's internal adapter (atomic, rolled back on failure; the instance-wide
+  password floor is never touched). The boot prints a framed change-it-now warning and
+  production adds a posture warning naming the credential.
+- **CI and repo collateral.** A GitHub Actions gate (typecheck/lint/unit/build + server gate +
+  Chromium e2e) on pull requests, manual dispatch, `v*` tags, and a monthly schedule —
+  deliberately not on every push. Dependabot across all three workspace directories, issue
+  forms, a PR template, and package metadata.
+- **Node 24 preflight.** Every server entry script and the dev launcher now fail fast with a
+  clear message naming `.nvmrc` / `nvm use` (and the `dev:demo` fallback) instead of a raw
+  link-time `node:sqlite` crash from inside tsx.
+- **README screenshots** (light + dark, theme-aware on GitHub) and `docs/development.md` for
+  the dev-facing detail the README used to carry.
+
+### Changed
+- **Repository renamed** `floaty-v1` → `capacitylens` (GitHub redirects the old URL); all
+  in-repo links updated.
+- **README rewritten human-first** — pitch, quickstart with prerequisites, self-hosting,
+  contributing, license; deployment documentation rewritten as an end-to-end production runsheet for the
+  server-backed password-auth build.
+
+### Fixed
+- **Docker api image crash-loop**: the runtime stage never copied `server/scripts/`, so the
+  new preflight died on MODULE_NOT_FOUND before the server booted.
+- **Bootstrap lockout hazard**: a `linkAccount` failure after `createUser` used to strand a
+  credential-less user row that permanently closed both bootstrap paths; the write is now
+  atomic-with-rollback.
+- **auth-e2e server reuse**: Playwright no longer adopts a stale `:8887` server whose DB was
+  never wiped/bootstrapped.
+
+## [0.14.0] — 2026-07-10
+
+_(Section backfilled at 0.15.0 — the tag shipped without a changelog entry.)_
+
+### Added
+- **Admin-issued password-reset links (P1.18).** Owners/admins mint a single-use 24 h reset
+  link per member (no email infrastructure needed); a sessionless `/reset-password/:token`
+  page redeems it and revokes existing sessions. Hardened by a review round: cross-account
+  escalation closed (reset authority must hold in **every** account the target belongs to),
+  revocation centralised in the single membership writer, the public request-password-reset
+  route shadowed, and password bounds (min/max) single-sourced and test-pinned.
+
+## [0.13.0] — 2026-06-27
+
+A WCAG 2.2 AA accessibility pass that remediates every finding from a deep audit (#116–#123).
+No behaviour change for existing flows — the focus is screen-reader, keyboard, contrast, and
+reflow conformance, each shipped with a regression test.
+
+### Fixed
+- **Modal containment (1.3.1).** The shared modal renders through a portal, so the allocation
+  editor is no longer an invalid child of the schedule's `role="grid"` (the one axe-critical the
+  audit found).
+- **Page titles (2.4.2).** Each route sets a descriptive `<Label> · CapacityLens` title instead
+  of the static brand on every page.
+- **Reflow + focus (1.4.10, 2.4.11).** The scheduler toolbar wraps at 320px, and a focused
+  allocation bar scrolls clear of the sticky header / left column (the scroll-margin tracks the
+  real two-tier header height).
+- **Contrast (1.4.11, 1.4.3).** The allocation-bar focus ring is now a dual-tone (dark + light)
+  ring that clears 3:1 against any background — including the over-capacity red — in both themes;
+  the `--c-faint` token was darkened to clear AA on the canvas.
+- **Target size (2.5.8).** Preferences toggles are now ≥ 24px.
+- **Grid semantics (1.3.1).** The timeline grid honestly exposes its two columns
+  (`aria-colcount` / `aria-colindex`, a named timeline cell).
+- **Screen-reader text (1.1.1, 1.3.1).** Allocation labels read humanised status and formatted
+  dates, announce a note when present, never drop a narrow time-off label, and surface the per-row
+  utilisation to assistive tech.
+- **Form errors (3.3.1).** The login fields and the working-days picker bind their errors to the
+  controls (`aria-describedby` / `aria-invalid`).
+
+### Added
+- A polite live region announces the resulting over-capacity after a keyboard-driven allocation
+  move/resize (4.1.3).
+- A `warning` toast tone for data-mutating advisories (e.g. clamped hours) that persists until
+  dismissed instead of auto-closing after 4s (2.2.1).
+
+## [0.12.0] — 2026-06-27
+
+A repo-wide clarity sweep over documentation, inline comments, and variable names. No
+behaviour change beyond three user-facing copy strings — the focus is making the repo read
+true to the shipped v0.11.0 reality.
+
+### Changed
+- **Finished the v0.11.0 persistence-flip doc sweep.** Contributor, privacy, deployment,
+  server, planning, and user-story documentation now
+  describe server-backed-by-default plus the explicit `VITE_CAPACITYLENS_DEMO=1` demo build,
+  instead of the inverted localStorage-default model they had drifted into.
+- **Copy.** The per-day over-marker tooltip now reads **"Over capacity"** (matching its own
+  screen-reader text); the clear-data settings line says "company" not "account"; and the login
+  subtitle drops the stray "workspace" wording.
+- Refreshed stale "future work" source TSDocs to present tense (lifecycle tombstones,
+  `useScopedData`, `membership`, the deep-health response shape, the audit-hook count), and
+  renamed leftover Task-era `t` iterators to `act` / `a` on Activity rows.
+- `TimeOffForm` now uses the shared `useFieldError()` hook like every other CRUD form.
+
+### Fixed
+- Corrected drifted references: the README version line, the CHANGELOG release-link footer, the
+  README/CLAUDE docs maps (now list the deploy & ops cluster), and the utilisation zoom set
+  (1/2/4/6/8w).
+
+## [0.11.0] — 2026-06-26
+
+Server-backed persistence is now the default everywhere; the in-browser localStorage build
+becomes an explicit, named demo.
+
+### Changed
+- **Server-backed by default.** An unconfigured build now runs in server mode against a
+  same-origin `/api` (the deployed product already did this). `VITE_CAPACITYLENS_API` now only
+  *overrides* the backend origin rather than switching the server on, and an empty value means
+  "same-origin", not "localStorage". The in-browser localStorage app is demoted to an explicit
+  opt-in.
+- **`npm run dev` is now full-stack.** It boots the SQLite API (`:8787`) and the web app
+  (`:5173`) together through a dev proxy, and requires **Node 24** (`node:sqlite`).
+  `npm run dev:web` is the previous Vite-only, server-mode command.
+- **Docker / Compose default to a portable same-origin server build.** An empty
+  `VITE_CAPACITYLENS_API` now builds an image that works on any host with no per-host rebuild
+  (nginx proxies `/api` same-origin); the demo image is built with `VITE_CAPACITYLENS_DEMO=1`.
+
+### Added
+- **`VITE_CAPACITYLENS_DEMO=1` demo build** — the only route to the zero-setup, no-backend,
+  no-login in-browser localStorage app (the old default). It wins over `VITE_CAPACITYLENS_API`
+  when both are set. A build served without a same-origin `/api` backend (a static host,
+  `vite preview`) must use this flag, or it boots into a "can't reach the server" state.
+- **`npm run dev:demo`** — a Vite-only localStorage preview (no server, no Node 24) for a
+  zero-setup look at the app.
+
+## [0.10.2] — 2026-06-25
+
+The Time off list reads at a glance — who's away, from when, and for how long.
+
+### Changed
+- **Time-off list rows are terser.** Each row now reads the resource, a readable start date
+  and a day count (e.g. **Wed 10th Jun · 3 days**) in place of the raw `start → end` range,
+  type and note. Those details are still stored and still shown on the schedule's time-off
+  block — where the kind of absence and its exact span earn their place — so the list stays a
+  quick "who's out" scan.
+
+## [0.10.1] — 2026-06-25
+
+The list-management screens get a lighter touch: row actions become icons, and every "Add" button shows a +.
+
+### Changed
+- **Edit and Delete on list rows are now icon buttons.** Each row across Resources, Clients,
+  Projects, Disciplines, Activities, Time off (and the company picker) shows a **pencil** for Edit
+  and a **trash** for Delete in place of the text buttons — quieter rows, same actions, with the
+  label on hover. The confirmation dialogs keep their worded **Delete** / **Cancel** buttons.
+- **Every "Add" button leads with a `+`.** The create buttons across the app — Add resource, Add
+  client, New company, and the rest — now carry a leading plus, matching the schedule's existing
+  per-row add control.
+
+## [0.10.0] — 2026-06-25
+
+New companies start lean, and the view settings that were once browser-wide now belong to each company.
+
+### Changed
+- **Placeholders and External are per-company.** They used to be a single switch shared across
+  every company on the browser; now each company has its own, toggled in **Settings** (like
+  Disciplines). Turning them on in one company no longer turns them on everywhere. Both stay
+  **off by default**, and toggling only hides or shows — your placeholder and external data is
+  untouched. As a result these settings now travel with **Export JSON**.
+- **New companies open minimal.** A brand-new company now starts with **Disciplines off**,
+  **scheduling set to Days**, and **Placeholders and External hidden**, so you opt into each
+  feature as you need it. Existing companies keep their current settings.
+
+## [0.9.1] — 2026-06-24
+
+Weekends stop counting against capacity unless you opt an allocation into them.
+
+### Fixed
+- **A weekend a booking merely spans no longer reads as "over capacity".** An
+  allocation that runs across a Saturday/Sunday (or any of a resource's non-working
+  days) used to paint those days red, as if the person were overbooked. The work
+  lands on working days, so the weekend now just shows as unavailable — not red.
+  Ticking **"Include weekends as working days"** on an allocation still counts its
+  weekend work (and flags it red against a weekday-only person's zero weekend
+  capacity), and work scheduled on a **time-off / holiday** day is still flagged as
+  the real conflict it is. The allocation editor's "over capacity on N days"
+  advisory now agrees with what the schedule shows.
+
+### Changed
+- **Faster over-capacity repaint (internal).** The per-day over-marker no longer
+  re-derives a date's weekday once per allocation, keeping timeline zoom/pan smooth
+  for heavily-booked resources. No behaviour change.
+
+## [0.9.0] — 2026-06-23
+
+Correctness and integrity hardening from a deep code review, plus a smoother
+Time-off draw mode.
+
+### Fixed
+- **Days-mode allocations never silently lose work.** Entering an allocation by
+  "days of work" with the "Days over" field left blank no longer saves a silent
+  0-hour allocation — it asks you to complete the field. And dragging or
+  keyboard-resizing a days-mode allocation small enough to exceed a real working
+  day now tells you the work volume was capped instead of quietly truncating it.
+- **External / 3rd-party resources stay capacity-free, everywhere.** You can no
+  longer turn a resource that already has work or time off into an external one
+  (which would silently hide that work on the schedule). And editing an
+  allocation or time-off entry that points at an external resource is now rejected
+  consistently — the local-first app and the server agree instead of one accepting
+  what the other rejects.
+
+### Changed
+- **Switching Time-off draw mode is smoother.** Toggling the schedule's draw mode
+  no longer re-renders every allocation bar.
+- **Write-boundary integrity hardening (internal).** A batch of code-review
+  cleanups with no user-facing behaviour change: the "external resources carry no
+  load" rule is now enforced unconditionally at the type level; import resolves
+  each record once; draw-mode styling keys off semantic classes rather than test
+  ids; and the built-in Internal client's single-instance contract is documented
+  across the three write paths that enforce it.
+
+## [0.8.1] — 2026-06-23
+
+Clearer time-off planning, and tighter guards on bad data.
+
+### Added
+- **Time-off draw mode now shows you the landscape.** When you switch the schedule toggle to
+  **Time off**, booked allocations recede and existing time-off blocks glow amber — so you can
+  see who's already away at a glance before drawing a new absence. (The toggle previously only
+  changed its own pressed state.)
+
+### Fixed
+- **Days-mode work volume is never silently trimmed.** When you enter an allocation as "days of
+  work" over a span, a volume that would exceed a real working day now asks you to spread it over
+  more days, instead of quietly capping it at 24h/day and losing the rest.
+- **External / 3rd-party resources stay capacity-free everywhere.** They can no longer be given
+  working hours or time off through import or the API — matching what the forms already enforced —
+  so bad data can't slip in and then render invisibly on the schedule.
+- **The built-in "Internal" client stays a single per-account anchor**, even on direct API writes,
+  so it can't be accidentally duplicated.
+
+## [0.8.0] — 2026-06-20
+
+Clearer capacity at a glance, and a tidier home for non-client work.
+
+### Added
+- **A built-in "Internal" home for non-client work.** Activities that don't belong to a
+  client project (internal admin, reusable activities) now group under a built-in
+  **Internal** client on the schedule and in filters — so you can book project-less work
+  without inventing a fake client. Internal is a behind-the-scenes anchor: it's selectable
+  when you assign work and you can file projects under it, but it doesn't clutter your
+  Clients list.
+- **Over-capacity days turn red.** Any day where someone is booked beyond their capacity
+  (strictly over — exactly at capacity is fine) now gets a clear red background, so overload
+  jumps out at a glance.
+- **A short "What Floaty is" welcome.** A minimal post-login page frames Floaty as a
+  resourcing tool — who's busy, who's free — not a project manager. (Placeholder copy for now.)
+- **Clear local storage (Settings).** A new destructive action wipes Floaty's browser-stored
+  data and preferences after a confirmation — handy for resetting a device. On the hosted
+  site your data lives in the database and reloads from there.
+
+### Changed
+- **"Tasks" are now "Activities"** throughout the UI, routes, types, API fields, and database.
+  Existing local data and JSON exports/imports migrate automatically (in-place schema
+  migration; server tables renamed in place).
+- **Utilisation % now follows the weeks you're viewing.** The per-person and overall
+  utilisation figures are computed over the visible window and recalculate when you switch the
+  1/2/4/8-week range, so the number always matches what's on screen. (The "overbooked soon"
+  red flag still watches a fixed forward window.)
+- **Placeholders are now opt-in.** Unfilled-slot placeholders are off by default and enabled in
+  Settings; when on they show with a "?" avatar and a "Placeholder" name. Existing placeholder
+  data is hidden, not lost, when off.
+- **External / 3rd parties moved into the Resources tab** and are opt-in (off by default,
+  enabled in Settings), with a short explainer of what External is and isn't. The old
+  `/external` page redirects to Resources.
+
+## [0.7.0] — 2026-06-20
+
+See who's doing what kind of work, across every project.
+
+### Added
+- **Task kinds — Project, Internal, and Repeatable.** Every task now has a kind. *Project* tasks
+  belong to a project (as before); *Internal* tasks are your own non-client work (admin, internal
+  reviews); and *Repeatable* tasks are reusable across many projects (Design, Workshop, Meeting).
+  The Tasks page groups them into three sections, and the Add/Edit task form lets you pick the kind —
+  a project is required only for *Project* tasks.
+- **Filter the schedule by task.** A new **Filter by task** dropdown gives you a "task view" of the
+  schedule — see all of a repeatable or internal task's work (e.g. *all design*, *all internal time*)
+  across every project at once. It's a standalone lens: picking a task clears the client/project
+  filter and vice-versa, so you're always looking through exactly one.
+
+### Changed
+- **"General tasks" are now "Repeatable tasks".** Existing project-less tasks become *Repeatable* on
+  upgrade — your data migrates in place. Reclassify any that are really *Internal* via the task form.
+
+## [0.6.0] — 2026-06-19
+
+Track outsourced work without managing it.
+
+### Added
+- **External / 3rd-party resources.** A new resource type for work you've outsourced to another
+  company — managed on a dedicated **External** tab, separate from your own people. Book an external
+  party onto any task as a simple **start–end span**: no hours, no capacity, no utilisation (you
+  don't track their time, just that the work is with them). They render in their own neutral band
+  pinned to the **bottom** of the schedule and are left out of utilisation figures, over-allocation
+  markers, and time off. Their booking dialog drops the hours and weekend fields, since weekends are
+  just plain calendar days for them.
+
+## [0.5.0] — 2026-06-16
+
+A cosmetic preview of the planned sign-in step.
+
+### Added
+- **Demo sign-in screen.** A Google-style *"Choose an account"* screen now appears before the
+  company picker in the default deploy, to preview the intended "sign in, then pick a company"
+  flow. It is **not** real authentication — there's no password and no popup; clicking the
+  account just continues. You stay "signed in" across reloads, with **Sign out** on the picker
+  and in the sidebar to return to it. It never appears when the optional real login wall
+  (`CAPACITYLENS_AUTH`, formerly `FLOATY_AUTH`) is enabled.
+
+## [0.4.0] — 2026-06-16
+
+Cross-browser end-to-end test coverage.
+
+### Added
+- **Firefox/Gecko E2E coverage.** `npm run e2e:firefox` runs the core specs on Firefox
+  (mirroring the existing Safari/WebKit twin), and the new **`npm run e2e:browsers`** runs them
+  on all three engines — Chromium + WebKit, then Firefox. Both stay opt-in, so Chromium remains
+  the default `npm run e2e` inner loop, and the multi-engine runs need only Vite (no SQLite/auth
+  server, no Node 24). Firefox always runs after WebKit and unconditionally; a run fails if any
+  engine fails. `npm run e2e:all` now adds Firefox on top of its WebKit + server-backed coverage.
+
+## [0.3.0] — 2026-06-16
+
+A new display feature plus the scheduler-geometry work behind it.
+
+### Added
+- **Minimise weekends** (Settings → **Schedule**, on by default, per-browser). Shrinks the
+  Saturday and Sunday columns to a sliver — just wide enough for the date number, labelled a
+  single **"S"** — so the working week dominates the schedule. Weekends aren't removed:
+  weekend work and bars that span a weekend still render across the narrowed columns, and a
+  drag across a weekend lands on the right date. Turn it off for full-width Sat/Sun columns.
+
+### Changed
+- **The schedule fills the viewport more tightly at each zoom.** A "1-week" view now shows
+  ~1 week and "2 weeks" ~2 weeks, accounting for the narrowed weekend columns; day columns
+  can also grow wider on larger screens (the maximum column width was raised) so a one-week
+  view fills the space instead of leaving slack on the right.
+
+### Fixed
+- **The left-edge date no longer drifts when you change zoom.** Switching zoom levels used to
+  nudge the visible start date back a day onto the weekend; the timeline now holds the same
+  date across zoom changes.
+
+## [0.2.0] — 2026-06-16
+
+An Alpha-feedback round: four scheduler / sidebar refinements.
+
+### Added
+- **Disciplines are now optional.** A per-company setting (Settings → **Disciplines →
+  Use disciplines**, on by default). Turn it off and disciplines disappear from the
+  whole app — the sidebar nav item and the `/disciplines` route, the Discipline field
+  in the resource form, the schedule's discipline grouping **and** filter, the
+  Resources list, the command palette, and the "Show Discipline Utilisation" toggle —
+  with the schedule rendering as one flat list. The setting lives on the account, so it
+  applies to everyone on that company; your discipline data is preserved and returns if
+  you switch it back on.
+
+### Changed
+- **The month label stays visible while scrolling.** The month (e.g. "Jun 2026") now
+  sticks to the left edge of the timeline as you move across it, instead of scrolling
+  away with the 1st of the month.
+- **Resource names stay at the top of their row.** On a tall row with several stacked
+  allocations, the person's name and avatar stay pinned to the top (aligned with the
+  first allocation) rather than drifting to the vertical centre as the row grows.
+- **The company / "Switch company" block moved to the bottom of the sidebar.** This
+  keeps the logo and collapse toggle as the first item in both the open menu and the
+  collapsed icon rail, so the nav icons don't jump when the sidebar collapses.
+
+### Fixed
+- **Collapsed (mobile) sidebar alignment & polish.** The collapse toggle and the nav
+  icons now share the same left column and the same row height in both the open menu
+  and the collapsed rail, so nothing shifts horizontally or vertically when you collapse
+  it. Disciplines are correctly hidden from the collapsed rail when turned off, and each
+  rail icon now shows an instant hover tooltip of its section name.
+
+## [0.1.0]
+
+- Initial local-first, multi-tenant resource scheduler: week-grid schedule with
+  drag/resize allocations, capacity & utilisation cues, time off, the CRUD pages
+  (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
+  the command palette, and an optional SQLite-backed server behind the persistence seam.
+
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.15.8...HEAD
+[0.15.8]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.8
+[0.15.7]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.7
+[0.15.6]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.6
+[0.15.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.1
+[0.15.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.15.0
+[0.14.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.14.0
+[0.13.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.13.0
+[0.12.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.12.0
+[0.11.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.11.0
+[0.10.2]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.10.2
+[0.10.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.10.1
+[0.10.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.10.0
+[0.9.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.9.1
+[0.9.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.9.0
+[0.8.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.8.1
+[0.8.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.8.0
+[0.7.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.7.0
+[0.6.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.6.0
+[0.5.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.5.0
+[0.4.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.4.0
+[0.3.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.3.0
+[0.2.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.2.0
+[0.1.0]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.1.0

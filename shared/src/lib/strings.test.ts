@@ -1,0 +1,112 @@
+import { describe, expect, it } from 'vitest'
+import { cleanText, hasDisallowedChars, MAX_NAME_LENGTH } from './strings'
+
+// Built from numeric code points so the source file stays pure ASCII (no invisible
+// or ambiguous literals that would make the test lie about what it checks).
+const PARTY = String.fromCodePoint(0x1f389) // party popper emoji
+const POO = String.fromCodePoint(0x1f4a9) // pile of poo emoji
+const CHECK = String.fromCodePoint(0x2705) // white check mark emoji
+const NUL = String.fromCodePoint(0x0000) // control char
+const ZWJ = String.fromCodePoint(0x200d) // zero-width joiner (format)
+const RLO = String.fromCodePoint(0x202e) // right-to-left override (format)
+const VS16 = String.fromCodePoint(0xfe0f) // emoji variation selector-16 (Mn)
+const KEYCAP = String.fromCodePoint(0x20e3) // combining enclosing keycap (Me)
+const ACUTE = String.fromCodePoint(0x0301) // combining acute accent (Mn — legitimate)
+
+describe('hasDisallowedChars', () => {
+  it('accepts ordinary names incl. accents, CJK and punctuation', () => {
+    for (const ok of ['José Müller', "O'Brien & Co", 'Acme, Inc.', '设计部', 'Project Lightning 2']) {
+      expect(hasDisallowedChars(ok)).toBe(false)
+    }
+  })
+
+  it('rejects emoji / pictographs', () => {
+    expect(hasDisallowedChars(`Acme ${PARTY} Co`)).toBe(true)
+    expect(hasDisallowedChars(POO)).toBe(true)
+    expect(hasDisallowedChars(`done ${CHECK}`)).toBe(true)
+  })
+
+  it('rejects flag emoji (regional indicators) and symbol marks', () => {
+    const FLAG_GB = String.fromCodePoint(0x1f1ec, 0x1f1e7) // 🇬🇧
+    expect(hasDisallowedChars(`from ${FLAG_GB}`)).toBe(true)
+    expect(hasDisallowedChars(`Acme${String.fromCodePoint(0x2122)}`)).toBe(true) // trademark sign
+  })
+
+  it('rejects control and zero-width / format characters', () => {
+    expect(hasDisallowedChars(`a${NUL}b`)).toBe(true)
+    expect(hasDisallowedChars(`a${ZWJ}b`)).toBe(true)
+    expect(hasDisallowedChars(`a${RLO}b`)).toBe(true)
+  })
+
+  it('rejects keycap emoji and the emoji variation selector (U+FE0F / U+20E3)', () => {
+    expect(hasDisallowedChars(`1${VS16}${KEYCAP}`)).toBe(true) // "1️⃣" keycap emoji
+    expect(hasDisallowedChars(VS16)).toBe(true) // lone variation selector
+    expect(hasDisallowedChars(KEYCAP)).toBe(true) // lone enclosing-keycap mark
+  })
+
+  it('still accepts a legitimate decomposed accent (does NOT ban Nonspacing_Mark wholesale)', () => {
+    expect(hasDisallowedChars(`e${ACUTE}`)).toBe(false) // "é" written as e + U+0301
+  })
+
+  it('rejects a newline in single-line mode but allows it in multiline', () => {
+    expect(hasDisallowedChars('line1\nline2')).toBe(true)
+    expect(hasDisallowedChars('line1\nline2', { multiline: true })).toBe(false)
+    expect(hasDisallowedChars(`still ${PARTY} bad`, { multiline: true })).toBe(true)
+  })
+})
+
+describe('cleanText', () => {
+  it('strips emoji and collapses whitespace', () => {
+    expect(cleanText(`Acme  ${PARTY}  Co`)).toBe('Acme Co')
+    expect(cleanText(PARTY)).toBe('')
+  })
+
+  it('keeps accented letters untouched', () => {
+    expect(cleanText('José Müller')).toBe('José Müller')
+  })
+
+  it('keeps newlines only in multiline mode', () => {
+    expect(cleanText('a\nb')).toBe('a b')
+    expect(cleanText('a\nb', { multiline: true })).toBe('a\nb')
+  })
+
+  it('caps length to the max', () => {
+    const long = 'a'.repeat(MAX_NAME_LENGTH + 50)
+    expect(cleanText(long).length).toBe(MAX_NAME_LENGTH)
+  })
+
+  it('strips keycap-emoji parts but keeps the base char, and preserves decomposed accents', () => {
+    expect(cleanText(`1${VS16}${KEYCAP}`)).toBe('1') // emoji presentation stripped, digit kept
+    expect(cleanText(`e${ACUTE}`)).toBe(`e${ACUTE}`) // legitimate accent untouched
+  })
+
+  it('keeps a tab as-is (exempt from stripping) rather than dropping it', () => {
+    // A tab is a Cc control char and WOULD be caught by DISALLOWED if the '\n'/'\t'
+    // exemption in the copy loop were narrowed to just '\n' — it would then be
+    // dropped outright instead of kept-then-collapsed-to-a-space.
+    expect(cleanText('a\tb')).toBe('a b')
+  })
+
+  it('collapses a run of several spaces to exactly one, in multiline mode too', () => {
+    // Needs a run of 2+ horizontal-whitespace chars: a regex missing its `+`
+    // quantifier replaces each char with a space individually (a no-op run of
+    // spaces stays a run), instead of collapsing the whole run to one space.
+    expect(cleanText('a   b', { multiline: true })).toBe('a b')
+  })
+
+  it('collapses (never deletes) a run of horizontal whitespace in multiline mode', () => {
+    expect(cleanText('a   b', { multiline: true })).toContain(' ')
+  })
+
+  it('caps 3+ blank lines down to exactly one blank line, not zero', () => {
+    // Distinguishes replacing a 3+ newline run with '\n\n' (one blank line kept)
+    // from deleting it outright.
+    expect(cleanText('a\n\n\n\nb', { multiline: true })).toBe('a\n\nb')
+  })
+
+  it('trims trailing whitespace exposed by truncating at the max length', () => {
+    // "abc def" cut to 4 chars lands mid-whitespace ("abc "); the final .trim()
+    // after slice must clean that up, not leave a trailing space.
+    expect(cleanText('abc def', { maxLength: 4 })).toBe('abc')
+  })
+})

@@ -1,0 +1,334 @@
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { m } from '@/i18n'
+import { hasActiveFilters, useStore } from '../../store/useStore'
+import { useCanEdit } from '../../auth/permissionContext'
+import { disciplinesEnabledFor } from '../../store/selectors'
+import { useActiveScopedData } from '../../store/useScopedData'
+import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
+import { Button } from '../common/ui'
+import { controlBase, selectChevronClass, selectChevronStyle } from '../common/controls'
+import { Icon } from '../common/Icon'
+import { cn } from '../../lib/utils'
+
+/**
+ * The toolbar's two pill toggle groups (Weeks-visible + Draw-mode) carried byte-identical
+ * `role="group"` + `aria-pressed` markup — kept here as one local helper so they can't drift.
+ * Deliberately the toolbar's aria-pressed toggle idiom, NOT SegmentedControl's radiogroup one
+ * (the over/draw toolbar reads as toggle buttons; the dirty-guard convention also keys off
+ * `aria-pressed`). Local + unexported: it has exactly these two call sites.
+ */
+type ToolbarToggleOption<T> = { value: T; label: ReactNode; title?: string }
+
+function ToolbarToggleGroup<T extends string | number>({
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  className,
+}: {
+  value: T
+  onChange: (value: T) => void
+  options: ToolbarToggleOption<T>[]
+  ariaLabel: string
+  className?: string
+}) {
+  return (
+    <div className={cn('flex overflow-hidden rounded-md border border-line', className)} role="group" aria-label={ariaLabel}>
+      {options.map((opt) => {
+        const active = value === opt.value
+        return (
+          <button
+            key={String(opt.value)}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onChange(opt.value)}
+            title={opt.title}
+            className={cn('px-2.5 py-1 text-sm transition', active ? 'bg-brand-strong text-white' : 'bg-surface text-ink hover:bg-canvas')}
+          >
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+export function SchedulerToolbar() {
+  // Viewer read-only (P1.12): a viewer has nothing to draw / mutate / undo, so the draw-mode toggle
+  // and Undo/Redo are hidden. Navigation + filters (reads) stay. null/owner/admin/editor (incl.
+  // OFF/local) → all affordances shown, byte-identical to today.
+  const canEdit = useCanEdit()
+  const zoom = useStore((s) => s.ui.zoom)
+  const setZoom = useStore((s) => s.setZoom)
+  const panDays = useStore((s) => s.panDays)
+  const goToToday = useStore((s) => s.goToToday)
+  const goToDate = useStore((s) => s.goToDate)
+  const focusDate = useStore((s) => s.ui.focusDate)
+  const drawMode = useStore((s) => s.ui.drawMode)
+  const setDrawMode = useStore((s) => s.setDrawMode)
+  // Undo/redo is global (the ⌘Z/⌘⇧Z handler lives in AppShell) but its visible affordance lives
+  // here on the schedule toolbar — the main editing surface. Enabled off the history stacks.
+  const undo = useStore((s) => s.undo)
+  const redo = useStore((s) => s.redo)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const canRedo = useStore((s) => s.future.length > 0)
+  const filters = useStore((s) => s.ui.filters)
+  const setFilters = useStore((s) => s.setFilters)
+  const clearFilters = useStore((s) => s.clearFilters)
+  const data = useActiveScopedData()
+  const disciplines = data.disciplines
+  const clients = data.clients
+  const projects = data.projects
+  // The activity lens covers only the project-LESS kinds — project activities are reached via the
+  // Projects dropdown above.
+  const internalActivities = data.activities.filter((t) => t.kind === 'internal')
+  const repeatableActivities = data.activities.filter((t) => t.kind === 'repeatable')
+
+  const activeAccountId = useStore((s) => s.activeAccountId)
+  // Hide the discipline filter when the account doesn't use disciplines (buildSchedulerModel
+  // also ignores filters.disciplineId in that case, so a stale value can't hide anyone).
+  const disciplinesEnabled = useStore((s) => disciplinesEnabledFor(s.data, s.activeAccountId))
+  // Debounce the search into the store: each keystroke otherwise rebuilds the whole
+  // scheduler model (new filters object → model useMemo) and re-renders every lane.
+  // Keep the input snappy locally; push to filters after a short pause.
+  const [searchInput, setSearchInput] = useState(filters.search)
+  // Adopt external resets/replacements by reconciling during render — the React-recommended
+  // alternative to a sync effect. Keyed on the filters OBJECT (identity), NOT the search
+  // value: a palette project/client selection REPLACES filters with a fresh object whose
+  // search is '' — if the box held a not-yet-debounced term, the search VALUE is '' on both
+  // sides of that write, so a value key misses it and leaves stale text in the box. Our own
+  // debounce write also makes a new object, but re-syncs to the value it just pushed
+  // (a visual no-op). Track the TENANT too, so a half-typed term resets when the company
+  // changes (the whole filters object can be reset on both sides of a switch).
+  const [seen, setSeen] = useState({ filters, account: activeAccountId })
+  if (filters !== seen.filters || activeAccountId !== seen.account) {
+    setSeen({ filters, account: activeAccountId })
+    setSearchInput(filters.search)
+  }
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cancelSearchTimer = () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = null
+  }
+  // Cancel any in-flight debounce when the filters object changes EXTERNALLY (Clear, a
+  // palette replacement, account switch) — not just on unmount. Keyed on the OBJECT for
+  // the same reason as the reconcile above: the palette race had filters.search unchanged
+  // ('' → ''), so a value key left the timer alive to resurrect the stale term over the
+  // palette's replacement ~180ms later. The cleanup runs before the next render's effect,
+  // so an external write cancels the pending setFilters({search:'old'}) in time. (When our
+  // own debounce is what changed filters, the timer has already fired — cancelling is a
+  // harmless no-op.)
+  useEffect(() => cancelSearchTimer, [filters, activeAccountId])
+  const onSearchChange = (v: string) => {
+    setSearchInput(v)
+    cancelSearchTimer()
+    // The filters object the user was typing against. The effect-cleanup cancel above is
+    // not enough on its own: effects flush after paint, and an external replacement (the
+    // palette) triggers the expensive scheduler-model rebuild — under load the timer can
+    // fire BEFORE the cleanup runs and resurrect the stale term over the replacement. So
+    // the write also guards at FIRE time: if filters moved underneath the pending term,
+    // it's stale — drop it.
+    const armedOn = useStore.getState().ui.filters
+    searchTimer.current = setTimeout(() => {
+      if (useStore.getState().ui.filters !== armedOn) return
+      setFilters({ search: v })
+    }, 180)
+  }
+  // Clear must also kill any in-flight debounce + reset the local box — otherwise an
+  // orphaned timer re-applies a just-cleared term (and the render reconcile can't catch
+  // it when filters.search was already '').
+  const onClear = () => {
+    cancelSearchTimer()
+    setSearchInput('')
+    clearFilters()
+  }
+
+  return (
+    <div data-testid="scheduler-toolbar" className="@container border-b border-line bg-surface">
+      {/* flex-wrap (mirrors the filters row below): at ~320 CSS px the title + nav + date + zoom +
+          draw + undo/redo would otherwise pack onto one non-wrapping line and force horizontal
+          scroll, failing WCAG 1.4.10 Reflow. Wrapping lets the chrome reflow into stacked lines
+          instead. The gap/padding are unchanged, so wider viewports look identical. */}
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2">
+        <div className="mr-auto flex items-center gap-1">
+          <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
+        </div>
+        <Button variant="ghost" onClick={() => panDays(-7)} title={m.scheduler_nav_prev_title()}>
+          <Icon name="chevron-left" /> {m.scheduler_nav_prev()}
+        </Button>
+        <Button variant="ghost" onClick={goToToday}>
+          {m.scheduler_nav_today()}
+        </Button>
+        <Button variant="ghost" onClick={() => panDays(7)} title={m.scheduler_nav_next_title()}>
+          {m.scheduler_nav_next()} <Icon name="chevron-right" />
+        </Button>
+        <input
+          type="date"
+          value={focusDate}
+          onChange={(e) => e.target.value && goToDate(e.target.value)}
+          aria-label={m.scheduler_jump_to_date()}
+          title={m.scheduler_jump_to_date()}
+          className={controlBase}
+        />
+        <ToolbarToggleGroup
+          className="ml-2"
+          ariaLabel={m.scheduler_weeks_visible_aria()}
+          value={zoom}
+          onChange={setZoom}
+          options={ZOOM_LEVELS.map((w) => ({
+            value: w,
+            label: m.scheduler_zoom_week_label({ count: w }),
+            title: w > 1 ? m.scheduler_weeks_visible_title_other({ count: w }) : m.scheduler_weeks_visible_title_one({ count: w }),
+          }))}
+        />
+        {/* Draw-mode toggle + Undo/Redo: editor-only (P1.12). A viewer can't draw or mutate, so the
+            draw toggle and the undo/redo affordances are hidden (nothing to switch / undo). */}
+        {canEdit && (
+          <>
+            <ToolbarToggleGroup
+              ariaLabel={m.scheduler_draw_mode_aria()}
+              value={drawMode}
+              onChange={setDrawMode}
+              options={[
+                { value: 'work', label: m.scheduler_draw_work(), title: m.scheduler_draw_work_title() },
+                { value: 'timeoff', label: m.scheduler_draw_timeoff(), title: m.scheduler_draw_timeoff_title() },
+              ]}
+            />
+            {/* Undo/redo — the visible counterpart to the global ⌘Z / ⌘⇧Z shortcuts. Always shown
+                (disabled when the stack is empty) so the affordance is discoverable; the icon stays
+                the lucide undo/redo glyph the IconName union already carries. */}
+            <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
+              <Button
+                variant="ghost"
+                onClick={undo}
+                disabled={!canUndo}
+                ariaLabel={m.scheduler_undo()}
+                title={m.scheduler_undo_title()}
+                testId="undo-button"
+              >
+                <Icon name="undo" />
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={redo}
+                disabled={!canRedo}
+                ariaLabel={m.scheduler_redo()}
+                title={m.scheduler_redo_title()}
+                testId="redo-button"
+              >
+                <Icon name="redo" />
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 px-4 pb-2 text-sm">
+        <input
+          value={searchInput}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder={m.scheduler_search_people_placeholder()}
+          aria-label={m.scheduler_search_people_aria()}
+          className={`${controlBase} w-44 @max-[680px]:w-full`}
+        />
+        {disciplinesEnabled && (
+          <select
+            aria-label={m.scheduler_filter_discipline_aria()}
+            className={`${controlBase} ${selectChevronClass}`}
+            style={selectChevronStyle}
+            value={filters.disciplineId ?? ''}
+            onChange={(e) => setFilters({ disciplineId: e.target.value || null })}
+          >
+            <option value="">{m.scheduler_filter_all_disciplines()}</option>
+            {disciplines.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          aria-label={m.scheduler_filter_client_aria()}
+          className={`${controlBase} ${selectChevronClass}`}
+          style={selectChevronStyle}
+          value={filters.clientId ?? ''}
+          onChange={(e) => setFilters({ clientId: e.target.value || null })}
+        >
+          <option value="">{m.scheduler_filter_all_clients()}</option>
+          {clients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <select
+          aria-label={m.scheduler_filter_project_aria()}
+          className={`${controlBase} ${selectChevronClass}`}
+          style={selectChevronStyle}
+          value={filters.projectId ?? ''}
+          onChange={(e) => setFilters({ projectId: e.target.value || null })}
+        >
+          <option value="">{m.scheduler_filter_all_projects()}</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        {(internalActivities.length > 0 || repeatableActivities.length > 0) && (
+          <select
+            aria-label={m.scheduler_filter_activity_aria()}
+            className={`${controlBase} ${selectChevronClass}`}
+            style={selectChevronStyle}
+            // Encoded value: '' = all, 'kind:internal'/'kind:repeatable' = a whole group,
+            // otherwise a specific activity id. A activityKind selection wins over a stale activityId.
+            value={filters.activityKind ? `kind:${filters.activityKind}` : (filters.activityId ?? '')}
+            onChange={(e) => {
+              const v = e.target.value
+              if (v === 'kind:internal') setFilters({ activityKind: 'internal', activityId: null })
+              else if (v === 'kind:repeatable') setFilters({ activityKind: 'repeatable', activityId: null })
+              else setFilters({ activityId: v || null, activityKind: null })
+            }}
+          >
+            <option value="">{m.scheduler_filter_all_activities()}</option>
+            {internalActivities.length > 0 && (
+              <optgroup label={m.scheduler_filter_internal_group()}>
+                <option value="kind:internal">{m.scheduler_filter_internal_all()}</option>
+                {internalActivities.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {repeatableActivities.length > 0 && (
+              <optgroup label={m.scheduler_filter_repeatable_group()}>
+                <option value="kind:repeatable">{m.scheduler_filter_repeatable_all()}</option>
+                {repeatableActivities.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+        )}
+        <label className="flex items-center gap-1.5 text-muted">
+          <input type="checkbox" checked={filters.hideTentative} onChange={(e) => setFilters({ hideTentative: e.target.checked })} />
+          {m.scheduler_hide_tentative()}
+        </label>
+        {(filters.projectId || filters.clientId || filters.activityId || filters.activityKind) && (
+          <label className="flex items-center gap-1.5 text-muted" title={m.scheduler_show_unallocated_title()}>
+            <input type="checkbox" checked={filters.showUnmatched} onChange={(e) => setFilters({ showUnmatched: e.target.checked })} />
+            {m.scheduler_show_unallocated()}
+          </label>
+        )}
+        {hasActiveFilters(filters) && (
+          <Button variant="ghost" onClick={onClear}>
+            {m.scheduler_clear()}
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}

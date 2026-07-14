@@ -1,0 +1,31 @@
+name: Support question
+description: Ask about setup, operation or expected behavior
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: Please remove secrets, personal data and private hostnames before posting logs.
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment
+      options:
+        - In-memory demo
+        - Local full stack
+        - Docker Compose
+        - Bare-metal self-host
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: Include what you tried and the relevant redacted output.
+    validations:
+      required: true

@@ -1,0 +1,110 @@
+# CapacityLens — one reproducible deployment: the API server + the SPA, built
+# from the single multi-stage Dockerfile (targets `api` and `web`).
+#
+#   web  (nginx)  : serves the built SPA, reverse-proxies /api -> api
+#   api  (Node 24): the Fastify daemon, SQLite DB + backups on named volumes
+#
+# Runtime config comes from a .env file you create from .env.example (compose
+# auto-loads .env from this directory). `docker compose up --build` serves the
+# app at http://localhost:8080 in server mode against a persisted DB.
+#
+services:
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    # SQLite DB and the backups dir live INSIDE the mounted volumes so data
+    # persists across container rebuilds. CAPACITYLENS_HOST=0.0.0.0 is
+    # baked into the api image (compose-network reachability for nginx).
+    environment:
+      PORT: "8787"
+      CAPACITYLENS_DB: /data/capacitylens.db
+      # Backups are ON by default in Docker (hourly snapshots into the named
+      # volume). To disable, set CAPACITYLENS_BACKUP_DIR= (explicitly empty) in
+      # .env — the `-` form (not `:-`) only substitutes /backups when the var is
+      # UNSET, so an empty value reaches the server and turns backups off. The
+      # /backups volume mount below stays either way; it is simply unused then.
+      CAPACITYLENS_BACKUP_DIR: ${CAPACITYLENS_BACKUP_DIR-/backups}
+      # Same-origin via the nginx proxy -> CORS stays fail-closed. Override only
+      # if you expose the API on a different origin.
+      CAPACITYLENS_CORS_ORIGIN: ${CAPACITYLENS_CORS_ORIGIN:-}
+      CAPACITYLENS_LOG: ${CAPACITYLENS_LOG:-1}
+      CAPACITYLENS_HEALTH_DEEP: ${CAPACITYLENS_HEALTH_DEEP:-1}
+      CAPACITYLENS_RATE_LIMIT: ${CAPACITYLENS_RATE_LIMIT:-300}
+      CAPACITYLENS_OPTIMISTIC_CONCURRENCY: ${CAPACITYLENS_OPTIMISTIC_CONCURRENCY:-1}
+      CAPACITYLENS_HTTPS: ${CAPACITYLENS_HTTPS:-}
+      CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED: "1"
+      CAPACITYLENS_BACKUP_INTERVAL_MIN: ${CAPACITYLENS_BACKUP_INTERVAL_MIN:-}
+      CAPACITYLENS_BACKUP_KEEP: ${CAPACITYLENS_BACKUP_KEEP:-}
+      # Auth is OFF by default; set CAPACITYLENS_AUTH (+ BETTER_AUTH_*) in .env to
+      # turn it on. Passed through verbatim so an unset value stays unset.
+      CAPACITYLENS_AUTH: ${CAPACITYLENS_AUTH:-}
+      # The api image bakes NODE_ENV=production, and the production safety
+      # interlock (server/src/productionGuard.ts) refuses to boot with auth OFF
+      # unless you explicitly consent to an open instance. For the trusted-local
+      # no-login mode set this to "1" in .env; it is ignored once auth is on.
+      # Without it the api container restart-loops (`docker compose logs api`).
+      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: ${CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION:-}
+      # Single-company-per-instance policy (see AppOptions.multiAccount): default
+      # off = one company; "1" allows more. SEED_DEMO=1 seeds the two-company demo
+      # dataset on a never-initialised DB (pair it with MULTI_ACCOUNT=1) — a fresh
+      # real instance starts EMPTY at the create-your-company screen.
+      CAPACITYLENS_MULTI_ACCOUNT: ${CAPACITYLENS_MULTI_ACCOUNT:-}
+      CAPACITYLENS_SEED_DEMO: ${CAPACITYLENS_SEED_DEMO:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
+      CAPACITYLENS_SETUP_TOKEN: ${CAPACITYLENS_SETUP_TOKEN:-}
+      CAPACITYLENS_BOOTSTRAP_TOKEN: ${CAPACITYLENS_BOOTSTRAP_TOKEN:-}
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: ${CAPACITYLENS_ALLOW_OPEN_SIGNUP:-}
+      CAPACITYLENS_CREATE_ADMIN_ADMIN: ${CAPACITYLENS_CREATE_ADMIN_ADMIN:-}
+      CAPACITYLENS_AUDIT: ${CAPACITYLENS_AUDIT:-}
+      CAPACITYLENS_AUDIT_FILE: ${CAPACITYLENS_AUDIT_FILE:-}
+      CAPACITYLENS_AUDIT_MAX_MB: ${CAPACITYLENS_AUDIT_MAX_MB:-}
+      CAPACITYLENS_GOOGLE_CLIENT_ID: ${CAPACITYLENS_GOOGLE_CLIENT_ID:-}
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: ${CAPACITYLENS_GOOGLE_CLIENT_SECRET:-}
+      CAPACITYLENS_MICROSOFT_CLIENT_ID: ${CAPACITYLENS_MICROSOFT_CLIENT_ID:-}
+      CAPACITYLENS_MICROSOFT_CLIENT_SECRET: ${CAPACITYLENS_MICROSOFT_CLIENT_SECRET:-}
+      CAPACITYLENS_MICROSOFT_TENANT_ID: ${CAPACITYLENS_MICROSOFT_TENANT_ID:-}
+      CAPACITYLENS_GITHUB_CLIENT_ID: ${CAPACITYLENS_GITHUB_CLIENT_ID:-}
+      CAPACITYLENS_GITHUB_CLIENT_SECRET: ${CAPACITYLENS_GITHUB_CLIENT_SECRET:-}
+      CAPACITYLENS_SSO_PROVIDER_ID: ${CAPACITYLENS_SSO_PROVIDER_ID:-}
+      CAPACITYLENS_SSO_LABEL: ${CAPACITYLENS_SSO_LABEL:-}
+      CAPACITYLENS_SSO_BOOTSTRAP_EMAILS: ${CAPACITYLENS_SSO_BOOTSTRAP_EMAILS:-}
+      CAPACITYLENS_SSO_CLIENT_ID: ${CAPACITYLENS_SSO_CLIENT_ID:-}
+      CAPACITYLENS_SSO_CLIENT_SECRET: ${CAPACITYLENS_SSO_CLIENT_SECRET:-}
+      CAPACITYLENS_SSO_DISCOVERY_URL: ${CAPACITYLENS_SSO_DISCOVERY_URL:-}
+      CAPACITYLENS_SSO_AUTHORIZATION_URL: ${CAPACITYLENS_SSO_AUTHORIZATION_URL:-}
+      CAPACITYLENS_SSO_TOKEN_URL: ${CAPACITYLENS_SSO_TOKEN_URL:-}
+      CAPACITYLENS_SSO_SCOPES: ${CAPACITYLENS_SSO_SCOPES:-}
+    volumes:
+      - capacitylens-db:/data
+      - capacitylens-backups:/backups
+    expose:
+      - "8787"
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        # Inlined into the SPA at build time. EMPTY (the default) = server mode
+        # against the SAME ORIGIN — nginx proxies /api to the api service, so it
+        # works on any host with no per-host rebuild. Set to an ORIGIN (not "/api")
+        # only to point the SPA at a different host. Empty no longer means
+        # browser persistence; build with VITE_CAPACITYLENS_DEMO=1 for the in-memory demo.
+        VITE_CAPACITYLENS_API: ${VITE_CAPACITYLENS_API:-}
+        # Set VITE_CAPACITYLENS_DEMO=1 in .env to build the in-memory demo image
+        # (no backend; wins over the API var). Empty = the default server build above.
+        VITE_CAPACITYLENS_DEMO: ${VITE_CAPACITYLENS_DEMO:-}
+        VITE_CAPACITYLENS_BUILD_SHA: ${VITE_CAPACITYLENS_BUILD_SHA:-}
+        VITE_CAPACITYLENS_FEEDBACK_MAILTO: ${VITE_CAPACITYLENS_FEEDBACK_MAILTO:-}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+volumes:
+  capacitylens-db:
+  capacitylens-backups:

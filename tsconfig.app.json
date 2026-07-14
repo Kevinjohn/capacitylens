@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "es2023",
+    "lib": ["ES2023", "DOM"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+    "strict": true,
+
+    /* Paraglide (inlang) i18n (P1.5.1) emits its message/runtime modules as .js with JSDoc types
+       (src/paraglide, generated + gitignored). allowJs lets tsc READ those JSDoc types — without it
+       the imports resolve to `any` and the whole compile-time-safety point (a removed message key
+       becoming a tsc error) is lost. The only .js under src is this generated output; checkJs stays
+       off so the generated code is type-PROVIDING, not itself type-checked. */
+    "allowJs": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Path alias (shadcn @/* → src/*). No baseUrl: it's deprecated in TS 6 (TS5101);
+       under moduleResolution "bundler", `paths` resolves relative to this config. */
+    "paths": { "@/*": ["./src/*"] },
+
+    /* Linting */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src", "shared/src"],
+  // The privacy-posture dependency-denylist test reads manifests off disk via node's `node:*`
+  // modules, so it's type-checked under tsconfig.node.json (which carries `"types": ["node"]`)
+  // instead — keeping `@types/node`'s globals out of THIS app program, whose `"types"` above
+  // is deliberately `vite/client`-only.
+  "exclude": ["src/test/privacy-posture.test.ts"]
+}

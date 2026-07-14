@@ -1,0 +1,464 @@
+@import "tailwindcss";
+
+/* shadcn's `dark:` utilities key off `.dark` by default; capacitylens's theme is the
+   `[data-theme="dark"]` attribute on <html> (src/lib/theme.ts). Point the variant at
+   that attribute so shadcn components track the existing toggle with zero JS changes.
+   (src/components/ui/button.tsx carries stock shadcn `dark:` utilities — they resolve
+   through this variant against capacitylens's [data-theme="dark"] toggle. input/textarea keep
+   their `dark:` strings in comments only, so button is the lone live consumer today.) */
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+/* ── Design tokens ──────────────────────────────────────────────────────────
+   Semantic Tailwind colours map to CSS custom properties so the whole UI flips
+   to dark by swapping one attribute — no per-component dark: classes. The light
+   palette lives on :root; the dark palette overrides it under [data-theme="dark"].
+   JS (src/lib/theme.ts) sets <html data-theme> from the user's preference,
+   resolving "system" against prefers-color-scheme — so the CSS only ever sees a
+   concrete light/dark, never the media query directly. */
+@theme {
+  /* Page background. NB: named `canvas`, not `base`, on purpose — `--color-base`
+     would shadow Tailwind's `text-base` font-size utility (turning it into a
+     colour), the footgun this rename removes. */
+  --color-canvas: var(--c-base);
+  --color-surface: var(--c-surface);
+  --color-elevated: var(--c-elevated);
+  --color-line: var(--c-line);
+  /* A lighter divider for the scheduler's horizontal row lines, which read a touch
+     heavy in light mode at full --color-line. Equal to --color-line in dark. */
+  --color-line-soft: var(--c-line-soft);
+  /* Lighter still: the per-day hairlines inside scheduler lanes. A step below the
+     Monday week line in BOTH themes (line-soft collapses to full line in dark). */
+  --color-line-faint: var(--c-line-faint);
+  /* Recessed non-working-day band (weekends + unavailable days) — a calm COOL tint,
+     deliberately distinct from the page canvas, the over-cell red, and the time-off amber,
+     so a non-working day never reads as an alert. Shared by the lane tint AND the date-header
+     weekend cell, so Sat/Sun reads as one continuous band header-to-lane. */
+  --color-weekend: var(--c-weekend);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-faint: var(--c-faint);
+  --color-brand: var(--c-brand);
+  --color-brand-strong: var(--c-brand-strong);
+  --color-brand-soft: var(--c-brand-soft);
+  --color-danger: var(--c-danger);
+  /* Pastel action buttons (Add/Save, Delete): a soft tinted fill + a readable
+     coloured ink on it, both per-theme so the pairing clears WCAG AA in dark too. */
+  --color-brand-soft-ink: var(--c-brand-soft-ink);
+  --color-danger-soft: var(--c-danger-soft);
+  --color-danger-soft-ink: var(--c-danger-soft-ink);
+  /* Over-capacity day CELL fill. Far stronger than `danger-soft` (a button tint): the
+     over-marker cell carries NO text — allocation bars paint their own opaque WCAG-tuned
+     fills on top — so this can be a saturated red that reads CLEARLY as red at a glance in
+     both themes without any AA constraint on it. */
+  --color-danger-cell: var(--c-danger-cell);
+  --color-warn: var(--c-warn);
+  --color-ok: var(--c-ok);
+
+  /* One deliberate micro-text size (11px) for the dense labels — replaces the
+     scattered text-[10px]/text-[11px] near-duplicates. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  --shadow-pop: 0 10px 30px -10px rgb(0 0 0 / 0.3);
+}
+
+:root {
+  --c-base: #f4f5f8;
+  --c-surface: #ffffff;
+  --c-elevated: #ffffff;
+  --c-line: #e6e8ee;
+  --c-line-soft: #eef0f5;
+  --c-line-faint: #ebedf2; /* nudged darker from #eff1f6 so intra-week day hairlines register at fine zoom; still lighter than --c-line so the Monday week line stays dominant */
+  --c-weekend: color-mix(in oklab, var(--c-ink) 8%, var(--c-surface)); /* a calm cool recess vs the white surface — clearly "non-working" at a glance, far from the saturated over-cell red, never an alert */
+  --c-ink: #1c2230;
+  --c-muted: #5b6472;
+  --c-faint: #677080; /* darkened one step from #6b7280 (which was 4.43:1 on --c-base, sub-AA): now 4.58:1 on the canvas, 4.99:1 on --c-surface — clears WCAG AA (4.5:1) for small text on BOTH grounds */
+  --c-brand: #6366f1;
+  --c-brand-strong: #4f46e5;
+  --c-brand-soft: color-mix(in oklab, var(--c-brand) 14%, white);
+  --c-brand-soft-ink: var(--c-brand-strong);
+  /* Dual-tone allocation-bar focus ring (WCAG 1.4.11) — see `.scheduler-bar:focus-visible`. A fixed
+     near-black + near-white pair (NOT theme-swapped): together they cover both light and dark grounds,
+     so at least one edge clears 3:1 against every adjacency in both themes. Pinned in color.test.ts. */
+  --c-focus-ink: #1c2230; /* near-black edge — wins on pale grounds (light over-cell, pale swatches, light canvas) */
+  --c-focus-halo: #ffffff; /* near-white edge — wins on dark grounds (dark over-cell, dark swatches, dark canvas) */
+  --c-danger: #e11d48;
+  --c-danger-soft: color-mix(in oklab, var(--c-danger) 13%, white);
+  --c-danger-soft-ink: #be123c; /* a step darker than --c-danger to clear AA on the tint */
+  --c-danger-cell: color-mix(in oklab, var(--c-danger) 50%, white); /* clear rose-red → ~rgb(251,158,161); empty cell, no AA bound */
+  --c-warn: #d97706;
+  --c-ok: #059669;
+  color-scheme: light;
+
+  /* ── shadcn stock tokens (light) ──────────────────────────────────────────
+     The canonical default token set `shadcn init` writes for the new-york style
+     with baseColor: slate. Consumed by `src/components/ui/**` (the shadcn primitives);
+     capacitylens's own components use the `--c-*` semantic layer above, NOT these. Kept fully
+     separate from `--c-*` so the scheduler/over-marker stay untouched.
+     Hand-authored — do NOT regenerate via `shadcn init` (it rewrites this file);
+     add components with `shadcn add` only (writes to src/components/ui/).
+     NB: `--radius` is the base var only; the radius UTILITIES (--radius-md/-lg)
+     stay owned by capacitylens's @theme — see the @theme inline note below. */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.208 0.042 265.755);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.554 0.046 257.417);
+  --accent: oklch(0.968 0.007 247.896);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.929 0.013 255.508);
+  --ring: oklch(0.704 0.04 256.788);
+  --radius: 0.625rem;
+}
+
+:root[data-theme="dark"] {
+  --c-base: #0e1016;
+  --c-surface: #161922;
+  --c-elevated: #1d212c;
+  --c-line: #2a2f3c;
+  --c-line-soft: var(--c-line); /* no lightening in dark — only light mode read heavy */
+  --c-line-faint: #20242f; /* between surface and line, so day hairlines stay quieter than week lines */
+  --c-weekend: color-mix(in oklab, var(--c-ink) 7%, var(--c-surface)); /* ink is near-white in dark, so this lightens the surface into the surface↔elevated range — a clearly non-working band that carries NO card affordances (shadow/border/radius), so it never reads as an elevated/popover surface despite the similar luminance */
+  --c-ink: #e7eaf0;
+  --c-muted: #a3acbd;
+  --c-faint: #8b93a3; /* lightened from #6b7486 to clear WCAG AA on the dark surface */
+  --c-brand: #818cf8;
+  --c-brand-strong: #4f46e5; /* deep enough that white button text clears AA (4.5:1) on dark too */
+  --c-brand-soft: color-mix(in oklab, var(--c-brand) 22%, #0e1016);
+  --c-brand-soft-ink: #c7d2fe; /* pale indigo — brand-strong would vanish on the dark tint */
+  --c-danger: #fb7185;
+  --c-danger-soft: color-mix(in oklab, var(--c-danger) 22%, #0e1016);
+  --c-danger-soft-ink: #fda4af;
+  --c-danger-cell: color-mix(in oklab, var(--c-danger) 60%, #0e1016); /* unmistakable dark red → ~rgb(147,73,86); empty cell, no AA bound */
+  --c-warn: #fbbf24;
+  --c-ok: #34d399;
+  color-scheme: dark;
+
+  /* ── shadcn stock tokens (dark) ───────────────────────────────────────────
+     The dark counterpart of the stock set above (new-york / slate, as `shadcn
+     init` writes into `.dark`). Same caveats: consumed only by `src/components/ui/**`, separate from
+     `--c-*`, and `--radius` here is the base var only (no radius utilities). */
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+
+  /* Drop shadows read as invisible on dark surfaces — lean on a stronger one. */
+  --shadow-pop: 0 16px 40px -12px rgb(0 0 0 / 0.6);
+}
+
+/* Expose the shadcn stock tokens above as `--color-*` utilities (bg-background,
+   text-foreground, border-border, …) for `src/components/ui/**` from Phase 3 on.
+   `inline` so the var() resolves at use-site and tracks the light/dark swap.
+   Maps COLOUR tokens ONLY, with TWO deliberate omissions — both to avoid silently
+   changing what existing capacitylens utilities already render:
+     - radius: capacitylens's @theme owns --radius-md/--radius-lg; redefining them here
+       would change existing components' corner radii. The `--radius` base var
+       lives on :root for shadcn components that read it directly, but the radius
+       UTILITIES stay capacitylens's.
+     - --color-muted: capacitylens's @theme already defines `--color-muted` as a slate
+       INK (var(--c-muted)), used by `text-muted` across the app incl. the
+       scheduler. shadcn's muted is the opposite — a near-white SURFACE — so
+       mapping it here would invert every `text-muted` label. shadcn components
+       reference muted via `bg-muted` + `text-muted-foreground`; the foreground is
+       added fresh below (no collision) and the raw `--muted` var stays on :root
+       for direct reads, but the `--color-muted` UTILITY stays capacitylens's. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  /* NB: no --color-muted here — capacitylens's @theme owns it as a slate ink (see note
+     above). Only the shadcn muted-foreground is exposed (fresh name, no clash). */
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+}
+
+/* Default border colour for the bare `border` utility. */
+*,
+*::before,
+*::after {
+  border-color: var(--color-line);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-brand);
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-brand) 28%, transparent);
+}
+
+/* Thin, theme-aware scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-faint) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--color-faint) 55%, transparent);
+  border-radius: 9999px;
+}
+
+/* Drop-target row highlight while dragging an allocation between rows. */
+[data-droptarget] {
+  background: color-mix(in oklab, var(--color-brand) 9%, transparent);
+  box-shadow: inset 0 0 0 2px var(--color-brand);
+}
+
+@keyframes capacitylens-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes capacitylens-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Diagonal light-grey hatch for placeholder ("slot") resource rows on the schedule,
+   marking them as not-yet-a-real-person. Only the lines are painted (transparent gaps),
+   so it layers over whatever background-color the element already carries. */
+.hatch-lines {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in oklab, var(--color-faint) 22%, transparent) 0 1px,
+    transparent 1px 9px
+  );
+}
+
+/* "Time off" draw mode. When the toolbar's Time-off toggle is on, recede the work
+   allocations and make every already-booked time-off block glow — so a manager sees at
+   a glance whose absences exist before drawing a new one. (The toggle alone changed only
+   its own pressed state, which read as a dead button.) This VISUAL re-skin is driven by
+   `data-draw-mode` on the grid container, so it's a single attribute flip — a pure CSS reflow,
+   zero React re-render of the memoised lanes/bars. The parallel `inert` BEHAVIOUR (bars
+   non-interactive, off the tab order + a11y tree) is one DOM write on each lane's thin bars layer
+   (ResourceLane → BarsLayer): that layer is the SOLE subscriber to the mode, so it alone re-renders
+   on toggle — the lanes and their AllocationBars bail because every prop they receive stays a
+   stable ref across the toggle (see BarsLayer's TSDoc). Amber (the `warn` token) reads as
+   "out / away", distinct from brand (indigo) and over (red). This is a first-pass treatment;
+   the visual is expected to be refined later. */
+/* Allocation-bar focus indicator — a DUAL-TONE ring (WCAG 1.4.11, Non-text Contrast ≥3:1).
+   A single-edge indicator can't pass: the bar can sit on an over-capacity day whose cell is a PALE
+   rose in light (--c-danger-cell ≈ rgb(251,158,161), where white reads ~2:1) but a DEEP red in dark
+   (≈ rgb(147,73,86), where a dark edge reads ~2.5:1) — opposite requirements. So the indicator pairs
+   a near-BLACK edge (#1c2230) and a near-WHITE edge (#ffffff), BOTH straddling the bar's outer border
+   (positive-spread box-shadow, no offset → both adjacent to the background, NOT inside the opaque
+   fill). Against ANY adjacency at least one edge clears 3:1: the dark edge wins on the pale light
+   over-cell / pale swatches / light canvas+weekend, the light edge wins on the dark over-cell / dark
+   swatches / dark canvas+weekend. The fixed pair covers both extremes, so it needs no theme variant.
+   Pinned + asserted in src/lib/color.test.ts ("AllocationBar focus ring …"). The indigo (--color-brand)
+   outline is an IDENTITY layer only — conformance comes from the dark+light pair, not from it.
+   box-shadow is NOT clipped by the bar's own overflow-hidden. On focus this box-shadow overrides the
+   resting `ring-1 ring-black/5` + `shadow-sm` (box-shadow is one property, not additive) — intentional:
+   the bold focus ring replaces the faint resting ring while focused. */
+.scheduler-bar:focus-visible {
+  outline: 2px solid var(--color-brand); /* identity layer (indigo) — NOT relied on for contrast */
+  outline-offset: 2px;
+  box-shadow:
+    0 0 0 1px var(--c-focus-ink), /* near-black edge — wins on pale grounds */
+    0 0 0 3px var(--c-focus-halo); /* near-white edge — wins on dark grounds */
+}
+
+[data-draw-mode="timeoff"] .scheduler-bar {
+  opacity: 0.2;
+  /* Drop the discipline colour to a flat neutral so backgrounded work reads as inert filler,
+     not a faded tint of its real colour. The `--color-muted` token keeps it theme-aware (light
+     vs dark). !important beats the bar's inline background-color. */
+  background-color: var(--color-muted) !important;
+  transition:
+    opacity 0.15s ease,
+    background-color 0.15s ease;
+}
+
+[data-draw-mode="timeoff"] .scheduler-timeoff-block {
+  /* Lift above the work bars, which paint later in DOM order, so the glow isn't behind
+     the (now-dimmed) bars. */
+  z-index: 3;
+  color: var(--color-ink);
+  /* !important: the block sets its hatch gradient via an inline `style`, which an
+     un-flagged rule can't beat. The solid amber fill intentionally REPLACES the block's
+     diagonal-hatch texture in draw mode, so the glow reads cleanly without the hatch fighting it. */
+  background: color-mix(in oklab, var(--color-warn) 34%, var(--color-surface)) !important;
+  box-shadow:
+    0 0 0 1.5px var(--color-warn),
+    0 0 14px 2px color-mix(in oklab, var(--color-warn) 55%, transparent);
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* Defensive net for the hover popover in time-off mode. The bars-layer `inert` already BLOCKS the
+   mouseenter/focus that opens a popover, so a new one can't appear; and any path to the Time-off
+   toggle blurs/leaves the bar first (clearing a pre-existing one). But the popover is portaled to
+   <body>, OUTSIDE the inert layer, so should one ever linger at the instant of toggle, inert can't
+   suppress it — hide it here. `:has()` lets a body-level rule key off the grid's draw mode without
+   re-subscribing every bar to the store. The mode is keyed off `data-draw-mode` (the real state
+   attribute, set only on the grid container) and the popover off its `.scheduler-alloc-popover`
+   class — production visuals never hang off a `data-testid`. */
+body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover {
+  display: none;
+}
+
+/* Error-toast distinction (Sonner). richColors is deliberately OFF — its light-mode error
+   palette fails WCAG AA (see AppShell's <Toaster>) — so every toast paints on the neutral,
+   already-AA-validated --color-elevated/ink/line surface. To keep an error reading as an error
+   at a glance (the migration had briefly flattened error → info), the bridge tags error toasts
+   with `toast-error` (Sonner's `classNames.error`), and this rule layers a danger affordance
+   over that neutral surface: a saturated --color-danger left accent + a 1px danger ring, plus a
+   matching tint on Sonner's built-in error icon. The text stays --color-ink on --color-elevated,
+   so AA holds in BOTH themes (--color-danger flips per [data-theme]); the colour is an ADDED
+   signal, never the sole carrier of meaning, and never the text/background contrast pair. */
+[data-sonner-toast].toast-error {
+  /* Saturated danger edge on the leading side + a hairline danger ring around the whole toast.
+     box-shadow (not border) so it doesn't shift Sonner's layout/close-button geometry. */
+  box-shadow:
+    inset 4px 0 0 0 var(--color-danger),
+    0 0 0 1px var(--color-danger);
+}
+
+[data-sonner-toast].toast-error [data-icon] {
+  /* Tint Sonner's built-in error glyph to the danger token (it ships a neutral currentColor). */
+  color: var(--color-danger);
+}
+
+/* "Show me around" tour popover (driver.js — see lib/tour.ts). driver.css ships a hard-coded
+   white popover / #2d2d2d text, which breaks in dark mode; re-skin it onto the SAME
+   elevated/ink/muted/line tokens as the app's tooltips and toasts so both themes hold AA
+   automatically ([data-theme] flips the underlying --c-* values). The arrow is drawn with CSS
+   border triangles, so each side's visible border colour must match the popover surface. */
+.driver-popover {
+  background-color: var(--color-elevated);
+  color: var(--color-ink);
+  box-shadow:
+    0 0 0 1px var(--color-line),
+    0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.driver-popover-description,
+.driver-popover-progress-text {
+  color: var(--color-muted);
+}
+
+.driver-popover-arrow-side-left.driver-popover-arrow {
+  border-left-color: var(--color-elevated);
+}
+.driver-popover-arrow-side-right.driver-popover-arrow {
+  border-right-color: var(--color-elevated);
+}
+.driver-popover-arrow-side-top.driver-popover-arrow {
+  border-top-color: var(--color-elevated);
+}
+.driver-popover-arrow-side-bottom.driver-popover-arrow {
+  border-bottom-color: var(--color-elevated);
+}
+
+/* driver.css buttons ship a text-shadow + hard-coded greys; flatten them onto the app's
+   ghost-button look (ink text, line border, canvas hover). */
+.driver-popover-footer button {
+  text-shadow: none;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  border-radius: 0.375rem;
+}
+
+.driver-popover-footer button:hover {
+  background-color: var(--color-canvas);
+}
+
+.driver-popover-close-btn {
+  /* The close "×" is a borderless icon button in driver.css; keep it that way, just tinted. */
+  background-color: transparent;
+  border: none;
+  color: var(--color-muted);
+}
+
+.driver-popover-close-btn:hover {
+  background-color: transparent;
+  color: var(--color-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

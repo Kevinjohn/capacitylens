@@ -1,0 +1,24 @@
+name: Feature request
+description: Propose an addition or change
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Heads-up: CapacityLens is deliberately small — a week-granularity "who's busy"
+        helicopter view for small agencies. Budgets/money, timesheets, hour-granularity
+        workflows and mobile views are documented non-goals (see README), so requests in
+        those areas will likely be declined. Everything else: very welcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the situation first, not the solution — there may be a better fit for the product's scope.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+    validations:
+      required: true

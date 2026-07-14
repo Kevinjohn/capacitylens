@@ -1,0 +1,134 @@
+name: gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ['v*']
+  # Monthly run on the default branch: PR/tag runs never feed the README's unqualified
+  # badge (it reflects default-branch runs only), so without this the badge reads
+  # "no status" between releases. Also doubles as a bit-rot canary for the toolchain.
+  schedule:
+    - cron: '17 6 3 * *'
+
+concurrency:
+  group: gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  dco:
+    name: DCO sign-off
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - name: Verify every pull-request commit is signed off
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          failed=0
+          for commit in $(git rev-list "$BASE_SHA..$HEAD_SHA"); do
+            if ! git show -s --format=%B "$commit" | grep -Eiq '^Signed-off-by: .+ <[^>]+>$'; then
+              echo "::error::Commit $commit has no valid Signed-off-by trailer"
+              failed=1
+            fi
+          done
+          exit "$failed"
+
+  gate:
+    name: typecheck · lint · unit · build (+ server)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run gate
+      - run: pnpm run gate:server
+      - run: pnpm audit --prod --audit-level high
+
+  e2e:
+    name: e2e (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm run e2e
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  docker:
+    name: docker compose build + production nginx smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # PR/dispatch only, like e2e's intent — this rebuilds two Docker images plus a
+    # server boot, so it's kept off the monthly schedule/tag-push cadence rather than
+    # widening the trigger list above (jobs can't declare their own `on:`).
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    env:
+      # NODE_ENV=production is baked into the api image (Dockerfile), and auth is OFF
+      # by default (no CAPACITYLENS_AUTH in this smoke) — server/src/productionGuard.ts
+      # refuses to boot that combination unless this is set; without it the api
+      # container restart-loops and the health/header checks below never see a 200.
+      CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION: '1'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      # ubuntu-latest ships Docker + the compose plugin; no extra setup action needed.
+      - name: docker compose build (validates both the api and web Dockerfile targets)
+        run: docker compose build
+      - name: docker compose up
+        run: docker compose up -d
+      - name: Wait for API health (through the nginx proxy at :8080/api/health)
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/api/health; then
+              echo
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "api never became healthy" >&2
+          exit 1
+      - name: Smoke test / (nginx) — 200 + production security headers present
+        run: |
+          headers="$(curl -fsS -D - -o /dev/null http://localhost:8080/)"
+          echo "$headers"
+          echo "$headers" | grep -qi '^content-security-policy:'
+          echo "$headers" | grep -qi '^x-frame-options:'
+          echo "$headers" | grep -qi '^x-content-type-options:'
+          echo "$headers" | grep -qi '^referrer-policy:'
+      - name: Smoke test client_max_body_size — >6MB body rejected with 413
+        run: |
+          dd if=/dev/zero of=/tmp/oversize.bin bs=1M count=7
+          status="$(curl -s -o /dev/null -w '%{http_code}' -X POST --data-binary @/tmp/oversize.bin http://localhost:8080/)"
+          echo "status=$status"
+          test "$status" = "413"
+      - name: docker compose logs
+        if: failure()
+        run: docker compose logs
+      - name: docker compose down
+        if: always()
+        run: docker compose down --volumes

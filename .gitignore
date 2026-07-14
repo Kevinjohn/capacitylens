@@ -1,0 +1,62 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test artifacts
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+coverage/
+# Stryker mutation-testing output (`npm run mutation`) — report + sandbox, never committed
+/reports/
+.stryker-tmp/
+stryker.log
+
+# Design/competitor reference scraps — not app assets
+/_input/
+
+# Paraglide (inlang) generated i18n output (P1.5.1) — compiled from project.inlang + messages/
+# on dev/build/test/gate (those scripts precompile); the committed source is the input, this isn't.
+src/paraglide/
+
+# Build artifacts (incremental TS, local SQLite DB + WAL/SHM)
+*.tsbuildinfo
+*.db
+*.db-wal
+*.db-shm
+# Server audit log (P1.15, ON by default beside the DB; a runtime artifact, never committed)
+*-audit.jsonl
+
+# Agent/loop scratch — never ship these in a clone (P0.2)
+*-state.json
+FORGE-DEPLOY-TODO.md
+.claude/
+.codex/
+plan__*.md
+floaty-copy.md
+shadcn-branch-plan.md
+CapacityLens.md
+loop-workflow.md
+flow-review.md

@@ -1,0 +1,24 @@
+{
+  "name": "@capacitylens/shared",
+  "version": "0.17.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "date-fns": "^4.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.3",
+    "vitest": "^4.1.7"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  }
+}
