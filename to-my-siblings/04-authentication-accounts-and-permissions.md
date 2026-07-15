@@ -29,7 +29,7 @@ The current family default is deliberately stronger than “Better Auth with a p
 - context-specific product/admin words rejected;
 - Have I Been Pwned range lookup on password creation/change/reset: only the first five SHA-1
   characters leave the server, padded results are requested and unavailability fails closed;
-- TOTP MFA required before a password user may reach tenant data in production;
+- optional required TOTP MFA before a password user may reach tenant data;
 - one-time recovery codes shown only during enrolment;
 - five failed MFA attempts cause a fifteen-minute lockout;
 - fixed twelve-hour sessions with no sliding extension;
@@ -37,7 +37,8 @@ The current family default is deliberately stronger than “Better Auth with a p
 - Settings session inventory/revocation without rendering bearer tokens.
 
 The breached-password lookup is real server egress and must appear in privacy/network documentation.
-An isolated non-production deployment may disable it; production password mode refuses that opt-out.
+It remains on by default; an isolated/offline deployment may disable it and receives a production
+posture warning.
 
 Keep MFA enrolment outside the tenant shell: after first sign-in the server reports
 `mfaRequired=true`, the browser presents **Secure your account**, and the server independently blocks
@@ -265,7 +266,8 @@ server session, and tenant data must not remain rendered under ambiguous identit
 - Wrong/short secrets refuse startup.
 - Password hashing parameters, breached-password k-anonymity/fail-closed behaviour and legacy
   verification are tested.
-- Production password mode refuses without mandatory MFA.
+- Password mode boots without required MFA but emits a production warning; the required-MFA path is
+  separately tested.
 - Pre-MFA identity cannot read tenant data through a forged/direct request.
 - Recovery codes are one-time and session tokens never render.
 - Sessions expire absolutely and sensitive actions require a fresh sign-in.

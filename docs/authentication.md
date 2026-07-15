@@ -32,10 +32,10 @@ Outside tests, candidate passwords are checked against the Have I Been Pwned ran
 new hash is stored. The server sends only the first five SHA-1 characters and requests padded
 results; the password and full digest never leave the process. Creation/change/reset fails closed
 when the service is unavailable. `CAPACITYLENS_PASSWORD_BREACH_CHECK=off` disables the lookup for
-isolated development, but a production password deployment refuses to start with it disabled.
+isolated or offline deployments. Production logs a warning but continues when it is disabled.
 
-Set `CAPACITYLENS_REQUIRE_MFA=1` to require TOTP multi-factor authentication. Production password
-mode requires it and Compose defaults it on:
+Set `CAPACITYLENS_REQUIRE_MFA=1` to require TOTP multi-factor authentication. It is optional and off
+by default, including in Compose. When enabled:
 
 1. A newly authenticated user is stopped before tenant data and shown **Secure your account**.
 2. They add the TOTP URI to an authenticator, store the one-time recovery codes and verify a
@@ -63,9 +63,10 @@ session is “fresh” for fifteen minutes after sign-in; membership, invitation
 deletion and ownership operations require that fresh state and return `SESSION_NOT_FRESH` when the
 user must sign in again.
 
-There is no hard concurrent-session count. MFA, fixed/idle/freshness limits, immediate revocation
-and visible session inventory form the containment model. SSO session lifetime and termination also
-depend on the selected provider and must be tested in staging.
+There is no hard concurrent-session count. Fixed/idle/freshness limits, immediate revocation and
+visible session inventory form the baseline containment model; required MFA strengthens it when
+enabled. SSO session lifetime and termination also depend on the selected provider and must be
+tested in staging.
 
 Password users can change their password (revoking other sessions) and inspect/revoke active
 sessions in Settings → Security. Administrators may revoke a member's identity-global sessions only
@@ -98,7 +99,7 @@ recovery have been tested.
 Generic discovery/authorization/token endpoints must be absolute HTTPS URLs; loopback HTTP is
 accepted only for development. Embedded URL credentials and malformed provider ids refuse startup.
 
-SSO-only production also requires `CAPACITYLENS_SSO_MFA_ENFORCED=1`. This is an operator
-attestation that the configured identity provider enforces MFA for every CapacityLens user;
-CapacityLens cannot infer equivalent assurance from every provider's token shape. Set it only after
-the IdP policy, recovery path, session lifetime and logout behavior have been exercised in staging.
+`CAPACITYLENS_SSO_MFA_ENFORCED=1` is an optional operator attestation that the configured identity
+provider enforces MFA for every CapacityLens user. CapacityLens cannot infer equivalent assurance
+from every provider's token shape. Set it only after the IdP policy, recovery path, session lifetime
+and logout behavior have been exercised in staging; production otherwise continues with a warning.

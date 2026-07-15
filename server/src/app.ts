@@ -160,8 +160,8 @@ export const DEFAULT_CORS =
   'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273'
 
 export interface AppOptions {
-  /** Internal HTTPS identity for a reverse-proxy/service hop. Omitted only for local development;
-   * the production posture guard requires it and the default Compose topology verifies it. */
+  /** Optional internal HTTPS identity for a reverse-proxy/service hop. The default Compose
+   * topology provisions and verifies it; a trusted same-host loopback proxy may omit it. */
   internalTls?: Pick<HttpsServerOptions, 'key' | 'cert' | 'minVersion'>
   /** Gate POST /api/test/reset — only enabled for tests / explicit dev opt-in. */
   allowReset?: boolean

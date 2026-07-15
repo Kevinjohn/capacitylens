@@ -30,7 +30,8 @@ server not following the deployment guide, social engineering, and vulnerabiliti
 unsupported old release.
 
 Self-hosters remain responsible for public-edge TLS, operating-system updates, secret management,
-network access, off-host backups and restore testing. The packaged internal nginx→API hop verifies
+network access and choosing a backup/recovery policy appropriate to their data. Off-host copies are
+recommended for disaster recovery but are optional. The packaged internal nginx→API hop verifies
 its own per-install TLS identity. Do not expose an auth-off instance to the internet.
 
 The current threat model, control inventories, full OWASP ASVS 5.0.0 ledger and dated review are in

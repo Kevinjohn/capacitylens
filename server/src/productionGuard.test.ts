@@ -4,7 +4,7 @@ import { BOOTSTRAP_ADMIN_EMAIL } from './auth'
 
 type ProductionEnv = Parameters<typeof evaluateProductionPosture>[0]
 
-const REQUIRED_PRODUCTION_CONTROLS: ProductionEnv = {
+const FULLY_HARDENED_PRODUCTION_CONTROLS: ProductionEnv = {
   NODE_ENV: 'production',
   CAPACITYLENS_HTTPS: '1',
   CAPACITYLENS_REQUIRE_MFA: '1',
@@ -19,7 +19,7 @@ const REQUIRED_PRODUCTION_CONTROLS: ProductionEnv = {
 }
 
 function productionPosture(overrides: ProductionEnv) {
-  return evaluateProductionPosture({ ...REQUIRED_PRODUCTION_CONTROLS, ...overrides })
+  return evaluateProductionPosture({ ...FULLY_HARDENED_PRODUCTION_CONTROLS, ...overrides })
 }
 
 // P3.1: once NODE_ENV=production, the dev/open posture is retired — the entrypoint refuses to
@@ -83,6 +83,28 @@ describe('evaluateProductionPosture', () => {
     expect(result.warnings).toEqual([])
   })
 
+  it('boots a minimal password deployment and reports every absent optional hardening control', () => {
+    const result = evaluateProductionPosture({
+      NODE_ENV: 'production',
+      CAPACITYLENS_AUTH: 'password',
+      CAPACITYLENS_HTTPS: '1',
+      CAPACITYLENS_RATE_LIMIT: '300',
+      CAPACITYLENS_AUDIT: 'on',
+    })
+
+    expect(result.refusals).toEqual([])
+    expect(result.warnings).toHaveLength(5)
+    for (const variable of [
+      'CAPACITYLENS_REQUIRE_MFA',
+      'CAPACITYLENS_AUDIT_STDOUT',
+      'CAPACITYLENS_STORAGE_ENCRYPTED',
+      'CAPACITYLENS_SECURITY_LOG_FORWARDING',
+      'CAPACITYLENS_INTERNAL_TLS_CERT',
+    ]) {
+      expect(result.warnings.some((warning) => warning.includes(variable))).toBe(true)
+    }
+  })
+
   it('warns on open self-registration in production (sso + https, signup open)', () => {
     const result = productionPosture({
       CAPACITYLENS_AUTH: 'sso',
@@ -139,17 +161,51 @@ describe('evaluateProductionPosture', () => {
   })
 
   it.each([
-    ['MFA', { CAPACITYLENS_AUTH: 'password', CAPACITYLENS_REQUIRE_MFA: undefined }],
-    ['breach checking', { CAPACITYLENS_AUTH: 'password', CAPACITYLENS_PASSWORD_BREACH_CHECK: 'off' }],
-    ['SSO MFA assurance', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_SSO_MFA_ENFORCED: undefined }],
     ['rate limiting', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_RATE_LIMIT: '0' }],
     ['audit logging', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_AUDIT: 'off' }],
-    ['audit forwarding output', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_AUDIT_STDOUT: undefined }],
-    ['encrypted storage', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_STORAGE_ENCRYPTED: undefined }],
-    ['central security-log forwarding', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined }],
-    ['internal service TLS', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_INTERNAL_TLS_CERT: undefined }],
   ])('refuses a production deployment that has no %s control', (_control, overrides) => {
     const result = productionPosture(overrides)
     expect(result.refusals).toHaveLength(1)
+  })
+
+  it.each([
+    ['MFA', { CAPACITYLENS_AUTH: 'password', CAPACITYLENS_REQUIRE_MFA: undefined }, /REQUIRE_MFA/],
+    [
+      'breach checking',
+      { CAPACITYLENS_AUTH: 'password', CAPACITYLENS_PASSWORD_BREACH_CHECK: 'off' },
+      /PASSWORD_BREACH_CHECK/,
+    ],
+    ['SSO MFA assurance', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_SSO_MFA_ENFORCED: undefined }, /SSO_MFA_ENFORCED/],
+    ['audit forwarding output', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_AUDIT_STDOUT: undefined }, /AUDIT_STDOUT/],
+    ['encrypted storage', { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_STORAGE_ENCRYPTED: undefined }, /STORAGE_ENCRYPTED/],
+    [
+      'central security-log forwarding',
+      { CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_SECURITY_LOG_FORWARDING: undefined },
+      /SECURITY_LOG_FORWARDING/,
+    ],
+    [
+      'internal service TLS',
+      {
+        CAPACITYLENS_AUTH: 'sso',
+        CAPACITYLENS_INTERNAL_TLS_CERT: undefined,
+        CAPACITYLENS_INTERNAL_TLS_KEY: undefined,
+      },
+      /INTERNAL_TLS_CERT/,
+    ],
+  ])('warns but boots when optional %s hardening is absent', (_control, overrides, warning) => {
+    const result = productionPosture(overrides)
+    expect(result.refusals).toEqual([])
+    expect(result.warnings).toHaveLength(1)
+    expect(result.warnings[0]).toMatch(warning)
+  })
+
+  it('leaves a partial internal TLS identity to the strict identity loader instead of claiming HTTP fallback', () => {
+    const result = productionPosture({
+      CAPACITYLENS_AUTH: 'sso',
+      CAPACITYLENS_INTERNAL_TLS_KEY: undefined,
+    })
+
+    expect(result.refusals).toEqual([])
+    expect(result.warnings).toEqual([])
   })
 })

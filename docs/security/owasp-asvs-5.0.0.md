@@ -1,6 +1,7 @@
 # OWASP ASVS 5.0.0 complete control ledger
 
-Assessment date: 2026-07-14. Target: ASVS Level 2, with every Level 1–3 requirement assessed.
+Assessment date: 2026-07-14; posture updated 2026-07-15. Target: ASVS Level 2 when optional hardening
+is enabled, with every Level 1–3 requirement assessed.
 Baseline: OWASP Application Security Verification Standard 5.0.0 (May 2025), 345 requirements.
 
 This ledger is an evidence-based source/configuration review, not an OWASP certification. It uses:
@@ -16,7 +17,7 @@ TLS, disks, collectors, secret stores and identity-provider policy cannot become
 an environment acknowledgement is set; those stay Partial where deployment evidence is required.
 Requirement descriptions are not reproduced here; use the official ASVS release alongside these IDs.
 
-Point-in-time totals: **201 Pass, 46 Partial, 7 Gap and 91 N/A = 345**. These counts include all
+Point-in-time totals: **199 Pass, 48 Partial, 7 Gap and 91 N/A = 345**. These counts include all
 levels; they are not a score or certification percentage.
 
 ## V1 Encoding and sanitization
@@ -73,8 +74,8 @@ levels; they are not a score or certification percentage.
 | Section | Evidence summary | Pass | Partial | Gap | N/A |
 |---|---|---|---|---|---|
 | V6.1 Documentation | Auth pathways, throttling/lockout, context words, password/MFA/SSO strength documented | V6.1.1, V6.1.2, V6.1.3 | — | — | — |
-| V6.2 Passwords | 15–128, change/current-password flow, HIBP, no composition rule, paste/managers, exact bytes, no periodic expiry | V6.2.1, V6.2.2, V6.2.3, V6.2.4, V6.2.5, V6.2.6, V6.2.7, V6.2.8, V6.2.9, V6.2.10, V6.2.11, V6.2.12 | — | — | — |
-| V6.3 Authentication controls | API throttling/MFA lockout, no default account, mandatory TOTP, consistent documented paths, generic failures; no phishing-resistant factor or user anomaly/change notifications | V6.3.1, V6.3.2, V6.3.4, V6.3.6, V6.3.8 | V6.3.3 | V6.3.5, V6.3.7 | — |
+| V6.2 Passwords | 15–128, change/current-password flow, HIBP by default, no composition rule, paste/managers, exact bytes, no periodic expiry; breach checking can be disabled with a warning | V6.2.1, V6.2.2, V6.2.3, V6.2.4, V6.2.5, V6.2.6, V6.2.7, V6.2.8, V6.2.9, V6.2.10, V6.2.11 | V6.2.12 | — | — |
+| V6.3 Authentication controls | API throttling/MFA lockout, no default account, opt-in required TOTP, consistent documented paths and generic failures; default password mode is single-factor and no phishing-resistant factor/user notifications exist | V6.3.1, V6.3.2, V6.3.4, V6.3.6, V6.3.8 | V6.3.3 | V6.3.5, V6.3.7 | — |
 | V6.4 Recovery | Production setup avoids initial passwords; no hints; reset preserves MFA and revokes sessions; lost TOTP requires password plus an enrollment-issued one-time recovery code, with no weaker admin/email bypass | V6.4.1, V6.4.2, V6.4.3, V6.4.4, V6.4.6 | — | — | V6.4.5 |
 | V6.5 Factor properties | CSPRNG seeds/codes, protected recovery material, 30-second TOTP/server time, lockout and revocation; library does not evidence same-window TOTP replay storage | V6.5.2, V6.5.3, V6.5.4, V6.5.5, V6.5.6, V6.5.8 | V6.5.1 | — | V6.5.7 |
 | V6.6 Out-of-band/PSTN | No SMS, phone, email-code or push factor | — | — | — | V6.6.1, V6.6.2, V6.6.3, V6.6.4 |
@@ -99,7 +100,7 @@ levels; they are not a score or certification percentage.
 | V8.1 Documentation | Function/data/field/action rules and only contextual control (session freshness) are documented | V8.1.1, V8.1.2, V8.1.3, V8.1.4 | — | — | — |
 | V8.2 Enforcement | Central role/action, account/object/parent-reference and field rules; project-bound writes fail closed when the parent cannot be resolved in-tenant; no adaptive environment/device engine | V8.2.1, V8.2.2, V8.2.3 | — | V8.2.4 | — |
 | V8.3 Trusted layer/immediacy | Server-side DB membership on every operation; changes/revocations immediate; no privilege-bearing intermediary | V8.3.1, V8.3.2, V8.3.3 | — | — | — |
-| V8.4 Multi-tenancy/admin | Independent cross-tenant enforcement; admin has MFA/freshness but no continuous device/risk assessment | V8.4.1 | V8.4.2 | — | — |
+| V8.4 Multi-tenancy/admin | Independent cross-tenant enforcement; admin always has freshness and may have required MFA, but no continuous device/risk assessment | V8.4.1 | V8.4.2 | — | — |
 
 ## V9 Self-contained tokens
 
@@ -138,7 +139,7 @@ levels; they are not a score or certification percentage.
 |---|---|---|---|---|---|
 | V12.1 TLS configuration | Public TLS/version/ciphers are proxy/operator evidence; no mTLS client; OCSP/ECH not supplied by app | — | V12.1.1, V12.1.2 | V12.1.4, V12.1.5 | V12.1.3 |
 | V12.2 Public services | Documentation mandates public TLS/trusted certificates, but source review cannot verify a deployed endpoint | — | V12.2.1, V12.2.2 | — | — |
-| V12.3 Other connections | Outbound HTTPS validates certificates; packaged nginx verifies a per-install CA/service identity over TLS 1.2/1.3 and the API has no plaintext fallback; public monitoring/operator protocols are external | V12.3.2, V12.3.3 | V12.3.1 | — | V12.3.4, V12.3.5 |
+| V12.3 Other connections | Outbound HTTPS validates certificates; packaged nginx verifies a per-install CA/service identity over TLS 1.2/1.3, while same-host bare-metal HTTP is permitted; public monitoring/operator protocols are external | V12.3.2 | V12.3.1, V12.3.3 | — | V12.3.4, V12.3.5 |
 
 ## V13 Configuration
 
@@ -173,7 +174,7 @@ levels; they are not a score or certification percentage.
 | V16.1 Inventory | Layer/event/format/destination/sensitivity inventory; operator supplies exact retention/access | V16.1.1 | — | — | — |
 | V16.2 Log content | UTC ISO metadata, documented JSON streams, correlation-ready data and credential/body redaction; clock synchronization is external | V16.2.1, V16.2.3, V16.2.4, V16.2.5 | V16.2.2 | — | — |
 | V16.3 Security events | Auth, bypass/control failures and unexpected errors logged; failed authz covered but not every successful L3 decision | V16.3.1, V16.3.3, V16.3.4 | V16.3.2 | — | — |
-| V16.4 Log protection | JSON serialization prevents injection; restrictive local modes plus required external forwarding, whose ACL/immutability need operator evidence | V16.4.1 | V16.4.2, V16.4.3 | — | — |
+| V16.4 Log protection | JSON serialization prevents injection and local files have restrictive modes; external forwarding is optional and its ACL/immutability need operator evidence | V16.4.1 | V16.4.2, V16.4.3 | — | — |
 | V16.5 Failure handling | Generic responses, fail-closed external/control failures and transaction rollback; a process-wide last-resort handler records the local error plus a sanitized security event, drains, exits non-zero and relies on supervisor restart rather than continuing potentially corrupt state | V16.5.1, V16.5.2, V16.5.3 | V16.5.4 | — | — |
 
 ## V17 WebRTC
@@ -186,9 +187,9 @@ levels; they are not a score or certification percentage.
 
 ## Interpretation
 
-The application is designed for the ASVS Level 2 risk band, not Level 3. A Gap in a Level 3-only
-requirement therefore documents a conscious higher-assurance capability boundary; it does not by
-itself mean the L2 target failed. Conversely, Partial/Gap controls at L1/L2 remain real limitations
-even when mitigated—particularly federated-provider proof, URL bearer links and deployment
-public-TLS/secret/log/storage evidence. See the main review's residual-risk
-table before launch.
+The application can be configured for the ASVS Level 2 risk band but the community defaults no
+longer force that posture: password MFA is optional and breach screening can be disabled. A
+password-only deployment therefore does not meet V6.3.3 L2. A Gap in a Level 3-only requirement
+still documents a conscious higher-assurance boundary rather than an L2 failure. Partial/Gap L1/L2
+controls remain real limitations, particularly optional authentication hardening, federated-provider
+proof, URL bearer links and deployment public-TLS/secret/log/storage evidence.

@@ -245,6 +245,7 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(me.statusCode).toBe(200)
     expect(me.json().authMode).toBe('password')
     expect(me.json().user.email).toBe('tester@capacitylens.dev')
+    expect(me.json().mfaRequired).toBe(false)
     // P1.7a: emailVerified flows through to /api/auth/me. A fresh email+password sign-up has no
     // verification infra, so Better Auth leaves the flag false — confirming the normalized flag
     // is present and defaults correctly (the P1.10 invite-bind gate depends on it).

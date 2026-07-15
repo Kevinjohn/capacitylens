@@ -48,7 +48,7 @@ add their documented browser and server exchanges.
 | Offline snapshot | Web Crypto AES-256-GCM, 96-bit random IV and AAD | non-extractable per-browser random device key | schema v2; corrupt/expired records and v1 plaintext deleted; device clear destroys key/data |
 | Invite/reset lookup | SHA-256 token digest | CSPRNG token shown once | expiry, use/revocation and account deletion remove state |
 | Session/auth/MFA | Better Auth/Node crypto | `BETTER_AUTH_SECRET`, session tokens, encrypted backup codes/TOTP state | 32+ character operator secret; rotate to invalidate sessions; secret manager/operator rotation required |
-| Internal service TLS | OpenSSL P-256/SHA-256, Node HTTPS and nginx verification | per-install root-only CA key; API-only leaf key; public CA/leaf | leaf renews before 30-day threshold; CA reused while valid; no plaintext fallback; coordinated service recreation |
+| Internal service TLS | OpenSSL P-256/SHA-256, Node HTTPS and nginx verification | per-install root-only CA key; API-only leaf key; public CA/leaf | automatic in Compose; optional for same-host bare metal; configured identities never fall back silently; coordinated renewal/recreation |
 | Public TLS/provider assertion crypto | TLS proxy, Node trust store and Better Auth providers | public certificates/provider metadata | operator certificate lifecycle; HTTPS-only provider configuration; library updates through lockfile |
 
 No home-grown cipher, ECB, unauthenticated application encryption or client-extractable offline key
@@ -92,10 +92,10 @@ path check cannot inspect.
 | Mutation audit | actor, account, action, entity, id and changed field names | mode-0600 JSONL plus optional `capacitylens.audit` JSON stdout | field names only, never field values |
 | Proxy/IdP/platform | TLS/access/WAF/container/identity/collector events | deployment-defined separate systems | operator must classify, redact, restrict, retain and correlate in UTC |
 
-Production requires application audit to remain enabled and explicit acknowledgement that security
-events are forwarded to a logically separate monitored destination. The local audit sink latches
-degradation into deep health. The runbook defines incident preservation and review, but the operator
-must document retention, access groups, time synchronization and alert thresholds.
+Production requires application audit to remain enabled. Forwarding security events to a separate
+monitored destination is recommended but optional; its absent attestation produces a warning. The
+local audit sink latches degradation into deep health. The runbook defines incident preservation and
+review, but the operator must document retention, access groups, time synchronization and alerts.
 
 ## Third parties and build inputs
 

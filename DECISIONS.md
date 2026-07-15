@@ -58,12 +58,13 @@ This is the short, present-tense record of decisions that constrain future work.
 - Email self-registration is closed by default. External identities require a verified email and
   a live invitation; initial SSO ownership requires an operator email allow-list.
 - Secure-cookie behavior follows the public `BETTER_AUTH_URL`, including behind a TLS proxy.
-- Production password mode requires breached-password screening and TOTP MFA. Sessions have a fixed
-  twelve-hour lifetime; privileged actions require a session no older than fifteen minutes.
-- Production startup requires explicit operator acknowledgement of encrypted persistent storage and
-  logically separate security-log forwarding.
-- The packaged production proxy/API hop uses a private per-install CA and verified TLS 1.2/1.3;
-  production API processes require a certificate/key and never fall back to internal plaintext.
+- Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
+  Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than
+  fifteen minutes regardless of MFA policy.
+- Encrypted persistent storage and logically separate security-log forwarding are recommended
+  deployment hardening. Their operator attestations produce warnings rather than blocking startup.
+- The packaged production proxy/API hop uses a private per-install CA and verified TLS 1.2/1.3.
+  Bare-metal deployments may instead use HTTP only across a same-host loopback proxy hop.
 - CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work
   limits are finite and fail closed under overload.
 - Better Auth telemetry is disabled. CapacityLens ships no product analytics or outbound email.

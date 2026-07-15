@@ -96,8 +96,8 @@ in-memory demo adapter.
 ## Authentication and offline access
 
 - Password authentication is the stable default. Social providers and generic OIDC are experimental.
-- Production password mode requires TOTP MFA, breached-password screening, fixed/idle session
-  limits and host-only cookies; users can review/revoke active sessions.
+- Password mode defaults to breached-password screening and supports optional required TOTP MFA,
+  with fixed/idle session limits, host-only cookies and user-controlled session revocation.
 - Optional offline access stores a verified snapshot for up to seven days.
 - Offline mode is read-only: it never queues or synchronises edits.
 - The SQLite database remains the source of truth.

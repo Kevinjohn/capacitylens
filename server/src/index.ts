@@ -46,9 +46,9 @@ process.umask(0o077)
 //                                   headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
 //                                   are always on, independent of this flag.
 //   CAPACITYLENS_INTERNAL_TLS_CERT        PEM certificate for the internal reverse-proxy/API hop.
-//   CAPACITYLENS_INTERNAL_TLS_KEY         Matching PEM private key. Both are required in production;
-//                                   omitting either refuses startup. The default Compose topology
-//                                   creates a per-install CA and leaf certificate automatically.
+//   CAPACITYLENS_INTERNAL_TLS_KEY         Matching PEM private key. Omit both for HTTP on a trusted
+//                                   same-host loopback hop; a partial/unreadable identity refuses
+//                                   startup. Compose creates a per-install identity automatically.
 //   CAPACITYLENS_LOG                      '1' for structured per-request JSON logs (pino) and
 //                                   500-errors through the request logger. Default off =
 //                                   today's logging (startup line + console.error on 500s).

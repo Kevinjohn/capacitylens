@@ -60,7 +60,8 @@ operating cost for the maintainer.
 - An operation with an unknown network outcome must reconcile authoritative state before offering a
   retry.
 - Do not overwrite unsaved local work with a refresh.
-- Backups are online snapshots copied off-host and restore-tested.
+- Backups, when enabled, use online snapshots and are restore-tested; off-host copies are strongly
+  recommended when disaster recovery matters.
 - Offline access, if offered, is an explicit, expiring, read-only snapshot. Never queue offline
   writes unless a future product deliberately accepts the conflict model.
 

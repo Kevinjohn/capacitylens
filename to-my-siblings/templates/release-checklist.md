@@ -21,8 +21,8 @@
 
 - [ ] Tenant/role/privacy review for changed routes/fields.
 - [ ] Migration/import/fixtures/SQL columns complete.
-- [ ] Current off-host backup confirmed.
-- [ ] Restore drill recent enough for storage change.
+- [ ] If backups are enabled, a current snapshot and recent restore drill are confirmed.
+- [ ] If disaster recovery requires it, the current off-host copy is confirmed.
 - [ ] No secrets, real data or generated reports in commit.
 
 ## Documentation

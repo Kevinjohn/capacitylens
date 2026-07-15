@@ -344,9 +344,9 @@ no login screen exists, Settings has no Account section, and local mode makes **
 request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
-**Password MFA and account security.** A production password deployment requires TOTP MFA. After
-first-owner setup, or after an existing pre-MFA user signs in, the app shows **Secure your account**
-before any company data. The user enters their current password
+**Password MFA and account security.** When an operator sets `CAPACITYLENS_REQUIRE_MFA=1`, after
+first-owner setup or after an existing pre-MFA user signs in, the app shows **Secure your account**
+before any company data. MFA is optional by default. The user enters their current password
 (`data-testid="mfa-enroll-password"`), records the authenticator URI and one-time recovery codes,
 enters the six-digit code (`data-testid="mfa-enroll-code"`), confirms the codes were saved, and
 chooses **Enable MFA** (`data-testid="mfa-enroll-submit"`). A user who already enrolled sees an

@@ -204,7 +204,7 @@ Before public launch:
 - fail-closed production boot guard;
 - same-origin TLS proxy topology;
 - persistent DB/audit/snapshot volumes;
-- scheduled off-host backup;
+- optional scheduled snapshots, with an off-host copy when disaster recovery requires it;
 - successful restore drill;
 - deep health and structured logs;
 - rate/body limits and security headers;

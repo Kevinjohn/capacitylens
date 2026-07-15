@@ -29,7 +29,8 @@
 ## Authentication
 
 - Password auth is stable; [provider posture].
-- Production password mode requires MFA, breached-password screening and fixed-lifetime sessions.
+- Production password mode supports opt-in required MFA, defaults to breached-password screening
+  and always enforces fixed-lifetime sessions.
 - New external identities require verified email and invitation.
 - Never weaken server authorization because UI hides an action.
 - Unknown role/auth state fails closed.

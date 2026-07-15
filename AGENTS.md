@@ -34,8 +34,8 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 ## Authentication
 
 - Password auth is stable; social/OIDC is experimental.
-- Production password mode requires TOTP MFA, breached-password screening, fixed twelve-hour
-  sessions and fresh-session checks for administrative actions.
+- Production password mode supports optional required TOTP MFA and defaults to breached-password
+  screening; fixed twelve-hour sessions and fresh administrative actions remain mandatory.
 - External identities require verified email plus an unused pre-authorised invitation. The first
   SSO identity requires `CAPACITYLENS_SSO_BOOTSTRAP_EMAILS`.
 - Password mode may include providers; `sso` mode removes password sign-in.

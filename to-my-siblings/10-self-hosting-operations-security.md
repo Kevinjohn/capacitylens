@@ -14,9 +14,9 @@ TLS reverse proxy / packaged nginx
    └── /api/* ───────────────> private Fastify API
                                   ↓
                        persistent SQLite + audit
-                                  ↓ online snapshots
+                                  ↓ optional online snapshots
                        persistent snapshot volume
-                                  ↓ scheduled encrypted copy
+                                  ↓ optional scheduled encrypted copy
                        separate host/account/region
 ```
 
@@ -85,20 +85,19 @@ The process should refuse configurations that are dangerous rather than log a ho
 - non-loopback HTTP production auth URL;
 - half-configured provider;
 - SSO-only without generic OIDC;
-- malformed OIDC endpoints/bootstrap list.
-- password mode without mandatory MFA;
-- production password mode with breached-password checking disabled;
+- malformed OIDC endpoints/bootstrap list;
 - missing, invalid or zero production rate limit;
 - production audit explicitly disabled;
-- missing operator attestation for encrypted database/audit/backup storage;
-- missing operator attestation for logically separate security-log forwarding.
+- temporary bootstrap-owner switch or operator-pinned bootstrap password.
 
 Warn, rather than refuse, when context may make it legitimate:
 
 - HSTS flag off because TLS may terminate at proxy;
 - deliberately open signup;
-- temporary bootstrap owner switch;
-- operator-pinned bootstrap password.
+- password or SSO mode without required MFA assurance;
+- breached-password checking explicitly disabled for an isolated/offline installation;
+- audit stdout, encrypted-storage attestation or separate security-log forwarding absent;
+- internal TLS absent on a trusted same-host loopback proxy hop.
 
 Every refusal should state the exact corrective variable/action.
 
@@ -151,7 +150,7 @@ Useful status interpretation:
 
 SQLite in WAL mode must be backed up with SQLite's online backup operation, not `cp` of the live DB.
 
-Layers:
+Optional layers, chosen according to recovery needs:
 
 1. periodic online snapshots on the application host;
 2. retention pruning;
@@ -163,7 +162,8 @@ Database, audit and snapshot files use `0600` and their application-created dire
 These permissions do not replace full-volume encryption, off-host access controls or an external
 security-log destination.
 
-An on-host snapshot is a convenient restore point, not disaster recovery.
+An on-host snapshot is a convenient restore point, not disaster recovery. CapacityLens can also run
+without scheduled snapshots; document the accepted data-loss exposure when doing so.
 
 Keep database, snapshots, environment and operational logs outside directories replaced by
 deployments.
@@ -189,7 +189,8 @@ ability to perform the drill.
 
 ## Upgrade process
 
-1. Confirm off-host backup and recent restore test.
+1. If backups are enabled, confirm a recent snapshot and restore test; an off-host copy is
+   recommended for disaster recovery.
 2. Read changelog for migrations/breaking changes.
 3. Pull a named tag/image.
 4. Build/pull both web and API artifacts.
@@ -260,8 +261,8 @@ values.
 - Setup secrets are not in image/repository.
 - API cannot be reached around proxy.
 - Persistent volume survives rebuild.
-- Online snapshot appears and off-host copy is scheduled.
-- Restore drill succeeds.
+- If backups are enabled, an online snapshot appears and its restore drill succeeds.
+- If disaster recovery is required, an off-host copy is scheduled and monitored.
 - Security headers and body limits pass smoke tests.
 - Upgrade/rollback uses stable paths without replacing state.
 - Logs contain no invite/reset raw tokens or domain field values.

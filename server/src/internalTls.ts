@@ -18,8 +18,8 @@ type InternalTlsEnv = {
 /**
  * Load the API's internal HTTPS identity. Both paths are required together; a partial or unreadable
  * configuration refuses startup instead of silently falling back to plaintext. Omitting both keeps
- * local development HTTP-compatible. Production separately requires both paths through the posture
- * guard, and the default Compose deployment supplies a per-install certificate set.
+ * local development and same-host reverse-proxy deployments HTTP-compatible. Production warns when
+ * both are absent, while the default Compose deployment supplies a per-install certificate set.
  */
 export function loadInternalTls(
   env: InternalTlsEnv,

@@ -53,8 +53,9 @@ export interface ProductionPostureResult {
  *   concern — it only changes its severity.
  * - **Warning — HTTPS/HSTS off:** `CAPACITYLENS_HTTPS !== '1'` means HSTS is not enabled.
  *   Expected when TLS terminates at a reverse proxy; flagged so a direct-HTTPS deploy notices.
- * - **Refusal — internal HTTP plaintext:** both internal TLS identity paths are required so a
- *   reverse proxy cannot silently fall back to an unencrypted API hop in production.
+ * - **Warning — optional hardening absent:** MFA, breached-password screening, audit streaming,
+ *   encrypted-storage/log-forwarding attestations and internal TLS remain recommended, but a
+ *   small self-hosted installation can deliberately operate without external infrastructure.
  * - **Warning — open signup on:** `CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
  * - **Refusal — bootstrap password:** the headless bootstrap flags are development-only because
@@ -121,18 +122,18 @@ export function evaluateProductionPosture(env: {
   }
 
   if (mode === 'password' && env.CAPACITYLENS_REQUIRE_MFA !== '1') {
-    refusals.push(
-      'CAPACITYLENS_REQUIRE_MFA must be 1 for password authentication in production; ASVS Level 2 requires a second factor.',
+    warnings.push(
+      'CAPACITYLENS_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.',
     )
   }
   if (mode === 'sso' && env.CAPACITYLENS_SSO_MFA_ENFORCED !== '1') {
-    refusals.push(
-      'CAPACITYLENS_SSO_MFA_ENFORCED must be 1 for SSO-only authentication in production, confirming the configured identity provider requires MFA for every CapacityLens user.',
+    warnings.push(
+      'CAPACITYLENS_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.',
     )
   }
   if (mode === 'password' && env.CAPACITYLENS_PASSWORD_BREACH_CHECK === 'off') {
-    refusals.push(
-      'CAPACITYLENS_PASSWORD_BREACH_CHECK=off is not permitted for password authentication in production.',
+    warnings.push(
+      'CAPACITYLENS_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.',
     )
   }
   const rateLimit = Number(env.CAPACITYLENS_RATE_LIMIT)
@@ -143,23 +144,25 @@ export function evaluateProductionPosture(env: {
     refusals.push('CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production.')
   }
   if (env.CAPACITYLENS_AUDIT_STDOUT !== '1') {
-    refusals.push(
-      'CAPACITYLENS_AUDIT_STDOUT must be 1 under NODE_ENV=production so mutation audit records are available to the external collector.',
+    warnings.push(
+      'CAPACITYLENS_AUDIT_STDOUT is not 1, so mutation audit records remain only in the local audit file and are unavailable to a process-log collector.',
     )
   }
   if (env.CAPACITYLENS_STORAGE_ENCRYPTED !== '1') {
-    refusals.push(
-      'CAPACITYLENS_STORAGE_ENCRYPTED must be 1 under NODE_ENV=production, confirming the database, audit, and backup volumes use host/platform encryption at rest.',
+    warnings.push(
+      'CAPACITYLENS_STORAGE_ENCRYPTED is not 1, so encrypted-at-rest storage for the database, audit log and backups has not been attested. Startup continues for simple self-hosting; protect the host and storage appropriately.',
     )
   }
   if (env.CAPACITYLENS_SECURITY_LOG_FORWARDING !== '1') {
-    refusals.push(
-      'CAPACITYLENS_SECURITY_LOG_FORWARDING must be 1 under NODE_ENV=production, confirming security/audit logs are shipped to a logically separate monitoring system.',
+    warnings.push(
+      'CAPACITYLENS_SECURITY_LOG_FORWARDING is not 1, so security/audit logs have not been attested as forwarded to a separate monitoring system. Local logs remain supported.',
     )
   }
-  if (!env.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() || !env.CAPACITYLENS_INTERNAL_TLS_KEY?.trim()) {
-    refusals.push(
-      'CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are required under NODE_ENV=production so internal HTTP service traffic is encrypted.',
+  const internalTlsCert = env.CAPACITYLENS_INTERNAL_TLS_CERT?.trim()
+  const internalTlsKey = env.CAPACITYLENS_INTERNAL_TLS_KEY?.trim()
+  if (!internalTlsCert && !internalTlsKey) {
+    warnings.push(
+      'CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are not configured, so the API uses HTTP. This is supported only behind a trusted same-host loopback reverse proxy; configure both paths to encrypt the internal hop.',
     )
   }
 

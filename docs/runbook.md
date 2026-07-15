@@ -44,7 +44,8 @@ With `CAPACITYLENS_AUDIT_STDOUT=1`, each audit record is also emitted as a one-l
 these plus security events to a logically separate destination, alert on delivery gaps and enforce
 the documented retention/access policy. The `CAPACITYLENS_SECURITY_LOG_FORWARDING=1` production
 flag is an operator attestation that this external control exists; the application does not create
-the collector.
+the collector. External forwarding is optional for community self-hosting: without it, local audit
+and process logs remain available and startup emits a posture warning.
 
 ## Backups
 
@@ -56,9 +57,9 @@ audit and snapshot files plus `0700` on the snapshot directory. Treat broader ow
 configuration drift. The production storage-encryption acknowledgement is valid only when the
 underlying database, audit and backup storage is actually encrypted.
 
-The on-host snapshot directory is not a disaster-recovery backup. Copy it to a separate account,
-region or provider using restic, rclone, rsync or equivalent. Encrypt the destination and monitor
-both job success and age of the newest usable snapshot.
+The on-host snapshot directory protects against some application/operator mistakes but not loss of
+the host. For disaster recovery, optionally copy it to a separate account, region or provider using
+restic, rclone, rsync or equivalent; encrypt the destination and monitor snapshot freshness.
 
 ## Restore drill
 

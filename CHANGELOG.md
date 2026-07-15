@@ -10,6 +10,35 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.20.0-alpha.3] — 2026-07-15
+
+### Fixed
+
+- Restored production startup for straightforward Forge, bare-metal and community deployments by
+  treating deployment-dependent hardening as explicit warnings instead of fatal configuration
+  errors. Required TOTP MFA, audit streaming/external log forwarding, encrypted-storage
+  attestation and a private internal API certificate can now be adopted incrementally.
+- Allowed a trusted same-host reverse proxy to reach the loopback-only API over HTTP when both
+  internal TLS paths are omitted. A partial, empty or unreadable certificate/key configuration
+  still fails closed rather than silently downgrading a requested encrypted connection.
+
+### Changed
+
+- Made required TOTP MFA opt-in and off by default, including in Docker Compose. Breached-password
+  screening remains enabled by default but isolated/offline installations may disable it with a
+  visible production warning.
+- Made scheduled snapshots, off-host backup copies and external log collection optional operator
+  choices. The application continues to require local audit integrity, and attestation variables
+  report real infrastructure controls rather than enabling them.
+
+### Security
+
+- Retained fail-closed production checks for authentication, positive rate limiting, local audit
+  logging, first-owner setup and unsafe bootstrap credentials, while documenting the configurable
+  profile against all 345 OWASP ASVS 5.0 requirements. Password-only defaults are explicitly below
+  strict ASVS Level 2; enabling required MFA and breached-password screening provides the intended
+  stronger authentication profile.
+
 ## [0.20.0-alpha.2] — 2026-07-15
 
 ### Changed
@@ -772,7 +801,9 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.20.0-alpha.1...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.20.0-alpha.3...HEAD
+[0.20.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.20.0-alpha.3
+[0.20.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/commit/a0078d6d1e45f98492fca3cd878b6d5e77ad4353
 [0.20.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.20.0-alpha.1
 [0.19.4]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.4
 [0.19.3]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.3

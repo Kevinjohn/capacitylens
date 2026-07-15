@@ -39,7 +39,7 @@
     },
     {
       "path": "server/src/productionGuard.ts",
-      "purpose": "Production refusal when the internal TLS identity is absent"
+      "purpose": "Production warning when internal TLS is absent and posture handling for configured identities"
     },
     {
       "path": "shared/src/lib/id.ts",

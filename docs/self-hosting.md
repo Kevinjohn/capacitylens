@@ -1,14 +1,17 @@
 # Self-hosting
 
-The supported deployment shape is a same-origin web app and API behind TLS, with SQLite and
-backups on persistent storage. Docker Compose is the shortest path; systemd/nginx works too.
+The supported deployment shape is a same-origin web app and API behind TLS, with SQLite and its
+audit log on persistent storage. Scheduled snapshots are optional. Docker Compose is the shortest
+path; systemd/nginx works too.
 
 ## Requirements
 
 - A host that can run Docker Compose, or Node 24 + nginx.
 - A DNS name and TLS certificate for an internet-facing instance.
-- Persistent storage for the database, audit log and snapshots.
-- A separate off-host backup destination.
+- Persistent storage for the database, audit log and any enabled snapshots.
+
+Encrypted storage, an off-host backup destination, external log collection and internal proxy/API
+TLS are recommended hardening, not prerequisites for a small community deployment.
 
 ## Docker Compose
 
@@ -28,19 +31,12 @@ BETTER_AUTH_SECRET=<first generated value>
 BETTER_AUTH_URL=https://capacity.example.com
 CAPACITYLENS_SETUP_TOKEN=<second generated value>
 CAPACITYLENS_HTTPS=1
-CAPACITYLENS_REQUIRE_MFA=1
-CAPACITYLENS_PASSWORD_BREACH_CHECK=on
 CAPACITYLENS_RATE_LIMIT=300
-CAPACITYLENS_AUDIT_STDOUT=1
-CAPACITYLENS_STORAGE_ENCRYPTED=1
-CAPACITYLENS_SECURITY_LOG_FORWARDING=1
 ```
 
-The last two values are operator attestations, not controls implemented by the application. Set
-`CAPACITYLENS_STORAGE_ENCRYPTED=1` only after the database, audit and backup volumes use host or
-platform encryption at rest. Set `CAPACITYLENS_SECURITY_LOG_FORWARDING=1` only after process
-security/audit JSON lines are shipped to a logically separate monitored destination. A production
-process refuses to start without both.
+Password breach screening remains on by default. TOTP MFA is optional; set
+`CAPACITYLENS_REQUIRE_MFA=1` when every password user should be required to enroll before accessing
+company data.
 
 Compose also creates a private, per-install P-256 CA and API leaf certificate on the
 `capacitylens-internal-tls` volume before either long-running service starts. Nginx verifies the
@@ -69,8 +65,8 @@ when the public response is actually HTTPS. Never expose the API container direc
 
 The first password owner must enter `CAPACITYLENS_SETUP_TOKEN`. Remove the value from the running
 environment after setup if your deployment process permits; it cannot create a second first user.
-Complete TOTP enrollment immediately, copy recovery codes to an access-controlled password manager
-and verify that a second sign-in is challenged before opening the service to users.
+When required MFA is enabled, complete enrollment immediately, store recovery codes in a password
+manager and verify that a second sign-in is challenged before opening the service to users.
 
 ## Production checklist
 
@@ -80,15 +76,27 @@ and verify that a second sign-in is challenged before opening the service to use
 - `BETTER_AUTH_SECRET` and setup/provider secrets come from a password manager, not Git.
 - `CAPACITYLENS_ALLOW_OPEN_SIGNUP`, `CAPACITYLENS_ALLOW_RESET` and
   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` are unset.
-- Password mode has `CAPACITYLENS_REQUIRE_MFA=1` and breached-password checking enabled.
-- Rate limiting is a positive integer; deep health, structured logging, audit and snapshots are enabled.
-- Database/audit/backup storage is encrypted and the corresponding attestation is `1`.
-- `CAPACITYLENS_AUDIT_STDOUT=1` is collected off-host/separately, and the security-log-forwarding
-  attestation is `1`.
-- Database and backup volumes are persistent; backups are copied off-host and restore-tested.
+- Rate limiting is a positive integer; local audit logging remains enabled.
+- Database and any enabled backup paths are persistent and outside release directories.
 - Proxy overwrites forwarding headers and the API cannot be reached around it.
-- The internal certificate initializer succeeds, nginx verifies the API certificate, and neither
-  long-running container can read the CA private key.
+
+Recommended hardening, deliberately optional for community self-hosting:
+
+- Set `CAPACITYLENS_REQUIRE_MFA=1` to require TOTP for password users.
+- Leave breached-password checking enabled; isolated/offline deployments may set
+  `CAPACITYLENS_PASSWORD_BREACH_CHECK=off` and accept the startup warning.
+- Put the database, audit log and backups on encrypted storage, then—and only then—set
+  `CAPACITYLENS_STORAGE_ENCRYPTED=1` to record that operator attestation.
+- Copy backups off-host and restore-test them. The application also works with local snapshots only,
+  or with `CAPACITYLENS_BACKUP_DIR=` to disable scheduled snapshots.
+- Set `CAPACITYLENS_AUDIT_STDOUT=1`, forward `capacitylens.audit` and `capacitylens.security` events
+  to a separate collector, then set `CAPACITYLENS_SECURITY_LOG_FORWARDING=1`.
+- For Compose, verify the automatic internal certificate initializer and nginx service-name check.
+  For bare metal, optionally configure the same internal TLS pattern described below.
+
+Missing optional hardening produces explicit production posture warnings, not startup refusal. The
+attestation variables report external controls; they never implement encryption, backups or log
+delivery themselves.
 
 The complete variable register and defaults are in `.env.example`.
 
@@ -110,9 +118,10 @@ CAPACITYLENS_SSO_BOOTSTRAP_EMAILS=owner@example.com
 
 Subsequent new identities must match an unused, non-expired pre-authorised invitation. Test the
 exact provider in staging. Switch to `CAPACITYLENS_AUTH=sso` only when password recovery is no
-longer required, generic OIDC is configured and the IdP requires MFA for every eligible user. SSO
-mode refuses production startup until that external policy is acknowledged with
-`CAPACITYLENS_SSO_MFA_ENFORCED=1`.
+longer required and generic OIDC is configured. Requiring MFA at the IdP remains strongly
+recommended; after testing that policy and its recovery path, set
+`CAPACITYLENS_SSO_MFA_ENFORCED=1`. Without it, startup continues with a warning because CapacityLens
+cannot infer equivalent assurance from every provider's tokens.
 
 ## Bare-metal outline
 
@@ -129,12 +138,16 @@ Run `pnpm --filter capacitylens-server start` as an unprivileged supervised syst
 automatic restart on non-zero exit (the daemon deliberately drains and exits after an uncaught
 process fault rather than continuing with potentially corrupt state). Configure
 `CAPACITYLENS_HOST=127.0.0.1`, a database path outside the checkout and the same production auth
-variables above. Create an internal CA-signed service certificate, set
-`CAPACITYLENS_INTERNAL_TLS_CERT` and `CAPACITYLENS_INTERNAL_TLS_KEY`, then configure nginx with
-`proxy_pass https://127.0.0.1:8787`, `proxy_ssl_verify on`, the trusted CA, and a matching
-`proxy_ssl_name`. Route `/api/` without stripping the prefix and use the security headers in the
-repository's `nginx.conf`. Production refuses to start if either identity path is missing or
-unreadable; do not add an HTTP fallback upstream.
+variables above. A simple same-host Forge/nginx deployment may omit both internal TLS variables and
+use `proxy_pass http://127.0.0.1:8787`; keep the API bound to loopback and terminate public HTTPS at
+nginx. Route `/api/` without stripping the prefix and use the security headers in the repository's
+`nginx.conf`.
+
+For defense in depth, create an internal CA-signed service certificate, set both
+`CAPACITYLENS_INTERNAL_TLS_CERT` and `CAPACITYLENS_INTERNAL_TLS_KEY`, then switch nginx to
+`proxy_pass https://127.0.0.1:8787` with `proxy_ssl_verify on`, the trusted CA and a matching
+`proxy_ssl_name`. Once either identity path is configured, a partial, empty or unreadable pair still
+refuses startup; there is never a silent fallback from a requested HTTPS identity to HTTP.
 
 Do not run the daemon from an interactive shell or store the database inside a directory replaced
 by deploys.
@@ -152,7 +165,8 @@ rollback cannot replace persistent state.
 
 ## Upgrades
 
-1. Confirm an off-host backup and a recent restore test.
+1. If backups are enabled, confirm a recent snapshot and restore test; off-host copies are
+   recommended for disaster recovery.
 2. Read `CHANGELOG.md` for migrations or breaking changes.
 3. Pull the target tag, rebuild all three targets and use a coordinated recreation so certificate
    renewal, API restart and nginx restart complete together.
