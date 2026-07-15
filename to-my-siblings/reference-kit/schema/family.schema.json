@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smallsass.dev/schema/family-v1.json",
+  "title": "SmallSass family compatibility manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "family",
+    "contractVersion",
+    "kitVersion",
+    "product",
+    "architecture",
+    "modes",
+    "packages",
+    "commands",
+    "documentation"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "family": {
+      "const": "SmallSass"
+    },
+    "contractVersion": {
+      "const": "1.0.0"
+    },
+    "kitVersion": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+\\.[0-9]+$"
+    },
+    "product": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "slug", "envPrefix", "storagePrefix"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 2
+        },
+        "slug": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "envPrefix": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]*$"
+        },
+        "storagePrefix": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]*/$"
+        }
+      }
+    },
+    "architecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenantKey", "persistence", "authentication", "offlineWrites"],
+      "properties": {
+        "tenantKey": {
+          "const": "accountId"
+        },
+        "persistence": {
+          "const": "sqlite"
+        },
+        "authentication": {
+          "const": "better-auth"
+        },
+        "offlineWrites": {
+          "const": "forbidden"
+        }
+      }
+    },
+    "modes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hosted", "selfHosted", "demo"],
+      "properties": {
+        "hosted": {
+          "const": true
+        },
+        "selfHosted": {
+          "const": true
+        },
+        "demo": {
+          "enum": ["memory-only", "unavailable"]
+        }
+      }
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "tokens", "config"],
+      "properties": {
+        "contract": {
+          "type": "string"
+        },
+        "tokens": {
+          "type": "string"
+        },
+        "config": {
+          "type": "string"
+        }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gate", "serverGate", "e2e"],
+      "properties": {
+        "gate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "serverGate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "e2e": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "documentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decisions", "development", "operators", "familyHandbook"],
+      "properties": {
+        "decisions": {
+          "type": "string"
+        },
+        "development": {
+          "type": "string"
+        },
+        "operators": {
+          "type": "array",
+          "minItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        },
+        "familyHandbook": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

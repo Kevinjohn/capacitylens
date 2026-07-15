@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.20.0-alpha.2] — 2026-07-15
+
+### Changed
+
+- Published a documentation-only alpha patch. No application behaviour changed.
+
 ## [0.20.0-alpha.1] — 2026-07-15
 
 ### Security

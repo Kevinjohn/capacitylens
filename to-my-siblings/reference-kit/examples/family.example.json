@@ -1,0 +1,45 @@
+{
+  "$schema": "../schema/family.schema.json",
+  "family": "SmallSass",
+  "contractVersion": "1.0.0",
+  "kitVersion": "0.1.0",
+  "product": {
+    "name": "CapacityLens",
+    "slug": "capacitylens",
+    "envPrefix": "CAPACITYLENS",
+    "storagePrefix": "capacitylens/"
+  },
+  "architecture": {
+    "tenantKey": "accountId",
+    "persistence": "sqlite",
+    "authentication": "better-auth",
+    "offlineWrites": "forbidden"
+  },
+  "modes": {
+    "hosted": true,
+    "selfHosted": true,
+    "demo": "memory-only"
+  },
+  "packages": {
+    "contract": "to-my-siblings/reference-kit/packages/contract",
+    "tokens": "to-my-siblings/reference-kit/packages/tokens",
+    "config": "to-my-siblings/reference-kit/packages/config"
+  },
+  "commands": {
+    "gate": "pnpm run gate",
+    "serverGate": "pnpm run gate:server",
+    "e2e": "pnpm run e2e"
+  },
+  "documentation": {
+    "decisions": "DECISIONS.md",
+    "development": "docs/development.md",
+    "operators": [
+      "docs/self-hosting.md",
+      "docs/runbook.md",
+      "docs/authentication.md",
+      "docs/offline.md",
+      "docs/privacy.md"
+    ],
+    "familyHandbook": "to-my-siblings/README.md"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@smallsass/contract",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Runtime-free data and authorization contracts shared by SmallSass products.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    "./access": "./src/access.ts",
+    "./entities": "./src/entities.ts",
+    "./manifest": "./src/manifest.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2"
+  }
+}
