@@ -10,6 +10,13 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.20.1-alpha.0] — 2026-07-15
+
+### Changed
+
+- Consolidated the Alpha 2 documentation and maintainer material with Alpha 3's optional deployment
+  hardening on the `0.20.1` prerelease line. No application behaviour changed from Alpha 3.
+
 ## [0.20.0-alpha.3] — 2026-07-15
 
 ### Fixed
