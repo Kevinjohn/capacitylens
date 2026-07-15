@@ -103,7 +103,7 @@ test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
     page,
   }) => {
     // The auth-e2e server boots with CAPACITYLENS_CREATE_ADMIN_ADMIN=1 and a pinned
-    // CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=admin on a wiped DB, so admin@admin.admin / 'admin' exists
+    // The e2e server pins a policy-compliant bootstrap password on a wiped DB.
     // as its first user (production instead mints a generated password). This proves the escape hatch
     // end-to-end — including that the 5-char password (below the sign-UP minimum) signs IN fine
     // after boot, the assumption the whole bootstrap design rests on. A fresh bootstrap admin has

@@ -111,6 +111,14 @@ describe('assertScopedRefs', () => {
     )
   })
 
+  it('rejects a new reference to an archived parent at the generic scoped write boundary', () => {
+    const archivedClient = { ...client('c1', A1), archivedAt: TS }
+    const data = { ...base(), clients: [archivedClient] }
+    expect(() => assertScopedRefs(data, A1, 'projects', { clientId: 'c1' })).toThrow(
+      'Project must reference a client in this company.',
+    )
+  })
+
   it('only checks FK fields actually present (partial patch)', () => {
     // A patch with no clientId must not be rejected for omitting it.
     expect(() => assertScopedRefs(base(), A1, 'projects', { name: 'Renamed' })).not.toThrow()
@@ -308,6 +316,58 @@ describe('assertAllocationRefs', () => {
     )
   })
 
+  it('rejects new allocations to archived resources and archived projects', () => {
+    const archivedResource: AppData = {
+      ...world(),
+      resources: [{ ...person('r1', A1), archivedAt: TS }],
+    }
+    expect(() => assertAllocationRefs(archivedResource, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an active resource in this company.',
+    )
+
+    const archivedProject: AppData = {
+      ...world(),
+      projects: [{ ...project('p1', A1, 'c1'), archivedAt: TS }],
+    }
+    expect(() => assertAllocationRefs(archivedProject, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an activity under an active project.',
+    )
+  })
+
+  it('rejects a project-bound activity whose project is missing or belongs to another account', () => {
+    const missingProject = { ...world(), projects: [] }
+    expect(() => assertAllocationRefs(missingProject, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an activity under an active project in this company.',
+    )
+
+    const crossAccountProject = {
+      ...world(),
+      projects: [project('p1', A2, 'c1')],
+    }
+    expect(() => assertAllocationRefs(crossAccountProject, A1, 'r1', 't1', 8)).toThrow(
+      'Allocation must reference an activity under an active project in this company.',
+    )
+  })
+
+  it('allows unchanged archived references but rejects switching an existing allocation to them', () => {
+    const data: AppData = {
+      ...world(),
+      projects: [
+        project('p1', A1, 'c1'),
+        { ...project('p2', A1, 'c1'), archivedAt: TS },
+      ],
+      activities: [activity('t1', A1, 'p1'), activity('t2', A1, 'p2')],
+      resources: [person('r1', A1), { ...person('r2', A1), archivedAt: TS }],
+    }
+
+    expect(() => assertAllocationRefs(data, A1, 'r2', 't2', 8, { resourceId: 'r2', activityId: 't2' }))
+      .not.toThrow()
+    expect(() => assertAllocationRefs(data, A1, 'r2', 't1', 8, { resourceId: 'r1', activityId: 't1' }))
+      .toThrow('Allocation must reference an active resource in this company.')
+    expect(() => assertAllocationRefs(data, A1, 'r1', 't2', 8, { resourceId: 'r1', activityId: 't1' }))
+      .toThrow('Allocation must reference an activity under an active project.')
+  })
+
   it('throws when a placeholder is assigned outside its bound project', () => {
     const data: AppData = {
       ...base(),
@@ -357,6 +417,16 @@ describe('assertResourceExists', () => {
     const data = { ...base(), resources: [person('r1', A2)] }
     expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
       'Time off must reference an existing resource in this company.',
+    )
+  })
+  it('rejects a new reference to an archived resource but permits an unchanged archived reference', () => {
+    const data = { ...base(), resources: [{ ...person('r1', A1), archivedAt: TS }] }
+    expect(() => assertResourceExists(data, A1, 'r1')).toThrow(
+      'Time off must reference an active resource in this company.',
+    )
+    expect(() => assertResourceExists(data, A1, 'r1', { resourceId: 'r1' })).not.toThrow()
+    expect(() => assertResourceExists(data, A1, 'r1', { resourceId: 'other' })).toThrow(
+      'Time off must reference an active resource in this company.',
     )
   })
   it('throws for an external / 3rd-party resource (no capacity → no time off)', () => {
@@ -544,6 +614,13 @@ describe('remapAndValidateImport', () => {
     expect(data.resources[0]).toMatchObject({ role: 'Sensitive role', deletedAt: deleted.deletedAt })
     expect(data.resources[0].name).toMatch(/^Removed person #[a-zA-Z0-9]{4}$/)
     expect(data.resources[0].name).not.toContain('Named Person')
+  })
+
+  it('does not obfuscate personal data on an active imported resource', () => {
+    const active = { ...person('src-r', 'src-acct'), name: 'Named Person' }
+    const { data } = remapAndValidateImport(base(), A1, { ...emptyAppData(), resources: [active] }, TS)
+    expect(data.resources).toHaveLength(1)
+    expect(data.resources[0].name).toBe('Named Person')
   })
 
   it('drops records with a dangling REQUIRED ref and unbinds a dangling OPTIONAL ref', () => {

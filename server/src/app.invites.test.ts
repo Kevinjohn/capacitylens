@@ -282,7 +282,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
     const inviter = await auth!.createCredentialUser(
       'inviter-closed@capacitylens.dev',
       'Inviter',
-      'password-123',
+      'password-123456',
     )
     const app = buildApp(db, { authMode: mode, auth })
     seedOne(db)
@@ -290,7 +290,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
     const signInInviter = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-in/email',
-      payload: { email: 'inviter-closed@capacitylens.dev', password: 'password-123' },
+      payload: { email: 'inviter-closed@capacitylens.dev', password: 'password-123456' },
     })
     const created = await createInviteReq(
       app,
@@ -303,7 +303,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
     const publicSignup = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: '  NEW-PERSON@capacitylens.dev  ', password: 'password-123', name: '  New 💩  Person  ' },
+      payload: { email: '  NEW-PERSON@capacitylens.dev  ', password: 'password-123456', name: '  New 💩  Person  ' },
     })
     expect(publicSignup.statusCode).toBe(400)
 
@@ -311,7 +311,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
     const onboard = await call(app, {
       method: 'POST',
       url: `/api/invites/${token}/signup`,
-      payload: { email: 'new-person@capacitylens.dev', password: 'password-123', name: 'New Person' },
+      payload: { email: 'new-person@capacitylens.dev', password: 'password-123456', name: 'New Person' },
     })
     expect(onboard.statusCode).toBe(201)
     expect(onboard.json()).toMatchObject({ ok: true, accountId: 'a1', role: 'editor' })
@@ -320,7 +320,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
     const signedIn = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-in/email',
-      payload: { email: 'new-person@capacitylens.dev', password: 'password-123' },
+      payload: { email: 'new-person@capacitylens.dev', password: 'password-123456' },
     })
     expect(signedIn.statusCode).toBe(200)
     const me = await call(app, {

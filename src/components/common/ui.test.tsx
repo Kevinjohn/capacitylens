@@ -59,7 +59,12 @@ describe('Button', () => {
   it('renders primary variant by default', () => {
     render(<Button>Primary</Button>)
     // Primary has a specific class; just verify it renders without crashing and text is there
-    expect(screen.getByRole('button', { name: 'Primary' })).toBeInTheDocument()
+    const button = screen.getByRole('button', { name: 'Primary' })
+    expect(button).toBeInTheDocument()
+    // Opacity must switch immediately when disabled clears. Transitioning every property briefly
+    // creates an enabled, semi-transparent button whose text fails WCAG contrast after a request.
+    expect(button).toHaveClass('transition-colors')
+    expect(button).not.toHaveClass('transition-all')
   })
 
   it('renders ghost variant', () => {

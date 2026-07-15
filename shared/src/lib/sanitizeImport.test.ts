@@ -101,6 +101,10 @@ describe('sanitizeImportedRecord', () => {
     expect(sanitizeImportedRecord('clients', { color: '  #aAbBcC  ' }).color).toBe('#2d75da')
   })
 
+  it('canonicalizes a padded preset colour and preserves it for an ordinary client', () => {
+    expect(sanitizeImportedRecord('clients', { color: '  #5C34D4  ' }).color).toBe('#5c34d4')
+  })
+
   it('falls back a malformed / overlong colour to the safe default', () => {
     expect(sanitizeImportedRecord('clients', { color: '#aabbccdd' }).color).toBe('#2d75da') // 8 digits
     expect(sanitizeImportedRecord('projects', { color: '#abc' }).color).toBe('#2d75da') // 3 digits
@@ -190,17 +194,21 @@ describe('sanitizeImportedRecord', () => {
   it.each(['clients', 'projects'] as const)('%s repairs a private row with no usable code name', (key) => {
     expect(sanitizeImportedRecord(key, { name: 'Real name', isPrivate: true, codeName: '""' }).codeName)
       .toBe('Confidential')
+    expect(sanitizeImportedRecord(key, { name: 'Real name', isPrivate: true, codeName: 42 }).codeName)
+      .toBe('Confidential')
   })
 
   it('never allows the built-in Internal client to become private', () => {
     const out = sanitizeImportedRecord('clients', {
       name: 'Internal',
       builtin: true,
+      color: '#5c34d4',
       isPrivate: true,
       codeName: 'Hidden internal',
     })
     expect(out).not.toHaveProperty('isPrivate')
     expect(out).not.toHaveProperty('codeName')
+    expect(out.color).toBe('#2d75da')
   })
 
   it('does NOT give a phase an activity kind (its case must not fall through to activities)', () => {
@@ -258,6 +266,23 @@ describe('sanitizeImportedRecord', () => {
       })
       expect(deletedBeforeArchive.archivedAt).toBe('2026-02-01T00:00:00.000Z')
       expect(deletedBeforeArchive.deletedAt).toBeUndefined()
+
+      const emptyTimestamps = sanitizeImportedRecord(key, { archivedAt: '   ', deletedAt: '' })
+      expect(emptyTimestamps.archivedAt).toBeUndefined()
+      expect(emptyTimestamps.deletedAt).toBeUndefined()
+
+      const invalidDeletion = sanitizeImportedRecord(key, {
+        archivedAt: '2026-02-01T00:00:00Z',
+        deletedAt: 'not-a-timestamp',
+      })
+      expect(invalidDeletion.archivedAt).toBe('2026-02-01T00:00:00.000Z')
+      expect(invalidDeletion.deletedAt).toBeUndefined()
+
+      const sameTimestamp = sanitizeImportedRecord(key, {
+        archivedAt: '2026-02-01T00:00:00Z',
+        deletedAt: '2026-02-01T00:00:00Z',
+      })
+      expect(sameTimestamp.deletedAt).toBe('2026-02-01T00:00:00.000Z')
     })
   })
 })

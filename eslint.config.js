@@ -13,6 +13,8 @@ export default defineConfig([
     'test-results',
     '**/node_modules',
     '.claude/worktrees/**',
+    // Internal copy-ready sibling snapshots are documentation, not CapacityLens source inputs.
+    'to-my-siblings/reference-kit/**',
     // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.
     'src/paraglide',
     // Stryker mutation-testing sandbox + report (`npm run mutation`) — copies of the whole repo;

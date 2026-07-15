@@ -26,7 +26,7 @@ function seedAccount(db: Db, id: string): void {
 
 // The password every fixture signs up / signs in with — MUST match testHelpers.signUp's payload, so
 // this suite's "old password still works / no longer works" assertions test the right credential.
-const PASSWORD = 'password-123'
+const PASSWORD = 'password-123456'
 
 // 'sso' mode without a real IdP: explicit endpoint URLs (no discovery fetch at build time) are
 // enough for authFromEnv to construct the instance — the reset route must 400 before touching it.

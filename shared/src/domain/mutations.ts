@@ -173,6 +173,13 @@ export function assertAllocationRefs(
   const project = activity.projectId
     ? data.projects.find((candidate) => candidate.id === activity.projectId && belongsToAccount(candidate, accountId))
     : undefined
+  // A project-bound activity must resolve to a project in this account. Normally assertScopedRefs
+  // and the database FK make this impossible, but this validator is also the last line of defence
+  // for legacy/corrupt state. Treat a missing or cross-account project exactly like an inactive
+  // one instead of silently accepting the allocation because `project` resolved to undefined.
+  if (activity.projectId !== undefined && project === undefined) {
+    throw new Error('Allocation must reference an activity under an active project in this company.')
+  }
   if (
     existing?.activityId !== activityId &&
     project &&

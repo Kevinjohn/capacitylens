@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parseBackupConfig, startBackups } from './backup'
@@ -60,6 +60,8 @@ describe('startBackups', () => {
     expect(restored.accounts.length).toBeGreaterThan(0)
     expect(restored.accounts.map((a) => a.name)).toContain('Studio North')
     expect(log).toHaveBeenCalledWith(expect.stringContaining('backup written'))
+    expect(statSync(dir).mode & 0o777).toBe(0o700)
+    expect(statSync(file).mode & 0o777).toBe(0o600)
   })
 
   it('prunes to the newest `keep` snapshots, oldest first, leaving other files alone', async () => {

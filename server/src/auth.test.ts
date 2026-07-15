@@ -17,18 +17,27 @@ describe('cookie/session hardening (P1.16)', () => {
   it('pins sameSite:lax + httpOnly on the session cookie', () => {
     const { auth } = authFromEnv(openDb(':memory:'), PASSWORD_ENV)
     expect(auth!.options.advanced?.defaultCookieAttributes).toEqual({ sameSite: 'lax', httpOnly: true })
+    expect(auth!.options.advanced?.cookiePrefix).toBe('capacitylens')
   })
 
   it('derives an insecure development cookie from an HTTP public URL', () => {
     expect(authFromEnv(openDb(':memory:'), PASSWORD_ENV).auth!.options.advanced?.useSecureCookies).toBe(false)
   })
 
-  it('sets Secure from the HTTPS browser-facing Better Auth URL even behind an HTTP proxy hop', () => {
+  it('sets a valid __Host prefix and Secure from the HTTPS public URL even behind an HTTP proxy hop', () => {
     const { auth } = authFromEnv(openDb(':memory:'), {
       ...PASSWORD_ENV,
       BETTER_AUTH_URL: 'https://capacity.example',
     })
-    expect(auth!.options.advanced?.useSecureCookies).toBe(true)
+    // Better Auth's built-in switch is deliberately false because it prepends `__Secure-`.
+    // CapacityLens supplies Secure directly so the stricter `__Host-` prefix remains first.
+    expect(auth!.options.advanced?.useSecureCookies).toBe(false)
+    expect(auth!.options.advanced?.cookiePrefix).toBe('__Host-capacitylens')
+    expect(auth!.options.advanced?.defaultCookieAttributes).toEqual({
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: true,
+    })
   })
 
   it('refuses a plaintext non-loopback public URL in production', () => {
@@ -51,10 +60,11 @@ describe('cookie/session hardening (P1.16)', () => {
     ).not.toThrow()
   })
 
-  it('pins the session lifetime to 7-day expiry / 1-day rolling refresh (seconds)', () => {
+  it('pins a 12-hour absolute lifetime with no sliding refresh and a 15-minute fresh window', () => {
     const { auth } = authFromEnv(openDb(':memory:'), PASSWORD_ENV)
-    expect(auth!.options.session?.expiresIn).toBe(604800) // 60*60*24*7
-    expect(auth!.options.session?.updateAge).toBe(86400) // 60*60*24
+    expect(auth!.options.session?.expiresIn).toBe(43_200)
+    expect(auth!.options.session?.disableSessionRefresh).toBe(true)
+    expect(auth!.options.session?.freshAge).toBe(900)
   })
 
   it('OFF mode constructs no betterAuth instance — nothing to harden (auth === null)', () => {

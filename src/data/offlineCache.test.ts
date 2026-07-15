@@ -21,10 +21,13 @@ const STORE_NAME = 'records'
 
 async function putRaw(record: unknown): Promise<void> {
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1)
+    const request = indexedDB.open(DB_NAME, 2)
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) {
         request.result.createObjectStore(STORE_NAME, { keyPath: 'key' })
+      }
+      if (!request.result.objectStoreNames.contains('keys')) {
+        request.result.createObjectStore('keys', { keyPath: 'id' })
       }
     }
     request.onsuccess = () => resolve(request.result)
@@ -36,6 +39,23 @@ async function putRaw(record: unknown): Promise<void> {
       tx.objectStore(STORE_NAME).put(record)
       tx.oncomplete = () => resolve()
       tx.onerror = () => reject(tx.error)
+    })
+  } finally {
+    db.close()
+  }
+}
+
+async function getRaw(key: string): Promise<unknown> {
+  const db = await new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 2)
+    request.onsuccess = () => resolve(request.result)
+    request.onerror = () => reject(request.error)
+  })
+  try {
+    return await new Promise((resolve, reject) => {
+      const request = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key)
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error)
     })
   } finally {
     db.close()
@@ -115,10 +135,36 @@ describe('offline tenant cache', () => {
     await cacheAuthSnapshot(authSnapshot('user-a'))
     await cacheAccountSlice('a-studio', accountSlice('a-studio'))
 
-    expect((await readCachedAccountSlice('a-studio'))?.value.accounts[0]?.name).toBe('Studio North')
+    const restored = await readCachedAccountSlice('a-studio')
+    expect(restored?.value.accounts[0]?.name).toBe('Studio North')
 
     clock.mockReturnValue(savedAt + 7 * DAY_MS + 1)
     await expect(readCachedAccountSlice('a-studio')).resolves.toBeNull()
+  })
+
+  it('stores only authenticated ciphertext and deletes an entry whose tag no longer verifies', async () => {
+    await cacheAuthSnapshot(authSnapshot('user-a'))
+    await cacheAccountSummaries([{ id: 'a-studio', name: 'Confidential Studio', role: 'owner' }])
+    const key = `accounts:${window.location.origin}:user-a`
+    const raw = await getRaw(key) as {
+      key: string
+      savedAt: number
+      version: number
+      iv: ArrayBuffer
+      ciphertext: ArrayBuffer
+      value?: unknown
+    }
+
+    expect(raw.value).toBeUndefined()
+    expect(JSON.stringify(raw)).not.toContain('Confidential Studio')
+    expect(Object.prototype.toString.call(raw.iv)).toBe('[object ArrayBuffer]')
+    expect(Object.prototype.toString.call(raw.ciphertext)).toBe('[object ArrayBuffer]')
+
+    const tampered = new Uint8Array(raw.ciphertext).slice()
+    tampered[0] ^= 1
+    await putRaw({ ...raw, ciphertext: tampered.buffer })
+    await expect(readCachedAccountSummaries()).resolves.toBeNull()
+    await expect(getRaw(key)).resolves.toBeUndefined()
   })
 
   it('rejects and deletes an envelope whose timestamp is in the future', async () => {

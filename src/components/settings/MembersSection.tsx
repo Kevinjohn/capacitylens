@@ -36,6 +36,7 @@ interface Member {
   // SSO mode). Trusting the server here keeps the client button from drifting into offering a reset
   // the server will always 403 (e.g. a member who owns another account).
   mayResetPassword: boolean
+  mayRevokeSessions: boolean
 }
 
 interface InviteSummary {
@@ -65,7 +66,8 @@ function parseMembers(value: unknown): Member[] | null {
       !(row.name === null || typeof row.name === 'string') ||
       !(row.email === null || typeof row.email === 'string') ||
       typeof row.isSelf !== 'boolean' ||
-      typeof row.mayResetPassword !== 'boolean'
+      typeof row.mayResetPassword !== 'boolean' ||
+      typeof row.mayRevokeSessions !== 'boolean'
     ) return null
   }
   return value.members as Member[]
@@ -422,6 +424,26 @@ export function MembersSection() {
     }
   }
 
+  const revokeSessions = async (mem: Member) => {
+    if (!beginAction(`sessions:${mem.userId}`)) return
+    try {
+      const res = await apiFetch(
+        `${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}/revoke-sessions`,
+        { method: 'POST', credentials: 'include' },
+      )
+      if (res.status !== 204) {
+        fail(null, (await readApiError(res)) ?? `Sessions could not be revoked (${res.status}).`)
+        return
+      }
+      setNotice('Active sessions revoked.')
+      if (mem.isSelf) window.location.reload()
+    } catch (e) {
+      await reconcileUnknownMutation(`Session revocation had an unknown outcome. ${errorMessage(e)}`)
+    } finally {
+      endAction()
+    }
+  }
+
   const submitInvite = async () => {
     setMintedLink(null)
     const trimmed = invitePreauth.trim()
@@ -563,6 +585,11 @@ export function MembersSection() {
                 {mayReset && (
                   <Button variant="ghost" testId="member-reset-password" disabled={busyAction !== null} onClick={() => void resetPassword(mem)}>
                     {m.settings_member_reset_password()}
+                  </Button>
+                )}
+                {mem.mayRevokeSessions && (
+                  <Button variant="ghost" testId="member-revoke-sessions" disabled={busyAction !== null} onClick={() => void revokeSessions(mem)}>
+                    Revoke sessions
                   </Button>
                 )}
                 {mayRemove && (

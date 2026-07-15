@@ -53,14 +53,15 @@ export interface ProductionPostureResult {
  *   concern — it only changes its severity.
  * - **Warning — HTTPS/HSTS off:** `CAPACITYLENS_HTTPS !== '1'` means HSTS is not enabled.
  *   Expected when TLS terminates at a reverse proxy; flagged so a direct-HTTPS deploy notices.
+ * - **Refusal — internal HTTP plaintext:** both internal TLS identity paths are required so a
+ *   reverse proxy cannot silently fall back to an unencrypted API hop in production.
  * - **Warning — open signup on:** `CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'` re-opens self-service
  *   registration, which should normally stay closed/invite-only in production.
- * - **Warning — bootstrap-owner flag on:** `CAPACITYLENS_CREATE_ADMIN_ADMIN === '1'` (the
- *   entrypoint folds the `--create-owner-admin-admin` argv spelling into this env form before
- *   calling here) creates a bootstrap owner with a generated password on an empty user table — fine
- *   as a deliberate first-boot bootstrap, but it must be surfaced loudly and retired immediately.
+ * - **Refusal — bootstrap password:** the headless bootstrap flags are development-only because
+ *   those initial passwords cannot be forced to expire after first use. Production uses the
+ *   setup-token owner flow, where the owner chooses the final credential directly.
  *
- * The warnings are evaluated independently of the auth mode — they are production concerns in
+ * The remaining warnings are evaluated independently of the auth mode — they are production concerns in
  * their own right (HSTS and signup posture matter whether auth is on, off, or deliberately open).
  *
  * `parseAuthMode` is reused (not a hardcoded string compare) so "off" means exactly what it
@@ -81,6 +82,16 @@ export function evaluateProductionPosture(env: {
   CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION?: string
   CAPACITYLENS_CREATE_ADMIN_ADMIN?: string
   CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD?: string
+  CAPACITYLENS_REQUIRE_MFA?: string
+  CAPACITYLENS_SSO_MFA_ENFORCED?: string
+  CAPACITYLENS_PASSWORD_BREACH_CHECK?: string
+  CAPACITYLENS_RATE_LIMIT?: string
+  CAPACITYLENS_AUDIT?: string
+  CAPACITYLENS_AUDIT_STDOUT?: string
+  CAPACITYLENS_STORAGE_ENCRYPTED?: string
+  CAPACITYLENS_SECURITY_LOG_FORWARDING?: string
+  CAPACITYLENS_INTERNAL_TLS_CERT?: string
+  CAPACITYLENS_INTERNAL_TLS_KEY?: string
 }): ProductionPostureResult {
   const refusals: string[] = []
   const warnings: string[] = []
@@ -109,6 +120,49 @@ export function evaluateProductionPosture(env: {
     }
   }
 
+  if (mode === 'password' && env.CAPACITYLENS_REQUIRE_MFA !== '1') {
+    refusals.push(
+      'CAPACITYLENS_REQUIRE_MFA must be 1 for password authentication in production; ASVS Level 2 requires a second factor.',
+    )
+  }
+  if (mode === 'sso' && env.CAPACITYLENS_SSO_MFA_ENFORCED !== '1') {
+    refusals.push(
+      'CAPACITYLENS_SSO_MFA_ENFORCED must be 1 for SSO-only authentication in production, confirming the configured identity provider requires MFA for every CapacityLens user.',
+    )
+  }
+  if (mode === 'password' && env.CAPACITYLENS_PASSWORD_BREACH_CHECK === 'off') {
+    refusals.push(
+      'CAPACITYLENS_PASSWORD_BREACH_CHECK=off is not permitted for password authentication in production.',
+    )
+  }
+  const rateLimit = Number(env.CAPACITYLENS_RATE_LIMIT)
+  if (!Number.isSafeInteger(rateLimit) || rateLimit < 1) {
+    refusals.push('CAPACITYLENS_RATE_LIMIT must be a positive integer under NODE_ENV=production.')
+  }
+  if (env.CAPACITYLENS_AUDIT === 'off') {
+    refusals.push('CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production.')
+  }
+  if (env.CAPACITYLENS_AUDIT_STDOUT !== '1') {
+    refusals.push(
+      'CAPACITYLENS_AUDIT_STDOUT must be 1 under NODE_ENV=production so mutation audit records are available to the external collector.',
+    )
+  }
+  if (env.CAPACITYLENS_STORAGE_ENCRYPTED !== '1') {
+    refusals.push(
+      'CAPACITYLENS_STORAGE_ENCRYPTED must be 1 under NODE_ENV=production, confirming the database, audit, and backup volumes use host/platform encryption at rest.',
+    )
+  }
+  if (env.CAPACITYLENS_SECURITY_LOG_FORWARDING !== '1') {
+    refusals.push(
+      'CAPACITYLENS_SECURITY_LOG_FORWARDING must be 1 under NODE_ENV=production, confirming security/audit logs are shipped to a logically separate monitoring system.',
+    )
+  }
+  if (!env.CAPACITYLENS_INTERNAL_TLS_CERT?.trim() || !env.CAPACITYLENS_INTERNAL_TLS_KEY?.trim()) {
+    refusals.push(
+      'CAPACITYLENS_INTERNAL_TLS_CERT and CAPACITYLENS_INTERNAL_TLS_KEY are required under NODE_ENV=production so internal HTTP service traffic is encrypted.',
+    )
+  }
+
   // Production concerns evaluated regardless of auth mode.
   if (env.CAPACITYLENS_HTTPS !== '1') {
     warnings.push(
@@ -121,21 +175,13 @@ export function evaluateProductionPosture(env: {
     )
   }
   if (env.CAPACITYLENS_CREATE_ADMIN_ADMIN === '1') {
-    // A warning, not a refusal: the flag IS the documented headless first-boot bootstrap, and with
-    // users already present it is an inert no-op — but a bootstrap credential is security-sensitive,
-    // so a production boot must surface it every time it is set. The pair is interpolated from
-    // the auth.ts exports (never restated) so this warning can't drift from what
-    // createBootstrapAdmin actually creates.
-    warnings.push(
-      `CAPACITYLENS_CREATE_ADMIN_ADMIN=1 (or --create-owner-admin-admin) under NODE_ENV=production creates bootstrap owner ${BOOTSTRAP_ADMIN_EMAIL} with a one-time generated password on an empty user table. Store the startup output securely, sign in, change the password, then drop the flag.`,
+    refusals.push(
+      `CAPACITYLENS_CREATE_ADMIN_ADMIN=1 (or --create-owner-admin-admin) is development-only under NODE_ENV=production because its initial credential cannot be forced to expire after first use. Create the first owner through the setup-token flow instead (${BOOTSTRAP_ADMIN_EMAIL} is not created).`,
     )
   }
   if (env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD) {
-    // Security-sensitive: an operator-supplied bootstrap password REPLACES the generated one
-    // createBootstrapAdmin would otherwise mint (empty user table only). Legitimate for a
-    // secrets-managed first boot, but a KNOWN admin password must be surfaced every production boot.
-    warnings.push(
-      `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD is set under NODE_ENV=production, so bootstrap owner ${BOOTSTRAP_ADMIN_EMAIL} would be created with an operator-supplied password instead of a generated one (empty user table only). Prefer the generated password; if you must pin it, source it from a secrets manager, sign in, change it, then unset this.`,
+    refusals.push(
+      `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD is not permitted under NODE_ENV=production because an operator-selected initial credential cannot be forced to expire after first use. Use the setup-token owner flow instead (${BOOTSTRAP_ADMIN_EMAIL} is not created).`,
     )
   }
 

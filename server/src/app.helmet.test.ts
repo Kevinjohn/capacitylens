@@ -26,8 +26,8 @@ describe('baseline security headers (helmet, on by default)', () => {
     expect(csp).toContain("connect-src 'self'")
   })
 
-  it('keeps the CSP to the minimal set — no helmet defaults merged in', async () => {
-    // useDefaults:false means we emit EXACTLY our five directives. Lock out the two defaults
+  it('keeps the CSP to the minimal set plus reporting — no helmet defaults merged in', async () => {
+    // useDefaults:false means we emit exactly our API and reporting directives. Lock out the defaults
     // that would otherwise ship unintentionally: 'unsafe-inline' (from helmet's style-src) and
     // upgrade-insecure-requests. A future helmet bump that flipped the merge back on fails here.
     const app = buildApp(openDb(':memory:'))
@@ -37,6 +37,11 @@ describe('baseline security headers (helmet, on by default)', () => {
     // ...while the intended directives are still present.
     expect(csp).toContain("frame-ancestors 'none'")
     expect(csp).toContain("connect-src 'self'")
+    expect(csp).toContain('report-uri /api/security/csp-report')
+    expect(csp).toContain('report-to csp-endpoint')
+    expect((await health(app)).headers['reporting-endpoints']).toBe(
+      'csp-endpoint="/api/security/csp-report"',
+    )
   })
 
   it('keeps the cross-origin contract: CORP same-origin, COEP off', async () => {
@@ -110,7 +115,7 @@ describe('HSTS — off by default, on behind the HTTPS flag', () => {
     const app = buildApp(openDb(':memory:'), { https: true })
     const hsts = (await health(app)).headers['strict-transport-security']
     expect(typeof hsts).toBe('string')
-    expect(hsts).toContain('max-age=15552000')
+    expect(hsts).toContain('max-age=63072000')
     expect(hsts).toContain('includeSubDomains')
   })
 })

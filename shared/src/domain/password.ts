@@ -11,10 +11,10 @@
  * the reset-password page's client-side pre-check + its "at least N characters" message
  * (src/auth/ResetPassword.tsx) so the two never disagree.
  *
- * 8 matches Better Auth 1.6.20's own default; pinning it here makes the number intentional and
- * single-sourced instead of a magic literal duplicated across client and server.
+ * OWASP ASVS 5.0.0 V6.2.1 requires at least 8 and strongly recommends 15 when passwords are used;
+ * CapacityLens uses the stronger recommendation because password mode is internet-deployable.
  */
-export const MIN_PASSWORD_LENGTH = 8
+export const MIN_PASSWORD_LENGTH = 15
 
 /**
  * The maximum password length, in characters. Same no-drift contract as {@link MIN_PASSWORD_LENGTH}:

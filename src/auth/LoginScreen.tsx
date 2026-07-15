@@ -37,6 +37,9 @@ export function LoginScreen({
   const [setupToken, setSetupToken] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [twoFactorPending, setTwoFactorPending] = useState(false)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const [useRecoveryCode, setUseRecoveryCode] = useState(false)
   // Flips true the moment OUR owner-setup submit is refused because someone else's setup
   // already won the race (server's live per-request gate — see server/src/auth.ts). needsSetup
   // is a one-time snapshot from page load, so a second tab/operator can still see the create-owner
@@ -58,9 +61,14 @@ export function LoginScreen({
     setBusy(true)
     setError(null)
     try {
-      const { error: failure } = await authClient.signIn.email({ email, password })
+      const { data, error: failure } = await authClient.signIn.email({ email, password })
       if (failure) {
         setError(failure.message ?? m.login_failed())
+        setBusy(false)
+        return
+      }
+      if ((data as { twoFactorRedirect?: unknown } | null)?.twoFactorRedirect === true) {
+        setTwoFactorPending(true)
         setBusy(false)
         return
       }
@@ -70,6 +78,27 @@ export function LoginScreen({
       // pre-response network/transport error — without this catch `busy` stayed true forever (button
       // stuck disabled, no message). Surface a generic message + reset busy; log the real cause.
       console.error('LoginScreen: password sign-in request failed', err)
+      setError(m.login_network_error())
+      setBusy(false)
+    }
+  }
+
+  const verifySecondFactor = async (e: FormEvent) => {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      const result = useRecoveryCode
+        ? await authClient.twoFactor.verifyBackupCode({ code: twoFactorCode, trustDevice: false })
+        : await authClient.twoFactor.verifyTotp({ code: twoFactorCode, trustDevice: false })
+      if (result.error) {
+        setError(result.error.message ?? m.login_failed())
+        setBusy(false)
+        return
+      }
+      onSignedIn()
+    } catch (err) {
+      console.error('LoginScreen: second-factor verification failed', err)
       setError(m.login_network_error())
       setBusy(false)
     }
@@ -168,7 +197,44 @@ export function LoginScreen({
           <p className="text-sm text-muted">{setup ? m.login_setup_subtitle() : m.login_subtitle()}</p>
         </div>
         <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
-          {setup ? (
+          {twoFactorPending ? (
+            <form onSubmit={(e) => void verifySecondFactor(e)} noValidate className="space-y-3">
+              <p className="text-sm text-muted">
+                {useRecoveryCode
+                  ? 'Enter one unused recovery code.'
+                  : 'Enter the six-digit code from your authenticator app.'}
+              </p>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-ink">
+                  {useRecoveryCode ? 'Recovery code' : 'Authentication code'}
+                </span>
+                <input
+                  data-testid="mfa-code"
+                  className={inputClass}
+                  type="text"
+                  inputMode={useRecoveryCode ? 'text' : 'numeric'}
+                  autoComplete="one-time-code"
+                  value={twoFactorCode}
+                  onChange={(e) => setTwoFactorCode(e.target.value.trim())}
+                  aria-describedby={error ? errorId : undefined}
+                  autoFocus
+                />
+              </label>
+              <FieldError id={errorId}>{error}</FieldError>
+              <div className="flex items-center justify-between gap-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => { setUseRecoveryCode((value) => !value); setTwoFactorCode(''); setError(null) }}
+                >
+                  {useRecoveryCode ? 'Use authenticator code' : 'Use a recovery code'}
+                </Button>
+                <Button type="submit" testId="mfa-submit" disabled={busy || twoFactorCode.length === 0}>
+                  Verify
+                </Button>
+              </div>
+            </form>
+          ) : setup ? (
             <form onSubmit={(e) => void createOwner(e)} noValidate className="space-y-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-ink">{m.login_name()}</span>

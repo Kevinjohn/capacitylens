@@ -29,7 +29,7 @@ type ButtonVariant = 'primary' | 'ghost' | 'danger'
 // solid bg-danger + white would only read ~2.7:1 against the light-coral dark token. `ghost`
 // is the quiet outline.
 const VARIANT_CLASS: Record<ButtonVariant, string> = {
-  primary: 'bg-ok-strong text-ok-strong-ink hover:bg-ok-strong/90 shadow-xs',
+  primary: 'bg-ok-strong text-ok-strong-ink hover:bg-ok-strong-hover shadow-xs',
   ghost: 'border bg-surface text-ink hover:bg-canvas shadow-xs',
   danger: 'bg-danger-soft text-danger-soft-ink hover:bg-danger-soft/80 shadow-xs',
 }

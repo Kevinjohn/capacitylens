@@ -10,6 +10,43 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.20.0-alpha.1] — 2026-07-15
+
+### Security
+
+- Hardened production password authentication with 15–128 character OWASP-aligned credentials,
+  breached-password screening, versioned scrypt, mandatory TOTP MFA, host-only cookies, fixed and
+  idle session limits, fresh privileged actions and user/administrator session revocation.
+- Added root-level CSRF/origin enforcement, non-cacheable API responses, stronger browser headers,
+  safe provider endpoints, constant/rate-limited health and fail-closed production posture checks.
+- Encrypted opt-in offline snapshots with AES-256-GCM and restrictive device-key handling; enforced
+  restrictive database, WAL, audit and backup permissions plus separate security/audit forwarding.
+- Added full-history secret scanning, dependency review, CodeQL, SBOM, container scanning, OWASP
+  ZAP, release provenance and cross-browser E2E automation, with actions and base images pinned.
+- Minimized the API production dependency graph, removed unused package managers and curl from the
+  runtime images, eliminated vulnerable base-image packages, and made the strict CSP compatible by
+  serving Sonner's published styles as a static hashed asset rather than an injected style element.
+- Added a threat model, security/control inventories and a complete 345-requirement OWASP ASVS 5.0.0
+  ledger covering Pass, Partial, Gap and Not Applicable outcomes without claiming certification.
+- Reviewed every surviving and uncovered mutant in the security-relevant shared core, fixed a
+  fail-open allocation edge case for missing/cross-company activity projects, and added adversarial
+  assertions for inactive references, private-name fallback, imports, lifecycle repair and form data.
+- Upgraded the pinned package manager to pnpm 11 so production dependency audits use npm's supported
+  bulk-advisory API after the registry retired the legacy endpoints used by pnpm 10; clean installs
+  now fail closed on dependency lifecycle scripts, with only esbuild explicitly reviewed and allowed.
+- Encrypted the packaged nginx-to-API hop with a private per-install CA, verified service identity,
+  TLS 1.2/1.3, root/API/nginx-separated key permissions, automatic renewal and no plaintext fallback.
+- Added bounded CSP violation reporting to the separate security stream and an automated
+  cryptographic implementation-path inventory enforced by both green gates.
+- Capped accepted API sockets, memory-expensive scrypt work and HIBP calls with documented
+  fail-closed queue/timeout behavior; fixed same-origin writes through the trusted packaged proxy
+  without weakening cross-site Origin or Fetch Metadata rejection.
+- Added a last-resort uncaught-exception/rejection path that records a sanitized security event,
+  drains safely and exits non-zero for supervisor restart; patched the mutation toolchain's
+  transitive `qs` dependency for GHSA-q8mj-m7cp-5q26.
+- Isolated Chromium/server, WebKit and Firefox E2E lifecycles to remove cross-engine dev-server
+  races, and stopped enabled buttons transitioning through a temporarily sub-AA opacity.
+
 ## [0.19.4] — 2026-07-14
 
 ### Changed
@@ -729,7 +766,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.19.4...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.20.0-alpha.1...HEAD
+[0.20.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.20.0-alpha.1
 [0.19.4]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.4
 [0.19.3]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.3
 [0.19.2]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.19.2

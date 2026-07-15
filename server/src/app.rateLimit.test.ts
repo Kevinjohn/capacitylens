@@ -5,8 +5,9 @@ import { openDb } from './db'
 
 // P1.5 (flag CAPACITYLENS_RATE_LIMIT → opts.rateLimit): a guard against accidental client
 // loops hammering the single-writer SQLite file. OFF (the default) means the plugin is
-// not registered at all; /api/health is always exempt so the uptime monitor never sees
-// a 429. The env parse is fail-closed: only a positive integer turns it on.
+// not registered at all; health shares the same per-IP budget so its public endpoint cannot
+// become an unlimited resource-exhaustion bypass. The env parse is fail-closed: only a positive
+// integer turns it on.
 
 const health = (app: FastifyInstance, headers?: Record<string, string>) =>
   app.inject({ method: 'GET', url: '/api/health', headers })
@@ -36,9 +37,11 @@ describe('CAPACITYLENS_RATE_LIMIT on', () => {
     expect(typeof third.json().error).toBe('string') // the API's usual { error } shape
   })
 
-  it('never 429s /api/health', async () => {
+  it('rate limits /api/health like every other public API route', async () => {
     const app = buildApp(openDb(':memory:'), { rateLimit: 2 })
-    for (let i = 0; i < 5; i++) expect((await health(app)).statusCode).toBe(200)
+    expect((await health(app)).statusCode).toBe(200)
+    expect((await health(app)).statusCode).toBe(200)
+    expect((await health(app)).statusCode).toBe(429)
   })
 
   it('keys on X-Forwarded-For only when told the host is behind the proxy', async () => {

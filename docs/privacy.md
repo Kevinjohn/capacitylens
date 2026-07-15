@@ -27,9 +27,10 @@ localStorage and are not part of an account export.
 
 Optional offline reading stores the last verified identity, account list and account snapshots in
 IndexedDB for up to seven days, plus an application-shell cache. It is read-only and never queues
-writes. It is not independently encrypted; browser-profile access implies cache access. Sign-out
-removes the current user's cached snapshots; “Clear device data” removes every CapacityLens cache
-and preference stored by that browser profile. See `docs/offline.md`.
+writes. Snapshot records are encrypted with a non-extractable per-browser key, but access to an
+unlocked application origin can still invoke that key. Sign-out removes the current user's cached
+snapshots; “Clear device data” removes every CapacityLens cache and preference stored by that
+browser profile. See `docs/offline.md`.
 
 Offline snapshots contain the same role-filtered payload last returned by the server: a non-owner's
 snapshot contains code names, while an owner's snapshot may contain real private names. Protect an
@@ -39,6 +40,14 @@ owner's browser profile accordingly.
 
 CapacityLens includes no product analytics, advertising, crash-reporting service or outbound email
 service. Better Auth telemetry is disabled. The browser API policy is same-origin.
+
+When password creation/change/reset is enabled, the server checks candidate passwords through the
+Have I Been Pwned Pwned Passwords range API by default. It sends the first five hexadecimal
+characters of the password's SHA-1 digest, with padded responses enabled; it never sends the
+password or complete digest. The lookup occurs only while setting a credential, not during normal
+sign-in. It fails closed when unavailable. Non-production isolated deployments can set
+`CAPACITYLENS_PASSWORD_BREACH_CHECK=off`; production password mode refuses that opt-out. Operators
+should include this outbound security service in their network/privacy assessment.
 
 If an operator enables social/OIDC sign-in, the browser navigates to that chosen identity provider
 and the server performs the token exchange. The provider then becomes a processor for identity

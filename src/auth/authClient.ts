@@ -4,7 +4,7 @@
 // evaluate this file — better-auth stays out of the main bundle and no auth code runs.
 
 import { createAuthClient } from 'better-auth/react'
-import { genericOAuthClient } from 'better-auth/client/plugins'
+import { genericOAuthClient, twoFactorClient } from 'better-auth/client/plugins'
 import { API_BASE } from '../data/apiConfig'
 
 // Same-origin by default: an empty API_BASE is now the NORMAL case (server persistence defaults to
@@ -14,5 +14,5 @@ import { API_BASE } from '../data/apiConfig'
 export const authClient = createAuthClient({
   baseURL: `${API_BASE || window.location.origin}/api/auth`,
   // The generic OAuth2/OIDC client mirrors the server's sso mode (provider stays config).
-  plugins: [genericOAuthClient()],
+  plugins: [genericOAuthClient(), twoFactorClient()],
 })

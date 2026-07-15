@@ -97,12 +97,23 @@ describe('validateHex', () => {
 describe('validateWorkingDays', () => {
   it('passes when at least one day is selected', () => {
     const fail = vi.fn()
-    expect(validateWorkingDays([1, 2, 3], fail)).toBe(true)
+    expect(validateWorkingDays([0, 1, 2, 3, 6], fail)).toBe(true)
     expect(fail).not.toHaveBeenCalled()
   })
   it('fails on an empty set and reports the field', () => {
     const fail = vi.fn()
     expect(validateWorkingDays([], fail)).toBe(false)
     expect(fail).toHaveBeenCalledWith('workingDays', validationMessages().workingDaysRequired)
+  })
+  it.each([
+    [[1, 1], 'duplicate days'],
+    [[1.5, 2], 'fractional days'],
+    [[-1, 2], 'negative days'],
+    [[2, 7], 'days above Saturday'],
+  ] as const)('rejects %s (%s)', (days, description) => {
+    expect(description.length).toBeGreaterThan(0)
+    const fail = vi.fn()
+    expect(validateWorkingDays([...days], fail, 'availability')).toBe(false)
+    expect(fail).toHaveBeenCalledWith('availability', validationMessages().workingDaysRequired)
   })
 })

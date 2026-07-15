@@ -45,7 +45,7 @@ This is the short, present-tense record of decisions that constrain future work.
 ## Offline
 
 - Offline reading is explicit per-device opt-in, expires after seven days and stores snapshots in
-  IndexedDB.
+  IndexedDB encrypted with a non-extractable per-browser AES-GCM key.
 - Offline state is always viewer/read-only. The app never queues offline mutations.
 - Sign-out and the device-data control erase cached identity/account snapshots.
 
@@ -58,6 +58,14 @@ This is the short, present-tense record of decisions that constrain future work.
 - Email self-registration is closed by default. External identities require a verified email and
   a live invitation; initial SSO ownership requires an operator email allow-list.
 - Secure-cookie behavior follows the public `BETTER_AUTH_URL`, including behind a TLS proxy.
+- Production password mode requires breached-password screening and TOTP MFA. Sessions have a fixed
+  twelve-hour lifetime; privileged actions require a session no older than fifteen minutes.
+- Production startup requires explicit operator acknowledgement of encrypted persistent storage and
+  logically separate security-log forwarding.
+- The packaged production proxy/API hop uses a private per-install CA and verified TLS 1.2/1.3;
+  production API processes require a certificate/key and never fall back to internal plaintext.
+- CSP violations enter the bounded, data-minimised security stream. Socket, scrypt and HIBP work
+  limits are finite and fail closed under overload.
 - Better Auth telemetry is disabled. CapacityLens ships no product analytics or outbound email.
 - Errors on data paths are surfaced, not swallowed. See `DEFENSIVE-CODING.md`.
 

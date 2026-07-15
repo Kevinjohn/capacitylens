@@ -1,0 +1,6 @@
+# These rules remain visible as INFO in the ZAP artifact but do not fail CI. All other
+# baseline warnings retain their default WARN/failing behavior.
+10027	INFO	(Public build comments and a minified UI string; reviewed for secrets)
+10049	INFO	(Content-hashed /assets files are intentionally immutable and cacheable)
+10055	INFO	(report-uri is intentionally retained beside report-to for legacy browser reporting)
+10109	INFO	(Expected signal: CapacityLens is a client-rendered modern web application)

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "sonner/dist/styles.css";
 
 /* shadcn's `dark:` utilities key off `.dark` by default; capacitylens's theme is the
    `[data-theme="dark"]` attribute on <html> (src/lib/theme.ts). Point the variant at
@@ -54,6 +55,7 @@
   --color-warn: var(--c-warn);
   --color-ok: var(--c-ok);
   --color-ok-strong: var(--c-ok-strong);
+  --color-ok-strong-hover: var(--c-ok-strong-hover);
   --color-ok-strong-ink: var(--c-ok-strong-ink);
 
   /* One deliberate micro-text size (11px) for the dense labels — replaces the
@@ -97,6 +99,7 @@
   --c-warn: #d97706;
   --c-ok: #047857;
   --c-ok-strong: #047857;
+  --c-ok-strong-hover: #065f46; /* darker, rather than translucent-over-surface: white stays AA */
   --c-ok-strong-ink: #ffffff;
   color-scheme: light;
 
@@ -151,6 +154,7 @@
   --c-warn: #fbbf24;
   --c-ok: #34d399;
   --c-ok-strong: #047857;
+  --c-ok-strong-hover: #065f46;
   --c-ok-strong-ink: #ffffff;
   color-scheme: dark;
 

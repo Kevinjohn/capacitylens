@@ -32,7 +32,7 @@ export async function signUp(app: FastifyInstance, email: string): Promise<{ coo
   const res = await call(app, {
     method: 'POST',
     url: '/api/auth/sign-up/email',
-    payload: { email, password: 'password-123', name: 'Tester' },
+    payload: { email, password: 'password-123456', name: 'Tester' },
   })
   expect(res.statusCode).toBe(200)
   const cookie = cookiesOf(res)

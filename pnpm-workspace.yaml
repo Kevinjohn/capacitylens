@@ -5,7 +5,30 @@ packages:
   - shared
   - server
 
-# pnpm blocks dependency postinstall scripts by default; esbuild's is the one we
-# trust and need (it links the platform binary Vite/Vitest shell out to).
-onlyBuiltDependencies:
-  - esbuild
+# Keep workspace packages as injected copies so `pnpm deploy --prod` can create a
+# dedicated, minimal production lockfile instead of the legacy deploy copying the
+# root application's dependency graph into the API image.
+injectWorkspacePackages: true
+
+# Require each project to declare the peers it actually uses. This prevents optional peers
+# from silently expanding the install and keeps the server's production graph independent
+# from the web app's React/test toolchain.
+autoInstallPeers: false
+resolvePeersFromWorkspaceRoot: false
+dedupePeerDependents: false
+
+# Sonner injects its published CSS through a runtime <style> element. Keep the same upstream CSS
+# as a normal build asset instead so production can forbid inline style elements in CSP.
+patchedDependencies:
+  sonner@2.0.7: patches/sonner@2.0.7.patch
+
+# Stryker's typed-rest-client transitively accepts qs 6.x. Keep it on the first release that
+# fixes GHSA-q8mj-m7cp-5q26 instead of leaving the development/mutation toolchain vulnerable.
+overrides:
+  qs: 6.15.2
+
+# pnpm 11 blocks dependency postinstall scripts by default; esbuild's is the one we
+# trust and need (it links the platform binary Vite/Vitest shell out to). Keep the
+# allowlist explicit so a newly introduced lifecycle script fails a clean install.
+allowBuilds:
+  esbuild: true

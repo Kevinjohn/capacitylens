@@ -26,6 +26,7 @@ interface RawMember {
   email?: string | null
   isSelf?: boolean
   mayResetPassword?: boolean
+  mayRevokeSessions?: boolean
 }
 
 /** Build a fetch mock that answers the members read (and a benign empty invites read). 403 on the
@@ -48,6 +49,7 @@ function mockFetch(members: RawMember[] | { status: number }) {
             email: `${m.userId}@x.io`,
             isSelf: false,
             mayResetPassword: false,
+            mayRevokeSessions: false,
             ...m,
           })),
         }),
@@ -255,8 +257,8 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
           status: 200,
           json: async () => ({
             members: [
-              { userId: 'me', role: 'owner', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'me@x.io', isSelf: true, mayResetPassword: false },
-              { userId: 'ed', role: 'editor', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'ed@x.io', isSelf: false, mayResetPassword: false },
+              { userId: 'me', role: 'owner', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'me@x.io', isSelf: true, mayResetPassword: false, mayRevokeSessions: true },
+              { userId: 'ed', role: 'editor', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'ed@x.io', isSelf: false, mayResetPassword: false, mayRevokeSessions: true },
             ],
           }),
         } as unknown as Response

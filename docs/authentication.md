@@ -7,8 +7,9 @@ CapacityLens has three modes:
 - `sso` — experimental generic OIDC only; password sign-in is disabled.
 
 All auth-on modes require a 32+ character `BETTER_AUTH_SECRET` and an absolute
-`BETTER_AUTH_URL`. HTTPS public URLs produce Secure session cookies even when the Node process sits
-behind an HTTP reverse proxy. A production process refuses a non-loopback `http://` public URL.
+`BETTER_AUTH_URL`. HTTPS public URLs produce Secure, host-only `__Host-` cookies even when the Node
+process sits behind an HTTP reverse proxy. A production process refuses a non-loopback `http://`
+public URL.
 
 ## Password setup
 
@@ -19,6 +20,57 @@ administrator to deliver through their own trusted channel; CapacityLens sends n
 
 `CAPACITYLENS_ALLOW_OPEN_SIGNUP=1` deliberately reopens registration and is not recommended for an
 internet-facing service.
+
+## Password security and MFA
+
+Password mode uses a 15–128 character policy. New/change/reset credentials are stored with a
+versioned scrypt profile (`N=2^17, r=8, p=1`); existing Better Auth hashes remain verify-only
+compatible during migration. Passwords containing the product name or an administrative role are
+rejected.
+
+Outside tests, candidate passwords are checked against the Have I Been Pwned range API before a
+new hash is stored. The server sends only the first five SHA-1 characters and requests padded
+results; the password and full digest never leave the process. Creation/change/reset fails closed
+when the service is unavailable. `CAPACITYLENS_PASSWORD_BREACH_CHECK=off` disables the lookup for
+isolated development, but a production password deployment refuses to start with it disabled.
+
+Set `CAPACITYLENS_REQUIRE_MFA=1` to require TOTP multi-factor authentication. Production password
+mode requires it and Compose defaults it on:
+
+1. A newly authenticated user is stopped before tenant data and shown **Secure your account**.
+2. They add the TOTP URI to an authenticator, store the one-time recovery codes and verify a
+   six-digit code.
+3. Later password sign-ins require a TOTP or recovery code.
+4. Recovery codes and session bearer tokens are never shown in the normal settings/session list.
+5. Disabling MFA is not offered while the deployment requires it.
+
+The TOTP challenge cookie lasts five minutes, authenticator codes use six digits/30 seconds, and
+five failed attempts lock the account for fifteen minutes. Trusted-device capability is available
+to the auth library for seven days, but the current UI does not request it.
+
+The supported lost-authenticator path is the user's password plus one unused recovery code issued
+during enrollment. There is no lower-assurance administrator bypass or email-only MFA reset. If the
+user loses both the authenticator and every recovery code, recovery requires an operator-managed
+identity re-proofing and account procedure outside the product.
+
+## Sessions and sensitive actions
+
+Sessions have a fixed twelve-hour absolute lifetime with sliding refresh disabled and expire after
+thirty minutes of server-observed inactivity. Activity is persisted at most once per minute without
+moving the absolute expiry. The inactivity check runs before both CapacityLens routes and direct
+authenticated Better Auth routes, so a stale session cannot be used to change credentials. A
+session is “fresh” for fifteen minutes after sign-in; membership, invitation, purge, account
+deletion and ownership operations require that fresh state and return `SESSION_NOT_FRESH` when the
+user must sign in again.
+
+There is no hard concurrent-session count. MFA, fixed/idle/freshness limits, immediate revocation
+and visible session inventory form the containment model. SSO session lifetime and termination also
+depend on the selected provider and must be tested in staging.
+
+Password users can change their password (revoking other sessions) and inspect/revoke active
+sessions in Settings → Security. Administrators may revoke a member's identity-global sessions only
+with password-reset-equivalent authority in every account that identity can access. Password reset
+also invalidates existing sessions.
 
 ## Experimental providers
 
@@ -42,3 +94,11 @@ deployment belongs to one organisation.
 To trial SSO while retaining recovery access, keep `CAPACITYLENS_AUTH=password` and configure the
 provider. Switch to `CAPACITYLENS_AUTH=sso` only after provider login, invitations and operator
 recovery have been tested.
+
+Generic discovery/authorization/token endpoints must be absolute HTTPS URLs; loopback HTTP is
+accepted only for development. Embedded URL credentials and malformed provider ids refuse startup.
+
+SSO-only production also requires `CAPACITYLENS_SSO_MFA_ENFORCED=1`. This is an operator
+attestation that the configured identity provider enforces MFA for every CapacityLens user;
+CapacityLens cannot infer equivalent assurance from every provider's token shape. Set it only after
+the IdP policy, recovery path, session lifetime and logout behavior have been exercised in staging.

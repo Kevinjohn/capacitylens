@@ -30,6 +30,8 @@ const privateProject: Project = {
 describe('private-name projection', () => {
   it('stores code names without user-supplied outer quotes and displays one consistent quote pair', () => {
     expect(normalizeCodeName('  “Northstar”  ')).toBe('Northstar')
+    expect(normalizeCodeName('““  Northstar  ””')).toBe('Northstar')
+    expect(normalizeCodeName('North"star')).toBe('North"star')
     expect(quoteCodeName('"Northstar"')).toBe('"Northstar"')
     expect(nameForQuotedContext('"Northstar"')).toBe('Northstar')
   })
@@ -39,6 +41,14 @@ describe('private-name projection', () => {
     expect(redacted.name).toBe('"Northstar"')
     expect(redacted).not.toHaveProperty('codeName')
     expect(privateClient).toMatchObject({ name: 'Real Client', codeName: 'Northstar' })
+  })
+
+  it('fails closed to a neutral code name when a private row has no usable code name', () => {
+    const malformed = { ...privateClient, name: 'Secret Real Name', codeName: undefined }
+    const redacted = redactPrivateName(malformed)
+    expect(redacted.name).toBe('"Confidential"')
+    expect(redacted.name).not.toContain('Secret Real Name')
+    expect(redacted).not.toHaveProperty('codeName')
   })
 
   it('redacts only clients and projects, leaving public names and all other tables untouched', () => {

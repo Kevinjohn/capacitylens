@@ -1,0 +1,30 @@
+diff --git a/dist/index.js b/dist/index.js
+index 4027c819dd6c5599de832355c5ea82c7528cbb23..19b3f9e2c736e02f837ac1a19f269b808e598122 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1,9 +1,2 @@
+ 'use client';
+-function __insertCSS(code) {
+-  if (!code || typeof document == 'undefined') return
+-  let head = document.head || document.getElementsByTagName('head')[0]
+-  let style = document.createElement('style')
+-  style.type = 'text/css'
+-  head.appendChild(style)
+-  ;style.styleSheet ? (style.styleSheet.cssText = code) : style.appendChild(document.createTextNode(code))
+-}
++function __insertCSS() {}
+diff --git a/dist/index.mjs b/dist/index.mjs
+index a64ee86f66d3328a4b6a7a3cc2238881b73fce29..e106e6408409637381714989b12178765bedca3d 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1,9 +1,2 @@
+ 'use client';
+-function __insertCSS(code) {
+-  if (!code || typeof document == 'undefined') return
+-  let head = document.head || document.getElementsByTagName('head')[0]
+-  let style = document.createElement('style')
+-  style.type = 'text/css'
+-  head.appendChild(style)
+-  ;style.styleSheet ? (style.styleSheet.cssText = code) : style.appendChild(document.createTextNode(code))
+-}
++function __insertCSS() {}

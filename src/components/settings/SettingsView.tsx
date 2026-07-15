@@ -18,6 +18,7 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
 import { MembersSection } from './MembersSection'
+import { SecuritySection } from './SecuritySection'
 import { ArchivedSection } from './ArchivedSection'
 import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
 import { cn } from '@/lib/utils'
@@ -453,6 +454,8 @@ export function SettingsView() {
             </div>
           </section>
         )}
+
+        {authMode === 'password' && <SecuritySection />}
 
         {/* Member management (P1.11) — only on an auth-enabled, server-backed deploy, and the section
             self-gates further (a 403 on the members read hides it for a viewer/editor). OFF/demo mode

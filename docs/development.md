@@ -34,6 +34,14 @@ The build also enforces a budget on the main JavaScript entry chunk; route-level
 separate so authentication and settings code do not inflate first load unnoticed.
 `gate:server` checks the Node/SQLite workspace. Default E2E runs demo, database-backed and
 password-auth flows in Chromium.
+Both gates also run the cryptographic implementation-path discovery check; a new primitive,
+certificate/key path or TLS configuration must be reviewed into `docs/security/crypto-inventory.json`.
+
+The mutation configuration deliberately measures the pure shared/scheduler/browser helper layer;
+it is not evidence for the Fastify/Better Auth implementation, which is covered by the separate
+server integration gate. Review surviving, timed-out and uncovered mutants rather than accepting
+the aggregate score alone. The latest triage is recorded in
+[`docs/security/mutation-review-2026-07-15.md`](security/mutation-review-2026-07-15.md).
 
 Cross-browser commands:
 
@@ -45,6 +53,15 @@ pnpm run e2e:all
 ```
 
 Keep specs browser-agnostic. Screenshots and axe checks are the visual/accessibility oracles.
+`e2e:all` runs Chromium plus the server-backed projects first, then WebKit and Firefox in isolated
+Vite-only invocations; all three phases run even when an earlier phase fails.
+
+CapacityLens supports current evergreen Chromium, Firefox and WebKit/Safari behavior represented by
+the pinned Playwright release. The security baseline assumes HTTPS, Secure/HttpOnly/SameSite
+cookies, CSP/frame enforcement, Fetch Metadata or Origin on unsafe cross-site browser requests, and
+Web Crypto for encrypted offline access. Online mode remains usable when Web Crypto is unavailable,
+but offline snapshot creation fails visibly instead of falling back to plaintext. Obsolete/plugin
+browsers are unsupported; the application does not weaken headers or crypto for them.
 
 ## GitHub Actions policy
 
@@ -59,8 +76,8 @@ Run the complete remote gate deliberately from **GitHub → Actions → gate →
 gh workflow run gate.yml --ref main
 ```
 
-A manual gate runs the code gates and production dependency audit. Chromium E2E and Docker Compose
-smoke tests are separate workflows so their README badges report independent status. The gate also
+A manual gate runs the code gates and production dependency audit. Cross-browser E2E and Docker
+Compose smoke tests are separate workflows so their README badges report independent status. The gate also
 uploads `coverage/lcov.info` to Codecov when the repository has a `CODECOV_TOKEN` secret. CodeQL and
 Scorecard remain skipped while the repository is private because their public result services are not
 enabled for this repository.
@@ -68,11 +85,17 @@ enabled for this repository.
 When the repository becomes public, the workflow conditions automatically restore:
 
 - code gates for pull requests, pushes to `main`, release tags and the monthly canary;
-- Chromium E2E for pull requests, pushes to `main`, release tags and its monthly canary;
+- Chromium, Firefox and WebKit E2E for pull requests, pushes to `main`, release tags and its monthly canary;
 - Docker Compose builds and production smoke tests for pull requests, pushes to `main` and release
   tags;
 - CodeQL for pull requests, `main` and its weekly schedule.
 - OpenSSF Scorecard for `main` and its weekly schedule.
+- full-history secret scanning, dependency review, source SBOM, container vulnerability scanning,
+  OWASP ZAP baseline and tagged release provenance through `security.yml`.
+
+The security workflow remains manually runnable while private and becomes automatic on its
+documented public-repository events. See `docs/security/security-review-2026-07-14.md` for the
+assessment scope and residual controls.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`; uploads
 are deliberately skipped until that secret exists. Scorecard needs `publish_results: true` and its

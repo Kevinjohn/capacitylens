@@ -78,6 +78,8 @@ describe('isValidISODate', () => {
   it('accepts a real, zero-padded calendar date and rejects malformed / impossible ones', () => {
     expect(isValidISODate('2026-06-01')).toBe(true)
     expect(isValidISODate('nope')).toBe(false) // fails the shape regex
+    expect(isValidISODate('x2026-06-01')).toBe(false) // prefix must not be ignored
+    expect(isValidISODate('2026-06-01x')).toBe(false) // suffix must not be ignored
     expect(isValidISODate('2026-13-01')).toBe(false) // month 13 — round-trips to a different string
     expect(isValidISODate('2026-02-30')).toBe(false) // 30 Feb — never a real date
   })
@@ -233,10 +235,12 @@ describe('cascade deletes', () => {
       phases: [{ id: 'ph-p1', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Ph', projectId: 'p1' }],
       activities: [{ id: 't-keep', accountId: 'a', createdAt: 't', updatedAt: 't', name: 'Keep', kind: 'project', projectId: 'p2', phaseId: 'ph-p1' }],
     }
-    const next = deleteProjectCascade(data, 'p1')
+    const revision = '2026-07-15T00:00:00.000Z'
+    const next = deleteProjectCascade(data, 'p1', revision)
     const keep = next.activities.find((t) => t.id === 't-keep')
     expect(keep).toBeDefined() // survives — it belongs to p2
     expect(keep!.phaseId).toBeUndefined() // dangling phase reference unbound
+    expect(keep!.updatedAt).toBe(revision) // surviving FK repair is synchronizable
     expect(next.phases).toHaveLength(0) // p1's phase removed
   })
 
@@ -309,7 +313,8 @@ describe('cascade deletes', () => {
       ],
       resources: [placeholder({ id: 'phc1', projectId: 'p1' }), placeholder({ id: 'phc2', projectId: 'p2' })],
     }
-    const next = deleteClientCascade(data, 'c1')
+    const revision = '2026-07-15T00:00:00.000Z'
+    const next = deleteClientCascade(data, 'c1', revision)
     expect(next.clients.map((c) => c.id)).toEqual(['c2'])
     expect(next.projects.map((p) => p.id)).toEqual(['p2'])
     expect(next.phases.map((p) => p.id)).toEqual(['ph2']) // c1's phase removed, c2's kept
@@ -317,6 +322,7 @@ describe('cascade deletes', () => {
     expect(next.activities.find((t) => t.id === 'a2')!.name).toBe('A2') // record kept whole, not blanked
     expect(next.activities.find((t) => t.id === 'a2')!.phaseId).toBe('ph2') // coherent phase NOT unbound
     expect(next.activities.find((t) => t.id === 'a3')!.phaseId).toBeUndefined() // dangling c1 phase unbound
+    expect(next.activities.find((t) => t.id === 'a3')!.updatedAt).toBe(revision)
     expect(next.allocations.map((a) => a.id)).toEqual(['al2']) // a1's allocation removed, a2's kept
     expect(next.resources.find((r) => r.id === 'phc1')!.projectId).toBeUndefined() // bound to removed p1
     expect(next.resources.find((r) => r.id === 'phc2')!.projectId).toBe('p2') // bound to surviving p2
@@ -340,6 +346,38 @@ describe('cascade deletes', () => {
     const r1 = next.resources.find((r) => r.id === 'r1')
     expect(r1!.disciplineId).toBeUndefined()
     expect(r1!.role).toBe('Senior Designer')
+  })
+
+  it('stamps surviving records whose foreign key is cleared by a cascade', () => {
+    const revision = '2026-07-15T00:00:00.000Z'
+
+    const afterPhase = deletePhaseCascade(sampleData(), 'phase1', revision)
+    expect(afterPhase.activities.find((a) => a.id === 't1')).toMatchObject({
+      id: 't1',
+      phaseId: undefined,
+      updatedAt: revision,
+    })
+
+    const afterProject = deleteProjectCascade(sampleData(), 'p1', revision)
+    expect(afterProject.resources.find((r) => r.id === 'ph1')).toMatchObject({
+      id: 'ph1',
+      projectId: undefined,
+      updatedAt: revision,
+    })
+
+    const afterClient = deleteClientCascade(sampleData(), 'c1', revision)
+    expect(afterClient.resources.find((r) => r.id === 'ph1')).toMatchObject({
+      id: 'ph1',
+      projectId: undefined,
+      updatedAt: revision,
+    })
+
+    const afterDiscipline = deleteDisciplineCascade(sampleData(), 'd1', revision)
+    expect(afterDiscipline.resources.find((r) => r.id === 'r1')).toMatchObject({
+      id: 'r1',
+      disciplineId: undefined,
+      updatedAt: revision,
+    })
   })
 
   it('does not mutate the input', () => {

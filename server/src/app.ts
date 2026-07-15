@@ -1,4 +1,5 @@
 import { randomBytes, timingSafeEqual } from 'node:crypto'
+import type { ServerOptions as HttpsServerOptions } from 'node:https'
 import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
 import helmetPlugin from '@fastify/helmet'
@@ -137,6 +138,9 @@ export const MAX_BATCH_OPS = 5000
 // slowloris-style slow-body/slow-read socket exhaustion attack that an unbounded timeout permits.
 const REQUEST_TIMEOUT_MS = 30_000
 const CONNECTION_TIMEOUT_MS = 30_000
+export const MAX_SERVER_CONNECTIONS = 512
+const CSP_REPORT_BODY_LIMIT = 64 * 1024
+const MAX_CSP_REPORTS_PER_REQUEST = 20
 
 /** Default invite lifetime (P1.9): a link with no explicit `expiresAt` in the create body expires
  *  7 days after it is minted. A short-ish default keeps a leaked/forgotten link from staying live
@@ -156,6 +160,9 @@ export const DEFAULT_CORS =
   'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273'
 
 export interface AppOptions {
+  /** Internal HTTPS identity for a reverse-proxy/service hop. Omitted only for local development;
+   * the production posture guard requires it and the default Compose topology verifies it. */
+  internalTls?: Pick<HttpsServerOptions, 'key' | 'cert' | 'minVersion'>
   /** Gate POST /api/test/reset — only enabled for tests / explicit dev opt-in. */
   allowReset?: boolean
   /** CAPACITYLENS_LOG=1 — structured per-request logging (Fastify's bundled pino, JSON on
@@ -165,13 +172,16 @@ export interface AppOptions {
   log?: boolean
   /** Test seam: where the JSON log lines go when `log` is on (default stdout). */
   logStream?: { write(msg: string): void }
-  /** CAPACITYLENS_HEALTH_DEEP=1 — /api/health also proves the DB answers a trivial read:
+  /** Structured security-event destination. The entrypoint emits JSONL to stdout for forwarding;
+   * tests/factory consumers default to a no-op. Must never throw into a request. */
+  securityLog?: (event: Record<string, unknown>) => void
+  /** CAPACITYLENS_HEALTH_DEEP=1 — /api/health also proves the DB answers a constant-work read:
    *  200 { ok, db: true }, or 503 { ok: false } when the read throws. Default OFF =
    *  today's unconditional { ok: true } (Playwright's webServer probe depends on it). */
   healthDeep?: boolean
   /** CAPACITYLENS_RATE_LIMIT=<n> — n requests/minute per IP across /api/* (a guard against an
-   *  accidental client loop hammering the single-writer SQLite file, NOT a security
-   *  control). /api/health is exempt. <= 0 / omitted ⇒ the plugin is not registered at
+   *  accidental client loop hammering the single-writer SQLite file and remote resource
+   *  exhaustion). Health participates in the same per-IP budget. <= 0 / omitted ⇒ the plugin is not registered at
    *  all (today's behaviour) — see parseRateLimit for the fail-closed env parse. */
   rateLimit?: number
   /** Key the rate limit on the first X-Forwarded-For hop instead of the socket address.
@@ -186,6 +196,9 @@ export interface AppOptions {
   authMode?: AuthMode
   /** The Better Auth instance — required exactly when authMode ≠ 'off'. */
   auth?: Auth | null
+  /** Require an enrolled and completed TOTP second factor before password users may access tenant
+   * data. Auth endpoints and /api/auth/me remain available so an existing user can enroll. */
+  requireMfa?: boolean
   /** CORS allow-list: a comma-separated list of explicit origins. Wildcards are rejected because
    *  the browser client always uses cookie credentials. Defaults to the localhost allow-list when
    *  omitted — so the factory is safe even if a caller forgets to pass it. The
@@ -268,6 +281,47 @@ const redactSecretUrl = (url: unknown): string | undefined => {
   } catch {
     return inviteSafe
   }
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const safeCspDirective = (value: unknown): string | undefined =>
+  typeof value === 'string' && /^[a-z][a-z0-9-]{0,63}$/i.test(value) ? value : undefined
+
+// CSP fields can contain full URLs, including query/fragment secrets. Security telemetry needs only
+// the origin; special browser values such as "inline" are retained as a bounded classification.
+const safeCspOrigin = (value: unknown): string | undefined => {
+  if (typeof value !== 'string' || value.length > 2048) return undefined
+  if (['inline', 'eval', 'self', 'data', 'blob'].includes(value)) return value
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.origin : `scheme:${url.protocol}`
+  } catch {
+    return undefined
+  }
+}
+
+function normalizedCspReports(payload: unknown): Record<string, unknown>[] {
+  const candidates = Array.isArray(payload) ? payload.slice(0, MAX_CSP_REPORTS_PER_REQUEST) : [payload]
+  const reports: Record<string, unknown>[] = []
+  for (const candidate of candidates) {
+    if (!isRecord(candidate)) continue
+    const legacy = isRecord(candidate['csp-report']) ? candidate['csp-report'] : undefined
+    const modern = candidate.type === 'csp-violation' && isRecord(candidate.body) ? candidate.body : undefined
+    const body = legacy ?? modern
+    if (!body) continue
+    reports.push({
+      event: 'csp_violation',
+      outcome: 'reported',
+      documentOrigin: safeCspOrigin(body['document-uri'] ?? body.documentURL),
+      blockedOrigin: safeCspOrigin(body['blocked-uri'] ?? body.blockedURL),
+      effectiveDirective: safeCspDirective(body['effective-directive'] ?? body.effectiveDirective),
+      violatedDirective: safeCspDirective(body['violated-directive']),
+      disposition: body.disposition === 'report' || body.disposition === 'enforce' ? body.disposition : undefined,
+    })
+  }
+  return reports
 }
 
 export const MAX_RATE_LIMIT = 1_000_000
@@ -371,6 +425,21 @@ function accountFieldsFrozen(
 function resolveCorsOrigin(reqOrigin: string | undefined, allow: string): string | null {
   const list = allow.split(',').map((s) => s.trim()).filter(Boolean)
   return reqOrigin && list.includes(reqOrigin) ? reqOrigin : null
+}
+
+function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trustForwarded: boolean): boolean {
+  const host = req.headers.host
+  if (!host) return false
+  const forwardedProto = req.headers['x-forwarded-proto']
+  const candidate = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto
+  const protocol = trustForwarded && (candidate === 'http' || candidate === 'https')
+    ? candidate
+    : req.protocol
+  try {
+    return new URL(reqOrigin).origin === new URL(`${protocol}://${host}`).origin
+  } catch {
+    return false
+  }
 }
 
 // Constant-time secret compare for the P1.8 bootstrap token. Returns false UNLESS the
@@ -685,6 +754,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   const authAdapter: AuthAdapter | null = auth ? betterAuthAdapter(auth) : null
   const logOn = opts.log === true
   const app = Fastify({
+    ...(opts.internalTls ? { https: opts.internalTls } : {}),
     bodyLimit: BODY_LIMIT,
     requestTimeout: REQUEST_TIMEOUT_MS,
     connectionTimeout: CONNECTION_TIMEOUT_MS,
@@ -716,6 +786,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         }
       : false,
   })
+  // A finite process-wide socket ceiling gives the reverse proxy a deterministic overload signal
+  // instead of allowing unbounded accepted connections to consume memory/file descriptors.
+  app.server.maxConnections = MAX_SERVER_CONNECTIONS
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
   if (corsOrigin.split(',').some((origin) => origin.trim() === '*')) {
@@ -729,6 +802,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     err instanceof InviteAlreadyUsedError
       ? reply.code(409).send({ error: err.message })
       : sendFail(reply, err)
+  const securityEvent = (event: Record<string, unknown>): void => {
+    try {
+      opts.securityLog?.(event)
+    } catch (error) {
+      // A monitoring transport must never turn a safe refusal into an application outage.
+      if (logOn) app.log.error(error, 'security event logging failed')
+      else console.error('capacitylens-server: security event logging failed')
+    }
+  }
 
   /**
    * Error classifier for the P2.5a lifecycle routes. The pure state machine (archive/unarchive/
@@ -756,6 +838,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     const fwStatus = (err as { statusCode?: number }).statusCode
     if (typeof fwStatus === 'number') {
       if (fwStatus >= 500) {
+        securityEvent({ event: 'unexpected_error', outcome: 'failure', method: req.method, path: redactSecretUrl(req.url), status: fwStatus })
         if (logOn) req.log.error(err)
         else console.error(err)
         return reply.code(fwStatus).send({ error: 'Internal server error' })
@@ -765,14 +848,30 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     return sendFail(reply, err)
   })
 
+  // Browsers use non-JSON media types for CSP reports. Parse them as bounded JSON so malformed or
+  // oversized telemetry is rejected before the handler and can never become a logging DoS path.
+  app.addContentTypeParser(
+    ['application/csp-report', 'application/reports+json'],
+    { parseAs: 'string', bodyLimit: CSP_REPORT_BODY_LIMIT },
+    (_req, body, done) => {
+      try {
+        done(null, JSON.parse(typeof body === 'string' ? body : body.toString('utf8')))
+      } catch {
+        const error = new Error('Malformed CSP report') as Error & { statusCode: number }
+        error.statusCode = 400
+        done(error, undefined)
+      }
+    },
+  )
+
   // Baseline security headers (P0.5.3, @fastify/helmet): ON by default — these are pure
   // hardening with no precondition, for an API server that returns JSON only (the SPA is
   // served by Nginx, not here). Registered EARLY, before route plugins, so its onRequest
   // hook decorates every response. helmet defaults already give us nosniff
   // (X-Content-Type-Options) and X-Frame-Options: DENY (frameguard) for legacy browsers; we
   // add a strict, minimal CSP whose frame-ancestors 'none' is the modern clickjacking guard,
-  // and a no-referrer Referrer-Policy. The CSP carries EXACTLY five directives (default/connect/
-  // base-uri 'self', frame-ancestors 'none', object-src 'none') — useDefaults:false below keeps
+  // and a no-referrer Referrer-Policy. The CSP carries exactly the minimal API directives plus
+  // legacy and current reporting targets — useDefaults:false below keeps
   // helmet from merging its defaults (script-src/style-src 'unsafe-inline'/img-src/etc.), since
   // nothing here loads scripts or styles. HSTS is the ONE header
   // gated OFF by default — see opts.https: it is only valid over real HTTPS, and this server
@@ -792,6 +891,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         'frame-ancestors': ["'none'"],
         'base-uri': ["'self'"],
         'object-src': ["'none'"],
+        'report-uri': ['/api/security/csp-report'],
+        'report-to': ['csp-endpoint'],
       },
     },
     referrerPolicy: { policy: 'no-referrer' },
@@ -800,7 +901,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     frameguard: { action: 'deny' },
     // OFF over HTTP (the default deploy: HTTP behind a TLS-terminating proxy); only emitted
     // when the operator asserts real HTTPS fronts the origin (opts.https / CAPACITYLENS_HTTPS=1).
-    hsts: opts.https === true ? { maxAge: 15552000, includeSubDomains: true } : false,
+    hsts: opts.https === true ? { maxAge: 63072000, includeSubDomains: true } : false,
   })
 
   // Rate limiting (P1.5, flag CAPACITYLENS_RATE_LIMIT): registered ONLY when a positive limit
@@ -828,6 +929,37 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     })
   }
 
+  // ASVS v5.0.0 V14.3.2: authenticated/API data must never be retained by a browser,
+  // intermediary, or shared cache. Apply this at the root so Better Auth responses, errors,
+  // health, and every custom route share one invariant. `no-store` is the normative control;
+  // the legacy Pragma header protects older HTTP/1.0 intermediaries.
+  app.addHook('onSend', async (req: FastifyRequest, reply: FastifyReply, payload) => {
+    if (req.url.split('?', 1)[0].startsWith('/api/')) {
+      reply.header('Cache-Control', 'no-store')
+      reply.header('Pragma', 'no-cache')
+      reply.header('Reporting-Endpoints', 'csp-endpoint="/api/security/csp-report"')
+    }
+    return payload
+  })
+
+  app.addHook('onResponse', async (req: FastifyRequest, reply: FastifyReply) => {
+    const path = req.url.split('?', 1)[0]
+    const authOperation = /^\/api\/auth\/(sign-in|sign-out|callback|oauth2\/callback|two-factor|change-password|reset-password)/.test(path)
+    if (authOperation) {
+      securityEvent({
+        event: 'authentication',
+        outcome: reply.statusCode < 400 ? 'success' : 'failure',
+        method: req.method,
+        path: redactSecretUrl(path),
+        status: reply.statusCode,
+        remoteIp: req.ip,
+        userId: req.user?.id,
+      })
+    } else if (reply.statusCode === 429) {
+      securityEvent({ event: 'rate_limit', outcome: 'blocked', method: req.method, path, status: 429, remoteIp: req.ip })
+    }
+  })
+
   // requireUser — ONE gate for everything under /api/ except /api/health (the
   // uptime monitor has no session) and /api/auth/* (the login machinery itself; our
   // /api/auth/me handles its own 401). Root-level so child routes inherit it; preHandler
@@ -837,7 +969,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.decorateRequest('user', null)
   app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
     const path = req.url.split('?', 1)[0]
-    if (!path.startsWith('/api/') || path === '/api/health' || path.startsWith('/api/auth/')) return
+    if (
+      !path.startsWith('/api/') ||
+      path === '/api/health' ||
+      path === '/api/security/csp-report' ||
+      path.startsWith('/api/auth/')
+    ) return
     // A genuinely new password user has no session yet. This one endpoint is instead authorized
     // by the unexpired single-use invite bearer token, which its handler validates before creating
     // an identity. No tenant data is returned and no other API route is exempted.
@@ -848,8 +985,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     }
     try {
       const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
-      if (!user) return reply.code(401).send({ error: 'Sign in to continue.' })
+      if (!user) {
+        securityEvent({ event: 'authentication_required', outcome: 'blocked', method: req.method, path, remoteIp: req.ip })
+        return reply.code(401).send({ error: 'Sign in to continue.' })
+      }
       req.user = user
+      if (authMode === 'password' && opts.requireMfa === true && user.twoFactorEnabled !== true) {
+        securityEvent({ event: 'mfa_required', outcome: 'blocked', method: req.method, path, userId: user.id })
+        return reply.code(403).send({
+          error: 'Multi-factor authentication enrollment is required.',
+          code: 'MFA_ENROLLMENT_REQUIRED',
+        })
+      }
     } catch (e) {
       // The auth backend (Better Auth / its DB) FAILED — this is NOT "no session". CRITICAL: do
       // not fall through leaving req.user null while letting the handler run (that would serve an
@@ -920,11 +1067,26 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if (authMode === 'off') return true // OFF = allow-all; resolveRole/can NEVER run.
     const role = resolveRole(db, req.user!, accountId)
     if (role === null) {
+      securityEvent({ event: 'authorization', outcome: 'denied', action, accountId, userId: req.user?.id })
       reply.code(403).send({ error: 'Forbidden.' }) // not a member of this account
       return false
     }
     if (!can(role, action)) {
+      securityEvent({ event: 'authorization', outcome: 'denied', action, accountId, userId: req.user?.id, role })
       reply.code(403).send({ error: 'Forbidden.' }) // member, but role tier too low for action
+      return false
+    }
+    if (
+      action !== 'read' &&
+      action !== 'write' &&
+      req.user?.sessionCreatedAt !== undefined &&
+      Date.now() - Date.parse(req.user.sessionCreatedAt) > 15 * 60 * 1000
+    ) {
+      securityEvent({ event: 'step_up_required', outcome: 'blocked', action, accountId, userId: req.user?.id })
+      reply.code(403).send({
+        error: 'Sign in again before performing this security-sensitive action.',
+        code: 'SESSION_NOT_FRESH',
+      })
       return false
     }
     return true
@@ -965,14 +1127,40 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     return visible
   }
 
-  // No app-level auth in this phase. CORS is the only cross-origin gate, so the
-  // entrypoint locks it to an allow-list in production (see index.ts). Preflight is
-  // answered here. This hook MUST live on the ROOT instance, not in the routes child
+  // CORS response headers are not a CSRF control: browsers can still SEND a simple form request
+  // and merely hide the response. Reject unsafe cross-site browser requests before routing, then
+  // add CORS headers for explicitly trusted origins. Requests without Origin/Sec-Fetch-Site are
+  // retained for CLI/server clients; modern browsers supply at least one signal for a cross-site
+  // unsafe request. This hook MUST live on the ROOT instance, not in the routes child
   // below: there are no OPTIONS routes, so a preflight takes the not-found path, and
   // only root-level hooks run there — a child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
   app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
-    const origin = resolveCorsOrigin(req.headers.origin, corsOrigin)
+    const listedOrigin = resolveCorsOrigin(req.headers.origin, corsOrigin)
+    const fetchSite = req.headers['sec-fetch-site']
+    // Sec-Fetch-Site is a forbidden browser-controlled header and therefore the most direct signal
+    // for the packaged proxy path (where an outer TLS edge or non-default port can make server-side
+    // origin reconstruction ambiguous). Exact scheme/Host comparison remains the fallback for
+    // older clients that do not send Fetch Metadata.
+    const sameOrigin = fetchSite === 'same-origin' || (
+      req.headers.origin !== undefined && requestOriginIsSameOrigin(
+        req,
+        req.headers.origin,
+        opts.rateLimitTrustForwarded === true,
+      )
+    )
+    const origin = listedOrigin ?? (sameOrigin ? req.headers.origin! : null)
+    const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+    if (
+      unsafe &&
+      ((req.headers.origin !== undefined && origin === null) || fetchSite === 'cross-site')
+    ) {
+      securityEvent({
+        event: 'cross_site_request', outcome: 'blocked', method: req.method,
+        path: redactSecretUrl(req.url), origin: req.headers.origin, fetchSite,
+      })
+      return reply.code(403).send({ error: 'Cross-site request rejected.' })
+    }
     if (origin) {
       reply.header('Access-Control-Allow-Origin', origin)
       reply.header('Vary', 'Origin')
@@ -996,17 +1184,22 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // so its routes are seen, and it inherits the root CORS hook + error handler. The
   // callback shadows `app` deliberately: the route code is identical without the wrapper.
   void app.register(async (app) => {
-    // config.rateLimit: false exempts health from the limiter (inert when it isn't
-    // registered) — the uptime monitor must never be told 429.
-    app.get('/api/health', { config: { rateLimit: false } }, (_req, reply) => {
+    // Public browser telemetry endpoint. It returns no data, accepts only bounded JSON media types,
+    // is covered by the normal IP rate limit, and logs a strict origin/directive projection rather
+    // than attacker-controlled full URLs. Authentication cannot be required because a CSP failure
+    // can occur before a session exists.
+    app.post('/api/security/csp-report', { bodyLimit: CSP_REPORT_BODY_LIMIT }, (req, reply) => {
+      for (const report of normalizedCspReports(req.body)) securityEvent(report)
+      return reply.code(204).send()
+    })
+
+    // Health is deliberately constant-work and participates in the normal rate limit. The
+    // expensive full row-codec + foreign-key integrity verification runs once during openDb(),
+    // not on a public request path an attacker can amplify.
+    app.get('/api/health', (_req, reply) => {
       if (!healthStmt) return { ok: true }
       try {
         healthStmt.get()
-        // Exercise the real row codecs and every table, then verify relational semantics. A
-        // trivial SELECT 1 can succeed while JSON decoding or foreign-key integrity is broken.
-        loadState(db)
-        const fkViolations = db.prepare('PRAGMA foreign_key_check').all()
-        if (fkViolations.length > 0) throw new Error('foreign-key integrity check failed')
         // P1.15: audit-degraded is a SOFT signal — keep ok:true (the DB is fine; the audit sink
         // failing a write doesn't make the server unhealthy), just surface 'degraded' so an
         // operator can see it. The SHALLOW (non-deep) health stays exactly { ok: true } above —
@@ -1060,6 +1253,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return {
           authMode,
           user,
+          mfaRequired: authMode === 'password' && opts.requireMfa === true && user.twoFactorEnabled !== true,
           providers: auth?.providers ?? [],
           multiAccount,
           canCreateAccount: capAllows && userMayCreateAccount(db, authMode, user.id),
@@ -1583,21 +1777,24 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // Build the caller's role-by-account map ONCE; per member a listMembershipsForUser is fine
       // (member lists are small — this app targets small agencies), matching the reset route's shape.
       const canReset = authMode === 'password'
-      const actorRoles = canReset
-        ? new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
-        : null
+      const actorRoles = new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
       return {
         members: members.map((m) => {
           const who = identities.get(m.userId)
           const isSelf = m.userId === req.user!.id
           const mayResetPassword =
-            canReset && actorRoles !== null
+            canReset
               ? canResetMemberAcrossAccounts(
                   actorRoles,
                   new Map(listMembershipsForUser(db, m.userId).map((mem) => [mem.accountId, mem.role])),
                   isSelf,
                 )
               : false
+          const mayRevokeSessions = canResetMemberAcrossAccounts(
+            actorRoles,
+            new Map(listMembershipsForUser(db, m.userId).map((mem) => [mem.accountId, mem.role])),
+            isSelf,
+          )
           return {
             userId: m.userId,
             role: m.role,
@@ -1607,6 +1804,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             email: who?.email ?? null,
             isSelf,
             mayResetPassword,
+            mayRevokeSessions,
           }
         }),
       }
@@ -1791,6 +1989,31 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           entity: 'identity', id: userId, changedFields: ['credential'],
         })
         return reply.code(201).send({ token, expiresAt })
+      } catch (err) {
+        return sendFail(reply, err)
+      }
+    })
+
+    // Revoke every active session for a member. Session state is identity-global, so the actor must
+    // have reset-equivalent authority in every account the target belongs to; an admin of account X
+    // cannot disrupt an owner of account Y merely because the identity is also present in X.
+    app.post('/api/accounts/:accountId/members/:userId/revoke-sessions', async (req, reply) => {
+      const { accountId, userId } = req.params as { accountId: string; userId: string }
+      if (!authorize(req, reply, accountId, 'manageMembers')) return
+      if (authMode === 'off' || !auth) return reply.code(400).send({ error: 'Sessions require authentication.' })
+      try {
+        const actorRoles = new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
+        const targetRoles = new Map(listMembershipsForUser(db, userId).map((mem) => [mem.accountId, mem.role]))
+        if (!targetRoles.has(accountId)) return reply.code(404).send({ error: 'Not a member of this account.' })
+        if (!canResetMemberAcrossAccounts(actorRoles, targetRoles, userId === req.user!.id)) {
+          return reply.code(403).send({ error: 'You lack session-revocation authority for this identity.' })
+        }
+        await auth.revokeUserSessions(userId)
+        audit(reply, {
+          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'sessionsRevoke',
+          entity: 'identity', id: userId, changedFields: ['sessions'],
+        })
+        return reply.code(204).send()
       } catch (err) {
         return sendFail(reply, err)
       }

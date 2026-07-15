@@ -1,11 +1,19 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
 import { buildApp } from './app'
 import { openDb } from './db'
-import { fileAuditSink, noopAuditSink, parseAuditConfig, type AuditRecord, type AuditSink } from './audit'
+import {
+  compositeAuditSink,
+  fileAuditSink,
+  noopAuditSink,
+  parseAuditConfig,
+  streamAuditSink,
+  type AuditRecord,
+  type AuditSink,
+} from './audit'
 
 // P1.15 (flag CAPACITYLENS_AUDIT → opts.audit): an append-only JSONL line per AppData mutation,
 // {ts,userId,accountId,action,entity,id,changedFields}. THE #1 INVARIANT proven here: changedFields
@@ -87,6 +95,12 @@ describe('AuditRecord shape (1)', () => {
     expect(Date.parse(rec.ts)).not.toBeNaN()
     // changedFields = the row's field NAMES (sanitized row keys), not values.
     expect(rec.changedFields).toEqual(expect.arrayContaining(['id', 'name', 'color', 'createdAt', 'updatedAt']))
+  })
+
+  it('creates the audit trail with owner-only permissions', async () => {
+    const { app, file } = fileApp()
+    expect((await post(app, 'accounts', account('a1'))).statusCode).toBe(201)
+    expect(statSync(file).mode & 0o777).toBe(0o600)
   })
 })
 
@@ -342,6 +356,37 @@ describe('noopAuditSink', () => {
     const sink = noopAuditSink()
     expect(sink.append({ ts: TS, userId: 'demo', accountId: 'a1', action: 'create', entity: 'accounts', id: 'a1', changedFields: [] })).toBe(true)
     expect(sink.degraded).toBe(false)
+  })
+})
+
+describe('central audit forwarding', () => {
+  const record: AuditRecord = {
+    ts: TS,
+    userId: 'user-1',
+    accountId: 'account-1',
+    action: 'sessionsRevoke',
+    entity: 'identity',
+    id: 'user-2',
+    changedFields: ['sessions'],
+  }
+
+  it('emits a typed one-line JSON envelope suitable for an external collector', () => {
+    const lines: string[] = []
+    const sink = streamAuditSink((line) => lines.push(line))
+    expect(sink.append(record)).toBe(true)
+    expect(lines).toHaveLength(1)
+    expect(JSON.parse(lines[0])).toEqual({ type: 'capacitylens.audit', ...record })
+    expect(lines[0]).not.toContain('\n')
+    expect(sink.degraded).toBe(false)
+  })
+
+  it('latches a stream failure and makes a composite destination fail closed visibly', () => {
+    const healthy = noopAuditSink()
+    const failed = streamAuditSink(() => { throw new Error('collector unavailable') })
+    const composite = compositeAuditSink(healthy, failed)
+    expect(() => composite.append(record)).not.toThrow()
+    expect(composite.append(record)).toBe(false)
+    expect(composite.degraded).toBe(true)
   })
 })
 

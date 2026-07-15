@@ -344,6 +344,19 @@ no login screen exists, Settings has no Account section, and local mode makes **
 request at all. The server's reported `authMode` is the single source of truth — there is no
 client-side auth flag.
 
+**Password MFA and account security.** A production password deployment requires TOTP MFA. After
+first-owner setup, or after an existing pre-MFA user signs in, the app shows **Secure your account**
+before any company data. The user enters their current password
+(`data-testid="mfa-enroll-password"`), records the authenticator URI and one-time recovery codes,
+enters the six-digit code (`data-testid="mfa-enroll-code"`), confirms the codes were saved, and
+chooses **Enable MFA** (`data-testid="mfa-enroll-submit"`). A user who already enrolled sees an
+**Authentication code** challenge after email/password sign-in (`data-testid="mfa-code"`, submit
+`data-testid="mfa-submit"`), with a recovery-code alternative. Settings gains a **Security** section
+(`data-testid="security-section"`) where password users can change their password only by supplying
+the current password and can view/revoke active sessions. Recovery codes and session tokens are
+never displayed after their one-time setup/use. Disabling MFA is deliberately not offered when the
+deployment requires it.
+
 **First-run owner setup (password mode, zero users).** When the server reports `needsSetup: true`
 on the 401 (password mode with an **empty** user table — sign-up is open for exactly one
 bootstrap account and closes the moment it exists), the login wall shows a **Create the owner
@@ -354,7 +367,7 @@ account** screen instead of sign-in: heading `Create the owner account`, fields 
 owner in and reloads into the normal boot flow (company picker → app). On a populated server the
 flag is absent and the ordinary `Sign in` form renders — the auth-backed E2E server is never
 zero-users (it boots with the `--create-owner-admin-admin` bootstrap credential `admin@admin.admin`
-/ `admin` — `admin` is PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
+/ `auth-e2e-password-2026` — PINNED for the e2e server via `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD`, since
 production now mints a one-time generated password; see `BOOTSTRAP_ADMIN` in `e2e/auth-helpers.ts`),
 so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
@@ -395,6 +408,8 @@ self-gates by trying to read the member list and rendering **nothing** if the se
   link over directly. An **Admin never sees Reset password on an Owner's row** (a reset link is an
   account-takeover capability; only an Owner may reset an Owner — the server 403s regardless). The
   button is absent in `sso` mode (the IdP owns credentials).
+  Manageable rows also carry **Revoke sessions** (`data-testid="member-revoke-sessions"`), using
+  the same cross-account authority rule as password reset.
 - **Invite form** — a **role** picker (`data-testid="invite-role"`) + an optional **pre-authorise
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
@@ -435,13 +450,16 @@ write-once) mints the reset link. The UI is
 `src/components/settings/MembersSection.tsx`; story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
+`POST /api/accounts/:accountId/members/:userId/revoke-sessions` uses the same cross-account
+takeover-authority rule as password reset and revokes every active session for that identity.
+
 **Password reset route (`/reset-password/:token`; server mode, password auth).** The page an
 admin-minted reset link opens: heading **Reset password**, a **New password** field
 (`data-testid="reset-new-password"`), a **Confirm new password** field
 (`data-testid="reset-confirm-password"`) and a **Set new password** button
 (`data-testid="reset-submit"`). It renders **without a session** — unlike `/invite/:token` there is
 no login wall in front of it (the visitor is exactly the person who cannot sign in). Client
-pre-checks (mismatch, under 8 characters) show a field error without a request; the server is the
+pre-checks (mismatch, under 15 characters) show a field error without a request; the server is the
 authority on redeem (`POST /api/auth/reset-password`). Success shows *"Password updated. Sign in
 with your new password."* (`data-testid="reset-success"`) with a **Go to sign in** link (a full page
 load onto the login wall); the member's previous sessions are revoked. An invalid / already-used /

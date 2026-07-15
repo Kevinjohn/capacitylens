@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { unlinkSync } from 'node:fs'
+import { chmodSync, existsSync, statSync, unlinkSync } from 'node:fs'
 import { openDb, insertRow, getRow, loadState, seedIfUninitialized, isInitialized, isEmpty, deleteRow } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
 
@@ -61,6 +61,29 @@ function writeOldDb(path: string): void {
 }
 
 describe('schema migration of an existing on-disk DB', () => {
+  it('restricts the database and all live SQLite sidecars to owner read/write', () => {
+    const path = join(tmpdir(), `capacitylens-mode-${process.pid}-${Date.now()}.db`)
+    try {
+      const db = openDb(path)
+      insertRow(db, 'accounts', {
+        id: 'a-mode', name: 'Mode', color: '#111111', createdAt: TS, updatedAt: TS,
+      })
+      // Prove openDb repairs a permissive pre-existing database as well as creating secure files.
+      chmodSync(path, 0o666)
+      db.close()
+      const reopened = openDb(path)
+      const liveFiles = [path, `${path}-wal`, `${path}-shm`].filter(existsSync)
+      expect(liveFiles).toContain(`${path}-wal`)
+      expect(liveFiles).toContain(`${path}-shm`)
+      for (const file of liveFiles) expect(statSync(file).mode & 0o777).toBe(0o600)
+      reopened.close()
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+  })
+
   it('folds duplicate Internal clients before installing the singleton index', () => {
     const path = join(tmpdir(), `capacitylens-internal-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {

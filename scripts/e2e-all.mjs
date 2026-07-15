@@ -1,15 +1,17 @@
-// Full cross-browser E2E run, used by `pnpm run e2e:all`. Runs in TWO sequential Playwright
-// invocations rather than one, so the alt-engines run in series (Chromium matrix incl.
-// WebKit/Safari first, then Firefox/Gecko) AND Firefox runs UNCONDITIONALLY — even if the first
-// invocation goes red. We deliberately do NOT sequence Firefox via a Playwright project
+// Full cross-browser E2E run, used by `pnpm run e2e:all`. Runs in THREE sequential Playwright
+// invocations: Chromium plus the DB/auth projects, WebKit/Safari, then Firefox/Gecko. Giving each
+// browser an isolated Vite lifecycle prevents intermittent module-load failures caused by the
+// WebKit project sharing a busy invocation with three independently managed app/API stacks. Every
+// later invocation runs UNCONDITIONALLY even if an earlier one goes red. We deliberately do NOT
+// sequence the engines via Playwright project
 // `dependency`: Playwright SKIPS a dependent project when its dependency fails, which would drop
 // Firefox results from a full run whenever WebKit had a single failure. The owner wants every
 // engine's results from a full run, always — a red WebKit pass must not hide a Firefox regression.
 //
-// Exit code is non-zero if EITHER invocation failed (so `pnpm run e2e:all` still fails the gate),
-// but both always run to completion first. Each invocation manages its own webServers: the matrix
-// run boots Vite + the SQLite/auth servers (db/auth specs need them); the Firefox run is
-// CAPACITYLENS_FIREFOX_ONLY, so it boots Vite only (no Node 24 / no server) — see playwright.config.ts.
+// Exit code is non-zero if ANY invocation failed (so `pnpm run e2e:all` still fails the gate), but
+// all three always run to completion first. The Chromium run boots Vite + the SQLite/auth servers;
+// each alternative engine uses its *_ONLY flag and boots one Vite server only — see
+// playwright.config.ts.
 //
 //   node scripts/e2e-all.mjs   # = pnpm run e2e:all
 
@@ -27,12 +29,15 @@ function run(label, env, extraArgs = []) {
   return res.status ?? 1
 }
 
-// 1) Chromium + db-backed + auth-backed + WebKit/Safari, in one run (CAPACITYLENS_WEBKIT enables the
-//    webkit project; CAPACITYLENS_FIREFOX is intentionally unset so Firefox is NOT in this invocation).
-const matrix = run('Chromium + WebKit/Safari', { CAPACITYLENS_WEBKIT: '1' })
+// 1) Chromium plus the DB/auth projects. No alternative-engine flag means the three server-backed
+//    projects retain their ordinary browser and get the only multi-server invocation.
+const chromium = run('Chromium + DB/auth', {})
 
-// 2) Firefox/Gecko on its own, AFTER the matrix — runs even when the matrix above failed.
+// 2) WebKit/Safari against one Vite server, even when Chromium failed.
+const webkit = run('WebKit/Safari', { CAPACITYLENS_WEBKIT_ONLY: '1' }, ['--project', 'webkit'])
+
+// 3) Firefox/Gecko against one Vite server, even when either earlier invocation failed.
 const firefox = run('Firefox/Gecko', { CAPACITYLENS_FIREFOX_ONLY: '1' }, ['--project', 'firefox'])
 
-// Fail the run if either engine failed; 0 only when BOTH passed.
-process.exit(matrix || firefox)
+// Fail the run if any engine failed; 0 only when ALL passed.
+process.exit(chromium || webkit || firefox)

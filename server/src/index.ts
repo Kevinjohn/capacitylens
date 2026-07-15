@@ -1,12 +1,17 @@
 import { buildApp, DEFAULT_CORS, parseRateLimit } from './app'
 import { openDb, seedIfUninitialized, type Db } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
-import { createShutdownHandler } from './shutdown'
+import { createLastResortErrorHandler, createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
 import { evaluateProductionPosture } from './productionGuard'
 import { authFromEnv, runAuthMigrations, createBootstrapAdmin, countUsers, AuthConfigError } from './auth'
 import { parseBackupConfig, startBackups } from './backup'
-import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
+import { compositeAuditSink, fileAuditSink, noopAuditSink, parseAuditConfig, streamAuditSink } from './audit'
+import { loadInternalTls } from './internalTls'
+
+// Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
+// permissive shell/container umask. Individual writers also pin 0600 for defence in depth.
+process.umask(0o077)
 
 // Entry point. Run with: tsx src/index.ts (Node 24+ — node:sqlite needs no flag)
 //   CAPACITYLENS_DB                       SQLite file (default ./capacitylens.db; ':memory:' ok)
@@ -35,21 +40,25 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //                                   companies, which is exactly why it can't stay default under
 //                                   the single-company cap above.
 //   CAPACITYLENS_HTTPS                    '1' when the public origin is real HTTPS — enables
-//                                   the HSTS header. Default off: HSTS is invalid/harmful
+//                                   two-year HSTS including subdomains. Default off: HSTS is invalid/harmful
 //                                   over plain HTTP, and this server usually runs HTTP behind
 //                                   a TLS-terminating proxy. The other baseline security
 //                                   headers (nosniff, CSP, Referrer-Policy, X-Frame-Options)
 //                                   are always on, independent of this flag.
+//   CAPACITYLENS_INTERNAL_TLS_CERT        PEM certificate for the internal reverse-proxy/API hop.
+//   CAPACITYLENS_INTERNAL_TLS_KEY         Matching PEM private key. Both are required in production;
+//                                   omitting either refuses startup. The default Compose topology
+//                                   creates a per-install CA and leaf certificate automatically.
 //   CAPACITYLENS_LOG                      '1' for structured per-request JSON logs (pino) and
 //                                   500-errors through the request logger. Default off =
 //                                   today's logging (startup line + console.error on 500s).
-//   CAPACITYLENS_HEALTH_DEEP              '1' to make /api/health do a trivial DB read plus
+//   CAPACITYLENS_HEALTH_DEEP              '1' to make /api/health do a constant SELECT 1 plus
 //                                   surface the audit-sink state: { ok: true, db: true,
 //                                   audit: 'ok' | 'degraded' } (200) or 503 { ok: false }.
 //                                   Default off = unconditional { ok: true }.
-//   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across /api/* (safe integer
-//                                   1–1,000,000; unset/invalid = off, fail-closed).
-//                                   /api/health is exempt.
+//   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across every /api/* route,
+//                                   including health (safe integer 1–1,000,000). Production
+//                                   refuses a missing, zero or invalid value.
 //   CAPACITYLENS_BOOTSTRAP_TOKEN          shared secret enabling constrained org-creation via
 //                                   POST /api/orgs (header x-capacitylens-bootstrap-token)
 //                                   for a caller who is not yet an Owner/Admin. Default off
@@ -84,15 +93,10 @@ import { fileAuditSink, noopAuditSink, parseAuditConfig } from './audit'
 //   CAPACITYLENS_SETUP_TOKEN              required secret for that first owner sign-up, presented
 //                                   by the setup form. A fresh password instance refuses to boot
 //                                   without it unless open signup/bootstrap-admin was explicit.
-//   CAPACITYLENS_CREATE_ADMIN_ADMIN       '1' (or the --create-owner-admin-admin argv flag — same
-//                                   switch, two spellings) to create a default owner credential
-//                                   admin@admin.admin / password 'admin' at boot, ONLY when
-//                                   CAPACITYLENS_AUTH=password AND the user table has ZERO rows
-//                                   (with users present it logs one "skipped" line and boots
-//                                   normally). Prints a loud framed warning — the credential is
-//                                   WELL KNOWN; sign in and change it immediately, then drop the
-//                                   flag. Refuses to boot when auth is off or sso (the flag is
-//                                   meaningless without password credentials).
+//   CAPACITYLENS_CREATE_ADMIN_ADMIN       development-only first-owner helper (also available as
+//                                   --create-owner-admin-admin). It creates admin@admin.admin with
+//                                   a generated password only when the password user table is empty.
+//                                   Production refuses this path; use CAPACITYLENS_SETUP_TOKEN.
 //   CAPACITYLENS_SSO_*                    sso mode only: CLIENT_ID + CLIENT_SECRET, plus
 //                                   DISCOVERY_URL or AUTHORIZATION_URL + TOKEN_URL
 //                                   (optional PROVIDER_ID, SCOPES).
@@ -156,13 +160,20 @@ const https = process.env.CAPACITYLENS_HTTPS === '1'
 const log = process.env.CAPACITYLENS_LOG === '1'
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === '1'
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT)
+const requireMfa = process.env.CAPACITYLENS_REQUIRE_MFA === '1'
+let internalTls: ReturnType<typeof loadInternalTls>
+try {
+  internalTls = loadInternalTls(process.env)
+} catch (error) {
+  refuseToStart(error instanceof Error ? error.message : String(error))
+}
 // P1.8 constrained org-creation. An empty/unset value leaves the token path DISABLED (the app
 // treats undefined and '' identically — bootstrapTokenMatches never allows an empty secret), so
 // the secure default holds: POST /api/orgs is first-run-only or an existing Owner/Admin.
 const bootstrapToken = process.env.CAPACITYLENS_BOOTSTRAP_TOKEN || undefined
 // First-run owner bootstrap: one switch, two spellings — the env var is the repo convention, the
 // argv flag exists for one-shot shells (`node ... --create-owner-admin-admin`) where exporting an
-// env var is awkward. Normalized ONCE here; everything downstream (the posture warning,
+// env var is awkward. Normalized ONCE here; everything downstream (the production refusal,
 // createBootstrapAdmin) sees a single boolean.
 const bootstrapAdmin =
   process.env.CAPACITYLENS_CREATE_ADMIN_ADMIN === '1' || process.argv.includes('--create-owner-admin-admin')
@@ -204,7 +215,7 @@ try {
 // — running auth OFF in production would expose the demo dataset. Refuse on fatal posture violations,
 // warn loudly on the softer ones. No-op outside production (see productionGuard.ts).
 // The posture guard is a pure env predicate, so the argv spelling of the bootstrap flag is folded
-// into its env form here — both spellings must trigger the same well-known-credential warning.
+// into its env form here — both spellings must trigger the same development-only refusal.
 const posture = evaluateProductionPosture(
   bootstrapAdmin ? { ...process.env, CAPACITYLENS_CREATE_ADMIN_ADMIN: '1' } : process.env,
 )
@@ -274,11 +285,19 @@ if (authMode === 'password' && countUsers(db) === 0) {
 // sink latches `degraded` (deep-health surfaces it), never crashes the daemon or fails a request.
 const auditCfg = parseAuditConfig(process.env, dbPath)
 const auditMaxBytes = parseAuditMaxMb(process.env.CAPACITYLENS_AUDIT_MAX_MB) * 1024 * 1024
-const auditSink = auditCfg.enabled
+const auditFileSink = auditCfg.enabled
   ? fileAuditSink(auditCfg.file, (m) => console.error(m), { maxBytes: auditMaxBytes })
   : noopAuditSink()
+const auditSink = process.env.CAPACITYLENS_AUDIT_STDOUT === '1'
+  ? compositeAuditSink(auditFileSink, streamAuditSink(console.log))
+  : auditFileSink
+
+const securityLog = (event: Record<string, unknown>) => {
+  console.log(JSON.stringify({ type: 'capacitylens.security', ts: new Date().toISOString(), ...event }))
+}
 
 const app = buildApp(db, {
+  internalTls,
   allowReset,
   corsOrigin,
   optimisticConcurrency,
@@ -291,7 +310,9 @@ const app = buildApp(db, {
   bootstrapToken,
   authMode,
   auth,
+  requireMfa,
   audit: auditSink,
+  securityLog,
 })
 
 // Backups (P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: no timer, no filesystem writes).
@@ -300,14 +321,6 @@ const backupConfig = parseBackupConfig(process.env)
 const backups = backupConfig
   ? startBackups(db, backupConfig, log ? (m) => app.log.info(m) : console.log)
   : null
-
-app
-  .listen({ port, host })
-  .then((addr) => console.log(`capacitylens-server listening on ${addr} (db=${dbPath}, reset=${allowReset})`))
-  .catch((err) => {
-    console.error(err)
-    process.exit(1)
-  })
 
 // Graceful shutdown (P1.2): the deploy restarts the daemon with a signal — drain in-flight
 // requests, then close the DB, instead of dying mid-transaction. A repeat signal force-exits.
@@ -330,3 +343,23 @@ const onSignal = (sig: NodeJS.Signals) => {
 }
 process.on('SIGTERM', () => onSignal('SIGTERM'))
 process.on('SIGINT', () => onSignal('SIGINT'))
+
+const lastResort = createLastResortErrorHandler(
+  shutdown,
+  securityLog,
+  (message, error) => console.error(message, error),
+)
+process.on('uncaughtException', (error) => {
+  void lastResort('uncaught_exception', error)
+})
+process.on('unhandledRejection', (reason) => {
+  void lastResort('unhandled_rejection', reason)
+})
+
+app
+  .listen({ port, host })
+  .then((addr) => console.log(`capacitylens-server listening on ${addr} (db=${dbPath}, reset=${allowReset})`))
+  .catch((err) => {
+    console.error(err)
+    process.exit(1)
+  })

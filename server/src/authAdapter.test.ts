@@ -17,6 +17,7 @@ function fakeAuth(getSession: Auth['api']['getSession']): Auth {
     api: { getSession, requestPasswordReset: async () => ({ status: true }) },
     options: {},
     providers: [],
+    revokeUserSessions: async () => {},
     createCredentialUser: async () => ({ id: 'fake-user' }),
     deleteCredentialUser: async () => {},
   }

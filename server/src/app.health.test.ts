@@ -4,7 +4,7 @@ import { openDb } from './db'
 import type { AuditSink } from './audit'
 
 // P1.4 (flag CAPACITYLENS_HEALTH_DEEP → opts.healthDeep): ON makes /api/health prove the DB
-// answers a trivial read; OFF keeps today's unconditional { ok: true } — the exact body
+// answers a constant SELECT 1; OFF keeps today's unconditional { ok: true } — the exact body
 // Playwright's webServer probe (and anything else pinned to it) depends on.
 
 describe('CAPACITYLENS_HEALTH_DEEP on', () => {

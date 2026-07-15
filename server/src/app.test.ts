@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
 import { buildApp, statusFor, MAX_BATCH_OPS, type AppOptions } from './app'
 import { ValidationError } from './validate'
-import { openDb } from './db'
+import { insertRow, openDb } from './db'
 import {
   FIXTURE_ACCOUNT,
   FIXTURE_CLIENT,
@@ -32,8 +32,9 @@ const withoutRevision = <T extends object>(row: T) => {
   return copy
 }
 
-function freshApp(allowReset = true, extra: Partial<AppOptions> = {}): { app: FastifyInstance } {
-  return { app: buildApp(openDb(':memory:'), { allowReset, optimisticConcurrency: false, ...extra }) }
+function freshApp(allowReset = true, extra: Partial<AppOptions> = {}) {
+  const db = openDb(':memory:')
+  return { app: buildApp(db, { allowReset, optimisticConcurrency: false, ...extra }), db }
 }
 
 const account = (id: string) => ({ id, name: 'Studio', color: '#5c34d4', ...meta() })
@@ -392,6 +393,25 @@ describe('validation (shared domain-core) rejects bad writes with 400', () => {
     await scaffold(app)
     const res = await post(app, 'allocations', allocation('al', 'a1', 'ghost', 't1'))
     expect(res.statusCode).toBe(400)
+  })
+
+  it('fails closed when a corrupt project-bound activity points at another account\'s project', async () => {
+    const { app, db } = freshApp(true, { multiAccount: true })
+    await post(app, 'accounts', account('a1'))
+    await post(app, 'accounts', account('a2'))
+    await post(app, 'clients', client('c2', 'a2'))
+    await post(app, 'projects', project('p2', 'a2', 'c2'))
+    await post(app, 'resources', person('r1', 'a1'))
+
+    // The ordinary activity route rejects this mismatch. Insert the corrupt legacy shape directly
+    // to prove the allocation write boundary independently re-checks the project tenant.
+    insertRow(db, 'activities', activity('cross-project', 'a1', 'p2'))
+
+    const res = await post(app, 'allocations', allocation('al', 'a1', 'r1', 'cross-project'))
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toBe(
+      'Allocation must reference an activity under an active project in this company.',
+    )
   })
 
   it('rejects a non-zero allocation load on an external / 3rd-party resource (no capacity)', async () => {
@@ -873,6 +893,75 @@ describe('CORS allow-list', () => {
     expect(res.headers['access-control-allow-methods']).toContain('POST')
   })
 
+  it('rejects unsafe browser requests from a disallowed Origin before the handler runs', async () => {
+    const { app } = freshApp()
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { origin: 'https://evil.example' },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: 'Cross-site request rejected.' })
+  })
+
+  it('rejects cross-site Fetch Metadata even when Origin is absent', async () => {
+    const { app } = freshApp()
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { 'sec-fetch-site': 'cross-site' },
+    })
+    expect(res.statusCode).toBe(403)
+  })
+
+  it('keeps non-browser clients and allowed same-origin writes working', async () => {
+    const { app } = freshApp()
+    expect((await call(app, { method: 'POST', url: '/api/test/reset' })).statusCode).toBe(200)
+    expect((await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { origin: 'http://localhost:5173', 'sec-fetch-site': 'same-site' },
+    })).statusCode).toBe(200)
+  })
+
+  it('accepts the packaged same-origin proxy path without requiring a redundant CORS allow-list', async () => {
+    const app = buildApp(openDb(':memory:'), {
+      allowReset: true,
+      corsOrigin: '',
+      rateLimitTrustForwarded: true,
+    })
+    const response = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: {
+        host: 'capacity.example.com',
+        origin: 'https://capacity.example.com',
+        'x-forwarded-proto': 'https',
+        'sec-fetch-site': 'same-origin',
+      },
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.headers['access-control-allow-origin']).toBe('https://capacity.example.com')
+  })
+
+  it('falls back to exact trusted-proxy scheme and Host comparison without Fetch Metadata', async () => {
+    const app = buildApp(openDb(':memory:'), {
+      allowReset: true,
+      corsOrigin: '',
+      rateLimitTrustForwarded: true,
+    })
+    const response = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: {
+        host: 'capacity.example.com:8443',
+        origin: 'https://capacity.example.com:8443',
+        'x-forwarded-proto': 'https',
+      },
+    })
+    expect(response.statusCode).toBe(200)
+  })
+
   it('Allow-Headers lists JSON plus both operator-secret headers', async () => {
     const { app } = freshApp()
     const res = await call(app, {
@@ -889,6 +978,21 @@ describe('CORS allow-list', () => {
     expect(res.headers['access-control-allow-headers']).toContain('x-capacitylens-bootstrap-token')
     expect(res.headers['access-control-allow-headers']).toContain('x-capacitylens-setup-token')
     expect(res.headers['access-control-expose-headers']).toContain('x-capacitylens-audit-warning')
+  })
+})
+
+describe('sensitive response caching', () => {
+  it('sets no-store on health, errors, and authenticated API responses', async () => {
+    const { app } = freshApp()
+    for (const request of [
+      { method: 'GET' as const, url: '/api/health' },
+      { method: 'GET' as const, url: '/api/state' },
+      { method: 'GET' as const, url: '/api/does-not-exist' },
+    ]) {
+      const res = await call(app, request)
+      expect(res.headers['cache-control']).toBe('no-store')
+      expect(res.headers.pragma).toBe('no-cache')
+    }
   })
 })
 

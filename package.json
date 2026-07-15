@@ -1,7 +1,7 @@
 {
   "name": "capacitylens",
   "private": true,
-  "version": "0.19.5",
+  "version": "0.20.0-alpha.1",
   "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
   "author": "Kevinjohn Gallagher",
@@ -24,7 +24,7 @@
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@11.4.0",
   "scripts": {
     "paraglide:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
     "dev": "node scripts/dev-fullstack.mjs",
@@ -32,6 +32,7 @@
     "dev:demo": "pnpm run paraglide:compile && VITE_CAPACITYLENS_DEMO=1 vite",
     "build": "pnpm run paraglide:compile && tsc -b && vite build && pnpm run bundle:check",
     "bundle:check": "node scripts/check-bundle-budget.mjs",
+    "security:crypto-inventory": "node scripts/check-crypto-inventory.mjs",
     "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "test": "pnpm run paraglide:compile && vitest run",
@@ -44,10 +45,10 @@
     "e2e:firefox": "CAPACITYLENS_FIREFOX_ONLY=1 playwright test --project=firefox",
     "e2e:browsers": "node scripts/e2e-browsers.mjs",
     "e2e:all": "node scripts/e2e-all.mjs",
-    "gate": "pnpm run paraglide:compile && tsc -b && eslint . && vitest run --coverage && vite build && pnpm run bundle:check",
+    "gate": "pnpm run security:crypto-inventory && pnpm run paraglide:compile && tsc -b && eslint . && vitest run --coverage && vite build && pnpm run bundle:check",
     "mutation": "pnpm run paraglide:compile && stryker run",
     "test:server": "pnpm --filter capacitylens-server test",
-    "gate:server": "pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server test && eslint server shared"
+    "gate:server": "pnpm run security:crypto-inventory && pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server test && eslint server shared"
   },
   "dependencies": {
     "@capacitylens/shared": "workspace:*",
@@ -71,6 +72,7 @@
     "@eslint/js": "^10.0.1",
     "@inlang/paraglide-js": "^2.21.0",
     "@playwright/test": "^1.60.0",
+    "playwright-core": "^1.60.0",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@tailwindcss/vite": "^4.3.2",

@@ -138,7 +138,7 @@ export function startBackups(
   // backups via CAPACITYLENS_BACKUP_DIR, and a dir we cannot create means no snapshot can ever
   // be written — booting anyway would silently run without the backups they configured, which
   // is worse than refusing to start. Everything below this line is housekeeping and degrades.
-  mkdirSync(config.dir, { recursive: true })
+  mkdirSync(config.dir, { recursive: true, mode: 0o700 })
 
   // Sweep torn temp files from a previous crash mid-snapshot: they never match SNAPSHOT_RE,
   // so prune() would otherwise leave them on disk forever. Age-gated (real wall clock vs the
@@ -237,7 +237,7 @@ export function startBackups(
       file = join(config.dir, uniqueStamp())
       tmp = `${file}.tmp`
       try {
-        writeFileSync(tmp, '', { flag: 'wx' })
+        writeFileSync(tmp, '', { flag: 'wx', mode: 0o600 })
         break
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e

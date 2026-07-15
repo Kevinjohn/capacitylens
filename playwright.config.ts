@@ -18,8 +18,9 @@ const AUTH_WEB_PORT = 5373
 // the :5173 dev server, so it needs neither the SQLite nor the auth server — and pointedly NOT
 // Node 24 (those servers need node:sqlite; the core specs don't). `e2e:browsers`
 // (scripts/e2e-browsers.mjs) runs the core specs on all THREE engines (Chromium+WebKit, then
-// Firefox) Vite-only via CAPACITYLENS_VITE_ONLY; `e2e:all` (scripts/e2e-all.mjs) adds the db/auth server
-// specs (Chromium-only) on top. Both run Firefox last + unconditionally — see those scripts for why.
+// Firefox) Vite-only via CAPACITYLENS_VITE_ONLY; `e2e:all` (scripts/e2e-all.mjs) runs Chromium with
+// the db/auth server specs, then gives WebKit and Firefox isolated Vite-only invocations. Later
+// engines run unconditionally — see those scripts for why.
 // A *_ONLY flag (or its un-suffixed sibling CAPACITYLENS_WEBKIT / CAPACITYLENS_FIREFOX) makes that browser's
 // project exist; CAPACITYLENS_VITE_ONLY (or either *_ONLY) trims the webServer list to Vite-only.
 const webkitOnly = !!process.env.CAPACITYLENS_WEBKIT_ONLY

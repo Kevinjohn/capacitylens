@@ -6,10 +6,16 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // and the per-control describedby wires up.
 const signInEmail = vi.fn()
 const signUpEmail = vi.fn()
+const verifyTotp = vi.fn()
+const verifyBackupCode = vi.fn()
 vi.mock('./authClient', () => ({
   authClient: {
     signIn: { email: (...args: unknown[]) => signInEmail(...args), oauth2: vi.fn() },
     signUp: { email: (...args: unknown[]) => signUpEmail(...args) },
+    twoFactor: {
+      verifyTotp: (...args: unknown[]) => verifyTotp(...args),
+      verifyBackupCode: (...args: unknown[]) => verifyBackupCode(...args),
+    },
   },
 }))
 
@@ -18,6 +24,46 @@ import { LoginScreen } from './LoginScreen'
 beforeEach(() => {
   signInEmail.mockReset()
   signUpEmail.mockReset()
+  verifyTotp.mockReset()
+  verifyBackupCode.mockReset()
+})
+
+describe('LoginScreen — multi-factor challenge', () => {
+  it('does not enter the app until the authenticator code succeeds', async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null })
+    verifyTotp.mockResolvedValue({ data: { status: true }, error: null })
+    const onSignedIn = vi.fn()
+    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-password' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByLabelText('Authentication code')).toHaveAttribute('autocomplete', 'one-time-code')
+    expect(onSignedIn).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByTestId('mfa-code'), { target: { value: '123456' } })
+    fireEvent.click(screen.getByTestId('mfa-submit'))
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1))
+    expect(verifyTotp).toHaveBeenCalledWith({ code: '123456', trustDevice: false })
+  })
+
+  it('supports a recovery code without marking the browser as trusted', async () => {
+    signInEmail.mockResolvedValue({ data: { twoFactorRedirect: true }, error: null })
+    verifyBackupCode.mockResolvedValue({ data: { status: true }, error: null })
+    const onSignedIn = vi.fn()
+    render(<LoginScreen authMode="password" onSignedIn={onSignedIn} />)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'a@b.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'correct-password' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    await screen.findByLabelText('Authentication code')
+    fireEvent.click(screen.getByRole('button', { name: 'Use a recovery code' }))
+    fireEvent.change(screen.getByLabelText('Recovery code'), { target: { value: 'recover-me' } })
+    fireEvent.click(screen.getByTestId('mfa-submit'))
+
+    await waitFor(() => expect(onSignedIn).toHaveBeenCalledTimes(1))
+    expect(verifyBackupCode).toHaveBeenCalledWith({ code: 'recover-me', trustDevice: false })
+  })
 })
 
 describe('LoginScreen — per-control error cues (WCAG 3.3.1)', () => {

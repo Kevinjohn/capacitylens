@@ -2,13 +2,20 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { betterAuth } from 'better-auth'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
-import type { BetterAuthOptions } from 'better-auth'
+import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { SocialProviders } from 'better-auth/social-providers'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
+import { twoFactor } from 'better-auth/plugins'
 import { getMigrations } from 'better-auth/db/migration'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import type { Db } from './db'
+import {
+  PasswordPolicyError,
+  assertNoContextSpecificPassword,
+  assertPasswordNotBreached,
+  scryptPasswordHasher,
+} from './passwordSecurity'
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
 // OSS library owns the session/credential/OIDC machinery — accepted precisely so we
@@ -85,6 +92,8 @@ export interface Auth {
   ) => Promise<{ id: string }>
   /** Remove a just-created credential identity when a later invite claim cannot commit. */
   deleteCredentialUser: (userId: string) => Promise<void>
+  /** Revoke every active session for a user (administrator offboarding/compromise response). */
+  revokeUserSessions: (userId: string) => Promise<void>
 }
 
 /** The identity attached to every request in 'off' mode — the seam Stage C will later
@@ -96,6 +105,7 @@ export const DEMO_USER: SessionUser = {
   name: 'Demo',
   email: 'demo@capacitylens.local',
   emailVerified: true,
+  twoFactorEnabled: true,
 }
 
 /**
@@ -113,7 +123,10 @@ export interface SessionUser {
   id: string
   email: string
   emailVerified: boolean
+  twoFactorEnabled?: boolean
   name: string
+  /** Server-only freshness input for step-up checks; never used as an authenticator. */
+  sessionCreatedAt?: string
 }
 
 /** The subset of Better Auth's user we read before narrowing to {@link SessionUser}. Better
@@ -124,6 +137,7 @@ interface RawSessionUser {
   email: string
   name: string
   emailVerified?: boolean | null
+  twoFactorEnabled?: boolean | null
 }
 
 /**
@@ -142,6 +156,7 @@ export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
     id: raw.id,
     email: raw.email,
     emailVerified: raw.emailVerified ?? false,
+    twoFactorEnabled: raw.twoFactorEnabled === true,
     name: name || 'User',
   }
 }
@@ -172,6 +187,12 @@ function setupTokenMatches(configured: string | undefined, presented: string | n
  *  link with a colleague" reality while staying far below the invite TTL (an invite grants entry;
  *  a reset link grants an EXISTING identity, so it stays the shorter-lived of the two). */
 export const RESET_LINK_TTL_SECONDS = 60 * 60 * 24
+/** A session can never outlive this wall-clock duration, regardless of activity. */
+export const SESSION_ABSOLUTE_TTL_SECONDS = 12 * 60 * 60
+/** Re-authentication is required after this much server-observed inactivity. */
+export const SESSION_INACTIVITY_TTL_SECONDS = 30 * 60
+/** Bound session activity writes while keeping idle expiry accurate to within one minute. */
+export const SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS = 60
 
 /** Per-call capture context for {@link mintPasswordResetToken}. AsyncLocalStorage (not a module
  *  variable) so two concurrent admin resets can never swap tokens across their await chains, and
@@ -340,6 +361,24 @@ function optionalPair(env: Env, idKey: string, secretKey: string, label: string)
   return [id, secret]
 }
 
+function secureProviderUrl(env: Env, key: string): string | undefined {
+  const raw = env[key]?.trim()
+  if (!raw) return undefined
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch (cause) {
+    throw new AuthConfigError(`${key} must be an absolute URL.`, { cause })
+  }
+  const loopback = url.hostname === 'localhost' || url.hostname.endsWith('.localhost') ||
+    url.hostname === '127.0.0.1' || url.hostname === '[::1]'
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) {
+    throw new AuthConfigError(`${key} must use https:// (loopback http:// is allowed for development).`)
+  }
+  if (url.username || url.password) throw new AuthConfigError(`${key} must not contain URL credentials.`)
+  return url.toString()
+}
+
 /** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
  * startup. New external identities are separately verified and invite-gated in the database hook. */
 function socialProvidersFromEnv(env: Env): SocialProviders {
@@ -475,26 +514,37 @@ export function authFromEnv(
     )
   }
   const genericProviderId = genericSsoConfigured ? env.CAPACITYLENS_SSO_PROVIDER_ID || 'sso' : null
-  const plugins =
-    genericProviderId
-      ? [
-          genericOAuth({
-            config: [
-              {
-                providerId: genericProviderId,
-                clientId: required(env, 'CAPACITYLENS_SSO_CLIENT_ID', 'generic SSO'),
-                clientSecret: required(env, 'CAPACITYLENS_SSO_CLIENT_SECRET', 'generic SSO'),
-                // Either a discovery URL (OIDC) or explicit endpoints.
-                discoveryUrl: env.CAPACITYLENS_SSO_DISCOVERY_URL,
-                authorizationUrl: env.CAPACITYLENS_SSO_AUTHORIZATION_URL,
-                tokenUrl: env.CAPACITYLENS_SSO_TOKEN_URL,
-                scopes: (env.CAPACITYLENS_SSO_SCOPES ?? 'openid profile email').split(' ').filter(Boolean),
-              },
-            ],
-          }),
-        ]
-      : []
-  if (genericProviderId && !env.CAPACITYLENS_SSO_DISCOVERY_URL && !(env.CAPACITYLENS_SSO_AUTHORIZATION_URL && env.CAPACITYLENS_SSO_TOKEN_URL)) {
+  if (genericProviderId && !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(genericProviderId)) {
+    throw new AuthConfigError('CAPACITYLENS_SSO_PROVIDER_ID must match ^[a-z0-9][a-z0-9_-]{0,63}$.')
+  }
+  const discoveryUrl = secureProviderUrl(env, 'CAPACITYLENS_SSO_DISCOVERY_URL')
+  const authorizationUrl = secureProviderUrl(env, 'CAPACITYLENS_SSO_AUTHORIZATION_URL')
+  const tokenUrl = secureProviderUrl(env, 'CAPACITYLENS_SSO_TOKEN_URL')
+  const plugins: BetterAuthPlugin[] = []
+  if (genericProviderId) {
+    plugins.push(genericOAuth({
+      config: [{
+        providerId: genericProviderId,
+        clientId: required(env, 'CAPACITYLENS_SSO_CLIENT_ID', 'generic SSO'),
+        clientSecret: required(env, 'CAPACITYLENS_SSO_CLIENT_SECRET', 'generic SSO'),
+        discoveryUrl,
+        authorizationUrl,
+        tokenUrl,
+        scopes: (env.CAPACITYLENS_SSO_SCOPES ?? 'openid profile email').split(' ').filter(Boolean),
+      }],
+    }))
+  }
+  if (mode === 'password') {
+    plugins.push(twoFactor({
+      issuer: 'CapacityLens',
+      allowPasswordless: true,
+      twoFactorCookieMaxAge: 5 * 60,
+      trustDeviceMaxAge: 7 * 24 * 60 * 60,
+      totpOptions: { digits: 6, period: 30, allowPasswordless: true },
+      accountLockout: { enabled: true, maxFailedAttempts: 5, durationSeconds: 15 * 60 },
+    }))
+  }
+  if (genericProviderId && !discoveryUrl && !(authorizationUrl && tokenUrl)) {
     throw new AuthConfigError(
       'Generic SSO needs CAPACITYLENS_SSO_DISCOVERY_URL, or CAPACITYLENS_SSO_AUTHORIZATION_URL + CAPACITYLENS_SSO_TOKEN_URL.',
     )
@@ -552,6 +602,22 @@ export function authFromEnv(
 
   // The password floor remains unconditional, including when the optional bootstrap-owner flag
   // is active. createBootstrapAdmin generates a high-entropy password that comfortably exceeds it.
+
+  const testRuntime = env.NODE_ENV === 'test' || process.env.NODE_ENV === 'test'
+  const breachCheckEnabled = env.CAPACITYLENS_PASSWORD_BREACH_CHECK !== 'off' && !testRuntime
+  const baseHasher = scryptPasswordHasher(testRuntime ? 2 ** 10 : undefined)
+  const passwordHash = async (password: string): Promise<string> => {
+    try {
+      assertNoContextSpecificPassword(password)
+      if (breachCheckEnabled) await assertPasswordNotBreached(password)
+    } catch (error) {
+      if (error instanceof PasswordPolicyError) {
+        throw APIError.from('BAD_REQUEST', { message: error.message, code: error.code })
+      }
+      throw error
+    }
+    return baseHasher.hash(password)
+  }
 
   const instance = betterAuth({
     database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
@@ -630,6 +696,7 @@ export function authFromEnv(
       // client reset-page pre-check reads MAX_PASSWORD_LENGTH, so the bound it states is the bound the
       // server enforces, and a library-default change can't silently move the server's ceiling.
       maxPasswordLength: MAX_PASSWORD_LENGTH,
+      password: { hash: passwordHash, verify: (input) => baseHasher.verify(input) },
       // Admin-issued reset links (P1.18) — password mode ONLY: 'sso' delegates credentials to the
       // IdP, and configuring sendResetPassword would needlessly enable Better Auth's public
       // request-password-reset endpoint there. See captureResetToken/mintPasswordResetToken above.
@@ -689,20 +756,28 @@ export function authFromEnv(
     },
     plugins,
     trustedOrigins: opts.trustedOrigins,
-    // Session-cookie hardening. `Secure` follows the PUBLIC Better Auth URL, not the Node listener:
-    // an HTTPS browser origin still needs Secure cookies when nginx proxies to Node over HTTP.
+    // Session-cookie hardening follows the PUBLIC Better Auth URL, not the Node listener: an HTTPS
+    // browser origin still needs Secure cookies when nginx proxies to Node over HTTP. Better Auth's
+    // built-in secure-cookie switch emits the weaker `__Secure-` name prefix. Disable that naming
+    // helper and express Secure directly so every HTTPS cookie can use the stricter `__Host-`
+    // prefix (Secure + Path=/ + no Domain). Loopback HTTP keeps an unprefixed development name.
     // `sameSite:'lax'` (NOT 'strict') is required for SSO: 'strict' would
     // drop the session cookie on the top-level OAuth redirect back from the IdP → broken sign-in;
     // 'lax' still sends the cookie on that GET callback and is safe. `httpOnly:true` keeps the token
     // out of document.cookie (no JS read).
     advanced: {
-      useSecureCookies: publicUrl.protocol === 'https:',
-      defaultCookieAttributes: { sameSite: 'lax', httpOnly: true },
+      useSecureCookies: false,
+      cookiePrefix: publicUrl.protocol === 'https:' ? '__Host-capacitylens' : 'capacitylens',
+      defaultCookieAttributes: {
+        sameSite: 'lax',
+        httpOnly: true,
+        ...(publicUrl.protocol === 'https:' ? { secure: true } : {}),
+      },
     },
-    // Session lifetime pinned to Better Auth's own defaults (7-day absolute expiry, refreshed once a
-    // day as the user stays active) so a future library default change can't silently re-tune how
-    // long a session lives. expiresIn/updateAge are in SECONDS.
-    session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
+    // Fixed 12-hour absolute lifetime: refresh is disabled, so activity can never extend a stolen
+    // session indefinitely. The wrapper below separately enforces a 30-minute inactivity timeout
+    // without moving expiresAt. `freshAge` supplies a 15-minute step-up window for sensitive actions.
+    session: { expiresIn: SESSION_ABSOLUTE_TTL_SECONDS, disableSessionRefresh: true, freshAge: 15 * 60 },
     telemetry: { enabled: false },
   })
   // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at
@@ -712,7 +787,14 @@ export function authFromEnv(
   const raw = instance as unknown as {
     handler: Auth['handler']
     api: {
-      getSession: (input: { headers: Headers }) => Promise<{ user: RawSessionUser } | null>
+      getSession: (input: { headers: Headers }) => Promise<{
+        user: RawSessionUser
+        session: {
+          createdAt: Date | string
+          updatedAt: Date | string
+          token: string
+        }
+      } | null>
       requestPasswordReset: Auth['api']['requestPasswordReset']
     }
     options: BetterAuthOptions
@@ -726,6 +808,9 @@ export function authFromEnv(
       internalAdapter: {
         createUser: (input: { email: string; name: string; emailVerified: boolean }) => Promise<{ id: string }>
         deleteUser: (userId: string) => Promise<void>
+        deleteUserSessions: (userId: string) => Promise<void>
+        deleteSession: (token: string) => Promise<void>
+        updateSession: (token: string, session: { updatedAt: Date }) => Promise<unknown>
         linkAccount: (input: {
           userId: string
           providerId: string
@@ -735,14 +820,48 @@ export function authFromEnv(
       }
     }>
   }
+
+  // Better Auth's disabled refresh preserves the absolute expiry, but by itself does not provide
+  // an inactivity timeout. Treat its session.updatedAt as last activity: stale or malformed state
+  // is deleted before either an application route OR a Better Auth route can consume it. Active
+  // sessions are touched at most once per minute and expiresAt is deliberately never changed.
+  const activeSession = async (headers: Headers) => {
+    const session = await raw.api.getSession({ headers })
+    if (!session) return null
+    const lastActivity = new Date(session.session.updatedAt).getTime()
+    const now = Date.now()
+    const elapsed = now - lastActivity
+    if (!Number.isFinite(lastActivity) || elapsed > SESSION_INACTIVITY_TTL_SECONDS * 1000) {
+      const ctx = await raw.$context
+      await ctx.internalAdapter.deleteSession(session.session.token)
+      return null
+    }
+    if (elapsed >= SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS * 1000) {
+      const ctx = await raw.$context
+      await ctx.internalAdapter.updateSession(session.session.token, { updatedAt: new Date(now) })
+    }
+    return session
+  }
+
   const auth: Auth = {
-    handler: raw.handler,
+    // Enforce inactivity even when a caller goes directly to an authenticated Better Auth route
+    // such as change-password rather than first touching an application data route.
+    handler: async (request) => {
+      await activeSession(request.headers)
+      return raw.handler(request)
+    },
     options: raw.options,
     providers: externalProviderInfo(env, genericProviderId),
     api: {
       async getSession(input) {
-        const session = await raw.api.getSession(input)
-        return session ? { user: normalizeSessionUser(session.user) } : null
+        const session = await activeSession(input.headers)
+        if (!session) return null
+        return {
+          user: {
+            ...normalizeSessionUser(session.user),
+            sessionCreatedAt: new Date(session.session.createdAt).toISOString(),
+          },
+        }
       },
       // Bound (not bare-referenced): Better Auth's api endpoints resolve their context via `this`.
       requestPasswordReset: (input) => raw.api.requestPasswordReset(input),
@@ -750,6 +869,7 @@ export function authFromEnv(
     createCredentialUser: (email, name, password, emailVerified = false) =>
       raw.$context.then((ctx) => createCredentialUserWith(ctx, email, name, password, emailVerified)),
     deleteCredentialUser: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUser(userId)),
+    revokeUserSessions: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUserSessions(userId)),
   }
   return { mode, auth }
 }
@@ -890,10 +1010,15 @@ export async function createBootstrapAdmin(
   // Default to a fresh high-entropy secret (the secure norm — no fixed password baked into the
   // product). An explicit CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD overrides it for a scripted / e2e
   // deploy that must know the credential up front rather than scrape the one-time banner; an empty
-  // value reads as unset. createCredentialUser bypasses the public sign-UP floor, so an operator may
-  // pin even a short password here. productionGuard surfaces the override under NODE_ENV=production.
+  // value reads as unset. createCredentialUser still uses the same length, breach, context-word,
+  // and hashing policy as every other credential path.
   const bootstrapPassword =
     process.env.CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD || randomBytes(24).toString('base64url')
+  if (bootstrapPassword.length < MIN_PASSWORD_LENGTH || bootstrapPassword.length > MAX_PASSWORD_LENGTH) {
+    throw new AuthConfigError(
+      `CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD must be ${MIN_PASSWORD_LENGTH}..${MAX_PASSWORD_LENGTH} characters.`,
+    )
+  }
   await auth.createCredentialUser(BOOTSTRAP_ADMIN_EMAIL, BOOTSTRAP_ADMIN_NAME, bootstrapPassword)
   // Print the one-time credential prominently. The frame is measured
   // from the content (not hand-padded) so a future wording tweak can't skew the box.

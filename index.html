@@ -4,12 +4,6 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- A full same-origin execution/network boundary for hosts that do not use the packaged
-         nginx config (frame-ancestors itself is header-only and is set by nginx). -->
-    <!-- The packaged product is same-origin: nginx proxies /api to the server. Cross-origin API
-         development requires an explicit host CSP override; the public artifact never grants
-         arbitrary HTTP(S) egress. Inline styles are required for scheduler geometry. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <title>CapacityLens</title>
     <!-- Set the colour scheme before first paint so dark-mode users don't get a
          flash of light. Mirrors readStoredTheme()/resolveTheme() in

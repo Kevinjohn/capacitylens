@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { createHmac } from 'node:crypto'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
 import { buildApp } from './app'
 import { openDb } from './db'
@@ -14,6 +15,7 @@ import {
   DEMO_USER,
   MIN_BETTER_AUTH_SECRET_LENGTH,
   normalizeSessionUser,
+  SESSION_INACTIVITY_TTL_SECONDS,
 } from './auth'
 import type { Auth } from './auth'
 import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
@@ -37,6 +39,26 @@ function cookiesOf(res: LightMyRequestResponse): string {
   return list.map((c) => String(c).split(';')[0]).join('; ')
 }
 
+function totpCode(secret: string, at = Date.now()): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
+  let bits = ''
+  for (const char of secret.replace(/=+$/, '').toUpperCase()) {
+    const index = alphabet.indexOf(char)
+    if (index < 0) throw new Error('Invalid base32 TOTP secret.')
+    bits += index.toString(2).padStart(5, '0')
+  }
+  const bytes: number[] = []
+  for (let offset = 0; offset + 8 <= bits.length; offset += 8) {
+    bytes.push(Number.parseInt(bits.slice(offset, offset + 8), 2))
+  }
+  const counter = Buffer.alloc(8)
+  counter.writeBigUInt64BE(BigInt(Math.floor(at / 30_000)))
+  const digest = createHmac('sha1', Buffer.from(bytes)).update(counter).digest()
+  const offset = digest[digest.length - 1] & 0x0f
+  const number = (digest.readUInt32BE(offset) & 0x7fff_ffff) % 1_000_000
+  return number.toString().padStart(6, '0')
+}
+
 const PASSWORD_ENV = {
   CAPACITYLENS_AUTH: 'password',
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
@@ -51,8 +73,8 @@ const SSO_ENV = {
   CAPACITYLENS_AUTH: 'sso',
   CAPACITYLENS_SSO_CLIENT_ID: 'client-id',
   CAPACITYLENS_SSO_CLIENT_SECRET: 'client-secret',
-  CAPACITYLENS_SSO_AUTHORIZATION_URL: 'http://idp.test/authorize',
-  CAPACITYLENS_SSO_TOKEN_URL: 'http://idp.test/token',
+  CAPACITYLENS_SSO_AUTHORIZATION_URL: 'https://idp.test/authorize',
+  CAPACITYLENS_SSO_TOKEN_URL: 'https://idp.test/token',
 }
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -84,7 +106,7 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'a@b.test', password: 'password-123', name: 'X' },
+      payload: { email: 'a@b.test', password: 'password-123456', name: 'X' },
     })
     expect(signUp.statusCode).toBe(404)
   })
@@ -110,10 +132,16 @@ describe('normalizeSessionUser (P1.7a)', () => {
     expect(normalizeSessionUser({ ...RAW, emailVerified: null }).emailVerified).toBe(false)
   })
 
-  it('yields exactly {id,email,emailVerified,name} (drops any extra Better Auth fields)', () => {
+  it('yields the approved public session fields and drops every other Better Auth field', () => {
     const out = normalizeSessionUser({ ...RAW, emailVerified: true })
-    expect(out).toEqual({ id: 'u1', email: 'u1@capacitylens.dev', emailVerified: true, name: 'U One' })
-    expect(Object.keys(out).sort()).toEqual(['email', 'emailVerified', 'id', 'name'])
+    expect(out).toEqual({
+      id: 'u1',
+      email: 'u1@capacitylens.dev',
+      emailVerified: true,
+      name: 'U One',
+      twoFactorEnabled: false,
+    })
+    expect(Object.keys(out).sort()).toEqual(['email', 'emailVerified', 'id', 'name', 'twoFactorEnabled'])
   })
 })
 
@@ -128,16 +156,90 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(me.json().authMode).toBe('password') // the login screen needs the mode
   })
 
+  it('requires enrollment, verifies TOTP, and challenges every later password sign-in', async () => {
+    const db = openDb(':memory:')
+    const configured = authFromEnv(db, PASSWORD_ENV)
+    await runAuthMigrations(configured.auth!)
+    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth, requireMfa: true })
+    const email = 'mfa-user@capacitylens.dev'
+    const password = 'password-123456'
+
+    const signup = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email, password, name: 'MFA User' },
+    })
+    expect(signup.statusCode).toBe(200)
+    const signupCookie = cookiesOf(signup)
+    const blocked = await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: signupCookie } })
+    expect(blocked.statusCode).toBe(403)
+    expect(blocked.json().code).toBe('MFA_ENROLLMENT_REQUIRED')
+
+    const before = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie: signupCookie } })
+    expect(before.statusCode).toBe(200)
+    expect(before.json()).toMatchObject({ mfaRequired: true, user: { twoFactorEnabled: false } })
+
+    const enabled = await call(app, {
+      method: 'POST',
+      url: '/api/auth/two-factor/enable',
+      headers: { cookie: signupCookie },
+      payload: { password },
+    })
+    expect(enabled.statusCode).toBe(200)
+    expect(enabled.json().backupCodes).toHaveLength(10)
+    const secret = new URL(enabled.json().totpURI as string).searchParams.get('secret')
+    expect(secret).toBeTruthy()
+
+    const verified = await call(app, {
+      method: 'POST',
+      url: '/api/auth/two-factor/verify-totp',
+      headers: { cookie: signupCookie },
+      payload: { code: totpCode(secret!), trustDevice: false },
+    })
+    expect(verified.statusCode).toBe(200)
+    const enrolledCookie = cookiesOf(verified)
+    const after = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie: enrolledCookie } })
+    expect(after.statusCode).toBe(200)
+    expect(after.json()).toMatchObject({ mfaRequired: false, user: { twoFactorEnabled: true } })
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: enrolledCookie } })).statusCode)
+      .toBe(200)
+
+    expect((await call(app, {
+      method: 'POST', url: '/api/auth/sign-out', headers: { cookie: enrolledCookie },
+    })).statusCode).toBe(200)
+    const signIn = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-in/email',
+      payload: { email, password },
+    })
+    expect(signIn.statusCode).toBe(200)
+    expect(signIn.json()).toMatchObject({ twoFactorRedirect: true })
+    const challengeCookie = cookiesOf(signIn)
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: challengeCookie } })).statusCode)
+      .toBe(401)
+
+    const completed = await call(app, {
+      method: 'POST',
+      url: '/api/auth/two-factor/verify-totp',
+      headers: { cookie: challengeCookie },
+      payload: { code: totpCode(secret!), trustDevice: false },
+    })
+    expect(completed.statusCode).toBe(200)
+    const finalCookie = cookiesOf(completed)
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: finalCookie } })).statusCode)
+      .toBe(200)
+  })
+
   it('sign-up → session cookie → the session authenticates and /api/auth/me reports the user', async () => {
     const app = await appWithAuth(PASSWORD_ENV)
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'tester@capacitylens.dev', password: 'password-123', name: 'Tester' },
+      payload: { email: 'tester@capacitylens.dev', password: 'password-123456', name: 'Tester' },
     })
     expect(signUp.statusCode).toBe(200)
     const cookie = cookiesOf(signUp)
-    expect(cookie).toContain('better-auth.session_token')
+    expect(cookie).toContain('capacitylens.session_token')
 
     const me = await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })
     expect(me.statusCode).toBe(200)
@@ -165,12 +267,86 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(scoped.statusCode).toBe(403)
   })
 
+  it('emits a valid __Host session cookie for an HTTPS public origin', async () => {
+    const app = await appWithAuth({ ...PASSWORD_ENV, BETTER_AUTH_URL: 'https://capacity.example' })
+    const signUp = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'host-cookie@capacitylens.dev', password: 'password-123456', name: 'Host Cookie' },
+    })
+    expect(signUp.statusCode).toBe(200)
+    const raw = signUp.headers['set-cookie']
+    const cookies = (Array.isArray(raw) ? raw : raw ? [raw] : []).map(String)
+    const session = cookies.find((cookie) => cookie.startsWith('__Host-capacitylens.session_token='))
+    expect(session).toBeDefined()
+    expect(session).toMatch(/;\s*Path=\//i)
+    expect(session).toMatch(/;\s*Secure/i)
+    expect(session).toMatch(/;\s*HttpOnly/i)
+    expect(session).not.toMatch(/;\s*Domain=/i)
+  })
+
+  it('expires an idle session before a direct authenticated auth operation can use it', async () => {
+    const db = openDb(':memory:')
+    const configured = authFromEnv(db, PASSWORD_ENV)
+    await runAuthMigrations(configured.auth!)
+    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth })
+    const signUp = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'idle@capacitylens.dev', password: 'password-123456', name: 'Idle' },
+    })
+    const cookie = cookiesOf(signUp)
+    db.prepare(`UPDATE session SET updatedAt = ?`).run(
+      Date.now() - (SESSION_INACTIVITY_TTL_SECONDS + 1) * 1000,
+    )
+
+    // This route is handled by Better Auth itself, so it proves the inactivity check is not only
+    // attached to CapacityLens data routes.
+    const changed = await call(app, {
+      method: 'POST',
+      url: '/api/auth/change-password',
+      headers: { cookie },
+      payload: {
+        currentPassword: 'password-123456',
+        newPassword: 'Seabird-lantern-47!',
+        revokeOtherSessions: true,
+      },
+    })
+    expect(changed.statusCode).toBe(401)
+    expect((db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number }).n).toBe(0)
+    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(401)
+  })
+
+  it('touches active sessions without extending their absolute expiry', async () => {
+    const db = openDb(':memory:')
+    const configured = authFromEnv(db, PASSWORD_ENV)
+    await runAuthMigrations(configured.auth!)
+    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth })
+    const signUp = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'active@capacitylens.dev', password: 'password-123456', name: 'Active' },
+    })
+    const cookie = cookiesOf(signUp)
+    const initial = db.prepare(`SELECT expiresAt FROM session`).get() as { expiresAt: string | number }
+    const twoMinutesAgo = Date.now() - 2 * 60 * 1000
+    db.prepare(`UPDATE session SET updatedAt = ?`).run(twoMinutesAgo)
+
+    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(200)
+    const touched = db.prepare(`SELECT updatedAt, expiresAt FROM session`).get() as {
+      updatedAt: string | number
+      expiresAt: string | number
+    }
+    expect(new Date(touched.updatedAt).getTime()).toBeGreaterThan(twoMinutesAgo)
+    expect(new Date(touched.expiresAt).getTime()).toBe(new Date(initial.expiresAt).getTime())
+  })
+
   it('sign-out invalidates the session again', async () => {
     const app = await appWithAuth(PASSWORD_ENV)
     const signUp = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'out@capacitylens.dev', password: 'password-123', name: 'Out' },
+      payload: { email: 'out@capacitylens.dev', password: 'password-123456', name: 'Out' },
     })
     const cookie = cookiesOf(signUp)
     const out = await call(app, { method: 'POST', url: '/api/auth/sign-out', payload: {}, headers: { cookie } })
@@ -190,7 +366,7 @@ describe('CAPACITYLENS_AUTH sso', () => {
     expect(res.statusCode).toBe(200)
     const body = res.json() as { url: string; redirect: boolean }
     expect(body.redirect).toBe(true)
-    expect(body.url.startsWith('http://idp.test/authorize')).toBe(true)
+    expect(body.url.startsWith('https://idp.test/authorize')).toBe(true)
   })
 })
 
@@ -256,20 +432,20 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
       method: 'POST',
       url: '/api/auth/sign-up/email',
       headers: { 'x-capacitylens-setup-token': SETUP_TOKEN },
-      payload: { email, password: 'password-123', name: 'Late' },
+      payload: { email, password: 'password-123456', name: 'Late' },
     })
 
   it('allows the first sign-up only with the operator setup token, then closes live', async () => {
     const app = await appWithAuth(CLOSED_ENV)
     const first = await signUp(app, 'owner@capacitylens.dev')
     expect(first.statusCode).toBe(200)
-    expect(cookiesOf(first)).toContain('better-auth.session_token')
+    expect(cookiesOf(first)).toContain('capacitylens.session_token')
     // The gate is per REQUEST, not per boot: the very next sign-up on the SAME running app must
     // be refused now that one user exists — Better Auth's unchanged 400
     // EMAIL_PASSWORD_SIGN_UP_DISABLED shape (a boot-time boolean would stay open until restart).
     const second = await signUp(app, 'late@capacitylens.dev')
     expect(second.statusCode).toBe(400)
-    expect(cookiesOf(second)).not.toContain('better-auth.session_token')
+    expect(cookiesOf(second)).not.toContain('capacitylens.session_token')
   })
 
   it('serializes concurrent first-owner sign-ups so exactly one identity is created', async () => {
@@ -299,17 +475,17 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     const missing = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
-      payload: { email: 'attacker@capacitylens.dev', password: 'password-123', name: 'Attacker' },
+      payload: { email: 'attacker@capacitylens.dev', password: 'password-123456', name: 'Attacker' },
     })
     const wrong = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
       headers: { 'x-capacitylens-setup-token': 'wrong-token' },
-      payload: { email: 'attacker@capacitylens.dev', password: 'password-123', name: 'Attacker' },
+      payload: { email: 'attacker@capacitylens.dev', password: 'password-123456', name: 'Attacker' },
     })
     expect(missing.statusCode).toBe(400)
     expect(wrong.statusCode).toBe(400)
-    expect(cookiesOf(missing)).not.toContain('better-auth.session_token')
+    expect(cookiesOf(missing)).not.toContain('capacitylens.session_token')
   })
 
   it('allows sign-up with users already present only when CAPACITYLENS_ALLOW_OPEN_SIGNUP=1', async () => {
@@ -319,7 +495,7 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     expect((await signUp(app, 'first@capacitylens.dev')).statusCode).toBe(200)
     const res = await signUp(app)
     expect(res.statusCode).toBe(200)
-    expect(cookiesOf(res)).toContain('better-auth.session_token')
+    expect(cookiesOf(res)).toContain('capacitylens.session_token')
   })
 
   it('open signup validation failures do not touch the absent bootstrap-claim table', async () => {
@@ -404,7 +580,7 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
       payload: { email: BOOTSTRAP_ADMIN_EMAIL, password },
     })
     expect(signIn.statusCode).toBe(200)
-    expect(cookiesOf(signIn)).toContain('better-auth.session_token')
+    expect(cookiesOf(signIn)).toContain('capacitylens.session_token')
   })
 
   it('keeps minPasswordLength at the shared floor ALWAYS — flagged boot or not, empty table or not', async () => {
@@ -471,6 +647,7 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
       api: { getSession: async () => null, requestPasswordReset: async () => ({ status: true }) },
       options: {},
       providers: [],
+      revokeUserSessions: async () => {},
       createCredentialUser: (email, name, password) =>
         createCredentialUserWith(
           {
@@ -579,6 +756,38 @@ describe('boot refusal (AuthConfigError)', () => {
         // no discovery URL and no authorization+token pair
       }),
     ).toThrow(AuthConfigError)
+  })
+
+  it('rejects plaintext, credential-bearing, and non-HTTP identity-provider endpoints', () => {
+    for (const endpoint of [
+      'http://identity.example/.well-known/openid-configuration',
+      'https://user:secret@identity.example/.well-known/openid-configuration',
+      'javascript:alert(1)',
+    ]) {
+      expect(() => authFromEnv(openDb(':memory:'), {
+        ...SSO_ENV,
+        CAPACITYLENS_SSO_AUTHORIZATION_URL: undefined,
+        CAPACITYLENS_SSO_TOKEN_URL: undefined,
+        CAPACITYLENS_SSO_DISCOVERY_URL: endpoint,
+      })).toThrow(/https|credentials|URL/i)
+    }
+  })
+
+  it('permits plaintext provider endpoints only on explicit loopback development hosts', () => {
+    expect(() => authFromEnv(openDb(':memory:'), {
+      ...SSO_ENV,
+      CAPACITYLENS_SSO_AUTHORIZATION_URL: 'http://localhost:9999/authorize',
+      CAPACITYLENS_SSO_TOKEN_URL: 'http://127.0.0.1:9999/token',
+    })).not.toThrow()
+  })
+
+  it('restricts provider ids to route-safe lowercase identifiers', () => {
+    for (const providerId of ['UPPER', '../callback', 'sso space', '-sso']) {
+      expect(() => authFromEnv(openDb(':memory:'), {
+        ...SSO_ENV,
+        CAPACITYLENS_SSO_PROVIDER_ID: providerId,
+      })).toThrow(/PROVIDER_ID/)
+    }
   })
 
   it('buildApp refuses authMode ≠ off without an auth instance', () => {

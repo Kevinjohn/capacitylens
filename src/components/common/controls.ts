@@ -32,4 +32,4 @@ export const selectChevronStyle: CSSProperties = {
  *  to route within) need the identical green positive-action affordance without duplicating the class
  *  string byte-for-byte. */
 export const linkButtonClass =
-  'inline-flex items-center justify-center rounded-md bg-ok-strong px-3 py-1.5 text-sm font-medium text-ok-strong-ink shadow-xs hover:bg-ok-strong/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand'
+  'inline-flex items-center justify-center rounded-md bg-ok-strong px-3 py-1.5 text-sm font-medium text-ok-strong-ink shadow-xs hover:bg-ok-strong-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand'

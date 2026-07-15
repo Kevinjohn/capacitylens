@@ -13,6 +13,7 @@ export interface AuthUser {
   id: string
   name?: string
   email?: string
+  twoFactorEnabled?: boolean
 }
 
 export interface AuthProviderInfo {

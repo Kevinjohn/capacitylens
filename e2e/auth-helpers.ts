@@ -9,7 +9,7 @@ import { expect, request as playwrightRequest, type APIRequestContext } from '@p
 export const AUTH_API = 'http://localhost:8887'
 
 /** The password every auth-e2e fixture signs up / signs in with. */
-export const AUTH_PASSWORD = 'demo-password-123'
+export const AUTH_PASSWORD = 'demo-password-123456'
 
 /** The well-known first-run bootstrap credential the auth-e2e server creates at boot
  *  (CAPACITYLENS_CREATE_ADMIN_ADMIN=1 in server's start:auth-e2e). Serving double duty: the specs
@@ -21,9 +21,9 @@ export const AUTH_PASSWORD = 'demo-password-123'
  *  Kept as a LITERAL rather than importing server/src/auth.ts (that module pulls in better-auth at
  *  top level, which must not enter the Playwright process). The email is auth.ts's fixed
  *  BOOTSTRAP_ADMIN_EMAIL; the password is the one start:auth-e2e pins via
- *  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=admin (production defaults to a generated secret instead, so
+ *  CAPACITYLENS_BOOTSTRAP_ADMIN_PASSWORD=auth-e2e-password-2026 (production defaults to a generated secret instead, so
  *  this is a test-only known credential). A drift surfaces loudly as the bootstrap sign-in spec failing. */
-export const BOOTSTRAP_ADMIN = { email: 'admin@admin.admin', password: 'admin' }
+export const BOOTSTRAP_ADMIN = { email: 'admin@admin.admin', password: 'auth-e2e-password-2026' }
 
 /** The operator bootstrap token (set in server's start:auth-e2e script). The auth-e2e DB is SEEDED,
  *  so a fresh sign-up is not a first-run bootstrap and holds no membership — this is the documented

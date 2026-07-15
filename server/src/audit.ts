@@ -1,4 +1,4 @@
-import { appendFileSync, renameSync, statSync } from 'node:fs'
+import { appendFileSync, chmodSync, renameSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 // Append-only JSONL audit sink (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
@@ -36,7 +36,7 @@ export interface AuditRecord {
    *  only (e.g. `['archivedAt']`, `['deletedAt','name']`) — never values (the #1 no-PII invariant). */
   action: 'create' | 'update' | 'patch' | 'delete' | 'batch' | 'import' | 'archive' | 'unarchive' | 'softDelete' | 'purge'
     | 'memberRole' | 'memberRemove' | 'ownershipTransfer' | 'inviteCreate' | 'inviteAccept'
-    | 'inviteRevoke' | 'passwordResetIssue'
+    | 'inviteRevoke' | 'passwordResetIssue' | 'sessionsRevoke'
   /** The entity/table touched (e.g. 'timeOff', 'clients'), or 'account' for an import slice. */
   entity: string
   /** The affected row id (the import record uses the accountId as its id). */
@@ -105,7 +105,8 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
           if ((statErr as NodeJS.ErrnoException).code !== 'ENOENT') throw statErr
         }
         if (size >= maxBytes) renameSync(file, `${file}.1`)
-        appendFileSync(file, JSON.stringify(record) + '\n', 'utf8')
+        appendFileSync(file, JSON.stringify(record) + '\n', { encoding: 'utf8', flag: 'a', mode: 0o600 })
+        chmodSync(file, 0o600)
         return true
       } catch (err) {
         // FAIL-NEVER: the mutation already committed — an audit write failure (append, OR the
@@ -135,6 +136,33 @@ export function noopAuditSink(): AuditSink {
   return {
     append: () => true,
     degraded: false,
+  }
+}
+
+/** JSON-line audit stream suitable for container stdout and a separate log collector. */
+export function streamAuditSink(write: (line: string) => void): AuditSink {
+  let degraded = false
+  return {
+    append(record) {
+      try {
+        write(JSON.stringify({ type: 'capacitylens.audit', ...record }))
+        return true
+      } catch {
+        degraded = true
+        return false
+      }
+    },
+    get degraded() { return degraded },
+  }
+}
+
+/** Require all configured destinations to accept a record; degradation is the union of sinks. */
+export function compositeAuditSink(...sinks: AuditSink[]): AuditSink {
+  return {
+    append(record) {
+      return sinks.map((sink) => sink.append(record)).every(Boolean)
+    },
+    get degraded() { return sinks.some((sink) => sink.degraded) },
   }
 }
 

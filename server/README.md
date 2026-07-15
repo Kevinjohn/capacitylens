@@ -18,7 +18,12 @@ for disposable tests.
 - Writes are sanitised and validated, optimistic concurrency is on by default, and batch/import
   operations are transactional.
 - Audit records contain actor/entity/field names but not values.
-- `/api/health` is public; all tenant endpoints require the configured auth posture.
+- `/api/health` is public and rate limited; deep health uses a constant readiness query, while
+  startup performs the full SQLite foreign-key integrity check.
+- Unsafe browser requests enforce same-origin CSRF signals and all API responses are non-cacheable.
+- Production requires an internal TLS identity; Compose creates it per installation and nginx
+  verifies the API service name without a plaintext fallback.
+- Accepted sockets, scrypt and breached-password calls have finite documented queues/limits.
 
 The authoritative environment register is `.env.example`. Production deployment and operations
 are documented in `docs/self-hosting.md`, `docs/authentication.md` and `docs/runbook.md`.
@@ -29,6 +34,13 @@ are documented in `docs/self-hosting.md`, `docs/authentication.md` and `docs/run
 or generic OIDC providers. External identities need verified email and an invitation, with an
 explicit bootstrap email allow-list for the first identity. Provider configuration is fail-closed;
 partial credentials or missing OIDC endpoints refuse startup.
+
+Production password mode requires breached-password screening, TOTP MFA, fixed twelve-hour
+sessions and a thirty-minute inactivity timeout. HTTPS cookies use the host-only `__Host-` prefix.
+New credentials use a versioned OWASP-strength scrypt profile; legacy Better Auth hashes
+are accepted only for compatibility. Tenant operations are blocked until MFA enrollment, and
+privileged actions additionally require a session no older than fifteen minutes. Users and
+authorised administrators can revoke sessions immediately.
 
 Production refuses auth-off unless `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1` explicitly accepts the
 risk. That escape hatch is for trusted/local use, not an internet deployment.

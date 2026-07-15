@@ -9,11 +9,13 @@ import { join } from 'node:path'
 // rather than reaching for the global `process.cwd()`.
 import { cwd } from 'node:process'
 
-// P2.7 privacy posture — the DEPENDENCY half of the no-egress proof.
+// P2.7 privacy posture — dependency guard against analytics/telemetry/email vendor SDKs.
 //
-// CapacityLens is privacy-first: it phones home to no one. The CSP half of the proof
-// (server/src/app.helmet.test.ts) keeps the browser policy-bound to same-origin requests; THIS
-// half guards the supply chain. If an analytics, telemetry, or email package is ever added to any
+// CapacityLens has no product analytics, telemetry, email or browser-side third-party egress. The
+// server's explicitly documented k-anonymous breached-password range lookup is implemented with
+// native fetch and is outside this dependency check. The CSP half
+// (server/src/app.helmet.test.ts) keeps the browser policy-bound to same-origin requests; this
+// test guards the supply chain. If an analytics, telemetry, or email package is ever added to any
 // workspace manifest — or pulled in transitively via the root lockfile — this test FAILS LOUDLY,
 // naming the offending package and where it appeared, so the "we send nothing out" claim can't
 // quietly rot as the dependency tree grows. See docs/privacy.md.
@@ -102,7 +104,7 @@ function readManifest(relPath: string): Manifest {
 
 const MANIFEST_PATHS = ['package.json', 'server/package.json', 'shared/package.json']
 
-describe('P2.7 privacy posture — no analytics/telemetry/email dependency (no-egress proof, dep half)', () => {
+describe('P2.7 privacy posture — no analytics/telemetry/email vendor dependency', () => {
   const manifests = MANIFEST_PATHS.map(readManifest)
 
   // Non-vacuous guard: a path/parse mistake that yielded empty dep sets would make every

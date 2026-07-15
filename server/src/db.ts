@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
+import { chmodSync, existsSync } from 'node:fs'
 import { emptyAppData, isEmpty, SCHEMA_VERSION } from '@capacitylens/shared/types/entities'
 import {
   buildInternalClient,
@@ -52,6 +53,15 @@ export function openDb(path: string): Db {
     )
   }
   db.exec('PRAGMA journal_mode = WAL;')
+  if (path !== ':memory:') {
+    try {
+      chmodSync(path, 0o600)
+      // WAL/SHM may not exist until the first write; the process umask above protects later files.
+    } catch (cause) {
+      db.close()
+      throw new Error(`Could not restrict database permissions at "${path}".`, { cause })
+    }
+  }
   // Wait up to 5s for a held lock instead of throwing SQLITE_BUSY immediately — two server
   // processes on the same CAPACITYLENS_DB file (or a WAL checkpoint) contend rather than error.
   db.exec('PRAGMA busy_timeout = 5000;')
@@ -94,6 +104,28 @@ export function openDb(path: string): Db {
   db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL)
   db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
   db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
+  // Perform the expensive whole-database relational verification once at startup. This used to
+  // run on every public deep-health request, allowing unauthenticated callers to amplify a full
+  // database scan. Boot is the correct trust boundary: corruption refuses service before traffic
+  // is accepted, while `/api/health` remains a constant-work liveness/readiness probe.
+  const fkViolations = db.prepare('PRAGMA foreign_key_check').all()
+  if (fkViolations.length > 0) {
+    db.close()
+    throw new Error(`Database foreign-key integrity check failed (${fkViolations.length} violation(s)).`)
+  }
+  if (path !== ':memory:') {
+    try {
+      // Schema setup normally creates the WAL/SHM sidecars after the first chmod above. Pin every
+      // file in the SQLite set before returning the live handle; process.umask(0077) protects any
+      // sidecar SQLite later recreates in the server process.
+      for (const file of [path, `${path}-wal`, `${path}-shm`]) {
+        if (existsSync(file)) chmodSync(file, 0o600)
+      }
+    } catch (cause) {
+      db.close()
+      throw new Error(`Could not restrict SQLite file permissions at "${path}".`, { cause })
+    }
+  }
   return db
 }
 

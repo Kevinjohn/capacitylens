@@ -57,6 +57,17 @@ const removeReq = (
   headers: Record<string, string> = {},
 ) => call(app, { method: 'DELETE', url: `/api/accounts/${accountId}/members/${userId}`, headers })
 
+const revokeSessionsReq = (
+  app: FastifyInstance,
+  accountId: string,
+  userId: string,
+  headers: Record<string, string> = {},
+) => call(app, {
+  method: 'POST',
+  url: `/api/accounts/${accountId}/members/${userId}/revoke-sessions`,
+  headers,
+})
+
 const invitesReq = (app: FastifyInstance, accountId: string, headers: Record<string, string> = {}) =>
   call(app, { method: 'GET', url: `/api/accounts/${accountId}/invites`, headers })
 
@@ -150,11 +161,68 @@ describe('GET /api/accounts/:id/members — gate', () => {
 
     const res = await membersReq(app, 'a1', { cookie: owner.cookie })
     expect(res.statusCode).toBe(200)
-    const members = (res.json() as { members: Array<{ userId: string; mayResetPassword: boolean }> }).members
+    const members = (res.json() as {
+      members: Array<{ userId: string; mayResetPassword: boolean; mayRevokeSessions: boolean }>
+    }).members
     const by = (id: string) => members.find((m) => m.userId === id)!
     expect(by(ed.userId).mayResetPassword).toBe(true) // same-account editor → resettable
     expect(by(owner.userId).mayResetPassword).toBe(true) // caller's own row (self-reset exemption)
     expect(by(crossOwner.userId).mayResetPassword).toBe(false) // outranks caller in a2 → refused
+    expect(by(ed.userId).mayRevokeSessions).toBe(true)
+    expect(by(owner.userId).mayRevokeSessions).toBe(true)
+    expect(by(crossOwner.userId).mayRevokeSessions).toBe(false)
+  })
+})
+
+describe('POST /api/accounts/:id/members/:userId/revoke-sessions', () => {
+  it('lets an owner terminate a member session and invalidates that cookie immediately', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const owner = await signUp(app, 'owner-revoke@capacitylens.dev')
+    const target = await signUp(app, 'target-revoke@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a1', userId: target.userId, role: 'editor', status: 'active', createdAt: TS })
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: target.cookie } })).statusCode)
+      .toBe(200)
+
+    const revoked = await revokeSessionsReq(app, 'a1', target.userId, { cookie: owner.cookie })
+    expect(revoked.statusCode).toBe(204)
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: target.cookie } })).statusCode)
+      .toBe(401)
+  })
+
+  it('refuses cross-account authority and leaves the target session intact', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const owner = await signUp(app, 'owner-revoke-cross@capacitylens.dev')
+    const target = await signUp(app, 'target-revoke-cross@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a1', userId: target.userId, role: 'editor', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a2', userId: target.userId, role: 'owner', status: 'active', createdAt: TS })
+
+    expect((await revokeSessionsReq(app, 'a1', target.userId, { cookie: owner.cookie })).statusCode).toBe(403)
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: target.cookie } })).statusCode)
+      .toBe(200)
+  })
+
+  it('requires a fresh sign-in before a privileged session-termination action', async () => {
+    const { app, db } = await appWithAuth()
+    seedTwo(db)
+    const owner = await signUp(app, 'owner-revoke-stale@capacitylens.dev')
+    const target = await signUp(app, 'target-revoke-stale@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a1', userId: target.userId, role: 'editor', status: 'active', createdAt: TS })
+    db.prepare(`UPDATE session SET createdAt = ? WHERE userId = ?`)
+      .run(new Date(Date.now() - 16 * 60 * 1000).toISOString(), owner.userId)
+
+    // An old session remains usable for ordinary reads, but not the security-sensitive action.
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: owner.cookie } })).statusCode)
+      .toBe(200)
+    const result = await revokeSessionsReq(app, 'a1', target.userId, { cookie: owner.cookie })
+    expect(result.statusCode).toBe(403)
+    expect(result.json().code).toBe('SESSION_NOT_FRESH')
+    expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: target.cookie } })).statusCode)
+      .toBe(200)
   })
 })
 

@@ -10,7 +10,7 @@ on:
     - cron: '47 6 3 * *'
 
 # Pre-launch cost control: automatic runs are skipped while the repository is private; a manual
-# dispatch still provides an explicit Chromium check. Once public, PR/main/tag/monthly coverage
+# dispatch still provides an explicit cross-browser check. Once public, PR/main/tag/monthly coverage
 # resumes and this workflow supplies the README's dedicated E2E badge.
 
 concurrency:
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   e2e:
-    name: Chromium E2E
+    name: Chromium · Firefox · WebKit E2E
     if: github.event_name == 'workflow_dispatch' || github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -34,8 +34,8 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm run e2e
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm run e2e:all
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure()
         with:

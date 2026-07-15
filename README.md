@@ -96,6 +96,8 @@ in-memory demo adapter.
 ## Authentication and offline access
 
 - Password authentication is the stable default. Social providers and generic OIDC are experimental.
+- Production password mode requires TOTP MFA, breached-password screening, fixed/idle session
+  limits and host-only cookies; users can review/revoke active sessions.
 - Optional offline access stores a verified snapshot for up to seven days.
 - Offline mode is read-only: it never queues or synchronises edits.
 - The SQLite database remains the source of truth.
@@ -126,6 +128,9 @@ See [development](docs/development.md) for cross-browser, mutation and GitHub Ac
 
 - [Development guide](docs/development.md) — repository map, checks, test data and local workflows.
 - [Server README](server/README.md) — API, authorization, persistence and backup boundaries.
+- [Security review](docs/security/security-review-2026-07-14.md) — threat model, remediations,
+  residual risks and complete OWASP mappings.
+- [ASVS 5.0.0 ledger](docs/security/owasp-asvs-5.0.0.md) — every L1–L3 requirement accounted for.
 - [Standing decisions](DECISIONS.md) — decisions that shape the product and architecture.
 - [Changelog](CHANGELOG.md) — released and upcoming changes.
 

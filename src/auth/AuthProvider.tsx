@@ -20,11 +20,12 @@ import {
 // lazy chunk so better-auth's client never loads unless a login is actually shown.
 
 const LoginScreen = lazy(() => import('./LoginScreen').then((m) => ({ default: m.LoginScreen })))
+const MfaEnrollmentScreen = lazy(() => import('./MfaEnrollmentScreen').then((m) => ({ default: m.MfaEnrollmentScreen })))
 
 type Status =
   | { kind: 'checking' }
   | { kind: 'error'; message: string }
-  | { kind: 'pass'; authMode: AuthMode; user: AuthUser | null; canCreateAccount: boolean; multiAccount: boolean }
+  | { kind: 'pass'; authMode: AuthMode; user: AuthUser | null; canCreateAccount: boolean; multiAccount: boolean; mfaRequired: boolean }
   | { kind: 'login'; authMode: 'password' | 'sso'; needsSetup: boolean; providers: AuthProviderInfo[] }
 
 // A 'pass' Status that fails OPEN on the single-company-per-instance fields (see authContext.ts):
@@ -32,7 +33,7 @@ type Status =
 // wire (an off-spec body, a non-401 non-ok response, or a network failure) — the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
 function passOpen(authMode: AuthMode, user: AuthUser | null): Status {
-  return { kind: 'pass', authMode, user, canCreateAccount: true, multiAccount: true }
+  return { kind: 'pass', authMode, user, canCreateAccount: true, multiAccount: true, mfaRequired: false }
 }
 
 // Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server
@@ -126,12 +127,15 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
       // boolFieldOr and AuthContextValue.canCreateAccount.
       const canCreateAccount = boolFieldOr((body as { canCreateAccount?: unknown } | null)?.canCreateAccount, true)
       const multiAccount = boolFieldOr((body as { multiAccount?: unknown } | null)?.multiAccount, true)
+      const mfaRequired = rawMode === 'password' &&
+        boolFieldOr((body as { mfaRequired?: unknown } | null)?.mfaRequired, false)
       const next: Status = {
         kind: 'pass',
         authMode: rawMode,
         user,
         canCreateAccount,
         multiAccount,
+        mfaRequired,
       }
       if (acceptEffects()) setOfflineReadState(false)
       if (next.user && acceptEffects()) {
@@ -162,6 +166,7 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
             user: cached.value.user,
             canCreateAccount: false,
             multiAccount: cached.value.multiAccount,
+            mfaRequired: false,
           }
         }
       } catch (cacheError) {
@@ -343,6 +348,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           needsSetup={status.needsSetup}
           providers={status.providers}
           onSignedIn={() => window.location.reload()}
+        />
+      </Suspense>
+    )
+  }
+  if (status.mfaRequired && status.authMode === 'password') {
+    return (
+      <Suspense fallback={null}>
+        <MfaEnrollmentScreen
+          onEnrolled={() => void refreshAuth()}
+          onSignOut={() => void signOut()}
         />
       </Suspense>
     )

@@ -118,11 +118,13 @@ describe('action and identity token contrast', () => {
   it('keeps the light-theme blue readable on white and the green action fill readable with white ink', () => {
     expect(contrastRatio('#2563eb', '#ffffff')).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio('#065f46', '#ffffff')).toBeGreaterThanOrEqual(4.5)
   })
 
   it('keeps the dark-theme blue identity visible on charcoal and the green action fill readable', () => {
     expect(contrastRatio('#60a5fa', '#161922')).toBeGreaterThanOrEqual(4.5)
     expect(contrastRatio('#047857', '#ffffff')).toBeGreaterThanOrEqual(4.5)
+    expect(contrastRatio('#065f46', '#ffffff')).toBeGreaterThanOrEqual(4.5)
   })
 })
 

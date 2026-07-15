@@ -63,12 +63,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run gate
       - name: Upload test coverage to Codecov
-        if: ${{ secrets.CODECOV_TOKEN != '' }}
+        if: env.CODECOV_TOKEN != ''
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           files: ./coverage/lcov.info
           flags: unit
           fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+          token: ${{ env.CODECOV_TOKEN }}
       - run: pnpm run gate:server
       - run: pnpm audit --prod --audit-level high
