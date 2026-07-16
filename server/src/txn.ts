@@ -1,10 +1,34 @@
 import type { Db } from './db'
 
-/** Run fn inside a BEGIN/COMMIT transaction, rolling back (and rethrowing) on any throw.
- *  Shared by the bulk writes in db.ts and the activities-table rebuild in schema.ts, so both
- *  speak one transaction discipline. */
-export function tx(db: Db, fn: () => void): void {
-  db.exec('BEGIN')
+let savepointId = 0
+
+/** Run fn atomically, rolling back (and rethrowing) on any throw.
+ *
+ * A top-level caller may request `IMMEDIATE` when it must reserve SQLite's single writer before
+ * inspecting/mutating schema. Nested callers use SAVEPOINTs, which lets one explicit database
+ * migration wrap the older focused helpers (table rebuilds, control-table repair, data repair)
+ * without either weakening their local atomicity or attempting an invalid nested BEGIN.
+ */
+export function tx(db: Db, fn: () => void, mode: 'deferred' | 'immediate' = 'deferred'): void {
+  if (db.isTransaction) {
+    const savepoint = `capacitylens_tx_${++savepointId}`
+    db.exec(`SAVEPOINT ${savepoint}`)
+    try {
+      fn()
+      db.exec(`RELEASE SAVEPOINT ${savepoint}`)
+    } catch (e) {
+      try {
+        db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`)
+        db.exec(`RELEASE SAVEPOINT ${savepoint}`)
+      } catch (rollbackError) {
+        console.error('tx: SAVEPOINT rollback failed after an error; preserving the original cause', rollbackError)
+      }
+      throw e
+    }
+    return
+  }
+
+  db.exec(mode === 'immediate' ? 'BEGIN IMMEDIATE' : 'BEGIN')
   try {
     fn()
     db.exec('COMMIT')

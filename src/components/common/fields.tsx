@@ -57,7 +57,7 @@ function FieldLabel({ label, required }: { label: string; required?: boolean }) 
   )
 }
 
-/** Drop near the top of a form to explain the asterisk + red accent convention. */
+/** Place at the bottom of a form to explain the asterisk + red accent convention. */
 export function RequiredLegend() {
   return (
     <p className="text-xs text-muted">

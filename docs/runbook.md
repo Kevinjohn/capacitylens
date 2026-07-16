@@ -52,6 +52,13 @@ and process logs remain available and startup emits a posture warning.
 When `CAPACITYLENS_BACKUP_DIR` is set, the server uses SQLite's online backup operation at boot and
 on the configured interval. Do not `cp` a live WAL database.
 
+When an existing database needs a schema migration, startup always writes and verifies a separate
+`capacitylens-pre-migration-vN-to-vM-*.db` snapshot before applying DDL. It uses
+`CAPACITYLENS_BACKUP_DIR` when configured and otherwise the database directory. Failure to create,
+permission or pass `quick_check` on this snapshot refuses startup. These rollback snapshots are not
+part of rolling retention: keep the matching file until the upgraded release has been verified,
+then remove it deliberately under the deployment's retention policy.
+
 The process applies a restrictive `0077` umask and enforces mode `0600` on database, WAL/SHM,
 audit and snapshot files plus `0700` on the snapshot directory. Treat broader ownership or ACLs as
 configuration drift. The production storage-encryption acknowledgement is valid only when the
@@ -75,6 +82,22 @@ Schedule this before launch and after material storage changes:
 
 `server/src/restore.drill.test.ts` continuously exercises the core backup → corruption → restore
 path, but it does not replace an operator drill with real storage and credentials.
+
+For an application rollback after a schema upgrade, stop the API, preserve the failed/upgraded file
+for diagnosis, restore the matching pre-migration snapshot with no stale WAL/SHM sidecars, and start
+the previous image. Never point the previous image at the upgraded database: downgrade refusal is
+intentional, and CapacityLens has no down migrations.
+
+## Migration release rehearsal
+
+Before a schema-bearing release, maintainers run `pnpm run rehearse:migrations` against the
+committed auth fixture and again with `--source /path/to/representative.db`. The source is copied
+with SQLite's online backup API and is never migrated. The temporary copy is anonymised and vacuumed
+before use, then deleted unless `--keep` is explicit. A passing rehearsal proves the happy path,
+verified rollback snapshot, migration-ledger checksum, injected disk-exhaustion rollback, forced
+process-termination recovery and idempotent reopen for that source shape. Record the source schema
+version, row/table counts printed by the command and the result in the release evidence; the command
+never prints tenant content.
 
 ## Incident containment
 
@@ -103,7 +126,8 @@ remain. Apply the deployment's retention schedule to those copies and document l
 - Weekly: inspect health, disk, backup freshness and security advisories.
 - Monthly: apply OS/container/dependency updates and test login + restore in staging.
 - Every release: review the security workflow, SBOM and image scan; read the changelog, back up,
-  deploy, smoke test and retain a rollback image.
+  deploy, smoke test and retain a rollback image. For schema-bearing releases, retain the migration
+  rehearsal result with the release evidence.
 - After auth/crypto changes: exercise enrollment, recovery-code storage, session revocation,
   password-reset invalidation and the password-breach-service outage path in staging.
 

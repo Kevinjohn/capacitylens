@@ -54,10 +54,10 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
         </>
       }
     >
-      <RequiredLegend />
       <TextField label={m.form_discipline_name_label()} value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
       <ColorField label={m.form_discipline_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }

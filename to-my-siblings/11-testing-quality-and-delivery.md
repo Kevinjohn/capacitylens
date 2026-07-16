@@ -150,6 +150,8 @@ onboarding completeness and filters. It catches tests that execute a comparison 
 - Use fully populated fixtures, not `as Entity` partial lies.
 - Use fictional names, domains, ids and notes.
 - Never copy production/customer data into screenshots or stories.
+- Keep immutable sanitised database fixtures from every released physical schema version and each
+  supported auth shape; tests copy them before migration and never rewrite the committed artifact.
 - Keep time-sensitive seed dates frozen in E2E or derive them explicitly.
 - One fixture factory per canonical shape where useful.
 - When a field is added, compiler/test failures should reveal every full fixture needing a decision.
@@ -238,6 +240,8 @@ policy in `AGENTS.md`.
 - Keep root/server/shared package versions aligned when released together.
 - Tag immutable source.
 - Read changelog, back up and smoke test deployment.
+- For schema-bearing releases, run the migration rehearsal against a released fixture and an
+  anonymised representative installation; retain its version/table/row result as release evidence.
 
 Avoid version churn merely to make CI run. CI policy should not distort version meaning.
 

@@ -153,7 +153,6 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
         </>
       }
     >
-      <RequiredLegend />
       <TextField label={isPlaceholder ? m.form_resource_name_optional_label() : m.form_resource_name_label()} value={name} onChange={setName} required={!isPlaceholder} invalid={errorField === 'name'} describedById={errorId} />
       <TextField label={m.form_resource_role_label()} value={role} onChange={setRole} placeholder={m.form_resource_role_placeholder()} invalid={errorField === 'role'} describedById={errorId} />
       {disciplinesEnabled && (
@@ -173,6 +172,7 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
       <NumberField label={m.form_resource_working_hours_label()} value={hours} onChange={setHours} min={0} max={MAX_HOURS_PER_DAY} invalid={errorField === 'hours'} describedById={errorId} />
       <WeekdayPicker label={m.form_resource_working_days_label()} value={workingDays} onChange={setWorkingDays} invalid={errorField === 'workingDays'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }

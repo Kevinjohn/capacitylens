@@ -1,4 +1,4 @@
-import { emptyAppData, SCHEMA_VERSION, SCOPED_KEYS } from '../types/entities'
+import { emptyAppData, EXPORT_SCHEMA_VERSION, SCOPED_KEYS } from '../types/entities'
 import { buildInternalClient, ensureInternalClients } from './internalClient'
 import type { AppData } from '../types/entities'
 
@@ -27,7 +27,7 @@ const RECOGNISED_KEYS: string[] = [...KNOWN_KEYS, ...LEGACY_KEYS]
 export class UnsupportedSchemaVersionError extends Error {
   readonly version: number
   constructor(version: number) {
-    super(`Schema version ${version} is newer than this app supports (${SCHEMA_VERSION}).`)
+    super(`Schema version ${version} is newer than this app supports (${EXPORT_SCHEMA_VERSION}).`)
     this.name = 'UnsupportedSchemaVersionError'
     this.version = version
   }
@@ -197,7 +197,7 @@ export function migrate(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') return emptyAppData()
   const obj = raw as Record<string, unknown>
   const version = typeof obj.schemaVersion === 'number' ? obj.schemaVersion : 0
-  if (version > SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version)
+  if (version > EXPORT_SCHEMA_VERSION) throw new UnsupportedSchemaVersionError(version)
 
   // Accept either a { schemaVersion, data } wrapper or a bare AppData (legacy).
   let data = ('data' in obj ? obj.data : obj) as Record<string, unknown> | undefined

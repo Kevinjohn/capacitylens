@@ -65,10 +65,10 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
         </>
       }
     >
-      <RequiredLegend />
       <TextField label={m.form_external_company_label()} value={name} onChange={setName} required invalid={errorField === 'name'} describedById={errorId} />
       <TextField label={m.form_external_descriptor_label()} value={role} onChange={setRole} placeholder={m.form_external_descriptor_placeholder()} invalid={errorField === 'role'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }

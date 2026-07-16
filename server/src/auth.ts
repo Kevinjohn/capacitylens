@@ -455,6 +455,32 @@ export function externalIdentityAllowed(db: Db, env: Env, user: { email?: string
   return invite?.allowed === 1
 }
 
+/** Create/repair CapacityLens's first-owner claim table after configuration validation and app
+ * migrations have succeeded. authFromEnv calls this immediately for normal library/test callers;
+ * production startup defers it so invalid auth configuration cannot mutate a pre-migration DB. */
+export function ensureAuthControlTables(db: Db, env: Env): void {
+  if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1') return
+  db.exec(`CREATE TABLE IF NOT EXISTS capacitylens_bootstrap_claim (
+    id INTEGER PRIMARY KEY CHECK (id = 1), claimedAt TEXT NOT NULL, claimToken TEXT NOT NULL
+  )`)
+  const claimColumns = db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all() as Array<{ name: string }>
+  if (!claimColumns.some((column) => column.name === 'claimToken')) {
+    db.exec(`ALTER TABLE capacitylens_bootstrap_claim ADD COLUMN claimToken TEXT`)
+  }
+  // A crash before user creation must not permanently strand first-run setup.
+  db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE claimedAt < ?`).run(
+    new Date(Date.now() - 5 * 60_000).toISOString(),
+  )
+}
+
+/** Read-only signal used by startup planning so an existing database is snapshotted before this
+ * conditional auth-control schema is first created or repaired. */
+export function authControlTablesNeedMigration(db: Db, env: Env): boolean {
+  if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1') return false
+  const columns = db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all() as Array<{ name: string }>
+  return !columns.some((column) => column.name === 'claimToken')
+}
+
 /** Build the Better Auth instance for the parsed mode — or null in 'off' mode, where no
  *  env beyond CAPACITYLENS_AUTH itself is read. `trustedOrigins` should be the same browser
  *  origins the CORS allow-list names (Better Auth checks Origin on state-changing calls);
@@ -466,7 +492,7 @@ export function externalIdentityAllowed(db: Db, env: Env, user: { email?: string
 export function authFromEnv(
   db: Db,
   env: Env,
-  opts: { trustedOrigins?: string[] } = {},
+  opts: { trustedOrigins?: string[]; deferDatabaseSetup?: boolean } = {},
 ): { mode: AuthMode; auth: Auth | null } {
   const mode = parseAuthMode(env.CAPACITYLENS_AUTH)
   if (mode === 'off') return { mode, auth: null }
@@ -566,19 +592,11 @@ export function authFromEnv(
   if (mode === 'password' && setupToken && Buffer.byteLength(setupToken, 'utf8') < 32) {
     throw new AuthConfigError('CAPACITYLENS_SETUP_TOKEN must be at least 32 bytes.')
   }
-  if (!allowOpenSignup) {
-    db.exec(`CREATE TABLE IF NOT EXISTS capacitylens_bootstrap_claim (
-      id INTEGER PRIMARY KEY CHECK (id = 1), claimedAt TEXT NOT NULL, claimToken TEXT NOT NULL
-    )`)
-    const claimColumns = db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all() as Array<{ name: string }>
-    if (!claimColumns.some((column) => column.name === 'claimToken')) {
-      db.exec(`ALTER TABLE capacitylens_bootstrap_claim ADD COLUMN claimToken TEXT`)
-    }
-    // A crash before user creation must not permanently strand first-run setup.
-    db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE claimedAt < ?`).run(
-      new Date(Date.now() - 5 * 60_000).toISOString(),
-    )
-  }
+  // Resolve every remaining provider configuration before the first explicit database DDL below.
+  // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
+  // untouched database merely because validation happened in an unfortunate order.
+  const configuredSocialProviders = socialProvidersFromEnv(env)
+  const configuredProviderInfo = externalProviderInfo(env, genericProviderId)
   const acquireBootstrapClaim = (): string => {
     const claimToken = randomBytes(24).toString('base64url')
     try {
@@ -712,7 +730,7 @@ export function authFromEnv(
     },
     // Native Google/Microsoft/GitHub sign-in, each only when its env is set (see helper).
     // Independent of the 'sso' genericOAuth plugin above; an empty object = none configured.
-    socialProviders: socialProvidersFromEnv(env),
+    socialProviders: configuredSocialProviders,
     // The LIVE sign-up gate (see the SECURE DEFAULT comment above): allowed when the operator
     // opted in, or for the empty-table owner bootstrap when the request proves knowledge of the
     // configured setup secret. countUsers(db) is consulted per request so the bootstrap route
@@ -780,6 +798,9 @@ export function authFromEnv(
     session: { expiresIn: SESSION_ABSOLUTE_TTL_SECONDS, disableSessionRefresh: true, freshAge: 15 * 60 },
     telemetry: { enabled: false },
   })
+  // betterAuth construction validates its resolved options but does not own this app-specific
+  // table. Create/repair it only after all configuration has successfully parsed.
+  if (!opts.deferDatabaseSetup) ensureAuthControlTables(db, env)
   // Collapse the invariant generic to the structural Auth surface (see Auth), AND normalize at
   // this single narrowing boundary (P1.7a): Better Auth's full user carries the richer fields we
   // drop here, so this is exactly where `emailVerified` is read and defaulted before everything
@@ -851,7 +872,7 @@ export function authFromEnv(
       return raw.handler(request)
     },
     options: raw.options,
-    providers: externalProviderInfo(env, genericProviderId),
+    providers: configuredProviderInfo,
     api: {
       async getSession(input) {
         const session = await activeSession(input.headers)
@@ -950,6 +971,31 @@ export async function createCredentialUserWith(
 export async function runAuthMigrations(auth: Auth): Promise<void> {
   const { runMigrations } = await getMigrations(auth.options)
   await runMigrations()
+  // Better Auth owns this schema and currently migrates by introspecting/adding tables and fields.
+  // Re-introspect after its sequential DDL: startup must not serve traffic after a partial library
+  // migration, even if the first pass returned without surfacing the missing remainder.
+  const remaining = await planAuthSchemaMigrations(auth)
+  if (remaining.pending) {
+    throw new Error(
+      `Better Auth schema migration did not converge; pending table change(s): ${remaining.tables.join(', ')}`,
+    )
+  }
+}
+
+export interface AuthSchemaMigrationPlan {
+  pending: boolean
+  tables: string[]
+}
+
+/** Inspect Better Auth's pinned desired schema without executing its DDL. Production startup folds
+ * this into the same pre-migration snapshot decision as app-owned migrations. */
+export async function planAuthSchemaMigrations(auth: Auth): Promise<AuthSchemaMigrationPlan> {
+  const plan = await getMigrations(auth.options)
+  const tables = [
+    ...plan.toBeCreated.map((entry) => entry.table),
+    ...plan.toBeAdded.map((entry) => entry.table),
+  ]
+  return { pending: tables.length > 0, tables: [...new Set(tables)] }
 }
 
 // ── First-run owner bootstrap (--create-owner-admin-admin / CAPACITYLENS_CREATE_ADMIN_ADMIN=1) ────

@@ -2,5 +2,6 @@ node_modules
 *.db
 *.db-shm
 *.db-wal
+!src/fixtures/databases/*.db
 *.log
 .DS_Store

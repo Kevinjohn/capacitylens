@@ -25,6 +25,10 @@ the changelog or linked issues.
 - Session membership is the security boundary; client scoping is defense in depth.
 - Forms reject invalid input; import/server repair only safe, tested cases.
 - Multi-row replacements are atomic.
+- Portable export and physical SQLite versions are independent. SQLite uses immutable ordered
+  migrations plus a checksummed database-side history ledger.
+- New builds upgrade older files; older builds refuse newer files. Rollback restores the verified
+  pre-migration snapshot and runs its matching image; there are no down migrations.
 
 ## Offline
 
@@ -50,7 +54,9 @@ the changelog or linked issues.
 
 - [Supported topology.]
 - [Backup/restore/health posture.]
-- [Upgrade compatibility policy.]
+- SQLite upgrades use coordinated single-server restarts, not mixed-version writers.
+- Schema-bearing releases are rehearsed against released fixtures and an anonymised representative
+  installation, including disk-exhaustion and forced-termination recovery.
 
 ## Open source and hosted service
 

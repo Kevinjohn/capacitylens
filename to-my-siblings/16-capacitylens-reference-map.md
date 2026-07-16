@@ -55,7 +55,7 @@ root. Read the implementation and nearest tests together.
 | Lifecycle machine | `shared/src/domain/lifecycle.ts` | lifecycle tests, server lifecycle tests, archived E2E |
 | Built-in Internal record | `shared/src/data/internalClient.ts` | internal-client tests/E2E |
 | Private name projection | `shared/src/domain/privateNames.ts` | private-name/authz/tenant-store tests |
-| Migrations | `shared/src/data/migrate.ts` | migrate tests |
+| Portable export migrations | `shared/src/data/migrate.ts` | migrate tests |
 | Import sanitisation | `shared/src/lib/sanitizeImport.ts` | sanitise/import-hardening tests |
 | Transfer/export | `shared/src/data/transfer.ts` | transfer/import-export tests |
 | Full fictional fixtures/seed | `shared/src/data/fixtures.ts`, `shared/src/data/seed.ts`, `src/test/fixtures.ts` | E2E seed reference |
@@ -99,13 +99,14 @@ root. Read the implementation and nearest tests together.
 | Pattern | Implementation | Evidence |
 | --- | --- | --- |
 | HTTP boundary/routes | `server/src/app.ts` | `server/src/app*.test.ts` |
-| DB open/migrate/load | `server/src/db.ts` | db/migrate/tenant-store tests |
+| DB open/plan/checksummed ledger/migrate/load | `server/src/db.ts` | `server/src/db.migrate.test.ts`, tenant-store tests |
 | Exhaustive SQL columns/order | `server/src/tables.ts` | typecheck/round-trip tests |
 | Tenant store/privacy preservation | `server/src/tenantStore.ts` | tenant-store/authz tests |
 | Request validation | `server/src/validate.ts` | app/validate tests |
 | Transaction helper | `server/src/txn.ts` | batch/import tests |
 | Audit | `server/src/audit.ts` | audit tests |
 | Online backup | `server/src/backup.ts` | backup/restore drill tests |
+| Anonymised migration release rehearsal | `server/scripts/rehearse-migrations.ts` | default v7 fixture and representative legacy-DB rehearsal |
 | Production boot guards | `server/src/productionGuard.ts`, `server/src/bootGuard.ts` | guard tests |
 | Shutdown/drain | `server/src/shutdown.ts`, `server/src/index.ts` | shutdown tests |
 
@@ -121,8 +122,10 @@ root. Read the implementation and nearest tests together.
 | Offline contract | `docs/offline.md` |
 | Privacy/retention | `docs/privacy.md` |
 | Health/backup/incident/restore | `docs/runbook.md` |
+| Migration authoring/rehearsal policy | `docs/development.md`, `to-my-siblings/18-database-migrations-and-upgrades.md` |
 | Production container smoke | `.github/workflows/docker.yml` |
-| Production posture attestations | `server/src/productionGuard.ts` | `server/src/productionGuard.test.ts` |
+| Tiered production posture and attestations | `server/src/productionGuard.ts`, `server/src/productionGuard.test.ts` |
+| Complete OWASP/security posture | `docs/security/owasp-asvs-5.0.0.md`, `docs/security/security-review-2026-07-14.md`, `docs/security/threat-model.md` |
 | Password/security egress disclosure | `docs/authentication.md`, `docs/privacy.md` | password security/privacy tests |
 
 ## Quality and delivery
@@ -157,10 +160,12 @@ root. Read the implementation and nearest tests together.
 
 For the changes that motivated this handbook, read:
 
-- `CHANGELOG.md` versions `0.17.0` through `0.19.4`;
+- `CHANGELOG.md` versions `0.17.0` through `0.20.0-alpha.3`;
 - commits around `harden data integrity and persistence`,
   `harden lifecycle and mutation recovery` and `release CapacityLens 0.19.0`;
 - exact acceptance additions in `user-stories/navigation/US-NAV-14*`,
   `US-NAV-15*` and `user-stories/privacy/`.
 
-Git history explains why a defensive pattern exists; the current code/tests remain authoritative.
+The `0.20.0-alpha.3` deployment fix is the reference for separating non-negotiable application
+safety from optional operator infrastructure without hiding the resulting ASVS limitations. Git
+history explains why a defensive pattern exists; the current code/tests remain authoritative.

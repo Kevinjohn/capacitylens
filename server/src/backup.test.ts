@@ -1,9 +1,18 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
+import { DatabaseSync } from 'node:sqlite'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parseBackupConfig, startBackups } from './backup'
-import { openDb, loadState, insertAll } from './db'
+import { parseBackupConfig, startBackups, writePreMigrationBackup } from './backup'
+import {
+  DB_SCHEMA_VERSION,
+  initializeOpenDb,
+  insertAll,
+  loadState,
+  openDb,
+  openDbConnection,
+  planDatabaseMigrations,
+} from './db'
 import { seed } from '@capacitylens/shared/data/seed'
 
 // P4.1 (flag CAPACITYLENS_BACKUP_DIR): OFF (unset) means backups don't exist — parseBackupConfig
@@ -41,6 +50,56 @@ describe('parseBackupConfig (fail-closed)', () => {
   it('rejects fractional retention values rather than silently changing their meaning', () => {
     expect(parseBackupConfig({ CAPACITYLENS_BACKUP_DIR: '/tmp/x', CAPACITYLENS_BACKUP_KEEP: '100.5' }))
       .toEqual({ dir: '/tmp/x', intervalMin: 60, keep: 48 })
+  })
+})
+
+describe('pre-migration rollback snapshot', () => {
+  it('copies and verifies v7 before the live handle advances to v8', async () => {
+    const dir = tempDir()
+    const dbPath = join(dir, 'capacitylens.db')
+    const legacy = openDb(dbPath)
+    insertAll(legacy, seed())
+    legacy.exec(`
+      DROP TABLE capacitylens_schema_migrations;
+      PRAGMA user_version = 7;
+      PRAGMA application_id = 0;
+    `)
+    legacy.close()
+
+    const db = openDbConnection(dbPath)
+    const plan = planDatabaseMigrations(db)
+    expect(plan.fromVersion).toBe(7)
+    expect(plan.migrations.map((migration) => migration.version)).toEqual([8])
+    const snapshot = await writePreMigrationBackup(
+      db,
+      { dbPath, fromVersion: plan.fromVersion, toVersion: plan.toVersion, dir: join(dir, 'rollbacks') },
+      () => {},
+      () => new Date('2026-07-15T12:00:00.123Z'),
+    )
+    expect(snapshot).not.toBeNull()
+
+    initializeOpenDb(db, dbPath)
+    expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION)
+    db.close()
+
+    const rollback = new DatabaseSync(snapshot!, { readOnly: true })
+    expect((rollback.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(7)
+    expect((rollback.prepare(`PRAGMA application_id`).get() as { application_id: number }).application_id).toBe(0)
+    expect((rollback.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBeGreaterThan(0)
+    expect((rollback.prepare(`PRAGMA quick_check`).get() as { quick_check: string }).quick_check).toBe('ok')
+    expect((rollback.prepare(`PRAGMA journal_mode`).get() as { journal_mode: string }).journal_mode).toBe('delete')
+    rollback.close()
+    expect(statSync(snapshot!).mode & 0o777).toBe(0o600)
+    expect(existsSync(`${snapshot}.tmp-wal`)).toBe(false)
+    expect(existsSync(`${snapshot}.tmp-shm`)).toBe(false)
+  })
+
+  it('does not create a rollback artifact for an in-memory database', async () => {
+    const db = openDb(':memory:')
+    await expect(
+      writePreMigrationBackup(db, { dbPath: ':memory:', fromVersion: 7, toVersion: 8 }),
+    ).resolves.toBeNull()
+    db.close()
   })
 })
 

@@ -2,7 +2,7 @@
 // next to the migrate they gate, so the "is this even CapacityLens" check and the transform it
 // protects can't drift (mirrors schedule/diary). Imported back here for the parse path.
 import { importCandidate, KNOWN_KEYS, migrate, looksLikeCapacityLens, hasNonArrayKnownTable } from './migrate'
-import { SCHEMA_VERSION } from '../types/entities'
+import { EXPORT_SCHEMA_VERSION } from '../types/entities'
 import type { AppData, PersistedState } from '../types/entities'
 
 // Whole-dataset export/import — a one-click backup and a cheap way to hand a
@@ -10,7 +10,7 @@ import type { AppData, PersistedState } from '../types/entities'
 // so legacy / partial / slightly-off files are tolerated rather than rejected.
 
 export function serializeData(data: AppData): string {
-  const state: PersistedState = { schemaVersion: SCHEMA_VERSION, data }
+  const state: PersistedState = { schemaVersion: EXPORT_SCHEMA_VERSION, data }
   return JSON.stringify(state, null, 2)
 }
 

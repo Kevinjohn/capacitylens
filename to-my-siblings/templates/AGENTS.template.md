@@ -24,7 +24,10 @@
 - Device preferences are not tenant data.
 - Offline snapshots are opt-in, expiring and read-only; no queued offline writes.
 - Surface errors; no empty catches on a data path. Follow `DEFENSIVE-CODING.md`.
-- New fields flow through shared types → full fixtures → server columns → migration/sanitisation.
+- New fields flow through shared types → full fixtures → server columns → explicit SQLite migration
+  → sanitisation. Keep portable export and physical database versions independent. Retain every
+  shipped migration and released database fixture; never alter a checksummed migration definition.
+  Schema-affecting authentication upgrades also advance the physical database version.
 
 ## Authentication
 

@@ -1,6 +1,6 @@
-import { backup } from 'node:sqlite'
-import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { backup, DatabaseSync } from 'node:sqlite'
+import { chmodSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
 import type { Db } from './db'
 
 // Online DB snapshots (production plan P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: this
@@ -73,6 +73,95 @@ function stampName(now: Date): string {
   const time = `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`
   const ms = String(now.getMilliseconds()).padStart(3, '0')
   return `capacitylens-${date}-${time}-${ms}.db`
+}
+
+export interface PreMigrationBackupOptions {
+  dbPath: string
+  fromVersion: number
+  toVersion: number
+  /** Uses the scheduled backup directory when configured; otherwise the database directory. */
+  dir?: string
+}
+
+/** Write and verify the mandatory rollback point for an on-disk schema upgrade. Unlike periodic
+ * snapshots this is not retention-pruned: the operator keeps it until the upgraded release has
+ * been verified, then removes it deliberately. A fresh or in-memory database has nothing to roll
+ * back and returns null. */
+export async function writePreMigrationBackup(
+  db: Db,
+  options: PreMigrationBackupOptions,
+  log: (message: string) => void = console.log,
+  now: () => Date = () => new Date(),
+): Promise<string | null> {
+  if (options.dbPath === ':memory:') return null
+  const dir = options.dir ?? dirname(resolve(options.dbPath))
+  mkdirSync(dir, { recursive: true, mode: 0o700 })
+
+  const stamp = stampName(now()).replace(/^capacitylens-/, '').replace(/\.db$/, '')
+  const base = `capacitylens-pre-migration-v${options.fromVersion}-to-v${options.toVersion}-${stamp}`
+  let suffix = 0
+  let file: string
+  let tmp: string
+  for (;;) {
+    file = join(dir, `${base}${suffix === 0 ? '' : `-${suffix}`}.db`)
+    tmp = `${file}.tmp`
+    try {
+      writeFileSync(tmp, '', { flag: 'wx', mode: 0o600 })
+      break
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      suffix += 1
+    }
+  }
+
+  try {
+    if (typeof backup === 'function') await backup(db, tmp)
+    else {
+      rmSync(tmp)
+      db.exec(`VACUUM INTO '${tmp.replaceAll("'", "''")}'`)
+    }
+
+    // Verify on a writable handle so the artifact can be checkpointed out of WAL mode before it is
+    // published. A rollback snapshot must be one standalone `.db` file; otherwise merely opening
+    // the temp file for quick_check can leave `<tmp>-wal`/`<tmp>-shm` sidecars behind and make the
+    // operator's restore depend on hidden companions.
+    const verification = new DatabaseSync(tmp, { enableForeignKeyConstraints: false })
+    try {
+      const quickCheck = verification.prepare('PRAGMA quick_check').all() as Array<{ quick_check?: string }>
+      if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== 'ok') {
+        throw new Error('pre-migration snapshot failed SQLite quick_check')
+      }
+      const copiedVersion = Number(
+        (verification.prepare('PRAGMA user_version').get() as { user_version?: number }).user_version ?? 0,
+      )
+      if (copiedVersion !== options.fromVersion) {
+        throw new Error(
+          `pre-migration snapshot version mismatch (expected ${options.fromVersion}, copied ${copiedVersion})`,
+        )
+      }
+      verification.exec('PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode = DELETE;')
+    } finally {
+      verification.close()
+    }
+    rmSync(`${tmp}-wal`, { force: true })
+    rmSync(`${tmp}-shm`, { force: true })
+    renameSync(tmp, file)
+    chmodSync(file, 0o600)
+  } catch (error) {
+    try {
+      rmSync(tmp, { force: true })
+      rmSync(`${tmp}-wal`, { force: true })
+      rmSync(`${tmp}-shm`, { force: true })
+    } catch (cleanupError) {
+      log(
+        `capacitylens-server: pre-migration backup temp cleanup FAILED for ${tmp} — ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+      )
+    }
+    throw error
+  }
+
+  log(`capacitylens-server: pre-migration backup written ${file}`)
+  return file
 }
 
 /** Parse a snapshot filename back to the epoch ms stampName() built it from (local time,

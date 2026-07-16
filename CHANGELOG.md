@@ -10,11 +10,28 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Added
+
+- Added an explicit, one-way SQLite migration runner with an independent database version,
+  CapacityLens application identifier, transactional `BEGIN IMMEDIATE` steps, control/auth schema
+  verification and sanitised released-v7 compatibility fixtures.
+- Added a database-side migration ledger with immutable version/name/SHA-256 checksum validation,
+  plus a release-rehearsal command that anonymises a temporary online snapshot and verifies normal
+  upgrade, rollback snapshot, injected disk exhaustion, forced process termination and idempotence.
+- Added mandatory verified pre-migration rollback snapshots for existing on-disk databases. They
+  are written before DDL even when periodic backups are disabled and are never retention-pruned
+  automatically.
+
 ### Changed
 
+- Moved the required-field legend in data-entry modals to the bottom of each form, above the
+  action buttons.
 - Renamed the activity labels **Repeatable** and **Project** to **Cross-project** and
   **Project-specific** to make the distinction about project scope clear. The stored activity kind
   remains `repeatable` for compatibility.
+- Database startup now refuses unrelated SQLite files and future database versions before schema
+  DDL, validates production/auth configuration before applying migrations, and defines rollback as
+  the old image plus its matching pre-migration snapshot rather than a down migration.
 
 ## [0.20.1-alpha.0] — 2026-07-15
 

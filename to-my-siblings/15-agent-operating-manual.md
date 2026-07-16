@@ -88,12 +88,16 @@ Reject convenient duplication across layers.
 2. Update shared type.
 3. Update every full fixture.
 4. Update server columns.
-5. Update migration/import sanitisation.
-6. Update interactive validation.
-7. Update relationship and tenant enforcement.
-8. Update privacy projection.
-9. Test round-trip, malformed and cross-tenant paths.
-10. Update docs/changelog.
+5. Decide portable export and physical database version changes independently.
+6. Add the next immutable physical migration/checksum and historical database fixture when needed.
+7. Update import sanitisation.
+8. Update interactive validation.
+9. Update relationship and tenant enforcement.
+10. Update privacy projection.
+11. Test round-trip, malformed, migration and cross-tenant paths.
+12. For schema changes, run the release rehearsal against a released fixture and an anonymised
+    representative installation.
+13. Update docs/changelog.
 
 Search every field literal to find forgotten transfer, conflict or echo paths.
 
@@ -174,6 +178,9 @@ pnpm run gate:server
 pnpm run e2e
 ```
 
+For schema-bearing work, also run the repository's migration rehearsal command and record the
+source/target versions plus table/row counts. See chapter 18.
+
 Use the repository's actual scripts and pinned Node version. Stop conflicting dev servers before
 Playwright; never reuse a server of the wrong persistence flavour.
 
@@ -252,6 +259,8 @@ Ask a concise question only when a reasonable assumption would be risky.
 - I handled async ambiguity/races.
 - I used semantic design and accessible interaction.
 - I updated all persistence/migration fixtures for new fields.
+- I kept portable and physical schema versions separate and did not edit a shipped migration.
+- For schema changes, the checksum ledger, rollback snapshot and failure rehearsal passed.
 - I updated exact visible docs and changelog.
 - I ran proportionate narrow and broad checks.
 - I preserved unrelated user work.

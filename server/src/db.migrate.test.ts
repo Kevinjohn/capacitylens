@@ -2,9 +2,25 @@ import { describe, it, expect } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chmodSync, existsSync, statSync, unlinkSync } from 'node:fs'
-import { openDb, insertRow, getRow, loadState, seedIfUninitialized, isInitialized, isEmpty, deleteRow } from './db'
+import { chmodSync, copyFileSync, existsSync, statSync, unlinkSync } from 'node:fs'
+import {
+  CAPACITYLENS_APPLICATION_ID,
+  DATABASE_MIGRATION_TABLE,
+  DB_SCHEMA_VERSION,
+  deleteRow,
+  getRow,
+  initializeOpenDb,
+  insertRow,
+  isEmpty,
+  isInitialized,
+  loadState,
+  openDb,
+  openDbConnection,
+  planDatabaseMigrations,
+  seedIfUninitialized,
+} from './db'
 import { seed } from '@capacitylens/shared/data/seed'
+import { authFromEnv, runAuthMigrations } from './auth'
 
 // openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
 // kept its old columns/constraints forever and broke after a model change. These
@@ -13,6 +29,28 @@ import { seed } from '@capacitylens/shared/data/seed'
 // current shape, so the migration is a no-op there and would give false confidence.)
 
 const TS = '2026-01-01T00:00:00.000Z'
+const fixture = (name: string): string => join(process.cwd(), 'src', 'fixtures', 'databases', name)
+
+function copyFixture(name: string): { path: string; cleanup: () => void } {
+  const path = join(tmpdir(), `capacitylens-${name}-${process.pid}-${Date.now()}.db`)
+  const cleanup = () => {
+    for (const suffix of ['', '-wal', '-shm']) {
+      try { unlinkSync(path + suffix) } catch { /* not present */ }
+    }
+  }
+  cleanup()
+  copyFileSync(fixture(name), path)
+  return { path, cleanup }
+}
+
+const schemaFingerprint = (db: DatabaseSync): unknown[] =>
+  db.prepare(`
+    SELECT type, name, tbl_name, sql
+      FROM sqlite_master
+     WHERE name NOT LIKE 'sqlite_%'
+       AND type IN ('table', 'index')
+     ORDER BY type, name
+  `).all()
 
 // The shape as it shipped BEFORE the Task→Activity rename (and before general tasks +
 // scheduling modes): the table was `tasks` (projectId NOT NULL), the allocation FK was
@@ -58,6 +96,17 @@ function writeOldDb(path: string): void {
     INSERT INTO tasks    VALUES ('t1','a1','Existing task','p1',NULL,'${TS}','${TS}');
   `)
   old.close()
+}
+
+/** Released CapacityLens databases always carry the full table set. Focused drift fixtures create
+ * one realistic companion table so the legacy-file discriminator can distinguish them from an
+ * unrelated SQLite database that merely happens to have a generic `accounts` table. */
+function addLegacyCompanionTable(db: DatabaseSync): void {
+  db.exec(`CREATE TABLE disciplines (
+    id TEXT PRIMARY KEY, accountId TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    name TEXT NOT NULL, sortOrder INTEGER NOT NULL,
+    createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
+  );`)
 }
 
 describe('schema migration of an existing on-disk DB', () => {
@@ -110,6 +159,13 @@ describe('schema migration of an existing on-disk DB', () => {
         id: 'p1', accountId: 'a1', clientId: 'legacy-internal', name: 'Legacy', color: '#111111',
         createdAt: TS, updatedAt: TS,
       })
+      // Model a released v7 file: v8 is the explicit repair boundary, while a current v8 file
+      // must never receive unversioned mutation merely because it was reopened.
+      legacy.exec(`
+        DROP TABLE ${DATABASE_MIGRATION_TABLE};
+        PRAGMA user_version = 7;
+        PRAGMA application_id = 0;
+      `)
       legacy.close()
 
       const repaired = openDb(path)
@@ -233,8 +289,20 @@ describe('schema migration of an existing on-disk DB', () => {
       old.exec(`CREATE TABLE accounts (
         id TEXT PRIMARY KEY, name TEXT NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
       );`)
+      addLegacyCompanionTable(old)
       old.close()
       expect(() => openDb(path)).toThrow(/accounts\.color/)
+      // The explicit v8 step is atomic: all tables/columns it created before the assertion failed
+      // rolled back with its user_version/application_id stamps, so retry/restore has one state.
+      const unchanged = new DatabaseSync(path, { readOnly: true })
+      expect((unchanged.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(0)
+      expect((unchanged.prepare(`PRAGMA application_id`).get() as { application_id: number }).application_id).toBe(0)
+      expect(
+        (unchanged.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name`).all() as Array<{ name: string }>).map(
+          (row) => row.name,
+        ),
+      ).toEqual(['accounts', 'disciplines'])
+      unchanged.close()
     } finally {
       cleanup()
     }
@@ -258,6 +326,7 @@ describe('schema migration of an existing on-disk DB', () => {
           createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
         );
       `)
+      addLegacyCompanionTable(old)
       old.exec(`INSERT INTO accounts VALUES ('a1','Studio','#111',NULL,'${TS}','${TS}');`)
       old.close()
 
@@ -299,6 +368,7 @@ describe('schema migration of an existing on-disk DB', () => {
           createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
         );
       `)
+      addLegacyCompanionTable(old)
       old.exec(`INSERT INTO accounts (id,name,color,createdAt,updatedAt) VALUES ('a1','Studio','#111','${TS}','${TS}');`)
       old.close()
 
@@ -346,11 +416,161 @@ describe('schema migration of an existing on-disk DB', () => {
         schedulingMode TEXT NOT NULL,
         createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
       );`)
+      addLegacyCompanionTable(old)
       old.close()
       expect(() => openDb(path)).toThrow(/schedulingMode/)
       expect(() => openDb(path)).toThrow(/nullability/i)
     } finally {
       cleanup()
+    }
+  })
+
+  it('stamps a fresh DB with the independent physical version and CapacityLens application id', () => {
+    const db = openDb(':memory:')
+    expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION)
+    expect((db.prepare(`PRAGMA application_id`).get() as { application_id: number }).application_id)
+      .toBe(CAPACITYLENS_APPLICATION_ID)
+    const history = db.prepare(
+      `SELECT version, name, checksum, appliedAt FROM ${DATABASE_MIGRATION_TABLE}`,
+    ).get() as { version: number; name: string; checksum: string; appliedAt: string }
+    expect(history.version).toBe(DB_SCHEMA_VERSION)
+    expect(history.name).toBe('establish-explicit-migration-baseline')
+    expect(history.checksum).toMatch(/^[a-f0-9]{64}$/)
+    expect(Number.isNaN(Date.parse(history.appliedAt))).toBe(false)
+    expect(planDatabaseMigrations(db).migrations).toEqual([])
+    db.close()
+  })
+
+  it('refuses missing or checksummed migration-history drift before planning writes', () => {
+    const db = openDb(':memory:')
+    db.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = ?`).run(
+      '0'.repeat(64),
+      DB_SCHEMA_VERSION,
+    )
+    expect(() => planDatabaseMigrations(db)).toThrow(/checksum does not match/i)
+
+    db.prepare(`DELETE FROM ${DATABASE_MIGRATION_TABLE}`).run()
+    expect(() => planDatabaseMigrations(db)).toThrow(/history has 0 row/i)
+    db.close()
+  })
+
+  it('rolls back schema, history and version stamps when a migration fails before commit', () => {
+    const copied = copyFixture('v7-off.db')
+    try {
+      const db = openDbConnection(copied.path)
+      const injected = Object.assign(new Error('simulated disk exhaustion'), { code: 'ENOSPC' })
+      expect(() => initializeOpenDb(db, copied.path, {
+        beforeCommit: () => { throw injected },
+      })).toThrow(/simulated disk exhaustion/i)
+      expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(7)
+      expect((db.prepare(`PRAGMA application_id`).get() as { application_id: number }).application_id).toBe(0)
+      expect(
+        db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(
+          DATABASE_MIGRATION_TABLE,
+        ),
+      ).toBeUndefined()
+      expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(2)
+      db.close()
+    } finally {
+      copied.cleanup()
+    }
+  })
+
+  it('refuses a future database without mutating its version', () => {
+    const path = join(tmpdir(), `capacitylens-future-${process.pid}-${Date.now()}.db`)
+    try {
+      const future = new DatabaseSync(path)
+      future.exec(`PRAGMA user_version = ${DB_SCHEMA_VERSION + 1}`)
+      future.close()
+      expect(() => openDb(path)).toThrow(/newer than this server supports/i)
+      const unchanged = new DatabaseSync(path, { readOnly: true })
+      expect((unchanged.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version)
+        .toBe(DB_SCHEMA_VERSION + 1)
+      unchanged.close()
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+  })
+
+  it('refuses a SQLite file claimed by another application', () => {
+    const path = join(tmpdir(), `capacitylens-wrong-app-${process.pid}-${Date.now()}.db`)
+    try {
+      const other = new DatabaseSync(path)
+      other.exec(`CREATE TABLE accounts (id TEXT); PRAGMA application_id = 1234`)
+      other.close()
+      expect(() => openDb(path)).toThrow(/does not identify a CapacityLens database/i)
+      const unchanged = new DatabaseSync(path, { readOnly: true })
+      expect((unchanged.prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'`).get() as { n: number }).n)
+        .toBe(1)
+      unchanged.close()
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+  })
+
+  it('refuses an unclaimed SQLite file with only a generic accounts table', () => {
+    const path = join(tmpdir(), `capacitylens-ambiguous-${process.pid}-${Date.now()}.db`)
+    try {
+      const other = new DatabaseSync(path)
+      other.exec(`CREATE TABLE accounts (id TEXT PRIMARY KEY, name TEXT)`)
+      other.close()
+      expect(() => openDb(path)).toThrow(/no CapacityLens application_id or legacy CapacityLens shape/i)
+      const unchanged = new DatabaseSync(path, { readOnly: true })
+      expect((unchanged.prepare(`SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'`).get() as { n: number }).n)
+        .toBe(1)
+      unchanged.close()
+    } finally {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+  })
+
+  it('upgrades the released v7 auth-off fixture, preserves data, and is idempotent on reopen', () => {
+    const copied = copyFixture('v7-off.db')
+    try {
+      const db = openDb(copied.path)
+      expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION)
+      expect(loadState(db).accounts.map((account) => account.name)).toContain('Studio North')
+      expect((db.prepare(`SELECT COUNT(*) AS n FROM account_members`).get() as { n: number }).n).toBe(1)
+      expect((db.prepare(`SELECT COUNT(*) AS n FROM invites`).get() as { n: number }).n).toBe(1)
+      const fresh = openDb(':memory:')
+      expect(schemaFingerprint(db)).toEqual(schemaFingerprint(fresh))
+      fresh.close()
+      db.close()
+
+      const reopened = openDb(copied.path)
+      expect(planDatabaseMigrations(reopened).migrations).toEqual([])
+      expect((reopened.prepare(`PRAGMA foreign_key_check`).all() as unknown[])).toEqual([])
+      reopened.close()
+    } finally {
+      copied.cleanup()
+    }
+  })
+
+  it('upgrades the released v7 password fixture and preserves Better Auth identities and sessions', async () => {
+    const copied = copyFixture('v7-password.db')
+    try {
+      const db = openDb(copied.path)
+      const configured = authFromEnv(db, {
+        NODE_ENV: 'test',
+        CAPACITYLENS_AUTH: 'password',
+        CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+        BETTER_AUTH_SECRET: 'fixture-secret-0123456789abcdef-012345',
+        BETTER_AUTH_URL: 'http://localhost:8787',
+      })
+      await runAuthMigrations(configured.auth!)
+      expect((db.prepare(`SELECT COUNT(*) AS n FROM user`).get() as { n: number }).n).toBe(1)
+      expect((db.prepare(`SELECT COUNT(*) AS n FROM account`).get() as { n: number }).n).toBe(1)
+      expect((db.prepare(`SELECT COUNT(*) AS n FROM session`).get() as { n: number }).n).toBe(1)
+      expect((db.prepare(`SELECT email FROM user`).get() as { email: string }).email).toBe('fixture@example.invalid')
+      db.close()
+    } finally {
+      copied.cleanup()
     }
   })
 })

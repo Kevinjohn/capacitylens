@@ -50,3 +50,12 @@ risk. That escape hatch is for trusted/local use, not an internet deployment.
 SQLite foreign keys and WAL mode are enabled. Use `CAPACITYLENS_BACKUP_DIR` for online snapshots;
 never copy the live database file as a backup. Graceful shutdown drains pending snapshots before
 closing SQLite.
+
+Physical SQLite migrations are explicit, ordered and independent from JSON export migrations.
+Startup validates a checksummed database-side migration ledger and refuses future database versions,
+altered migration history and non-CapacityLens SQLite files. Before migrating an existing on-disk
+file it writes and verifies a one-shot pre-migration rollback snapshot, using the configured backup
+directory or otherwise the database directory. Rollback restores that snapshot while stopped and
+runs the matching old image; down migrations and mixed-version writers are not supported. Run
+`pnpm run rehearse:migrations` before schema-bearing releases; pass `--source /path/to/database.db`
+to exercise a temporary anonymised snapshot of a representative long-lived installation.

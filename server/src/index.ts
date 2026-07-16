@@ -1,11 +1,20 @@
 import { buildApp, DEFAULT_CORS, parseRateLimit } from './app'
-import { openDb, seedIfUninitialized, type Db } from './db'
+import { initializeOpenDb, openDbConnection, planDatabaseMigrations, seedIfUninitialized, type Db } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { createLastResortErrorHandler, createShutdownHandler } from './shutdown'
 import { resetForbidden } from './bootGuard'
 import { evaluateProductionPosture } from './productionGuard'
-import { authFromEnv, runAuthMigrations, createBootstrapAdmin, countUsers, AuthConfigError } from './auth'
-import { parseBackupConfig, startBackups } from './backup'
+import {
+  authFromEnv,
+  runAuthMigrations,
+  createBootstrapAdmin,
+  countUsers,
+  AuthConfigError,
+  authControlTablesNeedMigration,
+  ensureAuthControlTables,
+  planAuthSchemaMigrations,
+} from './auth'
+import { parseBackupConfig, startBackups, writePreMigrationBackup } from './backup'
 import { compositeAuditSink, fileAuditSink, noopAuditSink, parseAuditConfig, streamAuditSink } from './audit'
 import { loadInternalTls } from './internalTls'
 
@@ -183,39 +192,10 @@ const bootstrapAdmin =
 const rateLimitTrustForwarded =
   process.env.CAPACITYLENS_RATE_LIMIT_TRUST_FORWARDED === '1' ||
   host === '127.0.0.1' || host === 'localhost' || host === '::1'
+const backupConfig = parseBackupConfig(process.env)
 
-// openDb crashing is the right outcome (a broken/unopenable DB must NOT start) — frame it so the
-// operator gets one clear line, not a raw node:sqlite stack.
-let db: Db
-try {
-  db = openDb(dbPath)
-} catch (e) {
-  refuseToStart(e instanceof Error ? e.message : String(e))
-}
-
-// Auth (P3.1/P3.2): parsed + initialised before the app exists; any misconfiguration
-// (bad CAPACITYLENS_AUTH value, missing secret/URL in password/sso mode) refuses to boot
-// loudly. In 'off' mode authFromEnv returns null without reading any BETTER_AUTH_* env.
-// Better Auth trusts the same explicit browser origins as the CORS allow-list.
-let authMode: ReturnType<typeof authFromEnv>['mode']
-let auth: ReturnType<typeof authFromEnv>['auth']
-try {
-  ;({ mode: authMode, auth } = authFromEnv(db, process.env, {
-    trustedOrigins: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
-  }))
-} catch (err) {
-  if (err instanceof AuthConfigError) {
-    console.error(`capacitylens-server: refusing to start — ${err.message}`)
-    process.exit(1)
-  }
-  throw err
-}
-
-// Production safety interlock: once NODE_ENV=production, the dev/open posture must be retired
-// — running auth OFF in production would expose the demo dataset. Refuse on fatal posture violations,
-// warn loudly on the softer ones. No-op outside production (see productionGuard.ts).
-// The posture guard is a pure env predicate, so the argv spelling of the bootstrap flag is folded
-// into its env form here — both spellings must trigger the same development-only refusal.
+// Validate every pure production posture rule before opening the database. A deployment typo must
+// not advance the schema and then fail for a reason that was knowable without touching storage.
 const posture = evaluateProductionPosture(
   bootstrapAdmin ? { ...process.env, CAPACITYLENS_CREATE_ADMIN_ADMIN: '1' } : process.env,
 )
@@ -228,6 +208,45 @@ if (posture.refusals.length > 0) {
   )
   process.exit(1)
 }
+
+// Open without application DDL, inspect the immutable migration plan, and take a verified online
+// rollback snapshot before the first schema mutation. Existing databases fail closed when that
+// snapshot cannot be written; fresh/in-memory databases have nothing to roll back.
+let db!: Db
+let authMode!: ReturnType<typeof authFromEnv>['mode']
+let auth!: ReturnType<typeof authFromEnv>['auth']
+try {
+  db = openDbConnection(dbPath)
+  const migrationPlan = planDatabaseMigrations(db)
+  // Resolve every auth/provider option while the database is still at its original version.
+  // authFromEnv's app-owned DDL is deferred until the app migration succeeds.
+  ;({ mode: authMode, auth } = authFromEnv(db, process.env, {
+    trustedOrigins: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
+    deferDatabaseSetup: true,
+  }))
+  const authMigrationPlan = auth ? await planAuthSchemaMigrations(auth) : { pending: false, tables: [] }
+  const authControlMigration = auth ? authControlTablesNeedMigration(db, process.env) : false
+  const needsMigrationSnapshot =
+    migrationPlan.migrations.length > 0 || authMigrationPlan.pending || authControlMigration
+  if (needsMigrationSnapshot && !migrationPlan.fresh) {
+    await writePreMigrationBackup(db, {
+      dbPath,
+      fromVersion: migrationPlan.fromVersion,
+      toVersion: migrationPlan.toVersion,
+      dir: backupConfig?.dir,
+    })
+  }
+  initializeOpenDb(db, dbPath)
+  if (auth) ensureAuthControlTables(db, process.env)
+} catch (e) {
+  try {
+    db?.close()
+  } catch (closeError) {
+    console.error('capacitylens-server: database close also failed during startup refusal', closeError)
+  }
+  refuseToStart(e instanceof Error ? e.message : String(e))
+}
+
 // Create/upgrade the auth tables only when auth is on (an off-mode DB never grows them), then
 // OPT-IN seed a never-initialised DB. Both are boot preconditions — a failure must crash legibly,
 // not limp on.
@@ -317,7 +336,6 @@ const app = buildApp(db, {
 
 // Backups (P4.1, flag CAPACITYLENS_BACKUP_DIR — default OFF: no timer, no filesystem writes).
 // Snapshot lines go through pino when CAPACITYLENS_LOG is on, console.log otherwise (P1.3).
-const backupConfig = parseBackupConfig(process.env)
 const backups = backupConfig
   ? startBackups(db, backupConfig, log ? (m) => app.log.info(m) : console.log)
   : null

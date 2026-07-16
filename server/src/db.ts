@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
+import { createHash } from 'node:crypto'
 import { chmodSync, existsSync } from 'node:fs'
-import { emptyAppData, isEmpty, SCHEMA_VERSION } from '@capacitylens/shared/types/entities'
+import { emptyAppData, isEmpty } from '@capacitylens/shared/types/entities'
 import {
   buildInternalClient,
   INTERNAL_CLIENT_COLOR,
@@ -17,7 +18,7 @@ import { TABLES, SCHEMA_SQL, CREATE_ORDER, SCOPED_ORDER, INTERNAL_CLIENT_UNIQUE_
 import { tx } from './txn'
 import { toRow, fromRow, type Row } from './rowCodec'
 import { migrateSchema, assertSchemaCurrent, renameLegacyActivityTables } from './schema'
-import { ensureControlTables } from './controlTables'
+import { assertControlTablesCurrent, ensureControlTables } from './controlTables'
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
 // domain-core's job (see validate.ts). These helpers only map between SQL rows and the
@@ -26,6 +27,63 @@ import { ensureControlTables } from './controlTables'
 // module owns openDb plus the CRUD / bulk / init-marker primitives the routes call.
 
 export type Db = DatabaseSync
+
+/** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
+export const DB_SCHEMA_VERSION = 8
+
+/** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
+export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
+
+interface DatabaseMigration {
+  version: number
+  name: string
+  checksum: string
+  up(db: Db): void
+}
+
+export interface DatabaseMigrationPlan {
+  fromVersion: number
+  toVersion: number
+  fresh: boolean
+  migrations: ReadonlyArray<Pick<DatabaseMigration, 'version' | 'name' | 'checksum'>>
+}
+
+export interface DatabaseMigrationHooks {
+  /** Test/rehearsal seam: runs after the migration, history row and version stamps, immediately
+   * before COMMIT. Throwing (or terminating the process) must leave the previous version intact. */
+  beforeCommit?(migration: Readonly<Pick<DatabaseMigration, 'version' | 'name' | 'checksum'>>): void
+}
+
+export const DATABASE_MIGRATION_TABLE = 'capacitylens_schema_migrations'
+
+const MIGRATION_HISTORY_SQL = `
+CREATE TABLE IF NOT EXISTS ${DATABASE_MIGRATION_TABLE} (
+  version INTEGER NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  checksum TEXT NOT NULL CHECK(length(checksum) = 64),
+  appliedAt TEXT NOT NULL
+) STRICT;
+`
+
+function defineMigration(
+  version: number,
+  name: string,
+  definition: string,
+  up: (db: Db) => void,
+): DatabaseMigration {
+  // The definition is the immutable, reviewable migration manifest. Include every SQL block and
+  // named repair revision that contributes to the step. Once released, changing it changes the
+  // checksum and every already-upgraded database will refuse to open instead of drifting silently.
+  const checksum = createHash('sha256')
+    .update('capacitylens-sqlite-migration\0')
+    .update(String(version))
+    .update('\0')
+    .update(name)
+    .update('\0')
+    .update(definition)
+    .digest('hex')
+  return { version, name, checksum, up }
+}
 
 // `table` is interpolated DIRECTLY into the SQL strings below (SQL can't parameterise an
 // identifier), so it MUST be a vetted key of TABLES — this is the SQL-injection safety boundary.
@@ -40,10 +98,12 @@ function assertKnownTable(table: string): void {
   }
 }
 
-export function openDb(path: string): Db {
+/** Open/configure the SQLite handle without creating or migrating application tables. Production
+ * startup uses this seam to inspect the migration plan and take its rollback snapshot first. */
+export function openDbConnection(path: string): Db {
   let db: Db
   try {
-    db = new DatabaseSync(path)
+    db = new DatabaseSync(path, { enableForeignKeyConstraints: false, timeout: 5000 })
   } catch (e) {
     // Boot SHOULD crash on an unopenable DB — but frame the raw node:sqlite error with the path so
     // an operator sees "could not open <CAPACITYLENS_DB>" instead of a bare stack. Rethrow (don't swallow).
@@ -52,7 +112,6 @@ export function openDb(path: string): Db {
       { cause: e },
     )
   }
-  db.exec('PRAGMA journal_mode = WAL;')
   if (path !== ':memory:') {
     try {
       chmodSync(path, 0o600)
@@ -62,55 +121,235 @@ export function openDb(path: string): Db {
       throw new Error(`Could not restrict database permissions at "${path}".`, { cause })
     }
   }
-  // Wait up to 5s for a held lock instead of throwing SQLITE_BUSY immediately — two server
-  // processes on the same CAPACITYLENS_DB file (or a WAL checkpoint) contend rather than error.
+  // Also set the pragma explicitly: constructor timeout is the primary Node 24 path; the pragma
+  // pins the behavior if the driver construction path changes later.
   db.exec('PRAGMA busy_timeout = 5000;')
-  const diskVersion = Number((db.prepare('PRAGMA user_version').get() as { user_version?: number }).user_version ?? 0)
-  if (diskVersion > SCHEMA_VERSION) {
-    db.close()
+  return db
+}
+
+const pragmaNumber = (db: Db, pragma: 'user_version' | 'application_id'): number =>
+  Number((db.prepare(`PRAGMA ${pragma}`).get() as Record<string, number | undefined>)[pragma] ?? 0)
+
+const userTables = (db: Db): string[] =>
+  (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'`).all() as Array<{
+    name: string
+  }>).map((row) => row.name)
+
+/** Read-only migration planning. It rejects future/wrong-application files before any schema DDL. */
+export function planDatabaseMigrations(db: Db): DatabaseMigrationPlan {
+  const fromVersion = pragmaNumber(db, 'user_version')
+  const applicationId = pragmaNumber(db, 'application_id')
+  const tables = userTables(db)
+  const fresh = tables.length === 0
+
+  if (!Number.isSafeInteger(fromVersion) || fromVersion < 0) {
+    throw new Error(`Database schema version is invalid (${fromVersion}).`)
+  }
+  if (fromVersion > DB_SCHEMA_VERSION) {
     throw new Error(
-      `Database schema version ${diskVersion} is newer than this server supports (${SCHEMA_VERSION}); refusing a downgrade.`,
+      `Database schema version ${fromVersion} is newer than this server supports (${DB_SCHEMA_VERSION}); refusing a downgrade.`,
     )
   }
-  // Legacy domain rename (Task→Activity, schema v5): bring an old DB's `tasks` table and
-  // `allocations.taskId` column to `activities` / `activityId` BEFORE SCHEMA_SQL — otherwise
-  // its `CREATE TABLE IF NOT EXISTS activities` would create a fresh empty table and orphan the
-  // legacy rows. A no-op on any fresh / current / already-migrated DB. FKs are still OFF here.
-  renameLegacyActivityTables(db)
-  // A fresh file gets the current shape here; an existing file keeps its tables (IF
-  // NOT EXISTS) and is brought up to shape by migrateSchema. Both run with foreign
-  // keys still OFF (node:sqlite's default) so a table rebuild can drop/rename safely;
-  // we enable enforcement only afterwards.
-  db.exec(SCHEMA_SQL)
-  migrateSchema(db)
-  // Fail loudly if the live DB has drifted from the current spec in a way migrateSchema can't
-  // repair — a missing REQUIRED column, or a column whose NULL/NOT NULL disagrees with its
-  // optional? flag. Both are silent until a confusing runtime symptom otherwise; see below.
+  if (applicationId !== 0 && applicationId !== CAPACITYLENS_APPLICATION_ID) {
+    throw new Error(
+      `SQLite application_id ${applicationId} does not identify a CapacityLens database; refusing to modify this file.`,
+    )
+  }
+  if (!fresh && applicationId === 0) {
+    const legacyDomainTables = new Set([...Object.keys(TABLES), 'tasks'])
+    const legacyShape = tables.includes('accounts') && tables.some(
+      (table) => table !== 'accounts' && legacyDomainTables.has(table),
+    )
+    if (!legacyShape) {
+      throw new Error('SQLite file has tables but no CapacityLens application_id or legacy CapacityLens shape; refusing to modify it.')
+    }
+  }
+  if (fromVersion === DB_SCHEMA_VERSION && applicationId !== CAPACITYLENS_APPLICATION_ID) {
+    throw new Error('Current-version database is missing the CapacityLens application_id; refusing ambiguous schema repair.')
+  }
+  assertMigrationHistory(db, fromVersion)
+
+  return {
+    fromVersion,
+    toVersion: DB_SCHEMA_VERSION,
+    fresh,
+    migrations: DATABASE_MIGRATIONS.filter((migration) => migration.version > fromVersion).map(
+      ({ version, name, checksum }) => ({ version, name, checksum }),
+    ),
+  }
+}
+
+const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
+  defineMigration(
+    8,
+    'establish-explicit-migration-baseline',
+    [
+      'legacy-activity-table-rename:v1',
+      SCHEMA_SQL,
+      'legacy-schema-shape-repair:v1',
+      'app-control-table-repair:v1',
+      'initialization-marker-repair:v1',
+      'internal-client-repair:v1',
+      INTERNAL_CLIENT_UNIQUE_INDEX_SQL,
+    ].join('\n-- migration component --\n'),
+    (db) => {
+      // Consolidate every legacy v0-v7 file through the already-proven, introspection-gated
+      // repair path. From v8 onward, persisted changes get their own ordered migration entry.
+      renameLegacyActivityTables(db)
+      db.exec(SCHEMA_SQL)
+      migrateSchema(db)
+      ensureControlTables(db)
+      if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db)
+      ensureInternalClients(db)
+      db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL)
+      assertSchemaCurrent(db)
+      assertControlTablesCurrent(db)
+    },
+  ),
+]
+
+if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
+  throw new Error('DB_SCHEMA_VERSION must equal the newest explicit database migration.')
+}
+for (let index = 1; index < DATABASE_MIGRATIONS.length; index += 1) {
+  if (DATABASE_MIGRATIONS[index].version !== DATABASE_MIGRATIONS[index - 1].version + 1) {
+    throw new Error('Explicit database migration versions must be contiguous and ordered.')
+  }
+}
+
+function migrationHistoryExists(db: Db): boolean {
+  return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(
+    DATABASE_MIGRATION_TABLE,
+  ) !== undefined
+}
+
+function assertMigrationHistoryTable(db: Db): void {
+  const expected = new Map<string, { type: string; required: boolean }>([
+    ['version', { type: 'INTEGER', required: true }],
+    ['name', { type: 'TEXT', required: true }],
+    ['checksum', { type: 'TEXT', required: true }],
+    ['appliedAt', { type: 'TEXT', required: true }],
+  ])
+  const columns = db.prepare(`PRAGMA table_info(${DATABASE_MIGRATION_TABLE})`).all() as Array<{
+    name: string
+    type: string
+    notnull: number
+    pk: number
+  }>
+  const problems: string[] = []
+  for (const column of columns) {
+    const wanted = expected.get(column.name)
+    if (!wanted) {
+      problems.push(`unexpected column ${column.name}`)
+      continue
+    }
+    if (column.type.toUpperCase() !== wanted.type) problems.push(`${column.name} has type ${column.type}`)
+    if ((column.notnull === 1) !== wanted.required) problems.push(`${column.name} nullability mismatch`)
+    if (column.name === 'version' && column.pk !== 1) problems.push('version is not the primary key')
+  }
+  for (const name of expected.keys()) {
+    if (!columns.some((column) => column.name === name)) problems.push(`missing column ${name}`)
+  }
+  if (problems.length > 0) {
+    throw new Error(`Database migration history table is invalid — ${problems.join('; ')}.`)
+  }
+}
+
+/** Validate the database-side audit trail before planning any writes. Legacy v0-v7 files have no
+ * history yet; v8 creates the table and its baseline row atomically with the schema/version stamp. */
+function assertMigrationHistory(db: Db, databaseVersion: number): void {
+  const exists = migrationHistoryExists(db)
+  const expected = DATABASE_MIGRATIONS.filter((migration) => migration.version <= databaseVersion)
+  if (!exists) {
+    if (expected.length > 0) {
+      throw new Error(
+        `Database schema version ${databaseVersion} is missing its ${DATABASE_MIGRATION_TABLE} audit trail.`,
+      )
+    }
+    return
+  }
+
+  assertMigrationHistoryTable(db)
+  const rows = db.prepare(
+    `SELECT version, name, checksum, appliedAt FROM ${DATABASE_MIGRATION_TABLE} ORDER BY version`,
+  ).all() as Array<{ version: number; name: string; checksum: string; appliedAt: string }>
+  if (rows.length !== expected.length) {
+    throw new Error(
+      `Database migration history has ${rows.length} row(s), expected ${expected.length} for schema version ${databaseVersion}.`,
+    )
+  }
+  for (let index = 0; index < expected.length; index += 1) {
+    const migration = expected[index]
+    const row = rows[index]
+    if (row.version !== migration.version) {
+      throw new Error(`Database migration history is missing or out of order at version ${migration.version}.`)
+    }
+    if (row.name !== migration.name) {
+      throw new Error(`Database migration v${migration.version} name does not match this build.`)
+    }
+    if (row.checksum !== migration.checksum) {
+      throw new Error(`Database migration v${migration.version} checksum does not match this build.`)
+    }
+    if (!row.appliedAt) throw new Error(`Database migration v${migration.version} has no applied timestamp.`)
+  }
+}
+
+/** Apply every pending migration and finish configuring an already-open handle. Each version step
+ * owns one BEGIN IMMEDIATE transaction and advances user_version inside that same commit. */
+export function initializeOpenDb(
+  db: Db,
+  path: string,
+  hooks: DatabaseMigrationHooks = {},
+): DatabaseMigrationPlan {
+  const plan = planDatabaseMigrations(db)
+  if (plan.migrations.length > 0 && !plan.fresh) {
+    const quickCheck = db.prepare('PRAGMA quick_check').all() as Array<{ quick_check?: string }>
+    if (quickCheck.length !== 1 || quickCheck[0]?.quick_check !== 'ok') {
+      throw new Error(`Database quick integrity check failed before migration (${quickCheck.length} result row(s)).`)
+    }
+  }
+
+  db.exec('PRAGMA journal_mode = WAL;')
+  db.exec('PRAGMA foreign_keys = OFF;')
+  for (const pending of plan.migrations) {
+    const migration = DATABASE_MIGRATIONS.find((candidate) => candidate.version === pending.version)
+    if (!migration) throw new Error(`Missing database migration implementation for v${pending.version}.`)
+    tx(db, () => {
+      db.exec(MIGRATION_HISTORY_SQL)
+      assertMigrationHistoryTable(db)
+      migration.up(db)
+      const fkViolations = db.prepare('PRAGMA foreign_key_check').all()
+      if (fkViolations.length > 0) {
+        throw new Error(
+          `Database migration v${migration.version} (${migration.name}) left ${fkViolations.length} foreign-key violation(s).`,
+        )
+      }
+      db.prepare(
+        `INSERT INTO ${DATABASE_MIGRATION_TABLE} (version, name, checksum, appliedAt) VALUES (?, ?, ?, ?)`,
+      ).run(migration.version, migration.name, migration.checksum, new Date().toISOString())
+      db.exec(`PRAGMA application_id = ${CAPACITYLENS_APPLICATION_ID}`)
+      db.exec(`PRAGMA user_version = ${migration.version}`)
+      hooks.beforeCommit?.({
+        version: migration.version,
+        name: migration.name,
+        checksum: migration.checksum,
+      })
+    }, 'immediate')
+  }
+
   assertSchemaCurrent(db)
-  // Server-CONTROL tables (membership, P1.1) — created on EVERY open, regardless of auth mode, so
-  // both the runtime and the in-memory test DBs always have them. Deliberately created HERE rather
-  // than alongside Better Auth's migrations (which only run when auth is on): membership must exist
-  // even in the default off-mode/test posture for the helpers to work. These tables sit OUTSIDE the
-  // AppData drift path (see controlTables.ts) — they carry no FK to AppData, so this is independent
-  // of the foreign-keys pragma flip below; placed with the other schema work for locality.
-  ensureControlTables(db)
-  // Backfill the init marker for a pre-existing DB that already holds data (created
-  // before the marker existed), so /api/meta doesn't mistake it for a fresh DB and seed
-  // a second copy on top of it.
-  if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db)
-  // Reconcile legacy missing/duplicate Internal rows before installing the database singleton guard.
-  // Runtime account creation also mints the account + Internal atomically.
-  ensureInternalClients(db)
-  db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL)
-  db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`)
-  db.exec('PRAGMA foreign_keys = ON;') // node:sqlite defaults OFF — our cascades need it
-  // Perform the expensive whole-database relational verification once at startup. This used to
-  // run on every public deep-health request, allowing unauthenticated callers to amplify a full
-  // database scan. Boot is the correct trust boundary: corruption refuses service before traffic
-  // is accepted, while `/api/health` remains a constant-work liveness/readiness probe.
+  assertControlTablesCurrent(db)
+  assertMigrationHistory(db, DB_SCHEMA_VERSION)
+  if (pragmaNumber(db, 'user_version') !== DB_SCHEMA_VERSION) {
+    throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`)
+  }
+  if (pragmaNumber(db, 'application_id') !== CAPACITYLENS_APPLICATION_ID) {
+    throw new Error('Database migration did not stamp the CapacityLens application_id.')
+  }
+
+  db.exec('PRAGMA foreign_keys = ON;')
   const fkViolations = db.prepare('PRAGMA foreign_key_check').all()
   if (fkViolations.length > 0) {
-    db.close()
     throw new Error(`Database foreign-key integrity check failed (${fkViolations.length} violation(s)).`)
   }
   if (path !== ':memory:') {
@@ -126,7 +365,20 @@ export function openDb(path: string): Db {
       throw new Error(`Could not restrict SQLite file permissions at "${path}".`, { cause })
     }
   }
-  return db
+  return plan
+}
+
+/** Convenience open used by tests and embedded callers. The production entrypoint uses
+ * openDbConnection → pre-migration snapshot → initializeOpenDb instead. */
+export function openDb(path: string): Db {
+  const db = openDbConnection(path)
+  try {
+    initializeOpenDb(db, path)
+    return db
+  } catch (error) {
+    db.close()
+    throw error
+  }
 }
 
 /**

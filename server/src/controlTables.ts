@@ -186,6 +186,71 @@ export function ensureControlTables(db: Db): void {
   db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_invites_id ON invites(id); CREATE INDEX IF NOT EXISTS idx_invites_accountId ON invites(accountId);`)
 }
 
+/** Verify the app-owned control plane after migration. These tables deliberately sit outside
+ * AppData/TABLES, so schema.ts cannot cover them; without this companion assertion a missed future
+ * control-table migration would otherwise surface only when an account or invite route is used. */
+export function assertControlTablesCurrent(db: Db): void {
+  const expectedColumns: Record<string, Record<string, boolean>> = {
+    account_members: {
+      accountId: true,
+      userId: true,
+      role: true,
+      status: true,
+      createdAt: true,
+    },
+    invites: {
+      tokenHash: true,
+      id: true,
+      accountId: true,
+      role: true,
+      preauthEmail: false,
+      expiresAt: true,
+      usedAt: false,
+      createdAt: true,
+    },
+  }
+  const problems: string[] = []
+  for (const [table, expected] of Object.entries(expectedColumns)) {
+    const live = new Map(
+      (db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string; notnull: number }>).map(
+        (column) => [column.name, column.notnull === 1],
+      ),
+    )
+    for (const [name, required] of Object.entries(expected)) {
+      if (!live.has(name)) problems.push(`missing ${table}.${name}`)
+      else if (live.get(name) !== required) {
+        problems.push(`${table}.${name} is ${live.get(name) ? 'NOT NULL' : 'nullable'} (expected ${required ? 'NOT NULL' : 'nullable'})`)
+      }
+    }
+  }
+
+  const expectedIndexes: Record<string, Record<string, boolean>> = {
+    account_members: {
+      idx_account_members_userId: false,
+      idx_account_members_accountId: false,
+    },
+    invites: {
+      idx_invites_id: true,
+      idx_invites_accountId: false,
+    },
+  }
+  for (const [table, expected] of Object.entries(expectedIndexes)) {
+    const live = new Map(
+      (db.prepare(`PRAGMA index_list(${table})`).all() as Array<{ name: string; unique: number }>).map(
+        (index) => [index.name, index.unique === 1],
+      ),
+    )
+    for (const [name, unique] of Object.entries(expected)) {
+      if (!live.has(name)) problems.push(`missing index ${name}`)
+      else if (live.get(name) !== unique) problems.push(`index ${name} uniqueness mismatch`)
+    }
+  }
+
+  if (problems.length > 0) {
+    throw new Error(`DB control schema is behind the current model — ${problems.join('; ')}.`)
+  }
+}
+
 /** One-way lookup key for an invite bearer. Domain separation prevents cross-protocol reuse. */
 export function inviteTokenHash(token: string): string {
   return createHash('sha256').update('capacitylens-invite\0').update(token).digest('base64url')

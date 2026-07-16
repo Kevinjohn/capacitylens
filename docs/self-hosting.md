@@ -165,14 +165,17 @@ rollback cannot replace persistent state.
 
 ## Upgrades
 
-1. If backups are enabled, confirm a recent snapshot and restore test; off-host copies are
-   recommended for disaster recovery.
+1. Confirm a recent restore test; off-host copies remain recommended for disaster recovery.
 2. Read `CHANGELOG.md` for migrations or breaking changes.
-3. Pull the target tag, rebuild all three targets and use a coordinated recreation so certificate
-   renewal, API restart and nginx restart complete together.
-4. Check API health, login, account access and one safe write.
-5. Keep the old image available until verification completes; never roll back the SQLite file by
-   copying it while the server is running.
+3. Pull the target tag, rebuild all three targets and stop the old API before activating the new
+   one. Mixed-version writers are unsupported.
+4. On first start, any pending database upgrade creates a verified
+   `capacitylens-pre-migration-vN-to-vM-*.db` snapshot before DDL. If this fails, startup refuses;
+   resolve storage or permission capacity rather than bypassing the snapshot.
+5. Check API health, login, account access and one safe write.
+6. Keep the old image and matching pre-migration snapshot until verification completes. Rollback
+   means stopping the API, restoring that snapshot without stale WAL/SHM files, then starting the
+   old image; an old image deliberately refuses the upgraded database.
 
 ## Data and offline behavior
 

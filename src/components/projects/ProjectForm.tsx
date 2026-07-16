@@ -94,7 +94,6 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         </>
       }
     >
-      <RequiredLegend />
       <TextField label={m.form_project_name_label()} value={name} onChange={setName} autoFocus={!protectedName} required disabled={protectedName} invalid={errorField === 'name'} describedById={errorId} />
       {protectedName && <p className="text-xs text-muted">{m.form_private_owner_only_hint()}</p>}
       {canManagePrivacy && (
@@ -122,6 +121,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       <SelectField label={m.form_project_client_label()} value={clientId} onChange={setClientId} options={clientOptions} placeholder={m.form_project_select_client_placeholder()} required invalid={errorField === 'client'} describedById={errorId} />
       <ColorField label={m.form_project_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }

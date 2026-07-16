@@ -14,6 +14,10 @@
       "purpose": "Per-install P-256 CA and API certificate generation, verification and rotation"
     },
     {
+      "path": "server/scripts/rehearse-migrations.ts",
+      "purpose": "Unkeyed SHA-256 database-state digests for temporary anonymised migration rollback rehearsals"
+    },
+    {
       "path": "server/src/app.ts",
       "purpose": "CSPRNG bearer values, constant-time bootstrap comparison and HTTPS server options"
     },
@@ -24,6 +28,10 @@
     {
       "path": "server/src/controlTables.ts",
       "purpose": "SHA-256 invite-token indexing and CSPRNG non-secret identifiers"
+    },
+    {
+      "path": "server/src/db.ts",
+      "purpose": "Unkeyed SHA-256 identity checksums for immutable non-secret database migration definitions"
     },
     {
       "path": "server/src/internalTls.ts",

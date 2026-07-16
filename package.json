@@ -1,7 +1,7 @@
 {
   "name": "capacitylens",
   "private": true,
-  "version": "0.20.1-alpha.1",
+  "version": "0.20.1-alpha.2",
   "description": "Agency resource & capacity scheduler — a helicopter view of who's busy, free, or overworked, week by week. Self-hosted, deliberately small.",
   "license": "AGPL-3.0-only",
   "author": "Kevinjohn Gallagher",
@@ -47,6 +47,7 @@
     "e2e:all": "node scripts/e2e-all.mjs",
     "gate": "pnpm run security:crypto-inventory && pnpm run paraglide:compile && tsc -b && eslint . && vitest run --coverage && vite build && pnpm run bundle:check",
     "mutation": "pnpm run paraglide:compile && stryker run",
+    "rehearse:migrations": "pnpm --filter capacitylens-server rehearse:migrations",
     "test:server": "pnpm --filter capacitylens-server test",
     "gate:server": "pnpm run security:crypto-inventory && pnpm --filter capacitylens-server type-check && pnpm --filter capacitylens-server test && eslint server shared"
   },

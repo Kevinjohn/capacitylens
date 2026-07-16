@@ -10,6 +10,8 @@ then use these to adapt the generated contracts to the new domain.
 | [`DECISIONS.template.md`](DECISIONS.template.md) | Present-tense standing decisions |
 | [`feature-proposal.md`](feature-proposal.md) | Substantial issue/design proposal |
 | [`environment-register.template.md`](environment-register.template.md) | Complete `.env.example` checklist |
+| [`database-migration-framework.md`](database-migration-framework.md) | Copy-ready agent task for checksummed SQLite upgrades and release rehearsals |
+| [`optional-hardening-migration.md`](optional-hardening-migration.md) | Copy-ready agent task for the OSS baseline/hardened security split |
 | [`release-checklist.md`](release-checklist.md) | Maintainer release/deploy handoff |
 | [`user-story-reference.template.md`](user-story-reference.template.md) | Exact visible acceptance contract |
 
@@ -23,8 +25,9 @@ Replacement checklist:
 - commands/ports;
 - production topology;
 - licence/support promises;
-- CI/version policy.
-- optional internal provenance/default record.
+- CI/version policy;
+- optional internal provenance/default record;
+- portable export and physical database version baselines.
 
 Run all three product gates plus a literal/domain search after adapting. The generator removes the
 obvious brand strings, but inherited scheduler concepts still require deliberate conversion.

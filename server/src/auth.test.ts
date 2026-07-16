@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest'
+import { DatabaseSync } from 'node:sqlite'
 import { openDb } from './db'
-import { authFromEnv, externalIdentityAllowed } from './auth'
+import {
+  authControlTablesNeedMigration,
+  authFromEnv,
+  ensureAuthControlTables,
+  externalIdentityAllowed,
+  planAuthSchemaMigrations,
+  runAuthMigrations,
+} from './auth'
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
@@ -12,6 +20,46 @@ const PASSWORD_ENV = {
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123', // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
   BETTER_AUTH_URL: 'http://localhost:8787',
 }
+
+describe('startup configuration before database migration', () => {
+  it('can resolve auth options without application DDL, then creates controls explicitly', () => {
+    const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
+    const configured = authFromEnv(db, PASSWORD_ENV, { deferDatabaseSetup: true })
+    expect(configured.auth).not.toBeNull()
+    expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([])
+
+    ensureAuthControlTables(db, PASSWORD_ENV)
+    expect(
+      (db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all() as Array<{ name: string }>).map(
+        (row) => row.name,
+      ),
+    ).toEqual(['capacitylens_bootstrap_claim'])
+    db.close()
+  })
+
+  it('leaves a bare database untouched when provider configuration is invalid', () => {
+    const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
+    expect(() => authFromEnv(db, { ...PASSWORD_ENV, CAPACITYLENS_GOOGLE_CLIENT_ID: 'id-without-secret' }))
+      .toThrow(/google/i)
+    expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([])
+    db.close()
+  })
+
+  it('plans both app-owned auth controls and Better Auth DDL before executing either', async () => {
+    const db = openDb(':memory:')
+    const configured = authFromEnv(db, PASSWORD_ENV, { deferDatabaseSetup: true })
+    expect(authControlTablesNeedMigration(db, PASSWORD_ENV)).toBe(true)
+    const before = await planAuthSchemaMigrations(configured.auth!)
+    expect(before.pending).toBe(true)
+    expect(before.tables).toContain('user')
+
+    ensureAuthControlTables(db, PASSWORD_ENV)
+    await runAuthMigrations(configured.auth!)
+    expect(authControlTablesNeedMigration(db, PASSWORD_ENV)).toBe(false)
+    await expect(planAuthSchemaMigrations(configured.auth!)).resolves.toEqual({ pending: false, tables: [] })
+    db.close()
+  })
+})
 
 describe('cookie/session hardening (P1.16)', () => {
   it('pins sameSite:lax + httpOnly on the session cookie', () => {

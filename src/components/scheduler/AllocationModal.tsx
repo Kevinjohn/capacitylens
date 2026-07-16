@@ -389,7 +389,6 @@ export function AllocationModal(props: AllocationModalProps) {
         </>
       }
     >
-      <RequiredLegend />
       {!create && (
         <SelectField label={m.form_allocation_assignee_label()} value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder={m.form_allocation_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
       )}
@@ -489,6 +488,7 @@ export function AllocationModal(props: AllocationModalProps) {
 
       {advisory && <Callout>{m.form_allocation_advisory({ advisory })}</Callout>}
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }

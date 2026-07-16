@@ -29,7 +29,11 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Device preferences are not account data. Offline snapshots are opt-in, seven-day and read-only;
   never add queued offline writes.
 - Surface errors. No empty catches on a data path. Follow `DEFENSIVE-CODING.md`.
-- New fields flow through shared types → full fixtures → server columns → sanitisation.
+- New fields flow through shared types → full fixtures → server columns → explicit SQLite migration
+  → sanitisation. Keep `EXPORT_SCHEMA_VERSION` and `DB_SCHEMA_VERSION` independent; retain every
+  shipped migration and released database fixture. Never alter a released migration definition:
+  the database ledger validates its name and SHA-256 checksum. Schema-affecting Better Auth upgrades
+  also bump `DB_SCHEMA_VERSION`, even when the library owns the DDL.
 
 ## Authentication
 

@@ -21,6 +21,10 @@
 
 - [ ] Tenant/role/privacy review for changed routes/fields.
 - [ ] Migration/import/fixtures/SQL columns complete.
+- [ ] Physical DB version, immutable migration definition and ledger checksum are complete.
+- [ ] Historical auth-off/auth-on database fixtures upgrade and reopen idempotently.
+- [ ] Migration rehearsal passes against the released fixture and an anonymised representative
+      installation, including rollback snapshot, `ENOSPC` and forced-termination scenarios.
 - [ ] If backups are enabled, a current snapshot and recent restore drill are confirmed.
 - [ ] If disaster recovery requires it, the current off-host copy is confirmed.
 - [ ] No secrets, real data or generated reports in commit.
@@ -50,3 +54,4 @@
 - [ ] One safe write and read-back.
 - [ ] Logs/audit/backups healthy.
 - [ ] Previous image/release retained for rollback.
+- [ ] Matching pre-migration snapshot retained until the upgraded release is accepted.

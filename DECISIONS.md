@@ -30,6 +30,18 @@ This is the short, present-tense record of decisions that constrain future work.
 
 - SQLite-backed server persistence is the default. Missing API access is an error, never a silent
   browser-storage fallback.
+- Portable JSON/export versions and physical SQLite versions are separate contracts. SQLite uses
+  an immutable, one-way migration list and `PRAGMA user_version`; a database-side history ledger
+  records each version, name, SHA-256 definition checksum and application timestamp. Missing or
+  altered history refuses startup. Every released older database fixture remains upgrade-tested
+  indefinitely.
+- New builds upgrade older databases. Older builds never write a newer database: they refuse it.
+  Rollback means the old image plus the verified pre-migration snapshot, never a down migration.
+- SQLite upgrades are coordinated single-server restarts. CapacityLens does not promise mixed-version
+  or rolling writers; a future multi-instance architecture must adopt expand/contract migrations.
+- Every schema-bearing release is rehearsed on released fixtures and an anonymised online snapshot
+  of a representative long-lived installation. The rehearsal covers success, rollback-snapshot
+  restoration, injected disk exhaustion, forced process termination and idempotent reopen.
 - The demo adapter is in-memory and resets on refresh.
 - Every scoped entity carries `accountId`; the active account is transient and never persisted.
 - Server session + membership is the security boundary. Client scoping is defense in depth and UI

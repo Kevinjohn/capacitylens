@@ -115,7 +115,6 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         </>
       }
     >
-      <RequiredLegend />
       <TextField label={m.form_activity_name_label()} value={name} onChange={setName} autoFocus required invalid={errorField === 'name'} describedById={errorId} />
       <div className="mb-3">
         <p className="mb-1.5 text-sm font-medium text-ink">{m.form_activity_kind_label()}</p>
@@ -125,6 +124,7 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
         <SelectField label={m.form_activity_project_label()} value={projectId} onChange={onProjectChange} options={projectOptions} placeholder={m.form_activity_select_project_placeholder()} required invalid={errorField === 'project'} describedById={errorId} />
       )}
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }

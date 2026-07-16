@@ -87,13 +87,13 @@ export function TimeOffForm({
         </>
       }
     >
-      <RequiredLegend />
       <SelectField label={m.form_timeoff_resource_label()} value={resourceId} onChange={setResourceId} options={resourceOptions} placeholder={m.form_timeoff_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
       <DateField label={m.form_timeoff_start_label()} value={startDate} onChange={setStartDate} required invalid={errorField === 'dates'} describedById={errorId} />
       <DateField label={m.form_timeoff_end_label()} value={endDate} onChange={setEndDate} required invalid={errorField === 'dates'} describedById={errorId} />
       <SelectField label={m.form_timeoff_type_label()} value={type} onChange={(v) => setType(v as TimeOffType)} options={timeOffTypeOptions()} />
       <TextAreaField label={m.form_timeoff_note_label()} value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }

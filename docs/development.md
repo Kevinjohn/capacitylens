@@ -117,11 +117,88 @@ workspace owns the shared lockfile.
 
 Read `AGENTS.md`, `DECISIONS.md` and `DEFENSIVE-CODING.md` before broad changes.
 
+## Database migrations
+
+The portable AppData/export format uses `EXPORT_SCHEMA_VERSION` in `shared/`. The physical SQLite
+file independently uses `DB_SCHEMA_VERSION` and `PRAGMA user_version` in `server/src/db.ts`. Never
+reuse one number for the other: an export-only change must not block an otherwise compatible server
+rollback, and a control/auth database change must not escape downgrade refusal.
+
+Database v8 is the explicit-runner baseline. An immutable ordered migration advances one version
+inside one `BEGIN IMMEDIATE` transaction and stamps `user_version` plus the CapacityLens
+`application_id` in that same commit. The same transaction inserts a row into
+`capacitylens_schema_migrations` containing the version, name, SHA-256 definition checksum and
+application timestamp. Startup validates the complete ledger before planning writes and refuses a
+missing, reordered, renamed or checksummed-different migration. `SCHEMA_SQL` creates fresh
+databases; already-released files advance through migrations. Shape introspection remains a
+post-migration assertion and a v0-v7 baseline repair, not the mechanism for silently applying new
+fields.
+
+For every persisted change:
+
+1. Update shared types and full fixtures where the portable shape changed.
+2. Update `TABLES` and fresh-database DDL.
+3. Add the next immutable database migration and a complete checksum definition; never edit or
+   delete a migration that shipped. A changed definition is intentional startup incompatibility,
+   not a repair mechanism—restore the released migration and add a new version instead.
+4. Make required fields additive first, backfill and validate, then rebuild to enforce `NOT NULL`.
+   A rename/rebuild must preserve indexes, triggers, constraints and foreign keys explicitly.
+5. Update import sanitisation independently of the physical migration.
+6. Before changing migration code, generate a sanitised `.db` fixture with the released build.
+   Keep one fixture per shipped database version and auth shape under
+   `server/src/fixtures/databases/`; tests copy it before opening and never migrate it in place.
+7. Assert data preservation, fresh/migrated schema equivalence, idempotent reopen, transaction
+   rollback/retry, `quick_check`, `foreign_key_check`, future-version refusal and auth convergence.
+8. Add operator-facing migration/rollback notes to `CHANGELOG.md` and the operator docs.
+
+Before releasing any schema-bearing build, run the automated rehearsal. With no argument it uses
+the committed password-auth v7 fixture:
+
+```bash
+pnpm run rehearse:migrations
+```
+
+Also run it against a representative long-lived installation. The command uses SQLite's online
+backup API and never opens the source for writes. It remaps ids, replaces names/notes/emails and
+credential/session/invite/MFA material, enables secure deletion and vacuums the temporary copy
+before testing it. Unknown tables fail closed until their sensitive columns are reviewed. Temporary
+artifacts are deleted by default:
+
+```bash
+pnpm run rehearse:migrations -- --source /path/to/capacitylens.db
+```
+
+The rehearsal verifies the happy-path migration, pre-migration snapshot equivalence, row-count and
+integrity preservation, checksum-ledger convergence, idempotent reopen, rollback after an injected
+`ENOSPC`, and WAL recovery after killing a process with the real migration transaction open. Use
+`--keep` only in a protected development environment when the anonymised artifacts are needed for
+diagnosis; never commit an installation-derived database.
+
+App-owned control tables share the application migration stream. Better Auth remains pinned and
+owns its own tables; startup reruns its introspection migration and then verifies that no table or
+column work remains before accepting traffic. Every Better Auth upgrade needs a password-mode
+fixture containing synthetic users, credential accounts and sessions. A dependency/plugin upgrade
+that can change Better Auth's desired schema must also advance `DB_SCHEMA_VERSION` (a named marker
+migration is sufficient when no app-owned SQL is needed), so the previous server refuses the file
+before the library-owned DDL runs.
+
+Production startup validates pure configuration, opens without application DDL, plans the upgrade,
+plans conditional app-owned and Better Auth schema work, and writes a verified
+`capacitylens-pre-migration-vN-to-vM-*.db` rollback snapshot before applying anything. Scheduled
+backups may remain disabled; this one-shot safety snapshot is mandatory for an existing on-disk
+database that needs any of those migrations. It is not retention-pruned automatically.
+
+CapacityLens supports coordinated restarts, not mixed-version writers. Do not add down migrations.
+Rollback uses the old image and its matching pre-migration snapshot while the API is stopped. If
+mixed-version/zero-downtime deployment is introduced later, schema changes must switch to an
+expand → backfill/dual-read-write → contract sequence across releases.
+
 ## Test data and generated files
 
 Sample organisations and people must be fictional. Never copy production names, notes, domains or
-ids into fixtures, screenshots or stories. Paraglide output, test reports, databases and local
-agent configuration are ignored and must not be committed.
+ids into fixtures, screenshots or stories. Paraglide output, test reports, local databases and local
+agent configuration are ignored and must not be committed. The only committed database files are
+the sanitised released-schema artifacts under `server/src/fixtures/databases/`.
 
 ## Ports
 

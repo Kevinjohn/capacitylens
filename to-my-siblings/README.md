@@ -70,6 +70,7 @@ Read:
 - [State, persistence, offline and errors](09-state-persistence-offline-errors.md)
 - [Self-hosting, operations and security](10-self-hosting-operations-security.md)
 - [Testing, quality and delivery](11-testing-quality-and-delivery.md)
+- [Database migrations and upgrade safety](18-database-migrations-and-upgrades.md)
 - [Open source and small SaaS](12-open-source-and-saas.md)
 
 ### Making a code change
@@ -80,6 +81,7 @@ Read:
 - [Agent operating manual](15-agent-operating-manual.md)
 - [CapacityLens reference map](16-capacitylens-reference-map.md)
 - [Executable family platform](17-executable-family-platform.md)
+- [Database migrations and upgrade safety](18-database-migrations-and-upgrades.md)
 
 ## Contents
 
@@ -103,6 +105,7 @@ Read:
 | [15 — Agent operating manual](15-agent-operating-manual.md) | How agents orient, implement, verify and hand off changes |
 | [16 — Reference map](16-capacitylens-reference-map.md) | Pattern-to-source/test/doc lookup table |
 | [17 — Internal reuse boundary](17-executable-family-platform.md) | Reference snapshots, generator, provenance and keeping family machinery out of public product surfaces |
+| [18 — Database migrations](18-database-migrations-and-upgrades.md) | SQLite versioning, checksummed history, rollback snapshots, fixtures and release rehearsals |
 | [Templates](templates/README.md) | Ready-to-adapt repository instructions, decisions and proposals |
 
 ## Source hierarchy
@@ -136,6 +139,8 @@ mode to CapacityLens. See chapter 17 for the one-way boundary.
 
 ## Baseline
 
-This edition was reconstructed from CapacityLens `0.19.5` on 14 July 2026, including the public
-release hardening, private-name projection, first-run onboarding polish, semantic colour language,
-deployment handoff and split CI signals delivered in the preceding two days.
+This edition was reconstructed from CapacityLens `0.19.5` on 14 July 2026 and updated through the
+`0.20.1` prerelease work on 15 July 2026, including the public security review, tiered community/
+hardened self-hosting posture and explicit SQLite migration framework. It also includes private-name
+projection, first-run onboarding polish, semantic colour language, deployment handoff and split CI
+signals.

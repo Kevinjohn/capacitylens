@@ -31,9 +31,9 @@ export type EmploymentType = 'permanent' | 'freelancer' | 'contractor'
 export type TimeOffType = 'holiday' | 'sick' | 'unpaid' | 'other'
 /**
  * What an activity IS — the axis the schedule's "activity view" filters on. Three kinds:
- * - `project`    — belongs to one project (carries `projectId`, optionally a `phaseId`).
+ * - `project`    — project-specific: belongs to one project (carries `projectId`, optionally a `phaseId`).
  * - `internal`   — project-less internal work (Admin, internal review/meeting).
- * - `repeatable` — project-less reusable activity used across many projects (Design, Workshop).
+ * - `repeatable` — cross-project: project-less activity used across many projects (Design, Workshop).
  * Coherence (enforced in assertScopedRefs, repaired on import): `project` HAS a `projectId`;
  * `internal`/`repeatable` have NEITHER `projectId` nor `phaseId`.
  */
@@ -125,7 +125,7 @@ export interface Client extends ScopedEntity {
   codeName?: string
   /** True ONLY for the built-in "Internal" pseudo-client — exactly one per account, created by
    *  seed / addAccount / migrate. A built-in client cannot be renamed or deleted, and a project-less
-   *  internal/repeatable activity buckets under it for display + filtering. Absent/false = a normal,
+   *  internal/cross-project activity buckets under it for display + filtering. Absent/false = a normal,
    *  user-managed client. Identified at runtime by THIS flag, never a hard-coded id (so it survives
    *  import-remap). See shared/src/data/internalClient.ts. */
   builtin?: boolean
@@ -170,11 +170,11 @@ export interface Phase extends ScopedEntity {
 
 export interface Activity extends ScopedEntity {
   name: string
-  /** What this activity is: project work, internal, or a reusable (repeatable) activity. The
+  /** What this activity is: project-specific work, internal work, or a cross-project activity. The
    *  discriminant the schedule's activity lens filters on. See {@link ActivityKind}. */
   kind: ActivityKind
   /** Set ONLY for `kind: 'project'` — the project this activity belongs to. Internal and
-   *  repeatable activities are project-less (and so are their allocations). */
+   *  cross-project (`repeatable`) activities are project-less (and so are their allocations). */
   projectId?: ID
   phaseId?: ID
 }
@@ -287,12 +287,14 @@ export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'w
   return { employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5] }
 }
 
-/** Bump when the persisted shape changes; drives data/migrate.ts. (v4 added Activity.kind;
+/** JSON/export format version. Bump when the portable AppData shape changes; drives
+ *  data/migrate.ts and is deliberately independent of the server's physical SQLite version.
+ *  (v4 added Activity.kind;
  *  v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
  *  `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
  *  with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
  *  fields, whose absent values already represent the public default.) */
-export const SCHEMA_VERSION = 7
+export const EXPORT_SCHEMA_VERSION = 7
 
 export interface PersistedState {
   schemaVersion: number

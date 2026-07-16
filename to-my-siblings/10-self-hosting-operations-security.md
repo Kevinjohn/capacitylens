@@ -101,6 +101,77 @@ Warn, rather than refuse, when context may make it legitimate:
 
 Every refusal should state the exact corrective variable/action.
 
+### Community baseline versus hardened deployment
+
+Do not make the most infrastructure-heavy deployment the only production shape. An open-source
+sibling must be able to run safely on one host without requiring a log SaaS, backup provider,
+encrypted block volume or private certificate authority. Split controls by what the application can
+actually guarantee:
+
+| Area | Community baseline | Optional hardened profile | Startup behavior |
+| --- | --- | --- | --- |
+| Authentication | Auth on; valid secret/public URL; closed signup; safe first-owner setup | Required password MFA or tested IdP MFA assurance | Refuse invalid/off auth; warn when MFA assurance is absent |
+| Password screening | Breached-password checking on by default | Keep it on for internet-facing deployments | Warn, rather than refuse, when an isolated/offline operator explicitly disables it |
+| Sessions/admin | Fixed session lifetime, revocation and fresh administrative actions | Add phishing-resistant factors or risk-based checks when justified | Always enforced; never weakened because MFA is optional |
+| Rate limiting | Positive production limit | Edge/global limits and alerting | Refuse missing, invalid or zero application limit |
+| Audit | Restrictive local mutation audit remains on | Duplicate typed events to stdout and ship them to a separate collector | Refuse local audit off; warn when stdout/forwarding attestations are absent |
+| Storage/backups | Persistent restrictive database/audit files; snapshots may be disabled | Encrypted volume, scheduled snapshots, off-host copy and restore monitoring | Warn when encryption is unattested; do not pretend an attestation implements encryption |
+| Proxy/API hop | Public HTTPS plus an API bound only to same-host loopback | Verified private service TLS or the packaged Compose CA | Warn when both internal TLS paths are absent; refuse a partial, empty or unreadable identity |
+
+This split is not permission to lower the public boundary. Internet-facing traffic still needs TLS,
+the API must remain unreachable around the proxy, authorization stays server-side, and secrets,
+rate limiting, local audit and bootstrap safety stay fail-closed.
+
+Attestation variables are evidence labels. A value such as `STORAGE_ENCRYPTED=1` or
+`SECURITY_LOG_FORWARDING=1` must never create the impression that the application encrypted a disk
+or installed a collector. Set one only after the operator has implemented and verified the external
+control.
+
+### OWASP/ASVS reporting for the tiered posture
+
+Assess the community default honestly and describe the hardened profile separately. For the
+CapacityLens `0.20.0-alpha.3` pattern:
+
+- required MFA being optional means a password-only default does not meet ASVS 5.0 V6.3.3 Level 2;
+- allowing breached-password screening to be disabled makes V6.2.12 Partial in a product-wide
+  configuration review, even when the default remains on and a hardened deployment can satisfy it;
+- permitting HTTP only across a same-host loopback proxy hop makes V12.3.3 deployment-dependent and
+  therefore Partial unless the assessed deployment enables verified internal TLS;
+- external log protection/forwarding and storage-at-rest evidence remain Partial without real
+  operator evidence; environment attestations alone are not Pass evidence;
+- local audit, authentication, authorization, safe session handling and the remaining application
+  controls keep their own status and must not be downgraded merely because infrastructure hardening
+  is optional.
+
+When a status changes, update the detailed requirement row first, then recalculate the Pass/Partial/
+Gap/N/A totals and finally update the executive security report, threat model and residual-risk
+table. Never change only the headline score.
+
+### Safe migration recipe
+
+When a sibling inherited the former all-or-nothing guard:
+
+1. Inventory every production refusal and classify it as an application safety invariant or an
+   operator/deployment hardening choice.
+2. Convert only the latter to named startup warnings. Keep auth, configuration validity, positive
+   rate limiting, local audit and safe bootstrap paths as refusals.
+3. Leave feature-level parsers strict. In particular, omitting both internal TLS paths may select
+   loopback HTTP, but configuring only one path or supplying unreadable material must still abort.
+4. Default required MFA off in Compose while leaving breached-password screening on by default.
+5. Allow snapshots to be unset/disabled; describe local and off-host recovery consequences without
+   making an external backup account a software prerequisite.
+6. Add tests for a minimal production environment, a fully hardened environment, every warning,
+   every retained refusal, default non-MFA authentication and partial TLS configuration.
+7. Update the environment register, standing decisions, auth/privacy/self-hosting/runbook docs,
+   threat model, control inventories, complete ASVS ledger and dated security review together.
+8. Run the normal gates and a real production-entrypoint smoke with all optional hardening omitted;
+   assert named warnings, successful loopback health and preserved audit/database health.
+9. Deploy and verify the served build identifier as well as public deep health so a healthy previous
+   release is not mistaken for a successful activation.
+
+The copy-ready agent instruction for applying this pattern is
+[`templates/optional-hardening-migration.md`](templates/optional-hardening-migration.md).
+
 ## Proxy security
 
 - TLS terminates at a controlled proxy/load balancer.
@@ -168,6 +239,18 @@ without scheduled snapshots; document the accepted data-loss exposure when doing
 Keep database, snapshots, environment and operational logs outside directories replaced by
 deployments.
 
+### Pre-migration rollback snapshots
+
+Scheduled snapshots may be optional, but an existing database must receive a verified one-shot
+rollback snapshot before any application, control or authentication schema migration. Use the
+configured backup directory when present and otherwise the database directory. Verify
+`quick_check`, source `user_version`, owner-only permissions and that the result is one standalone
+database without required WAL/SHM sidecars. Never retention-prune it automatically before the new
+release is accepted. If creation or verification fails, startup refuses before DDL.
+
+The complete migration, ledger, fixture and failure-rehearsal pattern is in
+[chapter 18](18-database-migrations-and-upgrades.md).
+
 ## Restore drill
 
 Run before launch and after material storage changes:
@@ -189,16 +272,20 @@ ability to perform the drill.
 
 ## Upgrade process
 
-1. If backups are enabled, confirm a recent snapshot and restore test; an off-host copy is
+1. For schema-bearing releases, run the automated migration rehearsal against both a released
+   fixture and an anonymised representative long-lived installation.
+2. If backups are enabled, confirm a recent snapshot and restore test; an off-host copy is
    recommended for disaster recovery.
-2. Read changelog for migrations/breaking changes.
-3. Pull a named tag/image.
-4. Build/pull both web and API artifacts.
-5. Stop the API immediately before activation.
-6. Activate new release and restart from the stable path.
-7. Check health, sign-in, tenant access and one safe write.
-8. Keep previous image/release until verification.
-9. Never roll back the live SQLite file by copying over a running server.
+3. Read changelog for migrations/breaking changes.
+4. Pull a named tag/image.
+5. Build/pull both web and API artifacts.
+6. Stop the API immediately before activation.
+7. Activate new release and restart from the stable path. Startup creates the mandatory
+   pre-migration rollback snapshot before DDL.
+8. Check health, sign-in, tenant access and one safe write.
+9. Keep the previous image and matching pre-migration snapshot until verification.
+10. Rollback by stopping the API, restoring that snapshot without stale sidecars and running its
+    matching old image. Never point the old image at the upgraded database or copy over a live file.
 
 ### Release-directory deployments
 
@@ -263,6 +350,8 @@ values.
 - Persistent volume survives rebuild.
 - If backups are enabled, an online snapshot appears and its restore drill succeeds.
 - If disaster recovery is required, an off-host copy is scheduled and monitored.
+- Schema-bearing releases pass fixture and anonymised-installation migration rehearsals.
+- Existing databases receive a verified pre-migration rollback snapshot before DDL.
 - Security headers and body limits pass smoke tests.
 - Upgrade/rollback uses stable paths without replacing state.
 - Logs contain no invite/reset raw tokens or domain field values.

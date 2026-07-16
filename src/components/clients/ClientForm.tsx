@@ -65,7 +65,6 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
         </>
       }
     >
-      <RequiredLegend />
       <TextField label={m.form_client_name_label()} value={name} onChange={setName} autoFocus={!protectedName} required disabled={protectedName} invalid={errorField === 'name'} describedById={errorId} />
       {protectedName && <p className="text-xs text-muted">{m.form_private_owner_only_hint()}</p>}
       {canManagePrivacy && (
@@ -92,6 +91,7 @@ export function ClientForm({ client, onClose }: { client?: Client; onClose: () =
       )}
       <ColorField label={m.form_client_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
       <FieldError id={errorId}>{error}</FieldError>
+      <RequiredLegend />
     </Modal>
   )
 }
