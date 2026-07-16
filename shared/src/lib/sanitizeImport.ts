@@ -6,6 +6,7 @@ import {
   clampHoursPerDay,
   clampWorkingHoursPerDay,
   externalCapacityDefaults,
+  INTERNAL_COLOUR_MODES,
   type ScopedEntityKey,
   type Weekday,
 } from '../types/entities'
@@ -164,6 +165,13 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   // back as the default (false — hidden) on the client.
   if (rec.externalEnabled !== undefined && typeof rec.externalEnabled !== 'boolean') {
     delete rec.externalEnabled
+  }
+  // Drop an unknown Internal colour mode; absence deliberately reads as the safe/default grey.
+  if (
+    rec.internalColourMode !== undefined &&
+    !INTERNAL_COLOUR_MODES.includes(rec.internalColourMode as never)
+  ) {
+    delete rec.internalColourMode
   }
   return rec
 }

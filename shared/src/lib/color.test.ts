@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { resolveBarColor, contrastRatio, readableTextColor, ensureBarColors, isHexColor, type BarColorMaps } from './color'
+import { resolveBarColor, resolveProjectColor, contrastRatio, readableTextColor, ensureBarColors, isHexColor, type BarColorMaps } from './color'
 import type { Allocation, Client, Project, Resource, Activity } from '../types/entities'
 
 // Build the id→entity maps resolveBarColor consumes, from plain arrays.
@@ -35,6 +35,37 @@ describe('resolveBarColor', () => {
     // bar never looks like one of our own (DECISIONS.md "external kind": single neutral colour).
     const m = maps({ activities: [activity('t', 'p')], projects: [project('p', '#abcdef')], resources: [resource('ext', 'external')] })
     expect(resolveBarColor(alloc('ext', 't'), m)).toBe('#9ca3af')
+  })
+
+  it('defaults an internal activity bar to grey and restores its resource colour in palette mode', () => {
+    const internal: Activity = {
+      id: 'internal', accountId: 'acct', createdAt: TS, updatedAt: TS, name: 'Admin', kind: 'internal',
+    }
+    const base = maps({ activities: [internal], resources: [resource('r', 'person')] })
+    expect(resolveBarColor(alloc('r', 'internal'), base)).toBe('#9ca3af')
+    expect(resolveBarColor(alloc('r', 'internal'), { ...base, internalColourMode: 'palette' })).toBe('#123456')
+  })
+
+  it('defaults an Internal-owned project to grey and restores its saved colour in palette mode', () => {
+    const internalClient: Client = {
+      id: 'c', accountId: 'acct', createdAt: TS, updatedAt: TS, name: 'Internal', color: '#2d75da', builtin: true,
+    }
+    const saved = project('p', '#abcdef')
+    const base = maps({
+      activities: [activity('t', 'p')], projects: [saved], clients: [internalClient], resources: [resource('r', 'person')],
+    })
+    expect(resolveBarColor(alloc('r', 't'), base)).toBe('#9ca3af')
+    expect(resolveBarColor(alloc('r', 't'), { ...base, internalColourMode: 'palette' })).toBe('#abcdef')
+    expect(resolveProjectColor(saved, internalClient)).toBe('#9ca3af')
+    expect(resolveProjectColor(saved, internalClient, 'palette')).toBe('#abcdef')
+  })
+
+  it('does not treat a project-less cross-project activity as internal work', () => {
+    const crossProject: Activity = {
+      id: 'cross', accountId: 'acct', createdAt: TS, updatedAt: TS, name: 'Design', kind: 'repeatable',
+    }
+    const m = maps({ activities: [crossProject], resources: [resource('r', 'person')] })
+    expect(resolveBarColor(alloc('r', 'cross'), m)).toBe('#123456')
   })
 })
 

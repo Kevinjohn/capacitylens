@@ -94,6 +94,24 @@ describe('SettingsView — scheduling mode', () => {
   })
 })
 
+describe('SettingsView — Internal work colours', () => {
+  it('defaults to Grey and stores Use colour palette on the active account', async () => {
+    const user = userEvent.setup()
+    render(<SettingsView />)
+
+    const grey = screen.getByRole('radio', { name: 'Grey' })
+    const palette = screen.getByRole('radio', { name: 'Use colour palette' })
+    expect(grey).toHaveAttribute('aria-checked', 'true')
+    expect(palette).toHaveAttribute('aria-checked', 'false')
+
+    await user.click(palette)
+
+    const account = useStore.getState().data.accounts.find((candidate) => candidate.id === DEFAULT_ACCOUNT_ID)
+    expect(account?.internalColourMode).toBe('palette')
+    expect(palette).toHaveAttribute('aria-checked', 'true')
+  })
+})
+
 describe('SettingsView — theme', () => {
   it('reflects the current preference and switches it on click', async () => {
     const user = userEvent.setup()

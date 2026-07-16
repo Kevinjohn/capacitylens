@@ -184,6 +184,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-SET-11](settings/US-SET-11-viewer-readonly.md) | Viewer read-only mode | `e2e/viewer.auth.spec.ts` |
 | [US-SET-12](settings/US-SET-12-archived-deleted.md) | Archived & deleted (restore / purge) | `e2e/archived.spec.ts` |
 | [US-SET-13](settings/US-SET-13-password-reset-links.md) | Admin-issued password-reset links | `e2e/reset-password.auth.spec.ts` |
+| [US-SET-14](settings/US-SET-14-internal-work-colours.md) | Internal work colours | `e2e/internal-colours.spec.ts` |
 
 ## Keyboard & accessibility — `accessibility/`
 | Story | Title | Automated coverage |

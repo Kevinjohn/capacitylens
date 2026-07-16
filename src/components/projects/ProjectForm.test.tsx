@@ -3,12 +3,20 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectForm } from './ProjectForm'
 import { useStore } from '../../store/useStore'
-import { resetStoreWithAccount } from '../../test/fixtures'
+import { DEFAULT_ACCOUNT_ID, resetStoreWithAccount } from '../../test/fixtures'
 import { PermissionContext } from '../../auth/permissionContext'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 
 beforeEach(() => resetStoreWithAccount())
 
 describe('ProjectForm', () => {
+  const installInternalClient = () => {
+    const state = useStore.getState()
+    const internal = buildInternalClient(DEFAULT_ACCOUNT_ID, '2026-05-01T00:00:00.000Z')
+    state.replaceAll({ ...state.data, clients: [...state.data.clients, internal] })
+    return internal
+  }
+
   it('stores an owner-configured private project and normalizes display quotes out of storage', async () => {
     const user = userEvent.setup()
     const onClose = vi.fn()
@@ -92,6 +100,36 @@ describe('ProjectForm', () => {
     expect(onClose).toHaveBeenCalled()
     expect(useStore.getState().data.projects).toHaveLength(1)
     expect(useStore.getState().data.projects[0].clientId).toBe(client.id)
+  })
+
+  it('hides the colour picker for an Internal-owned project in the default grey mode', async () => {
+    const user = userEvent.setup()
+    const internal = installInternalClient()
+    render(<ProjectForm onClose={vi.fn()} />)
+
+    expect(screen.getByRole('button', { name: /^Colour/ })).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Client'), internal.id)
+    expect(screen.queryByRole('button', { name: /^Colour/ })).not.toBeInTheDocument()
+  })
+
+  it('reveals the existing picker in palette mode and preserves a hidden saved colour on edit', async () => {
+    const user = userEvent.setup()
+    const internal = installInternalClient()
+    const project = useStore.getState().addProject({
+      name: 'Planning', clientId: internal.id, color: '#da2d92',
+    })
+
+    const hidden = render(<ProjectForm project={project} onClose={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: /^Colour/ })).not.toBeInTheDocument()
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Planning updated')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(useStore.getState().data.projects[0].color).toBe('#da2d92')
+    hidden.unmount()
+
+    useStore.getState().updateAccount(DEFAULT_ACCOUNT_ID, { internalColourMode: 'palette' })
+    render(<ProjectForm project={useStore.getState().data.projects[0]} onClose={vi.fn()} />)
+    expect(screen.getByRole('button', { name: /^Colour/ })).toBeInTheDocument()
   })
 
   // Editing a project whose client is ARCHIVED (hidden from the active-only picker): the current

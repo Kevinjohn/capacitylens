@@ -159,7 +159,7 @@ describe('schema migration of an existing on-disk DB', () => {
         id: 'p1', accountId: 'a1', clientId: 'legacy-internal', name: 'Legacy', color: '#111111',
         createdAt: TS, updatedAt: TS,
       })
-      // Model a released v7 file: v8 is the explicit repair boundary, while a current v8 file
+      // Model a released v7 file: v8 is the explicit repair boundary, while a current-version file
       // must never receive unversioned mutation merely because it was reopened.
       legacy.exec(`
         DROP TABLE ${DATABASE_MIGRATION_TABLE};
@@ -431,12 +431,16 @@ describe('schema migration of an existing on-disk DB', () => {
     expect((db.prepare(`PRAGMA application_id`).get() as { application_id: number }).application_id)
       .toBe(CAPACITYLENS_APPLICATION_ID)
     const history = db.prepare(
-      `SELECT version, name, checksum, appliedAt FROM ${DATABASE_MIGRATION_TABLE}`,
-    ).get() as { version: number; name: string; checksum: string; appliedAt: string }
-    expect(history.version).toBe(DB_SCHEMA_VERSION)
-    expect(history.name).toBe('establish-explicit-migration-baseline')
-    expect(history.checksum).toMatch(/^[a-f0-9]{64}$/)
-    expect(Number.isNaN(Date.parse(history.appliedAt))).toBe(false)
+      `SELECT version, name, checksum, appliedAt FROM ${DATABASE_MIGRATION_TABLE} ORDER BY version`,
+    ).all() as Array<{ version: number; name: string; checksum: string; appliedAt: string }>
+    expect(history.map(({ version, name }) => ({ version, name }))).toEqual([
+      { version: 8, name: 'establish-explicit-migration-baseline' },
+      { version: 9, name: 'add-internal-colour-mode' },
+    ])
+    // The v8 checksum is immutable: adding v9 must never invalidate an already-upgraded database.
+    expect(history[0].checksum).toBe('90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d')
+    expect(history[1].checksum).toMatch(/^[a-f0-9]{64}$/)
+    expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true)
     expect(planDatabaseMigrations(db).migrations).toEqual([])
     db.close()
   })
@@ -471,6 +475,32 @@ describe('schema migration of an existing on-disk DB', () => {
       ).toBeUndefined()
       expect((db.prepare(`SELECT COUNT(*) AS n FROM accounts`).get() as { n: number }).n).toBe(2)
       db.close()
+    } finally {
+      copied.cleanup()
+    }
+  })
+
+  it('upgrades a committed v8 database to v9 without changing the v8 ledger row', () => {
+    const copied = copyFixture('v7-off.db')
+    try {
+      const db = openDbConnection(copied.path)
+      expect(() => initializeOpenDb(db, copied.path, {
+        beforeCommit: (migration) => {
+          if (migration.version === 9) throw new Error('stop before v9 commit')
+        },
+      })).toThrow(/stop before v9 commit/i)
+      expect((db.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(8)
+      expect(db.prepare(`SELECT checksum FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 8`).get())
+        .toEqual({ checksum: '90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d' })
+      expect((db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>).map((column) => column.name))
+        .not.toContain('internalColourMode')
+      db.close()
+
+      const upgraded = openDb(copied.path)
+      expect((upgraded.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(9)
+      expect((upgraded.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>).map((column) => column.name))
+        .toContain('internalColourMode')
+      upgraded.close()
     } finally {
       copied.cleanup()
     }

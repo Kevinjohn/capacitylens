@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 import { externalExplainer } from '../../lib/externalCopy'
 import { m } from '@/i18n'
 import type { ThemePref } from '../../lib/theme'
-import type { SchedulingMode } from '@capacitylens/shared/types/entities'
+import type { InternalColourMode, SchedulingMode } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { useCanEdit } from '../../auth/permissionContext'
 
@@ -47,6 +47,11 @@ const SCHEDULING_OPTIONS: { value: SchedulingMode; label: () => string }[] = [
   { value: 'hourly', label: () => m.settings_scheduling_option_hours() },
   { value: 'days', label: () => m.settings_scheduling_option_days() },
   { value: 'blocks', label: () => m.settings_scheduling_option_blocks() },
+]
+
+const INTERNAL_COLOUR_OPTIONS: { value: InternalColourMode; label: () => string }[] = [
+  { value: 'grey', label: () => m.settings_internal_colours_grey() },
+  { value: 'palette', label: () => m.settings_internal_colours_palette() },
 ]
 
 const UTILIZATION_OPTIONS: { key: 'showTotal' | 'showDiscipline' | 'showPersonal'; label: () => string }[] = [
@@ -118,6 +123,7 @@ export function SettingsView() {
   // above. activeAccount is guaranteed non-null past the `if (!activeAccount) return null` below.
   const placeholdersEnabled: boolean = activeAccount?.placeholdersEnabled ?? false
   const externalEnabled: boolean = activeAccount?.externalEnabled ?? false
+  const internalColourMode: InternalColourMode = activeAccount?.internalColourMode ?? 'grey'
   const allZones = supportedTimeZones()
   const tzOptions = allZones.includes(timezone) ? allZones : [timezone, ...allZones]
 
@@ -328,6 +334,18 @@ export function SettingsView() {
               onToggle={() => setSnapToWeekStart(!snapToWeekStart)}
             />
           </div>
+        </section>
+
+        <section className="rounded border border-line bg-surface p-4">
+          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_internal_colours_heading()}</h2>
+          <p className="mb-3 text-xs text-muted">{m.settings_internal_colours_intro()}</p>
+          <SegmentedControl
+            ariaLabel={m.settings_internal_colours_aria()}
+            value={internalColourMode}
+            onChange={(value) => updateAccount(activeAccount.id, { internalColourMode: value })}
+            options={INTERNAL_COLOUR_OPTIONS.map((option) => ({ value: option.value, label: option.label() }))}
+            disabled={!canEdit}
+          />
         </section>
 
         <section className="rounded border border-line bg-surface p-4">

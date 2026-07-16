@@ -7,6 +7,9 @@ import { archiveImpact } from '@capacitylens/shared/domain/lifecycle'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
 import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
+import { resolveProjectColor } from '@capacitylens/shared/lib/color'
+import { useStore } from '../../store/useStore'
+import { internalColourModeFor } from '../../store/selectors'
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. */
@@ -21,6 +24,7 @@ export function ProjectList() {
   const data = useActiveScopedData()
   const projects = data.projects
   const clients = data.clients
+  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId))
   // The per-row action ARCHIVES (soft-delete is reached later from Settings → Archived & deleted);
   // `archive` branches server/local + reloads the active slice in server mode (see useLifecycleActions).
   const { archive } = useLifecycleActions()
@@ -46,7 +50,9 @@ export function ProjectList() {
           {projects.map((p) => (
             <li key={p.id} data-testid="project-row" className="flex items-center justify-between px-3 py-2">
               <span className="flex items-center gap-2">
-                <ColorSwatch color={p.color} />
+                <ColorSwatch
+                  color={resolveProjectColor(p, clients.find((client) => client.id === p.clientId), internalColourMode)}
+                />
                 <span className="font-medium">{p.name}</span>
                 <span className="text-sm text-muted">· {clientName(p.clientId)}</span>
               </span>

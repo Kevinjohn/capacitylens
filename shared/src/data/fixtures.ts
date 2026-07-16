@@ -21,6 +21,8 @@ export const FIXTURE_ACCOUNT: Account = {
   // proves the new optional boolean columns persist a PRESENT value, not just absence.
   placeholdersEnabled: true,
   externalEnabled: true,
+  // Non-default so the round-trip proves the optional enum is stored, not merely defaulted.
+  internalColourMode: 'palette',
   createdAt: TS1,
   updatedAt: TS2,
 }

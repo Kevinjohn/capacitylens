@@ -14,10 +14,10 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 // Re-export the shared isEmpty so existing import sites (e.g. db.migrate.test.ts)
 // keep resolving it from this module; the single definition lives in shared/types.
 export { isEmpty }
-import { TABLES, SCHEMA_SQL, CREATE_ORDER, SCOPED_ORDER, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from './tables'
+import { TABLES, SCHEMA_V8_SQL, CREATE_ORDER, SCOPED_ORDER, INTERNAL_CLIENT_UNIQUE_INDEX_SQL } from './tables'
 import { tx } from './txn'
 import { toRow, fromRow, type Row } from './rowCodec'
-import { migrateSchema, assertSchemaCurrent, renameLegacyActivityTables } from './schema'
+import { assertSchemaCurrent, assertSchemaV8, migrateSchemaV8, renameLegacyActivityTables } from './schema'
 import { assertControlTablesCurrent, ensureControlTables } from './controlTables'
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
@@ -29,7 +29,7 @@ import { assertControlTablesCurrent, ensureControlTables } from './controlTables
 export type Db = DatabaseSync
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 8
+export const DB_SCHEMA_VERSION = 9
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
@@ -185,7 +185,7 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     'establish-explicit-migration-baseline',
     [
       'legacy-activity-table-rename:v1',
-      SCHEMA_SQL,
+      SCHEMA_V8_SQL,
       'legacy-schema-shape-repair:v1',
       'app-control-table-repair:v1',
       'initialization-marker-repair:v1',
@@ -196,14 +196,31 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       // Consolidate every legacy v0-v7 file through the already-proven, introspection-gated
       // repair path. From v8 onward, persisted changes get their own ordered migration entry.
       renameLegacyActivityTables(db)
-      db.exec(SCHEMA_SQL)
-      migrateSchema(db)
+      db.exec(SCHEMA_V8_SQL)
+      migrateSchemaV8(db)
       ensureControlTables(db)
       if (!isInitialized(db) && !isEmpty(loadState(db))) markInitialized(db)
       ensureInternalClients(db)
       db.exec(INTERNAL_CLIENT_UNIQUE_INDEX_SQL)
-      assertSchemaCurrent(db)
+      assertSchemaV8(db)
       assertControlTablesCurrent(db)
+    },
+  ),
+  defineMigration(
+    9,
+    'add-internal-colour-mode',
+    [
+      'guard:PRAGMA table_info(accounts):internalColourMode-missing',
+      'ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;',
+    ].join('\n'),
+    (db) => {
+      // Some pre-ledger development databases were manually version-stamped after receiving the
+      // current optional-column repair. Keep the explicit migration idempotent for that shape while
+      // real released v8 databases take the ALTER path.
+      const exists = (db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>)
+        .some((column) => column.name === 'internalColourMode')
+      if (!exists) db.exec('ALTER TABLE accounts ADD COLUMN internalColourMode TEXT;')
+      assertSchemaCurrent(db)
     },
   ),
 ]

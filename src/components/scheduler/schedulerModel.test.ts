@@ -601,13 +601,17 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     expect(a1.client).toBe('Acme')
   })
 
-  it('a project-less activity bar falls back to the RESOURCE colour via resourceById (not a broken/empty map)', () => {
+  it('an internal activity is grey by default and palette mode restores the RESOURCE colour', () => {
     const d = dataset()
     d.activities.push({ id: 't-int', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Admin', kind: 'internal' })
     d.allocations.push({ id: 'a-int', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 't-int', startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' })
-    const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
-    const bar = allBars(model).find((b) => b.allocation.id === 'a-int')!
-    expect(bar.color).toBe('#4') // r1's own colour — no project/client colour to fall back to first
+    const greyModel = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    expect(allBars(greyModel).find((b) => b.allocation.id === 'a-int')!.color).toBe('#9ca3af')
+
+    const paletteModel = buildSchedulerModel(
+      d, geom, days, start, end, start, end, emptyFilters(), true, true, true, false, 'palette',
+    )
+    expect(allBars(paletteModel).find((b) => b.allocation.id === 'a-int')!.color).toBe('#4')
   })
 
   it('does not throw when there are no clients at all (scopedAccountId derivation is optional-chained)', () => {

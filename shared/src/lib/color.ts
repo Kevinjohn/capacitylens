@@ -1,5 +1,5 @@
 import { isExternalResource } from '../types/entities'
-import type { Allocation, Client, ID, Project, Resource, Activity } from '../types/entities'
+import type { Allocation, Client, ID, InternalColourMode, Project, Resource, Activity } from '../types/entities'
 
 /** The single neutral grey — the bar/colour fallback AND the colour of external / 3rd-party
  *  identity (avatar, swatch, band, bars). Re-exported app-side as `NEUTRAL_COLOR` from
@@ -29,11 +29,23 @@ export interface BarColorMaps {
   projects: Map<ID, Project>
   clients: Map<ID, Client>
   resources: Map<ID, Resource>
+  /** Account display preference. Absent means the default neutral-grey Internal treatment. */
+  internalColourMode?: InternalColourMode
 }
 
-// Bars are coloured by their project, falling back to the
-// client colour, then the resource colour, then a neutral grey — so a bar is
-// always visible even if some relation is missing.
+/** Resolve a project's displayed colour without mutating its saved palette choice. Internal-owned
+ * projects are neutral grey by default; palette mode restores the stored project colour. */
+export function resolveProjectColor(
+  project: Project,
+  client: Client | undefined,
+  internalColourMode: InternalColourMode = 'grey',
+): string {
+  return internalColourMode === 'grey' && client?.builtin === true ? NEUTRAL_COLOR : project.color
+}
+
+/** Resolve an allocation bar colour. External work is always grey. In the default Internal-grey
+ * mode, `internal` activities and activities under Internal-owned projects are also grey; otherwise
+ * bars use project → client → resource → neutral fallback order. */
 export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): string {
   const resource = maps.resources.get(allocation.resourceId)
   // External / 3rd-party work reads as a single neutral colour (an "awareness" signal),
@@ -42,9 +54,13 @@ export function resolveBarColor(allocation: Allocation, maps: BarColorMaps): str
   if (resource && isExternalResource(resource)) return NEUTRAL_COLOR
   const activity = maps.activities.get(allocation.activityId)
   const project = activity?.projectId ? maps.projects.get(activity.projectId) : undefined
-  if (project?.color) return project.color
-
   const client = project ? maps.clients.get(project.clientId) : undefined
+  const internalColourMode = maps.internalColourMode ?? 'grey'
+  if (
+    internalColourMode === 'grey' &&
+    (activity?.kind === 'internal' || client?.builtin === true)
+  ) return NEUTRAL_COLOR
+  if (project?.color) return project.color
   if (client?.color) return client.color
 
   return resource?.color ?? FALLBACK

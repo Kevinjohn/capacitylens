@@ -604,7 +604,8 @@ export const useStore = create<StoreState>()((set, get) => {
     addAccount: (input) => {
       const ts = stamp()
       // New-company defaults for the per-account view settings: brand-new tenants start in 'days'
-      // scheduling with disciplines OFF and the placeholder + external features hidden. `...input`
+      // scheduling with disciplines OFF, placeholder + external features hidden, and Internal work
+      // grey. `...input`
       // comes LAST so a caller (or an import path) can still override any of them; existing/seed
       // accounts that never pass through addAccount keep their absent-field defaults (read via the
       // selectors). placeholdersEnabled/externalEnabled were device-global prefs and are now
@@ -614,6 +615,7 @@ export const useStore = create<StoreState>()((set, get) => {
         disciplinesEnabled: false,
         placeholdersEnabled: false,
         externalEnabled: false,
+        internalColourMode: 'grey',
         ...input,
         color: repairColor(input.color),
         id: newId(),

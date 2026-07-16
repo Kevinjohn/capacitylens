@@ -114,7 +114,14 @@ export function AccountPicker() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: trimmed, color: DEFAULT_COLORS.account, weekStartsOn, timezone, language: DEFAULT_LANGUAGE }),
+        body: JSON.stringify({
+          name: trimmed,
+          color: DEFAULT_COLORS.account,
+          weekStartsOn,
+          timezone,
+          language: DEFAULT_LANGUAGE,
+          internalColourMode: 'grey',
+        }),
       })
       if (!res.ok) {
         // The server's message (single-company cap / org-create gate) is the useful one; the
@@ -189,7 +196,14 @@ export function AccountPicker() {
     // uncaught React error. (addAccount is the one CRUD action that works with no active account —
     // bootstrapping the first tenant.)
     try {
-      const account = addAccount({ name: trimmed, color: DEFAULT_COLORS.account, weekStartsOn, timezone, language: DEFAULT_LANGUAGE })
+      const account = addAccount({
+        name: trimmed,
+        color: DEFAULT_COLORS.account,
+        weekStartsOn,
+        timezone,
+        language: DEFAULT_LANGUAGE,
+        internalColourMode: 'grey',
+      })
       resetForm()
       setActiveAccount(account.id)
     } catch (e) {

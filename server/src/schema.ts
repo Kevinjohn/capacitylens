@@ -71,11 +71,12 @@ export function renameLegacyActivityTables(db: Db): void {
  * activities rebuild below). Runs with foreign keys OFF (openDb enables them afterwards) so the
  * activities rebuild's drop/rename is safe.
  */
-export function migrateSchema(db: Db): void {
+function migrateSchemaVersion(db: Db, includeColumn: (table: string, column: string) => boolean): void {
   // Every additive optional column the current spec has that an older table lacks.
   const additions: Array<[string, string]> = []
   for (const [table, spec] of Object.entries(TABLES)) {
     for (const col of spec.columns) {
+      if (!includeColumn(table, col.name)) continue
       if (col.optional && !hasColumn(db, table, col.name)) additions.push([table, col.name])
     }
   }
@@ -95,6 +96,17 @@ export function migrateSchema(db: Db): void {
     // is still there. Skipped entirely on a current-shape DB.
     if (needsActivitiesRebuild) rebuildActivitiesTable(db, activitiesHadKind)
   })
+}
+
+/** Bring legacy v0–v7 databases to the immutable v8 baseline shape. */
+export function migrateSchemaV8(db: Db): void {
+  migrateSchemaVersion(db, (table, column) => !(table === 'accounts' && column === 'internalColourMode'))
+}
+
+/** Bring a database to the current shape. Explicit versioned migrations normally make this a no-op;
+ * it remains the introspection-gated repair path for pre-ledger legacy columns. */
+export function migrateSchema(db: Db): void {
+  migrateSchemaVersion(db, () => true)
 }
 
 /** Rebuild the `activities` table (the SQLite-docs 'create new + copy + drop + rename' approach,
@@ -160,12 +172,13 @@ function rebuildActivitiesTable(db: Db, sourceHasKind: boolean): void {
  *      The `id` PRIMARY KEY is exempt — PRAGMA table_info reports notnull=0 for a TEXT PK
  *      (a long-standing SQLite quirk), so it would otherwise look like a false mismatch.
  */
-export function assertSchemaCurrent(db: Db): void {
+function assertSchemaVersion(db: Db, includeColumn: (table: string, column: string) => boolean): void {
   const missing: string[] = []
   const mismatched: string[] = []
   for (const [table, spec] of Object.entries(TABLES)) {
     const live = new Map(columns(db, table).map((c) => [c.name, c.notnull === 1]))
     for (const col of spec.columns) {
+      if (!includeColumn(table, col.name)) continue
       if (!live.has(col.name)) {
         missing.push(`${table}.${col.name}`)
         continue
@@ -223,4 +236,14 @@ export function assertSchemaCurrent(db: Db): void {
   if (problems.length > 0) {
     throw new Error(`DB schema is behind the current model — ${problems.join('. ')}.`)
   }
+}
+
+/** Assert the immutable v8 baseline while migration v8 is the active step. */
+export function assertSchemaV8(db: Db): void {
+  assertSchemaVersion(db, (table, column) => !(table === 'accounts' && column === 'internalColourMode'))
+}
+
+/** Assert that the live database matches the current entity/table specification. */
+export function assertSchemaCurrent(db: Db): void {
+  assertSchemaVersion(db, () => true)
 }

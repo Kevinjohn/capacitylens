@@ -9,6 +9,7 @@ import { canSeePrivateNames } from '@capacitylens/shared/domain/access'
 import { useRole } from '../../auth/permissionContext'
 import { validateProjectClient } from '@capacitylens/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
+import { internalColourModeFor } from '../../store/selectors'
 import { m } from '@/i18n'
 import { Button, ColorField, FieldError, Modal, RequiredLegend, SelectField, SwitchField, TextField, type Option } from '../common/ui'
 import type { Project } from '@capacitylens/shared/types/entities'
@@ -27,6 +28,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   // build an archived client is still in the raw slice (so we can show its name); in server mode the
   // per-account read strips it entirely, so the label degrades to the generic "(current, archived)".
   const rawClients = useScopedData().clients
+  const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId))
 
   const [name, setName] = useState(project?.name ?? '')
   const [clientId, setClientId] = useState(project?.clientId ?? '')
@@ -34,6 +36,8 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
   const [isPrivate, setIsPrivate] = useState(project?.isPrivate ?? false)
   const [codeName, setCodeName] = useState(project?.codeName ?? '')
   const { error, errorField, errorId, fail } = useFieldError()
+  const selectedClientIsInternal = clients.find((client) => client.id === clientId)?.builtin === true
+  const showColourPicker = internalColourMode === 'palette' || !selectedClientIsInternal
 
   const clientOptions: Option[] = clients.map((c) => ({ value: c.id, label: c.name }))
   // Editing a project whose client is ARCHIVED: the active-only options above don't contain it, so
@@ -119,7 +123,9 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
         </>
       )}
       <SelectField label={m.form_project_client_label()} value={clientId} onChange={setClientId} options={clientOptions} placeholder={m.form_project_select_client_placeholder()} required invalid={errorField === 'client'} describedById={errorId} />
-      <ColorField label={m.form_project_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      {showColourPicker && (
+        <ColorField label={m.form_project_colour_label()} value={color} onChange={setColor} invalid={errorField === 'color'} describedById={errorId} />
+      )}
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </Modal>

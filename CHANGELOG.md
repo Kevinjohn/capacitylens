@@ -12,6 +12,8 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Added a per-company Internal work colour setting: internal activities and Internal-owned projects
+  are grey by default, while palette mode restores saved project colours and the project picker.
 - Added an explicit, one-way SQLite migration runner with an independent database version,
   CapacityLens application identifier, transactional `BEGIN IMMEDIATE` steps, control/auth schema
   verification and sanitised released-v7 compatibility fixtures.

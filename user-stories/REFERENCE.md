@@ -97,7 +97,7 @@ The sidebar links, in order, route to:
 | Projects | `/projects` | Project list |
 | Activities | `/activities` | Activity list |
 | Time off | `/timeoff` | Time-off list |
-| Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, allocation bars, utilisation, appearance, local data) |
+| Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, Internal work colours, allocation bars, utilisation, appearance, local data) |
 
 That's **eight** sections by default — **seven** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). External / 3rd
@@ -306,6 +306,17 @@ and project parts are device-global toggles in Settings → **Allocation bars** 
 `Show client name` and `Show project name`, both **on** by default; a bar whose activity has no
 project (or whose toggle is off) just skips that part. The hover/focus popover keeps its own
 activity-first layout regardless of these toggles.
+
+**Internal work colours (per-account, default GREY).** Settings → **Internal work colours** has a
+two-option segmented control (`role="radiogroup"`, accessible name `Internal work colours`):
+**Grey** (the default) or **Use colour palette**. It is stored as `internalColourMode` on the
+Account (absent = `grey`, syncs and exports). In **Grey** mode, allocation bars for `internal`
+activities and for projects owned by the built-in **Internal** client use the neutral grey, and an
+Internal-owned project's saved colour is overridden by grey in the Projects list. The project
+form hides its existing **Colour** swatch picker whenever the selected client is Internal; the
+saved palette colour is retained rather than cleared. Switching to **Use colour palette** restores
+those saved project colours and reveals the picker. Cross-project activities remain a distinct
+kind and retain their existing resource-derived colours in both modes.
 
 **Disciplines (account-level).** Settings → **Disciplines** has a single switch **Use disciplines**
 (on by default). Turning it off hides disciplines across the whole app — the **Disciplines** nav

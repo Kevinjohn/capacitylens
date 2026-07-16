@@ -15,6 +15,10 @@ export type SchedulingMode = 'hourly' | 'days' | 'blocks'
 /** Runtime list of the valid scheduling modes — the single source the server's
  *  sanitiser uses to reject a junk `schedulingMode` on a direct account write. */
 export const SCHEDULING_MODES: SchedulingMode[] = ['hourly', 'days', 'blocks']
+/** How work filed under the built-in Internal client is coloured. */
+export type InternalColourMode = 'grey' | 'palette'
+/** Runtime list used by the server/import sanitiser to reject an unknown Internal colour mode. */
+export const INTERNAL_COLOUR_MODES: InternalColourMode[] = ['grey', 'palette']
 export const WEEK_STARTS_OPTIONS: Array<0 | 1> = [0, 1]
 /**
  * What a resource row represents:
@@ -72,6 +76,9 @@ export interface Account extends Entity {
    *  of the box, like placeholdersEnabled) so new companies start with external OFF. When false,
    *  external resources are hidden across the UI; the data is preserved and returns when re-enabled. */
   externalEnabled?: boolean
+  /** Whether Internal activities/projects use neutral grey or their normal palette-derived colour.
+   *  Absent = 'grey', the out-of-the-box behaviour. Saved project colours are preserved in grey mode. */
+  internalColourMode?: InternalColourMode
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */
@@ -293,8 +300,9 @@ export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'w
  *  v5 renamed the domain concept Task→Activity: the `tasks` table → `activities` and
  *  `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
  *  with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
- *  fields, whose absent values already represent the public default.) */
-export const EXPORT_SCHEMA_VERSION = 7
+ *  fields, whose absent values already represent the public default; v8 adds the optional
+ *  per-account Internal work colour mode, whose absence means grey.) */
+export const EXPORT_SCHEMA_VERSION = 8
 
 export interface PersistedState {
   schemaVersion: number

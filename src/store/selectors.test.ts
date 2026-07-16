@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { disciplinesEnabledFor, resourcesByDiscipline, activitiesForProject, visibleRange } from './selectors'
+import { disciplinesEnabledFor, internalColourModeFor, resourcesByDiscipline, activitiesForProject, visibleRange } from './selectors'
 import { emptyFilters } from './useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
@@ -51,6 +51,22 @@ describe('disciplinesEnabledFor', () => {
   it('returns the explicit account value', () => {
     expect(disciplinesEnabledFor(accounts(false), 'a1')).toBe(false)
     expect(disciplinesEnabledFor(accounts(true), 'a1')).toBe(true)
+  })
+})
+
+describe('internalColourModeFor', () => {
+  const accounts = (internalColourMode?: 'grey' | 'palette') => ({
+    ...emptyAppData(),
+    accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#1', internalColourMode }],
+  })
+
+  it('defaults absent and unmatched accounts to grey', () => {
+    expect(internalColourModeFor(accounts(), 'a1')).toBe('grey')
+    expect(internalColourModeFor(accounts('palette'), 'missing')).toBe('grey')
+  })
+
+  it('returns an explicit palette choice', () => {
+    expect(internalColourModeFor(accounts('palette'), 'a1')).toBe('palette')
   })
 })
 

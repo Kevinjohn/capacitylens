@@ -292,6 +292,7 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
     expect(body.name).toBe('Loft Digital')
     expect(body.weekStartsOn).toBe(1)
     expect(body.timezone).toBe('Etc/GMT')
+    expect(body.internalColourMode).toBe('grey')
     // Summary seeded (the picker lists it; setActiveAccount validated against it)…
     expect(useStore.getState().accountSummaries.map((a) => a.id)).toContain('org-1')
     // …and NO local addAccount ran (the slice arrives via the switch orchestrator's loadAll, not here).

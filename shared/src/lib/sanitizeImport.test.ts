@@ -358,6 +358,13 @@ describe('sanitizeAccount', () => {
     expect(sanitizeAccount({ externalEnabled: true }).externalEnabled).toBe(true)
   })
 
+  it('keeps the two Internal colour modes and drops unknown values to the grey-by-absence default', () => {
+    expect(sanitizeAccount({ internalColourMode: 'grey' }).internalColourMode).toBe('grey')
+    expect(sanitizeAccount({ internalColourMode: 'palette' }).internalColourMode).toBe('palette')
+    expect(sanitizeAccount({ internalColourMode: 'rainbow' }).internalColourMode).toBeUndefined()
+    expect(sanitizeAccount({ internalColourMode: 1 }).internalColourMode).toBeUndefined()
+  })
+
   it('drops a language that is not the supported value (English-only until P1.5.1)', () => {
     expect(sanitizeAccount({ language: 'fr' }).language).toBeUndefined()
     expect(sanitizeAccount({ language: 123 }).language).toBeUndefined()

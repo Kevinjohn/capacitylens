@@ -193,6 +193,12 @@ function migrateV6toV7(data: Record<string, unknown>): Record<string, unknown> {
   return data
 }
 
+// v7 → v8 added Account.internalColourMode. No transform is needed: absence deliberately means
+// grey, and sanitizeAccount drops malformed present values at the server boundary.
+function migrateV7toV8(data: Record<string, unknown>): Record<string, unknown> {
+  return data
+}
+
 export function migrate(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') return emptyAppData()
   const obj = raw as Record<string, unknown>
@@ -216,6 +222,9 @@ export function migrate(raw: unknown): AppData {
   }
   if (data && typeof data === 'object' && version < 7) {
     data = migrateV6toV7(data)
+  }
+  if (data && typeof data === 'object' && version < 8) {
+    data = migrateV7toV8(data)
   }
 
   return ensureInternalClients(normalize(data as Partial<AppData> | undefined), '2026-01-01T00:00:00.000Z')

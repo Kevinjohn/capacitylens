@@ -67,6 +67,15 @@ describe('migrate', () => {
     expect(migrate({ schemaVersion: 2, data })).toEqual(data)
   })
 
+  it('leaves a v7 account without internalColourMode absent so it reads as grey', () => {
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#2d75da' }],
+    }
+    const out = migrate({ schemaVersion: 7, data })
+    expect(out.accounts[0].internalColourMode).toBeUndefined()
+  })
+
   it('backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable', () => {
     // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
     // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.

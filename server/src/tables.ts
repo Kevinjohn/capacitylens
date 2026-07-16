@@ -70,6 +70,7 @@ const COLS_accounts = [
   { name: 'disciplinesEnabled', json: true, optional: true },
   { name: 'placeholdersEnabled', json: true, optional: true },
   { name: 'externalEnabled', json: true, optional: true },
+  { name: 'internalColourMode', optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -274,7 +275,8 @@ void _scopedOrderComplete
 // check (SQLite PRAGMA reports notnull=0 for TEXT PRIMARY KEY regardless of the DDL,
 // so the spec and live DB would always appear to disagree). The route-level
 // assertIdPresent() in sanitizeWrite is the universal guard for all write paths.
-export const SCHEMA_SQL = `
+/** Immutable schema text checksummed by the released v8 baseline migration. Do not edit. */
+export const SCHEMA_V8_SQL = `
 CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS accounts (
   id TEXT NOT NULL PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL,
@@ -349,6 +351,14 @@ CREATE TABLE IF NOT EXISTS timeOff (
   createdAt TEXT NOT NULL, updatedAt TEXT NOT NULL
 );
 `
+
+/** Current fresh-schema reference. Physical upgrades still run the immutable v8 DDL followed by
+ * explicit migrations, so this string is for current-shape assertions/documentation rather than a
+ * shortcut around the ledger. */
+export const SCHEMA_SQL = SCHEMA_V8_SQL.replace(
+  'placeholdersEnabled TEXT, externalEnabled TEXT,',
+  'placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT,',
+)
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */
 export const INTERNAL_CLIENT_UNIQUE_INDEX_SQL = `

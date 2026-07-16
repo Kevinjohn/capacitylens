@@ -9,7 +9,7 @@ import { NEUTRAL_COLOR } from '../../lib/palette'
 import { laneLayout } from './layout'
 import type { ColumnGeometry } from './columnGeometry'
 import type { Filters } from '../../store/useStore'
-import type { Allocation, AppData, ID, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities'
+import type { Allocation, AppData, ID, InternalColourMode, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities'
 
 // Pure view-model builder for the scheduler: turns the dataset + window + filters
 // into positioned bars, per-day capacity states, time-off blocks and utilisation,
@@ -115,14 +115,23 @@ export function buildSchedulerModel(
   // when re-enabled. See selectors.ts / DECISIONS.md.
   externalEnabled: boolean,
   blocksMode = false,
+  // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
+  // restores the normal project/resource colour path without changing persisted entity colours.
+  internalColourMode: InternalColourMode = 'grey',
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
   const clientById = new Map(data.clients.map((c) => [c.id, c]))
   const activityById = new Map(data.activities.map((act) => [act.id, act]))
   const resourceById = new Map(data.resources.map((r) => [r.id, r]))
-  // Reused for every bar's colour (project → client → resource → grey fallback).
-  const colorMaps = { activities: activityById, projects: projectById, clients: clientById, resources: resourceById }
+  // Reused for every bar's colour (Internal-grey override, then project → client → resource → grey).
+  const colorMaps = {
+    activities: activityById,
+    projects: projectById,
+    clients: clientById,
+    resources: resourceById,
+    internalColourMode,
+  }
   // The built-in Internal client for the data being rendered (one per account; the data here is
   // already scoped to the active account, so every client shares that accountId). A project-less
   // activity DERIVES this as its client for display + filtering — without ever writing it onto the

@@ -1,7 +1,7 @@
 import { addDaysISO } from '@capacitylens/shared/lib/dateMath'
 import { byAccount } from '@capacitylens/shared/domain/tenancy'
 import { emptyAppData, isCapacityTracked, isExternalResource, scopedTables, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
-import type { AppData, Discipline, ID, Resource, SchedulingMode } from '@capacitylens/shared/types/entities'
+import type { AppData, Discipline, ID, InternalColourMode, Resource, SchedulingMode } from '@capacitylens/shared/types/entities'
 import type { SchedulerUI } from './useStore'
 
 export interface CalendarConfig {
@@ -34,6 +34,11 @@ export const placeholdersEnabledFor = (data: AppData, activeAccountId: ID | null
  *  same per-account value. */
 export const externalEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
   data.accounts.find((a) => a.id === activeAccountId)?.externalEnabled ?? false
+
+/** How the active company displays Internal work. Absent reads as neutral grey, so legacy and new
+ * accounts receive the requested default without rewriting their saved project colours. */
+export const internalColourModeFor = (data: AppData, activeAccountId: ID | null): InternalColourMode =>
+  data.accounts.find((a) => a.id === activeAccountId)?.internalColourMode ?? 'grey'
 
 /** The active account's calendar config — timezone and week-start day.
  *  Absent fields fall back to the defaults (Etc/GMT, Monday). */
