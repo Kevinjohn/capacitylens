@@ -162,7 +162,7 @@ export function AllocationModal(props: AllocationModalProps) {
             : ''
       }`,
     }))
-  // "No project" lets you pick project-less activities (internal + repeatable). A placeholder is
+  // "No project" lets you pick project-less activities (internal + cross-project). A placeholder is
   // offered only its bound project plus this option (it can take project-less activities too).
   const projectOptions: Option[] = [
     { value: '', label: m.form_no_project_internal_repeatable() },
@@ -191,7 +191,7 @@ export function AllocationModal(props: AllocationModalProps) {
     setActivityId('')
   }
   const onAddActivity = () => {
-    // No project selected → create a project-less, repeatable activity; otherwise a project activity
+    // No project selected → create a project-less, cross-project activity; otherwise a project-specific activity
     // bound to the chosen project. Was a silent no-op on a blank name — give feedback.
     const cleanActivityName = validateText(newActivityName, fail, {
       field: 'newactivity',

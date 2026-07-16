@@ -135,10 +135,10 @@ export function buildSchedulerModel(
   const internalClient = scopedAccountId ? internalClientFor(data.clients, scopedAccountId) : undefined
   const activityMeta = new Map(
     data.activities.map((act) => {
-      // A project activity's client is its project's client. A project-less internal/repeatable
+      // A project-specific activity's client is its project's client. A project-less internal/cross-project
       // activity has NO project, so its client is DERIVED as the account's built-in Internal client
       // (purely for the view-model — never persisted). `kind` feeds the activity lens
-      // ('Internal — All' / 'Repeatable — All') without a second activity lookup.
+      // ('Internal — All' / 'Cross-project — All') without a second activity lookup.
       const project = act.projectId ? projectById.get(act.projectId) : undefined
       const clientId = project ? project.clientId : internalClient?.id
       return [act.id, { projectId: act.projectId, clientId, kind: act.kind }]
@@ -169,7 +169,7 @@ export function buildSchedulerModel(
     return true
   }
   // The activity lens (standalone — mutually exclusive with project/client via setFilters): a
-  // specific internal/repeatable activity, or a whole kind ('Internal — All' / 'Repeatable — All').
+  // specific internal/cross-project activity, or a whole kind ('Internal — All' / 'Cross-project — All').
   const activityFilterActive = !!(filters.activityId || filters.activityKind)
   const matchesActivity = (a: Allocation): boolean => {
     if (filters.activityId) return a.activityId === filters.activityId

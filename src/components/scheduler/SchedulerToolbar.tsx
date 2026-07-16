@@ -79,7 +79,7 @@ export function SchedulerToolbar() {
   const disciplines = data.disciplines
   const clients = data.clients
   const projects = data.projects
-  // The activity lens covers only the project-LESS kinds — project activities are reached via the
+  // The activity lens covers only the project-LESS kinds — project-specific activities are reached via the
   // Projects dropdown above.
   const internalActivities = data.activities.filter((t) => t.kind === 'internal')
   const repeatableActivities = data.activities.filter((t) => t.kind === 'repeatable')
@@ -281,7 +281,7 @@ export function SchedulerToolbar() {
             className={`${controlBase} ${selectChevronClass}`}
             style={selectChevronStyle}
             // Encoded value: '' = all, 'kind:internal'/'kind:repeatable' = a whole group,
-            // otherwise a specific activity id. A activityKind selection wins over a stale activityId.
+            // otherwise a specific activity id. An activityKind selection wins over a stale activityId.
             value={filters.activityKind ? `kind:${filters.activityKind}` : (filters.activityId ?? '')}
             onChange={(e) => {
               const v = e.target.value

@@ -58,7 +58,7 @@ export function validateDateRange(
 
 /**
  * Placeholder rule: a placeholder is bound to one project and may only take activities
- * from that project — EXCEPT project-less activities (internal/repeatable kinds), which
+ * from that project — EXCEPT project-less activities (internal/cross-project kinds), which
  * anyone (people and placeholders alike) can be assigned. So the rule only bites when the
  * activity itself belongs to a project.
  */

@@ -10,6 +10,12 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+### Changed
+
+- Renamed the activity labels **Repeatable** and **Project** to **Cross-project** and
+  **Project-specific** to make the distinction about project scope clear. The stored activity kind
+  remains `repeatable` for compatibility.
+
 ## [0.20.1-alpha.0] — 2026-07-15
 
 ### Changed

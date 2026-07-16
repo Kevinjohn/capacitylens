@@ -23,7 +23,7 @@ function clientArchiveMessage(data: AppData, client: Client): string {
 }
 
 export function ClientList() {
-  // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/repeatable
+  // The built-in Internal client is a behind-the-scenes data anchor (project-less internal/cross-project
   // activities bucket under it; it can own real projects), NOT a user-managed client — so it is HIDDEN
   // from this management list. It stays a REAL, persisted client everywhere it's actually used:
   // selectable in ProjectForm's client picker, a "Filter by client" option in the scheduler, and a

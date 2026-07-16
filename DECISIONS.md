@@ -9,8 +9,9 @@ This is the short, present-tense record of decisions that constrain future work.
 - “Utilisation” is the product term.
 - Clients own projects; projects and internal work contain activities; allocations connect a
   resource to an activity over a date range.
-- Activities are `project`, `internal` or `repeatable`. Only project activities may reference a
-  project or phase.
+- Activities are `project`, `internal` or `repeatable` (the user-facing label is **Project-specific**,
+  **Internal** or **Cross-project**). Only project-specific activities may reference a project or
+  phase.
 - Resources are people, placeholders or external parties. External parties have no capacity and
   do not contribute to utilisation.
 - Employment type is recorded for people but does not add a visual badge to the schedule or roster.

@@ -170,8 +170,8 @@ never appears on desktop viewports or in landscape.
   client" option; see the Internal-client appendix below.)
 - **Projects:** Project Lightning (Acme), Brand Themes (Globex).
 - **Phases (Project Lightning):** Discovery, Build.
-- **Activities** (every activity has a **kind**): *Project* — Wireframes, Visual Design, CMS Review
-  (Lightning), Brand System (Brand Themes); *Internal* — Admin / Internal; *Repeatable* —
+- **Activities** (every activity has a **kind**): *Project-specific* — Wireframes, Visual Design, CMS Review
+  (Lightning), Brand System (Brand Themes); *Internal* — Admin / Internal; *Cross-project* —
   Design, Workshop. "Design" is also booked for Alex (8–10 June) to demo the activity lens.
 - **Allocations (June 2026):** Tyler is **over-allocated on 3–4 June** (8h + 4h > 8h).
 - **Time off:** Tyler — 10–12 June (Holiday).
@@ -203,8 +203,8 @@ Turning it on reveals the required `Code name` field (placeholder `e.g. Northsta
 `Quotation marks are added automatically.` Non-owners editing an already-private row do not see the
 switch/code-name field; its redacted `Name` is disabled with `Only an account owner can change this
 private name.`
-The **activity form** has an `Activity kind` radiogroup (`Project` / `Internal` / `Repeatable`); the
-`Project` field shows (and is required) only for the `Project` kind — internal/repeatable
+The **activity form** has an `Activity kind` radiogroup (`Project-specific` / `Internal` / `Cross-project`); the
+`Project` field shows (and is required) only for the `Project-specific` kind — internal/cross-project
 activities are project-less.
 Buttons: `Save`, `Cancel`, `Delete`, `Duplicate`, `Add activity`. The **create / "Add"**
 affordances carry a leading **`+`** glyph before the label (decorative, `aria-hidden`; the
@@ -241,8 +241,8 @@ over an existing allocation falls through to the lane). The grid carries
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global `⌘Z` / `⌘⇧Z` shortcut. Filter row:
 `Search people…`, `Filter by discipline`, `Filter by client`, `Filter by project`,
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
-`Internal — All` + each internal activity, then a `Repeatable` optgroup with `Repeatable — All` +
-each repeatable activity; shown only when the account has internal/repeatable activities. Project activities
+`Internal — All` + each internal activity, then a `Cross-project` optgroup with `Cross-project — All` +
+each cross-project activity; shown only when the account has internal/cross-project activities. Project-specific activities
 are reached via `Filter by project`). The activity lens is a **standalone** view: selecting it
 clears the client/project filter and vice-versa. `Hide tentative` checkbox, `Show unallocated`
 (shown only while a client/project/activity filter is active, **off by default** — filtering hides
@@ -583,10 +583,10 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
 
 ## Domain rules a tester should know
 
-- **A project must belong to a client. An activity has a `kind`:** `project` (belongs to a project,
-  may carry a phase), `internal` (project-less internal work), or `repeatable` (project-less,
-  reusable across projects). Internal/repeatable activities carry no project or phase. The Activities page
-  shows three sections — `internal-activities`, `repeatable-activities`, `project-activities` (testids).
+- **A project must belong to a client. An activity has a `kind`:** `project` (a project-specific activity;
+  belongs to a project and may carry a phase), `internal` (project-less internal work), or `repeatable`
+  (a project-less cross-project activity). Internal/cross-project activities carry no project or phase. The Activities page
+  shows three sections — `internal-activities`, `cross-project-activities`, `project-specific-activities` (testids).
 - **Private client/project names.** A normal client or project may be marked private by an account
   **owner** and given a required code name. The real `name` and raw `codeName` remain persisted, but
   only owners receive them from the server. Admins, editors and viewers receive the code name in the
@@ -621,12 +621,12 @@ deploy; absent in the default OFF/local deploy and for any non-viewer role),
   **project form's Client `<select>`** (a project can be created under Internal), as a **Filter by
   client → Internal** option, and as a **Clients** entry in the command palette; a project bound to
   Internal still shows "· Internal" as its client in the Projects list. It can own real projects, AND a
-  project-less internal/repeatable activity is **bucketed under it for display + filtering** (its
+  project-less internal/cross-project activity is **bucketed under it for display + filtering** (its
   bars/labels read "Internal", and **Filter by client → Internal** shows BOTH the project-less
   activities AND any activities under Internal-owned projects). No `clientId` is stored on the
   activity; the association is derived in the view-model.
 - **Placeholders** are bound to exactly one project and may take that project's activities **plus any
-  project-less (internal/repeatable) activity**. They are **hidden by default** behind the
+  project-less (internal/cross-project) activity**. They are **hidden by default** behind the
   per-account **Show placeholders** pref (Settings → Placeholders, `placeholdersEnabled` on the
   Account, default off); when shown they display as the literal name **"Placeholder"** with a **"?"** avatar.
 - **External / 3rd parties** are a resource kind for outsourced work: a **company name** (+ optional

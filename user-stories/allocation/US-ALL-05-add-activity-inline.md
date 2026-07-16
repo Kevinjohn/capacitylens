@@ -17,8 +17,8 @@ When booking work, the right activity often doesn't exist yet. Forcing the manag
 5. Fill the remaining fields (dates, Hours / day) and click **Save**.
 
 ## Acceptance criteria
-- ✅ The inline activity field is always present; its placeholder switches with the **Project** selection (`…or add a new activity` with a project, `…or add a new repeatable activity` with none).
+- ✅ The inline activity field is always present; its placeholder switches with the **Project** selection (`…or add a new activity` with a project, `…or add a new cross-project activity` with none).
 - ✅ Typing a name and clicking **Add activity** creates the activity under the selected project and immediately selects it as the allocation's **Activity** (the **Activity** select now shows *Accessibility Audit*), and the input clears.
 - ✅ The new activity is a real activity of that project — it appears on the **Activities** page and in the **Activity** dropdown afterwards.
-- ✅ Clicking **Add activity** with an empty name creates no activity and shows "Enter a name for the new activity." With no project selected, a named **Add activity** creates a *repeatable* (no-project) activity instead.
+- ✅ Clicking **Add activity** with an empty name creates no activity and shows "Enter a name for the new activity." With no project selected, a named **Add activity** creates a *cross-project* (no-project) activity instead.
 - ✅ Saving with the newly-added activity selected creates an allocation bar labelled *Accessibility Audit*.

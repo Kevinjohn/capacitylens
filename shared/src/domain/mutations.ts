@@ -97,17 +97,17 @@ export function assertScopedRefs(
       need('projectId', data.projects, 'Phase must reference a project in this company.')
       break
     case 'activities': {
-      // Activity.kind coherence, checked first: a 'project' activity MUST carry a project; an
-      // 'internal'/'repeatable' activity is project-less by definition, so it may carry NEITHER a
+      // Activity.kind coherence, checked first: a project-specific ('project') activity MUST carry a project; an
+      // internal/cross-project ('repeatable') activity is project-less by definition, so it may carry NEITHER a
       // project nor a phase. (Only enforced when kind is present — a partial patch that doesn't
       // touch kind is validated against the merged row by the store, which always has it.)
       if (present('kind')) {
         const kind = rec.kind
         if (kind === 'project') {
-          if (!present('projectId')) throw new Error('A project activity must be assigned to a project.')
+          if (!present('projectId')) throw new Error('A project-specific activity must be assigned to a project.')
         } else if (kind === 'internal' || kind === 'repeatable') {
-          if (present('projectId')) throw new Error('An internal or repeatable activity cannot belong to a project.')
-          if (present('phaseId')) throw new Error('An internal or repeatable activity cannot belong to a phase.')
+          if (present('projectId')) throw new Error('An internal or cross-project activity cannot belong to a project.')
+          if (present('phaseId')) throw new Error('An internal or cross-project activity cannot belong to a phase.')
         }
       }
       need('projectId', data.projects, 'Activity must reference a project in this company.')
@@ -437,8 +437,8 @@ export function remapAndValidateImport(
   }
 
   // activities: keep kind ⇆ projectId/phaseId coherent (assertScopedRefs throws on a mismatch, and
-  // import bypasses it). An internal/repeatable activity is project-less — strip any project/phase it
-  // carries. A project activity whose project didn't survive can no longer BE a project activity, so it
+  // import bypasses it). An internal/cross-project activity is project-less — strip any project/phase it
+  // carries. A project-specific activity whose project didn't survive can no longer BE project-specific, so it
   // becomes 'repeatable' (and loses its now-orphaned phase). A surviving phase that belongs to a
   // DIFFERENT project is unbound — an activity's phase must be a phase of the activity's own project.
   const phaseProject = new Map(brought.phases.map((p) => [p.id as string, p.projectId]))

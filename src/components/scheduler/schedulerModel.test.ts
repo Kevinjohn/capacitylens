@@ -165,8 +165,8 @@ describe('buildSchedulerModel', () => {
     expect(barIds(build({ ...emptyFilters(), projectId: 'p2' }))).toEqual(['a2', 'a3'])
   })
 
-  // dataset() + project-less activities (one internal, one repeatable) with an allocation each, so the
-  // activity lens has something to filter. r1 picks up an internal bar, r2 a repeatable one.
+  // dataset() + project-less activities (one internal, one cross-project) with an allocation each, so the
+  // activity lens has something to filter. r1 picks up an internal bar, r2 a cross-project one.
   function withLensActivities(): AppData {
     const d = dataset()
     d.activities.push(
@@ -193,7 +193,7 @@ describe('buildSchedulerModel', () => {
     expect(bars).toEqual(['a-rep'])
   })
 
-  it('activity lens: "Repeatable — All" (activityKind) shows only repeatable-activity allocations', () => {
+  it('activity lens: "Cross-project — All" (activityKind) shows only cross-project activity allocations', () => {
     const bars = buildLens({ ...emptyFilters(), activityKind: 'repeatable' })
       .flatMap((g) => g.rows)
       .flatMap((r) => r.bars)

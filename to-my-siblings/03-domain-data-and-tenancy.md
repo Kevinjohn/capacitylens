@@ -79,8 +79,8 @@ Write required relationships in types and enforce coherence at the boundary. Cap
 
 - a project must have an in-account client;
 - a phase must have an in-account project;
-- a project activity must have a project;
-- an internal/repeatable activity must have neither project nor phase;
+- a project-specific (`project`) activity must have a project;
+- an internal or cross-project (`repeatable`) activity must have neither project nor phase;
 - a phase referenced by an activity must belong to that activity's project;
 - allocations must reference an in-account resource and activity;
 - placeholders are constrained by their bound project;

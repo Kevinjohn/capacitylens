@@ -164,7 +164,7 @@ describe('assertScopedRefs', () => {
   it('throws when a project activity carries no project (kind coherence)', () => {
     const data = { ...base(), clients: [client('c1', A1)], projects: [project('p1', A1, 'c1')] }
     expect(() => assertScopedRefs(data, A1, 'activities', { kind: 'project', name: 'T' })).toThrow(
-      'A project activity must be assigned to a project.',
+      'A project-specific activity must be assigned to a project.',
     )
   })
 

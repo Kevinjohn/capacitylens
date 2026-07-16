@@ -462,7 +462,7 @@ function buildItems({
     return {
       id: `activity-${a.id}`,
       label: a.name,
-      // Project activities show their project; project-less activities show their kind so the two
+      // Project-specific activities show their project; project-less activities show their kind so the two
       // aren't indistinguishable blank-sublabel rows.
       sublabel: a.kind === 'project' ? project?.name : a.kind === 'internal' ? m.palette_activity_internal() : m.palette_activity_repeatable(),
       section: m.palette_section_activities(),

@@ -2,7 +2,7 @@ import type { AppData, Client, ID, ISOTimestamp } from '../types/entities'
 
 // The built-in "Internal" pseudo-client. It is a REAL, persisted {@link Client} (it carries an
 // `accountId` and a primary-key id like any other) — NOT a virtual/sentinel id — so it can own
-// real projects, and a project-less internal/repeatable activity buckets under it for display +
+// real projects, and a project-less internal/cross-project activity buckets under it for display +
 // filtering. Exactly ONE per account, marked by the `builtin: true` flag. Identify it AT RUNTIME by
 // the flag, never by a hard-coded id formula: import-remap (remapAndValidateImport) mints fresh ids,
 // so any id we wrote would not survive a round-trip — the flag does. See DECISIONS.md.

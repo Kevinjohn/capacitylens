@@ -137,10 +137,10 @@ export interface Filters {
   disciplineId: ID | null
   clientId: ID | null
   projectId: ID | null
-  /** Activity lens: a specific internal/repeatable activity. Mutually exclusive with the
+  /** Activity lens: a specific internal/cross-project activity. Mutually exclusive with the
    *  client/project lens and with `activityKind` (enforced in setFilters). */
   activityId: ID | null
-  /** Activity lens: ALL activities of a kind ('Internal — All' / 'Repeatable — All'). Mutually
+  /** Activity lens: ALL activities of a kind ('Internal — All' / 'Cross-project — All'). Mutually
    *  exclusive with the client/project lens and with `activityId`. */
   activityKind: 'internal' | 'repeatable' | null
   search: string

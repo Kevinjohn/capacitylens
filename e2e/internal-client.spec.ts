@@ -46,13 +46,13 @@ test.describe('Internal client', () => {
 
   test('Filter by client → Internal shows project-less (Internal-bucketed) work', async ({ page }) => {
     await openApp(page)
-    // Widen + scroll to the origin so the seed's project-less repeatable "Design" booking (Alex,
+    // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Alex,
     // 8–10 June) is on-screen.
     await page.getByRole('button', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     // A clearly project-owned bar (Globex / Brand Themes) is visible before filtering…
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
-    // …and the project-less repeatable "Design" booking is too (assigned to Alex Rivera's row).
+    // …and the project-less cross-project "Design" booking is too (assigned to Alex Rivera's row).
     const alexRow = page.getByTestId('scheduler-row').filter({ hasText: 'Alex Rivera' })
     await expect(alexRow.getByTestId('allocation-bar')).not.toHaveCount(0)
     // Filtering by the Internal client KEEPS the project-less work (it derives client = Internal)

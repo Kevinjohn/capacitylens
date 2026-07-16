@@ -14,7 +14,7 @@ export function ActivityList() {
   const del = useStore((s) => s.deleteActivity)
   const { creating, setCreating, editing, setEditing, confirming, setConfirming } = useCrudListState<Activity>()
 
-  // A project-less activity (internal/repeatable) is bucketed under the account's built-in
+  // A project-less activity (internal/cross-project) is bucketed under the account's built-in
   // Internal client for display — so its label reads "Internal", not "(no project)".
   const projectLabel = (id: string | undefined) => {
     if (!id) return m.list_activities_internal_label()
@@ -24,8 +24,8 @@ export function ActivityList() {
     return c ? `${c.name} / ${p.name}` : p.name
   }
 
-  // Three kinds, three tables. Internal first (the owner's ordering), then repeatable
-  // (reusable across projects — the rename of "general"), then project work.
+  // Three kinds, three tables. Internal first (the owner's ordering), then cross-project
+  // (stored as `repeatable` for compatibility), then project-specific work.
   const internalActivities = activities.filter((a) => a.kind === 'internal')
   const repeatableActivities = activities.filter((a) => a.kind === 'repeatable')
   const projectActivities = activities.filter((a) => a.kind === 'project')
@@ -86,12 +86,12 @@ export function ActivityList() {
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_repeatable_heading()}</h2>
       </div>
-      {box(repeatableActivities, false, m.list_activities_repeatable_empty(), 'repeatable-activities')}
+      {box(repeatableActivities, false, m.list_activities_repeatable_empty(), 'cross-project-activities')}
 
       <div className="mb-4 mt-8 flex items-center justify-between">
         <h2 className="text-lg font-semibold">{m.list_activities_project_heading()}</h2>
       </div>
-      {box(projectActivities, true, m.list_activities_project_empty(), 'project-activities')}
+      {box(projectActivities, true, m.list_activities_project_empty(), 'project-specific-activities')}
 
       {creating && <ActivityForm onClose={() => setCreating(false)} />}
       {editing && <ActivityForm activity={editing} onClose={() => setEditing(null)} />}

@@ -31,7 +31,7 @@ describe('ActivityList', () => {
     expect(row).toHaveTextContent('Internal sync')
   })
 
-  it('saves a repeatable activity under the Repeatable activities section', async () => {
+  it('saves a cross-project activity under the Cross-project activities section', async () => {
     const user = userEvent.setup()
     render(<ActivityList />)
 
@@ -39,17 +39,17 @@ describe('ActivityList', () => {
     const dialog = screen.getByRole('dialog', { name: 'Add activity' })
 
     await user.type(within(dialog).getByLabelText('Name'), 'Design')
-    await user.click(within(dialog).getByRole('radio', { name: 'Repeatable' }))
+    await user.click(within(dialog).getByRole('radio', { name: 'Cross-project' }))
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(useStore.getState().data.activities[0].kind).toBe('repeatable')
-    expect(screen.getByRole('heading', { name: 'Repeatable activities' })).toBeInTheDocument()
-    const row = within(screen.getByTestId('repeatable-activities')).getByTestId('activity-row')
+    expect(screen.getByRole('heading', { name: 'Cross-project activities' })).toBeInTheDocument()
+    const row = within(screen.getByTestId('cross-project-activities')).getByTestId('activity-row')
     expect(row).toHaveTextContent('Design')
   })
 
-  it('adds a project activity, showing the client / project label in the Project activities section', async () => {
+  it('adds a project-specific activity, showing the client / project label in the Project-specific activities section', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     const project = useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
@@ -58,7 +58,7 @@ describe('ActivityList', () => {
     await user.click(screen.getByRole('button', { name: 'Add activity' }))
     const dialog = screen.getByRole('dialog', { name: 'Add activity' })
 
-    // 'Project' is the default kind, so the project picker is shown.
+    // 'Project-specific' is the default kind, so the project picker is shown.
     await user.type(within(dialog).getByLabelText('Name'), 'My Activity')
     await user.selectOptions(within(dialog).getByLabelText('Project'), project.id)
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
@@ -67,12 +67,12 @@ describe('ActivityList', () => {
     expect(useStore.getState().data.activities[0].kind).toBe('project')
     expect(useStore.getState().data.activities[0].projectId).toBe(project.id)
 
-    const row = within(screen.getByTestId('project-activities')).getByTestId('activity-row')
+    const row = within(screen.getByTestId('project-specific-activities')).getByTestId('activity-row')
     expect(row).toHaveTextContent('My Activity')
     expect(row).toHaveTextContent('Acme / Lightning')
   })
 
-  it('rejects a project activity with no project chosen', async () => {
+  it('rejects a project-specific activity with no project chosen', async () => {
     const user = userEvent.setup()
     const client = useStore.getState().addClient({ name: 'Acme', color: '#111' })
     useStore.getState().addProject({ name: 'Lightning', clientId: client.id, color: '#222' })
@@ -81,13 +81,13 @@ describe('ActivityList', () => {
     await user.click(screen.getByRole('button', { name: 'Add activity' }))
     const dialog = screen.getByRole('dialog', { name: 'Add activity' })
 
-    // Default kind is Project; leave the project unselected and Save.
+    // Default kind is Project-specific; leave the project unselected and Save.
     await user.type(within(dialog).getByLabelText('Name'), 'Orphan')
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     // The dialog stays open with a field error, and no activity is created.
     expect(screen.getByRole('dialog', { name: 'Add activity' })).toBeInTheDocument()
-    expect(within(dialog).getByText('A project activity must be assigned to a project.')).toBeInTheDocument()
+    expect(within(dialog).getByText('A project-specific activity must be assigned to a project.')).toBeInTheDocument()
     expect(useStore.getState().data.activities).toHaveLength(0)
   })
 
@@ -100,7 +100,7 @@ describe('ActivityList', () => {
     render(<ActivityList />)
 
     expect(screen.queryByText('My Activity')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('project-activities')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('project-specific-activities')).not.toBeInTheDocument()
   })
 
   it('hides an activity whose project belongs to an archived client', () => {

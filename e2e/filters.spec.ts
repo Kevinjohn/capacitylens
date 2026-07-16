@@ -67,9 +67,9 @@ test.describe('Filters', () => {
     await expect(page.getByTestId('allocation-bar').first()).toBeVisible()
   })
 
-  test('filters the schedule to a repeatable activity (the activity lens)', async ({ page }) => {
+  test('filters the schedule to a cross-project activity (the activity lens)', async ({ page }) => {
     await openApp(page)
-    // Seed books "Design" (a repeatable activity) for Alex across 8-10 June.
+    // Seed books "Design" (a cross-project activity) for Alex across 8-10 June.
     await page.getByLabel('Filter by activity').selectOption('kind:repeatable')
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Design' })).toBeVisible()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(1)

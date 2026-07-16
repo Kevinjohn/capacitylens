@@ -119,20 +119,20 @@ describe('SchedulerToolbar Clear filter button', () => {
 })
 
 describe('SchedulerToolbar Activities filter (standalone lens)', () => {
-  // Seed one internal + one repeatable activity so the Activities dropdown renders (it covers only the
-  // project-less kinds; project activities are reached via the Projects dropdown).
+  // Seed one internal + one cross-project activity so the Activities dropdown renders (it covers only the
+  // project-less kinds; project-specific activities are reached via the Projects dropdown).
   const seedLensActivities = () => ({
     internal: useStore.getState().addActivity({ name: 'Admin', kind: 'internal' }),
     repeatable: useStore.getState().addActivity({ name: 'Design', kind: 'repeatable' }),
   })
 
-  it('renders the Activities dropdown with grouped Internal / Repeatable options', () => {
+  it('renders the Activities dropdown with grouped Internal / Cross-project options', () => {
     seedLensActivities()
     render(<SchedulerToolbar />)
     const select = screen.getByLabelText('Filter by activity')
     expect(select).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Internal — All' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Repeatable — All' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Cross-project — All' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Design' })).toBeInTheDocument()
   })

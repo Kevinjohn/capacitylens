@@ -75,7 +75,7 @@ describe('store CRUD covers every entity', () => {
     expect(s().data.activities[0].name).toBe('Admin')
   })
 
-  it('activities: a project activity converts to repeatable by clearing its project + kind together', () => {
+  it('activities: a project-specific activity converts to cross-project by clearing its project + kind together', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
@@ -89,8 +89,8 @@ describe('store CRUD covers every entity', () => {
     const p = s().addProject({ name: 'P', clientId: c.id, color: '#2' })
     const t = s().addActivity({ name: 'T', kind: 'project', projectId: p.id })
     // Leaving kind='project' while removing the project is incoherent — rejected at the store boundary.
-    expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(/project activity must be assigned/i)
-    // And an internal/repeatable activity may not carry a project.
+    expect(() => s().updateActivity(t.id, { projectId: undefined })).toThrow(/project-specific activity must be assigned/i)
+    // And an internal/cross-project activity may not carry a project.
     expect(() => s().addActivity({ name: 'X', kind: 'internal', projectId: p.id })).toThrow(/cannot belong to a project/i)
   })
 

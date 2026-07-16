@@ -114,7 +114,7 @@ describe('AllocationModal create', () => {
     const projectSelect = screen.getByLabelText('Project')
     expect(projectSelect).toHaveValue('p1')
     // Bound project + the project-less option are offered; another project (p2 / "Other") is not.
-    expect(screen.getByRole('option', { name: 'No project (internal / repeatable)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'No project (internal / cross-project)' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Acme / Other' })).not.toBeInTheDocument()
 
     // Only the bound project's activity is offered.

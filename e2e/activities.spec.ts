@@ -3,7 +3,7 @@ import { openApp } from './helpers'
 
 // Covers US-TSK-01..04.
 test.describe('Activities', () => {
-  test('adds an internal, a repeatable, and a project activity into their three sections', async ({ page }) => {
+  test('adds an internal, a cross-project, and a project-specific activity into their three sections', async ({ page }) => {
     await openApp(page, 'Studio North', '/activities')
 
     // Internal kind → project picker hidden, lands in the "Internal activities" section.
@@ -15,23 +15,23 @@ test.describe('Activities', () => {
       page.getByTestId('internal-activities').getByTestId('activity-row').filter({ hasText: 'Internal sync' }),
     ).toBeVisible()
 
-    // Repeatable kind → reusable across projects, lands in the "Repeatable activities" section.
+    // Cross-project kind → project-less and usable across projects, lands in the "Cross-project activities" section.
     await page.getByRole('button', { name: 'Add activity' }).click()
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Discovery workshop')
-    await page.getByRole('radio', { name: 'Repeatable' }).click()
+    await page.getByRole('radio', { name: 'Cross-project' }).click()
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
-      page.getByTestId('repeatable-activities').getByTestId('activity-row').filter({ hasText: 'Discovery workshop' }),
+      page.getByTestId('cross-project-activities').getByTestId('activity-row').filter({ hasText: 'Discovery workshop' }),
     ).toBeVisible()
 
-    // Project kind (the default) → bound to a project, lands in the "Project activities" section,
+    // Project-specific kind (the default) → bound to a project, lands in the "Project-specific activities" section,
     // labelled with its client / project.
     await page.getByRole('button', { name: 'Add activity' }).click()
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Spec review')
     await page.getByLabel('Project').selectOption('p-acme')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
-      page.getByTestId('project-activities').getByTestId('activity-row').filter({ hasText: 'Spec review' }),
+      page.getByTestId('project-specific-activities').getByTestId('activity-row').filter({ hasText: 'Spec review' }),
     ).toContainText('Acme')
   })
 

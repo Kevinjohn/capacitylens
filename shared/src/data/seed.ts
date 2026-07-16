@@ -41,7 +41,7 @@ export function seed(): AppData {
     ],
     clients: [
       // One built-in "Internal" pseudo-client per account (builtin: true) — owns project-less
-      // internal/repeatable work and can own real projects. Protected (no rename/delete). See
+      // internal/cross-project work and can own real projects. Protected (no rename/delete). See
       // internalClient.ts; the invariant is also enforced by migrate (v5→v6) and addAccount.
       { id: 'c-internal-studio', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true },
       { id: 'c-internal-loft', accountId: LOFT, createdAt: TS, updatedAt: TS, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true },
@@ -65,7 +65,7 @@ export function seed(): AppData {
       { id: 't-brand', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Brand System', kind: 'project', projectId: 'p-brand' },
       // Internal (no-project) activity — internal work, allocatable to anyone.
       { id: 't-admin', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Admin / Internal', kind: 'internal' },
-      // Repeatable (no-project) activities — reusable across any project; the schedule's activity lens
+      // Cross-project (no-project) activities — available across any project; the schedule's activity lens
       // groups them so you can see "all design" / "all workshops" regardless of project.
       { id: 't-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Design', kind: 'repeatable' },
       { id: 't-workshop', accountId: STUDIO, createdAt: TS, updatedAt: TS, name: 'Workshop', kind: 'repeatable' },
@@ -81,7 +81,7 @@ export function seed(): AppData {
       // External partner studio booked on Acme's visual design — a span only, no hours (hoursPerDay 0).
       { id: 'a-ext-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-ext-northstar', activityId: 't-visual', startDate: '2026-06-02', endDate: '2026-06-09', hoursPerDay: 0, status: 'confirmed', ignoreWeekends: true },
       { id: 'a-pam-1', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-pam', activityId: 't-brand', startDate: '2026-06-01', endDate: '2026-06-09', hoursPerDay: 6, status: 'confirmed' },
-      // A repeatable activity ("Design") booked across a project boundary — demonstrates the
+      // A cross-project activity ("Design") booked across a project boundary — demonstrates the
       // schedule's activity lens ("all design work", regardless of project/client).
       { id: 'a-alex-design', accountId: STUDIO, createdAt: TS, updatedAt: TS, resourceId: 'r-alex', activityId: 't-design', startDate: '2026-06-08', endDate: '2026-06-10', hoursPerDay: 8, status: 'confirmed' },
       { id: 'a-jo-1', accountId: LOFT, createdAt: TS, updatedAt: TS, resourceId: 'r-jo', activityId: 't-loft-screens', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8, status: 'confirmed' },
