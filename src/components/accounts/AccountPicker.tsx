@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { apiFetch, API_BULK_TIMEOUT_MS } from '../../data/requestTimeout'
 import { useStore } from '../../store/useStore'
@@ -6,6 +6,9 @@ import { useAuth } from '../../auth/authContext'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { can } from '@capacitylens/shared/domain/access'
+import { Badge } from '../ui/badge'
+import { roleLabel } from '../../lib/accessCopy'
+import { accessExperienceFor } from '../../lib/accessMode'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
@@ -74,7 +77,8 @@ export function AccountPicker() {
   // self-hosted/demo build with no policy in place is unaffected. `refreshAuth` re-asks /me after
   // an org create/delete — the server recomputes canCreateAccount per request, so those are exactly
   // the moments the boot-time snapshot goes stale (see the call sites below).
-  const { canCreateAccount, refreshAuth } = useAuth()
+  const { authMode, canCreateAccount, refreshAuth } = useAuth()
+  const accessExperience = accessExperienceFor(authMode)
 
   const [creating, setCreating] = useState(false)
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
@@ -91,6 +95,7 @@ export function AccountPicker() {
   const [timezone, setTimezone] = useState<string>(DEFAULT_TIMEZONE)
   const { error, errorField, errorId, fail } = useFieldError()
   const [confirming, setConfirming] = useState<AccountSummary | null>(null)
+  const roleDescriptionPrefix = useId()
   const tzOptions = supportedTimeZones()
 
   const resetForm = () => {
@@ -333,10 +338,21 @@ export function AccountPicker() {
           </div>
         ) : (
           <ul className="space-y-2">
-            {accounts.map((a) => (
+            {accounts.map((a, index) => {
+              const roleDescriptionId = `${roleDescriptionPrefix}-company-role-${index}`
+              const accessLabel = accessExperience === 'demo'
+                ? m.access_demo_label()
+                : accessExperience === 'open'
+                  ? m.access_open_label()
+                  : a.roleStatus === 'unavailable'
+                    ? m.access_unavailable_label()
+                    : roleLabel(a.role)
+              return (
               <li key={a.id} className="flex items-center gap-2">
                 <button
                   type="button"
+                  aria-label={a.name}
+                  aria-describedby={roleDescriptionId}
                   onClick={() => setActiveAccount(a.id)}
                   className="flex flex-1 items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-ink shadow-sm transition hover:bg-canvas"
                 >
@@ -344,16 +360,22 @@ export function AccountPicker() {
                       the picker swatch uses the default account colour. The real per-account colour shows
                       once the slice is loaded; the picker pre-loads only id/name/role. */}
                   <Avatar name={a.name} color={DEFAULT_COLORS.account} />
-                  <span className="font-medium">{a.name}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{a.name}</span>
+                    <Badge id={roleDescriptionId} data-testid="company-role" variant="outline" className="mt-1 text-2xs text-muted">
+                      {accessLabel}
+                    </Badge>
+                  </span>
                 </button>
                 {/* Company deletion is owner-only server-side, so every non-owner summary gets no
                     Delete affordance at all — offering one would let them type-to-confirm an
                     irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
-                {can(a.role, 'deleteAccount') && (
+                {a.roleStatus !== 'unavailable' && can(a.role, 'deleteAccount') && (
                   <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
                 )}
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
 

@@ -12,6 +12,11 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Added a first-class **Team & access** destination for every role, plain-language capability
+  summaries, persistent sidebar role labels, safe invite previews with explicit acceptance, and an
+  optional onboarding link.
+- Added an isolated one-command password-auth access lab with Owner, Admin, Editor and Viewer
+  personas, confidential-field fixtures and the Studio North demo schedule.
 - Added a per-company Internal work colour setting: internal activities and Internal-owned projects
   are grey by default, while palette mode restores saved project colours and the project picker.
 - Added an explicit, one-way SQLite migration runner with an independent database version,
@@ -26,6 +31,8 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Moved member and invitation management out of Settings and made app members versus scheduled
+  Resources explicit throughout the access flow.
 - Moved the required-field legend in data-entry modals to the bottom of each form, above the
   action buttons.
 - Renamed the activity labels **Repeatable** and **Project** to **Cross-project** and
@@ -34,6 +41,15 @@ new features and **patch** versions carry fixes.
 - Database startup now refuses unrelated SQLite files and future database versions before schema
   DDL, validates production/auth configuration before applying migrations, and defines rollback as
   the old image plus its matching pre-migration snapshot rather than a down migration.
+
+### Security
+
+- Enforced exactly one active Owner per member-bearing company with deterministic legacy repair, a
+  definition-checked partial unique index and a boot-time zero/co-owner assertion. Owner invitations
+  and ordinary Owner role assignment/removal are rejected; ownership changes only through the
+  existing atomic transfer operation.
+- Redacted bearer invite tokens from both request logs and structured authentication/security-event
+  paths, including failures that occur before an invite handler runs.
 
 ## [0.20.1-alpha.0] — 2026-07-15
 

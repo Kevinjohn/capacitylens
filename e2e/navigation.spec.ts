@@ -10,6 +10,7 @@ test.describe('Navigation & shell', () => {
 
     const sections: [string, () => Promise<void>][] = [
       ['Resources', async () => void (await expect(page.getByRole('button', { name: 'Add resource' })).toBeVisible())],
+      ['Team & access', async () => void (await expect(page.getByTestId('current-access')).toContainText('Demo access'))],
       ['Disciplines', async () => void (await expect(page.getByRole('button', { name: 'Add discipline' })).toBeVisible())],
       ['Clients', async () => void (await expect(page.getByRole('button', { name: 'Add client' })).toBeVisible())],
       ['Projects', async () => void (await expect(page.getByRole('button', { name: 'Add project' })).toBeVisible())],
@@ -48,6 +49,9 @@ test.describe('Navigation & shell', () => {
 
     await page.getByRole('link', { name: 'Resources', exact: true }).click()
     await expect(page).toHaveTitle('Resources · CapacityLens')
+
+    await page.getByRole('link', { name: 'Team & access', exact: true }).click()
+    await expect(page).toHaveTitle('Team & access · CapacityLens')
 
     await page.getByRole('link', { name: 'Settings', exact: true }).click()
     await expect(page).toHaveTitle('Settings · CapacityLens')

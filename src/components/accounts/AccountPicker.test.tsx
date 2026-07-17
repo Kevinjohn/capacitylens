@@ -198,6 +198,7 @@ describe('AccountPicker create + open + delete', () => {
 
 describe('AccountPicker server-mode list (P1.13)', () => {
   it('lists from accountSummaries, NOT data.accounts (server mode holds only the active slice in data)', () => {
+    serverFlag.on = true
     // Simulate server mode: `data` holds only ONE account (the active slice would, post-load), but the
     // login has TWO memberships in accountSummaries. The picker must show BOTH from the summaries.
     useStore.getState().replaceAll(makeAppData({ accounts: [makeAccount({ id: 'a1', name: 'Active Co' })] }))
@@ -205,9 +206,60 @@ describe('AccountPicker server-mode list (P1.13)', () => {
       { id: 'a1', name: 'Active Co', role: 'owner' },
       { id: 'a2', name: 'Other Co', role: 'editor' }, // NOT in data.accounts
     ])
-    render(<AccountPicker />)
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: 'password',
+          user: { id: 'me', email: 'me@example.com' },
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <AccountPicker />
+      </AuthContext.Provider>,
+    )
     expect(screen.getByText('Active Co')).toBeInTheDocument()
     expect(screen.getByText('Other Co')).toBeInTheDocument() // proves the source is summaries, not data
+    expect(screen.getByRole('button', { name: 'Active Co' })).toHaveAccessibleDescription('Owner')
+    expect(screen.getByRole('button', { name: 'Other Co' })).toHaveAccessibleDescription('Editor')
+  })
+
+  it('labels an auth-off persisted server as open access instead of demo or Owner', () => {
+    serverFlag.on = true
+    useStore.getState().setAccountSummaries([{ id: 'a1', name: 'Open Co', role: 'owner' }])
+
+    render(<AccountPicker />)
+
+    expect(screen.getByRole('button', { name: 'Open Co' })).toHaveAccessibleDescription('Open access')
+    expect(screen.getByRole('button', { name: 'Open Co' })).not.toHaveAccessibleDescription('Owner')
+  })
+
+  it('does not present a malformed authenticated role as Viewer or allow owner-only actions', () => {
+    serverFlag.on = true
+    useStore.getState().setAccountSummaries([
+      { id: 'a1', name: 'Unclear Co', role: 'viewer', roleStatus: 'unavailable' },
+    ])
+
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: 'password',
+          user: { id: 'me', email: 'me@example.com' },
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <AccountPicker />
+      </AuthContext.Provider>,
+    )
+
+    expect(screen.getByRole('button', { name: 'Unclear Co' })).toHaveAccessibleDescription('Access unavailable')
+    expect(screen.getByRole('button', { name: 'Unclear Co' })).not.toHaveAccessibleDescription('Viewer')
+    expect(screen.queryByRole('button', { name: 'Delete Unclear Co' })).not.toBeInTheDocument()
   })
 
   it('activates an account whose slice is NOT loaded (existence via summaries)', async () => {
@@ -409,17 +461,34 @@ describe('AccountPicker server-mode create/delete (P1.13 client migration)', () 
   })
 
   it('offers a Delete button only on an owner summary', () => {
+    serverFlag.on = true
     useStore.getState().setAccountSummaries([
       { id: 'a1', name: 'Owner Co', role: 'owner' },
       { id: 'a2', name: 'Admin Co', role: 'admin' },
       { id: 'a3', name: 'Editor Co', role: 'editor' },
       { id: 'a4', name: 'Viewer Co', role: 'viewer' },
     ])
-    render(<AccountPicker />)
+    render(
+      <AuthContext.Provider
+        value={{
+          authMode: 'password',
+          user: { id: 'me', email: 'me@example.com' },
+          canCreateAccount: true,
+          multiAccount: true,
+          refreshAuth: async () => {},
+          signOut: async () => {},
+        }}
+      >
+        <AccountPicker />
+      </AuthContext.Provider>,
+    )
     expect(screen.getByRole('button', { name: 'Delete Owner Co' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Admin Co' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Editor Co' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Viewer Co' })).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('company-role').map((badge) => badge.textContent)).toEqual([
+      'Owner', 'Admin', 'Editor', 'Viewer',
+    ])
   })
 })
 

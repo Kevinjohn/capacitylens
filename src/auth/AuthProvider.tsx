@@ -137,7 +137,10 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
         multiAccount,
         mfaRequired,
       }
-      if (acceptEffects()) setOfflineReadState(false)
+      // A live identity check does not prove the currently rendered tenant slice is live. Preserve
+      // its offline/read-only marker until ServerSyncAdapter successfully reloads that slice; only
+      // a boot/picker with no active slice can be marked online from identity state alone.
+      if (acceptEffects() && useStore.getState().activeAccountId === null) setOfflineReadState(false)
       if (next.user && acceptEffects()) {
         void cacheAuthSnapshot({
           authMode: next.authMode,
@@ -322,8 +325,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // tenant data and only POSTs the public /api/auth/reset-password endpoint (which requireUser
     // already exempts server-side). window.location (not router state) is correct here — this
     // component sits ABOVE the router, and the page's only exit is a full page load (see
-    // ResetPassword), so the path can't go stale mid-session. No AuthContext is provided on this
-    // branch; ResetPassword deliberately consumes none.
+    // ResetPassword), so the path can't go stale mid-session. ResetPassword consumes no auth
+    // context, so this carve-out can remain a plain pass-through.
     //
     // Match EXACTLY one non-empty, non-nested segment — the shape `/reset-password/:token` the router
     // actually renders. A malformed link (a token truncated to `/reset-password/`, or a trailing
@@ -331,13 +334,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // visitor onto React Router's bare 404 dead-end; failing the match here instead keeps the login
     // wall as the fallback (a styled screen with a way in), which is the safer degrade.
     if (/^\/reset-password\/[^/]+$/.test(window.location.pathname)) return <>{children}</>
-    // Password invite onboarding must render before a session exists: the invite page either signs
-    // in an existing identity and accepts, or uses the invite-authorized credential-create endpoint
-    // that atomically creates the identity, binds membership, and consumes the token.
+    // Password invite onboarding must render before a session exists: an existing identity signs in
+    // here, then reviews and explicitly accepts after reload; the create-account action uses the
+    // invite-authorized endpoint that atomically creates identity + membership and consumes the token.
     if (
       status.authMode === 'password' &&
       /^\/invite\/[^/]+$/.test(window.location.pathname)
-    ) return <>{children}</>
+    ) {
+      // Invite signup consumes the token before the new session exists. Give the pre-session route
+      // a real refreshAuth so it can verify the freshly-created session and destination before a
+      // fresh authenticated boot re-attaches tenant persistence. No tenant data is exposed: user
+      // remains null until /me succeeds.
+      return (
+        <AuthContext.Provider
+          value={{
+            authMode: status.authMode,
+            user: null,
+            canCreateAccount: false,
+            multiAccount: false,
+            refreshAuth,
+            signOut,
+          }}
+        >
+          {children}
+        </AuthContext.Provider>
+      )
+    }
     return (
       <Suspense fallback={null}>
         {/* Reload on success: bootstrap already ran (and 401ed) without a session, so a

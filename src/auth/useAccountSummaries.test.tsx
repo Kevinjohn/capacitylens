@@ -2,6 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import { fetchAccountSummaries, useAccountSummaries } from './useAccountSummaries'
 import { useStore } from '../store/useStore'
+import { offlineStateSnapshot, readCachedAccountSummaries, setOfflineReadState } from '../data/offlineCache'
+
+vi.mock('../data/offlineCache', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../data/offlineCache')>()
+  return { ...actual, readCachedAccountSummaries: vi.fn(actual.readCachedAccountSummaries) }
+})
 
 // P1.13 — the AccountPicker's data source. These tests pin the fetch contract's three distinct
 // answers, in particular the malformed-200 case (the bug this pins: a 200 whose JSON body is not
@@ -17,6 +23,8 @@ import { useStore } from '../store/useStore'
 // plus the hook-level consequence: a null read leaves store.accountSummaries untouched.
 
 afterEach(() => {
+  useStore.setState({ activeAccountId: null })
+  setOfflineReadState(false)
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -37,6 +45,37 @@ describe('fetchAccountSummaries — response classification', () => {
     await expect(fetchAccountSummaries()).resolves.toEqual([{ id: 'a1', name: 'Studio A', role: 'editor' }])
     // Partial corruption is handled-but-logged (DEFENSIVE-CODING §5): the dropped row leaves a breadcrumb.
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('dropped 1 malformed'), body)
+  })
+
+  it('does not mark a cached active slice online merely because the company directory responds', async () => {
+    useStore.setState({ activeAccountId: 'a1' })
+    setOfflineReadState(true, Date.parse('2026-07-17T10:00:00.000Z'))
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, [{ id: 'a1', name: 'Studio A', role: 'owner' }])))
+
+    await expect(fetchAccountSummaries()).resolves.toHaveLength(1)
+
+    expect(offlineStateSnapshot().readOnly).toBe(true)
+  })
+
+  it('does clear an identity/list-only offline marker at the company picker', async () => {
+    useStore.setState({ activeAccountId: null })
+    setOfflineReadState(true, Date.parse('2026-07-17T10:00:00.000Z'))
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, [{ id: 'a1', name: 'Studio A', role: 'owner' }])))
+
+    await expect(fetchAccountSummaries()).resolves.toHaveLength(1)
+
+    expect(offlineStateSnapshot().readOnly).toBe(false)
+  })
+
+  it('keeps a valid account selectable but marks an unrecognized role unavailable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const row = { id: 'a1', name: 'Studio A', role: 'future-role' }
+    vi.stubGlobal('fetch', vi.fn(async () => json(200, [row])))
+
+    await expect(fetchAccountSummaries()).resolves.toEqual([
+      { id: 'a1', name: 'Studio A', role: 'viewer', roleStatus: 'unavailable' },
+    ])
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('unrecognized role'), row)
   })
 
   it('a NONEMPTY array whose rows are ALL malformed -> null (keep what you have, NOT a fake "no accounts") + a warn', async () => {
@@ -66,6 +105,17 @@ describe('fetchAccountSummaries — response classification', () => {
   it('a non-OK response -> null (unchanged keep-what-you-have stance)', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => json(503, { error: 'down' })))
     await expect(fetchAccountSummaries()).resolves.toBeNull()
+  })
+
+  it('a 5xx plus an unreadable offline directory still resolves null instead of rejecting', async () => {
+    const cacheError = new Error('IndexedDB unavailable')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    vi.mocked(readCachedAccountSummaries).mockRejectedValueOnce(cacheError)
+    vi.stubGlobal('fetch', vi.fn(async () => json(503, { error: 'down' })))
+
+    await expect(fetchAccountSummaries()).resolves.toBeNull()
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('offline account list could not be read'), cacheError)
   })
 })
 
@@ -122,5 +172,24 @@ describe('useAccountSummaries — a malformed 200 leaves the existing list alone
       await new Promise((r) => setTimeout(r, 0))
     })
     expect(useStore.getState().accountSummaries).toEqual(existing) // untouched — not blanked to []
+  })
+
+  it('refetches account roles when membership projections are invalidated', async () => {
+    let role = 'owner'
+    const fetchMock = vi.fn(async () => json(200, [{ id: 'a1', name: 'Studio A', role }]))
+    vi.stubGlobal('fetch', fetchMock)
+    useStore.setState({ membershipRevision: 0 })
+    render(<HookHost />)
+
+    await act(async () => {
+      await vi.waitFor(() => expect(useStore.getState().accountSummaries[0]?.role).toBe('owner'))
+    })
+    role = 'admin'
+    act(() => useStore.getState().invalidateMemberships())
+
+    await act(async () => {
+      await vi.waitFor(() => expect(useStore.getState().accountSummaries[0]?.role).toBe('admin'))
+    })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 })

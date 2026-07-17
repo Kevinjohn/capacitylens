@@ -31,7 +31,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 ## Navigation & shell — `navigation/`
 | Story | Title | Automated coverage |
 |---|---|---|
-| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md) | Navigate between all eight sections | `e2e/navigation.spec.ts` |
+| [US-NAV-01](navigation/US-NAV-01-navigate-sections.md) | Navigate between all nine sections | `e2e/navigation.spec.ts` |
 | [US-NAV-02](navigation/US-NAV-02-active-section-indicated.md) | Active section is indicated (`aria-current`) | `e2e/navigation.spec.ts` |
 | [US-NAV-03](navigation/US-NAV-03-loading-gate.md) | Content gated on hydration ("Loading…") | manual (AppShell gates on `hydrated`) |
 | [US-NAV-04](navigation/US-NAV-04-persist-error-banner.md) | Persistence-failure banner | manual + unit (`persist.test.ts` seed-fail) |
@@ -43,7 +43,7 @@ stories whose UI is currently hidden (phase management — US-ACT-02, US-PRJ-04)
 | [US-NAV-10](navigation/US-NAV-10-login-screen.md) | Login screen (flag-gated; `CAPACITYLENS_AUTH` deploys only) | `e2e/login.auth.spec.ts` (auth-backed project) |
 | [US-NAV-11](navigation/US-NAV-11-fake-sign-in.md) | Trusted-local fake sign-in | `e2e/navigation.spec.ts` |
 | [US-NAV-12](navigation/US-NAV-12-intro-page.md) | First-run intro page | `e2e/navigation.spec.ts` |
-| [US-NAV-13](navigation/US-NAV-13-getting-started.md) | Getting-started checklist and tour | `e2e/getting-started.spec.ts` |
+| [US-NAV-13](navigation/US-NAV-13-getting-started.md) | Getting-started checklist, tour and optional access path | `e2e/getting-started.spec.ts` + auth E2E + `GettingStarted.test.tsx` |
 | [US-NAV-14](navigation/US-NAV-14-company-picker-onboarding.md) | Company picker and company-creation choices | `src/components/accounts/AccountPicker.test.tsx` + `e2e/onboarding.spec.ts` + `e2e/onboarding.db.spec.ts` |
 | [US-NAV-15](navigation/US-NAV-15-semantic-colour-language.md) | Blue identity, green positive actions, red destructive actions | `e2e/navigation.spec.ts` + `src/components/common/ui.test.tsx` + `src/lib/color.test.ts` + `e2e/a11y.spec.ts` |
 

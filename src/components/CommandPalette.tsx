@@ -18,6 +18,7 @@ import {
 import type { Filters } from '../store/useStore'
 import { cn } from '@/lib/utils'
 import { restoreFocus, wrapTabWithin } from './common/focus'
+import { LINKS } from '../lib/navLinks'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -374,21 +375,20 @@ function buildItems({
     : actions
 
   // ── Pages ──────────────────────────────────────────────────────────────────
-  const pages: PaletteItem[] = [
-    { id: 'page-schedule', label: m.palette_page_schedule(), sublabel: '/', section: m.palette_section_pages(), onSelect: () => { void navigate('/'); onClose() } },
-    { id: 'page-resources', label: m.palette_page_resources(), sublabel: '/resources', section: m.palette_section_pages(), onSelect: () => { void navigate('/resources'); onClose() } },
-    // External / 3rd parties moved INTO the Resources tab (behind the per-account `externalEnabled`
-    // setting), so there's no standalone External page entry here anymore.
-    // Disciplines page entry only when the account uses disciplines (route is guarded too).
-    ...(disciplinesEnabled
-      ? [{ id: 'page-disciplines', label: m.palette_page_disciplines(), sublabel: '/disciplines', section: m.palette_section_pages(), onSelect: () => { void navigate('/disciplines'); onClose() } } as PaletteItem]
-      : []),
-    { id: 'page-clients', label: m.palette_page_clients(), sublabel: '/clients', section: m.palette_section_pages(), onSelect: () => { void navigate('/clients'); onClose() } },
-    { id: 'page-projects', label: m.palette_page_projects(), sublabel: '/projects', section: m.palette_section_pages(), onSelect: () => { void navigate('/projects'); onClose() } },
-    { id: 'page-activities', label: m.palette_page_activities(), sublabel: '/activities', section: m.palette_section_pages(), onSelect: () => { void navigate('/activities'); onClose() } },
-    { id: 'page-timeoff', label: m.palette_page_timeoff(), sublabel: '/timeoff', section: m.palette_section_pages(), onSelect: () => { void navigate('/timeoff'); onClose() } },
-    { id: 'page-settings', label: m.palette_page_settings(), sublabel: '/settings', section: m.palette_section_pages(), onSelect: () => { void navigate('/settings'); onClose() } },
-  ]
+  // Derive page destinations from the same source as both sidebar renderings. New first-class
+  // routes therefore cannot silently appear in navigation while being absent from the palette.
+  const pages: PaletteItem[] = LINKS
+    .filter(([to]) => disciplinesEnabled || to !== '/disciplines')
+    .map(([to, label]) => ({
+      id: `page-${to === '/' ? 'schedule' : to.slice(1)}`,
+      label: label(),
+      sublabel: to,
+      section: m.palette_section_pages(),
+      onSelect: () => {
+        void navigate(to)
+        onClose()
+      },
+    }))
 
   const filteredPages = q
     ? fuzzyFilter(pages, q, (p) => p.label).slice(0, SECTION_LIMIT)

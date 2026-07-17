@@ -13,10 +13,16 @@ pnpm install
 ```bash
 pnpm run dev       # SQLite API :8787 + web :5173, seeded development data
 pnpm run dev:demo  # web :5173, editable in-memory data, resets on reload
+pnpm run dev:access # isolated password-auth role lab: API :8897 + web :5473
 ```
 
 An empty `VITE_CAPACITYLENS_API` means same-origin server mode. A non-empty value overrides the API
 origin. Only `VITE_CAPACITYLENS_DEMO=1` selects the in-memory adapter.
+
+The in-memory demo has no real membership roles. To inspect the implemented Owner/Admin/Editor/
+Viewer flows against the password-auth server, use the isolated access lab in
+[`docs/onboarding-and-access.md`](onboarding-and-access.md#alpha-access-lab). It documents the
+local-only credentials, prebuilt Studio North fixture and expected visibility matrix.
 
 ## Checks
 

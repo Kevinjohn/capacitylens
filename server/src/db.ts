@@ -18,7 +18,16 @@ import { TABLES, SCHEMA_V8_SQL, CREATE_ORDER, SCOPED_ORDER, INTERNAL_CLIENT_UNIQ
 import { tx } from './txn'
 import { toRow, fromRow, type Row } from './rowCodec'
 import { assertSchemaCurrent, assertSchemaV8, migrateSchemaV8, renameLegacyActivityTables } from './schema'
-import { assertControlTablesCurrent, ensureControlTables } from './controlTables'
+import {
+  assertControlTablesCurrent,
+  assertSingleOwnerControlPlaneCurrent,
+  assertSingleOwnerControlPlaneV10,
+  ensureControlTables,
+  migrateOwnerlessControlPlaneV11,
+  migrateOwnerResetCeremoniesV12,
+  migrateSingleOwnerControlPlaneV10,
+  SINGLE_OWNER_INDEX,
+} from './controlTables'
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
 // domain-core's job (see validate.ts). These helpers only map between SQL rows and the
@@ -29,7 +38,7 @@ import { assertControlTablesCurrent, ensureControlTables } from './controlTables
 export type Db = DatabaseSync
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 9
+export const DB_SCHEMA_VERSION = 12
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
@@ -223,6 +232,37 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       assertSchemaCurrent(db)
     },
   ),
+  defineMigration(
+    10,
+    'enforce-single-owner',
+    [
+      'repair:retain-oldest-active-owner-demote-additional-to-admin:v1',
+      "DELETE FROM invites WHERE role = 'owner' AND usedAt IS NULL;",
+      `CREATE UNIQUE INDEX ${SINGLE_OWNER_INDEX} ON account_members(accountId) WHERE role = 'owner' AND status = 'active';`,
+    ].join('\n'),
+    (db) => {
+      migrateSingleOwnerControlPlaneV10(db)
+      assertSingleOwnerControlPlaneV10(db)
+    },
+  ),
+  defineMigration(
+    11,
+    'repair-ownerless-memberships',
+    'repair:promote-oldest-active-member-when-ownerless:v1',
+    (db) => {
+      migrateOwnerlessControlPlaneV11(db)
+      assertSingleOwnerControlPlaneCurrent(db)
+    },
+  ),
+  defineMigration(
+    12,
+    'revoke-owner-reset-ceremonies',
+    'repair:revoke-outstanding-verification-ceremonies-for-active-owners:v1',
+    (db) => {
+      migrateOwnerResetCeremoniesV12(db)
+      assertSingleOwnerControlPlaneCurrent(db)
+    },
+  ),
 ]
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
@@ -356,6 +396,7 @@ export function initializeOpenDb(
 
   assertSchemaCurrent(db)
   assertControlTablesCurrent(db)
+  assertSingleOwnerControlPlaneCurrent(db)
   assertMigrationHistory(db, DB_SCHEMA_VERSION)
   if (pragmaNumber(db, 'user_version') !== DB_SCHEMA_VERSION) {
     throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`)

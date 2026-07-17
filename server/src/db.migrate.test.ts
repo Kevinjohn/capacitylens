@@ -436,10 +436,16 @@ describe('schema migration of an existing on-disk DB', () => {
     expect(history.map(({ version, name }) => ({ version, name }))).toEqual([
       { version: 8, name: 'establish-explicit-migration-baseline' },
       { version: 9, name: 'add-internal-colour-mode' },
+      { version: 10, name: 'enforce-single-owner' },
+      { version: 11, name: 'repair-ownerless-memberships' },
+      { version: 12, name: 'revoke-owner-reset-ceremonies' },
     ])
-    // The v8 checksum is immutable: adding v9 must never invalidate an already-upgraded database.
+    // Shipped checksums are immutable: later migrations must never invalidate an upgraded database.
     expect(history[0].checksum).toBe('90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d')
-    expect(history[1].checksum).toMatch(/^[a-f0-9]{64}$/)
+    expect(history[1].checksum).toBe('41f8f933f17eb59dac8bfc7a385db70e46df61e249a295fd622f821dcc3bb1f0')
+    expect(history[2].checksum).toBe('a178fba43ad4c58ca8508117303b568c05103a05cc6e48512f2e92306e857653')
+    expect(history[3].checksum).toBe('057242fc8e358bebf0a188395e9289d2661f6a89e843bc091e718d003f013f5e')
+    expect(history[4].checksum).toBe('4e7a506b4324de4e8d48ad843d1eabe70b4723c6e9bb4e44f2ed1c76046b2b56')
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true)
     expect(planDatabaseMigrations(db).migrations).toEqual([])
     db.close()
@@ -480,7 +486,7 @@ describe('schema migration of an existing on-disk DB', () => {
     }
   })
 
-  it('upgrades a committed v8 database to v9 without changing the v8 ledger row', () => {
+  it('upgrades a committed v8 database through the current version without changing the v8 ledger row', () => {
     const copied = copyFixture('v7-off.db')
     try {
       const db = openDbConnection(copied.path)
@@ -497,9 +503,11 @@ describe('schema migration of an existing on-disk DB', () => {
       db.close()
 
       const upgraded = openDb(copied.path)
-      expect((upgraded.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(9)
+      expect((upgraded.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION)
       expect((upgraded.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>).map((column) => column.name))
         .toContain('internalColourMode')
+      expect((upgraded.prepare(`PRAGMA index_list(account_members)`).all() as Array<{ name: string }>).map((index) => index.name))
+        .toContain('idx_account_members_single_active_owner')
       upgraded.close()
     } finally {
       copied.cleanup()

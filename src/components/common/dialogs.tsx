@@ -376,12 +376,14 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = m.form_delete(),
+  confirmVariant = 'danger',
   onConfirm,
   onCancel,
 }: {
   title: string
   message: ReactNode
   confirmLabel?: string
+  confirmVariant?: ButtonVariant
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -394,7 +396,7 @@ export function ConfirmDialog({
           <Button variant="ghost" onClick={onCancel}>
             {m.form_cancel()}
           </Button>
-          <Button variant="danger" onClick={onConfirm}>
+          <Button variant={confirmVariant} onClick={onConfirm}>
             {confirmLabel}
           </Button>
         </>

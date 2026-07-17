@@ -5,8 +5,8 @@
 ## Goal
 A member whose account role is **Viewer** sees the whole app **read-only**: no create / edit / delete
 affordances anywhere, no scheduler drawing / dragging / resizing, no Draw-mode toggle and no
-Undo/Redo, and a small **"View only"** indicator. An Owner / Admin / Editor sees every affordance,
-exactly as before.
+Undo/Redo, and a small **"View only"** indicator. Every access level has a persistent role badge
+beside the company name; Owner/Admin/Editor keep their permitted edit affordances.
 
 ## Why
 On an auth-enabled, server-backed deploy, access to a company is a real membership (a role per login).
@@ -16,9 +16,13 @@ what's stored. So the client hides every edit affordance for a Viewer (UX) and t
 viewer's mutation locally (defense-in-depth). The **server 403** remains the authoritative access
 boundary — the client gating is a courtesy + a desync guard, never the security boundary.
 
-**Critical invariant:** in the **default deploy (auth off)** or **local mode** there is no membership
-role to enforce, so the role resolves to `null` → **fully editable**, byte-identical to today. The
-read-only mode is reachable ONLY on a server + auth-on deploy where a real `viewer` membership exists.
+**Critical invariant:** while online, with **auth off** or in the in-memory demo there is no
+membership role to enforce, so the role resolves to `null` and remains fully editable. An opted-in
+offline snapshot is always read-only regardless of the live authentication posture and is labelled
+**Offline · View only**. The persisted auth-off server is
+labelled **Open access**; only the disposable in-memory build is labelled **Demo access**. The
+online membership-driven Viewer mode is reachable only on a server + auth-on deploy where a real
+`viewer` membership exists; offline snapshots are the explicit posture-independent exception.
 
 ## How (end-to-end)
 **Precondition:** The app runs in server mode (`VITE_CAPACITYLENS_API` set) against a server with
@@ -38,8 +42,9 @@ read-only mode is reachable ONLY on a server + auth-on deploy where a real `view
    editing (they still show their hover/focus detail popover — a read).
 
 **As E (editor) for contrast:** sign in, pick the same company.
-4. There is **no "View only"** badge; **Clients** shows **Add client**; the Schedule toolbar shows the
-   **Draw mode** toggle and **Undo**/**Redo**; bars are fully draggable/resizable.
+4. The footer badge says **Editor** without the **View only** qualifier; **Clients** shows **Add
+   client**; the Schedule toolbar shows the **Draw mode** toggle and **Undo**/**Redo**; bars are fully
+   draggable/resizable.
 
 ## Acceptance criteria
 - The role drives the UI ONLY on a server + auth-on deploy. `GET /api/accounts` returns
@@ -49,13 +54,16 @@ read-only mode is reachable ONLY on a server + auth-on deploy where a real `view
   grips**, no drag/resize, no edit modal (a viewer bar is `role="img"`, not `button`); the toolbar
   hides the **Draw-mode** toggle and **Undo/Redo**; a **"View only"** badge (`data-testid="view-only"`)
   shows in the sidebar footer.
-- For an **Owner/Admin/Editor**: every affordance is shown (no badge), unchanged from before.
+- For an **Owner/Admin/Editor**: every permitted affordance is shown and the company footer displays
+  the effective role badge; only Viewer adds the **View only** qualifier.
 - The **server 403** is the authoritative backstop: a direct scheduling write as a Viewer
   (`PUT /api/<entity>/<id>` with the account's `accountId`, write tier = editor+) is **403** even if
   the UI is bypassed. As a second local guard, the store no-ops a viewer's `add*`/`update*`/`delete*`/
   `importData` and surfaces *"Read-only — you don't have edit access."*
-- **Default-editable invariant:** in **auth off** (the default everywhere) or **local mode** the role
-  is `null` → the app is **fully editable**, byte-identical to today (no badge, every affordance shown).
+- **Default-editable invariant:** with **auth off** or in the in-memory demo the role is `null` and
+  the online app is fully editable. An offline snapshot remains the explicit read-only exception.
+  The persistent badge says **Open access** for the persisted auth-off
+  server and **Demo access** for the in-memory build, rather than claiming a real membership role.
 - UI: `src/auth/PermissionProvider.tsx` + `src/auth/permissionContext.ts` (`useRole`/`useCanEdit`, off
   the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`; spec
   `e2e/viewer.auth.spec.ts`.

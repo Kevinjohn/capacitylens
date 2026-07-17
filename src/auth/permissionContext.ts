@@ -19,9 +19,13 @@ import { can, type Role } from '@capacitylens/shared/domain/access'
  *  header. A concrete {@link Role} (auth-on + server) is fed into the pure `can` matrix. */
 export interface PermissionContextValue {
   role: Role | null
+  /** Resolution state is separate from the fail-closed role projection. During a pending or failed
+   * authenticated lookup `role` remains Viewer for affordance safety, while explanatory UI can say
+   * that access is being checked or is unavailable instead of claiming Viewer is authoritative. */
+  status?: 'not-applicable' | 'pending' | 'resolved' | 'unavailable'
 }
 
-export const PermissionContext = createContext<PermissionContextValue>({ role: null })
+export const PermissionContext = createContext<PermissionContextValue>({ role: null, status: 'not-applicable' })
 
 /**
  * The caller's resolved {@link Role} for the ACTIVE account, or `null`.
@@ -34,6 +38,13 @@ export const PermissionContext = createContext<PermissionContextValue>({ role: n
  */
 export function useRole(): Role | null {
   return useContext(PermissionContext).role
+}
+
+/** Status of the active membership lookup. Providerless test/isolated contexts retain the historic
+ * role-only API: a concrete supplied role is resolved, while null means no membership applies. */
+export function usePermissionStatus(): NonNullable<PermissionContextValue['status']> {
+  const value = useContext(PermissionContext)
+  return value.status ?? (value.role === null ? 'not-applicable' : 'resolved')
 }
 
 /**

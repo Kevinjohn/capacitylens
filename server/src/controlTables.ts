@@ -401,23 +401,167 @@ export function listMembersForAccount(db: Db, accountId: string): AccountMember[
   })
 }
 
+/** Physical uniqueness backstop for the exactly-one-active-Owner product rule. The partial index
+ * permits any number of non-owner memberships while allowing at most one active Owner per account;
+ * the post-migration assertion below independently rejects a member-bearing account with no Owner. */
+export const SINGLE_OWNER_INDEX = 'idx_account_members_single_active_owner'
+
 /**
- * Count an account's ACTIVE owners — the LAST-OWNER backstop for member-management (P1.11). The
- * server refuses to demote/remove the sole remaining owner (would strand the account ownerless); this
- * is the count that rule reads. Counts ONLY `role='owner' AND status='active'` (a non-active owner is
- * not a real owner for access purposes — see membership.ts).
+ * Upgrade the control plane to the exactly-one-Owner model.
  *
- * @param db         The open SQLite handle.
- * @param accountId  The account whose active owners to count.
- * @returns The number of active owner memberships of `accountId`.
+ * Alpha builds briefly allowed co-owners and Owner invites. Migration keeps the oldest active
+ * Owner (createdAt, then userId for deterministic ties), demotes every additional active Owner to
+ * Admin, revokes unused Owner invites, then installs the partial unique index that prevents
+ * co-ownership recurring. Used Owner invites remain as non-secret historical rows; they cannot be
+ * redeemed again.
+ *
+ * Idempotent and transaction-safe; database migration v10 is its only production caller.
  */
-export function countOwners(db: Db, accountId: string): number {
-  const row = db
-    .prepare(
-      `SELECT COUNT(*) AS n FROM account_members WHERE accountId = ? AND role = 'owner' AND status = 'active'`,
+export function migrateSingleOwnerControlPlaneV10(db: Db): void {
+  tx(db, () => {
+    db.exec(`
+      UPDATE account_members AS demoted
+         SET role = 'admin'
+       WHERE demoted.role = 'owner'
+         AND demoted.status = 'active'
+         AND EXISTS (
+           SELECT 1
+             FROM account_members AS retained
+            WHERE retained.accountId = demoted.accountId
+              AND retained.role = 'owner'
+              AND retained.status = 'active'
+              AND (
+                retained.createdAt < demoted.createdAt OR
+                (retained.createdAt = demoted.createdAt AND retained.userId < demoted.userId)
+              )
+         );
+      DELETE FROM invites WHERE role = 'owner' AND usedAt IS NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS ${SINGLE_OWNER_INDEX}
+        ON account_members(accountId)
+        WHERE role = 'owner' AND status = 'active';
+    `)
+  })
+}
+
+/** Historical v10 assertion. Keep its semantics stable: v10 enforced at most one active Owner and
+ * removed live Owner invites, while v11 adds the zero-Owner half of the invariant. */
+export function assertSingleOwnerControlPlaneV10(db: Db): void {
+  const index = (db.prepare(`PRAGMA index_list(account_members)`).all() as Array<{
+    name: string
+    unique: number
+    partial: number
+  }>).find((candidate) => candidate.name === SINGLE_OWNER_INDEX)
+  if (!index || index.unique !== 1 || index.partial !== 1) {
+    throw new Error(`DB control schema is behind the current model — missing partial unique index ${SINGLE_OWNER_INDEX}.`)
+  }
+  const duplicate = db.prepare(`
+    SELECT accountId, COUNT(*) AS owners
+      FROM account_members
+     WHERE role = 'owner' AND status = 'active'
+     GROUP BY accountId
+    HAVING COUNT(*) > 1
+     LIMIT 1
+  `).get() as { accountId: string; owners: number } | undefined
+  if (duplicate) {
+    throw new Error(
+      `DB control data violates the exactly-one-Owner invariant — ${duplicate.accountId} has ${duplicate.owners} active Owners.`,
     )
-    .get(accountId) as { n: number }
-  return row.n
+  }
+  const pendingOwnerInvite = db.prepare(
+    `SELECT id FROM invites WHERE role = 'owner' AND usedAt IS NULL LIMIT 1`,
+  ).get() as { id: string } | undefined
+  if (pendingOwnerInvite) {
+    throw new Error('DB control data contains an unused Owner invite; ownership must be transferred, never invited.')
+  }
+}
+
+/** Migration v11 completes the exactly-one-Owner rule for databases that had active members but no
+ * Owner. The oldest active member is promoted deterministically; auth-off datasets with no
+ * membership rows remain untouched. */
+export function migrateOwnerlessControlPlaneV11(db: Db): void {
+  tx(db, () => {
+    db.exec(`
+      UPDATE account_members AS promoted
+         SET role = 'owner'
+       WHERE promoted.status = 'active'
+         AND NOT EXISTS (
+           SELECT 1
+             FROM account_members AS existing_owner
+            WHERE existing_owner.accountId = promoted.accountId
+              AND existing_owner.role = 'owner'
+              AND existing_owner.status = 'active'
+         )
+         AND NOT EXISTS (
+           SELECT 1
+             FROM account_members AS earlier_member
+            WHERE earlier_member.accountId = promoted.accountId
+              AND earlier_member.status = 'active'
+              AND (
+                earlier_member.createdAt < promoted.createdAt OR
+                (earlier_member.createdAt = promoted.createdAt AND earlier_member.userId < promoted.userId)
+              )
+         );
+    `)
+  })
+}
+
+/** Migration v12 closes the reset-ceremony gap in historical v11 databases. V11 promoted the
+ * oldest member of an ownerless company with raw SQL, bypassing upsertMember's privilege-change
+ * invalidation. Revoke outstanding verification ceremonies for every active Owner: this includes
+ * anyone v11 promoted on an already-upgraded database and is harmless for pre-existing Owners. */
+export function migrateOwnerResetCeremoniesV12(db: Db): void {
+  tx(db, () => {
+    const owners = db.prepare(`
+      SELECT DISTINCT userId
+        FROM account_members
+       WHERE role = 'owner' AND status = 'active'
+    `).all() as Array<{ userId: string }>
+    for (const { userId } of owners) revokeResetTokensForUser(db, userId)
+  })
+}
+
+/** Assert the current control-plane invariant after every database open. Kept separate from
+ * assertControlTablesCurrent because migration v8 intentionally calls that historical assertion
+ * before the owner migrations have run. */
+export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
+  assertSingleOwnerControlPlaneV10(db)
+  const columns = db.prepare(`PRAGMA index_info(${SINGLE_OWNER_INDEX})`).all() as Array<{ name: string }>
+  const definition = db.prepare(
+    `SELECT tbl_name AS tableName, sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
+  ).get(SINGLE_OWNER_INDEX) as { tableName: string; sql: string | null } | undefined
+  const normalizeSql = (sql: string): string => sql
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([(),=])\s*/g, '$1')
+    .replace(/;$/, '')
+    .trim()
+  const expectedDefinition = normalizeSql(
+    `CREATE UNIQUE INDEX ${SINGLE_OWNER_INDEX} ON account_members(accountId) WHERE role = 'owner' AND status = 'active'`,
+  )
+  if (
+    columns.length !== 1 || columns[0]?.name !== 'accountId' ||
+    definition?.tableName !== 'account_members' || !definition.sql ||
+    normalizeSql(definition.sql) !== expectedDefinition
+  ) {
+    throw new Error(`DB control schema has an invalid definition for partial unique index ${SINGLE_OWNER_INDEX}.`)
+  }
+
+  // Auth-off demo datasets intentionally have no membership rows. Once an account has any active
+  // member, however, it must have exactly one active Owner — zero and co-owner states both fail.
+  const invalidAccount = db.prepare(`
+    SELECT accountId,
+           SUM(CASE WHEN role = 'owner' THEN 1 ELSE 0 END) AS owners
+      FROM account_members
+     WHERE status = 'active'
+     GROUP BY accountId
+    HAVING SUM(CASE WHEN role = 'owner' THEN 1 ELSE 0 END) <> 1
+     LIMIT 1
+  `).get() as { accountId: string; owners: number } | undefined
+  if (invalidAccount) {
+    throw new Error(
+      `DB control data violates the exactly-one-Owner invariant — ${invalidAccount.accountId} has ${invalidAccount.owners} active Owners.`,
+    )
+  }
 }
 
 /**

@@ -20,6 +20,7 @@ import {
   Pencil,
   Plus,
   Redo2,
+  ShieldCheck,
   SlidersHorizontal,
   Sun,
   Tag,
@@ -52,6 +53,7 @@ export type IconName =
   | 'clipboard-check'
   | 'sun'
   | 'sliders'
+  | 'shield-check'
   | 'panel-left'
   // Read-only "View only" badge (P1.12 — a Viewer's sidebar footer).
   | 'eye'
@@ -75,6 +77,7 @@ const ICONS: Record<IconName, LucideIcon> = {
   'clipboard-check': ClipboardCheck,
   sun: Sun,
   sliders: SlidersHorizontal,
+  'shield-check': ShieldCheck,
   'panel-left': PanelLeft,
   eye: Eye,
 }

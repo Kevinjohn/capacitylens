@@ -6,6 +6,7 @@ import { useStore } from '../store/useStore'
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
 import { attachPersistence } from '../data/persist'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
+import { setOfflineReadState } from '../data/offlineCache'
 
 vi.mock('../data/apiConfig', () => ({
   API_BASE: '',
@@ -27,6 +28,7 @@ beforeEach(() => {
   useStore.getState().setNotice(null)
   // Reset hydrated state to false before each test
   useStore.getState().setHydrated(false)
+  setOfflineReadState(false)
 })
 
 function renderAppShell(initialEntries: string[] = ['/']) {
@@ -58,11 +60,21 @@ it('guards navigation while a persistence write is still unacknowledged', () => 
 })
 
 describe('AppShell navigation links', () => {
+  it('labels a cached snapshot as Offline and view only instead of Demo access', () => {
+    setOfflineReadState(true, Date.parse('2026-07-17T10:00:00.000Z'))
+    renderAppShell()
+
+    expect(screen.getByTestId('active-role')).toHaveTextContent('Offline · View only')
+    expect(screen.getByTestId('active-role')).not.toHaveTextContent('Demo access')
+    expect(screen.getByTestId('view-only')).toHaveTextContent('Offline · View only')
+  })
+
   it('renders all expected nav links', () => {
     renderAppShell()
 
     expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Resources' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Team & access' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Disciplines' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Clients' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Projects' })).toBeInTheDocument()
@@ -88,6 +100,7 @@ describe('AppShell navigation links', () => {
 
     expect(screen.getByRole('link', { name: 'Schedule' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Resources' })).toHaveAttribute('href', '/resources')
+    expect(screen.getByRole('link', { name: 'Team & access' })).toHaveAttribute('href', '/team')
     expect(screen.getByRole('link', { name: 'Disciplines' })).toHaveAttribute('href', '/disciplines')
     expect(screen.getByRole('link', { name: 'Clients' })).toHaveAttribute('href', '/clients')
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects')
@@ -122,11 +135,11 @@ describe('AppShell sidebar collapse', () => {
       screen.getByRole('button', { name: 'Collapse menu' }).click()
     })
 
-    // The skip-to-content link survives; the eight NAV links must be gone (External moved into the
+    // The skip-to-content link survives; the nine NAV links must be gone (External moved into the
     // Resources tab, so it's no longer a standalone nav link).
     expect(screen.queryByRole('link', { name: 'Schedule' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
-    expect(screen.getAllByTestId('nav-rail-item')).toHaveLength(8)
+    expect(screen.getAllByTestId('nav-rail-item')).toHaveLength(9)
     expect(screen.getByRole('button', { name: 'Expand menu' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByTestId('export-data')).not.toBeInTheDocument()
     expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed')

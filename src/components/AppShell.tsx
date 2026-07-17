@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState, type CSSProperties } from 'react'
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster, toast } from 'sonner'
 import { useStore } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
@@ -11,11 +11,13 @@ import { IntroPage } from './IntroPage'
 import { ConnectionError } from './ConnectionError'
 import { CommandPalette } from './CommandPalette'
 import { PermissionProvider } from '../auth/PermissionProvider'
-import { useRole } from '../auth/permissionContext'
+import { usePermissionStatus, useRole } from '../auth/permissionContext'
+import { useAuth } from '../auth/authContext'
 import { useAccountSummaries } from '../auth/useAccountSummaries'
 import { Icon } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
+import { Badge } from './ui/badge'
 import { cn } from '@/lib/utils'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m, syncLocaleFromAccount } from '@/i18n'
@@ -23,6 +25,9 @@ import { LINKS } from '../lib/navLinks'
 import { AUDIT_WARNING_EVENT } from '../lib/auditWarning'
 import { useOfflineState } from '../data/useOfflineState'
 import { hasUnsavedPersistenceWrites } from '../data/persist'
+import { roleLabel } from '../lib/accessCopy'
+import { accessExperienceFor } from '../lib/accessMode'
+import { readJoinedAccountHandoff } from '../lib/joinedAccountHandoff'
 
 export function AppShell() {
   // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, the demo build
@@ -47,6 +52,23 @@ export function AppShell() {
   const accountSummaries = useStore((s) => s.accountSummaries)
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
+  const { pathname, search, hash } = useLocation()
+  const navigate = useNavigate()
+  // Invite signup requires a fresh authenticated boot because the pre-session route deliberately
+  // had no persistence attached. Retain its requested destination in component state while the
+  // account list loads, remove it from the address immediately, and activate it only when that
+  // authoritative list proves the new session may open it. activeAccountId remains non-persistent.
+  const [joinedAccountHandoff] = useState(() => readJoinedAccountHandoff(search))
+  useEffect(() => {
+    if (!joinedAccountHandoff) return
+    void navigate({ pathname, search: '', hash }, { replace: true })
+  }, [hash, joinedAccountHandoff, navigate, pathname])
+  useEffect(() => {
+    if (!joinedAccountHandoff) return
+    if (accountSummaries.some((account) => account.id === joinedAccountHandoff)) {
+      setActiveAccount(joinedAccountHandoff)
+    }
+  }, [accountSummaries, joinedAccountHandoff, setActiveAccount])
   // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
   // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
   // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
@@ -93,7 +115,6 @@ export function AppShell() {
   // — the invite route lives outside this shell and titles itself; this is the defensive default)
   // falls back to the bare brand. `APP_NAME` keeps the brand single-sourced (no literal "CapacityLens"
   // — see shared/brand).
-  const { pathname } = useLocation()
   useEffect(() => {
     const match = LINKS.find(([to]) => to === pathname)
     document.title = match ? `${match[1]()} · ${APP_NAME}` : APP_NAME
@@ -346,9 +367,7 @@ export function AppShell() {
                 <div className="truncate text-sm font-semibold text-ink" title={activeAccount.name}>
                   {activeAccount.name}
                 </div>
-                {/* "View only" badge (P1.12) — appears here for a Viewer; renders nothing otherwise
-                    (incl. the default OFF/local deploy). Inside PermissionProvider's subtree. */}
-                <ViewOnlyBadge />
+                <ActiveRoleBadge />
                 <button
                   type="button"
                   onClick={() => setActiveAccount(null)}
@@ -375,7 +394,7 @@ export function AppShell() {
         ) : (
           /* Collapsed icon rail. The icons are deliberately NOT navigation: tapping
              any of them just expands the menu (a narrow rail is a poor tap target for
-             eight destinations, and a mis-tap would navigate somewhere unintended).
+             nine destinations, and a mis-tap would navigate somewhere unintended).
              They're hidden from the accessibility tree (aria-hidden + tabIndex -1) —
              keyboard and screen-reader users get the single labelled toggle above.
              Filtered through `navLinks`, so a discipline-disabled account drops the tag
@@ -484,23 +503,48 @@ export function AppShell() {
 }
 
 /**
- * The "View only" badge (P1.12) — shown in the sidebar footer beside the company name when the
- * active account's role resolves to `viewer`. Subtle, non-interactive. It is a SEPARATE component so
+ * The active-role badge — shown in the sidebar footer beside the company name for every access
+ * level. It is a SEPARATE component so
  * it consumes the role from {@link PermissionProvider} (mounted around the app body in AppShell);
  * `useRole()` called at AppShell's top level would read the OUTER default (null), not this provider.
- * Renders nothing for any non-viewer role (incl. OFF/local → null), so the default deploy shows it
- * never.
+ * A null role is the clearly-labelled non-authenticated demo/local experience, not a real Owner.
  */
-function ViewOnlyBadge() {
-  if (useRole() !== 'viewer') return null
+function ActiveRoleBadge() {
+  const role = useRole()
+  const permissionStatus = usePermissionStatus()
+  const { authMode } = useAuth()
+  const offline = useOfflineState()
+  const accessExperience = accessExperienceFor(authMode)
+  const resolvedRole = accessExperience === 'authenticated' && permissionStatus === 'resolved' ? role : null
+  const label = offline.readOnly
+    ? m.access_offline_label()
+    : accessExperience === 'demo'
+      ? m.access_demo_label()
+      : accessExperience === 'open'
+        ? m.access_open_label()
+        : permissionStatus === 'pending'
+          ? m.access_checking_label()
+          : permissionStatus === 'unavailable'
+            ? m.access_unavailable_label()
+            : resolvedRole
+              ? roleLabel(resolvedRole)
+              : m.access_unavailable_label()
+  const viewOnly = offline.readOnly || resolvedRole === 'viewer'
   return (
-    <span
-      data-testid="view-only"
-      className="mt-1 inline-flex items-center gap-1 rounded bg-canvas px-1.5 py-0.5 text-2xs font-medium text-muted ring-1 ring-line"
-      title={m.nav_view_only_title()}
+    <Badge
+      data-testid="active-role"
+      variant="outline"
+      className="mt-1 text-2xs text-muted"
+      title={viewOnly ? m.nav_view_only_title() : undefined}
     >
-      <Icon name="eye" size={11} aria-hidden />
-      {m.nav_view_only()}
-    </span>
+      {viewOnly && <Icon name="eye" size={11} />}
+      {offline.readOnly ? (
+        <span data-testid="view-only">{label}</span>
+      ) : resolvedRole === 'viewer' ? (
+        <>
+          {label} · <span data-testid="view-only">{m.nav_view_only()}</span>
+        </>
+      ) : label}
+    </Badge>
   )
 }

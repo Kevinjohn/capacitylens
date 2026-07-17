@@ -17,7 +17,6 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
-import { MembersSection } from './MembersSection'
 import { SecuritySection } from './SecuritySection'
 import { ArchivedSection } from './ArchivedSection'
 import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
@@ -474,11 +473,6 @@ export function SettingsView() {
         )}
 
         {authMode === 'password' && <SecuritySection />}
-
-        {/* Member management (P1.11) — only on an auth-enabled, server-backed deploy, and the section
-            self-gates further (a 403 on the members read hides it for a viewer/editor). OFF/demo mode
-            renders nothing. */}
-        {authMode !== 'off' && <MembersSection />}
 
         {/* Archived & deleted (P2.5b) — the admin view of the data-lifecycle. Unlike Members it ALSO
             shows in the DEMO build (everyone is owner locally); in SERVER mode it self-gates on a 403 from

@@ -1,12 +1,14 @@
 # US-NAV-13 — "Getting started" checklist + "Show me around" tour (first run, empty account)
 
-**Area:** Navigation & shell · **Persona:** New owner setting up their first company · **Linked E2E:** `e2e/getting-started.spec.ts` → all four specs (seeded company never shows the card; empty company shows it and a completed step ticks itself off; "Show me around" drives the loose tour; Dismiss hides it and persists the device flag)
+**Area:** Navigation & shell · **Persona:** New owner setting up their first company · **Linked coverage:** `e2e/getting-started.spec.ts` (core checklist/tour), `e2e/members.auth.spec.ts` (Admin invite path), `e2e/viewer.auth.spec.ts` (Editor/Viewer gates), and `src/components/GettingStarted.test.tsx` (all four roles)
 
 ## Goal
 On a fresh, still-empty company, the schedule shows a small **Getting started** card that walks the
 owner through the four steps that make the app useful — add a client, a project, a person, then
 assign them — plus a **Show me around** button that runs a short spotlight tour of where things
-live (schedule, toolbar, People, Clients & projects, Settings).
+live (schedule, toolbar, People, Clients & projects, Settings). In an authenticated company, Owner
+and Admin also get an optional **Invite your team** path to **Team & access**; it is not a completion
+step and never blocks a solo setup.
 
 ## Why
 An empty schedule explains nothing. The checklist is **state-driven** (each step ticks itself off
@@ -25,11 +27,14 @@ five look-around stops, no navigation, no forced actions — the where, not the 
    clicking/dragging on a person's row.
 3. Click **Add your first client** → you land on the Clients page. Add a client, then return to
    **Schedule** → that step is now ticked (struck through, no longer a link); the others remain.
-4. Click **Show me around** → a spotlight popover opens on the schedule grid with **Next/Back**
+4. When testing a real Owner/Admin membership, confirm **Invite your team** links to `/team` and is
+   labelled optional. An Editor gets the schedule checklist without that access-management link; a
+   Viewer gets neither because every setup action is a write.
+5. Click **Show me around** → a spotlight popover opens on the schedule grid with **Next/Back**
    buttons and a step counter. Step through all five stops (grid → toolbar → People → Clients &
    projects → Settings) → **Done** closes it. Escape at any point also closes it. The URL never
    changes during the tour.
-5. Click **Dismiss** → the card disappears and does not return on this device (even for another
+6. Click **Dismiss** → the card disappears and does not return on this device (even for another
    still-empty company).
 
 ## Acceptance criteria
@@ -49,3 +54,6 @@ five look-around stops, no navigation, no forced actions — the where, not the 
   device-globally (`capacitylens/gettingStartedDismissed`, `'on'`/`'off'`, default off) — never in
   `AppData`/export, cleared by Settings → **Clear local data** like every `capacitylens/` key.
 - A **Viewer** on a server-backed deploy never sees the card (every CTA is a write they can't do).
+- In an authenticated company, **Owner/Admin** see **Invite your team** linking to `/team`; it is
+  visibly optional and outside the four state-driven completion steps. **Editor** sees the schedule
+  checklist without that link; **Viewer** sees neither.

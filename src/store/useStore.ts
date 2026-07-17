@@ -116,11 +116,14 @@ export interface Notice {
  * @property id    The `accountId` a subsequent `GET /api/state?accountId=…` hydrates.
  * @property name  The company name shown in the picker.
  * @property role  The caller's role for this account (OFF/demo supply 'owner' = full access).
+ * @property roleStatus Whether the server supplied a trustworthy role. An unavailable role keeps
+ *   the account selectable but must never be presented as the fail-closed Viewer projection.
  */
 export interface AccountSummary {
   id: ID
   name: string
   role: Role
+  roleStatus?: 'resolved' | 'unavailable'
 }
 
 /** Outcome of an import: how many records landed vs. were dropped as invalid
@@ -290,6 +293,10 @@ export interface StoreState {
    *  state. The server 403 (P1.5) is the TRUE security backstop — this is UX/defense-in-depth, NOT
    *  the access boundary, which is why ANY non-'viewer' value (incl. null = OFF/local) stays editable. */
   activeRole: Role | null
+  /** Monotonic invalidation token for server-owned membership state. Member mutations bump it so
+   *  PermissionProvider and useAccountSummaries re-read the caller's effective role/list without an
+   *  account switch or page reload. Transient: never persisted or included in undo history. */
+  membershipRevision: number
 
   addAccount: (input: Draft<Account>) => Account
   updateAccount: (id: ID, patch: Patch<Account>) => void
@@ -338,6 +345,8 @@ export interface StoreState {
    *  resolves/changes the role (incl. back to null on OFF/local/account-switch). Plain transient
    *  state: never persisted, never on the undo stack. Drives ONLY the defense-in-depth write guard. */
   setActiveRole: (role: Role | null) => void
+  /** Invalidate all client projections derived from account membership. */
+  invalidateMemberships: () => void
   /** Sign out of the cosmetic demo: drop the active company AND the "back" breadcrumb, then
    *  clear the device-global flag so the demo sign-in shows again. Cosmetic only — never
    *  touches the real auth seam (`src/auth/`); both call sites are guarded by `authMode === 'off'`. */
@@ -600,6 +609,7 @@ export const useStore = create<StoreState>()((set, get) => {
     introSeen: readStoredIntroSeen(),
     gettingStartedDismissed: readStoredGettingStartedDismissed(),
     activeRole: null,
+    membershipRevision: 0,
 
     addAccount: (input) => {
       const ts = stamp()
@@ -819,6 +829,7 @@ export const useStore = create<StoreState>()((set, get) => {
     // Plain set (NOT mutate): transient access state, never persisted, never on the undo/redo stack,
     // never in AppData/export. Drives ONLY the inert-unless-viewer write guard above.
     setActiveRole: (role) => set({ activeRole: role }),
+    invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
     // Reuse setActiveAccount(null) to drop the tenant and reset its view/undo state, then ALSO
     // clear previousAccountId (so re-signing-in is a fresh pick, not a one-click "← Back to {company}")
     // and the device-global flag. Cosmetic demo only — the real auth seam (src/auth/) is untouched.

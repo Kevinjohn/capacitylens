@@ -11,7 +11,7 @@ import { m } from '@/i18n'
 import { requestSignal } from '../data/requestTimeout'
 
 // Password-reset page (P1.18; route /reset-password/:token). The token arrives out-of-band — an
-// Owner/Admin minted it in Settings → Members and handed the link over directly (the app has no
+// Owner/Admin minted it in Team & access and handed the link over directly (the app has no
 // email infrastructure, a standing non-goal). This page collects the new password and POSTs Better
 // Auth's PUBLIC redeem endpoint, `${API_BASE}/api/auth/reset-password` — a plain fetch, not the
 // better-auth client, so this lazy chunk stays free of the auth bundle (the endpoint is one JSON

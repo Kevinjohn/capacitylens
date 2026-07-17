@@ -54,7 +54,7 @@ describe('parseBackupConfig (fail-closed)', () => {
 })
 
 describe('pre-migration rollback snapshot', () => {
-  it('copies and verifies v7 before the live handle advances through v8 to v9', async () => {
+  it('copies and verifies v7 before the live handle advances through every current migration', async () => {
     const dir = tempDir()
     const dbPath = join(dir, 'capacitylens.db')
     const legacy = openDb(dbPath)
@@ -69,7 +69,7 @@ describe('pre-migration rollback snapshot', () => {
     const db = openDbConnection(dbPath)
     const plan = planDatabaseMigrations(db)
     expect(plan.fromVersion).toBe(7)
-    expect(plan.migrations.map((migration) => migration.version)).toEqual([8, 9])
+    expect(plan.migrations.map((migration) => migration.version)).toEqual([8, 9, 10, 11, 12])
     const snapshot = await writePreMigrationBackup(
       db,
       { dbPath, fromVersion: plan.fromVersion, toVersion: plan.toVersion, dir: join(dir, 'rollbacks') },

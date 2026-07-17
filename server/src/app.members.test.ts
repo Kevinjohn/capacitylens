@@ -8,10 +8,10 @@ import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
 // P1.11 — Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
-// membership → the five new routes (GET/PATCH/DELETE members, GET/DELETE invites) plus the owner-grant
-// guard on POST /api/invites. Asserts the gates (owner/admin allowed, editor/viewer/non-member 403,
-// session-less 401), the role-change matrix (no admin→owner grant, admin can't touch an owner), the
-// server-only LAST-OWNER protection (sole-owner demote/remove 403), self-target demotion, that the
+// membership → the five new routes (GET/PATCH/DELETE members, GET/DELETE invites) plus the Owner
+// rejection on POST /api/invites. Asserts the gates (owner/admin allowed, editor/viewer/non-member 403,
+// session-less 401), the role-change matrix (Owner changes only through transfer), that the
+// exactly-one-Owner backstop refuses generic demotion/removal/duplication, that the
 // invites LIST never carries the token, cross-tenant revoke is a no-op, and — the headline — that an
 // admin of one account cannot read another account's members (cross-tenant member leak → 403).
 
@@ -240,7 +240,7 @@ describe('PATCH /api/accounts/:id/members/:userId — role change', () => {
     expect(getMemberRole(db, 'a1', target.userId)).toBe('viewer')
   })
 
-  it('admin cannot GRANT owner (no admin→owner escalation) → 403', async () => {
+  it('Owner cannot be assigned through an ordinary role change → 400', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const admin = await signUp(app, 'admin-grant@capacitylens.dev')
@@ -249,7 +249,7 @@ describe('PATCH /api/accounts/:id/members/:userId — role change', () => {
     upsertMember(db, { accountId: 'a1', userId: target.userId, role: 'editor', status: 'active', createdAt: TS })
 
     const res = await patchRoleReq(app, 'a1', target.userId, 'owner', { cookie: admin.cookie })
-    expect(res.statusCode).toBe(403)
+    expect(res.statusCode).toBe(400)
     expect(getMemberRole(db, 'a1', target.userId)).toBe('editor') // unchanged
   })
 
@@ -266,20 +266,18 @@ describe('PATCH /api/accounts/:id/members/:userId — role change', () => {
     expect(getMemberRole(db, 'a1', owner.userId)).toBe('owner')
   })
 
-  it('owner does everything — grants owner + demotes another owner → 200', async () => {
+  it('owner manages ordinary non-owner roles but cannot grant Owner through the role endpoint', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const owner = await signUp(app, 'owner-all@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
-    const owner2 = await signUp(app, 'owner2-all@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: owner2.userId, role: 'owner', status: 'active', createdAt: TS })
     const ed = await signUp(app, 'ed-all@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: ed.userId, role: 'editor', status: 'active', createdAt: TS })
 
-    expect((await patchRoleReq(app, 'a1', ed.userId, 'owner', { cookie: owner.cookie })).statusCode).toBe(200)
-    // With two owners (owner + owner2 + ed-now-owner), demoting one is allowed.
-    expect((await patchRoleReq(app, 'a1', owner2.userId, 'editor', { cookie: owner.cookie })).statusCode).toBe(200)
-    expect(getMemberRole(db, 'a1', owner2.userId)).toBe('editor')
+    expect((await patchRoleReq(app, 'a1', ed.userId, 'admin', { cookie: owner.cookie })).statusCode).toBe(200)
+    expect(getMemberRole(db, 'a1', ed.userId)).toBe('admin')
+    expect((await patchRoleReq(app, 'a1', ed.userId, 'owner', { cookie: owner.cookie })).statusCode).toBe(400)
+    expect(getMemberRole(db, 'a1', ed.userId)).toBe('admin')
   })
 
   it('404 for a non-member target; 400 for a bad role', async () => {
@@ -295,47 +293,35 @@ describe('PATCH /api/accounts/:id/members/:userId — role change', () => {
   })
 })
 
-describe('LAST-OWNER protection (server-only, count-based)', () => {
-  it('demoting the SOLE owner → 403; with a second owner → 200', async () => {
+describe('exactly-one-Owner protection', () => {
+  it('the Owner cannot be demoted through the generic role endpoint', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const owner = await signUp(app, 'sole-owner@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
 
-    // Sole owner self-demote is blocked.
     expect((await patchRoleReq(app, 'a1', owner.userId, 'editor', { cookie: owner.cookie })).statusCode).toBe(403)
     expect(getMemberRole(db, 'a1', owner.userId)).toBe('owner')
-
-    // Add a second owner; now the FIRST owner can step down (account keeps an owner).
-    const owner2 = await signUp(app, 'second-owner@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: owner2.userId, role: 'owner', status: 'active', createdAt: TS })
-    expect((await patchRoleReq(app, 'a1', owner.userId, 'editor', { cookie: owner2.cookie })).statusCode).toBe(200)
   })
 
-  it('removing the SOLE owner → 403; with a second owner → 204', async () => {
+  it('the Owner cannot be removed through the member endpoint', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const owner = await signUp(app, 'rm-sole@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
     expect((await removeReq(app, 'a1', owner.userId, { cookie: owner.cookie })).statusCode).toBe(403)
-
-    const owner2 = await signUp(app, 'rm-second@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: owner2.userId, role: 'owner', status: 'active', createdAt: TS })
-    expect((await removeReq(app, 'a1', owner.userId, { cookie: owner2.cookie })).statusCode).toBe(204)
-    expect(getMemberRole(db, 'a1', owner.userId)).toBeNull()
   })
 
-  it('owner self-demote is allowed when ANOTHER owner exists (self-target)', async () => {
+  it('the database refuses a second active Owner', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const owner = await signUp(app, 'self-demote@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
-    const owner2 = await signUp(app, 'self-demote2@capacitylens.dev')
-    upsertMember(db, { accountId: 'a1', userId: owner2.userId, role: 'owner', status: 'active', createdAt: TS })
-
-    const res = await patchRoleReq(app, 'a1', owner.userId, 'admin', { cookie: owner.cookie })
-    expect(res.statusCode).toBe(200)
-    expect(getMemberRole(db, 'a1', owner.userId)).toBe('admin')
+    const owner2 = await signUp(app, 'second-owner-constraint@capacitylens.dev')
+    expect(() => upsertMember(db, {
+      accountId: 'a1', userId: owner2.userId, role: 'owner', status: 'active', createdAt: TS,
+    })).toThrow(/unique/i)
+    expect(getMemberRole(db, 'a1', owner.userId)).toBe('owner')
   })
 })
 
@@ -431,8 +417,8 @@ describe('DELETE /api/accounts/:id/invites/:inviteId — revoke', () => {
   })
 })
 
-describe('POST /api/invites — owner-grant guard (P1.11)', () => {
-  it('admin inviting an OWNER is 403; owner inviting an owner is 201', async () => {
+describe('POST /api/invites — Owner is never invitational', () => {
+  it('both Admin and Owner receive 400 for an Owner invite; ordinary roles still work', async () => {
     const { app, db } = await appWithAuth()
     seedTwo(db)
     const admin = await signUp(app, 'inv-owner-admin@capacitylens.dev')
@@ -440,8 +426,8 @@ describe('POST /api/invites — owner-grant guard (P1.11)', () => {
     const owner = await signUp(app, 'inv-owner-owner@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: owner.userId, role: 'owner', status: 'active', createdAt: TS })
 
-    expect((await createInviteReq(app, { accountId: 'a1', role: 'owner' }, { cookie: admin.cookie })).statusCode).toBe(403)
-    expect((await createInviteReq(app, { accountId: 'a1', role: 'owner' }, { cookie: owner.cookie })).statusCode).toBe(201)
+    expect((await createInviteReq(app, { accountId: 'a1', role: 'owner' }, { cookie: admin.cookie })).statusCode).toBe(400)
+    expect((await createInviteReq(app, { accountId: 'a1', role: 'owner' }, { cookie: owner.cookie })).statusCode).toBe(400)
     // An admin may still invite a non-owner role.
     expect((await createInviteReq(app, { accountId: 'a1', role: 'editor' }, { cookie: admin.cookie })).statusCode).toBe(201)
   })

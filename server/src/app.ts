@@ -72,7 +72,6 @@ import {
 import { sqliteTenantStore } from './tenantStore'
 import { listAccounts, resolveRole } from './membership'
 import {
-  countOwners,
   createInvite,
   getInvite,
   InviteAlreadyUsedError,
@@ -262,11 +261,11 @@ const LOG_REDACT_PATHS = [
   'res.headers["set-cookie"]',
 ]
 
-// P1.9: mask the bearer token in the invite-accept URL before it reaches the access log. The token
+// Mask the bearer token in every token-scoped invite URL before it reaches the access log. The token
 // is the ONLY path-borne secret in the API; every other URL passes through unchanged. Anchored to
 // the exact `/api/invites/<token>/accept` shape (optionally with a query string) so a normal path
 // is never mangled. The match is on the path-with-query string pino logs (req.url).
-const INVITE_OPERATION_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup))(.*)$/
+const INVITE_OPERATION_URL_RE = /^(\/api\/invites\/)[^/?#]+(\/(?:accept|signup|preview))(.*)$/
 // `url` is typed unknown because the serializer may also run over a hand-built `{ req: {...} }`
 // record (e.g. app.log.info(...)) whose url is absent; a non-string passes through untouched.
 const redactSecretUrl = (url: unknown): string | undefined => {
@@ -765,8 +764,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       ? {
           ...(opts.logStream ? { stream: opts.logStream } : {}),
           redact: { paths: LOG_REDACT_PATHS, remove: true },
-          // P1.9 access-log hygiene: the invite-accept URL carries the bearer token in the path
-          // (`/api/invites/<token>/accept`), and pino logs req.url VERBATIM (only headers are
+          // Access-log hygiene: token-scoped invite URLs carry the bearer token in the path,
+          // and pino logs req.url VERBATIM (only headers are
           // redacted via redact above). Rewrite just that one URL shape to mask the :token segment
           // so the live token never reaches stdout under CAPACITYLENS_LOG. All other URLs pass
           // through untouched. This is REQUEST-log hygiene — entirely separate from the P1.15 audit
@@ -804,7 +803,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       : sendFail(reply, err)
   const securityEvent = (event: Record<string, unknown>): void => {
     try {
-      opts.securityLog?.(event)
+      // Central path-secret boundary: every security event passes here, including early auth/MFA/
+      // rate-limit refusals. A caller cannot accidentally bypass invite-token redaction by logging
+      // the raw request path instead of remembering to sanitize it at each event site.
+      const safeEvent = typeof event.path === 'string'
+        ? { ...event, path: redactSecretUrl(event.path) }
+        : event
+      opts.securityLog?.(safeEvent)
     } catch (error) {
       // A monitoring transport must never turn a safe refusal into an application outage.
       if (logOn) app.log.error(error, 'security event logging failed')
@@ -975,10 +980,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       path === '/api/security/csp-report' ||
       path.startsWith('/api/auth/')
     ) return
-    // A genuinely new password user has no session yet. This one endpoint is instead authorized
-    // by the unexpired single-use invite bearer token, which its handler validates before creating
-    // an identity. No tenant data is returned and no other API route is exempted.
+    // A genuinely new password user has no session yet. Signup is authorized by the unexpired
+    // single-use invite bearer token. Preview is also bearer-authorized and returns only the company
+    // display name, proposed role and expiry — never tenant rows, members or identity facts.
     if (/^\/api\/invites\/[^/]+\/signup$/.test(path)) return
+    if (req.method === 'GET' && /^\/api\/invites\/[^/]+\/preview$/.test(path)) return
     if (authMode === 'off') {
       req.user = DEMO_USER
       return
@@ -1508,6 +1514,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (!isKnownRole(body.role)) {
         return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
       }
+      if (body.role === 'owner') {
+        return reply.code(400).send({
+          error: 'Owner access cannot be invited. Transfer ownership to an existing member instead.',
+        })
+      }
       // Shape-check preauthEmail here, BEFORE the authorize() gate below, so a malformed email is
       // rejected with 400 and never reaches the write. A non-string, or a
       // string that is empty after trim ⇒ link invite (null). A non-empty value MUST look like an
@@ -1525,14 +1536,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
       // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
       if (!authorize(req, reply, body.accountId, 'manageInvites')) return
-      // OWNER-GRANT GUARD (P1.11): minting an `owner` invite is an ownership grant, so it requires the
-      // caller be owner-tier — an admin (who passes manageInvites) must NOT be able to escalate to
-      // owner by inviting one. This closes the admin→owner escalation via the invite path, mirroring
-      // the pure canManageMemberRole "no admin→owner grant" rule on the direct role-change route. OFF
-      // mode (trusted-local) skips it like every other gate — req.user is DEMO_USER, not a real owner.
-      if (body.role === 'owner' && authMode !== 'off' && resolveRole(db, req.user!, body.accountId) !== 'owner') {
-        return reply.code(403).send({ error: 'Only an owner can invite an owner.' })
-      }
       const requestedExpiry = body.expiresAt
       const nowMs = Date.now()
       let expiresAt: string
@@ -1581,9 +1584,40 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // already-authorised admin — it is never exposed on any read path (invites are off AppData).
         return reply
           .code(201)
-          .send({ token, accountId: invite.accountId, role: invite.role, expiresAt, preauthEmail })
+          .send({ id: invite.id, token, accountId: invite.accountId, role: invite.role, expiresAt, preauthEmail })
       } catch (err) {
         return sendFail(reply, err)
+      }
+    })
+
+    // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized —
+    // only someone holding the unguessable token can read this deliberately small display shape.
+    // No membership/user table is touched, and no account data beyond the company name leaves.
+    app.get('/api/invites/:token/preview', (req, reply) => {
+      const { token } = req.params as { token: string }
+      try {
+        const invite = getInvite(db, token)
+        if (!invite) return reply.code(404).send({ error: 'Invite not found.' })
+        if (invite.usedAt !== null) {
+          return reply.code(409).send({ error: 'This invite has already been used.' })
+        }
+        if (inviteIsExpired(invite.expiresAt)) {
+          return reply.code(410).send({ error: 'This invite has expired.' })
+        }
+        if (invite.role === 'owner') {
+          return reply.code(410).send({ error: 'This Owner invite is no longer valid. Ownership must be transferred.' })
+        }
+        const account = getRow(db, 'accounts', invite.accountId) as { name?: unknown } | undefined
+        if (!account || typeof account.name !== 'string') {
+          return reply.code(410).send({ error: 'The company for this invite no longer exists.' })
+        }
+        return {
+          accountName: account.name,
+          role: invite.role,
+          expiresAt: invite.expiresAt,
+        }
+      } catch (err) {
+        return inviteFail(reply, err)
       }
     })
 
@@ -1608,6 +1642,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (inviteIsExpired(invite.expiresAt)) {
           return reply.code(410).send({ error: 'This invite has expired.' })
         }
+        if (invite.role === 'owner') {
+          return reply.code(410).send({ error: 'This Owner invite is no longer valid. Ownership must be transferred.' })
+        }
         if (!getRow(db, 'accounts', invite.accountId)) {
           return reply.code(410).send({ error: 'The company for this invite no longer exists.' })
         }
@@ -1627,7 +1664,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const now = new Date().toISOString()
         // Atomic: the membership and the consume commit together or roll back together — a half-applied
         // accept (role bound but token still live, or token consumed with no membership) is impossible.
-        let effectiveRole = invite.role
+        // Explicitly widen after the non-invitational Owner guard above: an existing membership may
+        // itself be Owner, and accepting a lower-tier link must preserve that role exactly.
+        let effectiveRole: Role = invite.role
         tx(db, () => {
           const existingRole = getMemberRole(db, invite.accountId, req.user!.id)
           // An invite adds a membership; it is not a role-management route. Preserve any existing
@@ -1668,6 +1707,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
       if (inviteIsExpired(invite.expiresAt)) {
         return reply.code(410).send({ error: 'This invite has expired.' })
+      }
+      if (invite.role === 'owner') {
+        return reply.code(410).send({ error: 'This Owner invite is no longer valid. Ownership must be transferred.' })
       }
       if (!getRow(db, 'accounts', invite.accountId)) {
         return reply.code(410).send({ error: 'The company for this invite no longer exists.' })
@@ -1752,11 +1794,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // Owner/Admin list / change-role / revoke members of THEIR account, plus list / revoke outstanding
     // invites. Every route gates through the SAME authorize seam (cross-tenant → 403 automatically):
     // members under 'manageMembers', invites under 'manageInvites' (both admin-tier). The pure shared
-    // guards (canManageMemberRole / canRemoveMember) decide who-may-touch-whom (no admin→owner grant,
-    // admin can't touch an owner); the server ADDS the count-based LAST-OWNER protection (countOwners),
-    // which needs DB I/O and so can't live in the pure layer. OFF mode (trusted-local) has no real
-    // member model, so the list routes return empty and the mutate routes are inert no-ops — the UI is
-    // hidden in OFF anyway, but the endpoints must not crash if called.
+    // guards (canManageMemberRole / canRemoveMember) keep Owner outside ordinary role and removal
+    // operations for every actor. Owner changes are not ordinary member mutations: the single
+    // Owner moves only through the transactional transfer endpoint, while a partial unique index and
+    // boot assertion enforce exactly one Owner for every member-bearing company. OFF mode
+    // (trusted-local) has no real member model, so the list routes return empty and the mutate routes
+    // are inert no-ops — the UI is hidden in OFF anyway, but the endpoints must not crash if called.
 
     // LIST members. Joins the membership rows with Better Auth user identity (name/email, read ONLY
     // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
@@ -1810,13 +1853,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     })
 
-    // CHANGE a member's role. Body { role }. 400 bad role; 404 non-member; 403 by the pure guard
-    // (no admin→owner grant, admin can't touch an owner); 403 LAST-OWNER (demoting the sole owner).
+    // CHANGE a non-owner member's ordinary role. Owner is rejected at shape/policy level for every
+    // actor; the only ownership mutation is the explicit atomic transfer route below.
     app.patch('/api/accounts/:accountId/members/:userId', (req, reply) => {
       const { accountId, userId } = req.params as { accountId: string; userId: string }
       const body = (req.body ?? {}) as { role?: unknown }
       if (!isKnownRole(body.role)) {
         return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
+      }
+      if (body.role === 'owner') {
+        return reply.code(400).send({
+          error: 'Owner access cannot be assigned as a role change. Use transfer ownership instead.',
+        })
       }
       const nextRole = body.role
       if (!authorize(req, reply, accountId, 'manageMembers')) return
@@ -1830,10 +1878,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const actorRole = resolveRole(db, req.user!, accountId)! // non-null: authorize proved membership
         if (!canManageMemberRole(actorRole, targetRole, nextRole)) {
           return reply.code(403).send({ error: 'Forbidden.' })
-        }
-        // LAST-OWNER backstop (needs DB I/O, so not in the pure guard): never demote the sole owner.
-        if (targetRole === 'owner' && nextRole !== 'owner' && countOwners(db, accountId) <= 1) {
-          return reply.code(403).send({ error: 'An account must keep at least one owner.' })
         }
         // upsertMember burns the target's outstanding reset links (P1.18 TOCTOU close) — a role
         // change would otherwise let a pre-change link redeem into the new role. Centralised there so
@@ -1855,8 +1899,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     })
 
-    // REVOKE a member. 404 non-member; 403 by the pure guard (admin can't remove an owner); 403
-    // LAST-OWNER (removing the sole owner). 204 on success.
+    // REVOKE a member. 404 non-member; 403 by the pure guard (the Owner is never removable here).
+    // 204 on success.
     app.delete('/api/accounts/:accountId/members/:userId', (req, reply) => {
       const { accountId, userId } = req.params as { accountId: string; userId: string }
       if (!authorize(req, reply, accountId, 'manageMembers')) return
@@ -1870,9 +1914,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const actorRole = resolveRole(db, req.user!, accountId)! // non-null: authorize proved membership
         if (!canRemoveMember(actorRole, targetRole)) {
           return reply.code(403).send({ error: 'Forbidden.' })
-        }
-        if (targetRole === 'owner' && countOwners(db, accountId) <= 1) {
-          return reply.code(403).send({ error: 'An account must keep at least one owner.' })
         }
         removeMember(db, accountId, userId)
         audit(reply, {
@@ -1889,8 +1930,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // to admin, atomically. Gated 'transferOwnership' — the ONE action above admin in the matrix, so a
     // mere admin is 403 (authorize resolves the caller's role for this account). Body { toUserId }. The
     // target must already be an active member (404 else) and not the caller (400 — you're already owner).
-    // Promote-target and demote-caller commit in ONE tx, so the account always retains an owner (the new
-    // one) and is never mid-flight ownerless — hence no separate last-owner backstop is needed. OFF mode
+    // Demote-caller and promote-target commit in ONE tx, so no other request observes an ownerless
+    // account and the v10 unique index never permits co-owners. OFF mode
     // (trusted-local) has no real owner model, so it is an inert no-op success (the UI is hidden in OFF).
     app.post('/api/accounts/:accountId/transfer-ownership', (req, reply) => {
       const { accountId } = req.params as { accountId: string }
@@ -1911,14 +1952,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const targetRole = getMemberRole(db, accountId, toUserId)
         if (targetRole === null) return reply.code(404).send({ error: 'Not a member of this account.' })
         const now = new Date().toISOString()
-        // Atomic hand-over: promote the target and demote the caller together, so the account is never
-        // left without an owner and never transiently shows the caller as a non-owner mid-transfer.
+        // Atomic hand-over: demote then promote inside one transaction. The v10 partial unique index
+        // forbids two active Owners, while transaction isolation means no other request can observe
+        // the intermediate statement with no Owner.
         // Both upserts burn their users' outstanding reset links (P1.18 TOCTOU close, centralised in
         // upsertMember): the promoted target's pre-promotion link can't redeem into the new owner
         // identity, and the demoted caller's are cleared too (harmless).
         tx(db, () => {
-          upsertMember(db, { accountId, userId: toUserId, role: 'owner', status: 'active', createdAt: now })
           upsertMember(db, { accountId, userId: req.user!.id, role: 'admin', status: 'active', createdAt: now })
+          upsertMember(db, { accountId, userId: toUserId, role: 'owner', status: 'active', createdAt: now })
         })
         audit(reply, {
           ts: now, userId: req.user!.id, accountId, action: 'ownershipTransfer',

@@ -1,6 +1,6 @@
 # US-NAV-14 — Company picker gives one clear next step (empty and populated states)
 
-**Area:** Navigation & shell · **Persona:** New owner or invited teammate · **Linked automated coverage:** `src/components/accounts/AccountPicker.test.tsx` (empty-state copy, permission branch, multi-company copy and no onboarding colour choice), `e2e/onboarding.spec.ts` (create flow), `e2e/onboarding.db.spec.ts` (server permission/cap enforcement)
+**Area:** Navigation & shell · **Persona:** New owner or invited teammate · **Linked automated coverage:** `src/components/accounts/AccountPicker.test.tsx` (empty-state copy, permission branch, visible membership roles, multi-company copy and no onboarding colour choice), `e2e/onboarding.spec.ts` (create flow), `e2e/onboarding.db.spec.ts` (server permission/cap enforcement)
 
 ## Goal
 
@@ -36,6 +36,9 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 6. Return to a picker with at least one company. Confirm the subtitle reads
    **“Choose a company to plan, or create another one.”** only when another company may be created;
    otherwise it reads **“Choose a company to plan.”**
+7. In an authenticated deploy, confirm every company shows the caller's membership role — **Owner**,
+   **Admin**, **Editor** or **Viewer** — before it is opened. The demo instead says **Demo access**;
+   an auth-off persisted server says **Open access**.
 
 ## Acceptance criteria
 
@@ -47,6 +50,9 @@ colour is automatic, so onboarding does not create an unnecessary design task.
 - ✅ The populated state uses **“Choose a company to plan, or create another one.”** only when
   `canCreateAccount` is true; at the single-company cap it uses **“Choose a company to plan.”** and
   hides **New company**.
+- ✅ Every populated company row shows its honest access posture (`data-testid="company-role"`): a
+  membership role only in authenticated mode, **Demo access** in the in-memory demo, or **Open
+  access** on an auth-off persisted server.
 - ✅ The create form captures Company name, Week starts on, Timezone and read-only Language
   (English), then activates the created company and lands on Schedule.
 - ✅ The create form has no company-colour control; the account receives the default preset

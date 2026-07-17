@@ -58,7 +58,7 @@ test.describe('landscape phone', () => {
     // itself stays hidden — landscape is the recommended orientation).
     await expect(page.getByRole('dialog', { name: 'Best in landscape' })).toBeHidden()
     await expect(page.getByRole('link', { name: 'Projects' })).toBeHidden()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
 
     // A rail icon is not navigation: tapping "Projects" expands the menu, URL unchanged.
     await page.locator('[data-testid="nav-rail-item"][data-label="Projects"]').click()
@@ -72,10 +72,10 @@ test.describe('landscape phone', () => {
 
     // Collapsing persists device-globally: still a rail after reload + re-pick.
     await page.getByRole('button', { name: 'Collapse menu' }).click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
     await page.reload()
     await page.getByRole('button', { name: 'Studio North', exact: true }).click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
     await expect(page.getByRole('link', { name: 'Projects' })).toBeHidden()
   })
 })
@@ -85,7 +85,7 @@ test.describe('desktop', () => {
     await openApp(page)
 
     await expect(page.getByTestId('nav-rail-item')).toHaveCount(0)
-    for (const name of ['Schedule', 'Resources', 'Disciplines', 'Clients', 'Projects', 'Activities', 'Time off', 'Settings']) {
+    for (const name of ['Schedule', 'Resources', 'Team & access', 'Disciplines', 'Clients', 'Projects', 'Activities', 'Time off', 'Settings']) {
       const link = page.getByRole('link', { name, exact: true })
       await expect(link).toBeVisible()
       await expect(link.locator('svg')).toHaveCount(1)
@@ -94,7 +94,7 @@ test.describe('desktop', () => {
     const toggle = page.getByRole('button', { name: 'Collapse menu' })
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
     await toggle.click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
     await expect(page.getByRole('button', { name: 'Expand menu' })).toHaveAttribute('aria-expanded', 'false')
   })
 })

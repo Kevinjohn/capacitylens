@@ -5,7 +5,7 @@ test.use({ reducedMotion: 'reduce' })
 
 // P1.18 — admin-issued password-reset links, against the auth-backed project's server
 // (CAPACITYLENS_AUTH=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an
-// org, invites member B (editor), then mints B a reset link from Settings → Members in the BROWSER
+// org, invites member B (editor), then mints B a reset link from Team & access in the BROWSER
 // (the write-once reset-link block). B — signed OUT, which is the whole point of a reset — opens the
 // link, sets a new password, and signs in with it; the old password is asserted dead at the API
 // layer. Browser-agnostic (no UA branching). Shared plumbing (API/PASSWORD/BOOTSTRAP_TOKEN/signUp)
@@ -18,7 +18,7 @@ const OWNER = `reset-owner-${STAMP}@capacitylens.dev`
 const MEMBER = `reset-member-${STAMP}@capacitylens.dev`
 
 test.describe('password reset link (CAPACITYLENS_AUTH=password)', () => {
-  test('admin mints a reset link in Settings; the locked-out member sets a new password with it', async ({
+  test('admin mints a reset link in Team & access; the locked-out member sets a new password with it', async ({
     page,
     request,
   }) => {
@@ -44,7 +44,7 @@ test.describe('password reset link (CAPACITYLENS_AUTH=password)', () => {
     })
     expect(joined.status()).toBe(200)
 
-    // ---- Browser, as the OWNER: mint the reset link from Settings → Members. ----
+    // ---- Browser, as the OWNER: mint the reset link from Team & access. ----
     await page.goto('/')
     await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
     await page.getByLabel('Email').fill(OWNER)
@@ -55,8 +55,8 @@ test.describe('password reset link (CAPACITYLENS_AUTH=password)', () => {
     await page.getByRole('button', { name: `Reset Studio ${STAMP}`, exact: true }).click()
     await page.getByTestId('intro-continue').click()
 
-    await page.getByRole('link', { name: 'Settings' }).click()
-    await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible()
+    await page.getByRole('link', { name: 'Team & access' }).click()
+    await expect(page.getByRole('heading', { name: 'Members', exact: true })).toBeVisible()
     const memberRow = page.getByTestId('member-row').filter({ hasText: MEMBER })
     await expect(memberRow).toBeVisible()
     await memberRow.getByTestId('member-reset-password').click()

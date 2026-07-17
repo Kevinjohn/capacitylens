@@ -1,12 +1,12 @@
 # US-SET-13 — Admin-issued password-reset links (password mode)
 
-**Area:** Settings · **Persona:** Studio owner / admin + a locked-out member · **Linked E2E:**
-`e2e/reset-password.auth.spec.ts` → "admin mints a reset link in Settings; the locked-out member
+**Area:** Team & access · **Persona:** Studio owner / admin + a locked-out member · **Linked E2E:**
+`e2e/reset-password.auth.spec.ts` → "admin mints a reset link in Team & access; the locked-out member
 sets a new password with it"
 
 ## Goal
 Let an Owner or Admin get a locked-out member back into the app **without any email
-infrastructure**: mint a single-use, 24-hour password-reset link from Settings → Members, hand it
+infrastructure**: mint a single-use, 24-hour password-reset link from Team & access, hand it
 over directly (chat, however), and let the member choose a new password on a page that works
 **without being signed in**.
 
@@ -22,7 +22,7 @@ identity provider owns credentials, and in auth-off there are none.
 
 ## How (end-to-end)
 **Precondition:** Server mode with `CAPACITYLENS_AUTH=password`. Owner A's company has member B
-(editor). B has forgotten their password. Sign in as **A**, pick the company, open **Settings**.
+(editor). B has forgotten their password. Sign in as **A**, pick the company, open **Team & access**.
 
 1. In the **Members** section, B's row (`data-testid="member-row"`) shows a **Reset password**
    button (`data-testid="member-reset-password"`).

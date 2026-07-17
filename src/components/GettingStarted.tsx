@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useRole } from '../auth/permissionContext'
 import { useStore } from '../store/useStore'
 import { useActiveScopedData } from '../store/useScopedData'
 import { startTour } from '../lib/tour'
@@ -58,7 +59,7 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
  *  `GettingStartedCard` and pays for the subscription. */
 export function GettingStarted() {
   const dismissed = useStore((s) => s.gettingStartedDismissed)
-  const activeRole = useStore((s) => s.activeRole)
+  const activeRole = useRole()
   if (dismissed || activeRole === 'viewer') return null
   return <GettingStartedCard />
 }
@@ -67,6 +68,7 @@ export function GettingStarted() {
  *  seeded/established account never sees it). Kept out of the exported gate above — see there. */
 function GettingStartedCard() {
   const setDismissed = useStore((s) => s.setGettingStartedDismissed)
+  const activeRole = useRole()
   const data = useActiveScopedData()
   const steps = deriveGettingStartedSteps(data)
 
@@ -87,6 +89,14 @@ function GettingStartedCard() {
         <StepRow done={steps.person} label={m.gs_step_person()} to="/resources" />
         <StepRow done={steps.assign} label={m.gs_step_assign()} hint={m.gs_step_assign_hint()} />
       </ol>
+      {(activeRole === 'owner' || activeRole === 'admin') && (
+        <p className="mt-3 text-sm text-ink">
+          <Link to="/team" className="font-medium underline-offset-2 hover:text-brand hover:underline">
+            {m.gs_invite_team()}
+          </Link>{' '}
+          <span className="text-xs text-muted">{m.gs_invite_team_optional()}</span>
+        </p>
+      )}
       <div className="mt-4 flex items-center gap-2">
         <Button onClick={() => void startTour()} testId="getting-started-tour">
           {m.gs_show_me_around()}

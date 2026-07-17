@@ -15,8 +15,8 @@
  * `account_members` server-control table; see server/src/controlTables.ts).
  *
  * Role semantics (the single source of truth — mirrors the CapacityLens Decisions):
- * - `'owner'`  — every capability, INCLUDING ownership-transfer. Exactly one per account by
- *                convention; the only role that can hand the account to someone else.
+ * - `'owner'`  — every capability, INCLUDING ownership-transfer. Exactly one per account, enforced
+ *                by the server database; the only role that can hand the account to someone else.
  * - `'admin'`  — manage members + invites and purge (hard-delete) data; everything an editor can
  *                do, but NOT owner-only operations (ownership-transfer).
  * - `'editor'` — create / edit / delete scheduling data; cannot manage members, invites, or purge.
@@ -144,14 +144,11 @@ export function isAtLeast(role: Role, min: Role): boolean {
  *
  * Rules (deny by default):
  * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
- * - NO admin→owner GRANT: only an owner may grant the `owner` role (`nextRole === 'owner'` requires
- *   `actorRole === 'owner'`). This closes the privilege-escalation path of an admin minting an owner.
- * - An admin may NOT touch an OWNER: changing an existing owner's role requires the actor be an owner
- *   (`targetRole === 'owner'` requires `actorRole === 'owner'`).
+ * - `owner` is never an ordinary role change. Promoting a non-owner or demoting the current Owner
+ *   both require the explicit atomic ownership-transfer operation, so this guard refuses either.
+ * - Admin may not touch the Owner; Owner may manage only non-owner membership roles here.
  *
- * NOT enforced here (needs DB I/O, so it lives server-side): the LAST-OWNER protection — refusing to
- * demote the sole remaining owner (a row count). This guard is the pure who-may-touch-whom matrix;
- * the count-based "can't strand the account ownerless" rule is enforced in the server route.
+ * The server database independently enforces the exactly-one-owner invariant.
  *
  * PURE: no I/O, no session — just the three roles.
  *
@@ -162,10 +159,8 @@ export function isAtLeast(role: Role, min: Role): boolean {
  */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
   if (!can(actorRole, 'manageMembers')) return false
-  // No admin→owner grant: only an owner may mint another owner.
-  if (nextRole === 'owner' && actorRole !== 'owner') return false
-  // An admin cannot touch an existing owner (only an owner may change an owner's role).
-  if (targetRole === 'owner' && actorRole !== 'owner') return false
+  // Exactly-one-owner invariant: Owner is changed only by the explicit atomic transfer route.
+  if (nextRole === 'owner' || targetRole === 'owner') return false
   return true
 }
 
@@ -176,10 +171,10 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
  *
  * Rules (deny by default):
  * - The actor must hold `manageMembers` (admin-tier) at all — else `false`.
- * - An admin may NOT remove an OWNER (`targetRole === 'owner'` requires `actorRole === 'owner'`).
+ * - The Owner is never removable. Ownership must first be transferred to another existing member;
+ *   that atomic operation steps the former Owner down to Admin, after which ordinary removal applies.
  *
- * NOT enforced here (needs DB I/O): the LAST-OWNER protection — refusing to remove the sole remaining
- * owner. That count-based rule lives in the server route; this is the pure who-may-remove-whom matrix.
+ * The server database independently enforces the exactly-one-owner invariant.
  *
  * PURE: no I/O, no session — just the two roles.
  *
@@ -189,8 +184,7 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
  */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
   if (!can(actorRole, 'manageMembers')) return false
-  // An admin cannot remove an owner (only an owner may remove an owner).
-  if (targetRole === 'owner' && actorRole !== 'owner') return false
+  if (targetRole === 'owner') return false
   return true
 }
 

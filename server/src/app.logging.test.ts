@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { buildApp } from './app'
 import { openDb } from './db'
+import { authFromEnv, runAuthMigrations } from './auth'
+import { PASSWORD_ENV } from './testHelpers'
 
 // P1.3 (flag CAPACITYLENS_LOG → opts.log): ON gives structured per-request JSON via Fastify's
 // bundled pino and routes the 500-path error through the request logger; OFF is byte-for-
@@ -91,6 +93,37 @@ describe('CAPACITYLENS_LOG invite-token URL redaction (P1.9)', () => {
     const out = lines.join('')
     expect(out).toContain('"url":"/api/invites/[redacted]/accept"') // masked path logged
     expect(out).not.toContain(TOKEN) // the live token never reaches the log
+  })
+
+  it.each(['preview', 'signup'])('also redacts the token from the %s URL', async (operation) => {
+    const { lines, stream } = capture()
+    const app = buildApp(openDb(':memory:'), { log: true, logStream: stream })
+    const TOKEN = `SENTINEL_${operation.toUpperCase()}_INVITE_TOKEN`
+    await app.inject({
+      method: operation === 'preview' ? 'GET' : 'POST',
+      url: `/api/invites/${TOKEN}/${operation}`,
+      ...(operation === 'signup' ? { payload: {} } : {}),
+    })
+    const out = lines.join('')
+    expect(out).toContain(`"url":"/api/invites/[redacted]/${operation}"`)
+    expect(out).not.toContain(TOKEN)
+  })
+
+  it('also redacts token paths in structured security events', async () => {
+    const db = openDb(':memory:')
+    const { mode, auth } = authFromEnv(db, PASSWORD_ENV)
+    await runAuthMigrations(auth!)
+    const events: Array<Record<string, unknown>> = []
+    const app = buildApp(db, { authMode: mode, auth, securityLog: (event) => events.push(event) })
+    const TOKEN = 'SENTINEL_SECURITY_EVENT_INVITE_TOKEN'
+
+    const res = await app.inject({ method: 'POST', url: `/api/invites/${TOKEN}/accept` })
+    expect(res.statusCode).toBe(401)
+    expect(events).toContainEqual(expect.objectContaining({
+      event: 'authentication_required',
+      path: '/api/invites/[redacted]/accept',
+    }))
+    expect(JSON.stringify(events)).not.toContain(TOKEN)
   })
 
   it('leaves every other URL intact', async () => {

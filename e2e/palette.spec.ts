@@ -24,11 +24,12 @@ test.describe('Command palette', () => {
     // Shows Actions section
     await expect(page.getByTestId('command-palette').getByText('Go to today')).toBeVisible()
 
-    // Shows Pages section with all 8 routes (scoped to the palette to avoid strict-mode
+    // Shows Pages section with all 9 routes (scoped to the palette to avoid strict-mode
     // violations from other elements with the same text on the page below)
     const palette = page.getByTestId('command-palette')
     await expect(palette.getByText('Schedule', { exact: true }).last()).toBeVisible()
     await expect(palette.getByText('Resources', { exact: true })).toBeVisible()
+    await expect(palette.getByText('Team & access', { exact: true })).toBeVisible()
     await expect(palette.getByText('Activities', { exact: true })).toBeVisible()
 
     // Close with Escape

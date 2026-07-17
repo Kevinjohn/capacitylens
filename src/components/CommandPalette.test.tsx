@@ -44,6 +44,7 @@ describe('CommandPalette', () => {
     // All page entries
     expect(screen.getByText('Schedule')).toBeInTheDocument()
     expect(screen.getByText('Resources')).toBeInTheDocument()
+    expect(screen.getByText('Team & access')).toBeInTheDocument()
   })
 
   it('has correct ARIA attributes for combobox pattern', () => {

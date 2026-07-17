@@ -14,27 +14,42 @@ import { validateText } from '../../lib/validation'
 import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import type { Role } from '@capacitylens/shared/domain/access'
+import { roleLabel, roleSummary } from '../../lib/accessCopy'
+import { Badge } from '../ui/badge'
+import { useAuth } from '../../auth/authContext'
+import {
+  reloadCurrentPage,
+  replaceWithAccountPicker,
+  replaceWithJoinedAccount,
+} from '../../lib/joinedAccountHandoff'
 
-// Invite accept page (P1.9; route /invite/:token). On mount, in SERVER mode, it POSTs
-// `${API_BASE}/api/invites/:token/accept` (credentials included so the session cookie rides along).
-// The server is the authority: a valid link binds the invited role to the signed-in caller's
-// membership; a used/expired/unknown link is refused. This page only renders the outcome — it never
-// re-implements the single-use/expiry policy client-side.
+// Invite accept page for /invite/:token. On mount, in SERVER mode, it previews the invite.
+// A signed-in person must then explicitly accept before the single-use POST is sent. The server is
+// the authority: a valid link binds the invited role to the signed-in caller's membership; a
+// used/expired/unknown link is refused. This page never re-implements that policy client-side.
 //
 // PRE-SESSION ONBOARDING: this route sits inside AuthProvider but outside AppShell's tenant gate.
 // Password mode deliberately carves it out of the login wall so a genuinely new invitee can create
 // a credential through the token-scoped signup endpoint; an existing user can sign in here and the
-// page reloads the same token URL to accept with the resulting session cookie.
+// page reloads the same token URL so they can review and explicitly accept as that identity.
 
 type State =
-  | { kind: 'working' }
+  | { kind: 'previewing' }
+  | { kind: 'ready' }
+  | { kind: 'accepting' }
   // `activating` = the best-effort switch-into-the-joined-company step (summaries refetch +
   // setActiveAccount) hasn't settled yet. The success message renders as soon as we're 'joined';
   // the Continue link renders only once `activating` is false — see the effect for why.
-  | { kind: 'joined'; accountId: string; role: string; activating: boolean }
+  | { kind: 'joined'; accountId: string; role: Role; activating: boolean }
   | { kind: 'error'; message: string }
   | { kind: 'auth'; message?: string }
   | { kind: 'local' } // the demo build (no server) — invites are a server-mode feature
+
+interface InvitePreview {
+  accountName: string
+  role: Role
+  expiresAt: string
+}
 
 // Map the accept endpoint's status codes to the surfaced message. 404/409/410 are the documented
 // invite outcomes (unknown / already-used / expired); the server's JSON `{ error }` body carries a
@@ -50,18 +65,26 @@ function messageForStatus(status: number, bodyError: string | undefined): string
 const isRole = (value: unknown): value is Role =>
   value === 'owner' || value === 'admin' || value === 'editor' || value === 'viewer'
 
+function parsePreview(value: unknown): InvitePreview | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  if (typeof row.accountName !== 'string' || row.accountName.trim().length === 0) return null
+  if (!isRole(row.role)) return null
+  if (typeof row.expiresAt !== 'string' || !Number.isFinite(Date.parse(row.expiresAt))) return null
+  return { accountName: row.accountName, role: row.role, expiresAt: row.expiresAt }
+}
+
 /**
  * Invite-accept page for `/invite/:token` (P1.9).
  *
- * In server mode it POSTs the accept endpoint once on mount and renders one of: a "you've joined"
- * success (with a continue link to the app, after switching the active company to the joined
- * account), the matching error for a 404/409/410/401, or a generic failure. In the demo build
- * (VITE_CAPACITYLENS_DEMO=1) there is no server to accept against, so it shows a short "invites require
- * server mode" note and makes no request. Surface-not-swallow: every failure path lands on a visible
- * message; nothing is silently dropped.
+ * In server mode it previews the invite, asks a signed-in person to accept explicitly, then renders
+ * a "you've joined" success (with a continue link after switching to the joined company), the
+ * matching endpoint error, or a generic failure. In the demo build there is no server to accept
+ * against, so it shows a short "invites require server mode" note and makes no request.
  */
 export function InviteAccept() {
   const { token } = useParams<{ token: string }>()
+  const { user, refreshAuth } = useAuth()
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
@@ -70,19 +93,18 @@ export function InviteAccept() {
   const [state, setState] = useState<State>(() => {
     if (!isServerConfigured()) return { kind: 'local' }
     if (!token) return { kind: 'error', message: m.invite_err_missing_token() }
-    return { kind: 'working' }
+    return { kind: 'previewing' }
   })
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [preview, setPreview] = useState<InvitePreview | null>(null)
   const [busy, setBusy] = useState(false)
   const errorId = useId()
-  // Fire the accept EXACTLY once. accept is single-use, so we MUST NOT POST twice — React 18/19
-  // StrictMode double-invokes effects in dev, and any cleanup-then-rerun would otherwise either send
-  // a second (409-ing) POST or, if we abort the first on cleanup, strand the page on "Joining…" with
-  // the result discarded. A ref guard dedupes the POST and the result is always applied (setState
-  // after an unmount is a no-op in React 18+, not a warning — no abort/cancel flag is needed here).
-  const fired = useRef(false)
+  // React StrictMode double-invokes effects in development. Preview is read-only, but deduping it
+  // avoids flicker and noisy requests. The mutating accept action has its own synchronous guard.
+  const previewed = useRef(false)
+  const accepting = useRef(false)
 
   // Per-route document.title (WCAG 2.4.2). This route renders OUTSIDE AppShell (see router.tsx), so
   // it isn't covered by the shell's nav-driven title effect — set it here from the same `invite_title`
@@ -93,77 +115,119 @@ export function InviteAccept() {
   }, [])
 
   useEffect(() => {
-    if (!isServerConfigured() || !token) return // demo build / no token: nothing to accept against
-    if (fired.current) return
-    fired.current = true
+    if (!isServerConfigured() || !token) return // demo build / no token: nothing to preview
+    if (previewed.current) return
+    previewed.current = true
 
     void (async () => {
       try {
-        const res = await apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`, {
-          method: 'POST',
-          credentials: 'include',
-        })
-        if (res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { accountId?: string; role?: string }
-          const accountId = typeof body.accountId === 'string' && body.accountId.length > 0 ? body.accountId : ''
-          if (!accountId || !isRole(body.role)) {
-            const list = await fetchAccountSummaries()
-            if (list !== null) setAccountSummaries(list)
-            setState({
-              kind: 'error',
-              message: 'The invite may have been accepted, but the server returned an invalid result. The company list was refreshed; continue to the app to verify membership.',
-            })
-            return
-          }
-          // Show the SUCCESS FIRST: the single-use token is consumed the moment the POST succeeds,
-          // so the outcome must never be held hostage to the follow-up summaries fetch — a hanging
-          // GET would strand the user on "Joining…" with the membership already granted and the
-          // link already dead. The activation below is a bounded best-effort extra.
-          setState({ kind: 'joined', accountId, role: body.role, activating: true })
-          if (accountId !== '') {
-            // Switch the active company to the one just joined so the Continue link lands in it.
-            // This route mounts OUTSIDE AppShell, so useAccountSummaries hasn't run here: the joined
-            // account is in neither `data.accounts` nor `accountSummaries`, and a bare
-            // setActiveAccount would REJECT it as unknown (dropping to the picker with a spurious
-            // "company not found" notice). Pull a fresh summaries list first and activate only once
-            // the account is in it. BOUNDED to 5s: fetchAccountSummaries reports any failure —
-            // including this timeout — as null (fail-soft, no toast), in which case activation is
-            // skipped and Continue lands on the picker, whose own summaries fetch (AppShell mount)
-            // lists the new membership.
-            const list = await fetchAccountSummaries({ signal: AbortSignal.timeout(5000) })
-            if (list !== null) {
-              setAccountSummaries(list)
-              if (list.some((a) => a.id === accountId)) setActiveAccount(accountId)
-            }
-            // The Continue link renders only now that activation has SETTLED (succeeded or not), so
-            // clicking it deterministically lands in the joined company whenever activation worked.
-            setState((s) => (s.kind === 'joined' ? { ...s, activating: false } : s))
-          }
+        const previewResponse = await apiFetch(
+          `${API_BASE}/api/invites/${encodeURIComponent(token)}/preview`,
+          { credentials: 'include' },
+        )
+        if (!previewResponse.ok) {
+          setState({ kind: 'error', message: messageForStatus(previewResponse.status, await readApiError(previewResponse)) })
           return
         }
+        const parsedPreview = parsePreview(await previewResponse.json().catch(() => null))
+        if (!parsedPreview) {
+          setState({ kind: 'error', message: m.invite_err_preview_invalid() })
+          return
+        }
+        setPreview(parsedPreview)
+        setState(user ? { kind: 'ready' } : { kind: 'auth' })
+      } catch (err) {
+        // Preview is read-only, so a transport failure cannot have consumed the invite. Keep this
+        // distinct from an accept failure, whose outcome may genuinely be unknown.
+        console.error('InviteAccept: preview request failed', err)
+        setState({ kind: 'error', message: m.invite_err_network() })
+      }
+    })()
+  }, [token, user])
+
+  const acceptInvite = async (): Promise<void> => {
+    if (!token || accepting.current) return
+    accepting.current = true
+    setBusy(true)
+    setState({ kind: 'accepting' })
+    try {
+      const res = await apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!res.ok) {
         if (res.status === 401) {
           setState({ kind: 'auth' })
-          return
+        } else {
+          setState({ kind: 'error', message: messageForStatus(res.status, await readApiError(res)) })
         }
-        setState({ kind: 'error', message: messageForStatus(res.status, await readApiError(res)) })
-      } catch (err) {
-        // A pre-response transport error (server down, DNS, offline) — surface a generic, actionable
-        // message rather than a dead end, and log the real cause for debugging.
-        console.error('InviteAccept: accept request failed', err)
+        return
+      }
+
+      const body = (await res.json().catch(() => ({}))) as { accountId?: string; role?: string }
+      const accountId = typeof body.accountId === 'string' && body.accountId.length > 0 ? body.accountId : ''
+      if (!accountId || !isRole(body.role)) {
         const list = await fetchAccountSummaries()
         if (list !== null) setAccountSummaries(list)
         setState({
           kind: 'error',
-          message: 'The invite request had an unknown outcome. Your company list was refreshed; continue to the app to check whether you joined before retrying the link.',
+          message: 'The invite may have been accepted, but the server returned an invalid result. The company list was refreshed; continue to the app to verify membership.',
         })
+        return
       }
-    })()
-  }, [token, setActiveAccount, setAccountSummaries])
+
+      // Use the role returned by the mutation, not the proposed role in the preview: the server may
+      // have resolved an existing membership with a different effective role.
+      setState({ kind: 'joined', accountId, role: body.role, activating: true })
+      const list = await fetchAccountSummaries({ signal: AbortSignal.timeout(5000) })
+      if (list !== null) {
+        setAccountSummaries(list)
+        if (list.some((account) => account.id === accountId)) setActiveAccount(accountId)
+      }
+      setState((current) => (current.kind === 'joined' ? { ...current, activating: false } : current))
+    } catch (error) {
+      // The POST may have reached the server before the transport failed, so do not invite a blind
+      // retry. Refresh authoritative membership state and explain how to verify the outcome.
+      console.error('InviteAccept: accept request failed', error)
+      const list = await fetchAccountSummaries()
+      if (list !== null) setAccountSummaries(list)
+      setState({
+        kind: 'error',
+        message: 'The invite request had an unknown outcome. Your company list was refreshed; continue to the app to check whether you joined before retrying the link.',
+      })
+    } finally {
+      accepting.current = false
+      setBusy(false)
+    }
+  }
 
   const signInAndReload = async (): Promise<void> => {
     const { error } = await authClient.signIn.email({ email, password })
     if (error) throw new Error(error.message ?? m.login_failed())
-    window.location.reload()
+    reloadCurrentPage()
+  }
+
+  /** Recheck the new cookie and authoritative companies before entering AppShell. The invite page
+   * booted without a session, so its initial persistence bootstrap is deliberately unattached after
+   * the 401. A fresh boot is required for safe saving; its one-use query value is verified against
+   * `/api/accounts` by AppShell before activation and then removed from the URL. */
+  const enterJoinedCompany = async (accountId?: string): Promise<void> => {
+    await refreshAuth()
+    const list = await fetchAccountSummaries({ signal: AbortSignal.timeout(5000) })
+    if (list !== null) {
+      setAccountSummaries(list)
+      const target = accountId
+        ? list.find((account) => account.id === accountId)
+        : list.length === 1 ? list[0] : undefined
+      if (target) {
+        setActiveAccount(target.id)
+        replaceWithJoinedAccount(target.id)
+        return
+      }
+    }
+    // A failed authoritative list read cannot safely activate a caller-supplied id. Reboot into the
+    // ordinary authenticated picker, which retries the list without trusting the invite response.
+    replaceWithAccountPicker()
   }
 
   const signIn = async (event: FormEvent) => {
@@ -204,19 +268,37 @@ export function InviteAccept() {
       if (!res.ok) {
         throw new Error((await readApiError(res)) ?? messageForStatus(res.status, undefined))
       }
+      const signupBody = (await res.json().catch(() => null)) as Record<string, unknown> | null
+      const accountId = typeof signupBody?.accountId === 'string' && signupBody.accountId.length > 0
+        ? signupBody.accountId
+        : null
+      if (!accountId || !isRole(signupBody?.role)) {
+        throw new Error('The account was created, but the server returned an invalid company result. Sign in to verify the new membership.')
+      }
       const { error } = await authClient.signIn.email({ email: cleanEmail, password })
       if (error) throw new Error(error.message ?? m.login_failed())
-      // Signup already claimed the invite atomically for this identity. Reload at the app root so
-      // AuthProvider observes the new session without trying to redeem the now-consumed token.
-      window.location.assign('/')
+      // Signup already claimed the invite atomically. Verify the exact company, then start a fresh
+      // authenticated boot with persistence attached and a one-use activation handoff.
+      await enterJoinedCompany(accountId)
     } catch (error) {
       const transportFailure = error instanceof TypeError ||
         (error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError'))
       if (transportFailure) {
-        const signInResult = await authClient.signIn.email({ email: cleanEmail, password })
-        if (!signInResult.error) {
-          window.location.assign('/')
-          return
+        try {
+          const signInResult = await authClient.signIn.email({ email: cleanEmail, password })
+          if (!signInResult.error) {
+            // Do not guess from the caller's company count: the signup request may never have reached
+            // the server and these credentials may belong to an existing identity. Reload the same
+            // bearer URL; an unused invite can then be accepted explicitly, while a consumed invite
+            // truthfully reports that state and lets the caller inspect their authenticated picker.
+            reloadCurrentPage()
+            return
+          }
+        } catch (signInError) {
+          // The recovery probe is best-effort and may fail for the same network reason as signup.
+          // Keep the original unknown-outcome guidance and restore the form instead of leaking a
+          // rejected event-handler promise that leaves the page permanently busy.
+          console.warn('InviteAccept: signup recovery sign-in failed', signInError)
         }
       }
       setState({
@@ -237,7 +319,44 @@ export function InviteAccept() {
           <h1 className="text-lg font-semibold text-ink">{m.invite_title()}</h1>
         </div>
         <div className="space-y-3 rounded-lg border border-line bg-surface p-4 shadow-sm">
-          {state.kind === 'working' && (
+          {preview && (
+            <section className="rounded-md border border-line bg-canvas p-3" data-testid="invite-preview">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">{m.invite_company_label()}</p>
+                  <h2 className="mt-0.5 text-base font-semibold text-ink">{preview.accountName}</h2>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-medium text-muted">{m.invite_proposed_role_label()}</p>
+                  <Badge>{roleLabel(preview.role)}</Badge>
+                </div>
+              </div>
+              <p className="mt-2 text-sm text-muted">{roleSummary(preview.role)}</p>
+              <p className="mt-2 text-xs text-muted">{m.invite_existing_role_note()}</p>
+              <p className="mt-2 text-xs text-muted">
+                {m.invite_expires({ when: new Date(preview.expiresAt).toLocaleString() })}
+              </p>
+            </section>
+          )}
+          {state.kind === 'previewing' && (
+            <p role="status" className="text-sm text-muted">
+              {m.invite_checking()}
+            </p>
+          )}
+          {state.kind === 'ready' && (
+            <>
+              <p className="text-sm text-muted">{m.invite_review_prompt()}</p>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Link to="/" className={linkButtonClass}>
+                  {m.invite_go_to_app()}
+                </Link>
+                <Button type="button" disabled={busy} onClick={() => void acceptInvite()}>
+                  {m.invite_accept_action()}
+                </Button>
+              </div>
+            </>
+          )}
+          {state.kind === 'accepting' && (
             <p role="status" className="text-sm text-muted">
               {m.invite_joining()}
             </p>
@@ -245,7 +364,9 @@ export function InviteAccept() {
           {state.kind === 'joined' && (
             <>
               <p role="status" className="text-sm font-medium text-ink">
-                {`${m.invite_joined_base()}${state.role ? m.invite_joined_role({ role: state.role }) : ''}.`}
+                {preview
+                  ? m.invite_joined_company({ company: preview.accountName, role: roleLabel(state.role) })
+                  : `${m.invite_joined_base()}${state.role ? m.invite_joined_role({ role: state.role }) : ''}.`}
               </p>
               {/* Continue appears only once the best-effort activation step has settled (see the
                   effect): rendering it earlier would let a click race the setActiveAccount and land

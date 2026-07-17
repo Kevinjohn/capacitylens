@@ -1,20 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MembersSection } from './MembersSection'
 import { AuthContext, type AuthContextValue } from '../../auth/authContext'
 import { resetStoreWithAccount, DEFAULT_ACCOUNT_ID } from '../../test/fixtures'
+import { useStore } from '../../store/useStore'
+import { refreshActiveAccountSlice } from '../../data/persist'
+import { setOfflineReadState } from '../../data/offlineCache'
 
-// MembersSection is the Settings → Members UI (P1.11). It renders ONLY in auth-on + server mode and
+// MembersSection is the Team & access management UI. It renders ONLY in auth-on + server mode and
 // self-gates via a 403 on the members read. These tests mock apiConfig (so isServerConfigured() is
 // true) and fetch, and assert the OWNER-ONLY affordances are hidden for an admin (no owner option, no
-// controls on an owner row), the sole-owner row is protected (disabled), and a 403 renders nothing.
+// controls on the Owner row), ownership changes only through transfer, and a 403 renders nothing.
 
 // Make the section "enabled": a configured server. The real module reads import.meta.env, which the
 // test env leaves unset; mocking it is the clean way to flip server mode on.
 vi.mock('../../data/apiConfig', () => ({
   API_BASE: 'http://api.test',
   isServerConfigured: () => true,
+}))
+
+vi.mock('../../data/persist', () => ({
+  refreshActiveAccountSlice: vi.fn(async () => 'reloaded'),
 }))
 
 interface RawMember {
@@ -58,6 +65,18 @@ function mockFetch(members: RawMember[] | { status: number }) {
     if (u.endsWith('/invites') && (!init || init.method === undefined || init.method === 'GET')) {
       return { ok: true, status: 200, json: async () => ({ invites: [] }) } as unknown as Response
     }
+    if (u.endsWith('/api/accounts') && (!init || init.method === undefined || init.method === 'GET')) {
+      const self = Array.isArray(members) ? members.find((member) => member.isSelf) : null
+      return {
+        ok: true,
+        status: 200,
+        json: async () => [{
+          id: DEFAULT_ACCOUNT_ID,
+          name: 'Studio North',
+          role: self?.role ?? 'owner',
+        }],
+      } as unknown as Response
+    }
     // Default: a successful no-content mutate.
     return { ok: true, status: 204, json: async () => ({}) } as unknown as Response
   })
@@ -73,9 +92,9 @@ const authValue = (over: Partial<AuthContextValue> = {}): AuthContextValue => ({
   ...over,
 })
 
-function renderSection() {
+function renderSection(authOverrides: Partial<AuthContextValue> = {}) {
   return render(
-    <AuthContext.Provider value={authValue()}>
+    <AuthContext.Provider value={authValue(authOverrides)}>
       <MembersSection />
     </AuthContext.Provider>,
   )
@@ -83,12 +102,31 @@ function renderSection() {
 
 beforeEach(() => {
   resetStoreWithAccount() // sets activeAccountId = DEFAULT_ACCOUNT_ID
+  setOfflineReadState(false)
+  vi.mocked(refreshActiveAccountSlice).mockResolvedValue('reloaded')
 })
 afterEach(() => {
+  setOfflineReadState(false)
   vi.restoreAllMocks()
 })
 
 describe('MembersSection — self-gate', () => {
+  it('defers privileged directory reads while offline and refreshes them on recovery', async () => {
+    const fetchMock = mockFetch([{ userId: 'me', role: 'owner', isSelf: true }])
+    vi.stubGlobal('fetch', fetchMock)
+    setOfflineReadState(true, Date.parse('2026-07-17T10:00:00.000Z'))
+    renderSection()
+
+    await act(async () => {})
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    act(() => setOfflineReadState(false))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members`,
+      expect.objectContaining({ credentials: 'include' }),
+    ))
+  })
+
   it('renders NOTHING when the members read returns 403 (viewer/editor)', async () => {
     vi.stubGlobal('fetch', mockFetch({ status: 403 }))
     const { container } = renderSection()
@@ -156,13 +194,70 @@ describe('MembersSection — admin affordances', () => {
     expect(within(editorRow).getByRole('combobox')).toBeInTheDocument()
     expect(within(editorRow).getByTestId('member-remove')).toBeInTheDocument()
   })
+
+  it('explains and confirms a role change before sending it', async () => {
+    const user = userEvent.setup()
+    const fetchMock = mockFetch(members)
+    vi.stubGlobal('fetch', fetchMock)
+    const revisionBefore = useStore.getState().membershipRevision
+    renderSection()
+    const rows = await screen.findAllByTestId('member-row')
+    const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!
+
+    await user.selectOptions(within(editorRow).getByRole('combobox'), 'viewer')
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByText(/theeditor@x\.io will become Viewer/)).toBeInTheDocument()
+    expect(within(dialog).getByText(/Read-only schedule access/)).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/members/theeditor'), expect.anything())
+
+    await user.click(within(dialog).getByRole('button', { name: 'Change role' }))
+    expect(fetchMock).toHaveBeenCalledWith(
+      `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/members/theeditor`,
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ role: 'viewer' }) }),
+    )
+    expect(useStore.getState().membershipRevision).toBe(revisionBefore)
+  })
+
+  it('invalidates membership projections when an Admin changes their own role', async () => {
+    const user = userEvent.setup()
+    const refreshAuth = vi.fn(async () => {})
+    vi.stubGlobal('fetch', mockFetch(members))
+    const revisionBefore = useStore.getState().membershipRevision
+    renderSection({ refreshAuth })
+
+    const selfRow = (await screen.findAllByTestId('member-row'))
+      .find((row) => within(row).queryByText(/me@x\.io/))!
+    await user.selectOptions(within(selfRow).getByRole('combobox'), 'editor')
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change role' }))
+
+    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1))
+    expect(refreshAuth).toHaveBeenCalledTimes(1)
+    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID)
+  })
+
+  it('closes the company when a self-role refresh restores only a cached offline slice', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', mockFetch(members))
+    vi.mocked(refreshActiveAccountSlice).mockImplementationOnce(async () => {
+      setOfflineReadState(true, Date.parse('2026-07-17T10:00:00.000Z'))
+      return 'reloaded'
+    })
+    renderSection()
+
+    const selfRow = (await screen.findAllByTestId('member-row'))
+      .find((row) => within(row).queryByText(/me@x\.io/))!
+    await user.selectOptions(within(selfRow).getByRole('combobox'), 'editor')
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change role' }))
+
+    await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull())
+    expect(useStore.getState().notice?.message).toMatch(/could not be safely refreshed/i)
+  })
 })
 
 describe('MembersSection — owner affordances', () => {
-  it('offers the owner option and controls on every row for an owner', async () => {
+  it('never offers Owner as an ordinary role, even to the Owner', async () => {
     const members: RawMember[] = [
       { userId: 'me', role: 'owner', isSelf: true },
-      { userId: 'other', role: 'owner' }, // a SECOND owner, so neither is the sole owner
       { userId: 'ed', role: 'editor' },
     ]
     vi.stubGlobal('fetch', mockFetch(members))
@@ -170,16 +265,15 @@ describe('MembersSection — owner affordances', () => {
     await screen.findByTestId('members-section')
 
     const invitePicker = screen.getByTestId('invite-role') as HTMLSelectElement
-    expect(Array.from(invitePicker.options).map((o) => o.value)).toContain('owner')
+    expect(Array.from(invitePicker.options).map((o) => o.value)).not.toContain('owner')
 
-    // The other owner row is manageable (two owners → not sole) — it has a role control + Remove.
     const rows = await screen.findAllByTestId('member-row')
-    const otherOwnerRow = rows.find((r) => within(r).queryByText(/other@x\.io/))!
-    expect(within(otherOwnerRow).getByRole('combobox')).toBeInTheDocument()
-    expect(within(otherOwnerRow).getByTestId('member-remove')).toBeInTheDocument()
+    const editorRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!
+    expect(within(editorRow).getByRole('combobox')).toBeInTheDocument()
+    expect(Array.from(within(editorRow).getByRole('combobox').querySelectorAll('option')).map((o) => o.value)).not.toContain('owner')
   })
 
-  it('protects the SOLE owner — its role control is disabled and Remove is hidden', async () => {
+  it('keeps the single Owner outside ordinary role and removal controls', async () => {
     const members: RawMember[] = [
       { userId: 'me', role: 'owner', isSelf: true }, // the only owner
       { userId: 'ed', role: 'editor' },
@@ -190,17 +284,16 @@ describe('MembersSection — owner affordances', () => {
 
     const rows = await screen.findAllByTestId('member-row')
     const soleOwnerRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!
-    expect(within(soleOwnerRow).getByText(/Sole owner — protected/)).toBeInTheDocument()
-    expect(within(soleOwnerRow).getByRole('combobox')).toBeDisabled()
+    expect(within(soleOwnerRow).getByText(/Owner — transfer to change/)).toBeInTheDocument()
+    expect(within(soleOwnerRow).queryByRole('combobox')).not.toBeInTheDocument()
     expect(within(soleOwnerRow).queryByTestId('member-remove')).not.toBeInTheDocument()
   })
 })
 
-describe('MembersSection — transfer ownership (Make owner)', () => {
-  it('an owner sees "Make owner" ONLY on non-self, non-owner rows', async () => {
+describe('MembersSection — transfer ownership', () => {
+  it('an owner sees "Transfer ownership" only on non-self rows', async () => {
     const members: RawMember[] = [
       { userId: 'me', role: 'owner', isSelf: true },
-      { userId: 'other', role: 'owner' }, // a second owner
       { userId: 'ed', role: 'editor' },
     ]
     vi.stubGlobal('fetch', mockFetch(members))
@@ -209,16 +302,13 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
 
     const rows = await screen.findAllByTestId('member-row')
     const selfRow = rows.find((r) => within(r).queryByText(/me@x\.io/))!
-    const ownerRow = rows.find((r) => within(r).queryByText(/other@x\.io/))!
     const edRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!
-    // The atomic hand-over is offered on an eligible target (editor), not on the caller, not on
-    // another owner (that would be a no-op / meaningless).
+    // The atomic hand-over is offered on an eligible target, never on the caller.
     expect(within(edRow).getByTestId('member-make-owner')).toBeInTheDocument()
     expect(within(selfRow).queryByTestId('member-make-owner')).not.toBeInTheDocument()
-    expect(within(ownerRow).queryByTestId('member-make-owner')).not.toBeInTheDocument()
   })
 
-  it('an admin NEVER sees "Make owner" (owner-only affordance)', async () => {
+  it('an admin never sees the transfer action', async () => {
     const members: RawMember[] = [
       { userId: 'me', role: 'admin', isSelf: true },
       { userId: 'ed', role: 'editor' },
@@ -229,22 +319,33 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
     expect(screen.queryByTestId('member-make-owner')).not.toBeInTheDocument()
   })
 
-  it('clicking "Make owner" POSTs the transfer for that member', async () => {
+  it('confirms the consequence before POSTing the transfer', async () => {
     const user = userEvent.setup()
+    const refreshAuth = vi.fn(async () => {})
     const fetchMock = mockFetch([
       { userId: 'me', role: 'owner', isSelf: true },
       { userId: 'ed', role: 'editor' },
     ])
     vi.stubGlobal('fetch', fetchMock)
-    renderSection()
+    const revisionBefore = useStore.getState().membershipRevision
+    renderSection({ refreshAuth })
     await screen.findByTestId('members-section')
 
     const edRow = (await screen.findAllByTestId('member-row')).find((r) => within(r).queryByText(/ed@x\.io/))!
     await user.click(within(edRow).getByTestId('member-make-owner'))
+    expect(screen.getByText(/You will become an Admin/)).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/transfer-ownership'),
+      expect.anything(),
+    )
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer ownership' }))
     expect(fetchMock).toHaveBeenCalledWith(
       `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/transfer-ownership`,
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ toUserId: 'ed' }) }),
     )
+    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1))
+    expect(refreshAuth).toHaveBeenCalledTimes(1)
+    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID)
   })
 
   it('surfaces the server error when a transfer is refused', async () => {
@@ -277,8 +378,67 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
 
     const edRow = (await screen.findAllByTestId('member-row')).find((r) => within(r).queryByText(/ed@x\.io/))!
     await user.click(within(edRow).getByTestId('member-make-owner'))
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer ownership' }))
     // The server's own message is preferred over the generic fallback (body.error ?? …).
     expect(await screen.findByText('Only the owner can transfer ownership.')).toBeInTheDocument()
+  })
+
+  it('reconciles an unknown self-demotion even after member reads become forbidden', async () => {
+    const user = userEvent.setup()
+    let mutationDispatched = false
+    const refreshAuth = vi.fn(async () => {})
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (u.endsWith('/members/me') && init?.method === 'PATCH') {
+        mutationDispatched = true
+        throw new TypeError('connection closed after dispatch')
+      }
+      if (u.endsWith('/api/accounts')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [{ id: DEFAULT_ACCOUNT_ID, name: 'Studio North', role: 'editor' }],
+        } as unknown as Response
+      }
+      if (u.endsWith('/members') && (!init || init.method === undefined || init.method === 'GET')) {
+        if (mutationDispatched) {
+          return { ok: false, status: 403, json: async () => ({ error: 'Forbidden.' }) } as unknown as Response
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [
+              { userId: 'owner', role: 'owner', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'owner@x.io', isSelf: false, mayResetPassword: false, mayRevokeSessions: false },
+              { userId: 'me', role: 'admin', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'me@x.io', isSelf: true, mayResetPassword: true, mayRevokeSessions: true },
+              { userId: 'ed', role: 'editor', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'ed@x.io', isSelf: false, mayResetPassword: true, mayRevokeSessions: true },
+            ],
+          }),
+        } as unknown as Response
+      }
+      if (u.endsWith('/invites')) {
+        return mutationDispatched
+          ? { ok: false, status: 403, json: async () => ({ error: 'Forbidden.' }) } as unknown as Response
+          : { ok: true, status: 200, json: async () => ({ invites: [] }) } as unknown as Response
+      }
+      throw new Error(`Unexpected request: ${u}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const revisionBefore = useStore.getState().membershipRevision
+    renderSection({ refreshAuth })
+    await screen.findByTestId('members-section')
+
+    const self = (await screen.findAllByTestId('member-row'))
+      .find((row) => within(row).queryByText(/me@x\.io/))!
+    await user.selectOptions(within(self).getByRole('combobox'), 'editor')
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change role' }))
+
+    await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1))
+    expect(refreshAuth).toHaveBeenCalledTimes(1)
+    expect(refreshActiveAccountSlice).toHaveBeenCalledWith(DEFAULT_ACCOUNT_ID)
+    expect(useStore.getState().activeAccountId).toBe(DEFAULT_ACCOUNT_ID)
+    expect(useStore.getState().notice?.message).toMatch(/Your access was refreshed; verify the result/i)
+    expect(useStore.getState().notice?.message).not.toMatch(/Reload the page/i)
   })
 
   it('permits only one member mutation while an action is in flight', async () => {
@@ -300,6 +460,7 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
     const editorRow = (await screen.findAllByTestId('member-row')).find((row) => within(row).queryByText(/ed@x\.io/))!
 
     fireEvent.click(within(editorRow).getByTestId('member-make-owner'))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer ownership' }))
     fireEvent.click(within(editorRow).getByTestId('member-remove'))
 
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== 'GET')
@@ -311,6 +472,17 @@ describe('MembersSection — transfer ownership (Make owner)', () => {
 })
 
 describe('MembersSection — invite mint', () => {
+  it('shows the selected invite role consequences before creating the link', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', mockFetch([{ userId: 'me', role: 'owner', isSelf: true }]))
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(/Can edit scheduling data/)
+    await user.selectOptions(screen.getByTestId('invite-role'), 'viewer')
+    expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(/Read-only schedule access/)
+  })
+
   it('shows the invite link ONCE on a 201, built from the returned token', async () => {
     const user = userEvent.setup()
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -320,7 +492,17 @@ describe('MembersSection — invite mint', () => {
           ok: true,
           status: 200,
           json: async () => ({
-            members: [{ userId: 'me', role: 'owner', status: 'active', createdAt: '2026-01-01T00:00:00.000Z', name: null, email: 'me@x.io', isSelf: true, mayResetPassword: false }],
+            members: [{
+              userId: 'me',
+              role: 'owner',
+              status: 'active',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              name: null,
+              email: 'me@x.io',
+              isSelf: true,
+              mayResetPassword: false,
+              mayRevokeSessions: false,
+            }],
           }),
         } as unknown as Response
       }
@@ -339,6 +521,62 @@ describe('MembersSection — invite mint', () => {
     await user.click(screen.getByTestId('invite-submit'))
     const link = await screen.findByTestId('invite-link')
     expect(link).toHaveTextContent('/invite/TOK123')
+  })
+
+  it('removes the write-once link when its invite is revoked', async () => {
+    const user = userEvent.setup()
+    const invite = {
+      id: 'inv-new',
+      role: 'editor',
+      preauthEmail: null,
+      expiresAt: '2026-12-01T00:00:00.000Z',
+      usedAt: null,
+      createdAt: '2026-07-17T00:00:00.000Z',
+    }
+    let invites: typeof invite[] = []
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url)
+      if (u.endsWith('/members')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [{
+              userId: 'me',
+              role: 'owner',
+              status: 'active',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              name: null,
+              email: 'me@x.io',
+              isSelf: true,
+              mayResetPassword: false,
+              mayRevokeSessions: false,
+            }],
+          }),
+        } as unknown as Response
+      }
+      if (u.endsWith('/api/invites') && init?.method === 'POST') {
+        invites = [invite]
+        return { ok: true, status: 201, json: async () => ({ id: invite.id, token: 'TOK123', role: invite.role }) } as unknown as Response
+      }
+      if (u.endsWith(`/invites/${invite.id}`) && init?.method === 'DELETE') {
+        invites = []
+        return { ok: true, status: 204, json: async () => ({}) } as unknown as Response
+      }
+      if (u.endsWith('/invites') && (!init || init.method === 'GET' || init.method === undefined)) {
+        return { ok: true, status: 200, json: async () => ({ invites }) } as unknown as Response
+      }
+      return { ok: true, status: 204, json: async () => ({}) } as unknown as Response
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    await user.click(screen.getByTestId('invite-submit'))
+    expect(await screen.findByTestId('invite-link')).toHaveTextContent('/invite/TOK123')
+    await user.click(await screen.findByTestId('invite-revoke'))
+
+    await waitFor(() => expect(screen.queryByTestId('invite-link')).not.toBeInTheDocument())
   })
 
   it('refuses a malformed token response instead of constructing an undefined link', async () => {

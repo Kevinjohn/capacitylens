@@ -60,6 +60,9 @@ const createInviteReq = (
 const acceptReq = (app: FastifyInstance, token: string, headers: Record<string, string> = {}) =>
   call(app, { method: 'POST', url: `/api/invites/${token}/accept`, headers })
 
+const previewReq = (app: FastifyInstance, token: string, headers: Record<string, string> = {}) =>
+  call(app, { method: 'GET', url: `/api/invites/${token}/preview`, headers })
+
 describe('POST /api/invites (P1.9 create) — gate', () => {
   it('owner of the account creates an invite -> 201, with a token + a getInvite row', async () => {
     const { app, db } = await appWithAuth()
@@ -69,9 +72,11 @@ describe('POST /api/invites (P1.9 create) — gate', () => {
 
     const res = await createInviteReq(app, { accountId: 'a1', role: 'editor' }, { cookie })
     expect(res.statusCode).toBe(201)
-    const body = res.json() as { token: string; accountId: string; role: string; expiresAt: string }
+    const body = res.json() as { id: string; token: string; accountId: string; role: string; expiresAt: string }
     expect(body.accountId).toBe('a1')
     expect(body.role).toBe('editor')
+    expect(typeof body.id).toBe('string')
+    expect(body.id.length).toBeGreaterThan(0)
     expect(typeof body.token).toBe('string')
     expect(body.token.length).toBeGreaterThan(0)
     const atRest = db.prepare(`SELECT tokenHash FROM invites`).get() as { tokenHash: string }
@@ -151,6 +156,67 @@ describe('POST /api/invites (P1.9 create) — gate', () => {
     expect(empty.statusCode).toBe(400)
     const missingAccount = await createInviteReq(app, { role: 'editor' }, { cookie })
     expect(missingAccount.statusCode).toBe(400)
+  })
+
+  it('rejects Owner invites even when the caller is the Owner', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'owner-no-owner-invites@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+
+    const res = await createInviteReq(app, { accountId: 'a1', role: 'owner' }, { cookie })
+    expect(res.statusCode).toBe(400)
+    expect(res.json().error).toMatch(/transfer ownership/i)
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM invites`).get()).toEqual({ n: 0 })
+  })
+})
+
+describe('GET /api/invites/:token/preview', () => {
+  it('returns only safe company, role, and expiry context without requiring a session', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    createInvite(db, {
+      token: 'preview-token',
+      id: 'preview-id',
+      accountId: 'a1',
+      role: 'editor',
+      preauthEmail: 'private-address@capacitylens.dev',
+      expiresAt: '2999-01-01T00:00:00.000Z',
+      usedAt: null,
+      createdAt: TS,
+    })
+
+    const res = await previewReq(app, 'preview-token')
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({
+      accountName: 'Studio a1',
+      role: 'editor',
+      expiresAt: '2999-01-01T00:00:00.000Z',
+    })
+    expect(JSON.stringify(res.json())).not.toContain('private-address')
+  })
+
+  it.each([
+    ['unknown', 'missing-preview', 404],
+    ['used', 'used-preview', 409],
+    ['expired', 'expired-preview', 410],
+    ['legacy Owner', 'owner-preview', 410],
+  ])('rejects an %s invite', async (kind, token, status) => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    if (kind !== 'unknown') {
+      createInvite(db, {
+        token,
+        id: `${token}-id`,
+        accountId: 'a1',
+        role: kind === 'legacy Owner' ? 'owner' : 'viewer',
+        preauthEmail: null,
+        expiresAt: kind === 'expired' ? '2000-01-01T00:00:00.000Z' : '2999-01-01T00:00:00.000Z',
+        usedAt: kind === 'used' ? '2026-01-02T00:00:00.000Z' : null,
+        createdAt: TS,
+      })
+    }
+    expect((await previewReq(app, token)).statusCode).toBe(status)
   })
 })
 

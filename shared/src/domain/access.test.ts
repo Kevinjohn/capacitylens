@@ -131,7 +131,7 @@ describe('canSeePrivateNames(role) — field-level rule (owner only)', () => {
 })
 
 // P1.11 member-management guards. The expected booleans below are the hand-written oracle of the
-// member-management policy (no admin→owner grant; admin can't touch an owner), NOT derived from the
+// member-management policy (Owner changes only through transfer), NOT derived from the
 // implementation — if access.ts and these tables disagree, the test is doing its job.
 
 describe('isAtLeast(role, min) — tier comparison', () => {
@@ -154,12 +154,11 @@ describe('isAtLeast(role, min) — tier comparison', () => {
 
 describe('canManageMemberRole(actor, target, next) — role-change matrix', () => {
   // Exhaustive sweep over every actor × target × next combination, against a hand-derived oracle.
-  // Oracle rules: actor must hold manageMembers (admin+); next==='owner' only an owner may grant;
-  // target==='owner' only an owner may touch.
+  // Oracle rules: actor must hold manageMembers (admin+); neither promoting to nor demoting from
+  // Owner is an ordinary role edit — both go through ownership transfer.
   const oracle = (actor: Role, target: Role, next: Role): boolean => {
     if (!(actor === 'owner' || actor === 'admin')) return false // manageMembers = admin tier
-    if (next === 'owner' && actor !== 'owner') return false
-    if (target === 'owner' && actor !== 'owner') return false
+    if (next === 'owner' || target === 'owner') return false
     return true
   }
   for (const actor of ROLES) {
@@ -173,14 +172,19 @@ describe('canManageMemberRole(actor, target, next) — role-change matrix', () =
     }
   }
 
-  it('owner may grant owner (admin→owner); admin may NOT grant owner', () => {
-    expect(canManageMemberRole('owner', 'editor', 'owner')).toBe(true)
+  it('no actor may grant Owner through an ordinary role change', () => {
+    expect(canManageMemberRole('owner', 'editor', 'owner')).toBe(false)
     expect(canManageMemberRole('admin', 'editor', 'owner')).toBe(false)
   })
 
-  it('admin may NOT change an existing owner; owner may', () => {
+  it('no actor may demote the Owner outside ownership transfer', () => {
     expect(canManageMemberRole('admin', 'owner', 'editor')).toBe(false)
-    expect(canManageMemberRole('owner', 'owner', 'editor')).toBe(true)
+    expect(canManageMemberRole('owner', 'owner', 'editor')).toBe(false)
+  })
+
+  it('rejects Owner-to-Owner no-ops so an Admin can never touch the Owner through this guard', () => {
+    expect(canManageMemberRole('admin', 'owner', 'owner')).toBe(false)
+    expect(canManageMemberRole('owner', 'owner', 'owner')).toBe(false)
   })
 
   it('editor/viewer (no manageMembers) can never change a role', () => {
@@ -192,7 +196,7 @@ describe('canManageMemberRole(actor, target, next) — role-change matrix', () =
 describe('canRemoveMember(actor, target) — removal matrix', () => {
   const oracle = (actor: Role, target: Role): boolean => {
     if (!(actor === 'owner' || actor === 'admin')) return false
-    if (target === 'owner' && actor !== 'owner') return false
+    if (target === 'owner') return false
     return true
   }
   for (const actor of ROLES) {
@@ -204,9 +208,9 @@ describe('canRemoveMember(actor, target) — removal matrix', () => {
     }
   }
 
-  it('admin may NOT remove an owner; owner may remove an owner', () => {
+  it('no actor may remove the Owner', () => {
     expect(canRemoveMember('admin', 'owner')).toBe(false)
-    expect(canRemoveMember('owner', 'owner')).toBe(true)
+    expect(canRemoveMember('owner', 'owner')).toBe(false)
   })
 
   it('admin may remove non-owners; editor/viewer may remove no one', () => {

@@ -56,10 +56,13 @@ If the app changes, update this file first, then the affected stories.
    `CAPACITYLENS_MULTI_ACCOUNT=1` set (the auth-backed stories' server runs this way, so its
    picker always shows the button). In a server deploy the create goes through `POST /api/orgs`
    (atomic: company + built-in Internal client + your Owner membership); a server refusal (the
-   cap, or the org-create gate) surfaces as the form's inline error. Each listed company also
-   shows a **Delete** button (`Delete <name>`, type-the-name-to-confirm dialog) — but ONLY on
-   companies where your role is owner/admin (deletion is purge-tier); viewers/editors get no
-   Delete affordance at all.
+   cap, or the org-create gate) surfaces as the form's inline error. In an authenticated deploy,
+   every listed company shows the caller's membership role — **Owner**, **Admin**, **Editor** or
+   **Viewer** (`data-testid="company-role"`) — before it is opened. The in-memory demo instead says
+   **Demo access** and an auth-off persisted server says **Open access**; neither invents an Owner
+   membership. Each listed company also shows a **Delete** button (`Delete <name>`,
+   type-the-name-to-confirm dialog) only to its Owner; Admin/Editor/Viewer get no company-delete
+   affordance.
 5. Then a one-time **"What CapacityLens is" intro page** (heading `Welcome to CapacityLens`) — a minimal
    post-login explainer that CapacityLens is a resourcing tool, not a project-management tool. Click
    **Continue** (`data-testid="intro-continue"`) to enter the app. It shows once per device
@@ -77,7 +80,9 @@ If the app changes, update this file first, then the affected stories.
    Done buttons, Escape bails, never navigates). **Dismiss**
    (`data-testid="getting-started-dismiss"`) hides the card for good on this device
    (`capacitylens/gettingStartedDismissed`, default off, never in `AppData`/export). Hidden for a
-   Viewer (every CTA is a write they can't do).
+   Viewer (every schedule-setup CTA is a write they can't do). In an authenticated company, Owner
+   and Admin additionally see an optional **Invite your team** link to `/team`; it is deliberately
+   outside the four completion steps, so a solo owner can finish setup without inviting anyone.
 7. To start from the seeded state again, reload the page. The demo is intentionally temporary.
 8. **If the page sticks on "Loading… / JavaScript isn't running"**, the browser is blocking
    scripts for the site (per-site JavaScript setting or a content-blocker extension — these
@@ -92,6 +97,7 @@ The sidebar links, in order, route to:
 |---|---|---|
 | Schedule | `/` | Timeline scheduler |
 | Resources | `/resources` | Resource list (incl. the **External** section when enabled) |
+| Team & access | `/team` | Current role, capability summary and app-member access management |
 | Disciplines | `/disciplines` | Discipline list |
 | Clients | `/clients` | Client list |
 | Projects | `/projects` | Project list |
@@ -99,7 +105,7 @@ The sidebar links, in order, route to:
 | Time off | `/timeoff` | Time-off list |
 | Settings | `/settings` | Settings (company rename, scheduling, calendar, disciplines, schedule, Internal work colours, allocation bars, utilisation, appearance, local data) |
 
-That's **eight** sections by default — **seven** when the company turns disciplines off (the
+That's **nine** sections by default — **eight** when the company turns disciplines off (the
 **Disciplines** link is then hidden; see *Disciplines optional* under Domain rules). External / 3rd
 parties no longer have their own nav link — they moved INTO the **Resources** tab behind a setting
 (see *External / 3rd parties* under Domain rules); the old `/external` URL still resolves but
@@ -120,7 +126,7 @@ both the open menu and the collapsed rail, so the nav icons don't shift when the
 **Collapse menu** / **Expand menu**, with `aria-expanded`) collapses it to an icons-only rail.
 The toggle sits at the same left inset as the nav icons, so the toggle + icon column keep their
 x-position when collapsing — only the labels and the "CapacityLens" wordmark come and go. Rail icons
-(`data-testid="nav-rail-item"`, one per **visible** section — so 8 with disciplines on, 7 when disciplines are off —
+(`data-testid="nav-rail-item"`, one per **visible** section — so 9 with disciplines on, 8 when disciplines are off —
 `data-label` = the section label; each shows an instant visual hover label to the right) are **not** navigation — tapping any
 of them just re-opens the menu; they're hidden from assistive tech (the labelled toggle is the
 single accessible control). Collapsing hides
@@ -277,7 +283,7 @@ was created and can't be changed."*, and the server rejects a direct change to a
 (`language`/`weekStartsOn`/`timezone`) with **409**. Company **name** and **disciplines** remain
 editable. (English-only until Paraglide; the value persists as `'en'` on the Account.)
 
-> **i18n note (P1.5.2).** Every Settings + Members label/heading/button/placeholder/hint quoted in
+> **i18n note.** Every Settings + Team & access label/heading/button/placeholder/hint quoted in
 > this file is now rendered from a Paraglide message key (`settings_*` in `messages/en.json`) rather
 > than an inline literal — the **visible English text is char-identical**, so all selectors here (by
 > text / role-name / `data-testid`) are unchanged. Role labels (Owner/Admin/Editor/Viewer) and the
@@ -384,33 +390,59 @@ so the setup form
 itself is covered by unit tests, not a spec. Spec `e2e/login.auth.spec.ts`.
 
 **Invite accept route (`/invite/:token`; server mode).** A single-use, expiring invite link
-carries a pre-set role for one company. Opening `/invite/<token>` shows the **Accept invite**
-screen (heading `Accept invite`). In a server deploy with auth on, an **unauthenticated** visit
-gets a 401 from the accept POST and the invite page shows its OWN inline onboarding form (NOT the
-app login wall): an existing user signs in with **Sign in and accept**, or a brand-new invitee
-creates a password account with **Create account and accept** (POST `/invite/:token/signup`); either
-way the page reloads onto the same `/invite/<token>` URL and the accept runs — so the token survives.
-A **valid** link binds the signed-in user to that company with the invited role and shows a
-*"You've joined this company as `<role>`"* success with a **Continue** link into the app (which
-opens the joined company directly — the accept flow refetches the account list so the brand-new
-membership is activatable; if that refetch fails, Continue lands on the company picker, where
-the new company is listed). A **used** link shows *"This invite has already been used."*; an
+carries a pre-set Admin, Editor or Viewer role for one company; Owner is never invitational.
+Opening `/invite/<token>` shows the **Accept invite** screen (heading `Accept invite`) and safely
+previews the company name, proposed role, role summary and expiry before acceptance using public
+`GET /api/invites/:token/preview`. Possession of the bearer link is required to read that limited
+metadata; the preview returns no company data, membership list or unrelated identity facts. Merely
+opening or previewing the URL never changes membership. In a server deploy with auth on, an
+unauthenticated invitee gets the page's OWN inline onboarding form (NOT the app login wall): an
+existing user chooses **Sign in**, reloads onto the same `/invite/<token>` URL, reviews the invitation
+under that identity, then chooses **Accept invite**. A brand-new invitee chooses **Create account and
+accept** (POST `/invite/:token/signup`), which creates the identity and claims the invite atomically,
+then refreshes the authenticated company list, activates that company and enters it directly.
+A fresh authenticated boot is required because the pre-session invite page deliberately starts
+without tenant persistence attached; the signup handoff carries only the joined company id in a
+one-use query parameter, removes it from the URL, verifies it against the authenticated company
+list, and activates it. It never persists `activeAccountId` or trusts the URL as membership proof.
+If the signup response is lost, a successful credential sign-in reloads the same invite URL instead
+of guessing which company was joined: an unused token can then be explicitly accepted, while a used
+token directs the person to their authenticated company list.
+A **valid** accept binds the signed-in user to that company and shows the effective role returned by
+the mutation in a *"You've joined this company as `<role>`"* success with a **Continue** link (which
+opens the joined company directly after refetching the account list so the brand-new membership is
+activatable). A **used** link shows *"This invite has already been used."*; an
 **expired** link shows *"This invite has expired."*; an **unknown** token shows *"Invite not
-found."* Invites are server-only: in local mode (no `VITE_CAPACITYLENS_API`) the page shows a
+found."* Invites are server-only: in the explicit in-memory demo build
+(`VITE_CAPACITYLENS_DEMO=1`) the page shows a
 short *"Invite links work only when CapacityLens is connected to a server."* note and makes no
 request. The link page is `src/components/invites/InviteAccept.tsx`; the create UI is the Members
 section below. Spec `e2e/invite.auth.spec.ts`.
 
-**Settings → Members (Owner/Admin only; server + auth-on).** When the app runs in server mode
-(`VITE_CAPACITYLENS_API` set) against a server with auth ON, Settings gains a **Members** section
-(heading `Members`, `data-testid="members-section"`) — but ONLY for an Owner or Admin: the section
-self-gates by trying to read the member list and rendering **nothing** if the server replies 403
-(a Viewer/Editor/non-member), so it is invisible to anyone who can't manage members. In **auth off**
-(the default everywhere) or **local mode** the section is **absent**. It has three parts:
+**Team & access (`/team`; every role).** The dedicated **Team & access** destination is visible to
+Owner, Admin, Editor and Viewer. Its **Your access** panel (`data-testid="current-access"`) shows the
+active role and a plain-language allowed/not-allowed capability summary, including schedule writes,
+member administration, time-off-note visibility and private client/project-name visibility. The
+sidebar company block also shows the resolved role (`data-testid="active-role"`); Viewer retains the
+explicit **View only** wording. The page explains that **App members** (identities with a company
+role) and **Scheduled resources** (people/placeholders/external parties receiving allocations) are
+separate records, and links to `/resources`; neither record implicitly creates the other.
+
+In the in-memory demo the route remains visible but labels the state **Demo access** and clearly says
+that it neither creates app members nor simulates server authorization. A persisted auth-off server
+instead says **Open access** and explains that anyone who can reach the installation can view and
+edit its companies. In an authenticated server deploy, Owner/Admin additionally get the **Members**
+management section
+(heading `Members`, `data-testid="members-section"`). Editor/Viewer see their own access explanation
+but no company directory, invitations or management controls; the server's 403 remains the backstop.
+The management section has three parts:
 - **Members list** — one row per member (`data-testid="member-row"`) showing name (email), role and
   status; the caller's own row is marked **(you)**. Each manageable row carries a **role select**
-  (`data-testid="member-role-select"`) and a **Remove** button (`data-testid="member-remove"`); an
-  **Owner** additionally sees a **Make owner** button (`data-testid="member-make-owner"`) on every
+  (`data-testid="member-role-select"`) and a **Remove** button (`data-testid="member-remove"`); the
+  role selector offers only Admin, Editor and Viewer. Choosing a different role first opens a
+  confirmation that names the member, the proposed role and its plain-language consequences; the
+  PATCH is sent only after **Change role** is confirmed. An **Owner** additionally sees a **Transfer
+  ownership** button (`data-testid="member-make-owner"`) on every
   other, non-owner member's row (the atomic ownership hand-over — see below). In **password mode
   only**, manageable rows also carry a **Reset password** button
   (`data-testid="member-reset-password"`): clicking it mints a **single-use, 24-hour** reset link
@@ -421,7 +453,8 @@ self-gates by trying to read the member list and rendering **nothing** if the se
   button is absent in `sso` mode (the IdP owns credentials).
   Manageable rows also carry **Revoke sessions** (`data-testid="member-revoke-sessions"`), using
   the same cross-account authority rule as password reset.
-- **Invite form** — a **role** picker (`data-testid="invite-role"`) + an optional **pre-authorise
+- **Invite form** — an Admin/Editor/Viewer **role** picker (`data-testid="invite-role"`) with the
+  selected role's plain-language consequences visible below it, plus an optional **pre-authorise
   email** field (`data-testid="invite-preauth"`) and a **Create invite** button
   (`data-testid="invite-submit"`). On success the full link (`<origin>/invite/<token>`) is shown
   **once** (`data-testid="invite-link"`) with a **Copy** button — the token is write-once and never
@@ -433,32 +466,30 @@ self-gates by trying to read the member list and rendering **nothing** if the se
   or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
   carries the secret token.
 
-What's **hidden for an Admin vs an Owner**: an Admin never sees the **owner** option (not in the
-role-change select nor the invite-role picker), and an **owner row** shows no role control and no
-Remove for an Admin (an Admin can't touch an owner). The **sole owner** is protected — its role
-select is disabled and Remove is hidden (the account must keep at least one owner; *"Sole owner —
-protected"* is shown). The Owner sees every affordance. Only the Owner sees **Make owner**
-(`data-testid="member-make-owner"`) on another, non-owner member's row — the true atomic **transfer
-of ownership** (promote them to owner + step the caller down to admin in ONE server transaction),
-distinct from setting a role to *owner* via the select (which keeps the caller an owner too). An
-Admin never sees it. The server is the backstop for all of this:
-an Admin granting owner, touching an owner, or demoting/removing the last owner is **403** even if
-the UI is bypassed; revoking another account's invite is a no-op; reading another account's members
-is **403** (no cross-tenant leak).
+The Owner row has no role selector and no Remove action for anyone: each company has exactly one
+Owner, and ownership is changed only by explicit transfer. The Owner sees **Transfer ownership**
+(`data-testid="member-make-owner"`) on another active non-owner member; choosing it promotes the
+target and steps the caller down to Admin in one transaction. An Admin never sees it. No generic
+role-change or invite endpoint can assign Owner, even for the current Owner. A partial unique SQLite
+index prevents multiple active owners for an account, and the server prevents removing/demoting the
+Owner outside transfer. The server remains the backstop: bypassing the UI cannot grant a second
+Owner, transfer as Admin, revoke another account's invite or read another account's member list.
 
 The API routes: `GET /api/accounts/:accountId/members` (gated manageMembers; OFF → `{members:[]}`),
-`PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role, 404 non-member, 403 by the
-role/last-owner rules), `DELETE /api/accounts/:accountId/members/:userId` (204; 403 owner/last-owner),
+`PATCH /api/accounts/:accountId/members/:userId {role}` (400 bad role or attempted Owner assignment,
+404 non-member, 403 by the role rules), `DELETE /api/accounts/:accountId/members/:userId` (204; 403
+for the Owner),
 `GET /api/accounts/:accountId/invites` (gated manageInvites; NO token; OFF → `{invites:[]}`),
 `DELETE /api/accounts/:accountId/invites/:id` (204, idempotent, cross-tenant-safe),
 `POST /api/accounts/:accountId/transfer-ownership {toUserId}` (owner-only; 400 missing/empty or
 self-target, 404 non-member target, 403 non-owner; OFF → inert 200 no-op — hands the account to an
-existing member and demotes the caller to admin atomically). Creating an
-**owner** invite via `POST /api/invites` requires the caller be an owner (admin → 403), and
+existing member and demotes the caller to admin atomically). `POST /api/invites` rejects `owner` for
+every caller — ownership is transferred, never invited — and
 `POST /api/accounts/:accountId/members/:userId/reset-password` (gated manageMembers; password mode
 only — sso/OFF → 400; admin resetting an owner → 403; 404 non-member; 201 `{token, expiresAt}`,
-write-once) mints the reset link. The UI is
-`src/components/settings/MembersSection.tsx`; story `user-stories/settings/US-SET-10-member-management.md`;
+write-once) mints the reset link. The management UI is
+`src/components/settings/MembersSection.tsx`, composed by `src/components/team/TeamAccessView.tsx`;
+story `user-stories/settings/US-SET-10-member-management.md`;
 spec `e2e/members.auth.spec.ts`.
 
 `POST /api/accounts/:accountId/members/:userId/revoke-sessions` uses the same cross-account
@@ -497,8 +528,11 @@ to **viewer**, the whole app goes **read-only**:
 The **server 403** (the write tier is editor+; a viewer's write is rejected) is the AUTHORITATIVE
 backstop — the client gating is UX + defense-in-depth. As a second local guard, the store no-ops a
 viewer's `add*`/`update*`/`delete*`/`importData` and surfaces a *"Read-only — you don't have edit
-access."* notice, so an ungated path or an optimistic write can't desync local state. **In auth off
-(the default everywhere) or local mode the role is `null` → fully editable, byte-identical to today.**
+access."* notice, so an ungated path or an optimistic write can't desync local state. **Online
+default-editable invariant:** in auth off (the default everywhere) or local mode the live role is
+`null` → fully editable. An opted-in cached offline snapshot is the deliberate exception: it is
+labelled **Offline · View only**, projects Viewer capabilities, and never enables mutations
+regardless of the live authentication posture.
 The provider is `src/auth/PermissionProvider.tsx` (the hooks `useRole`/`useCanEdit` in
 `src/auth/permissionContext.ts`, off the pure `can`); story `user-stories/settings/US-SET-11-viewer-readonly.md`;
 spec `e2e/viewer.auth.spec.ts`.
@@ -531,7 +565,7 @@ a notice appears ("You have unsaved changes — use Cancel or Save to close this
 the palette does **not** open. Closing or saving the dialog re-enables the shortcut.
 Closed by **Escape**, backdrop click, or selecting an item.
 
-**Sections shown (no query):** Actions ("Go to today"), Pages (all 8 routes; 7 — no Disciplines — when the company turns disciplines off).
+**Sections shown (no query):** Actions ("Go to today"), Pages (all 9 routes; 8 — no Disciplines — when the company turns disciplines off).
 **Sections shown (with query):** any of the above that match, plus People, Projects, Clients, Activities.
 **Special action:** typing a valid, real calendar ISO date (`YYYY-MM-DD`, zero-padded,
 e.g. `2026-06-03`) shows "Go to date YYYY-MM-DD". Impossible dates like `2026-02-31`,

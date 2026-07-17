@@ -272,11 +272,11 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
       method: 'PATCH',
       url: `/api/accounts/a1/members/${editor.userId}`,
       headers: { cookie: owner.cookie },
-      payload: { role: 'owner' },
+      payload: { role: 'admin' },
     })
     expect(promote.statusCode).toBe(200)
 
-    // The still-held link must NOT redeem into the now-owner identity — it was revoked on promotion.
+    // The still-held link must NOT redeem into the now-admin identity — it was revoked on promotion.
     expect((await redeem(app, token, 'attacker-owner-password')).statusCode).toBe(400)
     // The old password therefore still works (nothing was changed).
     expect((await signIn(app, 'editor@capacitylens.dev', PASSWORD)).statusCode).toBe(200)
@@ -301,7 +301,7 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
     expect((await redeem(app, token, 'attacker-owner-password')).statusCode).toBe(400)
   })
 
-  it('accepting an owner invite preserves an existing editor role and its outstanding reset link', async () => {
+  it('accepting an admin invite preserves an existing editor role and its outstanding reset link', async () => {
     const { app, db } = await appWith(PASSWORD_ENV)
     seedAccount(db, 'a1')
     const owner = await member(app, db, 'a1', 'owner@capacitylens.dev', 'owner')
@@ -316,7 +316,7 @@ describe('POST /api/accounts/:accountId/members/:userId/reset-password (P1.18)',
       method: 'POST',
       url: '/api/invites',
       headers: { cookie: owner.cookie },
-      payload: { accountId: 'a1', role: 'owner' },
+      payload: { accountId: 'a1', role: 'admin' },
     })
     expect(inviteRes.statusCode).toBe(201)
     const inviteToken = (inviteRes.json() as { token: string }).token

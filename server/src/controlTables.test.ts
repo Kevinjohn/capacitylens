@@ -6,7 +6,10 @@ import {
   getMemberRole,
   listMembershipsForUser,
   listMembersForAccount,
-  countOwners,
+  migrateSingleOwnerControlPlaneV10,
+  migrateOwnerlessControlPlaneV11,
+  migrateOwnerResetCeremoniesV12,
+  assertSingleOwnerControlPlaneCurrent,
   removeMember,
   getUsersByIds,
   createInvite,
@@ -142,16 +145,89 @@ describe('listMembersForAccount', () => {
   })
 })
 
-describe('countOwners', () => {
-  it('counts ONLY active owners of the account', () => {
+describe('single-Owner control-plane migration', () => {
+  it('retains the oldest Owner, demotes co-owners, revokes live Owner invites and prevents recurrence', () => {
     const db = freshDb()
-    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-1', role: 'owner' }))
-    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-2', role: 'owner' }))
-    upsertMember(db, member({ accountId: 'acc-1', userId: 'u-3', role: 'admin' }))
-    upsertMember(db, member({ accountId: 'acc-2', userId: 'u-4', role: 'owner' })) // other account
-    expect(countOwners(db, 'acc-1')).toBe(2)
-    expect(countOwners(db, 'acc-2')).toBe(1)
-    expect(countOwners(db, 'empty')).toBe(0)
+    upsertMember(db, member({ userId: 'owner-later', role: 'owner', createdAt: '2026-01-02T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'owner-first', role: 'owner', createdAt: '2026-01-01T00:00:00.000Z' }))
+    createInvite(db, {
+      token: 'unused-owner-token', id: 'unused-owner', accountId: 'acc-1', role: 'owner',
+      preauthEmail: null, expiresAt: '2099-01-01T00:00:00.000Z', usedAt: null, createdAt: TS,
+    })
+    createInvite(db, {
+      token: 'used-owner-token', id: 'used-owner', accountId: 'acc-1', role: 'owner',
+      preauthEmail: null, expiresAt: '2099-01-01T00:00:00.000Z', usedAt: TS, createdAt: TS,
+    })
+
+    migrateSingleOwnerControlPlaneV10(db)
+    migrateOwnerlessControlPlaneV11(db)
+    expect(getMemberRole(db, 'acc-1', 'owner-first')).toBe('owner')
+    expect(getMemberRole(db, 'acc-1', 'owner-later')).toBe('admin')
+    expect(listInvitesForAccount(db, 'acc-1').map((invite) => invite.id)).toEqual(['used-owner'])
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
+    expect(() => upsertMember(db, member({ userId: 'owner-third', role: 'owner' }))).toThrow(/unique/i)
+    expect(() => migrateSingleOwnerControlPlaneV10(db)).not.toThrow()
+  })
+
+  it('repairs an ownerless member-bearing account by promoting its oldest active member', () => {
+    const db = freshDb()
+    // Create the auth verification table before the first membership write so the per-handle table
+    // probe sees the production password-mode shape. The initial upserts find no rows to revoke;
+    // the reset ceremonies are inserted afterwards to model links minted before migration.
+    db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`)
+    upsertMember(db, member({ userId: 'member-later', role: 'viewer', createdAt: '2026-01-02T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'member-first', role: 'admin', createdAt: '2026-01-01T00:00:00.000Z' }))
+    db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('promoted-reset', 'member-first')
+    db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('other-reset', 'member-later')
+
+    migrateSingleOwnerControlPlaneV10(db)
+    migrateOwnerlessControlPlaneV11(db)
+
+    expect(getMemberRole(db, 'acc-1', 'member-first')).toBe('owner')
+    expect(getMemberRole(db, 'acc-1', 'member-later')).toBe('viewer')
+    expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([
+      { id: 'other-reset' },
+      { id: 'promoted-reset' },
+    ])
+
+    migrateOwnerResetCeremoniesV12(db)
+    expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([{ id: 'other-reset' }])
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
+    expect(() => migrateOwnerlessControlPlaneV11(db)).not.toThrow()
+  })
+
+  it('starts revoking ceremonies when Better Auth creates its table after an earlier absent probe', () => {
+    const db = freshDb()
+    // Existing auth-off databases run application migrations before Better Auth creates its own
+    // tables. Exercise that exact same-handle ordering: both the membership write and v12 see no
+    // verification table, then password auth creates it later in the process.
+    upsertMember(db, member({ userId: 'owner-later-auth', role: 'owner' }))
+    migrateOwnerResetCeremoniesV12(db)
+    db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`)
+    db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('live-reset', 'owner-later-auth')
+
+    upsertMember(db, member({ userId: 'owner-later-auth', role: 'owner' }))
+
+    expect(db.prepare(`SELECT id FROM verification`).all()).toEqual([])
+  })
+
+  it('rejects a member-bearing account with no active Owner after migration', () => {
+    const db = freshDb()
+    migrateSingleOwnerControlPlaneV10(db)
+    upsertMember(db, member({ userId: 'orphaned-admin', role: 'admin' }))
+
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).toThrow(/has 0 active Owners/)
+  })
+
+  it('rejects a same-named partial unique index over the wrong column or predicate', () => {
+    const db = freshDb()
+    db.exec(`
+      CREATE UNIQUE INDEX idx_account_members_single_active_owner
+        ON account_members(userId)
+        WHERE status = 'active';
+    `)
+
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).toThrow(/invalid definition/)
   })
 })
 

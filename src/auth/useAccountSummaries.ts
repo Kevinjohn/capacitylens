@@ -32,19 +32,19 @@ function isRole(v: unknown): v is Role {
 
 /** Coerce one UNTRUSTED `/api/accounts` array entry to an {@link AccountSummary}, or null if it's
  *  off-spec (not an object, missing id/name). A null entry is DROPPED — a malformed row must never
- *  crash the picker or smuggle a bogus account in; an unrecognized role instead degrades to viewer
- *  (id/name still required). */
+ *  crash the picker or smuggle a bogus account in. A valid account with an unrecognized role stays
+ *  selectable under a fail-closed Viewer projection, but is explicitly tagged unavailable so the
+ *  picker never presents Viewer as an authoritative membership role. */
 function toSummary(entry: unknown): AccountSummary | null {
   if (typeof entry !== 'object' || entry === null) return null
   const e = entry as { id?: unknown; name?: unknown; role?: unknown }
   if (typeof e.id !== 'string' || e.id.length === 0) return null
   if (typeof e.name !== 'string') return null
-  // An unrecognized role (a future/renamed server role, or a transient serialization blip) must NOT
-  // drop an account the user is a member of from the picker — id/name are valid, only the role hint
-  // is unknown. Degrade it to 'owner' so the account stays selectable; the actual edit gate is
-  // PermissionProvider, which independently fail-closes an unknown ACTIVE-account role to viewer.
-  const role: Role = isRole(e.role) ? e.role : 'viewer'
-  return { id: e.id, name: e.name, role }
+  if (!isRole(e.role)) {
+    console.warn('fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable', entry)
+    return { id: e.id, name: e.name, role: 'viewer', roleStatus: 'unavailable' }
+  }
+  return { id: e.id, name: e.name, role: e.role }
 }
 
 /**
@@ -74,9 +74,20 @@ export async function fetchAccountSummaries(init?: {
     if (acceptEffects()) setOfflineReadState(true, cached.savedAt)
     return cached.value
   }
+  const safeCachedFallback = async (): Promise<AccountSummary[] | null> => {
+    try {
+      return await cachedFallback()
+    } catch (error) {
+      // A server outage and a broken/unavailable IndexedDB can happen together. Preserve this
+      // helper's total contract so callers keep their existing directory instead of receiving an
+      // unhandled rejection from the fallback path.
+      console.warn('fetchAccountSummaries: the offline account list could not be read', error)
+      return null
+    }
+  }
   try {
     const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include', signal: requestSignal(init?.signal) })
-    if (!res.ok) return res.status >= 500 ? cachedFallback() : null
+    if (!res.ok) return res.status >= 500 ? safeCachedFallback() : null
     const body: unknown = await res.json()
     // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
     // an `as` cast. A 200 whose body is NOT an array (a proxy HTML page, a server bug) is MALFORMED,
@@ -97,7 +108,11 @@ export async function fetchAccountSummaries(init?: {
     // the picker over what is really a broken response. Only a genuinely empty array means [].
     if (body.length > 0 && valid.length === 0) return null
     if (acceptEffects()) {
-      setOfflineReadState(false)
+      // This read proves only the company DIRECTORY is online. When an active company is still
+      // rendering a cached slice, clearing the global marker here would re-enable its edits and let
+      // it masquerade as live data. The authoritative slice loader owns that transition; at the
+      // picker (no active slice), a live directory read may clear an identity/list-only fallback.
+      if (useStore.getState().activeAccountId === null) setOfflineReadState(false)
       void cacheAccountSummaries(valid).catch((error) =>
         console.warn('fetchAccountSummaries: the offline account list could not be updated', error),
       )
@@ -111,12 +126,7 @@ export async function fetchAccountSummaries(init?: {
     const transportFailure = e instanceof TypeError ||
       (e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError'))
     if (!transportFailure) return null
-    try {
-      return await cachedFallback()
-    } catch (cacheError) {
-      console.warn('fetchAccountSummaries: the offline account list could not be read', cacheError)
-      return null
-    }
+    return safeCachedFallback()
   }
 }
 
@@ -138,6 +148,7 @@ export function useAccountSummaries(): void {
   // Re-key the server fetch on the active account so a switch / sign-in re-pulls the list (a freshly
   // accepted invite or a just-created org then appears). Harmless in the demo build (that branch ignores it).
   const activeAccountId = useStore((s) => s.activeAccountId)
+  const membershipRevision = useStore((s) => s.membershipRevision)
   // The demo build reads the accounts straight off the store; selecting the array keeps the derive effect
   // reactive to add/delete. (In server mode `data.accounts` holds only the active slice, so this is
   // NOT the picker source there — the fetch is.)
@@ -156,7 +167,7 @@ export function useAccountSummaries(): void {
     return () => {
       cancelled = true
     }
-  }, [serverMode, activeAccountId, setAccountSummaries])
+  }, [serverMode, activeAccountId, membershipRevision, setAccountSummaries])
 
   useEffect(() => {
     if (serverMode) return // server mode is driven by the fetch above, not the local derive

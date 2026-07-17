@@ -90,8 +90,17 @@ test.describe('viewer read-only mode (CAPACITYLENS_AUTH=password)', () => {
     // ── Browser as VIEWER: the read-only UI. ───────────────────────────────────────────────────────
     await signInAndOpen(page, VIEWER, `Viewer Studio ${STAMP}`)
 
-    // The "View only" badge is shown in the sidebar footer.
+    // The role is visible in the sidebar footer, and Team & access remains available so a Viewer
+    // can understand the role without being shown the company directory or management controls.
+    await expect(page.getByTestId('getting-started')).toHaveCount(0)
     await expect(page.getByTestId('view-only')).toBeVisible()
+    await expect(page.getByTestId('active-role')).toContainText('Viewer')
+    await page.getByRole('link', { name: 'Team & access' }).click()
+    await expect(page.getByTestId('current-access')).toContainText('Viewer')
+    await expect(page.getByText('View the schedule')).toBeVisible()
+    await expect(page.getByText('Edit scheduling data')).toHaveClass(/text-muted/)
+    await expect(page.getByText(/An Owner or Admin manages invitations/)).toBeVisible()
+    await expect(page.getByTestId('members-section')).toHaveCount(0)
 
     // Clients list: no top "Add client" create affordance, and no row Edit/Delete buttons.
     await page.getByRole('link', { name: 'Clients' }).click()
@@ -126,6 +135,8 @@ test.describe('viewer read-only mode (CAPACITYLENS_AUTH=password)', () => {
 
     // No "View only" badge for an editor.
     await expect(page.getByTestId('view-only')).toHaveCount(0)
+    await expect(page.getByTestId('getting-started')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Invite your team' })).toHaveCount(0)
 
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByRole('heading', { name: 'Clients' })).toBeVisible()

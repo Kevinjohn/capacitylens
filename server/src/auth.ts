@@ -242,12 +242,10 @@ export async function mintPasswordResetToken(auth: Auth, email: string): Promise
  * user's outstanding links, re-closing the window: the promoted member (or their admin) must mint a
  * fresh link, which is then judged against the new role.
  *
- * Better Auth stores a reset token as a `verification` row: `identifier = 'reset-password:<token>'`,
- * `value = <userId>` (verified against better-auth 1.6.20, dist/api/routes/password.mjs —
- * createVerificationValue there; same version erasure.ts pins). We delete by `value = userId` AND
- * the `reset-password:` identifier prefix, so ONLY reset tokens go (never email-verification or
- * other verification rows). No-ops cleanly when the auth tables are absent (OFF mode never mounts
- * them, and the role routes that call this are inert no-ops in OFF anyway).
+ * Better Auth stores reset and other verification ceremonies with `value = <userId>`. Their
+ * identifiers are hashed at rest, so purpose-specific deletion is unavailable; a privilege change
+ * conservatively revokes every outstanding ceremony for that identity. No-ops cleanly when the auth
+ * tables are absent (OFF mode never mounts them, and its role routes are inert no-ops).
  *
  * @param db      The open SQLite handle.
  * @param userId  The user whose outstanding reset tokens to revoke.
@@ -265,39 +263,34 @@ export function revokeResetTokensForUser(db: Db, userId: string): void {
  * runs at most ONCE per Db handle instead of on every membership write (the sole caller,
  * upsertMember, hits this on each role change / invite accept / org create).
  *
- * BOTH outcomes are safe to cache because table existence is FIXED for the life of a handle: Better
- * Auth's schema migration (runAuthMigrations) runs exactly once, at server boot — index.ts calls it
- * before the Fastify app is built, i.e. before any request can trigger a membership write — and in
- * OFF / auth-off mode it never runs at all, so the table is never created later. Nothing in the codebase
- * (or in the tests, which each open a fresh `openDb(':memory:')` handle and, when they exercise auth,
- * run migrations in setup before the first write) creates `verification` on a handle that has already
- * been probed. If a future path could create auth tables lazily AFTER a first write on a live handle,
- * this must switch to caching only the `true` outcome so a stale `false` can't hide a real table.
+ * Cache the TRUE outcome only. Application migration v12 may probe this table before
+ * runAuthMigrations creates it on the same handle when an existing auth-off database first enables
+ * password auth. Caching that pre-auth `false` would permanently suppress reset-token revocation for
+ * the rest of the process. Absence is therefore re-probed until the table appears; presence is fixed.
  *
  * WeakMap keyed by the Db handle: an entry is collected with its handle, so tests that spin up many
  * short-lived in-memory handles don't leak.
  */
-const verificationTablePresence = new WeakMap<Db, boolean>()
+const verificationTablePresence = new WeakMap<Db, true>()
 
 function verificationTableExists(db: Db): boolean {
-  const cached = verificationTablePresence.get(db)
-  if (cached !== undefined) return cached
+  if (verificationTablePresence.get(db)) return true
   const row = db
     .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'verification'`)
     .get() as { name?: string } | undefined
   const exists = row?.name === 'verification'
-  verificationTablePresence.set(db, exists)
+  if (exists) verificationTablePresence.set(db, true)
   return exists
 }
 
 /**
  * Per-handle cache of whether Better Auth's `user` table exists — caches the TRUE outcome ONLY,
- * unlike {@link verificationTablePresence} (which safely caches both ways). The difference:
+ * like {@link verificationTablePresence}. The reason is the same:
  * {@link countUsers} is consulted BEFORE runAuthMigrations as well as after it — authFromEnv makes
  * its boot-time minPasswordLength decision on the pre-migration handle, where the table does not
  * exist yet. Caching that pre-migration `false` would make every later per-request call read
  * "zero users" forever, holding first-run sign-up open on a populated instance — the exact stale-
- * `false` hazard the verificationTablePresence comment warns about. So absence is re-probed every
+ * `false` hazard described above. So absence is re-probed every
  * call (cheap: one sqlite_master lookup, and only until the table appears); presence, once true,
  * is fixed for the life of the handle (nothing ever drops Better Auth's tables).
  */
@@ -1073,7 +1066,7 @@ export async function createBootstrapAdmin(
     `    email:    ${BOOTSTRAP_ADMIN_EMAIL}`,
     `    password: ${bootstrapPassword}`,
     'Store this generated password securely, sign in, and change it via',
-    'Settings → Members → Reset password. Then remove',
+    'Team & access → Reset password. Then remove',
     'the --create-owner-admin-admin flag / CAPACITYLENS_CREATE_ADMIN_ADMIN env.',
   ]
   const width = Math.max(...content.map((line) => line.length))

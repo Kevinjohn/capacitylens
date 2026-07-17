@@ -20,11 +20,12 @@ async function freshProvider() {
   vi.resetModules()
   const { AuthProvider } = await import('./AuthProvider')
   const { useStore } = await import('../store/useStore')
+  const { offlineStateSnapshot, setOfflineReadState } = await import('../data/offlineCache')
   // authContext must come from the SAME fresh module graph as AuthProvider (which imports it
   // internally): a statically-imported useAuth from before vi.resetModules() would read the
   // context object's DEFAULT value, not whatever this AuthProvider instance provides.
   const { useAuth } = await import('./authContext')
-  return { AuthProvider, useStore, useAuth }
+  return { AuthProvider, useStore, useAuth, offlineStateSnapshot, setOfflineReadState }
 }
 
 /** Renders the two single-company-per-instance fields off `useAuth()` as plain text, so a test can
@@ -116,6 +117,23 @@ describe('AuthProvider — server mode', () => {
     )
     expect(await screen.findByText('app-content')).toBeInTheDocument()
     expect(fetchSpy).toHaveBeenCalledWith('http://api.test/api/auth/me', expect.objectContaining({ credentials: 'include', signal: expect.any(AbortSignal) }))
+  })
+
+  it('does not mark a cached active tenant online merely because the identity check succeeds', async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(200, { authMode: 'off', user: null })))
+    const { AuthProvider, useStore, offlineStateSnapshot, setOfflineReadState } = await freshProvider()
+    useStore.setState({ activeAccountId: 'a1' })
+    setOfflineReadState(true, Date.parse('2026-07-17T10:00:00.000Z'))
+
+    render(
+      <AuthProvider>
+        <div>cached-app-content</div>
+      </AuthProvider>,
+    )
+
+    expect(await screen.findByText('cached-app-content')).toBeInTheDocument()
+    expect(offlineStateSnapshot().readOnly).toBe(true)
   })
 
   it('a 401 replaces the app with the login screen (password form)', async () => {

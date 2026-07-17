@@ -66,6 +66,13 @@ This is the short, present-tense record of decisions that constrain future work.
 
 - Production refuses to start with authentication off unless an operator explicitly accepts the
   open-instance risk.
+- Each authenticated company has exactly one Owner. Owner is not an invite or ordinary role-change
+  option; ownership moves only through an explicit atomic transfer to an existing member, with the
+  former Owner becoming Admin.
+- App members and scheduled Resources are separate records. Adding a Resource never grants access,
+  and inviting a member never creates a schedulable person.
+- Team & access is a first-class destination visible to every role so members can understand their
+  own access; only Owner/Admin receive directory, invitation and access-management controls.
 - Email/password is stable. Social and generic OIDC providers are experimental and clearly marked.
 - Provider support is additive in password mode; `CAPACITYLENS_AUTH=sso` is the SSO-only posture.
 - Email self-registration is closed by default. External identities require a verified email and

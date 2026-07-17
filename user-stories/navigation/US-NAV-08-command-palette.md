@@ -15,7 +15,7 @@ couple of keystrokes navigate faster than any menu when you already know what yo
 **Precondition:** Seeded app open at Schedule (`/`), Studio North tenant active.
 
 1. Press **⌘K** (macOS) or **Ctrl+K** (Windows/Linux). The command palette opens centred near the top of the page. The search field is focused.
-2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (all 8 sidebar routes listed with their paths).
+2. With no query, two sections appear: **Actions** ("Go to today") and **Pages** (all 9 sidebar routes, including **Team & access**, listed with their paths).
 3. Type `Nix`. The palette shows a **People** section with *Tyler Nix* as the first result.
 4. Press **ArrowDown** once, then **Enter** (or just click *Tyler Nix*). The palette closes.
 5. The scheduler scrolls so Tyler Nix's row is visible.

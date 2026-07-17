@@ -16,12 +16,14 @@ export type NavLinkDef = [to: string, label: () => string, icon: IconName]
 // route rename is ONE edit — otherwise it would silently un-anchor the tour's spotlight steps
 // (driver.js degrades a missing-element step to a centred popover, and no test catches it).
 export const ROUTE_RESOURCES = '/resources'
+export const ROUTE_TEAM = '/team'
 export const ROUTE_CLIENTS = '/clients'
 export const ROUTE_SETTINGS = '/settings'
 
 export const LINKS: NavLinkDef[] = [
   ['/', () => m.nav_schedule(), 'calendar'],
   [ROUTE_RESOURCES, () => m.nav_resources(), 'people'],
+  [ROUTE_TEAM, () => m.nav_team_access(), 'shield-check'],
   // External / 3rd parties moved INTO the Resources tab behind a per-account setting
   // (`externalEnabled` on the Account, default off — Settings → External). They no longer have their
   // own nav link; the old /external route redirects to /resources for saved bookmarks.

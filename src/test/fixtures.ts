@@ -60,7 +60,7 @@ export function resetStoreWithAccount(accountId: ID = DEFAULT_ACCOUNT_ID): void 
   // Same for the transient a11y capacity announcement (WCAG 4.1.3): a prior keyboard-edit test
   // leaves an srAnnouncement on the singleton, so clear it here so specs asserting on it are
   // order-independent. There's no "clear" setter (announceCapacity only ever SETS), so null it directly.
-  useStore.setState({ srAnnouncement: null })
+  useStore.setState({ srAnnouncement: null, membershipRevision: 0 })
   // Likewise reset the transient access role (P1.12) so a prior viewer-guard test can't leave the
   // singleton store in 'viewer' and silently no-op the next spec's mutations. Default = editable.
   useStore.getState().setActiveRole(null)

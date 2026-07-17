@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { readApiError } from '../../lib/readApiError'
-import { Button, FieldError, SelectField } from '../common/ui'
+import { Button, ConfirmDialog, FieldError, SelectField } from '../common/ui'
 import { m } from '@/i18n'
 import {
   canManageMemberRole,
@@ -14,8 +14,13 @@ import {
 } from '@capacitylens/shared/domain/access'
 import { apiFetch } from '../../data/requestTimeout'
 import { MAX_EMAIL_LENGTH } from '@capacitylens/shared/lib/strings'
+import { roleLabel, roleSummary } from '../../lib/accessCopy'
+import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
+import { refreshActiveAccountSlice } from '../../data/persist'
+import { offlineStateSnapshot } from '../../data/offlineCache'
+import { useOfflineState } from '../../data/useOfflineState'
 
-// Member-management section (P1.11), shown in Settings ONLY on an auth-enabled, server-backed deploy.
+// Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
 // invites + mint a new invite (link + optional email-preauth, reusing POST /api/invites). The CLIENT
 // gate is courtesy only — the SAME pure guards (canManageMemberRole / canRemoveMember) hide controls
@@ -89,29 +94,30 @@ function parseInvites(value: unknown): InviteSummary[] | null {
   return value.invites as InviteSummary[]
 }
 
-function parseTokenResponse(value: unknown): { token: string; expiresAt?: string } | null {
+function parseTokenResponse(value: unknown): { id?: string; token: string; expiresAt?: string } | null {
   if (!isRecord(value) || typeof value.token !== 'string' || value.token.length === 0) return null
+  if (value.id !== undefined && (typeof value.id !== 'string' || value.id.length === 0)) return null
   if (value.expiresAt !== undefined && !isTimestamp(value.expiresAt)) return null
-  return { token: value.token, ...(typeof value.expiresAt === 'string' ? { expiresAt: value.expiresAt } : {}) }
+  return {
+    ...(typeof value.id === 'string' ? { id: value.id } : {}),
+    token: value.token,
+    ...(typeof value.expiresAt === 'string' ? { expiresAt: value.expiresAt } : {}),
+  }
 }
 
 // Each role's label is a GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS
 // pattern, P1.5.2): this list is module-scope, so resolving `m.key()` here would freeze the label to
 // the load-time locale. The getter defers it to render — roleOptions() calls each at its call site.
 const ALL_ROLE_OPTIONS: { value: Role; label: () => string }[] = [
-  { value: 'owner', label: () => m.settings_role_owner() },
   { value: 'admin', label: () => m.settings_role_admin() },
   { value: 'editor', label: () => m.settings_role_editor() },
   { value: 'viewer', label: () => m.settings_role_viewer() },
 ]
 
-// Role options offered to the actor: the `owner` option is present ONLY for an owner (an admin must
-// never be offered to grant/assign owner — the pure guards reject it, but hiding it keeps the UI
-// honest). Mirrors the server's owner-grant guard. Labels are resolved here (render time, via the
-// getters) so the returned options carry ready-to-render strings.
-function roleOptions(myRole: Role | undefined): { value: Role; label: string }[] {
-  const opts = myRole === 'owner' ? ALL_ROLE_OPTIONS : ALL_ROLE_OPTIONS.filter((o) => o.value !== 'owner')
-  return opts.map((o) => ({ value: o.value, label: o.label() }))
+// Owner is deliberately absent: ownership can change only through the explicit atomic transfer.
+// Labels are resolved at render time so a locale change is reflected without reloading the module.
+function roleOptions(): { value: Role; label: string }[] {
+  return ALL_ROLE_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))
 }
 
 function labelFor(m: Member): string {
@@ -170,15 +176,19 @@ function CopyableLinkBlock({
 }
 
 /**
- * The Settings → Members section (P1.11). Renders ONLY in server + auth-on mode; a 403 on the initial
+ * The Team & access member-management section. Renders ONLY in server + auth-on mode; a 403 on the initial
  * members read self-gates it away for a viewer/editor (renders nothing). Owner/Admin affordances are
- * gated client-side via the shared pure guards (owner-only options hidden for an admin; an owner row
- * is read-only for an admin; the sole owner is protected). The server enforces all of it regardless.
+ * gated client-side via the shared pure guards (Owner actions hidden for an Admin; Owner membership
+ * stays outside ordinary role/removal controls). The server enforces all of it regardless.
  */
 export function MembersSection() {
   const { authMode, refreshAuth } = useAuth()
+  const offline = useOfflineState()
   const activeAccountId = useStore((s) => s.activeAccountId)
+  const setActiveAccount = useStore((s) => s.setActiveAccount)
+  const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   const setNotice = useStore((s) => s.setNotice)
+  const invalidateMemberships = useStore((s) => s.invalidateMemberships)
   const { error, errorField, errorId, fail } = useFieldError()
 
   const [members, setMembers] = useState<Member[] | null>(null)
@@ -189,8 +199,9 @@ export function MembersSection() {
 
   const [inviteRole, setInviteRole] = useState<Role>('editor')
   const [invitePreauth, setInvitePreauth] = useState('')
-  // The freshly-minted link, shown ONCE after a successful create (the token is write-once).
-  const [mintedLink, setMintedLink] = useState<string | null>(null)
+  // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
+  // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
+  const [mintedLink, setMintedLink] = useState<{ inviteId: string | null; link: string } | null>(null)
   // The freshly-minted password-reset link (P1.18) — same write-once posture as the invite link,
   // labelled with WHO it resets so an admin juggling several members can't hand out the wrong one.
   // `userId` is carried (not just the display label) so a membership write that burns this member's
@@ -199,6 +210,8 @@ export function MembersSection() {
     { userId: string; link: string; member: string; expiresAt: string } | null
   >(null)
   const [unknownResetFor, setUnknownResetFor] = useState<string | null>(null)
+  const [transferTarget, setTransferTarget] = useState<Member | null>(null)
+  const [roleChange, setRoleChange] = useState<{ member: Member; nextRole: Role } | null>(null)
   // Bumped after every mutation to re-run the fetch effect (a re-read keeps the list authoritative).
   const [reloadKey, setReloadKey] = useState(0)
   const requestGeneration = useRef(0)
@@ -217,7 +230,59 @@ export function MembersSection() {
     actionLock.current = null
     setBusyAction(null)
   }
-  const reconcileUnknownMutation = async (message: string): Promise<void> => {
+  const closeActiveAccount = (): void => {
+    if (useStore.getState().activeAccountId !== activeAccountId) return
+    setActiveAccount(null)
+    // Membership loss is not an ordinary trip to the picker: do not offer a Back shortcut to a
+    // company the caller can no longer open.
+    useStore.setState({ previousAccountId: null })
+  }
+
+  /** Re-resolve every caller-owned projection after a possible self-role mutation. The role badge
+   * and affordances fail closed immediately via membershipRevision; the tenant slice is then fetched
+   * again under the new server role so confidential fields from the old projection cannot linger. */
+  const refreshCallerAccess = async (knownRemoved = false): Promise<'active' | 'left' | 'failed'> => {
+    const accountId = activeAccountId
+    if (!accountId) return 'failed'
+    invalidateMemberships()
+    await refreshAuth()
+    const summaries = await fetchAccountSummaries()
+    // A cached fallback is useful for ordinary offline viewing but is not evidence of the caller's
+    // post-mutation role. Fail closed instead of accepting a stale membership list as authority.
+    if (summaries === null || offlineStateSnapshot().readOnly) {
+      closeActiveAccount()
+      setNotice(m.settings_members_access_refresh_failed(), 'error')
+      return 'failed'
+    }
+    setAccountSummaries(summaries)
+    const stillMember = !knownRemoved && summaries.some((account) => account.id === accountId)
+    if (!stillMember) {
+      closeActiveAccount()
+      return 'left'
+    }
+    const outcome = await refreshActiveAccountSlice(accountId)
+    // `refreshActiveAccountSlice` can report `reloaded` after restoring an offline snapshot. That is
+    // still not an authoritative post-role projection: close the tenant so confidential fields
+    // from the caller's previous role cannot remain visible under an unverified role badge.
+    if (outcome === 'reloaded' && !offlineStateSnapshot().readOnly) return 'active'
+    // A user-initiated tenant switch can legitimately supersede this refresh. Never close the new
+    // tenant or replace its notice because a stale operation finished late.
+    if (useStore.getState().activeAccountId !== accountId) return 'left'
+    closeActiveAccount()
+    setNotice(m.settings_members_access_refresh_failed(), 'error')
+    return 'failed'
+  }
+
+  const reconcileUnknownMutation = async (
+    message: string,
+    { callerAccessMayHaveChanged = false }: { callerAccessMayHaveChanged?: boolean } = {},
+  ): Promise<void> => {
+    const accessResult = callerAccessMayHaveChanged ? await refreshCallerAccess() : null
+    if (accessResult === 'failed') return
+    if (accessResult === 'left') {
+      setNotice(`${message} Your company access was refreshed; verify the result before retrying.`, 'warning')
+      return
+    }
     try {
       const [memberResponse, inviteResponse] = await Promise.all([
         apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members`, { credentials: 'include' }),
@@ -229,10 +294,19 @@ export function MembersSection() {
       if (!nextMembers || !nextInvites) throw new Error('The authoritative lists were malformed.')
       setMembers(nextMembers)
       setInvites(nextInvites)
-      await refreshAuth()
+      setMintedLink((current) => (
+        current?.inviteId &&
+        !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
+          ? null
+          : current
+      ))
       setNotice(`${message} Memberships and invites were reloaded; verify the result before retrying.`, 'warning')
     } catch (reloadError) {
-      fail(null, `${message} Reload the page before retrying. ${errorMessage(reloadError)}`)
+      if (accessResult === 'active') {
+        setNotice(`${message} Your access was refreshed; verify the result before retrying.`, 'warning')
+      } else {
+        fail(null, `${message} Reload the page before retrying. ${errorMessage(reloadError)}`)
+      }
     }
   }
 
@@ -240,7 +314,11 @@ export function MembersSection() {
   // IIFE — behind an `await` — never synchronously in the effect body (the InviteAccept idiom), so
   // there's no cascading-render setState-in-effect. A 403 on the members read self-gates the section.
   useEffect(() => {
-    if (!enabled || !activeAccountId) return
+    // TeamAccessView keeps this component mounted while its controls are hidden so a freshly minted
+    // write-once link survives a transient role recheck. Do not issue privileged directory reads
+    // while the whole app is on a cached offline slice; recovery re-runs this effect and refreshes
+    // the retained state before the wrapper becomes visible again.
+    if (!enabled || !activeAccountId || offline.readOnly) return
     const generation = ++requestGeneration.current
     let cancelled = false
     const current = () => !cancelled && requestGeneration.current === generation
@@ -280,6 +358,12 @@ export function MembersSection() {
         if (!current()) return
         if (!invitesBody) throw new Error('The server returned an invalid invites response.')
         setInvites(invitesBody)
+        setMintedLink((current) => (
+          current?.inviteId &&
+          !invitesBody.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
+            ? null
+            : current
+        ))
       } catch (e) {
         if (!current()) return
         // A transport error (server down/offline) — surface it; do not swallow.
@@ -290,14 +374,12 @@ export function MembersSection() {
     return () => {
       cancelled = true
     }
-  }, [enabled, activeAccountId, reloadKey, fail])
+  }, [enabled, activeAccountId, reloadKey, fail, offline.readOnly])
 
   if (!enabled) return null // OFF / demo build: the section does not exist.
   if (gate === 'hidden') return null // a 403 self-gated us out (viewer/editor/non-member).
 
   const myRole = members?.find((m) => m.isSelf)?.role
-  const ownerCount = members?.filter((m) => m.role === 'owner').length ?? 0
-
   // NB: the param is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2); a
   // `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
   const changeRole = async (mem: Member, nextRole: Role) => {
@@ -319,9 +401,13 @@ export function MembersSection() {
       // upsertMember burns THIS member's outstanding reset tokens on every membership write (the
       // P1.18 TOCTOU close), so a role change to the shown member kills that link server-side.
       if (resetLink?.userId === mem.userId) setResetLink(null)
+      if (mem.isSelf) await refreshCallerAccess()
       reload()
     } catch (e) {
-      await reconcileUnknownMutation(`The role change had an unknown outcome. ${errorMessage(e)}`)
+      await reconcileUnknownMutation(
+        `The role change had an unknown outcome. ${errorMessage(e)}`,
+        { callerAccessMayHaveChanged: mem.isSelf },
+      )
     } finally {
       endAction()
     }
@@ -340,19 +426,22 @@ export function MembersSection() {
         return
       }
       setNotice(m.settings_members_removed())
+      if (mem.isSelf) {
+        await refreshCallerAccess(true)
+      }
       reload()
     } catch (e) {
-      await reconcileUnknownMutation(`The member removal had an unknown outcome. ${errorMessage(e)}`)
+      await reconcileUnknownMutation(
+        `The member removal had an unknown outcome. ${errorMessage(e)}`,
+        { callerAccessMayHaveChanged: mem.isSelf },
+      )
     } finally {
       endAction()
     }
   }
 
   // Transfer ownership to `mem` and step the caller down to admin (server-atomic, owner-only). The
-  // button is hidden unless the caller is the owner and `mem` is another, non-owner member. This is
-  // consequential and NOT caller-reversible (you become admin — only the new owner can hand it back),
-  // but it's immediate like removeMember above; the re-read reflects the new owner. `mem` is NOT `m`
-  // (the i18n catalogue). The server (transferOwnership gate) is the real backstop; this is courtesy UI.
+  // confirmation makes the loss of Owner authority explicit; only the new owner can hand it back.
   const transferOwnership = async (mem: Member) => {
     if (!beginAction(`transfer:${mem.userId}`)) return
     try {
@@ -375,9 +464,13 @@ export function MembersSection() {
       if (resetLink && (resetLink.userId === mem.userId || resetLink.userId === selfUserId)) {
         setResetLink(null)
       }
+      await refreshCallerAccess()
       reload()
     } catch (e) {
-      await reconcileUnknownMutation(`The ownership transfer had an unknown outcome. ${errorMessage(e)}`)
+      await reconcileUnknownMutation(
+        `The ownership transfer had an unknown outcome. ${errorMessage(e)}`,
+        { callerAccessMayHaveChanged: true },
+      )
     } finally {
       endAction()
     }
@@ -475,7 +568,10 @@ export function MembersSection() {
         return
       }
       // The token is write-once: build + show the link straight from this response and never again.
-      setMintedLink(`${window.location.origin}/invite/${body.token}`)
+      setMintedLink({
+        inviteId: body.id ?? null,
+        link: `${window.location.origin}/invite/${body.token}`,
+      })
       setInvitePreauth('')
       setNotice(m.settings_members_invite_created())
       reload()
@@ -498,6 +594,7 @@ export function MembersSection() {
         return
       }
       setNotice(m.settings_members_invite_revoked())
+      setMintedLink((current) => current?.inviteId === id ? null : current)
       reload()
     } catch (e) {
       await reconcileUnknownMutation(`The invite revocation had an unknown outcome. ${errorMessage(e)}`)
@@ -522,6 +619,7 @@ export function MembersSection() {
   }
 
   return (
+    <>
     <section className="rounded border border-line bg-surface p-4" data-testid="members-section">
       <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_members_heading()}</h2>
       <p className="mb-3 text-xs text-muted">
@@ -538,14 +636,11 @@ export function MembersSection() {
         {members?.map((mem) => {
           // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2);
           // shadowing it here would make `m.settings_*()` resolve against the Member object instead.
-          // "May the actor touch this row's role at all?" — canManageMemberRole gates per
-          // (actor,target,next); a row is editable iff the actor may set it to ANY non-current role
-          // they'd be offered. The owner option is hidden for an admin (roleOptions), so the relevant
-          // question is "may the actor manage this target": admin+ AND (target not owner OR actor owner).
-          // We ask canManageMemberRole with a representative next-role to reuse the single-sourced guard.
-          const mayTouch = !!myRole && canManageMemberRole(myRole, mem.role, mem.role === 'owner' ? 'admin' : 'editor')
-          const isSoleOwner = mem.role === 'owner' && ownerCount <= 1
-          const mayRemove = !!myRole && canRemoveMember(myRole, mem.role) && !isSoleOwner
+          // Ordinary role changes never touch the Owner. Ownership uses the explicit transfer below.
+          const representativeRole: Role = mem.role === 'viewer' ? 'editor' : 'viewer'
+          const mayTouch = !!myRole && canManageMemberRole(myRole, mem.role, representativeRole)
+          const isOwner = mem.role === 'owner'
+          const mayRemove = !!myRole && canRemoveMember(myRole, mem.role)
           // Reset links exist only in PASSWORD mode ('sso' delegates credentials to the IdP; the
           // server 400s there regardless) and never for a target an admin can't touch (e.g. an owner,
           // or a member who owns another account — a reset link is an account-takeover capability).
@@ -553,8 +648,6 @@ export function MembersSection() {
           // self-exemption checks the per-account pure guard can't see AND returns `false` in SSO mode,
           // so the old `authMode === 'password'` / `myRole` conditions here would be redundant.
           const mayReset = mem.mayResetPassword
-          // Demote of the sole owner is also blocked client-side (mirror the server last-owner rule).
-          const roleSelectDisabled = isSoleOwner
           return (
             <div
               key={mem.userId}
@@ -574,9 +667,9 @@ export function MembersSection() {
                       // FieldLabel from duplicating the row's name text; the row scopes which member.
                       label={m.settings_member_role_label()}
                       value={mem.role}
-                      onChange={(v) => void changeRole(mem, v as Role)}
-                      options={roleOptions(myRole)}
-                      disabled={roleSelectDisabled || busyAction !== null}
+                      onChange={(v) => setRoleChange({ member: mem, nextRole: v as Role })}
+                      options={roleOptions()}
+                      disabled={busyAction !== null}
                     />
                   </span>
                 ) : (
@@ -597,15 +690,14 @@ export function MembersSection() {
                     {m.settings_member_remove()}
                   </Button>
                 )}
-                {/* Owner-only, non-self, non-owner target: the true atomic hand-over (promote them +
-                    demote me), distinct from the change-role dropdown's promote-to-owner (which keeps
-                    the caller an owner too). Hidden for everyone else; the server gate is the backstop. */}
+                {/* Ownership has one path: a confirmed, atomic hand-over that promotes the target and
+                    demotes the caller. Generic role selectors never offer Owner. */}
                 {myRole === 'owner' && !mem.isSelf && mem.role !== 'owner' && (
-                  <Button variant="ghost" testId="member-make-owner" disabled={busyAction !== null} onClick={() => void transferOwnership(mem)}>
+                  <Button variant="ghost" testId="member-make-owner" disabled={busyAction !== null} onClick={() => setTransferTarget(mem)}>
                     {m.settings_member_make_owner()}
                   </Button>
                 )}
-                {isSoleOwner && (
+                {isOwner && (
                   <span className="text-xs text-muted">{m.settings_member_sole_owner_protected()}</span>
                 )}
               </div>
@@ -652,7 +744,7 @@ export function MembersSection() {
                 disabled={busyAction !== null}
                 className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
               >
-                {roleOptions(myRole).map((o) => (
+                {roleOptions().map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
@@ -680,10 +772,13 @@ export function MembersSection() {
             {m.settings_invite_submit()}
           </Button>
         </div>
+        <p className="text-xs text-muted" data-testid="invite-role-summary" aria-live="polite">
+          {roleSummary(inviteRole)}
+        </p>
         <FieldError id={errorId}>{errorField === 'invite' ? error : null}</FieldError>
         {mintedLink && (
           <CopyableLinkBlock
-            link={mintedLink}
+            link={mintedLink.link}
             testId="invite-link"
             copiedNotice={m.settings_members_invite_copied()}
             copyLink={copyLink}
@@ -716,5 +811,37 @@ export function MembersSection() {
         </div>
       )}
     </section>
+    {transferTarget && (
+      <ConfirmDialog
+        title={m.settings_transfer_owner_title()}
+        confirmLabel={m.settings_member_make_owner()}
+        message={m.settings_transfer_owner_message({ member: labelFor(transferTarget) })}
+        onConfirm={() => {
+          const target = transferTarget
+          setTransferTarget(null)
+          void transferOwnership(target)
+        }}
+        onCancel={() => setTransferTarget(null)}
+      />
+    )}
+    {roleChange && (
+      <ConfirmDialog
+        title={m.settings_change_role_title()}
+        confirmLabel={m.settings_change_role_confirm()}
+        confirmVariant="primary"
+        message={m.settings_change_role_message({
+          member: labelFor(roleChange.member),
+          role: roleLabel(roleChange.nextRole),
+          summary: roleSummary(roleChange.nextRole),
+        })}
+        onConfirm={() => {
+          const pending = roleChange
+          setRoleChange(null)
+          void changeRole(pending.member, pending.nextRole)
+        }}
+        onCancel={() => setRoleChange(null)}
+      />
+    )}
+    </>
   )
 }

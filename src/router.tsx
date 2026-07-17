@@ -16,13 +16,13 @@ const ClientList = lazy(() => import('./components/clients/ClientList').then((m)
 const ProjectList = lazy(() => import('./components/projects/ProjectList').then((m) => ({ default: m.ProjectList })))
 const ActivityList = lazy(() => import('./components/activities/ActivityList').then((m) => ({ default: m.ActivityList })))
 const TimeOffList = lazy(() => import('./components/timeoff/TimeOffList').then((m) => ({ default: m.TimeOffList })))
+const TeamAccessView = lazy(() => import('./components/team/TeamAccessView').then((m) => ({ default: m.TeamAccessView })))
 const SettingsView = lazy(() => import('./components/settings/SettingsView').then((m) => ({ default: m.SettingsView })))
-// Invite accept (P1.9): its own top-level route, OUTSIDE AppShell's tenant/account gate so the
-// accept POST fires immediately rather than being intercepted by the AccountPicker — but still
-// inside AuthProvider (which wraps the whole router in main.tsx), so an UNAUTHENTICATED visit to
-// /invite/:token shows the LoginScreen first; on sign-in AuthProvider reloads onto the SAME URL and
-// this page renders, so the token survives the auth wall. Lazy, like LoginScreen, so the default OFF
-// bundle is unaffected (the chunk loads only when an invite link is actually opened).
+// Invite accept: its own top-level route, OUTSIDE AppShell's tenant/account gate so the safe
+// preview and invite-specific onboarding render before a company is selected. AuthProvider carves
+// this route out of the password login wall: an unauthenticated visitor signs in on the invite page,
+// reloads onto the SAME URL, then explicitly accepts as that identity. Lazy so the chunk loads only
+// when an invite link is actually opened.
 const InviteAccept = lazy(() => import('./components/invites/InviteAccept').then((m) => ({ default: m.InviteAccept })))
 // Password reset (P1.18): like InviteAccept, its own top-level route outside AppShell — but unlike
 // an invite it must render for a visitor with NO session (they're locked out; that's the point), so
@@ -56,6 +56,7 @@ export const router = createBrowserRouter([
       { path: 'projects', element: <ProjectList /> },
       { path: 'activities', element: <ActivityList /> },
       { path: 'timeoff', element: <TimeOffList /> },
+      { path: 'team', element: <TeamAccessView /> },
       { path: 'settings', element: <SettingsView /> },
     ],
   },
@@ -63,7 +64,8 @@ export const router = createBrowserRouter([
     // Invite accept (P1.9). DELIBERATELY a sibling of the AppShell route, NOT a child: AppShell's
     // tenant gate would otherwise show the AccountPicker before this page ever ran. It carries its
     // own errorElement + Suspense boundary (AppShell provides those only for ITS children). The
-    // surrounding AuthProvider (main.tsx) still walls an unauthenticated visit behind the login.
+    // surrounding AuthProvider (main.tsx) provides identity state and lets this token-scoped
+    // onboarding page render before a session exists.
     path: '/invite/:token',
     errorElement: <RouteError />,
     element: (

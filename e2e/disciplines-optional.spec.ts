@@ -23,10 +23,10 @@ test.describe('Disciplines optional (account-level)', () => {
     // Sidebar nav link is gone.
     await expect(page.getByRole('link', { name: 'Disciplines' })).toHaveCount(0)
 
-    // …and the collapsed icon rail (the "mobile menu") drops it too: 7 icons, no Disciplines
+    // …and the collapsed icon rail (the "mobile menu") drops it too: 8 icons, no Disciplines
     // (External is no longer a standalone nav link — it lives inside the Resources tab now).
     await page.getByRole('button', { name: 'Collapse menu' }).click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(7)
+    await expect(page.getByTestId('nav-rail-item')).toHaveCount(8)
     await expect(page.locator('[data-testid="nav-rail-item"][data-label="Disciplines"]')).toHaveCount(0)
     await page.getByRole('button', { name: 'Expand menu' }).click()
 
