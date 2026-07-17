@@ -208,16 +208,18 @@ describe('single-Owner control-plane migration', () => {
     // below still see them.
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    let warnLines: string[] = []
-    let errorLines: string[] = []
-    try {
-      migrateOwnerlessControlPlaneV11(db)
-      warnLines = warnSpy.mock.calls.map((c) => String(c[0]))
-      errorLines = errorSpy.mock.calls.map((c) => String(c[0]))
-    } finally {
-      warnSpy.mockRestore()
-      errorSpy.mockRestore()
-    }
+    const { warnLines, errorLines } = (() => {
+      try {
+        migrateOwnerlessControlPlaneV11(db)
+        return {
+          warnLines: warnSpy.mock.calls.map((c) => String(c[0])),
+          errorLines: errorSpy.mock.calls.map((c) => String(c[0])),
+        }
+      } finally {
+        warnSpy.mockRestore()
+        errorSpy.mockRestore()
+      }
+    })()
 
     expect(getMemberRole(db, 'acc-1', 'new-admin')).toBe('owner')
     expect(getMemberRole(db, 'acc-1', 'old-viewer')).toBe('viewer')
@@ -237,13 +239,14 @@ describe('single-Owner control-plane migration', () => {
     migrateSingleOwnerControlPlaneV10(db) // installs the single-owner index the final assertion requires
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    let errorLines: string[] = []
-    try {
-      migrateOwnerlessControlPlaneV11(db)
-      errorLines = errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
-    } finally {
-      errorSpy.mockRestore()
-    }
+    const errorLines = (() => {
+      try {
+        migrateOwnerlessControlPlaneV11(db)
+        return errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
+      } finally {
+        errorSpy.mockRestore()
+      }
+    })()
 
     expect(getMemberRole(db, 'acc-1', 'b-editor')).toBe('owner')
     expect(getMemberRole(db, 'acc-1', 'a-viewer')).toBe('viewer')
@@ -265,13 +268,14 @@ describe('single-Owner control-plane migration', () => {
     migrateSingleOwnerControlPlaneV10(db) // installs the single-owner index the final assertion requires
 
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    let errorLines: string[] = []
-    try {
-      migrateOwnerlessControlPlaneV11(db)
-      errorLines = errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
-    } finally {
-      errorSpy.mockRestore()
-    }
+    const errorLines = (() => {
+      try {
+        migrateOwnerlessControlPlaneV11(db)
+        return errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
+      } finally {
+        errorSpy.mockRestore()
+      }
+    })()
 
     // Tie-break by earliest membership: the earlier viewer is promoted; exactly one Owner results.
     expect(getMemberRole(db, 'acc-1', 'v-early')).toBe('owner')

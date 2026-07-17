@@ -1,6 +1,8 @@
-# These rules remain visible as INFO in the ZAP artifact but do not fail CI. All other
-# baseline warnings retain their default WARN/failing behavior.
-10027	INFO	(Public build comments and a minified UI string; reviewed for secrets)
-10049	INFO	(Content-hashed /assets files are intentionally immutable and cacheable)
-10055	INFO	(report-uri is intentionally retained beside report-to for legacy browser reporting)
-10109	INFO	(Expected signal: CapacityLens is a client-rendered modern web application)
+# Reviewed, accepted alerts. ZAP's baseline rules file only honors IGNORE/WARN/FAIL — the
+# earlier INFO level here was silently unsupported, so these four still failed CI. IGNORE
+# drops them from the failing set (they no longer appear in the report); the review rationale
+# lives in this file instead. All other baseline warnings retain their default failing WARN.
+10027	IGNORE	(Public build comments and a minified UI string; reviewed for secrets)
+10049	IGNORE	(Content-hashed /assets files are intentionally immutable and cacheable)
+10055	IGNORE	(report-uri is intentionally retained beside report-to for legacy browser reporting)
+10109	IGNORE	(Expected signal: CapacityLens is a client-rendered modern web application)
