@@ -94,6 +94,12 @@ Recommended hardening, deliberately optional for community self-hosting:
 - For Compose, verify the automatic internal certificate initializer and nginx service-name check.
   For bare metal, optionally configure the same internal TLS pattern described below.
 
+This recommended hardened configuration is exactly what CI exercises: the blocking OWASP ZAP
+baseline boots a Compose stack with authentication, required MFA, scheduled backups and both
+attestations enabled and scans it on every change, so enabling the hardening means running the
+continuously tested posture. The out-of-the-box default is scanned separately each week as a
+non-blocking report of its accepted residual surface.
+
 Missing optional hardening produces explicit production posture warnings, not startup refusal. The
 attestation variables report external controls; they never implement encryption, backups or log
 delivery themselves.

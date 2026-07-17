@@ -114,6 +114,10 @@ review, but the operator must document retention, access groups, time synchroniz
 - Runtime images remove package managers and unused network clients. The Docker build rejects
   frontend/test packages in the API graph, and all three shipped images are scanned for
   high/critical CVEs.
-- CI performs dependency review, production audit, secret scan, CodeQL, SBOM generation, container
-  vulnerability scanning, DAST and release provenance. Workflow conditions run automatically when
-  public and remain manually runnable while private.
+- CI performs dependency review, production audit, secret scan (reviewed fixture findings pinned
+  in `.gitleaksignore`), CodeQL, SBOM generation, container vulnerability scanning, DAST and
+  release provenance. DAST is two-tier: the blocking baseline validates the hardened posture — the
+  configuration the deployment guide recommends — while the out-of-the-box default posture is
+  scanned weekly as a non-blocking published report, documenting rather than asserting its
+  residual surface. Workflow conditions run automatically when public and remain manually runnable
+  while private.

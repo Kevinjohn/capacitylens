@@ -97,7 +97,12 @@ When the repository becomes public, the workflow conditions automatically restor
 - CodeQL for pull requests, `main` and its weekly schedule.
 - OpenSSF Scorecard for `main` and its weekly schedule.
 - full-history secret scanning, dependency review, source SBOM, container vulnerability scanning,
-  OWASP ZAP baseline and tagged release provenance through `security.yml`.
+  two OWASP ZAP baselines and tagged release provenance through `security.yml`. The blocking ZAP
+  scan boots the hardened posture — password authentication, required MFA, scheduled backups and
+  the operator attestations, with credentials minted and masked per run — so a finding there is a
+  regression in the recommended configuration. A second, non-blocking job scans the out-of-the-box
+  default posture on the weekly schedule and uploads its report as an artifact. Reviewed
+  secret-scan findings (deliberately fake test fixtures) are pinned in `.gitleaksignore`.
 
 The security workflow remains manually runnable while private and becomes automatic on its
 documented public-repository events. See `docs/security/security-review-2026-07-14.md` for the

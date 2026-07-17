@@ -170,3 +170,19 @@ to INFO—not ignored—in `.zap/rules.tsv`; every warning or failure remains bu
 Hosted CodeQL, dependency review, SBOM generation and tagged provenance are configured but cannot
 be claimed as executed by this local review. Their first public GitHub run is a release gate, and a
 real deployment still needs the operator evidence and independent testing identified above.
+
+## Addendum — 2026-07-17
+
+Two corrections to the DAST posture described above, made after the first public CI runs:
+
+- The `INFO` level in `.zap/rules.tsv` was never honored — ZAP's baseline rules file supports only
+  `IGNORE`/`WARN`/`FAIL`, so the four reviewed informational classes were still failing the public
+  workflow. They are now `IGNORE`, with the review rationale kept in the rules file; any new
+  warning class still fails the blocking scan.
+- DAST is now two-tier, aligned with the optional-hardening posture model introduced in
+  v0.20.0-alpha.3: the blocking baseline boots and scans the hardened posture (password
+  authentication, required MFA, scheduled backups, the storage/log-forwarding attestations, and
+  per-run minted, masked credentials) on every push and pull request, while the out-of-the-box
+  default posture is scanned by a separate non-blocking weekly job whose report is published as an
+  artifact. Findings there document the default's accepted residual surface rather than failing
+  the build.
