@@ -1,0 +1,5 @@
+# Reviewed findings the full-history secret scan may safely skip.
+#
+# A deliberately fake fixture value in a migration test ('fixture-secret-…'), flagged by the
+# generic-api-key rule at its introducing commit. It was never a real credential.
+f0aa3b325c50b9f1ce4340a7a80e8e373f77430f:server/src/db.migrate.test.ts:generic-api-key:563
