@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, type Db } from './db'
 import { upsertMember, getMemberRole, getInvite } from './controlTables'
-import { authFromEnv, runAuthMigrations } from './auth'
+import { authFromEnv, runAuthMigrations, type Auth } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
@@ -223,6 +223,64 @@ describe('POST /api/accounts/:id/members/:userId/revoke-sessions', () => {
     expect(result.json().code).toBe('SESSION_NOT_FRESH')
     expect((await call(app, { method: 'GET', url: '/api/accounts', headers: { cookie: target.cookie } })).statusCode)
       .toBe(200)
+  })
+})
+
+// ── Step-up freshness gate: fail CLOSED on a missing session timestamp ─────────────────────────
+//
+// The real Better Auth path always stamps sessionCreatedAt (auth.api.getSession derives it from the
+// session row), so a verified session WITHOUT it can only come from a nonstandard adapter or a
+// corrupted session record. That shape must count as NOT fresh (403 SESSION_NOT_FRESH — the
+// re-auth dialog recovers by minting a dated session), never as fresh: the field is unverifiable,
+// and treating its absence as "fresh" would let it bypass the step-up gate entirely.
+
+/** A stub Auth whose verified session carries NO sessionCreatedAt — the only way to drive the
+ *  missing-timestamp branch, since the real adapter always sets it. */
+function timestamplessAuth(userId: string): Auth {
+  return {
+    handler: async () => new Response(null),
+    api: {
+      getSession: async () => ({
+        user: { id: userId, email: 'undated@capacitylens.dev', emailVerified: true, name: 'Undated' },
+      }),
+      requestPasswordReset: async () => ({ status: true }),
+    },
+    options: {},
+    providers: [],
+    revokeUserSessions: async () => {},
+    createCredentialUser: async () => ({ id: userId }),
+    deleteCredentialUser: async () => {},
+  }
+}
+
+describe('step-up freshness gate — missing sessionCreatedAt fails closed', () => {
+  it('403s a gated (above-write) action with SESSION_NOT_FRESH when the session has no timestamp', async () => {
+    const db = openDb(':memory:')
+    seedTwo(db)
+    upsertMember(db, { accountId: 'a1', userId: 'undated-owner', role: 'owner', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: 'a1', userId: 'undated-target', role: 'editor', status: 'active', createdAt: TS })
+    const app = buildApp(db, { authMode: 'password', auth: timestamplessAuth('undated-owner') })
+
+    const result = await revokeSessionsReq(app, 'a1', 'undated-target')
+    expect(result.statusCode).toBe(403)
+    expect(result.json().code).toBe('SESSION_NOT_FRESH')
+    // The membership itself is intact — only the freshness gate refused, not authorization.
+    expect(getMemberRole(db, 'a1', 'undated-target')).toBe('editor')
+  })
+
+  it('read and write actions are unaffected — the freshness gate covers only above-write actions', async () => {
+    const db = openDb(':memory:')
+    seedTwo(db)
+    upsertMember(db, { accountId: 'a1', userId: 'undated-owner', role: 'owner', status: 'active', createdAt: TS })
+    const app = buildApp(db, { authMode: 'password', auth: timestamplessAuth('undated-owner') })
+
+    expect((await call(app, { method: 'GET', url: '/api/state?accountId=a1' })).statusCode).toBe(200)
+    const put = await call(app, {
+      method: 'PUT',
+      url: '/api/clients/c-undated',
+      payload: { id: 'c-undated', accountId: 'a1', name: 'Acme', color: '#3b82f6', createdAt: TS, updatedAt: TS },
+    })
+    expect(put.statusCode).toBe(200)
   })
 })
 

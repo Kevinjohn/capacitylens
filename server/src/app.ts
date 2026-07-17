@@ -1106,18 +1106,34 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       reply.code(403).send({ error: 'Forbidden.' }) // member, but role tier too low for action
       return false
     }
-    if (
-      action !== 'read' &&
-      action !== 'write' &&
-      req.user?.sessionCreatedAt !== undefined &&
-      Date.now() - Date.parse(req.user.sessionCreatedAt) > 15 * 60 * 1000
-    ) {
-      securityEvent({ event: 'step_up_required', outcome: 'blocked', action, accountId, userId: req.user?.id })
-      reply.code(403).send({
-        error: 'Sign in again before performing this security-sensitive action.',
-        code: 'SESSION_NOT_FRESH',
-      })
-      return false
+    if (action !== 'read' && action !== 'write') {
+      // Freshness gate for privileged (above-write) actions — FAIL CLOSED (mirrors the CSRF-parse
+      // and needsSetup posture): a session whose creation time is missing or unparseable cannot be
+      // proven fresh, so it counts as stale. The old `sessionCreatedAt !== undefined &&` guard
+      // BYPASSED step-up for exactly those sessions — fail-open on a security gate. Recovery is the
+      // client's re-auth dialog: a fresh sign-in always mints a session with a timestamp
+      // (auth.api.getSession derives sessionCreatedAt from the session row), so no one is hard-stuck.
+      // Date.parse(undefined ?? '') is NaN, and NaN fails Number.isFinite → stale.
+      const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? '')
+      const timestampMissing = !Number.isFinite(sessionCreatedAtMs)
+      if (timestampMissing || Date.now() - sessionCreatedAtMs > 15 * 60 * 1000) {
+        securityEvent({
+          event: 'step_up_required',
+          outcome: 'blocked',
+          action,
+          accountId,
+          userId: req.user?.id,
+          // Distinguish "we could not date this session" from an ordinarily aged-out one — an
+          // operator seeing this on real sessions has a session-record integrity problem, not users
+          // idling past the freshness window.
+          ...(timestampMissing ? { reason: 'missing_session_timestamp' } : {}),
+        })
+        reply.code(403).send({
+          error: 'Sign in again before performing this security-sensitive action.',
+          code: 'SESSION_NOT_FRESH',
+        })
+        return false
+      }
     }
     return true
   }

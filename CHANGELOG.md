@@ -51,6 +51,18 @@ new features and **patch** versions carry fixes.
 - Redacted bearer invite tokens from both request logs and structured authentication/security-event
   paths, including failures that occur before an invite handler runs.
 
+## [0.23.3-alpha.0] — 2026-07-17
+
+### Security
+
+- Added database migration v14, which revokes outstanding password-reset/verification ceremonies for
+  every active member. The v10-era owner repairs demoted co-owners with raw SQL, so a reset link
+  minted while they held Owner privilege survived the owners-only v12 revocation; the destroyed v11
+  role history makes targeted revocation impossible, and reset links are re-issuable on demand.
+- The fifteen-minute freshness gate on privileged actions now fails closed: a session whose creation
+  timestamp is missing or unparseable is treated as not fresh and receives the standard
+  `SESSION_NOT_FRESH` re-authentication challenge instead of bypassing step-up.
+
 ## [0.23.0-alpha.0] — 2026-07-17
 
 Two adversarial review rounds over the recent security-hardening work, fixing regressions the

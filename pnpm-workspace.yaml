@@ -1,6 +1,6 @@
 # pnpm workspace layout (replaces npm's "workspaces" field). Root = the web app;
 # shared/ is the pure domain core both app and server import; server/ is the
-# SQLite-backed API. See CLAUDE.md "Architecture in one breath".
+# SQLite-backed API. See AGENTS.md for the architecture overview.
 packages:
   - shared
   - server

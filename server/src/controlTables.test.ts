@@ -9,6 +9,7 @@ import {
   migrateSingleOwnerControlPlaneV10,
   migrateOwnerlessControlPlaneV11,
   migrateOwnerResetCeremoniesV12,
+  migrateMemberResetCeremoniesV14,
   assertSingleOwnerControlPlaneCurrent,
   removeMember,
   getUsersByIds,
@@ -306,6 +307,34 @@ describe('single-Owner control-plane migration', () => {
     expect(getMemberRole(db, 'acc-1', 'admin-b')).toBe('admin')
     expect(getMemberRole(db, 'acc-1', 'admin-c')).toBe('admin')
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
+  })
+
+  it('v14 revokes ceremonies for EVERY active member — the demoted non-owners v12 (owners-only) left outstanding', () => {
+    const db = freshDb()
+    db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`)
+    upsertMember(db, member({ userId: 'kept-owner', role: 'owner', createdAt: '2026-01-01T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'demoted-admin', role: 'admin', createdAt: '2026-01-02T00:00:00.000Z' }))
+    // A non-active membership, inserted raw (MembershipStatus is 'active'-only today): v14 mirrors
+    // v12's status filter, so this identity's ceremony must survive.
+    db.prepare(
+      `INSERT INTO account_members (accountId, userId, role, status, createdAt) VALUES (?, ?, ?, ?, ?)`,
+    ).run('acc-1', 'inactive-member', 'editor', 'suspended', TS)
+    // Links minted BEFORE the repair (inserted after the upserts, so upsertMember's own
+    // privilege-change revocation cannot be what removes them).
+    db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('owner-reset', 'kept-owner')
+    db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('demoted-reset', 'demoted-admin')
+    db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('inactive-reset', 'inactive-member')
+
+    migrateOwnerResetCeremoniesV12(db)
+    // THE GAP v14 closes: v12's owners-only scope leaves the demoted (now-admin) identity's link live.
+    expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all())
+      .toEqual([{ id: 'demoted-reset' }, { id: 'inactive-reset' }])
+
+    migrateMemberResetCeremoniesV14(db)
+    expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([{ id: 'inactive-reset' }])
+    // Membership rows are untouched — v14 only burns ceremonies, it never rewrites roles or statuses.
+    expect(getMemberRole(db, 'acc-1', 'kept-owner')).toBe('owner')
+    expect(getMemberRole(db, 'acc-1', 'demoted-admin')).toBe('admin')
   })
 
   it('starts revoking ceremonies when Better Auth creates its table after an earlier absent probe', () => {

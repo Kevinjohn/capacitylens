@@ -69,7 +69,7 @@ describe('pre-migration rollback snapshot', () => {
     const db = openDbConnection(dbPath)
     const plan = planDatabaseMigrations(db)
     expect(plan.fromVersion).toBe(7)
-    expect(plan.migrations.map((migration) => migration.version)).toEqual([8, 9, 10, 11, 12, 13])
+    expect(plan.migrations.map((migration) => migration.version)).toEqual([8, 9, 10, 11, 12, 13, 14])
     const snapshot = await writePreMigrationBackup(
       db,
       { dbPath, fromVersion: plan.fromVersion, toVersion: plan.toVersion, dir: join(dir, 'rollbacks') },

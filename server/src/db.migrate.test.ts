@@ -23,6 +23,7 @@ import {
 } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
 import { PRESET_COLORS } from '@capacitylens/shared/lib/color'
+import { upsertMember } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
 
 // openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
@@ -208,8 +209,10 @@ describe('schema migration of an existing on-disk DB', () => {
       // via some other path that could reformat it.
       insertRow(db, 'accounts', { id: 'a-preset', name: 'Already preset', color: '#e02727', createdAt: TS, updatedAt: TS })
       // Roll the ledger back to "just before v13" (mirrors the v7 rollback other tests use, but only
-      // one step back) so the next openDb() re-runs ONLY the v13 migration against these rows.
-      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 13`)
+      // a couple of steps back) so the next openDb() re-runs the v13 migration against these rows.
+      // Every row past v12 must go: a leftover future-version ledger row would (rightly) fail the
+      // exact-history assertion for user_version = 12.
+      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version > 12`)
       db.exec(`PRAGMA user_version = 12`)
       db.close()
 
@@ -230,6 +233,54 @@ describe('schema migration of an existing on-disk DB', () => {
       const restate = loadState(reopened)
       expect(restate.accounts.find((a) => a.id === 'a-legacy')?.color).toBe('#7adae3')
       expect(restate.accounts.find((a) => a.id === 'a-preset')?.color).toBe('#e02727')
+      reopened.close()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('v14 revokes an outstanding reset ceremony for a non-owner active member, leaving the membership row untouched', () => {
+    // v12 revoked ceremonies for active OWNERS only, so a co-owner the v10-era raw-SQL repairs
+    // demoted to admin kept any reset link minted while they still held Owner privilege. v14 is the
+    // blanket every-active-member repair (the original v11 destroyed the role history a targeted
+    // revocation would need — see migrateMemberResetCeremoniesV14). This drives it through the real
+    // ledger/openDb path: the admin's link is burned, the membership row itself is not modified.
+    const path = join(tmpdir(), `capacitylens-migrate-v14-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+    cleanup()
+    try {
+      const db = openDb(path) // fresh DB: already at the current version (v14 is a no-op here)
+      insertRow(db, 'accounts', { id: 'a1', name: 'Studio', color: '#e02727', createdAt: TS, updatedAt: TS })
+      upsertMember(db, { accountId: 'a1', userId: 'kept-owner', role: 'owner', status: 'active', createdAt: TS })
+      upsertMember(db, { accountId: 'a1', userId: 'demoted-admin', role: 'admin', status: 'active', createdAt: TS })
+      // Better Auth normally creates `verification` when password auth first runs; mirror that shape
+      // (as controlTables.test.ts does) AFTER the membership writes, so upsertMember's own
+      // privilege-change revocation cannot be what removes the token — only v14 can.
+      db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`)
+      db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('demoted-reset', 'demoted-admin')
+      // Roll the ledger back to "just before v14" so the next openDb() re-runs ONLY the v14 migration.
+      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 14`)
+      db.exec(`PRAGMA user_version = 13`)
+      db.close()
+
+      const upgraded = openDb(path)
+      expect(upgraded.prepare(`SELECT id FROM verification`).all()).toEqual([])
+      expect(
+        upgraded.prepare(`SELECT role, status, createdAt FROM account_members WHERE userId = ?`).get('demoted-admin'),
+      ).toEqual({ role: 'admin', status: 'active', createdAt: TS })
+      expect(upgraded.prepare(`SELECT version, name FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 14`).get())
+        .toEqual({ version: 14, name: 'revoke-member-reset-ceremonies' })
+      expect((upgraded.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version)
+        .toBe(DB_SCHEMA_VERSION)
+      upgraded.close()
+
+      // Idempotent: reopening an already-migrated DB plans no further migrations.
+      const reopened = openDb(path)
+      expect(planDatabaseMigrations(reopened).migrations).toEqual([])
       reopened.close()
     } finally {
       cleanup()
@@ -493,6 +544,7 @@ describe('schema migration of an existing on-disk DB', () => {
       { version: 11, name: 'repair-ownerless-memberships' },
       { version: 12, name: 'revoke-owner-reset-ceremonies' },
       { version: 13, name: 'snap-legacy-account-colors' },
+      { version: 14, name: 'revoke-member-reset-ceremonies' },
     ])
     // Shipped checksums are immutable: later migrations must never invalidate an upgraded database.
     expect(history[0].checksum).toBe('90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d')

@@ -126,6 +126,19 @@ This is the short, present-tense record of decisions that constrain future work.
   superseded v11 checksum via an explicit per-version allow-list (any other drift still refuses
   startup), and databases that ran the old rule may carry a wrongly-tiered owner — accepted under
   the same revisit flag.
+- Migration v14 (2026-07-17) revokes outstanding reset/verification ceremonies for every active
+  member, not just Owners. The v10-era owner repairs demoted co-owners with raw SQL, bypassing the
+  central membership-write invalidation, and the owners-only v12 revocation left a demoted
+  co-owner's Owner-era reset link redeemable. The scope is deliberately blanket: the original v11
+  destroyed role history in place (the reason it is superseded), so identifying which identities
+  were demoted is provably impossible — the same destroyed-information reasoning as the v11
+  supersession. Over-revoking is harmless because reset links are re-issuable on demand;
+  under-revoking is the vulnerability.
+- The step-up freshness gate treats a missing or unparseable session-creation timestamp as stale
+  (2026-07-17): the privileged action receives the standard `SESSION_NOT_FRESH` refusal rather
+  than bypassing the fifteen-minute check — fail-closed, matching the CSRF-parse and `needsSetup`
+  posture. Recovery is the existing re-authentication dialog; a fresh sign-in always mints a
+  session with a timestamp, so no one is hard-stuck.
 - Production posture validation uses the exact same parsers as the runtime features it attests
   (e.g. the rate limiter), so a value the runtime would silently ignore refuses startup instead.
 - Encrypted persistent storage and logically separate security-log forwarding are recommended

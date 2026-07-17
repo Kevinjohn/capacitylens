@@ -23,6 +23,7 @@ import {
   assertSingleOwnerControlPlaneCurrent,
   assertSingleOwnerControlPlaneV10,
   ensureControlTables,
+  migrateMemberResetCeremoniesV14,
   migrateOwnerlessControlPlaneV11,
   migrateOwnerResetCeremoniesV12,
   migrateSingleOwnerControlPlaneV10,
@@ -38,7 +39,7 @@ import {
 export type Db = DatabaseSync
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 13
+export const DB_SCHEMA_VERSION = 14
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
@@ -338,6 +339,19 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     V13_DEFINITION,
     (db) => {
       snapLegacyAccountColors(db)
+    },
+  ),
+  defineMigration(
+    14,
+    'revoke-member-reset-ceremonies',
+    'repair:revoke-outstanding-verification-ceremonies-for-active-members:v1',
+    (db) => {
+      // v12 revoked ceremonies for active OWNERS only, so co-owners the v10-era raw-SQL repairs
+      // DEMOTED to admin kept reset links minted at Owner privilege. The blanket every-active-member
+      // scope is deliberate — see migrateMemberResetCeremoniesV14 (the original v11 destroyed the
+      // role history a targeted revocation would need).
+      migrateMemberResetCeremoniesV14(db)
+      assertSingleOwnerControlPlaneCurrent(db)
     },
   ),
 ]

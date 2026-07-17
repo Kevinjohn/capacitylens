@@ -614,6 +614,28 @@ export function migrateOwnerResetCeremoniesV12(db: Db): void {
   })
 }
 
+/** Migration v14 closes the reset-ceremony gap v12 left for DEMOTED identities. The v10-era owner
+ * repairs demoted co-owners to admin with raw SQL, bypassing upsertMember's privilege-change
+ * invalidation — but v12 revoked ceremonies for ACTIVE OWNERS ONLY, so a demoted co-owner kept any
+ * reset link minted while they still held Owner privilege.
+ *
+ * BLANKET scope on purpose: revoke for EVERY active member, with no role filter. Targeting only the
+ * demoted identities is PROVABLY IMPOSSIBLE — the original v11 repair overwrote roles in place and
+ * destroyed the role history a targeted revocation would need (the same destroyed-information
+ * reasoning that justified v11's supersession allow-list in db.ts). Over-revoking is harmless: a
+ * reset link is re-issuable on demand, and revokeResetTokensForUser already no-ops for members with
+ * no outstanding ceremony. Under-revoking is the vulnerability. Membership rows are never touched. */
+export function migrateMemberResetCeremoniesV14(db: Db): void {
+  tx(db, () => {
+    const members = db.prepare(`
+      SELECT DISTINCT userId
+        FROM account_members
+       WHERE status = 'active'
+    `).all() as Array<{ userId: string }>
+    for (const { userId } of members) revokeResetTokensForUser(db, userId)
+  })
+}
+
 /** Assert the current control-plane invariant after every database open. Kept separate from
  * assertControlTablesCurrent because migration v8 intentionally calls that historical assertion
  * before the owner migrations have run. */
