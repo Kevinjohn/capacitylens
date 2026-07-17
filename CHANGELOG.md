@@ -51,6 +51,64 @@ new features and **patch** versions carry fixes.
 - Redacted bearer invite tokens from both request logs and structured authentication/security-event
   paths, including failures that occur before an invite handler runs.
 
+## [0.23.0-alpha.0] — 2026-07-17
+
+Two adversarial review rounds over the recent security-hardening work, fixing regressions the
+hardening introduced and closing the gaps the fixes themselves opened. Policy decisions made here
+are recorded in `DECISIONS.md`.
+
+### Added
+
+- Added an in-place **"Confirm it's you"** re-authentication dialog: security-sensitive actions
+  (member/invite management, deletion, purge, ownership transfer) on a session older than fifteen
+  minutes now raise a step-up prompt that re-authenticates without a reload, preserves working
+  state, and retries the blocked action. Previously the raw server error was shown and a full
+  sign-out was the only remedy.
+- Added a degraded-configuration notice to the sign-in wall: when the authentication status
+  response is malformed (broken proxy, HTML error body), the password form is shown as a fallback
+  with an explicit advisory instead of silently masquerading as a password-mode instance.
+
+### Fixed
+
+- Fixed the cross-site write gate rejecting explicitly allow-listed CORS origins: an Origin on the
+  credentialed allow-list now passes regardless of Fetch Metadata, and a TLS-terminating reverse
+  proxy (Origin `https`, backend socket `http`, same host) is recognised as same-origin. A
+  malformed `Host` header now fails closed with a 403 instead of an unhandled 500.
+- Fixed optimistic-concurrency conflicts firing on writes without timestamps: a missing or
+  unparseable `updatedAt` on either side is never a conflict again (per the documented contract),
+  so partial PATCHes succeed and legacy rows are no longer permanently write-locked.
+- Fixed undo of a just-synced client/project/resource permanently poisoning sync: lifecycle
+  deletions no longer ride the atomic batch and instead converge by archiving the row (reversible
+  and permitted for every role that can create one). Closing the tab mid-undo fires a best-effort
+  keepalive archive instead of silently resurrecting the row.
+- Fixed version-skew outages during rolling deploys: a known table missing from the state payload
+  (whole-tree and per-account loads) hydrates as empty with a diagnostic console warning, while a
+  present-but-malformed table still fails hard. A 401 with an unreadable body now lands on the
+  sign-in wall instead of a terminal error screen.
+- Fixed `/api/health` sharing the request rate-limit budget: the uptime-monitor exemption is
+  restored, so health checks are never told 429.
+- Fixed the production posture guard accepting rate-limit values the runtime parser rejects
+  (whitespace, scientific notation, values beyond the cap), which silently booted production with
+  rate limiting disabled; both now share one strict parser and bad values refuse startup.
+- Fixed legacy account colours snapping to a fixed purple on unrelated writes: a one-time
+  migration (v13) maps stored colours to their nearest palette preset, the write-time guard snaps
+  to nearest on both client and server via one shared mapper, and the migration carries a frozen
+  palette snapshot inside its checksummed definition so future palette edits cannot alter it.
+- Fixed the amended v11 owner-repair migration refusing to boot databases that had already run its
+  original definition: the migration ledger accepts the superseded v11 checksum through an
+  explicit per-version allow-list while any other checksum drift still refuses startup.
+
+### Security
+
+- The v11 ownerless-company repair no longer promotes the oldest member regardless of role — it
+  promotes the highest role tier (tie-broken by earliest membership), promotes a viewer only when
+  no higher tier exists, and emits a security event for every promotion with escalated logging
+  below admin tier. Previously a viewer could be silently elevated to full Owner authority during
+  a routine upgrade.
+- Lifecycle soft-delete and purge remain admin-gated and step-up-gated after review confirmed
+  soft-delete is irreversible and obfuscates resource PII; background sync never emits either.
+  Ordinary archive/unarchive stay available to editors without a freshness check.
+
 ## [0.20.1-alpha.0] — 2026-07-15
 
 ### Changed

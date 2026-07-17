@@ -38,7 +38,7 @@ import {
 export type Db = DatabaseSync
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 12
+export const DB_SCHEMA_VERSION = 13
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
@@ -93,6 +93,75 @@ function defineMigration(
     .digest('hex')
   return { version, name, checksum, up }
 }
+
+/**
+ * Per-version allow-list of PRIOR definition checksums this build still accepts on an
+ * ALREADY-APPLIED migration row. Every entry is one explicitly reviewed, one-time amendment; the
+ * map is empty for every migration whose definition has never changed after shipping. This is NOT a
+ * general "ignore mismatches" relaxation — only the exact (version → historical-checksum) pairs
+ * listed here are tolerated, and any OTHER checksum drift (on these versions or any other) still
+ * refuses startup with the same error.
+ *
+ * v11 amendment (alpha line only): the ORIGINAL v11 definition
+ * 'repair:promote-oldest-active-member-when-ownerless:v1' promoted the OLDEST active member
+ * REGARDLESS of role when an account went ownerless; the amended definition
+ * 'repair:promote-highest-role-tier-active-member-when-ownerless:v2' promotes the HIGHEST role tier
+ * (tie-broken by earliest membership). The edit was made IN PLACE rather than as a follow-up
+ * migration because the old SQL destroyed the original roles, so a forward repair can no longer
+ * distinguish a wrongly-promoted low-tier member from a legitimate owner. Any database opened by a
+ * previous build (up to and including v0.22.0-alpha.0 / commit fd5374b — live alpha deployments and
+ * dev DBs) recorded the OLD v11 checksum in its ledger; without this one-time amendment those
+ * installs would checksum-mismatch on boot and refuse to start, bricking already-upgraded databases.
+ *
+ * RESIDUAL RISK, ACCEPTED FOR THE ALPHA LINE: a database that ran the OLD v11 may carry a
+ * wrongly-promoted low-tier owner that the amended v11 would have chosen differently; that row is
+ * NOT re-repaired here (the destroyed roles make a correct forward repair impossible). This residual
+ * case is tracked by the DECISIONS.md "REVISIT before a stable release" flag on the ownerless-repair
+ * decision. The ledger row is LEFT UNTOUCHED — we accept the superseded checksum during read-only
+ * planning rather than rewriting history, so assertMigrationHistory stays a pure read.
+ */
+const SUPERSEDED_MIGRATION_CHECKSUMS: ReadonlyMap<number, readonly string[]> = new Map([
+  [11, ['057242fc8e358bebf0a188395e9289d2661f6a89e843bc091e718d003f013f5e']],
+])
+
+/** True only when `checksum` is an explicitly superseded prior definition for `version` (see
+ * {@link SUPERSEDED_MIGRATION_CHECKSUMS}). Any unlisted checksum is a genuine drift and returns false. */
+function isSupersededMigrationChecksum(version: number, checksum: string): boolean {
+  return SUPERSEDED_MIGRATION_CHECKSUMS.get(version)?.includes(checksum) ?? false
+}
+
+/**
+ * FROZEN preset palette for the v13 `snap-legacy-account-colors` migration — a byte-for-byte copy of
+ * shared `PRESET_COLORS` as it stood when v13 was authored. A checksummed migration must stay
+ * REPRODUCIBLE forever, so it may NOT read the live shared palette: a future edit to
+ * `PRESET_COLORS`/`snapToPresetColor` would silently change what this already-checksummed step does
+ * to rows on disk while the checksum stayed the same (defineMigration's whole contract is that the
+ * checksum covers everything the step does). Freezing the palette HERE — and folding its contents
+ * into the v13 definition string so the checksum COVERS the exact palette — makes the migration
+ * self-contained. The write-time guard (`sanitizeWrite`/`useStore`) keeps using the LIVE shared
+ * mapper; the two only need to agree for colours written AFTER this migration, and both start from
+ * this identical list today. If the shared palette is ever edited, THIS frozen copy must NOT follow —
+ * a new colour policy is a NEW migration with its own frozen list and checksum.
+ */
+export const V13_FROZEN_PRESET_COLORS: readonly string[] = [
+  '#f5bcbc', '#f7caba', '#f9d9b8', '#f9e6b8', '#f9f1b8', '#d9f2c0', '#c2f0d1', '#c0edf2', '#bed4f4', '#ccc0f2', '#e0c2f0', '#f4bedd', '#d8b397',
+  '#eb7272', '#ef906e', '#f3ae6a', '#f3ca6a', '#f3e16a', '#aee37a', '#7edf9e', '#7adae3', '#76a5e7', '#947ae3', '#be7edf', '#e776b8', '#c38c61',
+  '#e02727', '#e65621', '#ed841b', '#edae1b', '#edd11b', '#84d434', '#3ace6b', '#34c7d4', '#2d75da', '#5c34d4', '#9c3ace', '#da2d92', '#9e663c',
+  '#9c1616', '#a13812', '#a5590d', '#a5780d', '#a5910d', '#59931f', '#248f47', '#1f8a93', '#1b4f98', '#3c1f93', '#6b248f', '#981b64', '#684327',
+]
+
+/** The ONE fixed colour v13 uses for a value that can't be parsed as a 6-digit hex at all (frozen
+ * transcription of shared `FALLBACK_PRESET_COLOR` at authoring time — frozen for the same reason). */
+const V13_FALLBACK_PRESET_COLOR = '#5c34d4'
+
+/** v13 migration definition string. The joined frozen-palette hex list and fallback are embedded so
+ * the migration CHECKSUM covers the EXACT palette the repair snaps to: edit the frozen palette and
+ * the definition (hence the checksum) changes with it, instead of the step silently drifting. */
+export const V13_DEFINITION = [
+  'repair:snap-every-stored-account-colour-to-its-nearest-preset:v2',
+  `palette:${V13_FROZEN_PRESET_COLORS.join(',')}`,
+  `fallback:${V13_FALLBACK_PRESET_COLOR}`,
+].join('\n')
 
 // `table` is interpolated DIRECTLY into the SQL strings below (SQL can't parameterise an
 // identifier), so it MUST be a vetted key of TABLES — this is the SQL-injection safety boundary.
@@ -248,7 +317,7 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
   defineMigration(
     11,
     'repair-ownerless-memberships',
-    'repair:promote-oldest-active-member-when-ownerless:v1',
+    'repair:promote-highest-role-tier-active-member-when-ownerless:v2',
     (db) => {
       migrateOwnerlessControlPlaneV11(db)
       assertSingleOwnerControlPlaneCurrent(db)
@@ -261,6 +330,14 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     (db) => {
       migrateOwnerResetCeremoniesV12(db)
       assertSingleOwnerControlPlaneCurrent(db)
+    },
+  ),
+  defineMigration(
+    13,
+    'snap-legacy-account-colors',
+    V13_DEFINITION,
+    (db) => {
+      snapLegacyAccountColors(db)
     },
   ),
 ]
@@ -344,7 +421,12 @@ function assertMigrationHistory(db: Db, databaseVersion: number): void {
     if (row.name !== migration.name) {
       throw new Error(`Database migration v${migration.version} name does not match this build.`)
     }
-    if (row.checksum !== migration.checksum) {
+    // Accept the current checksum OR one explicitly superseded prior checksum for this version (the
+    // one-time alpha-line amendment allow-list). Any OTHER value is genuine drift and refuses boot.
+    if (
+      row.checksum !== migration.checksum &&
+      !isSupersededMigrationChecksum(migration.version, row.checksum)
+    ) {
       throw new Error(`Database migration v${migration.version} checksum does not match this build.`)
     }
     if (!row.appliedAt) throw new Error(`Database migration v${migration.version} has no applied timestamp.`)
@@ -473,6 +555,68 @@ function ensureInternalClients(db: Db): void {
       }
     }
   })
+}
+
+/**
+ * Local, palette-FROZEN transcription of shared `snapToPresetColor`, used ONLY by the v13 migration
+ * so the migration's result can never change when the shared palette or mapper is edited. Same rules
+ * as the shared mapper: an already-preset value is returned normalized (trimmed + lowercased); any
+ * other parseable 6-digit hex maps to its NEAREST frozen preset by squared RGB Euclidean distance
+ * (first minimal-distance preset wins on a tie — {@link V13_FROZEN_PRESET_COLORS} order is the
+ * deterministic tie-break); an unparseable value returns {@link V13_FALLBACK_PRESET_COLOR}.
+ */
+function snapToFrozenPresetV13(value: string | null): string {
+  if (typeof value !== 'string') return V13_FALLBACK_PRESET_COLOR
+  const normalized = value.trim().toLowerCase()
+  if (V13_FROZEN_PRESET_COLORS.includes(normalized)) return normalized
+  const rgb = hexToRgbV13(normalized)
+  if (!rgb) return V13_FALLBACK_PRESET_COLOR
+  const [r, g, b] = rgb
+  let nearest = V13_FROZEN_PRESET_COLORS[0]
+  let nearestDistance = Infinity
+  for (const preset of V13_FROZEN_PRESET_COLORS) {
+    const presetRgb = hexToRgbV13(preset)
+    if (!presetRgb) continue // unreachable: every frozen entry is a valid 6-digit hex (pinned by a test)
+    const [pr, pg, pb] = presetRgb
+    // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
+    const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2
+    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie — palette order is
+    // the deterministic tie-break, matching shared `snapToPresetColor`.
+    if (distance < nearestDistance) {
+      nearestDistance = distance
+      nearest = preset
+    }
+  }
+  return nearest
+}
+
+function hexToRgbV13(hex: string): [number, number, number] | null {
+  const c = hex.replace('#', '')
+  if (c.length !== 6) return null // reject short AND overlong hex (the latter mis-slices)
+  const r = parseInt(c.slice(0, 2), 16)
+  const g = parseInt(c.slice(2, 4), 16)
+  const b = parseInt(c.slice(4, 6), 16)
+  return [r, g, b].some(Number.isNaN) ? null : [r, g, b]
+}
+
+/**
+ * v13 one-time data repair: BEFORE this migration, sanitizeWrite('accounts') replaced ANY stored
+ * colour outside the current preset palette with one FIXED fallback hex on every single write —
+ * so a legacy account colour that predated today's `PRESET_COLORS` (or any hex a hand-crafted
+ * request supplied) would silently flip to that one fixed colour the next time its row was
+ * touched, with no migration ever having repaired the rows already on disk. Run ONCE: snap every
+ * stored account colour through {@link snapToFrozenPresetV13} — the palette-FROZEN transcription of
+ * the shared mapper — so each legacy colour is repaired to its NEAREST preset (not a fixed colour)
+ * and the write-time guard becomes a no-op for every already-migrated row. The frozen palette (not
+ * the live shared one) keeps this checksummed step reproducible forever. See DECISIONS.md.
+ */
+function snapLegacyAccountColors(db: Db): void {
+  const rows = db.prepare(`SELECT id, color FROM accounts`).all() as Array<{ id: string; color: string | null }>
+  const update = db.prepare(`UPDATE accounts SET color = ? WHERE id = ?`)
+  for (const row of rows) {
+    const snapped = snapToFrozenPresetV13(row.color)
+    if (snapped !== row.color) update.run(snapped, row.id)
+  }
 }
 
 const placeholders = (n: number) => Array.from({ length: n }, () => '?').join(', ')

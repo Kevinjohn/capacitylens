@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { API_BASE, isServerConfigured } from '../../data/apiConfig'
 import { apiFetch, API_BULK_TIMEOUT_MS } from '../../data/requestTimeout'
+import { apiFetchReauth } from '../../auth/apiFetchReauth'
 import { useStore } from '../../store/useStore'
 import { useAuth } from '../../auth/authContext'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
@@ -229,7 +230,7 @@ export function AccountPicker() {
     if (deleting) return
     setDeleting(true)
     try {
-      const res = await apiFetch(
+      const res = await apiFetchReauth(
         `${API_BASE}/api/accounts/${encodeURIComponent(id)}`,
         { method: 'DELETE', credentials: 'include' },
         // Whole-tenant erasure is a BULK op — a transactional cascade over every scoped row plus

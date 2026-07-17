@@ -168,6 +168,29 @@ describe('evaluateProductionPosture', () => {
     expect(result.refusals).toHaveLength(1)
   })
 
+  // The guard must validate CAPACITYLENS_RATE_LIMIT with the SAME parser the limiter uses
+  // (parseRateLimit), not a looser Number() check. A divergent Number()+isSafeInteger check accepted
+  // these values while parseRateLimit maps every one of them to 0 (off) — so production would boot
+  // claiming a hardened posture with rate limiting silently disabled. Each must now REFUSE.
+  it.each([
+    ['a value over the 1,000,000 cap', '2000000'],
+    ['surrounding whitespace', ' 100 '],
+    ['exponent notation', '1e3'],
+    ['a decimal', '12.5'],
+    ['a signed value', '+100'],
+  ])('refuses CAPACITYLENS_RATE_LIMIT that parseRateLimit rejects (%s)', (_why, value) => {
+    const result = productionPosture({ CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_RATE_LIMIT: value })
+    expect(result.refusals).toHaveLength(1)
+    // The refusal states the accepted shape (digits only) and range so the operator can fix it.
+    expect(result.refusals[0]).toMatch(/CAPACITYLENS_RATE_LIMIT/)
+    expect(result.refusals[0]).toMatch(/1\.\.1,000,000/)
+  })
+
+  it('accepts a plain digits-only CAPACITYLENS_RATE_LIMIT the limiter would honour', () => {
+    const result = productionPosture({ CAPACITYLENS_AUTH: 'sso', CAPACITYLENS_RATE_LIMIT: '100', CAPACITYLENS_HTTPS: '1' })
+    expect(result.refusals).toEqual([])
+  })
+
   it.each([
     ['MFA', { CAPACITYLENS_AUTH: 'password', CAPACITYLENS_REQUIRE_MFA: undefined }, /REQUIRE_MFA/],
     [

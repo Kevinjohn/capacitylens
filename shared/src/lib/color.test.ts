@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest'
-import { resolveBarColor, resolveProjectColor, contrastRatio, readableTextColor, ensureBarColors, isHexColor, type BarColorMaps } from './color'
+import {
+  resolveBarColor,
+  resolveProjectColor,
+  contrastRatio,
+  readableTextColor,
+  ensureBarColors,
+  isHexColor,
+  snapToPresetColor,
+  FALLBACK_PRESET_COLOR,
+  PRESET_COLORS,
+  type BarColorMaps,
+} from './color'
 import type { Allocation, Client, Project, Resource, Activity } from '../types/entities'
 
 // Build the id→entity maps resolveBarColor consumes, from plain arrays.
@@ -135,6 +146,41 @@ describe('ensureBarColors', () => {
     // that MUST be left-padded to "00" — dropping the padStart pad character
     // would shorten the whole hex string.
     expect(ensureBarColors('#0070f8')).toEqual({ bg: '#0067e4', ink: '#ffffff' })
+  })
+})
+
+describe('snapToPresetColor', () => {
+  it('passes through a preset colour unchanged', () => {
+    expect(snapToPresetColor('#e02727')).toBe('#e02727')
+    expect(snapToPresetColor(PRESET_COLORS[10])).toBe(PRESET_COLORS[10])
+  })
+
+  it('normalizes a preset colour with surrounding whitespace / mixed case', () => {
+    expect(snapToPresetColor('  #E02727  ')).toBe('#e02727')
+  })
+
+  it('maps a non-preset colour to its nearest preset by RGB distance', () => {
+    // #7cd9e4 is 2/-1/+1 off PRESET_COLORS[20] (#7adae3) — nearer to it (distance 6) than to
+    // any other preset (the next-nearest is 51+ away in this palette).
+    expect(PRESET_COLORS[20]).toBe('#7adae3')
+    expect(snapToPresetColor('#7cd9e4')).toBe('#7adae3')
+  })
+
+  it('breaks an exact distance tie by palette order (first minimal-distance preset wins)', () => {
+    // #f6c3bb sits exactly midway between PRESET_COLORS[0] (#f5bcbc) and PRESET_COLORS[1]
+    // (#f7caba) — both distance 51, every other preset much farther (500+). A `<=` instead of
+    // `<` in the scan (or scanning in the wrong order) would instead pick index 1.
+    expect(PRESET_COLORS[0]).toBe('#f5bcbc')
+    expect(PRESET_COLORS[1]).toBe('#f7caba')
+    expect(snapToPresetColor('#f6c3bb')).toBe(PRESET_COLORS[0])
+  })
+
+  it('returns the fixed fallback for unparseable input', () => {
+    expect(snapToPresetColor('not-a-colour')).toBe(FALLBACK_PRESET_COLOR)
+    expect(snapToPresetColor(null)).toBe(FALLBACK_PRESET_COLOR)
+    expect(snapToPresetColor(undefined)).toBe(FALLBACK_PRESET_COLOR)
+    expect(snapToPresetColor(42)).toBe(FALLBACK_PRESET_COLOR)
+    expect(snapToPresetColor('#zzzzzz')).toBe(FALLBACK_PRESET_COLOR)
   })
 })
 

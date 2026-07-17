@@ -579,6 +579,7 @@
   "login_password": "Password",
   "login_failed": "Sign-in failed.",
   "login_network_error": "Could not reach the server. Check your connection and try again.",
+  "login_degraded_notice": "Sign-in configuration could not be loaded, so password sign-in is shown as a fallback. If this instance uses single sign-on, try again shortly or contact your administrator.",
   "identity_err_name": "Enter a valid name.",
   "identity_err_email": "Enter a valid email address.",
   "identity_err_password": "Password must be {min}–{max} characters.",
@@ -775,5 +776,13 @@
   "swatch_shade_dark": "dark",
   "swatch_label": "{hue} {shade}",
   "swatch_trigger_label": "{label} ({color})",
-  "swatch_group_label": "{label} swatches"
+  "swatch_group_label": "{label} swatches",
+  "reauth_title": "Confirm it's you",
+  "reauth_body": "For your security, changes like managing members or deleting data need a recent sign-in. Confirm your password to continue — you won't lose your place.",
+  "reauth_body_sso": "For your security, changes like managing members or deleting data need a recent sign-in. Re-authenticate with your identity provider to continue — you won't lose your place.",
+  "reauth_submit": "Confirm",
+  "reauth_failed": "Could not confirm your identity. Check your password and try again.",
+  "reauth_2fa_body": "Enter the six-digit code from your authenticator app to finish confirming.",
+  "reauth_2fa_label": "Authentication code",
+  "reauth_2fa_submit": "Verify"
 }

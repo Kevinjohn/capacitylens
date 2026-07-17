@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Button, FieldError } from '../components/common/ui'
+import { Button, Callout, FieldError } from '../components/common/ui'
 import { inputClass } from '../components/common/controls'
 import { authClient } from './authClient'
 import { APP_NAME } from '@capacitylens/shared/brand'
@@ -22,6 +22,7 @@ export function LoginScreen({
   authMode,
   needsSetup = false,
   providers = [],
+  degraded = false,
   onSignedIn,
 }: {
   authMode: 'password' | 'sso'
@@ -29,6 +30,10 @@ export function LoginScreen({
    *  absent means the ordinary sign-in form. */
   needsSetup?: boolean
   providers?: AuthProviderInfo[]
+  /** True when AuthProvider fell back to this form because the 401 body itself was untrustworthy
+   *  (non-JSON/HTML/junk authMode), not because the server genuinely reported password mode. Shows
+   *  a non-terminal advisory above the form — see AuthProvider's Status.degraded doc comment. */
+  degraded?: boolean
   onSignedIn: () => void
 }) {
   const [name, setName] = useState('')
@@ -197,6 +202,15 @@ export function LoginScreen({
           <p className="text-sm text-muted">{setup ? m.login_setup_subtitle() : m.login_subtitle()}</p>
         </div>
         <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+          {/* Non-terminal advisory (§1 DEFENSIVE-CODING.md — surface, never swallow): the 401 body
+              itself was untrustworthy, so this password form is a guess, not a confirmed signal.
+              Never rendered for a well-formed password-mode 401 or a valid SSO body — see
+              AuthProvider.Status.degraded. */}
+          {degraded && (
+            <div className="mb-4">
+              <Callout>{m.login_degraded_notice()}</Callout>
+            </div>
+          )}
           {twoFactorPending ? (
             <form onSubmit={(e) => void verifySecondFactor(e)} noValidate className="space-y-3">
               <p className="text-sm text-muted">

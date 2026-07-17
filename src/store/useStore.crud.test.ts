@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { useStore } from './useStore'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { Allocation, AppData, Resource, TimeOff } from '@capacitylens/shared/types/entities'
+import { PRESET_COLORS } from '@capacitylens/shared/lib/color'
 import { DEFAULT_ACCOUNT_ID, makeAppData, resetStoreWithAccount } from '../test/fixtures'
 
 const s = () => useStore.getState()
@@ -373,6 +374,109 @@ describe('update* re-validates the merged row so the store + server agree', () =
 // those dependents (the scheduler hides external capacity + time-off) — recreating the invisible-orphan
 // state v0.8.1 closed at the allocation/time-off write boundary. updateResource must REJECT the flip
 // (reassign/remove first), throw-before-mutate, exactly as the server's validateWrite does.
+// The store's colour-repair idiom (previously copy-pasted per add*/update* action, see git history)
+// is now ONE shared helper (withSnappedColor/snapColor) built on the shared snapToPresetColor
+// mapper — the SAME mapper server/src/validate.ts's sanitizeWrite('accounts') uses, so client and
+// server can never disagree about what a given colour snaps to (see DECISIONS.md). A non-preset
+// colour snaps to its NEAREST preset (not a fixed fallback), and a REJECTED write (the P1.12
+// viewer no-op) must not silently substitute a colour onto an entity that was never persisted —
+// the rejection is surfaced via the store's existing notice mechanism instead.
+describe('colour snapping: shared helper, nearest-preset (not fixed fallback), never silent on reject', () => {
+  // #7cd9e4 is not a preset; its nearest preset is #7adae3 (distance 6 — see shared/lib/color.test.ts,
+  // which pins the same fixture against the full palette).
+  const NON_PRESET = '#7cd9e4'
+  const NEAREST_PRESET = '#7adae3'
+
+  it('addClient / addProject / addDiscipline / addResource snap a non-preset colour to its nearest preset', () => {
+    const client = s().addClient({ name: 'Acme', color: NON_PRESET })
+    expect(client.color).toBe(NEAREST_PRESET)
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+
+    const project = s().addProject({ name: 'P', clientId: client.id, color: NON_PRESET })
+    expect(project.color).toBe(NEAREST_PRESET)
+
+    const discipline = s().addDiscipline({ name: 'Design', color: NON_PRESET, sortOrder: 0 })
+    expect(discipline.color).toBe(NEAREST_PRESET)
+
+    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], color: NON_PRESET })
+    expect(resource.color).toBe(NEAREST_PRESET)
+  })
+
+  it('updateClient / updateProject / updateDiscipline / updateResource / updateAccount snap a non-preset colour on patch', () => {
+    const client = s().addClient({ name: 'Acme', color: '#1' })
+    s().updateClient(client.id, { color: NON_PRESET })
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+
+    const project = s().addProject({ name: 'P', clientId: client.id, color: '#1' })
+    s().updateProject(project.id, { color: NON_PRESET })
+    expect(s().data.projects.find((p) => p.id === project.id)?.color).toBe(NEAREST_PRESET)
+
+    const discipline = s().addDiscipline({ name: 'Design', color: '#1', sortOrder: 0 })
+    s().updateDiscipline(discipline.id, { color: NON_PRESET })
+    expect(s().data.disciplines.find((d) => d.id === discipline.id)?.color).toBe(NEAREST_PRESET)
+
+    const resource = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5] })
+    s().updateResource(resource.id, { color: NON_PRESET })
+    expect(s().data.resources.find((r) => r.id === resource.id)?.color).toBe(NEAREST_PRESET)
+
+    s().updateAccount(DEFAULT_ACCOUNT_ID, { color: NON_PRESET })
+    expect(s().data.accounts.find((a) => a.id === DEFAULT_ACCOUNT_ID)?.color).toBe(NEAREST_PRESET)
+  })
+
+  it('an external resource keeps NEUTRAL_COLOR (the one deliberate non-preset exception) instead of snapping', () => {
+    const NEUTRAL_COLOR = '#9ca3af'
+    const ext = s().addResource({ ...personDraft, workingDays: [1, 2, 3, 4, 5], kind: 'external', color: NEUTRAL_COLOR })
+    expect(ext.color).toBe(NEUTRAL_COLOR)
+  })
+
+  // Regression: snapColor used to short-circuit on isPresetColor (which only trims/lowercases for
+  // the membership CHECK) and return the caller's raw string, so a whitespace/uppercase preset like
+  // '  #E02727  ' persisted verbatim in client state while the server's identical mapper stores it
+  // normalized — a permanent, un-fixable client/server diff that also broke `===` swatch-picker
+  // comparisons. snapColor must always route through snapToPresetColor, whose palette branch already
+  // returns the normalized form (see shared/src/lib/color.ts).
+  it('a preset colour with stray whitespace/casing is stored normalized, not verbatim', () => {
+    const RAW = '  #E02727  '
+    const NORMALIZED = '#e02727'
+    const client = s().addClient({ name: 'Acme', color: RAW })
+    expect(client.color).toBe(NORMALIZED)
+    const stored = s().data.clients.find((c) => c.id === client.id)?.color
+    expect(stored).toBe(NORMALIZED)
+    // Strictly the SAME string reference-equal-by-value as the actual palette entry, not merely a
+    // lookalike '#e02727' — this is what makes a swatch-picker `===` comparison against
+    // PRESET_COLORS succeed.
+    expect(PRESET_COLORS).toContain(stored)
+  })
+
+  it('a colourless patch leaves the stored colour untouched', () => {
+    const client = s().addClient({ name: 'Acme', color: NON_PRESET })
+    s().updateClient(client.id, { name: 'Acme 2' })
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+  })
+
+  it('a REJECTED add (viewer no-op) does NOT snap the colour and does NOT persist — the rejection surfaces via notice, not a silent repair', () => {
+    s().setActiveRole('viewer')
+    const returned = s().addClient({ name: 'Acme', color: NON_PRESET })
+    // The store never persisted anything for a viewer — no client landed in state.
+    expect(s().data.clients).toHaveLength(0)
+    // The rejection is SURFACED (per DEFENSIVE-CODING.md's "surface, never swallow"), not swallowed.
+    expect(s().notice).toMatchObject({ tone: 'error' })
+    // Critically: the unpersisted return value carries the caller's ORIGINAL colour, not a value
+    // the store silently changed on their behalf for a write that never actually happened.
+    expect(returned.color).toBe(NON_PRESET)
+  })
+
+  it('a REJECTED update (viewer no-op) does not touch the stored colour', () => {
+    const client = s().addClient({ name: 'Acme', color: NON_PRESET })
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+    s().setActiveRole('viewer')
+    s().updateClient(client.id, { color: '#123456' })
+    // No-op: the previously-snapped colour is unchanged, not overwritten by ANY value.
+    expect(s().data.clients.find((c) => c.id === client.id)?.color).toBe(NEAREST_PRESET)
+    expect(s().notice).toMatchObject({ tone: 'error' })
+  })
+})
+
 describe('updateResource rejects a kind-flip-to-external that would orphan dependents', () => {
   it('flipping a person with a loaded allocation to external THROWS and does not mutate', () => {
     const c = s().addClient({ name: 'Acme', color: '#1' })

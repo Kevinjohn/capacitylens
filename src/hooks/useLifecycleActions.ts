@@ -6,7 +6,7 @@ import { useStore, type LifecycleEntity } from '../store/useStore'
 import { errorMessage } from '../lib/errorMessage'
 import { readApiError } from '../lib/readApiError'
 import { m } from '@/i18n'
-import { apiFetch } from '../data/requestTimeout'
+import { apiFetchReauth } from '../auth/apiFetchReauth'
 
 // The SINGLE dispatch seam for the Active → Archived → Soft-deleted → Purged data-lifecycle (P2.5b),
 // shared by BOTH the management lists' Archive affordance (ResourceList/ClientList/ProjectList) and
@@ -111,10 +111,14 @@ export function useLifecycleActions(onReloaded?: () => void): LifecycleActions {
     async (verb: LifecycleVerb, entity: LifecycleEntity, id: string) => {
       if (!activeAccountId) return
       try {
-        // apiFetch (not raw fetch) so the server's `x-capacitylens-audit-warning` header on these
-        // destructive lifecycle writes is surfaced (announceAuditWarning) exactly like ordinary edits;
-        // it also attaches the shared request-timeout signal.
-        const res = await apiFetch(`${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`, {
+        // apiFetchReauth (not raw fetch) so: (1) the server's `x-capacitylens-audit-warning` header
+        // on these destructive lifecycle writes is surfaced (announceAuditWarning) exactly like
+        // ordinary edits and the shared request-timeout signal is attached (both via apiFetch); and
+        // (2) `delete` and `purge` — the security-sensitive lifecycle verbs (soft-delete is
+        // irreversible and destroys resource PII, so the server freshness-gates both) — that 403
+        // SESSION_NOT_FRESH raise the step-up dialog and retry after re-auth (DEFECT B).
+        // archive/unarchive are ordinary writes and never trip freshness, so this is a no-op there.
+        const res = await apiFetchReauth(`${API_BASE}/api/${entity}/${encodeURIComponent(id)}/${verb}`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },

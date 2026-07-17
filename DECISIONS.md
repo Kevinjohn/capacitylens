@@ -48,6 +48,27 @@ This is the short, present-tense record of decisions that constrain future work.
   hygiene, not authorization.
 - Forms reject invalid input. Import and server boundaries repair safe values, drop unsafe rows
   and preserve referential integrity.
+- Optimistic-concurrency conflicts require both timestamps: a write is stale only when the stored
+  and incoming `updatedAt` both parse and the incoming one is older. A missing or unparseable
+  timestamp on either side is never a conflict, so partial PATCHes and legacy rows stay writable
+  under last-writer-wins.
+- On state reads (whole-tree and scoped), a known table key missing from the payload hydrates as
+  empty via normalisation, with a console warning naming the missing keys — a version-skewed
+  older server during an upgrade must not cause a total client outage. A key that is present but
+  not an array is a corrupt payload and fails hard; it must never masquerade as empty data. The
+  backup/export slice path keeps its full-completeness contract.
+- Client-originated deletions of lifecycle entities (clients/projects/resources) never ride the
+  atomic batch. Sync converges them by archiving only — reversible, editor-allowed, safe for
+  background sync — so the row parks in the archived list. Soft-delete (irreversible; it
+  obfuscates resource PII) and purge are deliberate, admin-gated, freshness-gated UI actions and
+  are never emitted by sync. A failed archive surfaces and retries alone; on unload a single
+  best-effort keepalive archive fires per pending deletion.
+- Account colours are constrained to the preset palette. Legacy out-of-palette colours were
+  snapped once to their nearest preset by migration v13, which carries its own frozen palette
+  snapshot inside its checksummed definition (a live-palette dependency would let a future
+  palette edit silently change a shipped migration). Write-time snapping on both server and
+  client uses the same shared nearest-preset mapper so the two can never disagree, and the client
+  never silently repairs a colour on a rejected write.
 - Server imports are atomic, not undoable and owner-only; a non-owner's redacted export is not a
   safe source for a whole-slice replacement of owner-confidential client/project identities.
 - Theme and display preferences are device-global and outside account exports.
@@ -80,7 +101,33 @@ This is the short, present-tense record of decisions that constrain future work.
 - Secure-cookie behavior follows the public `BETTER_AUTH_URL`, including behind a TLS proxy.
 - Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
   Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than
-  fifteen minutes regardless of MFA policy.
+  fifteen minutes regardless of MFA policy. The client answers the freshness refusal with an
+  in-place "confirm it's you" re-authentication dialog that mints a fresh session and retries,
+  never a full sign-out that discards working state.
+- Cross-site writes are gated by Fetch Metadata and Origin, with two deliberate exemptions: an
+  Origin on the credentialed CORS allow-list always passes (the allow-list is the operator's
+  explicit cross-site contract), and an Origin whose host:port matches the request Host and
+  differs only by claiming `https` while the socket is `http` counts as same-origin (the standard
+  TLS-termination proxy pattern; browsers, not callers, set the Origin host). All other
+  cross-site signals are refused.
+- A 401 from the auth-status endpoint always lands the user on the sign-in wall — it is never
+  worse to let a signed-out user attempt sign-in. The 401 body is parsed leniently (providers
+  default to empty; a malformed or proxy-generated body falls back to the password form) while
+  `needsSetup` and all non-401 failures remain fail-closed. A genuinely malformed body (non-JSON
+  or junk mode — as opposed to a well-formed older-server response) additionally renders a
+  degraded-configuration notice above the form so an SSO-only instance behind a broken proxy is
+  diagnosable rather than a silent password-retry loop.
+- When a database upgrade finds an account with active members but no active Owner, the repair
+  migration promotes the member with the highest role tier, tie-broken by earliest membership. A
+  viewer is promoted only when the account holds nothing but viewers, and every promotion emits a
+  security event (escalated logging below admin tier). Chosen over refuse-and-halt so upgrades
+  cannot brick startup; REVISIT before a stable release if an operator-driven repair path lands.
+  This replaced the oldest-member rule in place during the alpha line: the ledger accepts the
+  superseded v11 checksum via an explicit per-version allow-list (any other drift still refuses
+  startup), and databases that ran the old rule may carry a wrongly-tiered owner — accepted under
+  the same revisit flag.
+- Production posture validation uses the exact same parsers as the runtime features it attests
+  (e.g. the rate limiter), so a value the runtime would silently ignore refuses startup instead.
 - Encrypted persistent storage and logically separate security-log forwarding are recommended
   deployment hardening. Their operator attestations produce warnings rather than blocking startup.
 - The packaged production proxy/API hop uses a private per-install CA and verified TLS 1.2/1.3.

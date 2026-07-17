@@ -189,3 +189,18 @@ describe('LoginScreen — first-run owner setup (needsSetup)', () => {
     expect(onSignedIn).not.toHaveBeenCalled()
   })
 })
+
+describe('LoginScreen — degraded 401 body notice', () => {
+  it('shows the non-terminal advisory above the form when degraded is true', () => {
+    render(<LoginScreen authMode="password" degraded onSignedIn={vi.fn()} />)
+    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument()
+    // Still a fully usable password form underneath the advisory — never a dead end.
+    expect(screen.getByLabelText('Email')).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toBeInTheDocument()
+  })
+
+  it('renders no advisory by default (a well-formed body)', () => {
+    render(<LoginScreen authMode="password" onSignedIn={vi.fn()} />)
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument()
+  })
+})

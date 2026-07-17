@@ -1,7 +1,8 @@
 import { LoadError, type PersistenceAdapter } from './PersistenceAdapter'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
-import type { AppData } from '@capacitylens/shared/types/entities'
+import type { AppData, Entity } from '@capacitylens/shared/types/entities'
 import { KNOWN_KEYS, migrate } from '@capacitylens/shared/data/migrate'
+import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
 import { diffOps, type Op } from './syncOps'
 import { announceAuditWarning } from '../lib/auditWarning'
 import {
@@ -23,6 +24,20 @@ interface CommittedRevision {
   id: string
   createdAt: string
   updatedAt: string
+}
+
+// Re-insert lifecycle rows whose out-of-batch archive did NOT converge back into `data`, so the
+// NEXT diff re-emits their DELETE and the adapter keeps trying (rather than silently dropping the
+// deletion intent by advancing the snapshot past an archive that never landed). Append-if-absent —
+// a defensive no-dup guard; the row is the pre-delete copy read from the current snapshot.
+function restoreRows(data: AppData, rows: Array<{ table: Op['table']; row: Entity }>): AppData {
+  if (rows.length === 0) return data
+  const next = { ...data }
+  for (const { table, row } of rows) {
+    const list = next[table] as Entity[]
+    if (!list.some((existing) => existing.id === row.id)) next[table] = [...list, row] as never
+  }
+  return next
 }
 
 function applyCommittedRevisions(data: AppData, revisions: CommittedRevision[]): AppData {
@@ -239,15 +254,47 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // below and mapped to LoadError('unavailable') → the connection-error screen; it does NOT reach
       // migrate(). So migrate() only ever sees a body that already parsed as JSON.
       const json: unknown = await res.json()
-      if (
-        !json ||
-        typeof json !== 'object' ||
-        Array.isArray(json) ||
-        KNOWN_KEYS.some((key) => !Array.isArray((json as Record<string, unknown>)[key]))
-      ) {
+      // DEPLOYMENT CONTRACT (rolling deploy — new client, older server): a version-skewed OLDER
+      // server may OMIT a table key this newer client already knows about. A MISSING key is
+      // TOLERATED on BOTH read paths — the unscoped migrate()/normalize hydrates it empty, and the
+      // scoped path pre-fills it empty below so validateAccountSlice hydrates it empty too — so a
+      // new-client/old-server skew is not a total outage on every deploy, and an account switch or
+      // scoped load during a version-skew window no longer throws "incomplete state payload". But a
+      // key that is PRESENT and NOT an array is a corrupt/incomplete payload masquerading as empty
+      // data, so it stays a HARD failure on both paths. (Same principle as the import path's
+      // hasNonArrayKnownTable: repair within a record, reject a structurally broken one — never coerce
+      // a broken table to [] and report it as success.) The cross-tenant (wrong accountId) checks
+      // inside validateAccountSlice keep their FULL strictness regardless.
+      if (!json || typeof json !== 'object' || Array.isArray(json)) {
         throw new Error('The server returned an invalid state payload.')
       }
-      const data = accountId === undefined ? migrate(json) : validateAccountSlice(json, accountId)
+      const record = json as Record<string, unknown>
+      if (KNOWN_KEYS.some((key) => key in record && !Array.isArray(record[key]))) {
+        throw new Error('The server returned an invalid state payload.')
+      }
+      // A missing known key is tolerated (hydrated empty) but DIAGNOSABLE: warn ONCE per load, naming
+      // every omitted table. A rolling-deploy skew (new client, older server) is the expected benign
+      // cause; the SAME warning against a same-version server is the signal that a proxy or server bug
+      // silently dropped a table — without this it would load as "empty" invisibly and be undiagnosable.
+      const missingKeys = KNOWN_KEYS.filter((key) => !(key in record))
+      if (missingKeys.length > 0) {
+        console.warn(
+          `ServerSyncAdapter: the server state payload omitted known table(s) [${missingKeys.join(', ')}]; ` +
+            'hydrating them empty. Expected during a rolling deploy (new client, older server); if the ' +
+            'server is the SAME version, a proxy or server bug dropped the table(s).',
+        )
+      }
+      // Scoped path: pre-fill any missing known table as an empty array so validateAccountSlice
+      // hydrates it empty instead of hard-failing "incomplete" (its per-key Array.isArray check treats
+      // an ABSENT key as a reject). We do this in the scoped BRANCH rather than in validateAccountSlice
+      // itself because other callers of that validator (fetchInactiveSlice's backup/export path) rely
+      // on its full-completeness contract. Present-but-non-array was already rejected above; the
+      // accountId cross-tenant checks still run at full strictness on the real rows.
+      const scopedInput =
+        missingKeys.length > 0
+          ? { ...record, ...Object.fromEntries(missingKeys.map((key) => [key, [] as unknown[]])) }
+          : record
+      const data = accountId === undefined ? migrate(json) : validateAccountSlice(scopedInput, accountId)
       if (!data) throw new Error('The server returned a cross-tenant or incomplete state payload.')
       // Re-seed the diff snapshot to the SLICE we just loaded (atomic with the load — see the
       // method doc). A switch orchestrator calling loadAll(newId) gets lastSynced === the new
@@ -361,8 +408,40 @@ export class ServerSyncAdapter implements PersistenceAdapter {
   // FK-order race the old per-op Promise.all had on a new-parent+child pair is gone.
   private async flushUnload(next: AppData): Promise<void> {
     const ops = diffOps(this.lastSynced, next)
-    if (ops.length === 0) return
-    await this.applyBatch(ops, { keepalive: true })
+    const { batchOps, lifecycleDeletes } = this.splitLifecycleDeletes(ops)
+    // Dispatch the atomic batch FIRST so any reparent/upsert it carries at least reaches the wire
+    // before the lifecycle deletes below (mirrors drain's upserts-before-deletes). applyBatch is
+    // async, so an over-budget batch REJECTS the returned promise rather than throwing synchronously —
+    // the lifecycle deletes still fire before we surface that rejection via `await`.
+    const batchFlush =
+      batchOps.length > 0 ? this.applyBatch(batchOps, { keepalive: true }) : Promise.resolve(null)
+    // A lifecycle-entity delete cannot ride the keepalive batch (the server 400-rejects a lifecycle
+    // DELETE, which would poison the WHOLE teardown request). Converge it BEST-EFFORT instead: fire a
+    // SINGLE archive keepalive POST per pending lifecycle delete (archive-only, exactly like
+    // archiveLifecycleRow — one round-trip, no two-step chain). fire-and-forget (no await — a dying
+    // page cannot act on the result). If the page dies before the request leaves, the row resurfaces
+    // next session (lastSynced is in-memory and dies with the page, so the intent is NOT preserved) —
+    // an accepted residual risk, strictly better than the guaranteed loss of dropping it entirely.
+    // Never blocks or prompts on unload.
+    for (const op of lifecycleDeletes) this.keepaliveArchiveLifecycleRow(op)
+    await batchFlush
+  }
+
+  // Best-effort keepalive convergence of ONE sync-originated lifecycle deletion on page teardown:
+  // ARCHIVE-ONLY (see archiveLifecycleRow's policy), a single POST with keepalive set and NO timeout
+  // deadline (a request meant to outlive the page must not carry one). Fire-and-forget; its rejection
+  // is swallowed — teardown has nowhere to surface it, and a surviving reload re-diffs against the
+  // source of truth (the DEFENSIVE-CODING §5 page-teardown swallow). If the page dies first the archive
+  // may never fire and the row resurfaces next session (the accepted residual risk noted in flushUnload).
+  private keepaliveArchiveLifecycleRow(op: Op): void {
+    const init: RequestInit = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: op.accountId }),
+      credentials: 'include',
+      keepalive: true,
+    }
+    void this.request(`${this.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}/archive`, init, null).catch(() => {})
   }
 
   // Drain the queue: diff against lastSynced and apply the whole delta as ONE
@@ -384,18 +463,46 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       if (targetSeedGen !== this.seedGen) continue
       const canonicalTarget = this.canonicalizeAcknowledged(target)
       const ops = diffOps(this.lastSynced, canonicalTarget)
-      // The ABSENCE of a try/catch here is INTENTIONAL — do not "harden" it. An applyBatch throw
-      // MUST propagate so saveAll rejects, persist.ts surfaces it (persistError) and retries, and
-      // lastSynced is NOT advanced. Swallowing here would advance lastSynced past writes that never
-      // landed, silently dropping them from every future diff — permanent data loss.
+      // Lifecycle-entity deletes (clients/projects/resources) CANNOT ride the atomic batch — the
+      // server 400-rejects them, which would poison the whole batch and permanently strand every
+      // later edit re-including the poisoned op. Split them out and converge them by ARCHIVING through
+      // the dedicated archive route AFTER the batch (see archiveLifecycleRow for the archive-only
+      // policy), so any reparent/upsert the same diff carries (e.g. a child moved off the row being
+      // deleted) lands first — mirroring the batch's own upserts-before-deletes invariant across the split.
+      const { batchOps, lifecycleDeletes } = this.splitLifecycleDeletes(ops)
+      // The ABSENCE of a try/catch around applyBatch is INTENTIONAL — do not "harden" it. An
+      // applyBatch throw MUST propagate (below, before the snapshot advances) so saveAll rejects,
+      // persist.ts surfaces it (persistError) and retries, and lastSynced is NOT advanced. Swallowing
+      // here would advance lastSynced past writes that never landed, silently dropping them from every
+      // future diff — permanent data loss. (The lifecycle-delete loop below has a try/catch, but it
+      // does NOT swallow: it records un-converged rows, advances only the parts that DID land, then
+      // RE-THROWS — no committed write is ever skipped from a future diff.)
       let committedTarget = canonicalTarget
-      if (ops.length > 0) {
-        const revisions = await this.applyBatch(ops)
+      if (batchOps.length > 0) {
+        const revisions = await this.applyBatch(batchOps)
         if (revisions) {
-          this.rememberRevisions(ops, revisions)
+          this.rememberRevisions(batchOps, revisions)
           committedTarget = applyCommittedRevisions(canonicalTarget, revisions)
         }
       }
+      // Drive the lifecycle deletes one row at a time by ARCHIVING (the batch above has already
+      // committed all ordinary ops, so a stuck archive can never block them). A row whose archive does
+      // NOT converge is RESTORED into the advanced snapshot so the NEXT diff re-emits its delete
+      // (retry); the rows that DID converge (archived) stay absent. The FIRST failure is surfaced via
+      // the normal save-error path (persist banner + retry) — after the snapshot advances, so the
+      // committed batch and the converged archives are never replayed.
+      let lifecycleError: unknown = null
+      const unconverged: Array<{ table: Op['table']; row: Entity }> = []
+      for (const op of lifecycleDeletes) {
+        try {
+          await this.archiveLifecycleRow(op)
+        } catch (e) {
+          if (lifecycleError === null) lifecycleError = e
+          const row = (this.lastSynced[op.table] as Entity[]).find((r) => r.id === op.id)
+          if (row) unconverged.push({ table: op.table, row })
+        }
+      }
+      committedTarget = restoreRows(committedTarget, unconverged)
       // Advance the snapshot ONLY if no seed landed while this batch was in flight — a reload's
       // fresh seed must win over our pre-reload target, or snapshot and store desync. Checked via
       // seedGen, NOT loadGen: loadGen bumps at fetch START, so a load already in flight when this
@@ -403,6 +510,59 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // safe: the server already holds these idempotent ops, so the next diff re-derives anything
       // still relevant against the fresh seed.
       if (targetSeedGen === this.seedGen) this.lastSynced = committedTarget
+      // Surface a lifecycle-archive failure LAST — after the snapshot advanced — so unrelated ops are
+      // never blocked (they committed above and won't replay) and only the un-converged row's delete
+      // re-fires on the next diff.
+      if (lifecycleError !== null) throw lifecycleError
+    }
+  }
+
+  // The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources) — those
+  // deletions must converge through the dedicated archive route instead (see archiveLifecycleRow).
+  // Partition an op set into the atomic-batch ops and the lifecycle deletes the caller drives
+  // out-of-band by archiving (see drain/flushUnload).
+  private splitLifecycleDeletes(ops: Op[]): { batchOps: Op[]; lifecycleDeletes: Op[] } {
+    const batchOps: Op[] = []
+    const lifecycleDeletes: Op[] = []
+    for (const op of ops) {
+      if (op.method === 'DELETE' && isLifecycleEntityKey(op.table)) lifecycleDeletes.push(op)
+      else batchOps.push(op)
+    }
+    return { batchOps, lifecycleDeletes }
+  }
+
+  // Converge a sync-originated lifecycle-entity disappearance (clients/projects/resources) by ARCHIVING
+  // the row through the dedicated POST /api/{table}/{id}/archive route. It cannot ride the atomic batch
+  // (POST /api/batch 400-rejects a lifecycle DELETE op, to keep the retained-tombstone data-lifecycle
+  // from being bypassed).
+  //
+  // POLICY — ARCHIVE-ONLY from the sync layer (deliberately NOT soft-delete): a lifecycle DELETE that
+  // originates from ordinary syncing (e.g. undo of a just-synced create) parks the row as ARCHIVED on
+  // the server. Archive is action 'write' — allowed to every role that can create the row (editor+) and
+  // NEVER freshness-gated — so background sync, which has no re-auth/step-up UI, can always complete it.
+  // It is also REVERSIBLE (unarchive restores the row). Soft-delete and purge are deliberately NOT
+  // emitted by sync: soft-delete is IRREVERSIBLE (for resources it destroys PII via obfuscateResource,
+  // and there is no tombstone→active restore path in shared/src/domain/lifecycle.ts), admin-gated AND
+  // freshness/step-up gated — it stays a deliberate UI action only. RESIDUAL (accepted): the row lingers
+  // in the account's ARCHIVED list rather than vanishing server-side; the local view already hides it.
+  //
+  // Idempotent/convergent status handling: a 409 (already archived — a retry after a partial success or
+  // a concurrent archive) and a 404 (row already gone from this account) are BOTH the intended
+  // out-of-active end state, so they count as CONVERGED — surfacing them would re-poison every future
+  // diff with a delete that can never "succeed". Any OTHER non-ok is a real, surfaced failure; a THROWN
+  // fetch (network/abort) also propagates — the whole save fails and retries alone when healthy.
+  private async archiveLifecycleRow(op: Op): Promise<void> {
+    const init: RequestInit = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: op.accountId }),
+      credentials: 'include',
+    }
+    const res = await this.request(`${this.baseUrl}/api/${op.table}/${encodeURIComponent(op.id)}/archive`, init)
+    if (res.status === 409 || res.status === 404) return
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      throw new Error(`Lifecycle archive of ${op.table}/${op.id} failed (${res.status}) ${detail}`.trim())
     }
   }
 

@@ -1,10 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { requestSignal } from '../data/requestTimeout'
 import { useStore } from '../store/useStore'
 import { AuthContext, type AuthMode, type AuthProviderInfo, type AuthUser } from './authContext'
 import { validateAuthUser } from './validateAuthUser'
+import { reauthPending, subscribeReauth } from './reauthCoordinator'
 import {
   cacheAuthSnapshot,
   clearOfflineDataForCurrentUser,
@@ -21,19 +22,35 @@ import {
 
 const LoginScreen = lazy(() => import('./LoginScreen').then((m) => ({ default: m.LoginScreen })))
 const MfaEnrollmentScreen = lazy(() => import('./MfaEnrollmentScreen').then((m) => ({ default: m.MfaEnrollmentScreen })))
+// Lazy so Better Auth's client (pulled in by ReauthDialog) never enters the main bundle — the same
+// discipline as LoginScreen. The step-up dialog only exists in an auth-on session that hits a
+// SESSION_NOT_FRESH 403 (DEFECT B).
+const ReauthDialog = lazy(() => import('./ReauthDialog').then((m) => ({ default: m.ReauthDialog })))
 
 type Status =
   | { kind: 'checking' }
   | { kind: 'error'; message: string }
-  | { kind: 'pass'; authMode: AuthMode; user: AuthUser | null; canCreateAccount: boolean; multiAccount: boolean; mfaRequired: boolean }
-  | { kind: 'login'; authMode: 'password' | 'sso'; needsSetup: boolean; providers: AuthProviderInfo[] }
+  | { kind: 'pass'; authMode: AuthMode; user: AuthUser | null; canCreateAccount: boolean; multiAccount: boolean; mfaRequired: boolean; providers: AuthProviderInfo[] }
+  | {
+      kind: 'login'
+      authMode: 'password' | 'sso'
+      needsSetup: boolean
+      providers: AuthProviderInfo[]
+      /** True when the 401 body itself was untrustworthy (non-JSON, an HTML proxy page, or a
+       *  junk `authMode` value) — as opposed to a well-formed body that simply predates a field
+       *  (an older server omitting `providers`) or explicitly selects password/SSO. The login
+       *  wall uses this to show a non-terminal "configuration couldn't be loaded" notice above
+       *  the password fallback, so an SSO-only instance behind a broken proxy doesn't strand the
+       *  user on a bare, unexplained password form. See DECISIONS.md's 401 sign-in-wall entry. */
+      degraded: boolean
+    }
 
 // A 'pass' Status that fails OPEN on the single-company-per-instance fields (see authContext.ts):
 // used for every branch below that can't read a trustworthy canCreateAccount/multiAccount off the
 // wire (an off-spec body, a non-401 non-ok response, or a network failure) — the server 403 remains
 // the real enforcer, so "unknown" must never hide a legitimate "New company" affordance.
 function passOpen(authMode: AuthMode, user: AuthUser | null): Status {
-  return { kind: 'pass', authMode, user, canCreateAccount: true, multiAccount: true, mfaRequired: false }
+  return { kind: 'pass', authMode, user, canCreateAccount: true, multiAccount: true, mfaRequired: false, providers: [] }
 }
 
 // Narrowing guards for the UNTRUSTED /api/auth/me response body (see fetchAuthStatus). The server
@@ -77,31 +94,40 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
       signal: requestSignal(), // the one shared request-timeout/abort seam (15s + AbortSignal.any fallback)
     })
     if (res.status === 401) {
-      // The 401 body carries authMode so the login screen knows which form to show, plus the
-      // first-run `needsSetup` signal (password mode + zero users on the server).
-      const body: unknown = await res.json()
-      if (!body || typeof body !== 'object' || Array.isArray(body)) {
-        return { kind: 'error', message: 'The authentication service returned an invalid configuration.' }
-      }
-      const loginBody = body as {
-        authMode?: string
-        needsSetup?: unknown
-        providers?: unknown
-      }
-      if (
-        (loginBody.authMode !== 'password' && loginBody.authMode !== 'sso') ||
-        !Array.isArray(loginBody.providers) ||
-        !loginBody.providers.every(isAuthProvider)
-      ) return { kind: 'error', message: 'The authentication service returned an invalid configuration.' }
+      // POLICY (see DECISIONS.md — the 401 sign-in-wall contract): a 401 ALWAYS lands the signed-out
+      // user on the sign-in wall. It can never be worse to let a signed-out user attempt sign-in, so
+      // this branch NEVER renders the terminal 'invalid configuration' error screen (which stranded
+      // the user with no way in). Parse the body LENIENTLY: a version-skewed OLDER server that omits
+      // the providers array, or a proxy returning an empty / HTML / non-JSON 401 body, must still
+      // reach a usable login form. A valid authMode is used as-is (providers default to []); a
+      // malformed/empty/non-JSON body falls back to the password login form.
+      const body: unknown = await res.json().catch(() => null)
+      const loginBody =
+        body && typeof body === 'object' && !Array.isArray(body)
+          ? (body as { authMode?: unknown; needsSetup?: unknown; providers?: unknown })
+          : null
+      // Only an explicit 'sso' selects the SSO form; anything else (missing, junk, or 'password')
+      // falls back to the password sign-in form — the safe default that always offers a way in.
+      const rawAuthMode = loginBody?.authMode
+      const authMode: 'password' | 'sso' = rawAuthMode === 'sso' ? 'sso' : 'password'
+      // DEGRADED (distinct from the ordinary "old server omits providers" compatibility case
+      // above): the body couldn't be trusted at ALL — non-JSON/HTML/empty (loginBody null), or a
+      // junk authMode value that isn't even a recognizable 'password'/'sso' (rather than simply
+      // absent). Both still fall back to the password form (never strand the user), but here the
+      // fallback is a guess, not a real signal — the login wall surfaces a non-terminal notice so
+      // an SSO-only instance behind a broken proxy doesn't look like a silently misconfigured
+      // password-only one. An absent authMode (a well-formed but older body) is NOT degraded.
+      const degraded = loginBody === null || (rawAuthMode !== undefined && rawAuthMode !== 'password' && rawAuthMode !== 'sso')
       if (acceptEffects()) setOfflineReadState(false)
       return {
         kind: 'login',
-        authMode: loginBody.authMode,
-        providers: providersFrom(loginBody.providers),
+        authMode,
+        degraded,
+        providers: providersFrom(loginBody?.providers), // [] when absent/malformed — never a hard error
         // FAIL-CLOSED: only a literal `true` (a server that computed "password mode + empty user
         // table") shows the owner-setup form — absent (an older server) or junk means the
         // ordinary sign-in, never a create-account form on a populated instance.
-        needsSetup: loginBody.needsSetup === true,
+        needsSetup: loginBody?.needsSetup === true,
       }
     }
     if (res.ok) {
@@ -136,6 +162,10 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
         canCreateAccount,
         multiAccount,
         mfaRequired,
+        // The authenticated /me also advertises the configured SSO providers (server app.ts). We
+        // carry them so the SESSION_NOT_FRESH step-up dialog can offer the SAME provider re-auth
+        // route the login screen uses (DEFECT B). Off-spec entries are dropped (providersFrom).
+        providers: providersFrom((body as { providers?: unknown } | null)?.providers),
       }
       // A live identity check does not prove the currently rendered tenant slice is live. Preserve
       // its offline/read-only marker until ServerSyncAdapter successfully reloads that slice; only
@@ -170,6 +200,9 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
             canCreateAccount: false,
             multiAccount: cached.value.multiAccount,
             mfaRequired: false,
+            // Offline: no live provider list and no way to reach an IdP anyway — the step-up dialog
+            // is unreachable here regardless (a security 403 needs the server), so [] is correct.
+            providers: [],
           }
         }
       } catch (cacheError) {
@@ -184,6 +217,29 @@ async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | n
         : 'The authentication service returned an invalid response.',
     }
   }
+}
+
+/** Bridges the module-level re-auth coordinator (reauthCoordinator.ts) into React: subscribes to the
+ *  pending flag via useSyncExternalStore and, while a SESSION_NOT_FRESH step-up is pending, renders
+ *  the lazy ReauthDialog. Mounted INSIDE the authenticated provider (and only in auth-on, never
+ *  'off') so it always has the live session's authMode/user/providers — auth-off never receives a
+ *  freshness 403, so it needs no step-up UI. */
+function ReauthMount({
+  authMode,
+  user,
+  providers,
+}: {
+  authMode: 'password' | 'sso'
+  user: AuthUser | null
+  providers: AuthProviderInfo[]
+}) {
+  const pending = useSyncExternalStore(subscribeReauth, reauthPending)
+  if (!pending) return null
+  return (
+    <Suspense fallback={null}>
+      <ReauthDialog authMode={authMode} user={user} providers={providers} />
+    </Suspense>
+  )
 }
 
 /**
@@ -369,6 +425,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           authMode={status.authMode}
           needsSetup={status.needsSetup}
           providers={status.providers}
+          degraded={status.degraded}
           onSignedIn={() => window.location.reload()}
         />
       </Suspense>
@@ -396,6 +453,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {/* Step-up re-auth host (DEFECT B): renders the "Confirm it's you" dialog when a
+          security-sensitive action hits a SESSION_NOT_FRESH 403. Auth-on only — 'off' never 403s
+          on freshness, so it needs no step-up UI (and this keeps the off/demo path unchanged). */}
+      {status.authMode !== 'off' && (
+        <ReauthMount authMode={status.authMode} user={status.user} providers={status.providers} />
+      )}
     </AuthContext.Provider>
   )
 }

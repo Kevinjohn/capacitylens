@@ -1,4 +1,5 @@
 import { parseAuthMode, BOOTSTRAP_ADMIN_EMAIL } from './auth'
+import { parseRateLimit, MAX_RATE_LIMIT } from './rateLimit'
 
 // Production safety interlock. Once NODE_ENV=production, the development/open posture
 // must actually be retired: running with auth OFF in
@@ -136,9 +137,15 @@ export function evaluateProductionPosture(env: {
       'CAPACITYLENS_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.',
     )
   }
-  const rateLimit = Number(env.CAPACITYLENS_RATE_LIMIT)
-  if (!Number.isSafeInteger(rateLimit) || rateLimit < 1) {
-    refusals.push('CAPACITYLENS_RATE_LIMIT must be a positive integer under NODE_ENV=production.')
+  // Validate with the SAME parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
+  // check. A divergent check let ' 100 ', '1e3' and '2000000' pass the guard while parseRateLimit maps
+  // them to 0 (off) — so production could boot claiming a hardened posture with rate limiting silently
+  // disabled. Any value the parser resolves to 0 (unset, '0', a sign/decimal/whitespace/exponent, or a
+  // value over the cap) is a refusal; the message states the exact accepted shape so the operator can fix it.
+  if (parseRateLimit(env.CAPACITYLENS_RATE_LIMIT) === 0) {
+    refusals.push(
+      `CAPACITYLENS_RATE_LIMIT must be digits only (no sign, decimal point, whitespace or exponent) in the range 1..${MAX_RATE_LIMIT.toLocaleString('en-US')} under NODE_ENV=production. The configured value parses to 0 (rate limiting disabled), which would leave production unlimited while reporting a hardened posture.`,
+    )
   }
   if (env.CAPACITYLENS_AUDIT === 'off') {
     refusals.push('CAPACITYLENS_AUDIT=off is not permitted under NODE_ENV=production.')

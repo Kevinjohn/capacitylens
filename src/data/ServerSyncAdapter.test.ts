@@ -8,7 +8,7 @@ import {
   applyOps,
 } from './ServerSyncAdapter'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
-import type { Account, AppData, Client, Project } from '@capacitylens/shared/types/entities'
+import type { Account, AppData, Client, Discipline, Project, TimeOff } from '@capacitylens/shared/types/entities'
 
 // Unit tests for the diff engine and the sync flush, with a fake fetch. Proves:
 // the diff classifies create/update/delete correctly, orders parent-before-child for
@@ -31,6 +31,10 @@ const scopedData = (accountId: string, over: Partial<AppData>): AppData =>
       { id: `internal:${accountId}`, accountId, name: 'Internal', color: '#9c3ace', builtin: true, createdAt: TS1, updatedAt: TS1 },
     ],
   })
+
+// Drop known table keys from a slice to simulate an OLDER server omitting them (rolling-deploy skew).
+const omitKeys = (data: AppData, ...keys: string[]): Record<string, unknown> =>
+  Object.fromEntries(Object.entries(data).filter(([key]) => !keys.includes(key)))
 
 const commitReceipt = (init?: RequestInit): Response => {
   let applied = 0
@@ -140,11 +144,26 @@ describe('ServerSyncAdapter.loadAll', () => {
     expect((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBe(calls)
   })
 
-  it('rejects an incomplete state payload instead of normalizing missing tables to empty arrays', async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ accounts: [] }), { status: 200 }))
-    const adapter = new ServerSyncAdapter('http://x', fetchImpl as unknown as typeof fetch)
+  it('tolerates a MISSING table key (rolling deploy: new client, older server) but rejects a PRESENT non-array table', async () => {
+    // DEPLOYMENT CONTRACT: a version-skewed OLDER server may OMIT a table this newer client already
+    // knows about; that MISSING key hydrates as empty via migrate()/normalize rather than failing the
+    // WHOLE load (which would be a total outage on every rolling deploy). But a key that is PRESENT
+    // and NOT an array is a corrupt/incomplete payload masquerading as empty data — a HARD failure.
+    const missing = new ServerSyncAdapter(
+      'http://x',
+      vi.fn(async () => new Response(JSON.stringify({ accounts: [] }), { status: 200 })) as unknown as typeof fetch,
+    )
+    const loaded = await missing.loadAll()
+    expect(loaded.clients).toEqual([]) // a missing table hydrated empty — no throw
+    expect(loaded.resources).toEqual([])
 
-    await expect(adapter.loadAll()).rejects.toThrow('invalid state payload')
+    const wrongType = new ServerSyncAdapter(
+      'http://x',
+      vi.fn(async () =>
+        new Response(JSON.stringify({ ...emptyAppData(), resources: { bad: true } }), { status: 200 }),
+      ) as unknown as typeof fetch,
+    )
+    await expect(wrongType.loadAll()).rejects.toThrow('invalid state payload')
   })
 
   it('loadAll(accountId) GETs /api/state?accountId= and seeds the snapshot to THAT slice (zero ops on an identical save)', async () => {
@@ -198,6 +217,76 @@ describe('ServerSyncAdapter.loadAll', () => {
     const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
     expect(ops.every((o) => o.id !== 'c1')).toBe(true) // NEVER touches a1's row
     expect(ops).toEqual([expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c2' })])
+  })
+
+  it('scoped loadAll TOLERATES a MISSING known table (rolling deploy) and hydrates it empty', async () => {
+    // FIX 1: an older server may OMIT a table this newer client already knows. The scoped path must
+    // NOT throw "incomplete state payload" during the skew window — it hydrates the missing table
+    // empty, exactly like the unscoped migrate() path, while keeping cross-tenant strictness.
+    const slice = omitKeys(scopedData('a1', { clients: [client('c1')] }), 'disciplines') // older server omits disciplines
+    const a = new ServerSyncAdapter(
+      'http://x',
+      vi.fn(async () => new Response(JSON.stringify(slice), { status: 200 })) as unknown as typeof fetch,
+    )
+    const loaded = await a.loadAll('a1')
+    expect(loaded.disciplines).toEqual([]) // missing table hydrated empty — no throw
+    expect(loaded.clients.map((r) => r.id).sort()).toEqual(['c1', 'internal:a1']) // present rows intact
+  })
+
+  it('scoped loadAll STILL rejects a PRESENT non-array known table', async () => {
+    // FIX 1's missing-vs-wrong-type split: a table that is PRESENT and not an array is structural
+    // damage and stays a HARD failure on the scoped path too (never coerced to []).
+    const slice = { ...scopedData('a1', { clients: [client('c1')] }), resources: { bad: true } }
+    const a = new ServerSyncAdapter(
+      'http://x',
+      vi.fn(async () => new Response(JSON.stringify(slice), { status: 200 })) as unknown as typeof fetch,
+    )
+    await expect(a.loadAll('a1')).rejects.toThrow('invalid state payload')
+  })
+
+  it('scoped loadAll rejects a CROSS-TENANT slice unchanged (missing-key tolerance does not weaken it)', async () => {
+    // FIX 1 must NOT relax cross-tenant strictness: a slice whose account belongs to a2 while we asked
+    // for a1 is still rejected as a cross-tenant/incomplete payload.
+    const wrongTenant = scopedData('a2', { clients: [client('c1')] }) // asked for a1, got a2's slice
+    const a = new ServerSyncAdapter(
+      'http://x',
+      vi.fn(async () => new Response(JSON.stringify(wrongTenant), { status: 200 })) as unknown as typeof fetch,
+    )
+    await expect(a.loadAll('a1')).rejects.toThrow('cross-tenant or incomplete state payload')
+  })
+
+  it('warns ONCE naming the missing table(s) when hydrating them empty (FIX 3)', async () => {
+    // FIX 3: a hydrated-empty missing key is DIAGNOSABLE — one console.warn per load listing every
+    // omitted table, so a same-version proxy/server bug that drops a table is visible, not silent.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const state = omitKeys(withData({ clients: [client('c1')] }), 'disciplines', 'resources')
+      const a = new ServerSyncAdapter(
+        'http://x',
+        vi.fn(async () => new Response(JSON.stringify(state), { status: 200 })) as unknown as typeof fetch,
+      )
+      await a.loadAll()
+      const warned = warn.mock.calls.filter((c) => String(c[0]).includes('omitted known table'))
+      expect(warned).toHaveLength(1) // ONE warn per load, not one per missing key
+      expect(String(warned[0][0])).toContain('disciplines')
+      expect(String(warned[0][0])).toContain('resources')
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('does NOT warn when every known table is present', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const a = new ServerSyncAdapter(
+        'http://x',
+        vi.fn(async () => new Response(JSON.stringify(withData({ clients: [client('c1')] })), { status: 200 })) as unknown as typeof fetch,
+      )
+      await a.loadAll()
+      expect(warn.mock.calls.some((c) => String(c[0]).includes('omitted known table'))).toBe(false)
+    } finally {
+      warn.mockRestore()
+    }
   })
 
 })
@@ -281,17 +370,22 @@ describe('ServerSyncAdapter.saveAll', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2) // no later non-keepalive drain of the parked state
   })
 
-  it('carries the owning account on a scoped DELETE op; accounts (top-level) carry none', async () => {
+  it('carries the owning account on a scoped (non-lifecycle) DELETE op; accounts (top-level) carry none', async () => {
+    // Uses a scoped NON-lifecycle row (timeOff): lifecycle-entity deletes (clients/projects/resources)
+    // are routed OUT of the batch to the dedicated archive/delete endpoints (see the lifecycle-delete
+    // suite below), so the "scoped DELETE carries accountId on the wire" contract is asserted here on a
+    // table that still rides the batch.
     const account = { id: 'a1', name: 'Co', color: '#3b82f6', createdAt: TS1, updatedAt: TS1 }
-    const prev = withData({ accounts: [account], clients: [client('c1')] })
+    const off: TimeOff = { id: 't1', accountId: 'a1', resourceId: 'r1', startDate: '2026-01-01', endDate: '2026-01-02', type: 'holiday', createdAt: TS1, updatedAt: TS1 }
+    const prev = withData({ accounts: [account], timeOff: [off] })
     const fetchImpl = okFetch() as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
-    await a.saveAll(prev) // create a1 + c1; lastSynced = prev
+    await a.saveAll(prev) // create a1 + t1; lastSynced = prev
     ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
     await a.saveAll(emptyAppData()) // diff prev→empty = deletes
 
     const ops = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0])
-    expect(ops.find((o) => o.table === 'clients')).toMatchObject({ method: 'DELETE', id: 'c1', accountId: 'a1' })
+    expect(ops.find((o) => o.table === 'timeOff')).toMatchObject({ method: 'DELETE', id: 't1', accountId: 'a1' })
     expect(ops.find((o) => o.table === 'accounts')?.accountId).toBeUndefined()
   })
 
@@ -400,6 +494,168 @@ describe('ServerSyncAdapter.saveAll', () => {
   })
 })
 
+describe('lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY convergence (DEFECT A)', () => {
+  // The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources), steering
+  // writers at the dedicated lifecycle routes. The old client emitted those deletes IN the batch, so a
+  // single undo of a synced create (add client → sync → Cmd-Z) poisoned every later batch until a
+  // reload discarded the edits. The adapter now splits lifecycle deletes out and converges each by
+  // ARCHIVING ONLY (POST /api/{table}/{id}/archive — action 'write', editor-allowed, never
+  // freshness-gated) AFTER the batch. It deliberately does NOT call /delete: soft-delete is
+  // irreversible, admin-gated and step-up-gated, so it is never emitted by background sync. The
+  // sync-originated disappearance parks the row as ARCHIVED (reversible); it lingers in the archived
+  // list (accepted residual). These specs pin that routing and its failure/recovery behaviour.
+  const discipline = (updatedAt = TS1): Discipline => ({
+    id: 'd1', accountId: 'a1', name: 'Design', sortOrder: 0, createdAt: TS1, updatedAt,
+  })
+  // Record every request as { url, body } so a spec can assert both the endpoints hit and their order.
+  const recordingFetch = (onCall?: (url: string) => Response | null) => {
+    const calls: Array<{ url: string; body?: string; keepalive?: boolean }> = []
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, body: init?.body as string | undefined, keepalive: init?.keepalive })
+      return onCall?.(url) ?? commitReceipt(init)
+    }) as unknown as typeof fetch
+    return { calls, fetchImpl }
+  }
+  const opsOf = (call: { body?: string }) => JSON.parse(call.body as string).ops as Array<{ method: string; table: string; id: string }>
+
+  it('(a) undo of a synced create converges via ARCHIVE (no /delete) and does NOT poison later saves', async () => {
+    const { calls, fetchImpl } = recordingFetch()
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+
+    // 1) create + sync a client (its PUT rides the batch — a lifecycle PUT is allowed).
+    await a.saveAll(scopedData('a1', { clients: [client('c1')] }))
+    // 2) undo: c1 is removed. Its delete must NOT ride the batch (that would 400 the whole request);
+    //    it converges by archiving through the dedicated archive route instead.
+    calls.length = 0
+    await a.saveAll(scopedData('a1', {}))
+    const urls = calls.map((c) => c.url)
+    expect(urls).toContain('http://x/api/clients/c1/archive')
+    // the sync layer NEVER hits /delete — soft-delete is not emitted by background sync.
+    expect(urls.some((u) => u.endsWith('/clients/c1/delete'))).toBe(false)
+    // the archive carries the owning account in its body.
+    expect(JSON.parse(calls.find((c) => c.url.endsWith('/clients/c1/archive'))!.body!)).toEqual({ accountId: 'a1' })
+    // no batch carried a lifecycle DELETE.
+    for (const bc of calls.filter((c) => c.url.endsWith('/api/batch'))) {
+      expect(opsOf(bc).some((o) => o.method === 'DELETE' && o.table === 'clients')).toBe(false)
+    }
+
+    // 3) a later unrelated edit still syncs — the poison is gone.
+    calls.length = 0
+    await a.saveAll(scopedData('a1', { clients: [client('c2')] }))
+    const put = calls.find((c) => c.url.endsWith('/api/batch'))!
+    expect(opsOf(put)).toEqual([expect.objectContaining({ method: 'PUT', table: 'clients', id: 'c2' })])
+  })
+
+  it('(b) a batch of ordinary edits plus a lifecycle delete applies the edits (batch first, archive routed out)', async () => {
+    const { calls, fetchImpl } = recordingFetch()
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(scopedData('a1', { clients: [client('c1')], disciplines: [discipline()] }))
+
+    // Remove the lifecycle client AND edit the discipline in the SAME diff.
+    calls.length = 0
+    await a.saveAll(scopedData('a1', { disciplines: [discipline(TS2)] }))
+
+    // the discipline edit LANDED via the batch, which never carries the lifecycle delete...
+    const batch = calls.find((c) => c.url.endsWith('/api/batch'))!
+    expect(opsOf(batch)).toEqual([expect.objectContaining({ method: 'PUT', table: 'disciplines', id: 'd1' })])
+    expect(opsOf(batch).some((o) => o.table === 'clients')).toBe(false)
+    // ...and the client delete converged by ARCHIVING (no /delete), AFTER the batch (so any
+    // reparent/upsert the diff carried lands first).
+    const urls = calls.map((c) => c.url)
+    expect(urls).toContain('http://x/api/clients/c1/archive')
+    expect(urls.some((u) => u.endsWith('/clients/c1/delete'))).toBe(false)
+    expect(urls.indexOf('http://x/api/batch')).toBeLessThan(urls.indexOf('http://x/api/clients/c1/archive'))
+  })
+
+  it('(c) a lifecycle-ARCHIVE failure surfaces but the batch commits and a later save recovers', async () => {
+    let failArchive = true
+    const { calls, fetchImpl } = recordingFetch((url) =>
+      url.endsWith('/clients/c1/archive') && failArchive ? new Response('nope', { status: 500 }) : null,
+    )
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(scopedData('a1', { clients: [client('c1')], disciplines: [discipline()] }))
+
+    // Undo the client (lifecycle delete) AND edit the discipline; the archive endpoint is down.
+    calls.length = 0
+    await expect(a.saveAll(scopedData('a1', { disciplines: [discipline(TS2)] }))).rejects.toThrow(/Lifecycle archive/)
+    // The unrelated discipline edit STILL committed — the batch is independent of the stuck archive.
+    expect(opsOf(calls.find((c) => c.url.endsWith('/api/batch'))!)).toEqual([
+      expect.objectContaining({ method: 'PUT', table: 'disciplines', id: 'd1' }),
+    ])
+
+    // A re-save of the SAME target must NOT replay the committed discipline edit (snapshot advanced for
+    // the batch), but MUST re-attempt the un-converged client archive (restored to the snapshot).
+    failArchive = false // the archive endpoint recovers
+    calls.length = 0
+    await a.saveAll(scopedData('a1', { disciplines: [discipline(TS2)] }))
+    expect(calls.some((c) => c.url.endsWith('/api/batch'))).toBe(false) // discipline edit not replayed
+    expect(calls.map((c) => c.url)).toContain('http://x/api/clients/c1/archive')
+
+    // Fully converged now: a further identical save is a clean no-op (no batch, no archive).
+    calls.length = 0
+    await a.saveAll(scopedData('a1', { disciplines: [discipline(TS2)] }))
+    expect(calls).toHaveLength(0)
+  })
+
+  it('(d) a lifecycle-ARCHIVE 409 (already archived) is treated as converged, not a poison', async () => {
+    // 409 from the archive route = the row is already out of active (a concurrent archive or a
+    // converged retry). Surfacing it would re-poison every future diff with a delete that can never
+    // "succeed"; instead it advances the snapshot as removed. (404 is handled the same way.)
+    const { calls, fetchImpl } = recordingFetch((url) =>
+      url.endsWith('/clients/c1/archive') ? new Response(JSON.stringify({ error: 'Already archived' }), { status: 409 }) : null,
+    )
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(scopedData('a1', { clients: [client('c1')] }))
+    calls.length = 0
+    await expect(a.saveAll(scopedData('a1', {}))).resolves.toBeUndefined() // 409 → converged, no throw
+    // and the row is gone from the snapshot: a further identical save emits nothing.
+    calls.length = 0
+    await a.saveAll(scopedData('a1', {}))
+    expect(calls).toHaveLength(0)
+  })
+
+  it('(d2) a lifecycle-ARCHIVE 404 (already gone) is also treated as converged', async () => {
+    const { calls, fetchImpl } = recordingFetch((url) =>
+      url.endsWith('/clients/c1/archive') ? new Response(JSON.stringify({ error: 'Not found' }), { status: 404 }) : null,
+    )
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(scopedData('a1', { clients: [client('c1')] }))
+    calls.length = 0
+    await expect(a.saveAll(scopedData('a1', {}))).resolves.toBeUndefined() // 404 → converged, no throw
+    calls.length = 0
+    await a.saveAll(scopedData('a1', {}))
+    expect(calls).toHaveLength(0)
+  })
+
+  it('flushes a pending lifecycle delete on unload as a SINGLE best-effort archive keepalive (no /delete), never poisoning the batch', async () => {
+    // FIX 2: dropping the lifecycle delete on unload silently resurrects the row next session (lastSynced
+    // is in-memory and dies with the page). Instead we fire a single archive keepalive per pending
+    // lifecycle delete (archive-only — one round-trip fits keepalive; a lifecycle DELETE would 400 the
+    // keepalive batch, and soft-delete is never emitted by sync).
+    const { calls, fetchImpl } = recordingFetch()
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(scopedData('a1', { clients: [client('c1')], disciplines: [discipline()] }))
+
+    // Teardown flush with the client removed + the discipline edited.
+    calls.length = 0
+    await a.saveAll(scopedData('a1', { disciplines: [discipline(TS2)] }), { unload: true })
+    // let the fire-and-forget archive keepalive settle.
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    // the batch still carries ONLY the batch-eligible op, on keepalive — the lifecycle DELETE never
+    // poisons it.
+    const batchCalls = calls.filter((c) => c.url.endsWith('/api/batch'))
+    expect(batchCalls).toHaveLength(1)
+    expect(batchCalls[0].keepalive).toBe(true)
+    expect(opsOf(batchCalls[0])).toEqual([expect.objectContaining({ method: 'PUT', table: 'disciplines', id: 'd1' })])
+    // ...and the pending lifecycle delete fired as a SINGLE keepalive archive (no /delete on unload).
+    const archive = calls.find((c) => c.url.endsWith('/clients/c1/archive'))
+    expect(archive?.keepalive).toBe(true)
+    expect(JSON.parse(archive!.body!)).toEqual({ accountId: 'a1' })
+    expect(calls.some((c) => c.url.endsWith('/clients/c1/delete'))).toBe(false) // never soft-deletes on unload
+  })
+})
+
 describe('atomic large diffs and unload behaviour', () => {
   const manyClients = (n: number) => Array.from({ length: n }, (_, i) => client(`c${i}`))
 
@@ -439,10 +695,14 @@ describe('atomic large diffs and unload behaviour', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('a small unload flush is one keepalive transaction and includes every DELETE', async () => {
+  it('a small unload flush is one keepalive transaction and includes every (batch-eligible) DELETE', async () => {
+    // Lifecycle deletes (clients/projects/resources) deliberately do NOT flush on unload (two-round-trip
+    // archive→delete can't complete on a dying page — see the DEFECT A suite). This pins the keepalive
+    // path for ORDINARY, batch-eligible deletes, using a scoped non-lifecycle table (disciplines).
+    const disc = (id: string): Discipline => ({ id, accountId: 'a1', name: id, sortOrder: 0, createdAt: TS1, updatedAt: TS1 })
     const fetchImpl = okFetch() as unknown as typeof fetch
     const a = new ServerSyncAdapter('http://x', fetchImpl)
-    await a.saveAll(withData({ clients: [client('c1')], projects: [project('p1', 'c1')] }))
+    await a.saveAll(withData({ disciplines: [disc('d1'), disc('d2')] }))
     ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
     await a.saveAll(emptyAppData(), { unload: true })
     const calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls

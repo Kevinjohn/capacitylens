@@ -149,6 +149,97 @@ describe('AuthProvider — server mode', () => {
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
     expect(screen.getByLabelText('Password')).toBeInTheDocument()
     expect(screen.queryByText('app-content')).not.toBeInTheDocument()
+    // A well-formed password-mode body is a real signal, not a guess — no degraded notice.
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument()
+  })
+
+  it("a 401 with authMode 'sso' and a valid providers array shows the SSO sign-in form", async () => {
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () =>
+        me(401, { authMode: 'sso', providers: [{ id: 'google', label: 'Google', kind: 'social', experimental: true }] }),
+      ),
+    )
+    const { AuthProvider } = await freshProvider()
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeInTheDocument()
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument()
+    // A well-formed SSO body is a real signal too — no degraded notice.
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument()
+  })
+
+  it('DEFECT A — a 401 whose body OMITS the providers array still lands on the password sign-in wall (version-skew)', async () => {
+    // An older/version-skewed server that predates the providers array must NOT strand the signed-out
+    // user on a terminal 'invalid configuration' screen — a 401 always offers a way in.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password' })))
+    const { AuthProvider } = await freshProvider()
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Email')).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toBeInTheDocument()
+    expect(screen.queryByText('The authentication service returned an invalid configuration.')).not.toBeInTheDocument()
+    // Merely omitting `providers` is old-server compatibility, not a malformed body — the explicit
+    // authMode is still a trustworthy signal, so no degraded notice.
+    expect(screen.queryByText(/sign-in configuration could not be loaded/i)).not.toBeInTheDocument()
+  })
+
+  it('DEFECT A — a 401 with an empty / HTML / non-JSON body falls back to the password sign-in wall (proxy)', async () => {
+    // A proxy returning a plain-HTML 401 (or an empty body) must land on a usable sign-in form, not a
+    // dead-end error screen with no way to authenticate.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('<html>401</html>', { status: 401 })))
+    const { AuthProvider } = await freshProvider()
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Email')).toBeInTheDocument()
+    expect(screen.getByLabelText('Password')).toBeInTheDocument()
+    // The body couldn't be trusted at all — this fallback is a GUESS, not a confirmed password-mode
+    // signal, so the login wall must hint that an SSO-only instance could be hiding behind it.
+    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument()
+  })
+
+  it('DEFECT A — a 401 with a junk authMode value falls back to the password sign-in wall WITH the degraded notice', async () => {
+    // Distinct from an OMITTED authMode (old-server compat, no notice): here the field is PRESENT
+    // but neither 'password' nor 'sso' — a genuinely untrustworthy body, not a version-skew case.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'bogus', providers: [] })))
+    const { AuthProvider } = await freshProvider()
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByText(/sign-in configuration could not be loaded/i)).toBeInTheDocument()
+  })
+
+  it('DEFECT A — a NON-401 failure is unchanged: it still renders the retryable auth error boundary', async () => {
+    // The lenient 401 handling is scoped to 401 only — a genuinely unexpected status stays fail-closed.
+    vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+    vi.stubGlobal('fetch', vi.fn(async () => me(500, { error: 'boom' })))
+    const { AuthProvider } = await freshProvider()
+    render(
+      <AuthProvider>
+        <div>app-content</div>
+      </AuthProvider>,
+    )
+    expect(await screen.findByRole('heading', { name: 'Unable to verify your session' })).toBeInTheDocument()
+    expect(screen.queryByText('app-content')).not.toBeInTheDocument()
   })
 
   it('password invite routes render before sign-in so the token can onboard a new identity', async () => {

@@ -3,6 +3,7 @@ import type { ServerOptions as HttpsServerOptions } from 'node:https'
 import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
 import helmetPlugin from '@fastify/helmet'
+import { MAX_RATE_LIMIT, parseRateLimit } from './rateLimit'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   DEMO_USER,
@@ -323,15 +324,10 @@ function normalizedCspReports(payload: unknown): Record<string, unknown>[] {
   return reports
 }
 
-export const MAX_RATE_LIMIT = 1_000_000
-
-/** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
- *  unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit). */
-export function parseRateLimit(raw: string | undefined): number {
-  if (!raw || !/^\d+$/.test(raw)) return 0
-  const parsed = Number(raw)
-  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= MAX_RATE_LIMIT ? parsed : 0
-}
+// parseRateLimit / MAX_RATE_LIMIT now live in ./rateLimit so productionGuard.ts can share the ONE
+// true parser without importing the whole app (import-cycle-safe). Re-exported here to preserve the
+// existing './app' public surface that index.ts and the rate-limit tests already import from.
+export { MAX_RATE_LIMIT, parseRateLimit }
 
 /** Node's IncomingHttpHeaders → web Headers, for Better Auth's web-standard API
  *  (getSession reads the cookie; the mounted handler gets the full set). */
@@ -434,11 +430,33 @@ function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trust
   const protocol = trustForwarded && (candidate === 'http' || candidate === 'https')
     ? candidate
     : req.protocol
+  let origin: URL
+  let reconstructed: URL
+  // Total function: BOTH the browser-set Origin AND the reconstructed `${protocol}://${host}` are
+  // untrusted, attacker-/proxy-influenced strings. A broken reverse proxy (or a hand-forged request)
+  // can present a Host that `new URL` rejects — 'exa mple.com', '[', 'host:port:port' — so the
+  // reconstruct MUST stay inside the guard alongside the Origin parse. A prior refactor moved it out,
+  // which turned an unparseable Host into an uncaught TypeError → unhandled 500. Either parse failing
+  // means "cannot prove same-origin", which fails CLOSED: return false so the CSRF gate answers a
+  // clean 403, never a 500.
   try {
-    return new URL(reqOrigin).origin === new URL(`${protocol}://${host}`).origin
+    origin = new URL(reqOrigin)
+    reconstructed = new URL(`${protocol}://${host}`)
   } catch {
     return false
   }
+  if (origin.origin === reconstructed.origin) return true
+  // TLS-termination fallback (no Fetch Metadata, forwarded-proto not trusted). The standard
+  // reverse-proxy pattern terminates HTTPS at the edge and forwards CLEARTEXT to this process, so
+  // the browser-set Origin claims `https://<host>` while req.protocol only ever sees `http`. When
+  // the Origin's host:port matches our Host header and the ONLY difference is that scheme upgrade,
+  // treat it as same-origin. This is safe because the BROWSER — not the caller — populates the
+  // Origin host: an attacker on another site cannot forge `https://<our-host>` as their Origin.
+  // The residual accepted risk is narrow: a misconfigured deployment that genuinely serves plain
+  // HTTP on the same host:port it advertises as HTTPS would be treated as same-origin — an operator
+  // error, not an attacker-reachable one. We deliberately do NOT accept the reverse (Origin http
+  // while we are https) and never accept any host:port mismatch.
+  return origin.protocol === 'https:' && reconstructed.protocol === 'http:' && origin.host === reconstructed.host
 }
 
 // Constant-time secret compare for the P1.8 bootstrap token. Returns false UNLESS the
@@ -503,12 +521,18 @@ function isStaleWrite(
   // (A type GUARD, not a plain boolean: both call sites feed `existing` to redactWriteEcho inside
   // the 409 branch, which needs the `existing`-is-present narrowing the old inline check gave.)
   if (existing === undefined) return false
+  // Never a conflict unless BOTH sides carry a parseable timestamp to compare (the documented
+  // policy above). A missing/non-string/unparseable updatedAt on either side means we have no
+  // basis for an ordering, so we do NOT invent a 409: a normal partial PATCH that omits updatedAt
+  // must still apply, and a row whose STORED updatedAt is somehow unparseable must stay writable
+  // (never write-bricked). The accepted trade-off is that such a write falls back to
+  // last-writer-wins rather than optimistic rejection — a lost precondition, not lost data.
   if (
     typeof existing.updatedAt !== 'string' ||
     typeof row.updatedAt !== 'string' ||
     !Number.isFinite(Date.parse(existing.updatedAt)) ||
     !Number.isFinite(Date.parse(row.updatedAt))
-  ) return true
+  ) return false
   return Date.parse(existing.updatedAt) > Date.parse(row.updatedAt)
 }
 
@@ -1157,9 +1181,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     )
     const origin = listedOrigin ?? (sameOrigin ? req.headers.origin! : null)
     const unsafe = !['GET', 'HEAD', 'OPTIONS'].includes(req.method)
+    // An Origin exactly on the credentialed CORS allow-list (listedOrigin, folded into `origin`
+    // above) is the operator's EXPLICIT cross-site contract, so it passes the gate regardless of
+    // Fetch Metadata — a `Sec-Fetch-Site: cross-site` on an allow-listed Origin is exactly the
+    // legitimate configured cross-origin call, not an attack. We therefore block only when the
+    // request resolved to NO trusted origin (`origin === null`, i.e. neither allow-listed nor
+    // same-origin) AND there is a cross-site signal: an Origin header we could not trust, or an
+    // explicit cross-site Fetch Metadata label (which also catches Origin-less browser writes).
     if (
       unsafe &&
-      ((req.headers.origin !== undefined && origin === null) || fetchSite === 'cross-site')
+      origin === null &&
+      (req.headers.origin !== undefined || fetchSite === 'cross-site')
     ) {
       securityEvent({
         event: 'cross_site_request', outcome: 'blocked', method: req.method,
@@ -1199,10 +1231,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       return reply.code(204).send()
     })
 
-    // Health is deliberately constant-work and participates in the normal rate limit. The
-    // expensive full row-codec + foreign-key integrity verification runs once during openDb(),
-    // not on a public request path an attacker can amplify.
-    app.get('/api/health', (_req, reply) => {
+    // Health is deliberately constant-work AND exempt from the rate limiter (`config.rateLimit:
+    // false`): an uptime monitor polls it continuously and must NEVER be told 429. Behind a proxy
+    // without forwarded-IP trust every client shares one socket-IP bucket, so a limited health
+    // route would let ordinary API traffic starve the monitor's probe (and vice versa). Exempting
+    // it adds no amplification surface: the expensive full row-codec + foreign-key integrity
+    // verification runs once during openDb(), and this handler is only a cached SELECT 1.
+    app.get('/api/health', { config: { rateLimit: false } }, (_req, reply) => {
       if (!healthStmt) return { ok: true }
       try {
         healthStmt.get()

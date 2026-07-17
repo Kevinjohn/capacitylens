@@ -18,8 +18,11 @@ import {
   openDbConnection,
   planDatabaseMigrations,
   seedIfUninitialized,
+  V13_DEFINITION,
+  V13_FROZEN_PRESET_COLORS,
 } from './db'
 import { seed } from '@capacitylens/shared/data/seed'
+import { PRESET_COLORS } from '@capacitylens/shared/lib/color'
 import { authFromEnv, runAuthMigrations } from './auth'
 
 // openDb only ran CREATE TABLE IF NOT EXISTS, so a file written by an older schema
@@ -178,6 +181,56 @@ describe('schema migration of an existing on-disk DB', () => {
         createdAt: TS, updatedAt: TS,
       })).toThrow(/unique/i)
       repaired.close()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('v13 snaps every legacy non-preset account colour to its nearest preset exactly once, leaving preset colours untouched', () => {
+    // Before v13, sanitizeWrite('accounts') replaced ANY non-preset stored colour with one FIXED
+    // fallback hex on every write, and no migration ever repaired the rows already on disk — so a
+    // legacy account's colour would silently flip to that one fixed colour the next time its row
+    // was touched. This proves the v13 data repair snaps it to its NEAREST preset instead, runs
+    // exactly once (idempotent DB migration ledger), and leaves an already-preset colour alone.
+    const path = join(tmpdir(), `capacitylens-migrate-colour-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+    cleanup()
+    try {
+      const db = openDb(path) // fresh DB: already at the current version (v13 is a no-op here)
+      // #7cd9e4 is not a preset — its nearest preset is #7adae3 (see shared color.test.ts for the
+      // same fixture, pinned there against the full palette).
+      insertRow(db, 'accounts', { id: 'a-legacy', name: 'Legacy', color: '#7cd9e4', createdAt: TS, updatedAt: TS })
+      // Already a preset colour — must round-trip byte-identical, not get re-snapped to itself
+      // via some other path that could reformat it.
+      insertRow(db, 'accounts', { id: 'a-preset', name: 'Already preset', color: '#e02727', createdAt: TS, updatedAt: TS })
+      // Roll the ledger back to "just before v13" (mirrors the v7 rollback other tests use, but only
+      // one step back) so the next openDb() re-runs ONLY the v13 migration against these rows.
+      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 13`)
+      db.exec(`PRAGMA user_version = 12`)
+      db.close()
+
+      const upgraded = openDb(path)
+      const state = loadState(upgraded)
+      expect(state.accounts.find((a) => a.id === 'a-legacy')?.color).toBe('#7adae3')
+      expect(state.accounts.find((a) => a.id === 'a-preset')?.color).toBe('#e02727')
+      const history = upgraded.prepare(
+        `SELECT version, name FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 13`,
+      ).get() as { version: number; name: string } | undefined
+      expect(history).toEqual({ version: 13, name: 'snap-legacy-account-colors' })
+      upgraded.close()
+
+      // Idempotent: reopening an already-migrated DB plans no further migrations and leaves the
+      // now-repaired colours untouched (the write-time guard is a no-op for already-migrated data).
+      const reopened = openDb(path)
+      expect(planDatabaseMigrations(reopened).migrations).toEqual([])
+      const restate = loadState(reopened)
+      expect(restate.accounts.find((a) => a.id === 'a-legacy')?.color).toBe('#7adae3')
+      expect(restate.accounts.find((a) => a.id === 'a-preset')?.color).toBe('#e02727')
+      reopened.close()
     } finally {
       cleanup()
     }
@@ -439,12 +492,13 @@ describe('schema migration of an existing on-disk DB', () => {
       { version: 10, name: 'enforce-single-owner' },
       { version: 11, name: 'repair-ownerless-memberships' },
       { version: 12, name: 'revoke-owner-reset-ceremonies' },
+      { version: 13, name: 'snap-legacy-account-colors' },
     ])
     // Shipped checksums are immutable: later migrations must never invalidate an upgraded database.
     expect(history[0].checksum).toBe('90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d')
     expect(history[1].checksum).toBe('41f8f933f17eb59dac8bfc7a385db70e46df61e249a295fd622f821dcc3bb1f0')
     expect(history[2].checksum).toBe('a178fba43ad4c58ca8508117303b568c05103a05cc6e48512f2e92306e857653')
-    expect(history[3].checksum).toBe('057242fc8e358bebf0a188395e9289d2661f6a89e843bc091e718d003f013f5e')
+    expect(history[3].checksum).toBe('561d0b306d9702e807d45702ec2424f0421b44eb2bc34adab7abc8ba08875117')
     expect(history[4].checksum).toBe('4e7a506b4324de4e8d48ad843d1eabe70b4723c6e9bb4e44f2ed1c76046b2b56')
     expect(history.every((row) => !Number.isNaN(Date.parse(row.appliedAt)))).toBe(true)
     expect(planDatabaseMigrations(db).migrations).toEqual([])
@@ -610,5 +664,75 @@ describe('schema migration of an existing on-disk DB', () => {
     } finally {
       copied.cleanup()
     }
+  })
+})
+
+describe('migration ledger checksum supersession (v11 alpha-line amendment)', () => {
+  // v11's definition was amended IN PLACE ('…promote-oldest…:v1' → '…promote-highest-role-tier…:v2').
+  // Any DB upgraded by the PREVIOUS build recorded this OLD checksum in its ledger; the supersession
+  // allow-list must accept exactly this one historical value for v11, and nothing else.
+  const OLD_V11_CHECKSUM = '057242fc8e358bebf0a188395e9289d2661f6a89e843bc091e718d003f013f5e'
+
+  it('boots a database whose v11 ledger row carries the superseded old-v11 checksum', () => {
+    const path = join(tmpdir(), `capacitylens-superseded-v11-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+    cleanup()
+    try {
+      const seeded = openDb(path)
+      insertRow(seeded, 'accounts', { id: 'a1', name: 'Studio', color: '#e02727', createdAt: TS, updatedAt: TS })
+      // Model the already-upgraded install: rewrite v11 to the checksum the previous build stamped.
+      seeded.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 11`).run(OLD_V11_CHECKSUM)
+      seeded.close()
+
+      // The real boot path (openDb → planDatabaseMigrations → assertMigrationHistory) must NOT throw.
+      const rebooted = openDb(path)
+      expect(planDatabaseMigrations(rebooted).migrations).toEqual([])
+      // Subsequent behaviour is normal: the data is intact and the DB stays writable.
+      expect(loadState(rebooted).accounts.find((a) => a.id === 'a1')?.name).toBe('Studio')
+      insertRow(rebooted, 'accounts', { id: 'a2', name: 'Second', color: '#2d75da', createdAt: TS, updatedAt: TS })
+      expect(getRow(rebooted, 'accounts', 'a2')?.name).toBe('Second')
+      // The ledger row is LEFT UNTOUCHED — we accept the superseded checksum, we don't rewrite history.
+      expect(rebooted.prepare(`SELECT checksum FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 11`).get())
+        .toEqual({ checksum: OLD_V11_CHECKSUM })
+      rebooted.close()
+    } finally {
+      cleanup()
+    }
+  })
+
+  it('still refuses a genuinely wrong v11 checksum (neither the old nor the current definition)', () => {
+    const db = openDb(':memory:')
+    db.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 11`).run('1'.repeat(64))
+    expect(() => planDatabaseMigrations(db)).toThrow(/v11 checksum does not match/i)
+    db.close()
+  })
+
+  it('is v11-only: the same old-v11 checksum on a different version still refuses startup', () => {
+    const db = openDb(':memory:')
+    // The allow-list is per-version. The v11 historical checksum on v12 is NOT allow-listed there.
+    db.prepare(`UPDATE ${DATABASE_MIGRATION_TABLE} SET checksum = ? WHERE version = 12`).run(OLD_V11_CHECKSUM)
+    expect(() => planDatabaseMigrations(db)).toThrow(/v12 checksum does not match/i)
+    db.close()
+  })
+})
+
+describe('v13 migration is self-contained (frozen palette folded into the checksum)', () => {
+  it('embeds the frozen palette digest in the v13 definition string', () => {
+    // The definition folds in the joined frozen-palette hex list so the migration CHECKSUM covers the
+    // exact palette the repair snaps to — a future shared-palette edit can't silently change v13.
+    expect(V13_DEFINITION).toContain(V13_FROZEN_PRESET_COLORS.join(','))
+    expect(V13_DEFINITION).toContain('#7adae3') // spot-check a representative preset is in the digest
+  })
+
+  it('froze the palette byte-for-byte from the shared palette at authoring time', () => {
+    // Authoring-time snapshot check: the frozen copy equalled shared PRESET_COLORS when v13 was
+    // written. If shared PRESET_COLORS is ever edited and this fails, the fix is a NEW migration with
+    // its own frozen list + checksum — NOT updating this frozen list (that would silently rewrite an
+    // already-checksummed step). See V13_FROZEN_PRESET_COLORS in db.ts.
+    expect(V13_FROZEN_PRESET_COLORS).toEqual(PRESET_COLORS)
   })
 })

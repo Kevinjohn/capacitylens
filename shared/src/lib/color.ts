@@ -19,6 +19,53 @@ const PRESET_COLOR_SET = new Set(PRESET_COLORS)
 export function isPresetColor(value: unknown): value is string {
   return typeof value === 'string' && PRESET_COLOR_SET.has(value.trim().toLowerCase())
 }
+
+/** Used by {@link snapToPresetColor} ONLY when the input can't be parsed as a 6-digit hex at
+ *  all (so no "nearest" distance can even be computed) — e.g. `null`, `undefined`, `"nope"`.
+ *  This is the ONE fixed colour left in the system; every *parseable* colour, however far off
+ *  the palette, is snapped to its nearest preset instead — see snapToPresetColor. */
+export const FALLBACK_PRESET_COLOR = '#5c34d4'
+
+/**
+ * Snap ANY colour value to the canonical `PRESET_COLORS` palette:
+ *  - a value already in the palette is returned normalized (trimmed + lowercased);
+ *  - any other parseable 6-digit hex is mapped to its NEAREST preset by RGB Euclidean distance
+ *    (ties broken by palette order — the first minimal-distance preset wins, so the mapping is
+ *    deterministic and reproducible);
+ *  - an unparseable value (wrong shape, non-string, `null`/`undefined`) returns
+ *    {@link FALLBACK_PRESET_COLOR}.
+ *
+ * This is the SINGLE mapping the server (`sanitizeWrite('accounts')`, and the one-time
+ * `snap-legacy-account-colors` DB migration) and the client (`src/store/useStore.ts`) both
+ * import, so a given stored colour is always classified IDENTICALLY on both sides — the two
+ * write-time guards can never disagree about what a legacy or hand-crafted colour snaps to.
+ * See DECISIONS.md for the policy this implements.
+ */
+export function snapToPresetColor(value: unknown): string {
+  if (typeof value !== 'string') return FALLBACK_PRESET_COLOR
+  const normalized = value.trim().toLowerCase()
+  if (PRESET_COLOR_SET.has(normalized)) return normalized
+  const rgb = toRgb(normalized)
+  if (!rgb) return FALLBACK_PRESET_COLOR
+  const [r, g, b] = rgb
+  let nearest = PRESET_COLORS[0]
+  let nearestDistance = Infinity
+  for (const preset of PRESET_COLORS) {
+    const presetRgb = toRgb(preset)
+    if (!presetRgb) continue // unreachable: every PRESET_COLORS entry is a valid 6-digit hex (pinned by a test)
+    const [pr, pg, pb] = presetRgb
+    // Squared Euclidean distance in RGB space — no sqrt needed since we only compare magnitudes.
+    const distance = (r - pr) ** 2 + (g - pg) ** 2 + (b - pb) ** 2
+    // Strict `<` (not `<=`) so the FIRST minimal-distance preset wins on a tie — palette order
+    // is the deterministic tie-break.
+    if (distance < nearestDistance) {
+      nearestDistance = distance
+      nearest = preset
+    }
+  }
+  return nearest
+}
+
 const FALLBACK = NEUTRAL_COLOR
 
 /** Id→entity maps for O(1) colour resolution. The scheduler model already builds

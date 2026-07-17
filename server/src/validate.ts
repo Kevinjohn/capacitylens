@@ -11,7 +11,7 @@ import {
   INTERNAL_CLIENT_NAME,
   wouldAddSecondBuiltin,
 } from '@capacitylens/shared/data/internalClient'
-import { isPresetColor } from '@capacitylens/shared/lib/color'
+import { snapToPresetColor } from '@capacitylens/shared/lib/color'
 import { cleanText } from '@capacitylens/shared/lib/strings'
 import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
 import { SCHEDULING_MODES, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
@@ -55,7 +55,6 @@ export function assertIdPresent(row: Record<string, unknown>): void {
   }
 }
 
-const FALLBACK_COLOR = '#5c34d4'
 // Derived from SCOPED_KEYS — the single source of truth — so a new entity added to
 // AppData is automatically treated as scoped without an update here.
 const isScopedKey = (table: string): table is ScopedEntityKey =>
@@ -126,7 +125,13 @@ export function sanitizeWrite(
   assertIdPresent(row)
   const copy = acceptedWriteFields(table, row)
   if (table === 'accounts') {
-    copy.color = isPresetColor(copy.color) ? copy.color.trim().toLowerCase() : FALLBACK_COLOR
+    // POLICY: a non-preset colour snaps to its NEAREST palette preset (shared/lib/color's
+    // snapToPresetColor — the SAME mapper the client uses and the one-time
+    // snap-legacy-account-colors migration ran), not a fixed fallback purple. Before this, ANY
+    // stored colour outside the (then-current) preset set was replaced with one fixed hex on
+    // every write, so a legacy account's colour — or any hex a hand-crafted request supplied —
+    // would silently flip to that one colour the next time the row was touched. See DECISIONS.md.
+    copy.color = snapToPresetColor(copy.color)
     if (typeof copy.name === 'string') copy.name = cleanText(copy.name)
     // schedulingMode is an OPTIONAL enum (absent = 'hourly'). Drop a junk value rather
     // than persisting a mode the scheduler's hourly/days/blocks switch can't handle — the

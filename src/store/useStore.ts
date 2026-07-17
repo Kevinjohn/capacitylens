@@ -47,7 +47,7 @@ import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } fr
 import type { Role } from '@capacitylens/shared/domain/access'
 import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@capacitylens/shared/types/entities'
-import { isPresetColor, NEUTRAL_COLOR, PRESET_COLORS } from '@capacitylens/shared/lib/color'
+import { NEUTRAL_COLOR, snapToPresetColor } from '@capacitylens/shared/lib/color'
 import type {
   Account,
   Allocation,
@@ -576,8 +576,26 @@ export const useStore = create<StoreState>()((set, get) => {
       throw new Error('At least one working day is required, using unique whole-number weekdays from 0 to 6.')
     }
   }
-  const repairColor = (color: unknown, allowNeutral = false): string =>
-    isPresetColor(color) || (allowNeutral && color === NEUTRAL_COLOR) ? color : PRESET_COLORS[0]
+  // Write-time colour guard: snaps a bad/legacy colour to its NEAREST palette preset via the
+  // shared snapToPresetColor mapper — the SAME mapper the server's sanitizeWrite('accounts') and
+  // the one-time snap-legacy-account-colors migration use, so client and server can never
+  // disagree about what a given colour snaps to (see DECISIONS.md). `allowNeutral` preserves the
+  // ONE deliberate exception: NEUTRAL_COLOR is not itself a preset (see shared/lib/color.ts), but
+  // an external resource's grey must round-trip unchanged rather than snap to its nearest preset.
+  //
+  // Deliberately called ONLY on a path that is actually about to persist (immediately before
+  // mutate()/updateById below) — never before a reject check (blockedByViewer / a stale-id no-op /
+  // an assert* throw). A rejected write must not silently substitute a colour the caller never
+  // asked for onto an entity that was never saved; see the CRUD contract note on StoreState.
+  const snapColor = (color: unknown, allowNeutral = false): string =>
+    allowNeutral && color === NEUTRAL_COLOR ? (color as string) : snapToPresetColor(color)
+
+  // Collapses the `patch.color === undefined ? patch : { ...patch, color: snapColor(...) }`
+  // idiom that used to be copy-pasted across every update* action (P#: colour-repair
+  // consolidation). Returns the SAME object reference when there's no colour to repair, so a
+  // colourless edit doesn't pay for a needless clone.
+  const withSnappedColor = <T extends { color?: unknown }>(patch: T, allowNeutral = false): T =>
+    patch.color === undefined ? patch : { ...patch, color: snapColor(patch.color, allowNeutral) }
 
   // clampHoursPerDay (allocations, [0,24]) and clampWorkingHoursPerDay (resources, (0,24])
   // come from the shared core (entities.ts) so the store write boundary and the import
@@ -627,7 +645,7 @@ export const useStore = create<StoreState>()((set, get) => {
         externalEnabled: false,
         internalColourMode: 'grey',
         ...input,
-        color: repairColor(input.color),
+        color: snapColor(input.color),
         id: newId(),
         ...ts,
       }
@@ -650,8 +668,7 @@ export const useStore = create<StoreState>()((set, get) => {
     },
     updateAccount: (id, patch) => {
       if (blockedByViewer()) return
-      const safePatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color) }
-      mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, safePatch) }))
+      mutate((d) => ({ ...d, accounts: updateById(d.accounts, id, withSnappedColor(patch)) }))
     },
     // Cascade-drop every scoped entity belonging to this account; if it was the
     // active one, fall back to the picker.
@@ -855,18 +872,20 @@ export const useStore = create<StoreState>()((set, get) => {
       }),
 
     addDiscipline: (input) => {
-      const e: Discipline = { ...input, ...(input.color === undefined ? {} : { color: repairColor(input.color) }), id: newId(), accountId: requireAccount(), ...stamp() }
-      // Viewer no-op (P1.12 defense-in-depth): build the entity so the return type holds, but skip
-      // the persist — nothing lands in state. Server 403 is the real backstop; see blockedByViewer.
+      const e: Discipline = { ...input, id: newId(), accountId: requireAccount(), ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): return the entity so the return type holds, but skip
+      // the persist AND the colour snap — nothing lands in state, so the caller gets back exactly
+      // what they submitted, not a value we silently changed on their behalf. Server 403 is the
+      // real backstop; see blockedByViewer.
       if (blockedByViewer()) return e
-      mutate((d) => ({ ...d, disciplines: [...d.disciplines, e] }))
-      return e
+      const safe = withSnappedColor(e)
+      mutate((d) => ({ ...d, disciplines: [...d.disciplines, safe] }))
+      return safe
     },
     updateDiscipline: (id, patch) => {
       if (blockedByViewer()) return
       if (!findOwned(get().data, 'disciplines', id)) return
-      const safePatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color) }
-      mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, safePatch) }))
+      mutate((d) => ({ ...d, disciplines: updateById(d.disciplines, id, withSnappedColor(patch)) }))
     },
     deleteDiscipline: (id) => {
       if (blockedByViewer()) return
@@ -879,15 +898,19 @@ export const useStore = create<StoreState>()((set, get) => {
       // Viewer no-op (P1.12 defense-in-depth): gate BEFORE the integrity asserts so a read-only user's
       // optimistic write neither validates nor persists. Build the (clamped) entity so the return type
       // holds; it never lands in state. Server 403 is the real backstop; see blockedByViewer.
-      const e: Resource = { ...input, color: repairColor(input.color, input.kind === 'external'), workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
+      const e: Resource = { ...input, workingHoursPerDay: clampWorkingHoursPerDay(input.workingHoursPerDay), id: newId(), accountId, ...stamp() }
       if (blockedByViewer()) return e
       assertScopedRefs(get().data, accountId, 'resources', input)
       assertWorkingDays(input.workingDays)
       // Clamp working hours/day (the store is the last line; the form caps it, but a non-form
       // or pre-blur-paste write must not persist NaN / 0 / >24h capacity). 0 is rejected (a
       // resource works a positive day) — distinct from an allocation, where 0 is legal.
-      mutate((d) => ({ ...d, resources: [...d.resources, e] }))
-      return e
+      //
+      // Colour snap runs LAST, right before persisting — never before the asserts above, so a
+      // rejected (throwing) add never substitutes a colour onto an entity that was never saved.
+      const safe = withSnappedColor(e, e.kind === 'external')
+      mutate((d) => ({ ...d, resources: [...d.resources, safe] }))
+      return safe
     },
     updateResource: (id, patch) => {
       if (blockedByViewer()) return
@@ -903,7 +926,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // external. Mirrors the server's validateWrite resources branch — same shared assert, no drift.
       assertResourceKindAllowsDependents(get().data, existing.accountId, id, patch.kind ?? existing.kind)
       if (patch.workingDays !== undefined) assertWorkingDays(patch.workingDays)
-      const colorPatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color, (patch.kind ?? existing.kind) === 'external') }
+      const colorPatch = withSnappedColor(patch, (patch.kind ?? existing.kind) === 'external')
       const safePatch =
         patch.workingHoursPerDay !== undefined
           ? { ...colorPatch, workingHoursPerDay: clampWorkingHoursPerDay(patch.workingHoursPerDay) }
@@ -918,13 +941,16 @@ export const useStore = create<StoreState>()((set, get) => {
       // mint the one Internal per account). Strip it at runtime too so an untyped/cast payload can't
       // smuggle `builtin: true` past the compile-time guard and create a SECOND builtin — that would
       // break the "exactly one Internal per account" invariant. See Draft<Client>.
-      const safe: Record<string, unknown> = { ...input }
-      delete safe.builtin
-      const e: Client = { ...(safe as Draft<Client>), color: repairColor(safe.color), id: newId(), accountId: requireAccount(), ...stamp() }
-      // Viewer no-op (P1.12 defense-in-depth): build the entity for the return type, skip the persist.
+      const stripped: Record<string, unknown> = { ...input }
+      delete stripped.builtin
+      const e: Client = { ...(stripped as Draft<Client>), id: newId(), accountId: requireAccount(), ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): return the entity for the return type, skip the
+      // persist AND the colour snap — a rejected write must not silently substitute a colour onto
+      // an entity that was never saved.
       if (blockedByViewer()) return e
-      mutate((d) => ({ ...d, clients: [...d.clients, e] }))
-      return e
+      const safe = withSnappedColor(e)
+      mutate((d) => ({ ...d, clients: [...d.clients, safe] }))
+      return safe
     },
     updateClient: (id, patch) => {
       if (blockedByViewer()) return
@@ -937,20 +963,22 @@ export const useStore = create<StoreState>()((set, get) => {
       // `builtin` is excluded from Patch<Client> at the type level; strip it at runtime too so an
       // untyped/cast patch can't PROMOTE a normal client to a second builtin (same invariant as above —
       // store-strip enforcement point (1); canonical doc in shared/src/data/internalClient.ts).
-      const safePatch: Record<string, unknown> = { ...patch }
-      delete safePatch.builtin
-      if (safePatch.color !== undefined) safePatch.color = repairColor(safePatch.color)
-      mutate((d) => ({ ...d, clients: updateById(d.clients, id, safePatch as Patch<Client>) }))
+      const stripped: Record<string, unknown> = { ...patch }
+      delete stripped.builtin
+      mutate((d) => ({ ...d, clients: updateById(d.clients, id, withSnappedColor(stripped as Patch<Client>)) }))
     },
 
     addProject: (input) => {
       const accountId = requireAccount()
-      const e: Project = { ...input, color: repairColor(input.color), id: newId(), accountId, ...stamp() }
-      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts; build the entity, skip persist.
+      const e: Project = { ...input, id: newId(), accountId, ...stamp() }
+      // Viewer no-op (P1.12 defense-in-depth): gate before the asserts AND the colour snap; build
+      // the entity, skip the persist — a rejected write must not silently substitute a colour onto
+      // an entity that was never saved.
       if (blockedByViewer()) return e
       assertScopedRefs(get().data, accountId, 'projects', input)
-      mutate((d) => ({ ...d, projects: [...d.projects, e] }))
-      return e
+      const safe = withSnappedColor(e)
+      mutate((d) => ({ ...d, projects: [...d.projects, safe] }))
+      return safe
     },
     updateProject: (id, patch) => {
       if (blockedByViewer()) return
@@ -960,8 +988,7 @@ export const useStore = create<StoreState>()((set, get) => {
       // the hydrated slice is active-only, so an unchanged clientId pointing at an ARCHIVED client
       // must not block an unrelated edit; a CHANGED clientId is still validated strictly.
       assertScopedRefs(get().data, existing.accountId, 'projects', patch, existing)
-      const safePatch = patch.color === undefined ? patch : { ...patch, color: repairColor(patch.color) }
-      mutate((d) => ({ ...d, projects: updateById(d.projects, id, safePatch) }))
+      mutate((d) => ({ ...d, projects: updateById(d.projects, id, withSnappedColor(patch)) }))
     },
 
     addPhase: (input) => {

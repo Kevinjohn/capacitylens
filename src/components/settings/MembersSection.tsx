@@ -13,6 +13,7 @@ import {
   type Role,
 } from '@capacitylens/shared/domain/access'
 import { apiFetch } from '../../data/requestTimeout'
+import { apiFetchReauth } from '../../auth/apiFetchReauth'
 import { MAX_EMAIL_LENGTH } from '@capacitylens/shared/lib/strings'
 import { roleLabel, roleSummary } from '../../lib/accessCopy'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
@@ -386,7 +387,7 @@ export function MembersSection() {
     if (nextRole === mem.role) return
     if (!beginAction(`role:${mem.userId}`)) return
     try {
-      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
+      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'PATCH',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -417,7 +418,7 @@ export function MembersSection() {
   const removeMember = async (mem: Member) => {
     if (!beginAction(`remove:${mem.userId}`)) return
     try {
-      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
+      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
         method: 'DELETE',
         credentials: 'include',
       })
@@ -445,7 +446,7 @@ export function MembersSection() {
   const transferOwnership = async (mem: Member) => {
     if (!beginAction(`transfer:${mem.userId}`)) return
     try {
-      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/transfer-ownership`, {
+      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/transfer-ownership`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -484,7 +485,7 @@ export function MembersSection() {
     if (unknownResetFor === mem.userId) setUnknownResetFor(null)
     setResetLink(null)
     try {
-      const res = await apiFetch(
+      const res = await apiFetchReauth(
         `${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}/reset-password`,
         { method: 'POST', credentials: 'include' },
       )
@@ -520,7 +521,7 @@ export function MembersSection() {
   const revokeSessions = async (mem: Member) => {
     if (!beginAction(`sessions:${mem.userId}`)) return
     try {
-      const res = await apiFetch(
+      const res = await apiFetchReauth(
         `${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}/revoke-sessions`,
         { method: 'POST', credentials: 'include' },
       )
@@ -546,7 +547,7 @@ export function MembersSection() {
     }
     if (!beginAction('invite:create')) return
     try {
-      const res = await apiFetch(`${API_BASE}/api/invites`, {
+      const res = await apiFetchReauth(`${API_BASE}/api/invites`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -585,7 +586,7 @@ export function MembersSection() {
   const revokeInvite = async (id: string) => {
     if (!beginAction(`invite:revoke:${id}`)) return
     try {
-      const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites/${id}`, {
+      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/invites/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       })

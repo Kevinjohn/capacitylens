@@ -646,7 +646,26 @@ describe('value-level sanitization on direct writes (server is the integrity bou
   it('stores a validated account colour without surrounding whitespace', async () => {
     const { app } = freshApp()
     expect((await post(app, 'accounts', { ...account('a1'), color: '  #aAbBcC  ' })).statusCode).toBe(201)
-    expect((await state(app)).accounts[0].color).toBe('#5c34d4')
+    // #aabbcc is not itself a preset — sanitizeWrite snaps it to its NEAREST preset (shared
+    // snapToPresetColor), not a fixed fallback colour. See the "snaps a non-preset account
+    // colour to its nearest preset" test below for the policy this replaced.
+    expect((await state(app)).accounts[0].color).toBe('#bed4f4')
+  })
+
+  it('snaps a non-preset account colour to its NEAREST preset, not a fixed fallback colour', async () => {
+    // Regression guard for the old blanket-fallback bug: a colour close to one specific preset
+    // must land on THAT preset, proving the guard is distance-based rather than always emitting
+    // one fixed hex regardless of the input.
+    // multiAccount: true — this test deliberately creates a SECOND company on one instance (see
+    // the identical note at the other multiAccount call sites above).
+    const { app } = freshApp(true, { multiAccount: true })
+    await post(app, 'accounts', { ...account('a1'), color: '#7cd9e4' })
+    expect((await state(app)).accounts[0].color).toBe('#7adae3')
+    // A colour on the opposite side of the palette snaps to a DIFFERENT preset — proving the two
+    // don't collapse onto the same fixed fallback.
+    await post(app, 'accounts', { ...account('a2'), color: '#f6c3bb' })
+    const accounts = (await state(app)).accounts as Array<Record<string, unknown>>
+    expect(accounts.find((a) => a.id === 'a2')?.color).toBe('#f5bcbc')
   })
 
   it('repairs junk enums / colour / hours / workingDays on POST instead of persisting them', async () => {
@@ -962,6 +981,90 @@ describe('CORS allow-list', () => {
     expect(response.statusCode).toBe(200)
   })
 
+  it('lets a cross-site write through when its Origin is on the credentialed allow-list (Fetch Metadata notwithstanding)', async () => {
+    // FIX: an Origin EXACTLY on the CORS allow-list is the operator's explicit cross-site contract,
+    // so it must pass the gate even when the browser labels the request Sec-Fetch-Site: cross-site
+    // (the legitimate configured cross-origin call). The old gate 403'd it on the fetchSite clause
+    // despite the allow-list match; now the allow-listed Origin is reflected and the write proceeds.
+    const app = buildApp(openDb(':memory:'), { allowReset: true, corsOrigin: 'https://app.example.com' })
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { origin: 'https://app.example.com', 'sec-fetch-site': 'cross-site' },
+    })
+    expect(res.statusCode).toBe(200)
+    expect(res.headers['access-control-allow-origin']).toBe('https://app.example.com')
+  })
+
+  it('still 403s a genuinely cross-site write from a NON-listed Origin', async () => {
+    // The allow-list exemption is exact-match only; an Origin that is neither allow-listed nor
+    // same-origin, carrying a cross-site signal, remains a hard 403.
+    const app = buildApp(openDb(':memory:'), { allowReset: true, corsOrigin: 'https://app.example.com' })
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: 'Cross-site request rejected.' })
+  })
+
+  it('treats a TLS-terminated https Origin as same-origin when only the scheme differs from http req.protocol', async () => {
+    // FIX: with no Fetch Metadata and forwarded-proto NOT trusted, the standard TLS-termination
+    // deploy has the browser-set Origin claim https:// while req.protocol sees http (cleartext hop
+    // behind the proxy). When the Origin's host:port matches our Host and the ONLY difference is
+    // that scheme upgrade, it is same-origin — the browser sets the Origin host, so it can't be
+    // forged from another site. No allow-list entry and no rateLimitTrustForwarded here.
+    const app = buildApp(openDb(':memory:'), { allowReset: true, corsOrigin: '' })
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { host: 'capacity.example.com', origin: 'https://capacity.example.com' },
+    })
+    expect(res.statusCode).toBe(200)
+  })
+
+  it('still 403s when the https Origin host does NOT match the request Host', async () => {
+    // The scheme-upgrade exemption is host-pinned: a mismatched host stays a cross-site 403.
+    const app = buildApp(openDb(':memory:'), { allowReset: true, corsOrigin: '' })
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { host: 'capacity.example.com', origin: 'https://other.example.com' },
+    })
+    expect(res.statusCode).toBe(403)
+  })
+
+  it('returns a clean 403 (not a 500) when a broken proxy sends a malformed Host header', async () => {
+    // REGRESSION: the same-origin check reconstructs `${protocol}://${host}` from the Host header, an
+    // untrusted, proxy-influenced string. A broken proxy (or a forged request) can send a Host that
+    // `new URL` rejects — here 'exa mple.com' (embedded space). That reconstruct MUST be guarded: an
+    // unparseable Host is "cannot prove same-origin" → fail closed → clean cross-site 403. A refactor
+    // once moved the reconstruct out of the try/catch, turning this into an uncaught TypeError → 500.
+    const app = buildApp(openDb(':memory:'), { allowReset: true, corsOrigin: '' })
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/test/reset',
+      headers: { host: 'exa mple.com', origin: 'https://capacity.example.com' },
+    })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: 'Cross-site request rejected.' })
+  })
+
+  it('returns a clean 403 for other unparseable Host shapes from a broken proxy', async () => {
+    // Same total-function guarantee across the other Host shapes a broken proxy can emit: a lone '['
+    // (unterminated IPv6 bracket) and a double-port 'host:port:port'. Every one fails closed to 403.
+    const app = buildApp(openDb(':memory:'), { allowReset: true, corsOrigin: '' })
+    for (const host of ['[', 'capacity.example.com:8443:9000']) {
+      const res = await call(app, {
+        method: 'POST',
+        url: '/api/test/reset',
+        headers: { host, origin: 'https://capacity.example.com' },
+      })
+      expect(res.statusCode, `host=${host}`).toBe(403)
+    }
+  })
+
   it('Allow-Headers lists JSON plus both operator-secret headers', async () => {
     const { app } = freshApp()
     const res = await call(app, {
@@ -1070,7 +1173,10 @@ describe('optimistic concurrency (default-on)', () => {
     expect((await state(app)).clients[0].name).toBe('Fresh')
   })
 
-  it('requires a valid updatedAt precondition on every existing-row update', async () => {
+  it('applies an existing-row update that omits updatedAt — no basis for a conflict (batch and direct PUT alike)', async () => {
+    // isStaleWrite's documented policy: a missing/non-string updatedAt on EITHER side is never a
+    // conflict, so an update that omits it can't be turned into a 409 (there is nothing to compare
+    // against — it falls back to last-writer-wins for that write). Both write paths must agree.
     const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
     await post(app, 'accounts', account('a1'))
     await put(app, 'clients', 'c1', { ...client('c1', 'a1'), updatedAt: '2026-02-02T00:00:00.000Z' })
@@ -1081,8 +1187,36 @@ describe('optimistic concurrency (default-on)', () => {
     ])
     const viaPut = await put(app, 'clients', 'c1', { ...noStamp, name: 'NoStamp' })
     expect(viaBatch.statusCode).toBe(viaPut.statusCode)
-    expect(viaBatch.statusCode).toBe(409)
-    expect((await state(app)).clients[0].name).toBe('Acme')
+    expect(viaBatch.statusCode).toBe(200)
+    expect((await state(app)).clients[0].name).toBe('NoStamp')
+  })
+
+  it('accepts a partial PATCH that omits updatedAt (a normal partial edit is never a 409)', async () => {
+    // The PATCH route calls isStaleWrite unconditionally; a partial PATCH legitimately omits
+    // updatedAt, so it must NOT be treated as a stale conflict — otherwise every ordinary partial
+    // edit 409s. Restored documented semantics: no incoming updatedAt ⇒ no basis for a conflict.
+    const app = buildApp(openDb(':memory:'), { optimisticConcurrency: true })
+    await post(app, 'accounts', account('a1'))
+    await put(app, 'clients', 'c1', client('c1', 'a1'))
+    const res = await patch(app, 'clients', 'c1', { name: 'Renamed' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().name).toBe('Renamed')
+    expect(Date.parse(res.json().updatedAt)).not.toBeNaN()
+  })
+
+  it('keeps writing to a row whose STORED updatedAt is unparseable (never write-bricked)', async () => {
+    // Regression: the inverted predicate returned "stale" whenever a timestamp failed to parse, so a
+    // row with a corrupt/legacy stored updatedAt 409'd on EVERY write — permanently unrecoverable.
+    // With the fix an unparseable stored side is simply "no basis for a conflict", so the write
+    // proceeds and the server re-stamps a fresh valid updatedAt.
+    const db = openDb(':memory:')
+    const app = buildApp(db, { optimisticConcurrency: true })
+    insertRow(db, 'accounts', account('a1'))
+    insertRow(db, 'clients', { ...client('c1', 'a1'), updatedAt: 'not-a-real-timestamp' })
+    const res = await patch(app, 'clients', 'c1', { name: 'Recovered', updatedAt: '2026-03-01T00:00:00.000Z' })
+    expect(res.statusCode).toBe(200)
+    expect(res.json().name).toBe('Recovered')
+    expect(Date.parse(res.json().updatedAt)).not.toBeNaN()
   })
 
   it('batch: explicit opt-out restores last-writer-wins semantics', async () => {

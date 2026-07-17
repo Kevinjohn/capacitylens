@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import {
   ensureControlTables,
@@ -169,7 +169,7 @@ describe('single-Owner control-plane migration', () => {
     expect(() => migrateSingleOwnerControlPlaneV10(db)).not.toThrow()
   })
 
-  it('repairs an ownerless member-bearing account by promoting its oldest active member', () => {
+  it('repairs an ownerless member-bearing account by promoting its highest-tier active member', () => {
     const db = freshDb()
     // Create the auth verification table before the first membership write so the per-handle table
     // probe sees the production password-mode shape. The initial upserts find no rows to revoke;
@@ -194,6 +194,114 @@ describe('single-Owner control-plane migration', () => {
     expect(db.prepare(`SELECT id FROM verification ORDER BY id`).all()).toEqual([{ id: 'other-reset' }])
     expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
     expect(() => migrateOwnerlessControlPlaneV11(db)).not.toThrow()
+  })
+
+  it('promotes the highest-tier member (admin) over an OLDER viewer, via the non-elevated warn path', () => {
+    // The security fix: an older viewer must NOT be silently escalated to Owner when a more-privileged
+    // member exists. The (younger) admin is promoted; the older viewer is left untouched.
+    const db = freshDb()
+    upsertMember(db, member({ userId: 'old-viewer', role: 'viewer', createdAt: '2026-01-01T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'new-admin', role: 'admin', createdAt: '2026-01-03T00:00:00.000Z' }))
+    migrateSingleOwnerControlPlaneV10(db) // installs the single-owner index the final assertion requires
+
+    // Snapshot the recorded lines BEFORE mockRestore (which clears mock.calls) so the assertions
+    // below still see them.
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let warnLines: string[] = []
+    let errorLines: string[] = []
+    try {
+      migrateOwnerlessControlPlaneV11(db)
+      warnLines = warnSpy.mock.calls.map((c) => String(c[0]))
+      errorLines = errorSpy.mock.calls.map((c) => String(c[0]))
+    } finally {
+      warnSpy.mockRestore()
+      errorSpy.mockRestore()
+    }
+
+    expect(getMemberRole(db, 'acc-1', 'new-admin')).toBe('owner')
+    expect(getMemberRole(db, 'acc-1', 'old-viewer')).toBe('viewer')
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
+    // An admin promotion is the normal (not below-admin) path: one console.warn, no console.error.
+    expect(warnLines).toHaveLength(1)
+    expect(errorLines).toHaveLength(0)
+    expect(warnLines[0]).toContain('acc-1')
+    expect(warnLines[0]).toContain('new-admin')
+  })
+
+  it('promotes an editor when the account has no admin (editor over viewers)', () => {
+    const db = freshDb()
+    upsertMember(db, member({ userId: 'a-viewer', role: 'viewer', createdAt: '2026-01-01T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'b-editor', role: 'editor', createdAt: '2026-01-02T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'c-viewer', role: 'viewer', createdAt: '2026-01-03T00:00:00.000Z' }))
+    migrateSingleOwnerControlPlaneV10(db) // installs the single-owner index the final assertion requires
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let errorLines: string[] = []
+    try {
+      migrateOwnerlessControlPlaneV11(db)
+      errorLines = errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
+    } finally {
+      errorSpy.mockRestore()
+    }
+
+    expect(getMemberRole(db, 'acc-1', 'b-editor')).toBe('owner')
+    expect(getMemberRole(db, 'acc-1', 'a-viewer')).toBe('viewer')
+    expect(getMemberRole(db, 'acc-1', 'c-viewer')).toBe('viewer')
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
+    // An editor is below admin — the elevated path fires exactly once, naming account + member + role.
+    expect(errorLines).toHaveLength(1)
+    expect(errorLines[0]).toContain('acc-1')
+    expect(errorLines[0]).toContain('b-editor')
+    expect(errorLines[0]).toContain('editor')
+  })
+
+  it('an all-viewers account still gets exactly one Owner (documented fallback) and warns LOUDLY', () => {
+    // Nobody outranks a viewer here, so the exactly-one-Owner invariant forces a viewer promotion
+    // rather than bricking startup. That last-resort escalation MUST be loud (below-admin → error).
+    const db = freshDb()
+    upsertMember(db, member({ userId: 'v-late', role: 'viewer', createdAt: '2026-01-02T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'v-early', role: 'viewer', createdAt: '2026-01-01T00:00:00.000Z' }))
+    migrateSingleOwnerControlPlaneV10(db) // installs the single-owner index the final assertion requires
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    let errorLines: string[] = []
+    try {
+      migrateOwnerlessControlPlaneV11(db)
+      errorLines = errorSpy.mock.calls.map((c) => String(c[0])) // snapshot BEFORE mockRestore clears it
+    } finally {
+      errorSpy.mockRestore()
+    }
+
+    // Tie-break by earliest membership: the earlier viewer is promoted; exactly one Owner results.
+    expect(getMemberRole(db, 'acc-1', 'v-early')).toBe('owner')
+    expect(getMemberRole(db, 'acc-1', 'v-late')).toBe('viewer')
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
+    expect(errorLines).toHaveLength(1)
+    expect(errorLines[0]).toContain('acc-1')
+    expect(errorLines[0]).toContain('v-early')
+    expect(errorLines[0]).toContain('viewer')
+  })
+
+  it('breaks a same-tier tie by earliest membership (createdAt, then userId)', () => {
+    const db = freshDb()
+    upsertMember(db, member({ userId: 'admin-b', role: 'admin', createdAt: '2026-01-02T00:00:00.000Z' }))
+    upsertMember(db, member({ userId: 'admin-a', role: 'admin', createdAt: '2026-01-01T00:00:00.000Z' }))
+    // Same createdAt as admin-a — the userId ascending tie-break decides ('admin-a' < 'admin-c').
+    upsertMember(db, member({ userId: 'admin-c', role: 'admin', createdAt: '2026-01-01T00:00:00.000Z' }))
+    migrateSingleOwnerControlPlaneV10(db) // installs the single-owner index the final assertion requires
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      migrateOwnerlessControlPlaneV11(db)
+    } finally {
+      warnSpy.mockRestore()
+    }
+
+    expect(getMemberRole(db, 'acc-1', 'admin-a')).toBe('owner')
+    expect(getMemberRole(db, 'acc-1', 'admin-b')).toBe('admin')
+    expect(getMemberRole(db, 'acc-1', 'admin-c')).toBe('admin')
+    expect(() => assertSingleOwnerControlPlaneCurrent(db)).not.toThrow()
   })
 
   it('starts revoking ceremonies when Better Auth creates its table after an earlier absent probe', () => {

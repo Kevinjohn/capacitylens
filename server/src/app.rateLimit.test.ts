@@ -5,9 +5,10 @@ import { openDb } from './db'
 
 // P1.5 (flag CAPACITYLENS_RATE_LIMIT → opts.rateLimit): a guard against accidental client
 // loops hammering the single-writer SQLite file. OFF (the default) means the plugin is
-// not registered at all; health shares the same per-IP budget so its public endpoint cannot
-// become an unlimited resource-exhaustion bypass. The env parse is fail-closed: only a positive
-// integer turns it on.
+// not registered at all. /api/health is deliberately EXEMPT from the limiter (config.rateLimit:
+// false) so an uptime monitor polling it is never told 429 — behind a proxy without forwarded-IP
+// trust every client shares one bucket, and the endpoint is only a cached SELECT 1 (no
+// amplification surface). The env parse is fail-closed: only a positive integer turns it on.
 
 const health = (app: FastifyInstance, headers?: Record<string, string>) =>
   app.inject({ method: 'GET', url: '/api/health', headers })
@@ -37,11 +38,13 @@ describe('CAPACITYLENS_RATE_LIMIT on', () => {
     expect(typeof third.json().error).toBe('string') // the API's usual { error } shape
   })
 
-  it('rate limits /api/health like every other public API route', async () => {
+  it('EXEMPTS /api/health from the limiter so the uptime monitor is never told 429', async () => {
+    // The uptime monitor polls health continuously; behind a proxy without forwarded-IP trust it
+    // shares one socket-IP bucket with all other traffic, so a limited health route would 429 the
+    // monitor (or let it starve real traffic). config.rateLimit:false opts this ONE route out while
+    // /api/state (above) stays limited — so this must survive far more than the limit of 2 requests.
     const app = buildApp(openDb(':memory:'), { rateLimit: 2 })
-    expect((await health(app)).statusCode).toBe(200)
-    expect((await health(app)).statusCode).toBe(200)
-    expect((await health(app)).statusCode).toBe(429)
+    for (let i = 0; i < 5; i++) expect((await health(app)).statusCode).toBe(200)
   })
 
   it('keys on X-Forwarded-For only when told the host is behind the proxy', async () => {
