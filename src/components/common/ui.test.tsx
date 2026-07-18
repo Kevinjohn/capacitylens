@@ -18,6 +18,7 @@ import {
   TemporaryTag,
   ColorSwatch,
   Avatar,
+  SegmentedControl,
 } from './ui'
 import { useStore } from '../../store/useStore'
 import { colorName } from '../../lib/palette'
@@ -174,6 +175,33 @@ describe('Modal', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('publishes one controlled dirty transition when one edit surfaces as input and change', () => {
+    const onDirtyChange = vi.fn()
+    render(
+      <Modal title="Controlled dirty" onClose={vi.fn()} dirty={false} onDirtyChange={onDirtyChange}>
+        <input aria-label="controlled field" />
+      </Modal>,
+    )
+    const field = screen.getByLabelText('controlled field')
+    fireEvent.input(field, { target: { value: 'x' } })
+    fireEvent.change(field, { target: { value: 'x' } })
+    expect(onDirtyChange).toHaveBeenCalledOnce()
+    expect(onDirtyChange).toHaveBeenCalledWith(true)
+  })
+
+  it('guards an immediate Escape before controlled dirty state has re-rendered', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal title="Controlled dirty" onClose={onClose} dirty={false} onDirtyChange={vi.fn()}>
+        <input aria-label="controlled field" />
+      </Modal>,
+    )
+
+    fireEvent.input(screen.getByLabelText('controlled field'), { target: { value: 'x' } })
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('treats clicking an aria-pressed toggle (e.g. WeekdayPicker) as a dirty edit', () => {
     const onClose = vi.fn()
     render(
@@ -188,6 +216,42 @@ describe('Modal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mon' }))
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('does not mark an explicitly-managed segmented control dirty when its value is unchanged', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal title="No-op segment" onClose={onClose}>
+        <SegmentedControl
+          value="week"
+          onChange={vi.fn()}
+          options={[
+            { value: 'week', label: 'Week' },
+            { value: 'month', label: 'Month' },
+          ]}
+          ariaLabel="Zoom"
+        />
+      </Modal>,
+    )
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Week' }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('does not mark an explicitly-managed colour picker dirty when the selected swatch is re-picked', () => {
+    const onClose = vi.fn()
+    const blue = '#2d75da'
+    render(
+      <Modal title="No-op colour" onClose={onClose}>
+        <ColorField label="Colour" value={blue} onChange={vi.fn()} />
+      </Modal>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: `Colour (${colorName(blue)})` }))
+    fireEvent.click(screen.getByRole('button', { name: colorName(blue) }))
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('renders optional footer', () => {

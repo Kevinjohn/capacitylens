@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 // Radix Dialog via the `radix-ui` umbrella (same idiom as src/components/ui/*), which
 // re-exports @radix-ui/react-dialog at the identical version — one Radix import surface.
@@ -13,6 +13,7 @@ import { Icon, type IconName } from './Icon'
 // CommandPalette, and react-refresh forbids exporting non-component helpers from this
 // component file).
 import { FOCUSABLE_SELECTOR, restoreFocus, wrapTabWithin } from './focus'
+import { FormDirtyContext } from './formDirty'
 
 // Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
 // from semantic tokens (see index.css), so everything adapts to dark mode automatically.
@@ -164,6 +165,8 @@ export function Modal({
   children,
   footer,
   guardDirty = true,
+  dirty: controlledDirty,
+  onDirtyChange,
 }: {
   title: ReactNode
   onClose: () => void
@@ -177,6 +180,10 @@ export function Modal({
    *  Use for confirmation-only dialogs (e.g. delete-company), whose inputs are a gate,
    *  not savable form data — guarding them only makes aborting harder. */
   guardDirty?: boolean
+  /** Optional controlled dirty state. When omitted, Modal owns the flag and form controls signal it
+   * through FormDirtyProvider/native form events. */
+  dirty?: boolean
+  onDirtyChange?: (dirty: boolean) => void
 }) {
   // Radix Dialog supplies the accessible shell — role="dialog", the <h2> title wired via
   // aria-labelledby (DialogTitle), and the dismiss/focus scaffold. It runs in NON-modal mode
@@ -201,34 +208,20 @@ export function Modal({
   const setNotice = useStore((s) => s.setNotice)
   const setDirtyForm = useStore((s) => s.setDirtyForm)
 
-  // Unsaved-changes guard: the dialog goes "dirty" on the first edit to any control
-  // inside it (native input/change events bubble to the panel). While dirty, an
-  // ACCIDENTAL dismissal — backdrop click or Escape — is refused with a hint;
-  // the explicit Cancel/Save footer buttons (which call onClose directly) still close.
-  const [dirty, setDirty] = useState(false)
+  const [localDirty, setLocalDirty] = useState(false)
+  const dirty = controlledDirty ?? localDirty
+  const dirtyRef = useRef(dirty)
   useEffect(() => {
-    if (!guardDirty) return // confirmation-only dialog: nothing to guard, stays non-dirty
-    const node = panelRef.current
-    if (!node) return
-    const markDirty = () => setDirty(true)
-    // Native form controls fire input/change. Button-driven toggle controls
-    // (e.g. WeekdayPicker) don't — they mutate state on click — so also treat a
-    // click on any aria-pressed toggle, ARIA switch, OR an ARIA radio (e.g. SegmentedControl's
-    // role="radio" options, which use aria-checked instead of aria-pressed), inside
-    // the panel as an edit. (Plain action buttons like Cancel/Save/Add are neither, so
-    // they don't false-flag.)
-    const onClick = (e: Event) => {
-      if ((e.target as HTMLElement | null)?.closest('[aria-pressed],[role="radio"],[role="switch"]')) setDirty(true)
-    }
-    node.addEventListener('input', markDirty)
-    node.addEventListener('change', markDirty)
-    node.addEventListener('click', onClick)
-    return () => {
-      node.removeEventListener('input', markDirty)
-      node.removeEventListener('change', markDirty)
-      node.removeEventListener('click', onClick)
-    }
-  }, [guardDirty])
+    dirtyRef.current = dirty
+  }, [dirty])
+  const markDirty = useCallback(() => {
+    if (!guardDirty || dirtyRef.current) return
+    // React can surface one native edit through both input and change capture before the controlled
+    // value re-renders. Flip the live guard immediately so one edit publishes one dirty transition.
+    dirtyRef.current = true
+    if (controlledDirty === undefined) setLocalDirty(true)
+    onDirtyChange?.(true)
+  }, [controlledDirty, guardDirty, onDirtyChange])
   // Publish dirtiness so other surfaces (beforeunload) can guard; always clear on unmount.
   useEffect(() => {
     setDirtyForm(dirty)
@@ -236,7 +229,9 @@ export function Modal({
   useEffect(() => () => setDirtyForm(false), [setDirtyForm])
 
   const requestClose = () => {
-    if (guardDirty && dirty) {
+    // `dirtyRef` flips synchronously in markDirty, before a controlled parent has had a chance to
+    // feed `dirty=true` back through props. Reading it here closes that one-render escape hatch.
+    if (guardDirty && dirtyRef.current) {
       setNotice(m.dialog_unsaved_changes())
       return
     }
@@ -361,10 +356,26 @@ export function Modal({
           <header className="border-b px-4 py-3">
             <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
           </header>
-          <form noValidate onSubmit={(e) => { e.preventDefault(); onSubmit?.() }}>
-            <div className="space-y-3 p-4">{children}</div>
-            {footer && <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">{footer}</footer>}
-          </form>
+          <FormDirtyContext.Provider value={markDirty}>
+            <form
+              noValidate
+              onSubmit={(e) => { e.preventDefault(); onSubmit?.() }}
+              onInputCapture={markDirty}
+              onChangeCapture={markDirty}
+              // Compatibility for raw toggle buttons supplied directly as Modal children. Product
+              // controls call the context signal explicitly; this fallback keeps the public Modal
+              // contract safe for native/custom controls outside the common field kit.
+              onClickCapture={(e) => {
+                const toggle = (e.target as HTMLElement).closest(
+                  '[aria-pressed],[role="radio"],[role="switch"]',
+                )
+                if (toggle && !toggle.hasAttribute('data-form-dirty-managed')) markDirty()
+              }}
+            >
+              <div className="flex flex-col gap-3 p-4">{children}</div>
+              {footer && <footer className="flex items-center justify-end gap-2 border-t px-4 py-3">{footer}</footer>}
+            </form>
+          </FormDirtyContext.Provider>
         </DialogPrimitive.Content>
       </div>
     </DialogPrimitive.Root>,

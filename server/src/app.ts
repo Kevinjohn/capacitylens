@@ -29,6 +29,7 @@ import { actorContextFromSession, localAccountFlows } from './accounts/localAcco
 import { KeyedOperationLock } from './accounts/operationLock'
 import { trustedLocalIdentityPort } from './accounts/trustedLocalIdentityPort'
 import { registerAccountRoutes } from './accounts/accountRoutes'
+import { registerLifecycleRoutes } from './routes/lifecycleRoutes'
 import { eraseWorkspaceProductDataInTx } from './erasure'
 
 // The identity requireUser attaches to every gated request. Session/identity
@@ -41,20 +42,11 @@ declare module 'fastify' {
   }
 }
 import { parseData, MAX_IMPORT_RECORDS } from '@capacitylens/shared/data/transfer'
-import type { AppData, Resource, Client, Project } from '@capacitylens/shared/types/entities'
-import { remapAndValidateImport, findOwned, deleteAccountCascade } from '@capacitylens/shared/domain/mutations'
-// P2.5a lifecycle wiring: the PURE state machine (transitions + the purge eligibility predicate +
-// the resource-PII scrub) and the PURE delete cascades, COMPOSED by the lifecycle routes below. The
-// server owns the clock (passes nowISO in); it never re-derives these rules — single-sourced in shared.
-import {
-  archive,
-  unarchive,
-  softDelete,
-  canPurge,
-  obfuscateResource,
-  isLifecycleEntityKey,
-  type LifecycleEntityKey,
-} from '@capacitylens/shared/domain/lifecycle'
+import type { AppData, Client, Project } from '@capacitylens/shared/types/entities'
+import { remapAndValidateImport, deleteAccountCascade } from '@capacitylens/shared/domain/mutations'
+// Shared lifecycle allow-list also protects the generic entity routes; the dedicated transition
+// pipeline is registered through routes/lifecycleRoutes below.
+import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
 import {
   deleteResourceCascade,
   deleteActivityCascade,
@@ -97,7 +89,7 @@ import {
 import { redactPrivateName } from '@capacitylens/shared/domain/privateNames'
 import { tx } from './txn'
 import { newId } from '@capacitylens/shared/lib/id'
-import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
+import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
 import { type AuditRecord, type AuditSink, noopAuditSink } from './audit'
 
 // ~5 MB request cap. A normal account is far smaller; an over-cap body is rejected
@@ -113,15 +105,6 @@ const BODY_LIMIT = 5 * 1024 * 1024
 // crafted/looping flood. Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
 // Exported for the test that pins the boundary.
 export const MAX_BATCH_OPS = 5000
-
-// Lifecycle routes read and replace the whole tenant slice. Every confidential field must therefore
-// be present on the read or the replacement would erase it. One shared object makes that contract
-// impossible to update for only some lifecycle transitions.
-const FULL_SLICE_READ = Object.freeze({
-  includeTimeOffNote: true,
-  includeInactive: true,
-  includePrivateNames: true,
-})
 
 // Fastify defaults BOTH to 0 (disabled). The documented deploy fronts this server with Nginx,
 // which buffers/queues the client connection — 30s is generous headroom for that hop, and it's
@@ -395,7 +378,6 @@ const isScopedTable = (entity: keyof typeof TABLES): boolean =>
 // other table (phases/activities/allocations/timeOff/disciplines/accounts) is a 404 on these routes.
 // Single-sourced in shared (LIFECYCLE_ENTITY_KEYS) so this route allow-list and validate.ts's
 // sanitizeWrite tombstone-pin can't drift; aliased to the local names the handlers below already use.
-type LifecycleEntity = LifecycleEntityKey
 const isLifecycleEntity = isLifecycleEntityKey
 
 // The wire shape of one op in a POST /api/batch body (mirrors the client's syncOps.Op).
@@ -934,22 +916,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     }
   }
 
-  /**
-   * Error classifier for the P2.5a lifecycle routes. The pure state machine (archive/unarchive/
-   * softDelete in shared/domain/lifecycle.ts) THROWS a plain `Error` whose message starts with
-   * `Cannot archive`/`Cannot unarchive`/`Cannot delete` on an ILLEGAL TRANSITION (e.g. soft-deleting a
-   * row that was never archived). That is a CALLER state conflict — a 409 carrying the machine's own
-   * authored, display-safe message — NOT a 500, and NOT the same as findOwned's cross-account
-   * integrity throw (`That record does not belong…`) or any unexpected error, which still route through
-   * sendFail (the generic redaction funnel). Anchored to the three `Cannot <verb>` prefixes so only the
-   * lifecycle machine's deliberate guard-throws map to 409; everything else is left to sendFail.
-   */
-  const lifecycleFail = (reply: FastifyReply, err: unknown): FastifyReply => {
-    if (err instanceof Error && /^Cannot (archive|unarchive|delete)/.test(err.message)) {
-      return reply.code(409).send({ error: err.message })
-    }
-    return sendFail(reply, err)
-  }
 
   // Single redaction funnel for any UNCAUGHT throw (a route that forgot a try/catch, a
   // SQLITE_BUSY thrown mid-statement). Fastify framework errors (413 payload-too-large,
@@ -1655,231 +1621,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       fail: accountFail,
     })
 
-    // ── P2.5a entity-lifecycle action routes ───────────────────────────────────────────────────────
-    // Four dedicated, named action routes wire the PURE lifecycle state machine (shared/domain/
-    // lifecycle.ts) into the server for the three tombstone-carrying entities (resources/clients/
-    // projects). Each follows the SAME read→transition→persist shape: read the account slice (with
-    // tombstones VISIBLE), find the OWNED target, run the pure transition (which THROWS a 409-mapped
-    // Error on an illegal source state), write the WHOLE slice back, and audit. They live HERE — after
-    // the member/invite routes, before the generic `/api/:entity` routes — so they inherit the child
-    // plugin's CORS / rate-limit / error-handler, and Fastify's specificity routing keeps
-    // `/api/:entity/:id/archive` from ever colliding with `/api/:entity` or `/api/:entity/:id`.
-    //
-    // Tiers (mirrors the scoped-write contract): archive/unarchive gate 'write' (editor+);
-    // soft-delete and purge are irreversible and gate 'purge' (admin+). The body's `{ accountId }` is the
-    // tenant assertion (required), exactly as the scoped DELETE route asserts ?accountId=. OFF mode is
-    // allow-all on all four (authorize's first-line no-op), so the default deploy keeps full access.
-
-    /**
-     * Shared front matter for all four lifecycle handlers: validate the entity is lifecycle-capable
-     * (else 404), pull + validate the required body `accountId` (else 400), and run the authorize gate
-     * for `action` (sends 403 itself on denial). Returns the validated `accountId` on success, or
-     * `null` when a response has ALREADY been sent (the caller just `return`s). Keeps the four handlers
-     * from duplicating the identical guard preamble.
-     */
-    const lifecyclePreamble = (
-      req: FastifyRequest,
-      reply: FastifyReply,
-      entity: string,
-      action: Action,
-    ): string | null => {
-      if (!isLifecycleEntity(entity)) {
-        reply.code(404).send({ error: `Unknown entity: ${entity}` })
-        return null
-      }
-      const body = (req.body ?? {}) as { accountId?: unknown }
-      if (typeof body.accountId !== 'string' || body.accountId.length === 0) {
-        reply.code(400).send({ error: 'accountId is required.' })
-        return null
-      }
-      if (!authorize(req, reply, body.accountId, action)) return null // 403 sent inside authorize
-      return body.accountId
-    }
-
-    /**
-     * The built-in Internal client is PROTECTED — it cannot be archived/deleted/purged (the live
-     * "exactly one Internal per account" invariant the web store guards). When `row` is the built-in
-     * Internal, send a 409 (using `verb` in the message) and return true so the caller bails; else
-     * false. `isBuiltinClient` reads the id-independent `builtin` flag (survives import-remap).
-     */
-    const rejectBuiltinClient = (
-      reply: FastifyReply,
-      entity: LifecycleEntity,
-      row: Resource | Client | Project,
-      verb: string,
-    ): boolean => {
-      // Only a Client carries `builtin`; a Resource/Project never has it, so the entity check gates the
-      // read (the `row as Client` is sound under `entity === 'clients'`). isBuiltinClient reads the flag
-      // id-independently (survives import-remap).
-      if (entity === 'clients' && isBuiltinClient(row as Client)) {
-        reply.code(409).send({ error: `The built-in Internal client cannot be ${verb}.` })
-        return true
-      }
-      return false
-    }
-
-    // POST /api/:entity/:id/archive — active → archived (editor+). Sets archivedAt to the server clock.
-    app.post('/api/:entity/:id/archive', (req, reply) => {
-      const { entity, id } = req.params as { entity: string; id: string }
-      const accountId = lifecyclePreamble(req, reply, entity, 'write')
-      if (accountId === null) return
-      try {
-        // includeInactive:true so we can SEE an already-archived/deleted row (and 409 on it, rather than
-        // 404). includeTimeOffNote:TRUE is LOAD-BEARING — we write the WHOLE slice back via
-        // replaceAccountSlice, so a note stripped from the read would be ERASED on persist.
-        const slice = store.readSlice(accountId, FULL_SLICE_READ)
-        const row = findOwned(slice, accountId, entity as LifecycleEntity, id) // cross-account → throw; absent → null
-        if (!row) return reply.code(404).send({ error: 'Not found' })
-        if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'archived')) return
-        const now = nextRevision(row.updatedAt)
-        const next = { ...archive(row, now), updatedAt: now } // THROWS if not active → lifecycleFail → 409
-        const updated = { ...slice, [entity]: slice[entity as LifecycleEntity].map((e) => (e.id === id ? next : e)) }
-        replaceAccountSlice(db, accountId, updated)
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: 'archive',
-          entity,
-          id,
-          changedFields: ['archivedAt'],
-        })
-        return reply.code(200).send(redactWriteEcho(
-          entity,
-          next as unknown as Record<string, unknown>,
-          fieldVisibilityFor(req, entity, accountId),
-        ))
-      } catch (err) {
-        return lifecycleFail(reply, err)
-      }
-    })
-
-    // POST /api/:entity/:id/unarchive — archived → active (editor+). Clears archivedAt.
-    app.post('/api/:entity/:id/unarchive', (req, reply) => {
-      const { entity, id } = req.params as { entity: string; id: string }
-      const accountId = lifecyclePreamble(req, reply, entity, 'write')
-      if (accountId === null) return
-      try {
-        const slice = store.readSlice(accountId, FULL_SLICE_READ)
-        const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
-        if (!row) return reply.code(404).send({ error: 'Not found' })
-        if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'unarchived')) return
-        const now = nextRevision(row.updatedAt)
-        const next = { ...unarchive(row), updatedAt: now } // THROWS if not archived → lifecycleFail → 409
-        const updated = { ...slice, [entity]: slice[entity as LifecycleEntity].map((e) => (e.id === id ? next : e)) }
-        replaceAccountSlice(db, accountId, updated)
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: 'unarchive',
-          entity,
-          id,
-          changedFields: ['archivedAt'],
-        })
-        return reply.code(200).send(redactWriteEcho(
-          entity,
-          next as unknown as Record<string, unknown>,
-          fieldVisibilityFor(req, entity, accountId),
-        ))
-      } catch (err) {
-        return lifecycleFail(reply, err)
-      }
-    })
-
-    // POST /api/:entity/:id/delete — archived → soft-deleted (admin+). Sets deletedAt, and for a
-    // RESOURCE composes obfuscateResource to scrub the only PII (name) on the retained tombstone (P2.3).
-    app.post('/api/:entity/:id/delete', (req, reply) => {
-      const { entity, id } = req.params as { entity: string; id: string }
-      // Soft deletion is irreversible (there is no tombstone→active transition), anonymizes a
-      // resource, and is the prerequisite for hard purge. Keep it at the admin/purge tier.
-      const accountId = lifecyclePreamble(req, reply, entity, 'purge')
-      if (accountId === null) return
-      try {
-        const slice = store.readSlice(accountId, FULL_SLICE_READ)
-        const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
-        if (!row) return reply.code(404).send({ error: 'Not found' })
-        if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'deleted')) return
-        const now = nextRevision(row.updatedAt)
-        const deleted = { ...softDelete(row, now), updatedAt: now } // THROWS unless archived → 409
-        // Resource is the only entity carrying PII (name); scrub it on the tombstone. obfuscateResource
-        // PRESERVES deletedAt/archivedAt and overrides ONLY name, so the changedFields below is exact.
-        const next = entity === 'resources' ? obfuscateResource(deleted as Resource) : deleted
-        const updated = {
-          ...slice,
-          [entity]: slice[entity as LifecycleEntity].map((e) => (e.id === id ? next : e)),
-          ...(entity === 'resources'
-            ? {
-                allocations: slice.allocations.map((a) =>
-                  a.resourceId === id && a.note !== undefined
-                    ? { ...a, note: undefined, updatedAt: nextRevision(a.updatedAt) }
-                    : a,
-                ),
-                timeOff: slice.timeOff.map((t) =>
-                  t.resourceId === id && t.note !== undefined
-                    ? { ...t, note: undefined, updatedAt: nextRevision(t.updatedAt) }
-                    : t,
-                ),
-              }
-            : {}),
-        }
-        replaceAccountSlice(db, accountId, updated)
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: 'softDelete',
-          entity,
-          id,
-          // Field NAMES only (the #1 no-PII invariant): 'name' is the NAME of the obfuscated field,
-          // never its value. A non-resource delete touches only deletedAt.
-          changedFields: entity === 'resources' ? ['deletedAt', 'name'] : ['deletedAt'],
-        })
-        return reply.code(200).send(redactWriteEcho(
-          entity,
-          next as unknown as Record<string, unknown>,
-          fieldVisibilityFor(req, entity, accountId),
-        ))
-      } catch (err) {
-        return lifecycleFail(reply, err)
-      }
-    })
-
-    // POST /api/:entity/:id/purge — HARD-delete a ≥30-day-old soft-deleted tombstone + cascade (admin+).
-    // Irreversible: physically removes the row and its dependent children (the same cascade the client's
-    // delete uses), so it is gated 'purge' and interlocked behind canPurge (a destructive, fail-closed gate).
-    app.post('/api/:entity/:id/purge', (req, reply) => {
-      const { entity, id } = req.params as { entity: string; id: string }
-      const accountId = lifecyclePreamble(req, reply, entity, 'purge')
-      if (accountId === null) return
-      try {
-        const slice = store.readSlice(accountId, FULL_SLICE_READ)
-        const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
-        if (!row) return reply.code(404).send({ error: 'Not found' })
-        if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'purged')) return
-        // INTERLOCK (server-enforced): only a soft-deleted tombstone aged ≥ PURGE_MIN_AGE_DAYS may be
-        // purged. canPurge is fail-closed (refuses an active/archived row, or any parse failure). This
-        // is a state precondition, NOT a transition throw — so it 409s directly, not via lifecycleFail.
-        if (!canPurge(row, new Date().toISOString())) {
-          return reply.code(409).send({ error: 'Cannot purge: must be a soft-deleted tombstone at least 30 days old.' })
-        }
-        const cascade =
-          entity === 'resources' ? deleteResourceCascade : entity === 'projects' ? deleteProjectCascade : deleteClientCascade
-        const purged = cascade(slice, id)
-        replaceAccountSlice(db, accountId, purged)
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId,
-          action: 'purge',
-          entity,
-          id,
-          changedFields: [], // a hard row-delete carries no field set
-        })
-        return reply.code(204).send()
-      } catch (err) {
-        return lifecycleFail(reply, err)
-      }
+    registerLifecycleRoutes(app, {
+      store,
+      authorize,
+      audit,
+      fail: sendFail,
+      redact: (req, entity, row, accountId) =>
+        redactWriteEcho(entity, row, fieldVisibilityFor(req, entity, accountId)),
     })
 
     // Account creation mints its built-in Internal in the same transaction below. A later client

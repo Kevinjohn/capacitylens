@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, act, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from './AppShell'
 import { useStore } from '../store/useStore'
 import { makeAppData, makeAccount, DEFAULT_ACCOUNT_ID } from '../test/fixtures'
@@ -31,13 +31,32 @@ beforeEach(() => {
   setOfflineReadState(false)
 })
 
-function renderAppShell(initialEntries: string[] = ['/']) {
+function renderAppShell(initialEntries: string[] = ['/'], includeLocationProbe = false) {
   return render(
     <MemoryRouter initialEntries={initialEntries}>
       <AppShell />
+      {includeLocationProbe && <LocationProbe />}
     </MemoryRouter>,
   )
 }
+
+function LocationProbe() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  return (
+    <button type="button" data-testid="location-probe" onClick={() => void navigate('/settings?tab=security')}>
+      {location.pathname}{location.search}{location.hash}
+    </button>
+  )
+}
+
+it('consumes a joined-account query only once and preserves later route queries', async () => {
+  renderAppShell([`/?joinedAccount=${DEFAULT_ACCOUNT_ID}`], true)
+
+  await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent(/^\/$/))
+  fireEvent.click(screen.getByTestId('location-probe'))
+  await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('/settings?tab=security'))
+})
 
 it('guards navigation while a persistence write is still unacknowledged', () => {
   const detachPersistence = attachPersistence(

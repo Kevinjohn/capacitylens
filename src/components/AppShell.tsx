@@ -1,74 +1,43 @@
-import { Suspense, useEffect, useState, type CSSProperties } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Toaster, toast } from 'sonner'
+import { Suspense, type CSSProperties } from 'react'
+import { NavLink, Outlet } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { useStore } from '../store/useStore'
 import { disciplinesEnabledFor } from '../store/selectors'
 import { useDemoAuthActive } from '../lib/fakeAuth'
 import { ImportExport } from './ImportExport'
-import { AccountPicker } from './accounts/AccountPicker'
-import { FakeSignIn } from './FakeSignIn'
-import { IntroPage } from './IntroPage'
-import { ConnectionError } from './ConnectionError'
 import { CommandPalette } from './CommandPalette'
 import { PermissionProvider } from '../auth/PermissionProvider'
 import { usePermissionStatus, useRole } from '../auth/permissionContext'
 import { useAuth } from '../auth/authContext'
-import { useAccountSummaries } from '../auth/useAccountSummaries'
 import { Icon } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { Badge } from './ui/badge'
 import { cn } from '@/lib/utils'
-import { APP_NAME } from '@capacitylens/shared/brand'
-import { m, syncLocaleFromAccount } from '@/i18n'
+import { m } from '@/i18n'
 import { LINKS } from '../lib/navLinks'
-import { AUDIT_WARNING_EVENT } from '../lib/auditWarning'
 import { useOfflineState } from '../data/useOfflineState'
-import { hasUnsavedPersistenceWrites } from '../data/persist'
 import { accessLabelFor } from '../lib/accessCopy'
 import { accessExperienceFor } from '../lib/accessMode'
-import { readJoinedAccountHandoff } from '../lib/joinedAccountHandoff'
+import { AppEntryGate } from './AppEntryGate'
+import { useAppShellController } from './useAppShellController'
 
 export function AppShell() {
-  // Populate the AccountPicker's list (P1.13): server mode fetches GET /api/accounts, the demo build
-  // derives from data.accounts. Mounted at the TOP so it runs before (and during) the tenant gate
-  // below — the picker needs the list before any account is chosen. A side-effect hook, renders nothing.
-  useAccountSummaries()
+  const { paletteOpen, closePalette } = useAppShellController()
   const hydrated = useStore((s) => s.hydrated)
   const persistError = useStore((s) => s.persistError)
   const loadError = useStore((s) => s.loadError)
   const connectionError = useStore((s) => s.connectionError)
   const offline = useOfflineState()
-  const notice = useStore((s) => s.notice)
-  const setNotice = useStore((s) => s.setNotice)
   // Drives Sonner's theme (see the <Toaster> below). An explicit light|dark pref is passed
   // through as the concrete scheme; a 'system' pref is delegated to Sonner ('system'), which
   // subscribes to prefers-color-scheme itself and so stays live when the OS flips (this shell
   // wouldn't re-render on that, which is why we don't resolve 'system' here).
   const themePref = useStore((s) => s.theme)
-  const undo = useStore((s) => s.undo)
-  const redo = useStore((s) => s.redo)
   const accounts = useStore((s) => s.data.accounts)
   const accountSummaries = useStore((s) => s.accountSummaries)
   const activeAccountId = useStore((s) => s.activeAccountId)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
-  const { pathname, search, hash } = useLocation()
-  const navigate = useNavigate()
-  // Invite signup requires a fresh authenticated boot because the pre-session route deliberately
-  // had no persistence attached. Retain its requested destination in component state while the
-  // account list loads, remove it from the address immediately, and activate it only when that
-  // authoritative list proves the new session may open it. activeAccountId remains non-persistent.
-  const [joinedAccountHandoff] = useState(() => readJoinedAccountHandoff(search))
-  useEffect(() => {
-    if (!joinedAccountHandoff) return
-    void navigate({ pathname, search: '', hash }, { replace: true })
-  }, [hash, joinedAccountHandoff, navigate, pathname])
-  useEffect(() => {
-    if (!joinedAccountHandoff) return
-    if (accountSummaries.some((account) => account.id === joinedAccountHandoff)) {
-      setActiveAccount(joinedAccountHandoff)
-    }
-  }, [accountSummaries, joinedAccountHandoff, setActiveAccount])
   // EXISTENCE of the active account from `data.accounts` (after the slice loads, it holds exactly the
   // active account) OR `accountSummaries` (P1.13 — covers the pick→slice-load gap in server mode,
   // where `data` is empty for one frame until the switch orchestrator hydrates the slice). The summary
@@ -92,183 +61,7 @@ export function AppShell() {
   const dirtyForm = useStore((s) => s.dirtyForm)
   const sidebarOpen = useStore((s) => s.sidebarOpen)
   const setSidebarOpen = useStore((s) => s.setSidebarOpen)
-  const [paletteOpen, setPaletteOpen] = useState(false)
 
-  // i18n seam (P1.5.1): the active company's UI language drives the Paraglide runtime. Read it from
-  // the FULL account in `data.accounts` (the loaded tenant slice) — `accountSummaries` is only a
-  // one-frame gap-filler in server mode and carries no `language`. Absent ⇒ baseLocale ('en').
-  const activeLanguage = accounts.find((a) => a.id === activeAccountId)?.language
-
-  // Apply that language to the Paraglide runtime. Account-scoped + client-only (no page reload — see
-  // src/i18n), so it re-applies whenever the active account (or its language) changes. English-only
-  // today; this is the single wiring point for future locales.
-  useEffect(() => {
-    syncLocaleFromAccount(activeLanguage)
-  }, [activeLanguage])
-
-  // Per-route document.title (WCAG 2.4.2 Page Titled). A SPA never reloads, so without this every
-  // route shares index.html's static "CapacityLens" title — identical in the tab, history and
-  // bookmarks. Derive the page label from the SAME `LINKS` table the sidebar renders (`m.nav_*`
-  // getters), so the title can't drift from the nav and tracks a locale switch for free: this effect
-  // re-runs on `pathname` AND `activeLanguage` (the locale source above), so changing the active
-  // company's language re-resolves the title alongside the visible nav. An unmatched path (none today
-  // — the invite route lives outside this shell and titles itself; this is the defensive default)
-  // falls back to the bare brand. `APP_NAME` keeps the brand single-sourced (no literal "CapacityLens"
-  // — see shared/brand).
-  useEffect(() => {
-    const match = LINKS.find(([to]) => to === pathname)
-    document.title = match ? `${match[1]()} · ${APP_NAME}` : APP_NAME
-  }, [pathname, activeLanguage])
-
-  // Warn before a tab close / refresh would discard an open form or an unacknowledged persistence
-  // write. The persistence check is live at event time, so an in-flight failure need not trigger a
-  // React render before it gains protection.
-  useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!dirtyForm && !hasUnsavedPersistenceWrites()) return
-      e.preventDefault()
-      e.returnValue = ''
-    }
-    window.addEventListener('beforeunload', onBeforeUnload)
-    return () => window.removeEventListener('beforeunload', onBeforeUnload)
-  }, [dirtyForm])
-
-  // Bridge the store's `notice` → a Sonner toast. The store API (setNotice/notice) is the
-  // single source of truth (used at ~47 sites); this effect is the only thing that turns it
-  // into UI. Tone drives the timer (Sonner's `duration` owns it — no hand-rolled setTimeout):
-  //  - 'info'    auto-dismisses after 4s (a transient confirmation).
-  //  - 'warning' persists (duration: Infinity) on the NEUTRAL surface — a non-error advisory the
-  //    user must notice because it reports a data-mutating side-effect (a clamped/truncated resize).
-  //    A fixed 4s timer on the sole signal of a silent truncation fails WCAG 2.2.1 (Timing
-  //    Adjustable, Level A), so it stays until dismissed. The <Toaster closeButton> gives it a
-  //    visible Close affordance. NOT raised via toast.error → no danger `.toast-error` accent: the
-  //    edit SUCCEEDED, so it must not read as a failure.
-  //  - 'error'   persists (an error that vanishes before it's read is useless) WITH the danger accent.
-  // Either way, dismissal/auto-close calls `clear()` so the store stays in sync with what's on screen.
-  //
-  // Teardown: the cleanup `toast.dismiss(id)` removes this toast whenever `notice` changes or
-  // clears, so a new notice REPLACES the old one — never a duplicate/stale toast.
-  //
-  // Identity-guarded clear: Sonner runs `onDismiss` on a *programmatic* `toast.dismiss(id)`
-  // too — so the cleanup above would fire this toast's `clear` even when we replaced notice A
-  // with a newer notice B. Guarding on `=== thisNotice` makes a toast clear the store ONLY
-  // while the store still holds the exact notice that toast represents; a back-to-back A→B
-  // swap leaves B intact (setNotice mints a fresh object per call, so `===` identity is exact).
-  useEffect(() => {
-    if (!notice) return
-    const thisNotice = notice
-    const clear = () => {
-      if (useStore.getState().notice === thisNotice) setNotice(null)
-    }
-    // A 'warning' persists like an 'error' (duration: Infinity, no auto-close timer) but stays on
-    // the neutral surface (plain toast(), not toast.error) so a successful-but-truncated edit doesn't
-    // read as a failure. Only an 'info' keeps the 4s auto-dismiss + its onAutoClose clear.
-    const id =
-      thisNotice.tone === 'error'
-        ? toast.error(thisNotice.message, { duration: Infinity, onDismiss: clear })
-        : thisNotice.tone === 'warning'
-          ? toast(thisNotice.message, { duration: Infinity, onDismiss: clear })
-          : toast(thisNotice.message, { duration: 4000, onDismiss: clear, onAutoClose: clear })
-    return () => {
-      toast.dismiss(id)
-    }
-  }, [notice, setNotice])
-
-  // Global keyboard shortcuts. ⌘K/Ctrl+K opens the command palette (checked FIRST,
-  // before the input bail-out so the palette can open from anywhere — including while
-  // a text field is focused). ⌘Z/⌘⇧Z is undo/redo (ignored while typing).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      // ⌘K / Ctrl+K — toggle the command palette from anywhere (including inputs).
-      // A dirty form owns the keyboard (mirrors the beforeunload / undo guards) —
-      // show a notice and bail rather than opening a second layer of UI over the form.
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        if (useStore.getState().dirtyForm) {
-          useStore.getState().setNotice(
-            m.dialog_unsaved_changes(),
-          )
-          return
-        }
-        setPaletteOpen((prev) => !prev)
-        return
-      }
-
-      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return
-      const t = e.target as HTMLElement | null
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-      // An open form with unsaved edits owns ⌘Z — never undo the data model out from under
-      // it. The focus check above misses non-text controls (e.g. a <select> inside a modal),
-      // so consult dirtyForm too (mirrors the beforeunload guard). Read live from the store
-      // so the listener needn't resubscribe on every keystroke-driven dirty toggle.
-      if (useStore.getState().dirtyForm) return
-      e.preventDefault()
-      if (e.shiftKey) redo()
-      else undo()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo])
-
-  useEffect(() => {
-    const warn = () => setNotice(
-      'Your change was saved, but the audit log could not be written. Contact the server administrator.',
-      'warning',
-    )
-    globalThis.addEventListener(AUDIT_WARNING_EVENT, warn)
-    return () => globalThis.removeEventListener(AUDIT_WARNING_EVENT, warn)
-  }, [setNotice])
-
-  // Remote-load gate: the server couldn't be reached, so block with a retry screen
-  // rather than any device-data UI (which cannot recover a server-backed app).
-  if (connectionError) return <ConnectionError />
-
-  // Corrupt-data gate: if stored data couldn't be read, block the app with a
-  // recovery screen rather than letting the user edit an empty dataset that would
-  // overwrite the unreadable-but-recoverable bytes.
-  if (loadError) return <ConnectionError />
-
-  // Fake sign-in gate (cosmetic demo): show a Google-style sign-in BEFORE the account
-  // picker so a viewer sees the intended "log in first, then pick a company" flow. Active
-  // ONLY when real auth is OFF — an enabled login wall (AuthProvider/LoginScreen) already
-  // owns the sign-in step, so never double-gate. Device-global flag (never persisted in
-  // tenant data); "Sign out" (here in the sidebar, or on the picker) clears it. Keep the
-  // `hydrated &&` guard so the loader still shows during hydration. The rotate hint rides
-  // along — this is now a phone user's first contact.
-  if (hydrated && demoAuthActive && !fakeSignedIn)
-    return (
-      <>
-        <FakeSignIn onSignIn={() => setFakeSignedIn(true)} />
-        <RotateHint />
-      </>
-    )
-
-  // Tenant gate: once hydrated, no chosen account means show the picker (it's
-  // never persisted, so this is every load). Kept after the hydration check so
-  // the "Loading…" state still renders the shell. The rotate hint rides along —
-  // the picker is a phone user's first contact, where the nudge matters most.
-  if (hydrated && !activeAccount)
-    return (
-      <>
-        <AccountPicker />
-        <RotateHint />
-      </>
-    )
-
-  // Post-login intro gate: a one-time "What CapacityLens is" page shown AFTER a company is chosen and
-  // BEFORE the app proper, explaining CapacityLens is a resourcing tool, not a project-management tool.
-  // This single slot sits after the tenant gate so it covers ALL THREE entry modes — they all
-  // converge here on a chosen activeAccount: real-auth (login wall → picker), the cosmetic
-  // fake-sign-in, and the no-auth default. Device-global once-per-device flag (`capacitylens/introSeen`,
-  // NOT persisted in tenant data); Continue flips it and the app renders. The rotate hint rides
-  // along, mirroring the gates above.
-  if (hydrated && activeAccount && !introSeen)
-    return (
-      <>
-        <IntroPage onContinue={() => setIntroSeen(true)} />
-        <RotateHint />
-      </>
-    )
 
   const loader = (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
@@ -278,11 +71,18 @@ export function AppShell() {
   )
 
   return (
-    // PermissionProvider (P1.12) wraps the APP BODY — mounted HERE, AFTER the connection/load/auth/
-    // tenant/intro gates above, so `activeAccountId` is already set when it resolves the role. It is a
-    // pure pass-through (role: null, no fetch) in OFF/local; only an auth-on + server deploy resolves a
-    // real role and gates affordances. The view-only badge + every gated affordance hub read the role
-    // from THIS provider (so they live inside the subtree, not above it).
+    <AppEntryGate
+      hydrated={hydrated}
+      connectionError={connectionError}
+      loadError={loadError}
+      demoAuthActive={demoAuthActive}
+      fakeSignedIn={fakeSignedIn}
+      hasActiveAccount={activeAccount !== null}
+      introSeen={introSeen}
+      onFakeSignIn={() => setFakeSignedIn(true)}
+      onIntroContinue={() => setIntroSeen(true)}
+    >
+    {/* PermissionProvider resolves permissions only after the entry boundary has selected the app body. */}
     <PermissionProvider>
     <div className="flex h-full">
       {/* Skip past the sidebar nav straight to page content (WCAG 2.4.1). Hidden until focused;
@@ -495,10 +295,11 @@ export function AppShell() {
           } as CSSProperties
         }
       />
-      {paletteOpen && !dirtyForm && <CommandPalette onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && !dirtyForm && <CommandPalette onClose={closePalette} />}
       <RotateHint />
     </div>
     </PermissionProvider>
+    </AppEntryGate>
   )
 }
 

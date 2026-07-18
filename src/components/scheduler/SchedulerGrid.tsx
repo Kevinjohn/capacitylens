@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { useActiveScopedData } from '../../store/useScopedData'
-import { disciplinesEnabledFor, externalEnabledFor, internalColourModeFor, placeholdersEnabledFor, schedulingModeFor, visibleRange } from '../../store/selectors'
-import { addDaysISO, eachDayISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
-import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEK_SNAP_IDLE_MS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
+import { disciplinesEnabledFor, externalEnabledFor, internalColourModeFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
+import { addDaysISO, todayISO } from '@capacitylens/shared/lib/dateMath'
+import { UTILIZATION_WINDOW_DAYS } from '../../lib/schedulerConfig'
 import { Avatar, EmptyState } from '../common/ui'
 import { resourceDisplayName } from '../../lib/metadata'
 import { Icon } from '../common/Icon'
@@ -15,10 +15,9 @@ import { DateHeader } from './DateHeader'
 import { ResourceLane } from './ResourceLane'
 import { AllocationModal } from './AllocationModal'
 import { TimeOffForm } from '../timeoff/TimeOffForm'
-import { buildColumnGeometry } from './columnGeometry'
-import { weekStartSnapTarget } from './weekSnap'
 import { buildSchedulerModel } from './schedulerModel'
 import { buildLayout, windowFromLayout } from './virtualWindow'
+import { useSchedulerViewport } from './useSchedulerViewport'
 import type { GroupModel, RowModel } from './schedulerModel'
 import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
 import type { ID, ISODate } from '@capacitylens/shared/types/entities'
@@ -87,113 +86,26 @@ export function SchedulerGrid() {
   // re-render; pointer drags never set it, so they stay silent for screen readers (sighted feedback).
   const srAnnouncement = useStore((s) => s.srAnnouncement)
   const [modal, setModal] = useState<ModalState | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  // The sticky date-header row. Its rendered height is NOT LAYOUT.headerHeight (44 is only a
-  // min-height FLOOR): the two-tier header (month band + week/day band) renders taller — ~51px at
-  // zoom 4, ~67px at zoom 2, and more again when the user bumps their font size. We measure the
-  // ACTUAL height and publish it (--sched-sticky-top) so a focused near-top bar's scroll-margin-top
-  // reserves the real chrome, not the floor (WCAG 2.4.11). See stickyHeaderHeight below.
-  const headerRef = useRef<HTMLDivElement>(null)
-  const [stickyHeaderHeight, setStickyHeaderHeight] = useState(LAYOUT.headerHeight)
-  const didScroll = useRef(false)
-  const [timelineWidth, setTimelineWidth] = useState(0)
-  const [timelineHeight, setTimelineHeight] = useState(0) // viewport height for row virtualization
-  // Root font size (px) for resolving the rem-based weekend column width. Re-read on the same
-  // ResizeObserver tick as the container, so a font-size / zoom change reflows the columns too.
-  const [rootFontSizePx, setRootFontSizePx] = useState(16)
-  const [scrollTop, setScrollTop] = useState(0)
-  // The left-edge DAY index of the visible window, DAY-QUANTIZED: updated only when the
-  // scroll left edge crosses into a new day column (or zoom changes `days`), NOT on every
-  // scroll pixel. It anchors the visible-window utilisation %; quantizing here keeps the heavy
-  // model rebuild off the per-pixel scroll path (a pixel of horizontal scroll that stays in the
-  // same column leaves leftEdgeIdx unchanged → React bails the re-render). Starts at -1 ("not yet
-  // measured") so the % anchors at the focus date until the first real scroll settles (at first
-  // paint scrollLeft=0 points at the past-buffer origin, NOT today — see visibleWindow below).
-  const [leftEdgeIdx, setLeftEdgeIdx] = useState(-1)
-  const scrollRaf = useRef(0)
-  // Debounce timer for the scroll-idle "snap to week start" floor (armed in onScroll). 0 = idle.
-  const snapTimer = useRef(0)
-
-  // Measure the scroll container so the day-column width can fit ui.zoom weeks (and
-  // the height drives row virtualization). useLayoutEffect (NOT useEffect) so the measure runs
-  // synchronously BEFORE the browser paints: on mount — and on every remount, e.g. returning to
-  // the Schedule tab — `timelineWidth` starts at 0, so a plain post-paint effect would let the
-  // first frame render at FALLBACK_TIMELINE_WIDTH geometry and then snap to the measured width
-  // (a visible flash). Measuring pre-paint collapses that to one correct frame. (Client-only SPA,
-  // so there's no SSR useLayoutEffect warning; under jsdom clientWidth is 0 → the same fallback
-  // path the tests already exercise.)
-  useLayoutEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    const measure = () => {
-      setTimelineWidth(el.clientWidth)
-      setTimelineHeight(el.clientHeight)
-      // getComputedStyle().fontSize is '' in jsdom/SSR → parseFloat NaN → fall back to 16px.
-      setRootFontSizePx(parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)
-    }
-    measure()
-    if (typeof ResizeObserver === 'undefined') return
-    // rAF-throttle so a live window drag-resize coalesces to one rebuild per frame.
-    let raf = 0
-    const onResize = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(measure)
-    }
-    const ro = new ResizeObserver(onResize)
-    ro.observe(el)
-    return () => {
-      cancelAnimationFrame(raf)
-      ro.disconnect()
-    }
-  }, [])
-
-  // Measure the sticky date-header's ACTUAL rendered height and publish it as a CSS variable
-  // (--sched-sticky-top on the scroll container, read by every AllocationBar's scroll-margin-top).
-  // LAYOUT.headerHeight (44) is only the row's min-height FLOOR; the two-tier header renders taller
-  // (~51px at zoom 4, ~67px at zoom 2, more again at a larger font size), so a focused near-top bar
-  // that reserved only 44px would land partly behind the header (WCAG 2.4.11 Focus Not Obscured).
-  // The height changes only on a zoom flip / font-size change (rare), so a ResizeObserver here is
-  // not a hot path; it's measured pre-paint (useLayoutEffect) so the var is correct on the first
-  // frame, and the observer is disconnected on unmount. jsdom reports offsetHeight 0 → we keep the
-  // headerHeight floor (the var still resolves to a sane value).
-  useLayoutEffect(() => {
-    const el = headerRef.current
-    if (!el) return
-    const measure = () => setStickyHeaderHeight(el.offsetHeight || LAYOUT.headerHeight)
-    measure()
-    if (typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(measure)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  const avail = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth
-  // Bare-minimum weekend column width, rem-based so it tracks font size, ROUNDED to a whole
-  // pixel. Integer widths keep every ColumnGeometry offset — and the scrollLeft we set from it —
-  // a whole number, so the zoom scroll-anchor's date round-trip is exact; a fractional width
-  // (22.39) made offsets the browser couldn't store exactly, drifting the left-edge date back
-  // onto the narrow weekend column on every zoom flip.
-  const weekendWidth = Math.round(WEEKEND_COLUMN_REM * rootFontSizePx)
-  // Fit ui.zoom weeks. When minimise is actually narrowing the weekends (the uniform column would
-  // be wider than a weekend column), use the weekend-aware fit so a "1-week" view shows ~1 week —
-  // the narrowed Sat/Sun would otherwise leave the right edge under-filled (a "1-week" view would
-  // creep to ~1.5 weeks). Off / coarse zoom falls back to the uniform 7-equal-columns fit.
-  const uniformDayWidth = resolveDayWidth(avail, ui.zoom)
-  const dayWidth =
-    minimiseWeekends && uniformDayWidth > weekendWidth ? resolveDayWidth(avail, ui.zoom, weekendWidth) : uniformDayWidth
-
-  const { start, end } = visibleRange(ui)
-  const days = useMemo(() => eachDayISO(start, end), [start, end])
-  // One ColumnGeometry owns every px↔day↔date conversion (bar/header/lane/today/scroll/drag),
-  // so the narrowed weekend columns don't leak the old uniform-grid assumption anywhere.
-  const geom = useMemo(
-    () => buildColumnGeometry(days, dayWidth, { minimiseWeekends, weekendWidth }),
-    [days, dayWidth, minimiseWeekends, weekendWidth],
-  )
-  const totalWidth = geom.totalWidth
 
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const calendarWeekStartsOn = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.weekStartsOn ?? 1)
+  const {
+    scrollRef,
+    headerRef,
+    stickyHeaderHeight,
+    timelineWidth,
+    timelineHeight,
+    scrollTop,
+    leftEdgeIdx,
+    start,
+    end,
+    days,
+    dayWidth,
+    geom,
+    totalWidth,
+    onScroll,
+    visibleStartDate,
+  } = useSchedulerViewport({ ui, minimiseWeekends, snapToWeekStart, calendarWeekStartsOn })
   const today = todayISO(calendarTimeZone)
   // FIXED forward window from today (overStart..overEnd): drives ONLY the `overSoon` red flag — a
   // near-term, zoom/pan-INDEPENDENT "over soon" radar, so the per-resource overbooked warning fires
@@ -249,91 +161,6 @@ export function SchedulerGrid() {
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null
 
-  // Where the grid scrolls on a focus request (Today / jump-to-date). Held in a ref
-  // so zoom/resize re-renders don't re-fire the recenter effect.
-  const focusX = geom.xForDateInGeom(ui.focusDate)
-  const focusXRef = useRef(focusX)
-  useEffect(() => {
-    focusXRef.current = focusX
-  })
-
-  // Re-position the left edge when the GEOMETRY changes (zoom click, Prev/Next pan, container
-  // resize, or the minimise-weekends toggle): scrollLeft is pixels, so the same offset would
-  // otherwise re-point at a different date. We read the date at the left edge — for a pan,
-  // `prevGeom` is numerically identical to `geom` (the origin shifts a whole week, so the
-  // weekday/width pattern is unchanged) and `days[idx]` reads the POST-pan date, so the single
-  // `indexAt` formula gives the right left-edge date for both a zoom and a pan. Skipped until the
-  // initial scroll has run (didScroll); the effect below (so it runs AFTER this skips on the
-  // first-measure commit) owns the first real-width placement.
-  //
-  // Where it re-anchors depends on WHY the geometry changed:
-  // - A zoom click OR a pan (`ui.zoom` or `days` reference changed) → snap the left edge to the
-  //   WEEK START of the left-edge date (Feature 1, ALWAYS on). `panDays(±7)` in the store is
-  //   unchanged — the week-snap happens here in the component.
-  // - A pure container resize / minimise-weekends flip (geometry changed, but zoom AND days are
-  //   the same) → preserve the EXACT left-edge date, so we don't yank a deliberately
-  //   free-positioned view off the day the user parked it on.
-  // - A goToDate / goToToday (recenterToken bumped) → do NOTHING here; the recenter effect below
-  //   owns that placement (it scrolls to focusX = the already-week-snapped focusDate).
-  const prevGeomRef = useRef(geom)
-  const prevDaysRef = useRef(days)
-  const prevZoomRef = useRef(ui.zoom)
-  const prevRecenterRef = useRef(ui.recenterToken)
-  useLayoutEffect(() => {
-    // A scroll event from the OLD geometry may still have a queued rAF / idle-snap timer when a
-    // zoom, pan or recenter changes the geometry. Letting that callback run would interpret the
-    // NEW scrollLeft with OLD column widths and can jump the grid back to its buffered origin.
-    // Cancel stale work before reading/repositioning the new geometry; the programmatic write
-    // below emits a fresh scroll event whose callback closes over the current geometry.
-    if (scrollRaf.current) {
-      cancelAnimationFrame(scrollRaf.current)
-      scrollRaf.current = 0
-    }
-    clearTimeout(snapTimer.current)
-    snapTimer.current = 0
-    const prevGeom = prevGeomRef.current
-    const prevDays = prevDaysRef.current
-    const prevZoom = prevZoomRef.current
-    const prevRecenter = prevRecenterRef.current
-    prevGeomRef.current = geom
-    prevDaysRef.current = days
-    prevZoomRef.current = ui.zoom
-    prevRecenterRef.current = ui.recenterToken
-    const el = scrollRef.current
-    if (!el || !didScroll.current || prevGeom === geom || prevGeom.totalWidth <= 0) return
-    // goToDate / goToToday bump recenterToken; the recenter effect below owns that placement
-    // (it scrolls to the already-week-snapped focusDate). Don't fight it here.
-    if (ui.recenterToken !== prevRecenter) return
-    // Round scrollLeft before resolving the left-edge day: a HiDPI browser (Firefox especially,
-    // devicePixelRatio > 1) can report a fractional scrollLeft a sub-pixel BELOW the integer column
-    // boundary, which `indexAt` (strict floor) would resolve to the previous day — and the week-snap
-    // below would then jump back a whole week. See weekSnap.ts for the full reasoning.
-    const leftDate = days[prevGeom.indexAt(Math.round(el.scrollLeft))] ?? days[0]
-    // Feature 1 (ALWAYS): a zoom click or a Prev/Next pan re-anchors the left edge to its WEEK
-    // START. A pure container resize / minimise-weekends flip preserves the exact left-edge date.
-    const snap = ui.zoom !== prevZoom || days !== prevDays
-    const target = snap ? startOfWeekISO(leftDate, calendarWeekStartsOn) : leftDate
-    el.scrollLeft = geom.xForDateInGeom(target)
-  }, [geom, days, ui.zoom, ui.recenterToken, calendarWeekStartsOn])
-
-  // Bring the focus date (today by default) flush to the left edge on first render —
-  // the PAST_BUFFER_DAYS of history before it stay off-screen to the left, reachable
-  // by scrolling. Only once the container has been MEASURED (timelineWidth > 0), so
-  // the scroll uses the real dayWidth, not the fallback. Runs once (didScroll guard);
-  // re-fires harmlessly until the real width arrives in jsdom/SSR where it never does.
-  useEffect(() => {
-    if (didScroll.current || !scrollRef.current || timelineWidth === 0) return
-    scrollRef.current.scrollLeft = focusXRef.current
-    didScroll.current = true
-  }, [timelineWidth])
-
-  // Re-centre when the user clicks Today / picks a date (which bumps recenterToken).
-  const recenterToken = ui.recenterToken
-  useLayoutEffect(() => {
-    if (recenterToken === 0 || !scrollRef.current) return
-    scrollRef.current.scrollLeft = focusXRef.current
-  }, [recenterToken])
-
   const filtersActive = hasActiveFilters(ui.filters)
 
   // Stable callbacks so the memoised ResourceLane can skip re-rendering on
@@ -358,15 +185,6 @@ export function SchedulerGrid() {
     },
     [],
   )
-
-  // The date currently at the left edge of the viewport — what the "+" quick-create
-  // should default to, so it lands where the user is looking (not always today). geom.indexAt
-  // inverts the (possibly variable-width) columns and clamps into the window.
-  const visibleStartDate = (): ISODate => {
-    const el = scrollRef.current
-    const idx = el ? geom.indexAt(el.scrollLeft) : 0
-    return days[idx] ?? days[0] ?? ui.originDate
-  }
 
   // Derived from the model only — memoise so opening a modal / measuring the
   // container (frequent re-renders) doesn't re-flatMap + re-reduce every row.
@@ -418,67 +236,10 @@ export function SchedulerGrid() {
     if (idx === -1) return
     const top = layout.tops[idx] ?? 0
     scrollRef.current.scrollTop = top
-  }, [scrollToResource, items, layout])
+  }, [scrollToResource, items, layout, scrollRef])
 
-  // Pin the dragged row while a gesture is live: a mid-drag vertical scroll must NOT
-  // re-window, or it could unmount the dragged AllocationBar and tear down its document
-  // pointer listeners (orphaning the drag, so the drop never commits). We FREEZE the scroll
-  // input instead — onScroll skips setScrollTop while dragging — so the window stays put
-  // until the drag ends, then a one-shot effect catches it up. `draggingAllocationId` is
-  // transient store state.
-  const dragging = useStore((s) => s.draggingAllocationId !== null)
   const { first, last, topPad, bottomPad } = windowFromLayout(layout, heights, scrollTop, timelineHeight)
   const visible = items.slice(first, last + 1)
-
-  // rAF-coalesced scroll → recompute the vertical row window AND the day-quantized horizontal
-  // left edge. setScrollTop / setLeftEdgeIdx with an unchanged value is a no-op (React bails the
-  // re-render), so a horizontal scroll that stays in the same day column rebuilds NOTHING — the
-  // visible-window % only recomputes when the left-edge DAY actually changes (no per-pixel model
-  // rebuild / scroll jank).
-  const onScroll = () => {
-    if (scrollRaf.current) return
-    scrollRaf.current = requestAnimationFrame(() => {
-      scrollRaf.current = 0
-      // Don't re-window mid-drag — it could unmount the dragged row and orphan the gesture.
-      // Read draggingAllocationId LIVE (getState) to avoid a stale closure.
-      if (useStore.getState().draggingAllocationId !== null) return
-      const el = scrollRef.current
-      if (!el) return
-      setScrollTop(el.scrollTop)
-      setLeftEdgeIdx(geom.indexAt(el.scrollLeft))
-      // Scroll-idle "snap to week start" floor — device-global pref (default on; FREE SCROLL ONLY,
-      // independent of Feature 1's always-on navigation snap). When on, debounce until the scroll
-      // settles, then floor the left edge to the current left-edge day's WEEK START. FLOOR not
-      // nearest — by design, forward weeks are reached via Prev/Next, so a free nudge only ever
-      // settles BACKWARD to its own Monday. It respects the drag-freeze (re-checks live state in the
-      // timeout) and converges in ONE step: a programmatic scroll (zoom / recenter, Feature 1) has
-      // already landed on a week start, so target ≈ scrollLeft and the > 0.5px guard makes it a
-      // no-op there — no feedback loop where the snap re-triggers itself.
-      if (snapToWeekStart) {
-        clearTimeout(snapTimer.current)
-        snapTimer.current = window.setTimeout(() => {
-          const node = scrollRef.current
-          if (!node || useStore.getState().draggingAllocationId !== null) return // respect the drag-freeze
-          // Pure floor-to-week-start (with the ≤0.5px convergence guard) lives in weekSnap.ts so it's
-          // unit-testable without a measured DOM. null = already aligned → no write, no re-arm loop.
-          const target = weekStartSnapTarget(geom, days, node.scrollLeft, calendarWeekStartsOn)
-          if (target !== null) node.scrollLeft = target
-        }, WEEK_SNAP_IDLE_MS)
-      }
-    })
-  }
-  // Cancel the in-flight scroll rAF AND the pending week-snap debounce on unmount.
-  useEffect(() => () => {
-    if (scrollRaf.current) cancelAnimationFrame(scrollRaf.current)
-    clearTimeout(snapTimer.current)
-  }, [])
-  // When a drag ENDS, catch the window up to any scrolling done while it was frozen.
-  useEffect(() => {
-    if (!dragging && scrollRef.current) {
-      setScrollTop(scrollRef.current.scrollTop)
-      setLeftEdgeIdx(geom.indexAt(scrollRef.current.scrollLeft))
-    }
-  }, [dragging, geom])
 
   const renderGroupHeader = (group: GroupModel, rowIndex: number, key: string) => (
     <div

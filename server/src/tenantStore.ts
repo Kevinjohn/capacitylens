@@ -18,10 +18,9 @@ import { type Db, readSlice, replaceAccountSlice } from './db'
 // architecture writes the aspirational interface as `Promise<…>` for a later per-agency-DB / Postgres
 // swap; wrapping a sync return in `await` is harmless, so a future async swap is anticipated.
 //
-// SCOPE NOTE (P1.4): `write` is a THIN wrap of replaceAccountSlice — it is NOT yet wired into
-// /api/batch or the per-entity write routes. Routing those through the store (and closing
-// replaceAccountSlice behind ownership) is P1.5; full can()-gating is P1.5 too. This task only
-// establishes the seam plus the two READ endpoints.
+// SCOPE NOTE (P1.4): `write` is a THIN wrap of replaceAccountSlice. Lifecycle mutations use this
+// seam; /api/batch and the generic per-entity write routes still call the lower-level helpers
+// directly. Closing those remaining paths behind TenantStore is P1.5; full can()-gating is P1.5 too.
 
 /**
  * The per-account scoped storage seam — the documented swap point for the tenancy backend.

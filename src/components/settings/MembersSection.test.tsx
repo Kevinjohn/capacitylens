@@ -108,9 +108,74 @@ beforeEach(() => {
 afterEach(() => {
   setOfflineReadState(false)
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('MembersSection — self-gate', () => {
+  it('hides the previous account directory while the next account is authorizing', async () => {
+    const nextAccountId = 'acc_second'
+    let resolveNextMembers: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url)
+      const isRead = !init || init.method === undefined || init.method === 'GET'
+      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [{
+              userId: 'first-owner',
+              role: 'owner',
+              status: 'active',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              name: null,
+              email: 'first@example.test',
+              isSelf: true,
+              mayResetPassword: false,
+              mayRevokeSessions: false,
+            }],
+          }),
+        } as Response
+      }
+      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+        return await new Promise<Response>((resolve) => {
+          resolveNextMembers = resolve
+        })
+      }
+      if (target.endsWith('/invites') && isRead) {
+        return { ok: true, status: 200, json: async () => ({ invites: [] }) } as Response
+      }
+      throw new Error(`Unexpected request: ${target}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    expect(await screen.findByText('first@example.test')).toBeInTheDocument()
+
+    act(() => useStore.setState({ activeAccountId: nextAccountId }))
+    expect(screen.queryByText('first@example.test')).not.toBeInTheDocument()
+
+    await act(async () => {
+      resolveNextMembers?.({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          members: [{
+            userId: 'second-owner',
+            role: 'owner',
+            status: 'active',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            name: null,
+            email: 'second@example.test',
+            isSelf: true,
+            mayResetPassword: false,
+            mayRevokeSessions: false,
+          }],
+        }),
+      } as Response)
+    })
+    expect(await screen.findByText('second@example.test')).toBeInTheDocument()
+  })
+
   it('defers privileged directory reads while offline and refreshes them on recovery', async () => {
     const fetchMock = mockFetch([{ userId: 'me', role: 'owner', isSelf: true }])
     vi.stubGlobal('fetch', fetchMock)
@@ -521,6 +586,215 @@ describe('MembersSection — invite mint', () => {
     await user.click(screen.getByTestId('invite-submit'))
     const link = await screen.findByTestId('invite-link')
     expect(link).toHaveTextContent('/invite/TOK123')
+  })
+
+  it('discards account-local bearer links and controls immediately when the account changes', async () => {
+    const nextAccountId = 'acc_second'
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url)
+      const isRead = !init || init.method === undefined || init.method === 'GET'
+      if (target.endsWith(`/${DEFAULT_ACCOUNT_ID}/members`) && isRead) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [{
+              userId: 'me',
+              role: 'owner',
+              status: 'active',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              name: null,
+              email: 'me@x.io',
+              isSelf: true,
+              mayResetPassword: false,
+              mayRevokeSessions: false,
+            }],
+          }),
+        } as Response
+      }
+      if (target.endsWith(`/${nextAccountId}/members`) && isRead) {
+        return await new Promise<Response>(() => {})
+      }
+      if (target.endsWith('/invites') && isRead) {
+        return { ok: true, status: 200, json: async () => ({ invites: [] }) } as Response
+      }
+      if (target.endsWith('/api/invites') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ id: 'inv-new', token: 'ACCOUNT_A_TOKEN' }),
+        } as Response
+      }
+      throw new Error(`Unexpected request: ${target}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    fireEvent.click(screen.getByTestId('invite-submit'))
+    expect(await screen.findByTestId('invite-link')).toHaveTextContent('/invite/ACCOUNT_A_TOKEN')
+
+    act(() => useStore.setState({ activeAccountId: nextAccountId }))
+    expect(screen.queryByTestId('invite-link')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('invite-submit')).not.toBeInTheDocument()
+  })
+
+  it('does not publish a late clipboard result into a different account', async () => {
+    const nextAccountId = 'acc_second'
+    let finishCopy: (() => void) | undefined
+    const writeText = vi.fn(() => new Promise<void>((resolve) => {
+      finishCopy = resolve
+    }))
+    vi.spyOn(navigator, 'clipboard', 'get').mockReturnValue({ writeText } as unknown as Clipboard)
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url)
+      const isRead = !init || init.method === undefined || init.method === 'GET'
+      if (target.endsWith('/members') && isRead) {
+        const second = target.includes(`/${nextAccountId}/`)
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [{
+              userId: second ? 'second-owner' : 'me',
+              role: 'owner',
+              status: 'active',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              name: null,
+              email: second ? 'second@example.test' : 'me@x.io',
+              isSelf: true,
+              mayResetPassword: false,
+              mayRevokeSessions: false,
+            }],
+          }),
+        } as Response
+      }
+      if (target.endsWith('/invites') && isRead) {
+        return { ok: true, status: 200, json: async () => ({ invites: [] }) } as Response
+      }
+      if (target.endsWith('/api/invites') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          // Omit the optional id so the write-once link remains visible while this test isolates
+          // the clipboard completion race rather than authoritative invite-list reconciliation.
+          json: async () => ({ token: 'ACCOUNT_A_TOKEN' }),
+        } as Response
+      }
+      throw new Error(`Unexpected request: ${target}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    fireEvent.click(screen.getByTestId('invite-submit'))
+    expect(await screen.findByTestId('invite-link')).toBeInTheDocument()
+    act(() => useStore.getState().setNotice(null))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    expect(writeText).toHaveBeenCalledOnce()
+
+    act(() => useStore.setState({ activeAccountId: nextAccountId }))
+    expect(await screen.findByText('second@example.test')).toBeInTheDocument()
+    await act(async () => finishCopy?.())
+
+    expect(useStore.getState().notice?.message ?? '').not.toMatch(/copied/i)
+  })
+
+  it('keeps the last authoritative invite list when a same-account invite reload fails', async () => {
+    const existingInvite = {
+      id: 'inv-existing',
+      role: 'viewer',
+      preauthEmail: 'existing@example.test',
+      expiresAt: '2026-12-01T00:00:00.000Z',
+      usedAt: null,
+      createdAt: '2026-07-17T00:00:00.000Z',
+    }
+    let invitationReads = 0
+    const reads = mockFetch([{ userId: 'me', role: 'owner', isSelf: true }])
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const target = String(url)
+      const isRead = !init || init.method === undefined || init.method === 'GET'
+      if (target.endsWith('/invites') && isRead) {
+        invitationReads += 1
+        return invitationReads === 1
+          ? { ok: true, status: 200, json: async () => ({ invites: [existingInvite] }) } as Response
+          : { ok: false, status: 503, json: async () => ({ error: 'Invite reload failed.' }) } as Response
+      }
+      if (target.endsWith('/api/invites') && init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({ id: 'inv-new', token: 'TOK123' }),
+        } as Response
+      }
+      return reads(url, init)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    expect(await screen.findByText(/existing@example\.test/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('invite-submit'))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invite reload failed.')
+    expect(screen.getByText(/existing@example\.test/)).toBeInTheDocument()
+  })
+
+  it('ignores a late unknown mutation outcome after the user has switched accounts', async () => {
+    const nextAccountId = 'acc_second'
+    let resolveCreate: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit): Promise<Response> => {
+      const target = String(url)
+      const isRead = !init || init.method === undefined || init.method === 'GET'
+      if (target.endsWith('/members') && isRead) {
+        const second = target.includes(`/${nextAccountId}/`)
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            members: [{
+              userId: second ? 'second-owner' : 'me',
+              role: 'owner',
+              status: 'active',
+              createdAt: '2026-01-01T00:00:00.000Z',
+              name: null,
+              email: second ? 'second@example.test' : 'me@x.io',
+              isSelf: true,
+              mayResetPassword: false,
+              mayRevokeSessions: false,
+            }],
+          }),
+        } as Response
+      }
+      if (target.endsWith('/invites') && isRead) {
+        return { ok: true, status: 200, json: async () => ({ invites: [] }) } as Response
+      }
+      if (target.endsWith('/api/invites') && init?.method === 'POST') {
+        return await new Promise<Response>((resolve) => {
+          resolveCreate = resolve
+        })
+      }
+      throw new Error(`Unexpected request: ${target}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderSection()
+    await screen.findByTestId('members-section')
+
+    fireEvent.click(screen.getByTestId('invite-submit'))
+    await waitFor(() => expect(resolveCreate).toBeTypeOf('function'))
+    act(() => useStore.setState({ activeAccountId: nextAccountId }))
+    expect(await screen.findByText('second@example.test')).toBeInTheDocument()
+
+    await act(async () => {
+      resolveCreate?.({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: 'The first account outcome is unknown.' }),
+      } as Response)
+    })
+
+    expect(screen.getByText('second@example.test')).toBeInTheDocument()
+    expect(screen.queryByText(/first account outcome is unknown/i)).not.toBeInTheDocument()
+    expect(useStore.getState().notice?.message ?? '').not.toMatch(/unknown outcome/i)
   })
 
   it('removes the write-once link when its invite is revoked', async () => {

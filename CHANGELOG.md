@@ -10,6 +10,57 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.24.0-alpha.2] — 2026-07-18
+
+This Alpha 2 release completes a broad separation-of-concerns pass over the application shell,
+scheduler, account administration, persistence and server lifecycle paths. Behaviour remains
+compatible with the previous alpha: there is no export-schema or database-schema change.
+
+### Added
+
+- Added a typed Team & access client that validates untrusted member, invitation and one-time-token
+  responses once, then exposes semantic success, rejection, unknown-outcome and invalid-response
+  results to the UI.
+- Added focused controllers for the account-keyed team directory, app entry sequence and global
+  shell effects, including route titles, invite handoff, notices, unload protection and shortcuts.
+- Added dedicated scheduler viewport and allocation-gesture hooks, separating DOM measurement,
+  scroll anchoring, virtualisation and drag/reassignment behaviour from rendering.
+- Added runtime-preference and scheduler-navigation store slices, and extracted the server's
+  archive, restore, soft-delete and purge routes into one lifecycle transition pipeline.
+- Added regression coverage for account switches during privileged operations, invitation reload
+  failures, write-once bearer-link cleanup, controlled dirty forms and one-use URL handoffs.
+
+### Changed
+
+- Single-sourced the complete application-data key set and parent-before-child write order across
+  migration, browser sync and SQLite persistence, with compile-time completeness checks.
+- Replaced four independent persistence callbacks with one identity-safe coordinator registration,
+  keeping refresh, flush, suspension and unsaved-write state under one lifecycle owner.
+- Centralised exact pre-authentication route classification for invitation and password-reset URLs,
+  so malformed or nested variants continue to fail closed behind the login wall.
+- Made form dirtiness an explicit contract for button-driven controls while retaining a safe native
+  event fallback for ordinary inputs and third-party controls.
+
+### Fixed
+
+- Fixed Team & access state crossing company boundaries: drafts, confirmations, action locks and
+  freshly minted invite/reset links are now discarded immediately when the active company changes.
+- Fixed late member, invitation, password-reset, session and clipboard completions updating the
+  newly selected company or replacing its notices.
+- Fixed an invitation-list refresh failure erasing the last authoritative same-company list, and
+  kept privileged directory controls fail-closed until the current company has been authorised.
+- Fixed no-op radio, switch and colour selections falsely marking a modal dirty, while closing the
+  immediate-Escape race before a controlled dirty prop can re-render.
+- Fixed the joined-company handoff cleanup stripping query parameters from later navigation; the
+  bootstrap query is now consumed exactly once.
+
+### Security
+
+- Prevented stale cross-company administration outcomes and write-once bearer capabilities from
+  remaining visible or surfacing feedback after an account switch.
+- Kept member-management rendering fail-closed during permission loading and directory errors; the
+  server remains the independent authorization backstop for every tenant operation.
+
 ## [0.23.4-alpha.0] — 2026-07-18
 
 ### Added
@@ -964,7 +1015,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.4-alpha.0...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.0-alpha.2...HEAD
+[0.24.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.4-alpha.0...v0.24.0-alpha.2
 [0.23.4-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.3-alpha.0...v0.23.4-alpha.0
 [0.23.3-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.0-alpha.0...v0.23.3-alpha.0
 [0.23.0-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.20.1-alpha.0...v0.23.0-alpha.0

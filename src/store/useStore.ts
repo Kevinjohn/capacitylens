@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { newId } from '@capacitylens/shared/lib/id'
 import { addDaysISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
-import { DEFAULT_RANGE_DAYS, DEFAULT_ZOOM, PAST_BUFFER_DAYS, type WeeksZoom } from '../lib/schedulerConfig'
+import { PAST_BUFFER_DAYS, type WeeksZoom } from '../lib/schedulerConfig'
 import {
   deleteClientCascade,
   deleteDisciplineCascade,
@@ -23,27 +23,10 @@ import {
 import { archive, canPurge, obfuscateResource, PURGE_MIN_AGE_DAYS, softDelete, unarchive } from '@capacitylens/shared/domain/lifecycle'
 import { m } from '@/i18n'
 import {
-  defaultSidebarOpen,
-  readStoredBarLabelPrefs,
-  readStoredFakeSignedIn,
-  readStoredGettingStartedDismissed,
-  readStoredIntroSeen,
-  readStoredMinimiseWeekends,
-  readStoredSidebarOpen,
-  readStoredSnapToWeekStart,
-  readStoredUtilizationPrefs,
-  writeStoredBarLabelPrefs,
-  writeStoredFakeSignedIn,
-  writeStoredGettingStartedDismissed,
-  writeStoredIntroSeen,
-  writeStoredMinimiseWeekends,
-  writeStoredSidebarOpen,
-  writeStoredSnapToWeekStart,
-  writeStoredUtilizationPrefs,
   type BarLabelPrefs,
   type UtilizationPrefs,
 } from '../lib/displayPrefs'
-import { applyThemeToDom, readStoredTheme, writeStoredTheme, type ThemePref } from '../lib/theme'
+import type { ThemePref } from '../lib/theme'
 import type { Role } from '@capacitylens/shared/domain/access'
 import { buildInternalClient, isBuiltinClient } from '@capacitylens/shared/data/internalClient'
 import { clampHoursPerDay, clampWorkingHoursPerDay, emptyAppData } from '@capacitylens/shared/types/entities'
@@ -65,6 +48,8 @@ import type {
   TimeOff,
   Weekday,
 } from '@capacitylens/shared/types/entities'
+import { createRuntimeSlice } from './slices/runtimeSlice'
+import { createSchedulerSlice } from './slices/schedulerSlice'
 
 // A Draft drops the server-owned fields (id/timestamps) AND `accountId` — the
 // store stamps the active account, so callers never supply it.
@@ -491,29 +476,9 @@ function prepareHistoryTarget(current: AppData, target: AppData): AppData {
   }
 }
 
-const defaultUI = (): SchedulerUI => {
-  // Open on the current week: focusDate = this Monday (the grid scrolls it flush to
-  // the left edge), with the timeline ORIGIN a PAST_BUFFER_DAYS back-buffer earlier —
-  // off-screen history to the left, so scrolling back pans instead of overscrolling
-  // into the browser's back-swipe. rangeDays covers buffer + forward span.
-  const weekStart = startOfWeekISO(todayISO())
-  return {
-    zoom: DEFAULT_ZOOM,
-    originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-    rangeDays: PAST_BUFFER_DAYS + DEFAULT_RANGE_DAYS,
-    focusDate: weekStart,
-    drawMode: 'work',
-    selectedAllocationId: null,
-    filters: emptyFilters(),
-    collapsedGroups: [],
-    recenterToken: 0,
-    scrollToResource: null,
-  }
-}
-
 const HISTORY_LIMIT = 50
 
-export const useStore = create<StoreState>()((set, get) => {
+export const useStore = create<StoreState>()((set, get, store) => {
   // Every data mutation goes through mutate(): it snapshots the previous data
   // onto the undo stack and clears the redo stack.
   //
@@ -603,31 +568,13 @@ export const useStore = create<StoreState>()((set, get) => {
 
   return {
     data: emptyAppData(),
-    ui: defaultUI(),
-    hydrated: false,
     activeAccountId: null,
     previousAccountId: null,
     accountSummaries: [],
     past: [],
     future: [],
-    persistError: false,
-    loadError: false,
-    connectionError: false,
-    notice: null,
-    srAnnouncement: null,
-    dirtyForm: false,
-    draggingAllocationId: null,
-    theme: readStoredTheme(),
-    utilizationPrefs: readStoredUtilizationPrefs(),
-    barLabelPrefs: readStoredBarLabelPrefs(),
-    sidebarOpen: readStoredSidebarOpen() ?? defaultSidebarOpen(),
-    minimiseWeekends: readStoredMinimiseWeekends(),
-    snapToWeekStart: readStoredSnapToWeekStart(),
-    fakeSignedIn: readStoredFakeSignedIn(),
-    introSeen: readStoredIntroSeen(),
-    gettingStartedDismissed: readStoredGettingStartedDismissed(),
-    activeRole: null,
-    membershipRevision: 0,
+    ...createRuntimeSlice(set, get, store),
+    ...createSchedulerSlice(emptyFilters)(set, get, store),
 
     addAccount: (input) => {
       const ts = stamp()
@@ -782,78 +729,6 @@ export const useStore = create<StoreState>()((set, get) => {
       if (result.imported === 0) return { imported: 0, skipped: result.skipped }
       mutate(() => result.data)
       return { imported: result.imported, skipped: result.skipped }
-    },
-    setHydrated: (v) => set({ hydrated: v }),
-    setPersistError: (v) => set({ persistError: v }),
-    setLoadError: (v) => set({ loadError: v }),
-    setConnectionError: (v) => set({ connectionError: v }),
-    setNotice: (message, tone = 'info') => set({ notice: message ? { message, tone } : null }),
-    // ^ Tone → dismissal behaviour is owned by the AppShell→Sonner bridge: 'info' auto-dismisses
-    //   (~4s), 'warning'/'error' persist (duration: Infinity) with a close button. See {@link Notice}.
-    // Plain set (NOT mutate): transient a11y signal, must never land on the undo/redo stack.
-    // Bump seq off the PREVIOUS announcement so identical consecutive text still re-announces.
-    announceCapacity: (text) => set((s) => ({ srAnnouncement: { text, seq: (s.srAnnouncement?.seq ?? 0) + 1 } })),
-    setDirtyForm: (v) => set({ dirtyForm: v }),
-    // Plain set (NOT mutate): transient UI, must never land on the undo/redo stack.
-    setDraggingAllocation: (id) => set({ draggingAllocationId: id }),
-    setTheme: (pref) => {
-      writeStoredTheme(pref)
-      applyThemeToDom(pref)
-      set({ theme: pref })
-    },
-    setUtilizationPref: (key, value) =>
-      set((s) => {
-        const next = { ...s.utilizationPrefs, [key]: value }
-        writeStoredUtilizationPrefs(next)
-        return { utilizationPrefs: next }
-      }),
-    setBarLabelPref: (key, value) =>
-      set((s) => {
-        const next = { ...s.barLabelPrefs, [key]: value }
-        writeStoredBarLabelPrefs(next)
-        return { barLabelPrefs: next }
-      }),
-    setSidebarOpen: (open) => {
-      writeStoredSidebarOpen(open)
-      set({ sidebarOpen: open })
-    },
-    setMinimiseWeekends: (value) => {
-      writeStoredMinimiseWeekends(value)
-      set({ minimiseWeekends: value })
-    },
-    setSnapToWeekStart: (value) => {
-      writeStoredSnapToWeekStart(value)
-      set({ snapToWeekStart: value })
-    },
-    // Plain set (NOT mutate): a device-global demo flag, never on the undo/redo stack,
-    // never in AppData/export.
-    setFakeSignedIn: (value) => {
-      writeStoredFakeSignedIn(value)
-      set({ fakeSignedIn: value })
-    },
-    // Plain set (NOT mutate): a device-global view flag, never on the undo/redo stack,
-    // never in AppData/export.
-    setIntroSeen: (value) => {
-      writeStoredIntroSeen(value)
-      set({ introSeen: value })
-    },
-    // Plain set (NOT mutate): a device-global view flag, never on the undo/redo stack,
-    // never in AppData/export.
-    setGettingStartedDismissed: (value) => {
-      writeStoredGettingStartedDismissed(value)
-      set({ gettingStartedDismissed: value })
-    },
-    // Plain set (NOT mutate): transient access state, never persisted, never on the undo/redo stack,
-    // never in AppData/export. Drives ONLY the inert-unless-viewer write guard above.
-    setActiveRole: (role) => set({ activeRole: role }),
-    invalidateMemberships: () => set((state) => ({ membershipRevision: state.membershipRevision + 1 })),
-    // Reuse setActiveAccount(null) to drop the tenant and reset its view/undo state, then ALSO
-    // clear previousAccountId (so re-signing-in is a fresh pick, not a one-click "← Back to {company}")
-    // and the device-global flag. Cosmetic demo only — the real auth seam (src/auth/) is untouched.
-    signOutDemo: () => {
-      get().setActiveAccount(null)
-      writeStoredFakeSignedIn(false)
-      set({ previousAccountId: null, fakeSignedIn: false })
     },
 
     undo: () =>
@@ -1209,81 +1084,5 @@ export const useStore = create<StoreState>()((set, get) => {
       })
     },
 
-    setZoom: (zoom) => set((s) => ({ ui: { ...s.ui, zoom } })),
-    setOriginDate: (date) => set((s) => ({ ui: { ...s.ui, originDate: date } })),
-    panDays: (delta) => set((s) => ({ ui: { ...s.ui, originDate: addDaysISO(s.ui.originDate, delta) } })),
-    goToToday: () =>
-      set((s) => {
-        // Match the default view: focus the start of the current week (scrolled flush
-        // to the left edge) with the back-buffer behind it for leftward scrolling.
-        const account = s.activeAccountId ? s.data.accounts.find((a) => a.id === s.activeAccountId) : null
-        const tz = account?.timezone ?? 'Etc/GMT'
-        const wso = account?.weekStartsOn ?? 1
-        const weekStart = startOfWeekISO(todayISO(tz), wso)
-        return {
-          ui: {
-            ...s.ui,
-            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-            focusDate: weekStart,
-            recenterToken: s.ui.recenterToken + 1,
-          },
-        }
-      }),
-    goToDate: (date) =>
-      set((s) => {
-        // The date picker now snaps to the week start so the grid's left edge always lands on a
-        // week boundary (mirrors goToToday). The date input shows the snapped Monday, since it's
-        // value={focusDate}.
-        const account = s.activeAccountId ? s.data.accounts.find((a) => a.id === s.activeAccountId) : null
-        const wso = account?.weekStartsOn ?? 1
-        const weekStart = startOfWeekISO(date, wso)
-        return {
-          ui: {
-            ...s.ui,
-            originDate: addDaysISO(weekStart, -PAST_BUFFER_DAYS),
-            focusDate: weekStart,
-            recenterToken: s.ui.recenterToken + 1,
-          },
-        }
-      }),
-    setDrawMode: (mode) => set((s) => ({ ui: { ...s.ui, drawMode: mode } })),
-    selectAllocation: (id) => set((s) => ({ ui: { ...s.ui, selectedAllocationId: id } })),
-    setFilters: (patch) =>
-      set((s) => {
-        const next: Filters = { ...s.ui.filters, ...patch }
-        // Standalone-lens rule, enforced in ONE tamper-proof place: client/project and the activity
-        // lens (activityId/activityKind) are mutually-exclusive "what work" views. Setting one to a real
-        // value clears the other (search, discipline and the toggles stay independent). Keyed on
-        // a truthy value in the PATCH so clearing a filter to null never wipes the opposite lens.
-        if (patch.activityId || patch.activityKind) {
-          next.clientId = null
-          next.projectId = null
-        }
-        if (patch.clientId || patch.projectId) {
-          next.activityId = null
-          next.activityKind = null
-        }
-        return { ui: { ...s.ui, filters: next } }
-      }),
-    clearFilters: () => set((s) => ({ ui: { ...s.ui, filters: emptyFilters() } })),
-    toggleGroup: (key) =>
-      set((s) => ({
-        ui: {
-          ...s.ui,
-          collapsedGroups: s.ui.collapsedGroups.includes(key)
-            ? s.ui.collapsedGroups.filter((k) => k !== key)
-            : [...s.ui.collapsedGroups, key],
-        },
-      })),
-    // Transient UI (NOT mutate): clears filters so the row is visible, then bumps
-    // scrollToResource so SchedulerGrid's effect scrolls the row into view.
-    jumpToResource: (id) =>
-      set((s) => ({
-        ui: {
-          ...s.ui,
-          filters: emptyFilters(),
-          scrollToResource: { id, token: (s.ui.scrollToResource?.token ?? 0) + 1 },
-        },
-      })),
   }
 })

@@ -10,37 +10,49 @@ import { applyOps, diffOps } from './syncOps'
 // container (and is trivially testable). attachPersistence debounce-saves on
 // every data change; bootstrap loads (and seeds only on a genuine first run).
 
-// The attached orchestrator's refreshActive, registered (server mode only) so OUT-OF-BAND server
-// writers — the lifecycle hook's archive/delete/purge routes — can reuse the exact
-// flush-pending → await-in-flight → token-guarded reload sequence instead of hand-rolling
-// loadAll+replaceAll, which would silently replace a still-debounced edit AND re-seed the adapter
-// snapshot under it (the retry then diffs to zero ops — permanent data loss). Null when no
-// orchestrator is attached (demo build, unit tests).
-let registeredRefreshActive: ((id: string) => Promise<'reloaded' | 'skipped' | 'failed'>) | null = null
+interface PersistenceRegistration {
+  refreshActive?: (id: string) => Promise<'reloaded' | 'skipped' | 'failed'>
+  flushPending?: () => Promise<boolean>
+  suspendWrites?: () => (opts?: { dropParkedEdits?: boolean }) => void
+  hasUnsavedWrites: () => boolean
+}
 
-// The orchestrator's flush-pending seam (server mode only), registered alongside refreshActive so
-// an out-of-band writer that is about to make the local state OBSOLETE (the server-mode import —
-// an atomic whole-slice replacement) can first land any still-debounced edits against the
-// PRE-replacement state, in order, instead of having the post-replacement reload's own entry
-// flush push pre-replacement rows into the freshly imported slice.
-let registeredFlushPending: (() => Promise<boolean>) | null = null
+/**
+ * One owner for the currently attached persistence lifecycle. Public seams delegate to this
+ * instance instead of coordinating four independent module-global callbacks.
+ */
+class PersistenceCoordinator {
+  private registration: PersistenceRegistration | null = null
 
-// The orchestrator's write-suspension seam (server mode only). While suspended, edits are PARKED
-// (recorded in `pending`, never sent): an out-of-band whole-slice replacement (the server-mode
-// import) uses it so an edit made while the import POST is in flight can neither land just before
-// the import (and be silently wiped by it) nor be flushed by the post-import reload's entry
-// sequence against the PRE-import snapshot (which would upsert stale rows into the freshly
-// imported slice — the import remaps ids, so the stale row inserts cleanly, no 409). A parked
-// edit is rebased onto a successfully reloaded slice, re-scheduled when the operation failed before
-// touching the slice, or dropped + surfaced by resume itself only when the
-// caller reports the slice WAS replaced but no reload reseeded the snapshot (dropParkedEdits).
-// refreshActive also suspends around its own whole sequence for the same reasons.
-let registeredSuspendWrites: (() => (opts?: { dropParkedEdits?: boolean }) => void) | null = null
-let registeredHasUnsavedWrites: (() => boolean) | null = null
+  attach(registration: PersistenceRegistration): () => void {
+    this.registration = registration
+    return () => {
+      if (this.registration === registration) this.registration = null
+    }
+  }
+
+  hasUnsavedWrites(): boolean {
+    return this.registration?.hasUnsavedWrites() ?? false
+  }
+
+  suspendWrites(): (opts?: { dropParkedEdits?: boolean }) => void {
+    return this.registration?.suspendWrites?.() ?? (() => {})
+  }
+
+  async flushPending(): Promise<boolean> {
+    return this.registration?.flushPending?.() ?? true
+  }
+
+  async refreshActive(id: string): Promise<RefreshOutcome> {
+    return this.registration?.refreshActive?.(id) ?? 'unattached'
+  }
+}
+
+const persistenceCoordinator = new PersistenceCoordinator()
 
 /** Live, synchronous guard for beforeunload/UI decisions. */
 export function hasUnsavedPersistenceWrites(): boolean {
-  return registeredHasUnsavedWrites?.() ?? false
+  return persistenceCoordinator.hasUnsavedWrites()
 }
 
 /**
@@ -60,8 +72,7 @@ export function hasUnsavedPersistenceWrites(): boolean {
  * local, undoable store operation with no write pipeline to race.
  */
 export function suspendServerWrites(): (opts?: { dropParkedEdits?: boolean }) => void {
-  if (!registeredSuspendWrites) return () => {}
-  return registeredSuspendWrites()
+  return persistenceCoordinator.suspendWrites()
 }
 
 /**
@@ -86,8 +97,7 @@ export type RefreshOutcome = 'reloaded' | 'skipped' | 'failed' | 'unattached'
  *          (demo build / tests): there is no debounce state to flush.
  */
 export async function flushPendingWrites(): Promise<boolean> {
-  if (!registeredFlushPending) return true
-  return registeredFlushPending()
+  return persistenceCoordinator.flushPending()
 }
 
 /**
@@ -116,8 +126,7 @@ export class ReloadDiscardedEditError extends Error {
  *          and 'failed' mean the store still holds the PRE-operation slice.
  */
 export async function refreshActiveAccountSlice(id: string): Promise<RefreshOutcome> {
-  if (!registeredRefreshActive) return 'unattached'
-  return registeredRefreshActive(id)
+  return persistenceCoordinator.refreshActive(id)
 }
 
 /**
@@ -698,7 +707,6 @@ export function attachPersistence(
   // the store directly and never reload. abortIfSaveFailed for the same reason as focus-refresh:
   // a post-lifecycle reload is a convenience re-hydrate, never worth destroying un-persisted edits.
   const myRegisteredRefresh = serverMode ? (id: string) => refreshActive(id, { abortIfSaveFailed: true }) : null
-  if (myRegisteredRefresh) registeredRefreshActive = myRegisteredRefresh
 
   // Flush-pending seam for out-of-band whole-slice writers (the server-mode import): land any
   // still-debounced edit against the CURRENT state, in order, and report whether writes are clean.
@@ -724,15 +732,17 @@ export function attachPersistence(
         return !failedSinceSuccess && unacknowledged === null
       }
     : null
-  if (myRegisteredFlush) registeredFlushPending = myRegisteredFlush
-
   // Write-suspension seam (see suspendServerWrites' doc for the resume contract) — the EXTERNAL
   // variant of beginSuspension, registered for the server-mode import.
   const myRegisteredSuspend = serverMode ? () => beginSuspension(true) : null
-  if (myRegisteredSuspend) registeredSuspendWrites = myRegisteredSuspend
   const myRegisteredHasUnsaved = () =>
     unacknowledged !== null || pending !== null || inFlightSave !== null || failedSinceSuccess
-  registeredHasUnsavedWrites = myRegisteredHasUnsaved
+  const unregisterCoordinator = persistenceCoordinator.attach({
+    ...(myRegisteredRefresh ? { refreshActive: myRegisteredRefresh } : {}),
+    ...(myRegisteredFlush ? { flushPending: myRegisteredFlush } : {}),
+    ...(myRegisteredSuspend ? { suspendWrites: myRegisteredSuspend } : {}),
+    hasUnsavedWrites: myRegisteredHasUnsaved,
+  })
 
   const onPageHide = () => flushOnUnload()
   const onVisibility = () => {
@@ -759,11 +769,7 @@ export function attachPersistence(
     unsubscribe()
     unsubscribeExternal?.()
     unsubscribeSwitch?.()
-    // Unregister only if still OURS — a newer attachPersistence may have replaced the registration.
-    if (myRegisteredRefresh && registeredRefreshActive === myRegisteredRefresh) registeredRefreshActive = null
-    if (myRegisteredFlush && registeredFlushPending === myRegisteredFlush) registeredFlushPending = null
-    if (myRegisteredSuspend && registeredSuspendWrites === myRegisteredSuspend) registeredSuspendWrites = null
-    if (registeredHasUnsavedWrites === myRegisteredHasUnsaved) registeredHasUnsavedWrites = null
+    unregisterCoordinator()
     if (canListen) {
       window.removeEventListener('pagehide', onPageHide)
       window.removeEventListener('online', onOnline)

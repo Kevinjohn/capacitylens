@@ -1,4 +1,4 @@
-import type { AppData, Entity } from '@capacitylens/shared/types/entities'
+import { APP_DATA_WRITE_ORDER, type AppData, type Entity } from '@capacitylens/shared/types/entities'
 
 // The pure diff/apply core of server sync, extracted from ServerSyncAdapter so the
 // snapshot-to-REST-ops logic can be read and tested in isolation from the network
@@ -8,25 +8,9 @@ import type { AppData, Entity } from '@capacitylens/shared/types/entities'
 // Deletes use the reverse (child-before-parent). The emitted batch runs ALL upserts
 // before ALL deletes — see diffOps for why (a reparent's new binding must land before
 // the old parent's delete cascades).
-const UPSERT_ORDER = [
-  'accounts',
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'timeOff',
-] as const
+const UPSERT_ORDER = APP_DATA_WRITE_ORDER
 
 type TableKey = (typeof UPSERT_ORDER)[number]
-
-// Exhaustiveness: every AppData key must appear in UPSERT_ORDER and vice versa.
-// Adding a table to AppData without adding it here fails to compile.
-type _MissingFromOrder = Exclude<keyof AppData, TableKey>
-const _orderComplete: _MissingFromOrder extends never ? true : never = true
-void _orderComplete
 
 export interface Op {
   method: 'PUT' | 'DELETE'

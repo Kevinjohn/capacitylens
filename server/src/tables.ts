@@ -1,16 +1,15 @@
 import type {
   Account,
   Allocation,
-  AppData,
   Client,
   Discipline,
   Phase,
   Project,
   Resource,
-  ScopedEntityKey,
   Activity,
   TimeOff,
 } from '@capacitylens/shared/types/entities'
+import { APP_DATA_WRITE_ORDER, SCOPED_WRITE_ORDER } from '@capacitylens/shared/types/entities'
 
 // The single source of truth for the SQL schema and the row<->object mapping. One
 // entry per AppData table. `columns` is the exact column order used for INSERT and
@@ -221,43 +220,8 @@ export const TABLES: Record<string, TableSpec> = {
 // Parent-before-child order for creates/updates. Deletes use the reverse so a child
 // is always removed before its parent (and the DB's ON DELETE handles any overlap
 // with the store's own cascade, which arrives as idempotent deletes).
-export const CREATE_ORDER = [
-  'accounts',
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'timeOff',
-] as const
-
-type CreateOrderKey = (typeof CREATE_ORDER)[number]
-
-// Exhaustiveness: every AppData key must appear in CREATE_ORDER.
-// Adding a table to AppData without updating CREATE_ORDER fails to compile.
-type _MissingFromCreateOrder = Exclude<keyof AppData, CreateOrderKey>
-const _createOrderComplete: _MissingFromCreateOrder extends never ? true : never = true
-void _createOrderComplete
-
-export const SCOPED_ORDER: ScopedEntityKey[] = [
-  'clients',
-  'disciplines',
-  'projects',
-  'phases',
-  'resources',
-  'activities',
-  'allocations',
-  'timeOff',
-]
-
-// Exhaustiveness: every ScopedEntityKey must appear in SCOPED_ORDER.
-// Adding a scoped table without updating SCOPED_ORDER fails to compile.
-type ScopedOrderKey = (typeof SCOPED_ORDER)[number]
-type _MissingFromScopedOrder = Exclude<ScopedEntityKey, ScopedOrderKey>
-const _scopedOrderComplete: _MissingFromScopedOrder extends never ? true : never = true
-void _scopedOrderComplete
+export const CREATE_ORDER = APP_DATA_WRITE_ORDER
+export const SCOPED_ORDER = SCOPED_WRITE_ORDER
 
 // DDL. Foreign keys mirror src/lib/integrity.ts cascade rules exactly:
 //   resource → allocations/timeOff : CASCADE        (deleteResourceCascade)

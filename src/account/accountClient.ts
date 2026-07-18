@@ -39,7 +39,8 @@ async function payloadOperationKey(operation: string, body: unknown): Promise<st
 export async function accountCommandOutcomeUnknown(response: Response): Promise<boolean> {
   if (response.status >= 500) return true
   if (response.status !== 409) return false
-  const body = await response.clone().json().catch(() => null) as { code?: unknown } | null
+  const readable = typeof response.clone === 'function' ? response.clone() : response
+  const body = await readable.json().catch(() => null) as { code?: unknown } | null
   return body?.code === 'COMMAND_IN_PROGRESS'
 }
 

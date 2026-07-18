@@ -10,6 +10,7 @@ import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
 import { cn } from '@/lib/utils'
 import { m } from '@/i18n'
 import type { Weekday } from '@capacitylens/shared/types/entities'
+import { useMarkFormDirty } from './formDirty'
 
 // Form fields slice of the shared kit (re-exported from ./ui). The text/number/date
 // fields and the textarea are built on shadcn's Input/Textarea (../ui); the SelectField
@@ -81,6 +82,7 @@ export function SwitchField({
   onChange: (checked: boolean) => void
   disabled?: boolean
 }) {
+  const markDirty = useMarkFormDirty()
   const descriptionId = useId()
   return (
     <div className="flex items-center justify-between gap-4 py-1">
@@ -91,10 +93,11 @@ export function SwitchField({
       <button
         type="button"
         role="switch"
+        data-form-dirty-managed
         aria-checked={checked}
         aria-label={label}
         aria-describedby={description ? descriptionId : undefined}
-        onClick={() => onChange(!checked)}
+        onClick={() => { markDirty(); onChange(!checked) }}
         disabled={disabled}
         className={cn(
           'relative h-6 w-10 shrink-0 rounded-full transition disabled:opacity-60',
@@ -364,6 +367,7 @@ export function ColorField({
   invalid?: boolean
   describedById?: string
 }) {
+  const markDirty = useMarkFormDirty()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -472,14 +476,17 @@ export function ColorField({
                     key={hex}
                     type="button"
                     aria-label={swatchLabel(i)}
-                    // aria-pressed both conveys selection and lets the Modal's dirty-guard
-                    // register the pick as an edit (a plain button click fires no change).
+                    // aria-pressed conveys selection; the explicit context signal below registers
+                    // only a real value change, while the marker prevents Modal's raw-toggle
+                    // compatibility fallback from treating the selected swatch as an edit.
+                    data-form-dirty-managed
                     aria-pressed={selected}
                     onClick={() => {
+                      if (!selected) markDirty()
                       onChange(hex)
                       setOpen(false)
                     }}
-                    className={`h-6 w-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110 ${
+                    className={`size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110 ${
                       selected ? 'outline outline-2 outline-offset-1 outline-brand-strong' : ''
                     }`}
                     style={{ backgroundColor: hex }}
@@ -535,7 +542,9 @@ export function WeekdayPicker({
   invalid?: boolean
   describedById?: string
 }) {
+  const markDirty = useMarkFormDirty()
   const toggle = (day: Weekday) => {
+    markDirty()
     onChange(value.includes(day) ? value.filter((d) => d !== day) : [...value, day])
   }
   return (
@@ -554,6 +563,7 @@ export function WeekdayPicker({
             <button
               key={day}
               type="button"
+              data-form-dirty-managed
               aria-label={dl}
               aria-pressed={on}
               onClick={() => toggle(day)}

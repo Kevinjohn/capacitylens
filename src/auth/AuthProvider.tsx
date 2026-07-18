@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExtern
 import type { ReactNode } from 'react'
 import { isServerConfigured } from '../data/apiConfig'
 import { accountClient } from '../account/accountClient'
+import { publicAuthEntryForPath } from './authEntryRoute'
 import { useStore } from '../store/useStore'
 import { AuthContext, type AuthMode, type AuthProviderInfo, type AuthUser } from './authContext'
 import { validateAuthUser } from './validateAuthUser'
@@ -393,6 +394,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
   }
   if (status.kind === 'login') {
+    const publicEntry = publicAuthEntryForPath(window.location.pathname)
     // Pre-session carve-out (P1.18): /reset-password/:token must render WITHOUT a session — the
     // visitor redeeming an admin-issued reset link is exactly the person who cannot sign in (the
     // login wall would be a dead end). The page is as safe as LoginScreen itself: it renders no
@@ -407,12 +409,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // `/reset-password/<token>/extra`) matches NO route, so carving it out of the wall would drop the
     // visitor onto React Router's bare 404 dead-end; failing the match here instead keeps the login
     // wall as the fallback (a styled screen with a way in), which is the safer degrade.
-    if (/^\/reset-password\/[^/]+$/.test(window.location.pathname)) return <>{children}</>
+    if (publicEntry === 'password-reset') return <>{children}</>
     // Invite onboarding must render before a session exists. Password mode offers the token-scoped
     // credential flow; SSO mode initiates the configured provider with this invite URL as its
     // callback, then reviews and explicitly accepts after the authenticated reload. Neither path
     // exposes tenant data before the invitation is consumed.
-    if (/^\/invite\/[^/]+$/.test(window.location.pathname)) {
+    if (publicEntry === 'invitation') {
       // Invite signup consumes the token before the new session exists. Give the pre-session route
       // a real refreshAuth so it can verify the freshly-created session and destination before a
       // fresh authenticated boot re-attaches tenant persistence. No tenant data is exposed: user

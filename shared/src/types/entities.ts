@@ -221,6 +221,26 @@ export interface AppData {
   timeOff: TimeOff[]
 }
 
+/** Every logical AppData table, independent of persistence implementation. Keep this list in
+ * dependency-neutral shape order; use APP_DATA_WRITE_ORDER when parent/child ordering matters. */
+export const APP_DATA_KEYS = [
+  'accounts',
+  'disciplines',
+  'resources',
+  'clients',
+  'projects',
+  'phases',
+  'activities',
+  'allocations',
+  'timeOff',
+] as const satisfies readonly (keyof AppData)[]
+
+export type AppDataKey = (typeof APP_DATA_KEYS)[number]
+
+type MissingAppDataKey = Exclude<keyof AppData, AppDataKey>
+const appDataKeysAreComplete: MissingAppDataKey extends never ? true : never = true
+void appDataKeysAreComplete
+
 /** The AppData arrays holding account-scoped entities (everything except `accounts`). */
 export type ScopedEntityKey =
   | 'disciplines'
@@ -242,6 +262,44 @@ export const SCOPED_KEYS: ScopedEntityKey[] = [
   'allocations',
   'timeOff',
 ]
+
+/** Parent-before-child order for writes; reverse it for child-before-parent deletion. This is a
+ * domain relationship graph shared by the browser diff engine and SQLite adapter, not SQL DDL. */
+export const APP_DATA_WRITE_ORDER = [
+  'accounts',
+  'clients',
+  'disciplines',
+  'projects',
+  'phases',
+  'resources',
+  'activities',
+  'allocations',
+  'timeOff',
+] as const satisfies readonly AppDataKey[]
+
+/** Scoped subset of APP_DATA_WRITE_ORDER, retained as a named value because scope membership and
+ * dependency order are different concepts (SCOPED_KEYS intentionally carries no ordering promise). */
+export const SCOPED_WRITE_ORDER = [
+  'clients',
+  'disciplines',
+  'projects',
+  'phases',
+  'resources',
+  'activities',
+  'allocations',
+  'timeOff',
+] as const satisfies readonly ScopedEntityKey[]
+
+type MissingAppDataWriteKey = Exclude<AppDataKey, (typeof APP_DATA_WRITE_ORDER)[number]>
+type ExtraAppDataWriteKey = Exclude<(typeof APP_DATA_WRITE_ORDER)[number], AppDataKey>
+const appDataWriteOrderIsComplete: MissingAppDataWriteKey extends never
+  ? ExtraAppDataWriteKey extends never ? true : never
+  : never = true
+void appDataWriteOrderIsComplete
+
+type MissingScopedWriteKey = Exclude<ScopedEntityKey, (typeof SCOPED_WRITE_ORDER)[number]>
+const scopedWriteOrderIsComplete: MissingScopedWriteKey extends never ? true : never = true
+void scopedWriteOrderIsComplete
 
 /** A uniform `ScopedEntity[]` view of AppData's scoped tables. The SCOPED_KEYS
  *  loops (scope-to-account, cascade-delete, import) process every scoped table as

@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { isServerConfigured } from '../../data/apiConfig'
 import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
-import { readApiError } from '../../lib/readApiError'
 import { Button, ConfirmDialog, FieldError, SelectField } from '../common/ui'
 import { m } from '@/i18n'
 import {
@@ -12,14 +11,19 @@ import {
   canRemoveMember,
   type Role,
 } from '@capacitylens/shared/domain/access'
-import { isAccountRole, type InvitationRole } from '@capacitylens/shared/account/types'
-import { accountClient, accountCommandOutcomeUnknown } from '../../account/accountClient'
+import type { InvitationRole } from '@capacitylens/shared/account/types'
+import {
+  teamAccessClient,
+  type TeamInvitation,
+  type TeamMember,
+} from '../../account/teamAccessClient'
 import { MAX_EMAIL_LENGTH } from '@capacitylens/shared/lib/strings'
 import { roleLabel, roleSummary } from '../../lib/accessCopy'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { refreshActiveAccountSlice } from '../../data/persist'
 import { offlineStateSnapshot } from '../../data/offlineCache'
 import { useOfflineState } from '../../data/useOfflineState'
+import { useTeamDirectory } from './useTeamDirectory'
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
@@ -29,81 +33,7 @@ import { useOfflineState } from '../../data/useOfflineState'
 // initial members fetch is what hides the whole section for a viewer/editor). The invite TOKEN is
 // shown exactly ONCE, straight from the create response — it is write-once and never read back.
 
-interface Member {
-  userId: string
-  role: Role
-  status: string
-  createdAt: string
-  name: string | null
-  email: string | null
-  isSelf: boolean
-  // Whether the actor may mint a password-reset link for this member — SERVER-computed (it folds in
-  // the cross-account + self-exemption checks a per-account pure guard can't see, and is `false` in
-  // SSO mode). Trusting the server here keeps the client button from drifting into offering a reset
-  // the server will always 403 (e.g. a member who owns another account).
-  mayResetPassword: boolean
-  mayRevokeSessions: boolean
-}
-
-interface InviteSummary {
-  id: string
-  role: InvitationRole
-  preauthEmail: string | null
-  expiresAt: string
-  usedAt: string | null
-  createdAt: string
-}
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === 'object' && !Array.isArray(value)
-const isTimestamp = (value: unknown): value is string =>
-  typeof value === 'string' && Number.isFinite(Date.parse(value))
-
-function parseMembers(value: unknown): Member[] | null {
-  if (!isRecord(value) || !Array.isArray(value.members)) return null
-  for (const row of value.members) {
-    if (
-      !isRecord(row) ||
-      typeof row.userId !== 'string' || row.userId.length === 0 ||
-      !isAccountRole(row.role) ||
-      row.status !== 'active' ||
-      !isTimestamp(row.createdAt) ||
-      !(row.name === null || typeof row.name === 'string') ||
-      !(row.email === null || typeof row.email === 'string') ||
-      typeof row.isSelf !== 'boolean' ||
-      typeof row.mayResetPassword !== 'boolean' ||
-      typeof row.mayRevokeSessions !== 'boolean'
-    ) return null
-  }
-  return value.members as Member[]
-}
-
-function parseInvites(value: unknown): InviteSummary[] | null {
-  if (!isRecord(value) || !Array.isArray(value.invites)) return null
-  for (const row of value.invites) {
-    if (
-      !isRecord(row) ||
-      typeof row.id !== 'string' || row.id.length === 0 ||
-      !isAccountRole(row.role) || row.role === 'owner' ||
-      !(row.preauthEmail === null || typeof row.preauthEmail === 'string') ||
-      !isTimestamp(row.expiresAt) ||
-      !(row.usedAt === null || isTimestamp(row.usedAt)) ||
-      !isTimestamp(row.createdAt)
-    ) return null
-  }
-  return value.invites as InviteSummary[]
-}
-
-function parseTokenResponse(value: unknown): { id?: string; token: string; expiresAt?: string } | null {
-  if (!isRecord(value) || typeof value.token !== 'string' || value.token.length === 0) return null
-  if (value.id !== undefined && (typeof value.id !== 'string' || value.id.length === 0)) return null
-  if (value.expiresAt !== undefined && !isTimestamp(value.expiresAt)) return null
-  return {
-    ...(typeof value.id === 'string' ? { id: value.id } : {}),
-    token: value.token,
-    ...(typeof value.expiresAt === 'string' ? { expiresAt: value.expiresAt } : {}),
-  }
-}
+type Member = TeamMember
 
 // Each role's label is a GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS
 // pattern, P1.5.2): this list is module-scope, so resolving `m.key()` here would freeze the label to
@@ -131,7 +61,7 @@ function labelFor(m: Member): string {
  * password-reset link). Renders the `break-all` <code> + ghost copy Button once; the token behind the
  * link is never read back. Pass `intro` (a <p>) to prepend an explanatory line — the reset block uses
  * it to name WHO/when; the invite block omits it. Structure is intentionally two shapes (the intro
- * variant needs the outer `space-y-2` stack) so both call sites keep their exact prior markup.
+ * variant needs an outer vertical stack) so both call sites keep their exact prior markup.
  */
 function CopyableLinkBlock({
   link,
@@ -158,7 +88,7 @@ function CopyableLinkBlock({
   )
   if (intro) {
     return (
-      <div className="mb-4 space-y-2 rounded bg-canvas p-2">
+      <div className="mb-4 flex flex-col gap-2 rounded bg-canvas p-2">
         {intro}
         <div className="flex flex-wrap items-center gap-2">
           {code}
@@ -182,20 +112,25 @@ function CopyableLinkBlock({
  * stays outside ordinary role/removal controls). The server enforces all of it regardless.
  */
 export function MembersSection() {
+  const activeAccountId = useStore((s) => s.activeAccountId)
+  return (
+    <AccountMembersSection
+      key={activeAccountId ?? 'no-active-account'}
+      activeAccountId={activeAccountId}
+    />
+  )
+}
+
+/** Account-keyed implementation. Changing companies remounts this boundary, which discards
+ * account-local drafts, confirmations, action locks and write-once bearer links together. */
+function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
   const { authMode, refreshAuth } = useAuth()
   const offline = useOfflineState()
-  const activeAccountId = useStore((s) => s.activeAccountId)
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   const setNotice = useStore((s) => s.setNotice)
   const invalidateMemberships = useStore((s) => s.invalidateMemberships)
   const { error, errorField, errorId, fail } = useFieldError()
-
-  const [members, setMembers] = useState<Member[] | null>(null)
-  const [invites, setInvites] = useState<InviteSummary[]>([])
-  // 'loading' = still loading / not yet decided; 'shown' = render the section; 'hidden' = a 403
-  // self-gated us out (render nothing).
-  const [gate, setGate] = useState<'loading' | 'shown' | 'hidden'>('loading')
 
   const [inviteRole, setInviteRole] = useState<InvitationRole>('editor')
   const [invitePreauth, setInvitePreauth] = useState('')
@@ -211,28 +146,39 @@ export function MembersSection() {
   >(null)
   const [transferTarget, setTransferTarget] = useState<Member | null>(null)
   const [roleChange, setRoleChange] = useState<{ member: Member; nextRole: Role } | null>(null)
-  // Bumped after every mutation to re-run the fetch effect (a re-read keeps the list authoritative).
-  const [reloadKey, setReloadKey] = useState(0)
-  const requestGeneration = useRef(0)
-  const actionLock = useRef<string | null>(null)
-  const [busyAction, setBusyAction] = useState<string | null>(null)
+  const reconcileMintedInvite = useCallback((nextInvites: TeamInvitation[]) => {
+    setMintedLink((current) => (
+      current?.inviteId &&
+      !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
+        ? null
+        : current
+    ))
+  }, [])
 
   const enabled = authMode !== 'off' && isServerConfigured()
+  const {
+    members,
+    invites,
+    replaceDirectory,
+    gate,
+    reload,
+    busyAction,
+    beginAction,
+    endAction,
+  } = useTeamDirectory({
+    enabled,
+    activeAccountId,
+    offlineReadOnly: offline.readOnly,
+    fail,
+    onInvitesLoaded: reconcileMintedInvite,
+  })
   const requestAccountId = (): string => {
     if (!activeAccountId) throw new Error('No active account is available for this account operation.')
     return activeAccountId
   }
-  const reload = useCallback(() => setReloadKey((k) => k + 1), [])
-  const beginAction = (key: string): boolean => {
-    if (actionLock.current !== null) return false
-    actionLock.current = key
-    setBusyAction(key)
-    return true
-  }
-  const endAction = () => {
-    actionLock.current = null
-    setBusyAction(null)
-  }
+  const isActiveAccount = (accountId: string): boolean => (
+    useStore.getState().activeAccountId === accountId
+  )
   const closeActiveAccount = (): void => {
     if (useStore.getState().activeAccountId !== activeAccountId) return
     setActiveAccount(null)
@@ -249,7 +195,9 @@ export function MembersSection() {
     if (!accountId) return 'failed'
     invalidateMemberships()
     await refreshAuth()
+    if (!isActiveAccount(accountId)) return 'left'
     const summaries = await fetchAccountSummaries({ allowCachedFallback: false })
+    if (!isActiveAccount(accountId)) return 'left'
     // A cached fallback is useful for ordinary offline viewing but is not evidence of the caller's
     // post-mutation role. Fail closed instead of accepting a stale membership list as authority.
     if (summaries === null || offlineStateSnapshot().readOnly) {
@@ -264,13 +212,13 @@ export function MembersSection() {
       return 'left'
     }
     const outcome = await refreshActiveAccountSlice(accountId)
+    if (!isActiveAccount(accountId)) return 'left'
     // `refreshActiveAccountSlice` can report `reloaded` after restoring an offline snapshot. That is
     // still not an authoritative post-role projection: close the tenant so confidential fields
     // from the caller's previous role cannot remain visible under an unverified role badge.
     if (outcome === 'reloaded' && !offlineStateSnapshot().readOnly) return 'active'
     // A user-initiated tenant switch can legitimately supersede this refresh. Never close the new
     // tenant or replace its notice because a stale operation finished late.
-    if (useStore.getState().activeAccountId !== accountId) return 'left'
     closeActiveAccount()
     setNotice(m.settings_members_access_refresh_failed(), 'error')
     return 'failed'
@@ -280,23 +228,27 @@ export function MembersSection() {
     message: string,
     { callerAccessMayHaveChanged = false }: { callerAccessMayHaveChanged?: boolean } = {},
   ): Promise<void> => {
+    const accountId = requestAccountId()
+    if (!isActiveAccount(accountId)) return
     const accessResult = callerAccessMayHaveChanged ? await refreshCallerAccess() : null
+    if (!isActiveAccount(accountId)) return
     if (accessResult === 'failed') return
     if (accessResult === 'left') {
       setNotice(`${message} Your company access was refreshed; verify the result before retrying.`, 'warning')
       return
     }
     try {
-      const [memberResponse, inviteResponse] = await Promise.all([
-        accountClient.listMembers(requestAccountId()),
-        accountClient.listInvitations(requestAccountId()),
+      const [memberResult, inviteResult] = await Promise.all([
+        teamAccessClient.listMembers(accountId),
+        teamAccessClient.listInvitations(accountId),
       ])
-      if (!memberResponse.ok || !inviteResponse.ok) throw new Error('The authoritative lists could not be reloaded.')
-      const nextMembers = parseMembers(await memberResponse.json())
-      const nextInvites = parseInvites(await inviteResponse.json())
-      if (!nextMembers || !nextInvites) throw new Error('The authoritative lists were malformed.')
-      setMembers(nextMembers)
-      setInvites(nextInvites)
+      if (!isActiveAccount(accountId)) return
+      if (memberResult.kind !== 'ok' || inviteResult.kind !== 'ok') {
+        throw new Error('The authoritative lists could not be reloaded.')
+      }
+      const nextMembers = memberResult.value
+      const nextInvites = inviteResult.value
+      replaceDirectory(nextMembers, nextInvites)
       setMintedLink((current) => (
         current?.inviteId &&
         !nextInvites.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
@@ -305,6 +257,7 @@ export function MembersSection() {
       ))
       setNotice(`${message} Memberships and invites were reloaded; verify the result before retrying.`, 'warning')
     } catch (reloadError) {
+      if (!isActiveAccount(accountId)) return
       if (accessResult === 'active') {
         setNotice(`${message} Your access was refreshed; verify the result before retrying.`, 'warning')
       } else {
@@ -313,88 +266,42 @@ export function MembersSection() {
     }
   }
 
-  // Fetch (and re-fetch on reloadKey) the members + invites. The setState calls live inside the async
-  // IIFE — behind an `await` — never synchronously in the effect body (the InviteAccept idiom), so
-  // there's no cascading-render setState-in-effect. A 403 on the members read self-gates the section.
-  useEffect(() => {
-    // TeamAccessView keeps this component mounted while its controls are hidden so a freshly minted
-    // write-once link survives a transient role recheck. Do not issue privileged directory reads
-    // while the whole app is on a cached offline slice; recovery re-runs this effect and refreshes
-    // the retained state before the wrapper becomes visible again.
-    if (!enabled || !activeAccountId || offline.readOnly) return
-    const generation = ++requestGeneration.current
-    let cancelled = false
-    const current = () => !cancelled && requestGeneration.current === generation
-    void (async () => {
-      try {
-        const res = await accountClient.listMembers(activeAccountId)
-        if (res.status === 403) {
-          if (!current()) return
-          setGate('hidden') // a viewer/editor (or non-member) — hide the whole section.
-          return
-        }
-        if (!res.ok) {
-          if (!current()) return
-          setGate('shown')
-          fail(null, m.settings_members_err_load({ status: res.status }))
-          return
-        }
-        const membersBody = parseMembers(await res.json())
-        if (!current()) return
-        if (!membersBody) throw new Error('The server returned an invalid members response.')
-        setMembers(membersBody)
-        setGate('shown')
-        // Invites are a separate, also-gated read; failure there is non-fatal to the member list.
-        const invRes = await accountClient.listInvitations(activeAccountId)
-        if (!invRes.ok) {
-          if (!current()) return
-          const message = (await readApiError(invRes)) ?? m.settings_members_err_load({ status: invRes.status })
-          if (!current()) return
-          fail(null, message)
-          return
-        }
-        const invitesBody = parseInvites(await invRes.json())
-        if (!current()) return
-        if (!invitesBody) throw new Error('The server returned an invalid invites response.')
-        setInvites(invitesBody)
-        setMintedLink((current) => (
-          current?.inviteId &&
-          !invitesBody.some((invite) => invite.id === current.inviteId && invite.usedAt === null)
-            ? null
-            : current
-        ))
-      } catch (e) {
-        if (!current()) return
-        // A transport error (server down/offline) — surface it; do not swallow.
-        setGate('shown')
-        fail(null, m.settings_err_server({ error: errorMessage(e) }))
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [enabled, activeAccountId, reloadKey, fail, offline.readOnly])
 
   if (!enabled) return null // OFF / demo build: the section does not exist.
-  if (gate === 'hidden') return null // a 403 self-gated us out (viewer/editor/non-member).
+  // Privileged controls stay fail-closed until the current account's members read authorizes this
+  // section. A 403 remains hidden, and a switch cannot briefly expose the next account's form while
+  // its authorization request is still pending.
+  if (gate === 'loading' || gate === 'hidden') return null
+  if (gate === 'error') {
+    return (
+      <section className="rounded border border-line bg-surface p-4" data-testid="members-section">
+        <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_members_heading()}</h2>
+        <FieldError id={errorId}>{error}</FieldError>
+      </section>
+    )
+  }
 
   const myRole = members?.find((m) => m.isSelf)?.role
   // NB: the param is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2); a
   // `m: Member` param would shadow it and break the `m.settings_*()` calls in this scope.
   const changeRole = async (mem: Member, nextRole: Role) => {
     if (nextRole === mem.role) return
+    const accountId = requestAccountId()
     if (!beginAction(`role:${mem.userId}`)) return
     try {
-      const res = await accountClient.changeMemberRole(requestAccountId(), mem.userId, nextRole)
-      if (!res.ok) {
-        if (await accountCommandOutcomeUnknown(res)) {
+      const result = await teamAccessClient.changeMemberRole(accountId, mem.userId, nextRole)
+      if (!isActiveAccount(accountId)) return
+      if (result.kind !== 'ok') {
+        if (result.kind === 'unknown') {
           await reconcileUnknownMutation(
             'The role change had an unknown outcome.',
             { callerAccessMayHaveChanged: mem.isSelf },
           )
           return
         }
-        fail(null, (await readApiError(res)) ?? m.settings_members_err_change_role({ status: res.status }))
+        fail(null, result.kind === 'rejected' && result.message
+          ? result.message
+          : m.settings_members_err_change_role({ status: result.status }))
         return
       }
       setNotice(m.settings_members_role_updated())
@@ -416,18 +323,22 @@ export function MembersSection() {
 
   // NB: the param is `mem`, NOT `m` — see changeRole above (`m` is the i18n catalogue, not a Member).
   const removeMember = async (mem: Member) => {
+    const accountId = requestAccountId()
     if (!beginAction(`remove:${mem.userId}`)) return
     try {
-      const res = await accountClient.removeMember(requestAccountId(), mem.userId)
-      if (!res.ok) {
-        if (await accountCommandOutcomeUnknown(res)) {
+      const result = await teamAccessClient.removeMember(accountId, mem.userId)
+      if (!isActiveAccount(accountId)) return
+      if (result.kind !== 'ok') {
+        if (result.kind === 'unknown') {
           await reconcileUnknownMutation(
             'The member removal had an unknown outcome.',
             { callerAccessMayHaveChanged: mem.isSelf },
           )
           return
         }
-        fail(null, (await readApiError(res)) ?? m.settings_members_err_remove({ status: res.status }))
+        fail(null, result.kind === 'rejected' && result.message
+          ? result.message
+          : m.settings_members_err_remove({ status: result.status }))
         return
       }
       setNotice(m.settings_members_removed())
@@ -448,18 +359,22 @@ export function MembersSection() {
   // Transfer ownership to `mem` and step the caller down to admin (server-atomic, owner-only). The
   // confirmation makes the loss of Owner authority explicit; only the new owner can hand it back.
   const transferOwnership = async (mem: Member) => {
+    const accountId = requestAccountId()
     if (!beginAction(`transfer:${mem.userId}`)) return
     try {
-      const res = await accountClient.transferOwnership(requestAccountId(), mem.userId)
-      if (!res.ok) {
-        if (await accountCommandOutcomeUnknown(res)) {
+      const result = await teamAccessClient.transferOwnership(accountId, mem.userId)
+      if (!isActiveAccount(accountId)) return
+      if (result.kind !== 'ok') {
+        if (result.kind === 'unknown') {
           await reconcileUnknownMutation(
             'The ownership transfer had an unknown outcome.',
             { callerAccessMayHaveChanged: true },
           )
           return
         }
-        fail(null, (await readApiError(res)) ?? m.settings_members_err_transfer({ status: res.status }))
+        fail(null, result.kind === 'rejected' && result.message
+          ? result.message
+          : m.settings_members_err_transfer({ status: result.status }))
         return
       }
       setNotice(m.settings_members_ownership_transferred())
@@ -487,21 +402,27 @@ export function MembersSection() {
   // hidden otherwise; the server 400s regardless). No email is ever sent — the admin copies the
   // link out of the write-once block below and hands it over directly. `mem` is NOT `m` (i18n).
   const resetPassword = async (mem: Member) => {
+    const accountId = requestAccountId()
     if (!beginAction(`reset:${mem.userId}`)) return
     setResetLink(null)
     try {
-      const res = await accountClient.issuePasswordReset(requestAccountId(), mem.userId)
-      if (res.status !== 201) {
-        if (await accountCommandOutcomeUnknown(res)) {
+      const result = await teamAccessClient.issuePasswordReset(accountId, mem.userId)
+      if (!isActiveAccount(accountId)) return
+      if (result.kind !== 'ok') {
+        if (result.kind === 'unknown') {
           await reconcileUnknownMutation(
             'The reset-token request had an unknown outcome. Its one-time value may be unavailable; retrying this same action will reconcile the original command.',
           )
           return
         }
-        fail(null, (await readApiError(res)) ?? m.settings_members_err_reset({ status: res.status }))
+        if (result.kind === 'invalid') {
+          await reconcileUnknownMutation('A reset token was minted but its one-time value was lost. Use the reset action again only to deliberately replace it.')
+          return
+        }
+        fail(null, result.message ?? m.settings_members_err_reset({ status: result.status }))
         return
       }
-      const body = parseTokenResponse(await res.json())
+      const body = result.value
       if (!body?.expiresAt) {
         await reconcileUnknownMutation('A reset token was minted but its one-time value was lost. Use the reset action again only to deliberately replace it.')
         return
@@ -524,11 +445,13 @@ export function MembersSection() {
   }
 
   const revokeSessions = async (mem: Member) => {
+    const accountId = requestAccountId()
     if (!beginAction(`sessions:${mem.userId}`)) return
     try {
-      const res = await accountClient.revokeMemberSessions(requestAccountId(), mem.userId)
-      if (res.status !== 204) {
-        if (await accountCommandOutcomeUnknown(res)) {
+      const result = await teamAccessClient.revokeMemberSessions(accountId, mem.userId)
+      if (!isActiveAccount(accountId)) return
+      if (result.kind !== 'ok') {
+        if (result.kind === 'unknown') {
           if (mem.isSelf) {
             // The command may have invalidated this browser's own session. Re-enter through the
             // auth wall; sessionStorage retains the command identity if an operator retries.
@@ -538,7 +461,9 @@ export function MembersSection() {
           await reconcileUnknownMutation('Session revocation had an unknown outcome.')
           return
         }
-        fail(null, (await readApiError(res)) ?? `Sessions could not be revoked (${res.status}).`)
+        fail(null, result.kind === 'rejected' && result.message
+          ? result.message
+          : `Sessions could not be revoked (${result.status}).`)
         return
       }
       setNotice('Active sessions revoked.')
@@ -557,6 +482,7 @@ export function MembersSection() {
   }
 
   const submitInvite = async () => {
+    const accountId = requestAccountId()
     setMintedLink(null)
     const trimmed = invitePreauth.trim()
     if (trimmed.length > MAX_EMAIL_LENGTH || (trimmed.length > 0 && !/^[^@\s]+@[^@\s]+$/.test(trimmed))) {
@@ -565,28 +491,29 @@ export function MembersSection() {
     }
     if (!beginAction('invite:create')) return
     try {
-      const res = await accountClient.createInvitation({
-          accountId: requestAccountId(),
+      const result = await teamAccessClient.createInvitation({
+          accountId,
           role: inviteRole,
           ...(trimmed ? { preauthEmail: trimmed } : {}),
       })
-      if (res.status !== 201) {
-        if (await accountCommandOutcomeUnknown(res)) {
+      if (!isActiveAccount(accountId)) return
+      if (result.kind !== 'ok') {
+        if (result.kind === 'unknown') {
           await reconcileUnknownMutation(
             'The invite creation had an unknown outcome. Revoke any new unknown invite before creating another.',
           )
           return
         }
-        fail('invite', (await readApiError(res)) ?? m.settings_members_err_create_invite({ status: res.status }))
+        if (result.kind === 'invalid') {
+          const message = 'An invite was created but its one-time link was lost. Revoke the unknown invite before creating a replacement.'
+          await reconcileUnknownMutation(message)
+          fail(null, message)
+          return
+        }
+        fail('invite', result.message ?? m.settings_members_err_create_invite({ status: result.status }))
         return
       }
-      const body = parseTokenResponse(await res.json())
-      if (!body) {
-        const message = 'An invite was created but its one-time link was lost. Revoke the unknown invite before creating a replacement.'
-        await reconcileUnknownMutation(message)
-        fail(null, message)
-        return
-      }
+      const body = result.value
       // The token is write-once: build + show the link straight from this response and never again.
       setMintedLink({
         inviteId: body.id ?? null,
@@ -603,15 +530,19 @@ export function MembersSection() {
   }
 
   const revokeInvite = async (id: string) => {
+    const accountId = requestAccountId()
     if (!beginAction(`invite:revoke:${id}`)) return
     try {
-      const res = await accountClient.revokeInvitation(requestAccountId(), id)
-      if (!res.ok) {
-        if (await accountCommandOutcomeUnknown(res)) {
+      const result = await teamAccessClient.revokeInvitation(accountId, id)
+      if (!isActiveAccount(accountId)) return
+      if (result.kind !== 'ok') {
+        if (result.kind === 'unknown') {
           await reconcileUnknownMutation('The invite revocation had an unknown outcome.')
           return
         }
-        fail(null, m.settings_members_err_revoke_invite({ status: res.status }))
+        fail(null, result.kind === 'rejected' && result.message
+          ? result.message
+          : m.settings_members_err_revoke_invite({ status: result.status }))
         return
       }
       setNotice(m.settings_members_invite_revoked())
@@ -625,17 +556,21 @@ export function MembersSection() {
   }
 
   const copyLink = (link: string, copiedNotice: string) => {
+    const accountId = requestAccountId()
+    const publishNotice = (message: string, tone?: 'error') => {
+      if (isActiveAccount(accountId)) setNotice(message, tone)
+    }
     // navigator.clipboard is undefined in insecure contexts (plain-HTTP self-hosts, some
     // WebViews). An optional chain there would short-circuit past BOTH .then callbacks —
     // a click that silently does nothing (the swallow DEFENSIVE-CODING.md forbids). Surface
     // the same failure notice instead; its wording already tells the user the manual fallback.
     if (!navigator.clipboard) {
-      setNotice(m.settings_members_copy_failed(), 'error')
+      publishNotice(m.settings_members_copy_failed(), 'error')
       return
     }
     void navigator.clipboard.writeText(link).then(
-      () => setNotice(copiedNotice),
-      () => setNotice(m.settings_members_copy_failed(), 'error'),
+      () => publishNotice(copiedNotice),
+      () => publishNotice(m.settings_members_copy_failed(), 'error'),
     )
   }
 
@@ -751,7 +686,7 @@ export function MembersSection() {
       )}
 
       {/* Invite form */}
-      <div className="mb-4 space-y-2 rounded border border-line p-3">
+      <div className="mb-4 flex flex-col gap-2 rounded border border-line p-3">
         <h3 className="text-xs font-semibold text-ink">{m.settings_invite_heading()}</h3>
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-32">

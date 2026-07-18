@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { useMarkFormDirty } from './formDirty'
 
 /** One selectable segment: the value it sets and the label shown on its button. */
 export type SegmentedOption<T> = { value: T; label: ReactNode }
@@ -16,9 +17,8 @@ export type SegmentedOption<T> = { value: T; label: ReactNode }
  *  - each radio is a plain, individually-focusable `<button type="button">` (no roving
  *    tabindex). That is load-bearing: ActivityForm's Kind control lives inside `Modal`, whose
  *    Tab-trap and unsaved-changes guard enumerate focusable buttons — making the unselected
- *    radios un-focusable (roving tabindex) would change that path. The radios are NOT
- *    `aria-pressed`, so (as today) clicking one does not trip the Modal dirty-guard; that guard
- *    watches input/change events and aria-pressed clicks, neither of which a radio fires.
+ *    radios un-focusable (roving tabindex) would change that path. The control explicitly signals
+ *    the enclosing form-dirty context because radio buttons do not emit input/change events.
  *  - identical Tailwind classes, so there is zero visual change.
  *
  * `onChange` carries the option's typed value; binding/side-effects stay at the call site.
@@ -52,6 +52,7 @@ export function SegmentedControl<T extends string | number>({
    */
   disabled?: boolean
 }) {
+  const markDirty = useMarkFormDirty()
   return (
     <div
       role="radiogroup"
@@ -66,10 +67,14 @@ export function SegmentedControl<T extends string | number>({
             key={String(opt.value)}
             type="button"
             role="radio"
+            data-form-dirty-managed
             aria-checked={selected}
             disabled={disabled}
             aria-disabled={disabled || undefined}
-            onClick={() => onChange(opt.value)}
+            onClick={() => {
+              if (value !== opt.value) markDirty()
+              onChange(opt.value)
+            }}
             className={cn(
               'rounded px-3 py-1.5 text-sm font-medium transition',
               selected ? 'bg-brand-soft text-ink' : 'text-muted hover:text-ink',

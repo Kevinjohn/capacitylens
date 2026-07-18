@@ -1,4 +1,4 @@
-import { emptyAppData, EXPORT_SCHEMA_VERSION, SCOPED_KEYS } from '../types/entities'
+import { APP_DATA_KEYS, emptyAppData, EXPORT_SCHEMA_VERSION } from '../types/entities'
 import { buildInternalClient, ensureInternalClients } from './internalClient'
 import type { AppData } from '../types/entities'
 
@@ -11,10 +11,8 @@ import type { AppData } from '../types/entities'
 // (main.tsx), so older keys are orphaned rather than read, and the import path stamps
 // `accountId` on every incoming row (see useStore.importData).
 
-// The known data tables. Derived from SCOPED_KEYS (the single source of truth for the
-// scoped tables) plus 'accounts' — adding a new entity to SCOPED_KEYS automatically
-// extends this list, so the two can't drift.
-export const KNOWN_KEYS: string[] = ['accounts', ...SCOPED_KEYS]
+// The known portable data tables. APP_DATA_KEYS is the shared structural source of truth.
+export const KNOWN_KEYS: readonly string[] = APP_DATA_KEYS
 
 // Legacy table keys that a pre-rename export/blob may carry. `activities` was once `tasks`
 // (the Task→Activity rename, schema v5). The IMPORT shape-guards recognise these so a
