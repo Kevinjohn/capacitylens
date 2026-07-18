@@ -105,9 +105,9 @@ export interface Notice {
 
 /**
  * The minimal per-login account summary that drives the AccountPicker (P1.13) — the server-sourced
- * list of accounts this login may open. MIRRORS the server's `AccountSummary` (server/src/membership.ts)
- * so the `GET /api/accounts` wire shape maps straight in. Re-declared here (not imported) because the
- * server module is Node-only and out of the client build.
+ * list of accounts this login may open. Mirrors the provider-neutral workspace summary returned by
+ * `GET /api/accounts`; the browser alias stays product-named and server modules remain outside the
+ * client build.
  *
  * This is kept SEPARATE from `data.accounts`: in server mode `data` holds only the ACTIVE account's
  * slice (one account), so the picker — which must list ALL the login's tenants — reads `accountSummaries`

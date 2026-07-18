@@ -23,7 +23,10 @@ const PASSWORD_ENV = {
 }
 
 describe('startup configuration before database migration', () => {
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
+  })
 
   it('can resolve auth options without application DDL, then creates controls explicitly', () => {
     const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
@@ -103,6 +106,7 @@ describe('startup configuration before database migration', () => {
   })
 
   it('fails closed before redirect when discovery does not match the pinned issuer', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       issuer: 'https://attacker.example',
       authorization_endpoint: 'https://attacker.example/authorize',
@@ -119,9 +123,14 @@ describe('startup configuration before database migration', () => {
       CAPACITYLENS_SSO_ISSUER: 'https://idp.example',
     })
 
-    await expect(auth!.handler(new Request(
+    const response = await auth!.handler(new Request(
       'http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque',
-    ))).rejects.toThrow('issuer does not match')
+    ))
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe(
+      'http://localhost:8787/?externalSignInError=1&error=provider_unavailable',
+    )
+    expect(response.headers.get('location')).not.toContain('attacker.example')
   })
 
   it('plans both app-owned auth controls and Better Auth DDL before executing either', async () => {

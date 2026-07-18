@@ -13,7 +13,6 @@ import type {
   PasswordResetCeremony,
 } from '@capacitylens/shared/account/types'
 import type { Db } from '../db'
-import { eraseWorkspaceDataAndMembershipsInTx } from '../erasure'
 import { tx } from '../txn'
 import {
   beginCommand,
@@ -127,9 +126,10 @@ export function localAccountFlows(input: {
   identity: LocalIdentityPort
   administration: LocalAccountAdminPort
   lock: KeyedOperationLock
+  eraseProductWorkspaceInTx(workspaceId: string): void
   audit?: AccountAuditPort
 }): LocalAccountFlows {
-  const { applicationId, db, identity, administration, lock } = input
+  const { applicationId, db, identity, administration, lock, eraseProductWorkspaceInTx } = input
   const accountAudit: AccountAuditPort = input.audit ?? { append: () => true }
   const resetReplay = new Map<string, PasswordResetCeremony>()
   const MAX_RESET_REPLAYS = 128
@@ -361,7 +361,8 @@ export function localAccountFlows(input: {
             try {
               const value = tx(db, () => {
                 administration.assertWorkspaceErasureAuthorityInTx(actor, workspaceId)
-                const orphaned = eraseWorkspaceDataAndMembershipsInTx(db, workspaceId)
+                eraseProductWorkspaceInTx(workspaceId)
+                const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId)
                 for (const principalId of orphaned) {
                   identity.deprovisionLocalPrincipalInTx(principalId, command.commandId)
                 }
@@ -404,7 +405,8 @@ export function localAccountFlows(input: {
     },
 
     eraseWorkspaceInExistingTransaction(workspaceId): void {
-      const orphaned = eraseWorkspaceDataAndMembershipsInTx(db, workspaceId)
+      eraseProductWorkspaceInTx(workspaceId)
+      const orphaned = administration.eraseWorkspaceAdministrationInTx(workspaceId)
       for (const principalId of orphaned) identity.deprovisionLocalPrincipalInTx(principalId)
       eraseWorkspaceCommandHistoryInTx(db, workspaceId)
     },

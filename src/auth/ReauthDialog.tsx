@@ -5,6 +5,7 @@ import { authClient } from './authClient'
 import { m } from '@/i18n'
 import type { AuthProviderInfo, AuthUser } from './authContext'
 import { resolveReauth } from './reauthCoordinator'
+import { externalSignInErrorUrl } from './externalSignInError'
 
 // The "Confirm it's you" step-up dialog (DEFECT B). Rendered by ReauthMount (AuthProvider) ONLY
 // while a re-auth is pending, and lazy-loaded so Better Auth's client (authClient) never enters the
@@ -100,7 +101,11 @@ export function ReauthDialog({
       // redirect (this page unloads and returns with a fresh session); only a failure returns here.
       const result =
         provider.kind === 'oidc'
-          ? await authClient.signIn.oauth2({ providerId: provider.id, callbackURL: window.location.href })
+          ? await authClient.signIn.oauth2({
+              providerId: provider.id,
+              callbackURL: window.location.href,
+              errorCallbackURL: externalSignInErrorUrl(window.location.href),
+            })
           : await authClient.signIn.social({
               provider: provider.id as 'google' | 'microsoft' | 'github',
               callbackURL: window.location.href,

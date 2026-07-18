@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 const inventoryPath = 'docs/security/crypto-inventory.json'
@@ -32,6 +32,9 @@ const markers = [
 const discovered = new Set()
 for (const path of listed.stdout.split('\n').filter(Boolean)) {
   if (excluded.test(path) || !(eligible.test(path) || path === 'Dockerfile')) continue
+  // `git ls-files --cached` includes tracked files deleted in the working tree. Treat their absence
+  // as the intended candidate state so the gate can validate a deletion before it is staged.
+  if (!existsSync(path)) continue
   const source = readFileSync(path, 'utf8')
     .replace(/\/\/.*$/gm, '')
     .replace(/\/\*[\s\S]*?\*\//g, '')

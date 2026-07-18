@@ -454,7 +454,7 @@ describe('P1.5 authorize — account hard-delete is owner-only, both vectors gat
       headers: cookie ? { cookie } : {},
     })
 
-  /** Does the accounts row still exist? Read it back via a member with read access (resolveRole). */
+  /** Does the accounts row still exist? Read it back through an authorized member session. */
   const accountExists = async (app: FastifyInstance, id: string, cookie: string): Promise<boolean> => {
     const res = await getState(app, id, cookie)
     return res.statusCode === 200 && Array.isArray(res.json().accounts) && res.json().accounts.length === 1
@@ -856,7 +856,7 @@ describe('private client/project names — owner-only server projection', () => 
 
 describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)', () => {
   // No authMode ⇒ OFF (trusted-local). Every read/write succeeds, INCLUDING cross-account ids —
-  // authorize() short-circuits to true on its first line, so resolveRole/can never run.
+  // authorize() short-circuits to true on its first line, so membership/policy resolution never runs.
   function offApp(): FastifyInstance {
     const db = openDb(':memory:')
     const app = buildApp(db, { allowReset: true, optimisticConcurrency: false })

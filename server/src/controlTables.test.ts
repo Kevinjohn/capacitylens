@@ -12,7 +12,6 @@ import {
   migrateMemberResetCeremoniesV14,
   assertSingleOwnerControlPlaneCurrent,
   removeMember,
-  getUsersByIds,
   createInvite,
   getInvite,
   newInviteId,
@@ -390,36 +389,6 @@ describe('removeMember', () => {
     removeMember(db, 'acc-1', 'u-1')
     expect(getMemberRole(db, 'acc-1', 'u-1')).toBeNull()
     expect(getMemberRole(db, 'acc-2', 'u-1')).toBe('admin') // the other account's row survives
-  })
-})
-
-describe('getUsersByIds', () => {
-  // The Better Auth `user` table is not part of ensureControlTables (it's created by Better Auth's
-  // migrations); create a minimal stand-in so this unit can read it.
-  const dbWithUsers = (): Db => {
-    const db = freshDb()
-    db.exec(`CREATE TABLE user (id TEXT PRIMARY KEY, name TEXT, email TEXT, emailVerified INTEGER)`)
-    db.prepare(`INSERT INTO user (id, name, email, emailVerified) VALUES (?, ?, ?, 1)`).run('u-1', 'Alice', 'alice@x.io')
-    db.prepare(`INSERT INTO user (id, name, email, emailVerified) VALUES (?, ?, ?, 1)`).run('u-2', null, 'bob@x.io')
-    return db
-  }
-
-  it('returns an empty map for empty ids (no invalid zero-id IN clause)', () => {
-    expect(getUsersByIds(freshDb(), []).size).toBe(0)
-  })
-
-  it('resolves name/email for known ids, degrades a null name, omits unknown ids', () => {
-    const db = dbWithUsers()
-    const map = getUsersByIds(db, ['u-1', 'u-2', 'ghost'])
-    expect(map.get('u-1')).toEqual({ name: 'Alice', email: 'alice@x.io' })
-    expect(map.get('u-2')).toEqual({ name: null, email: 'bob@x.io' })
-    expect(map.has('ghost')).toBe(false) // no row → absent (caller degrades to null)
-  })
-
-  it('sanitizes identity names at the member-read boundary', () => {
-    const db = dbWithUsers()
-    db.prepare(`UPDATE user SET name = ? WHERE id = ?`).run('  Alice 💩   Example  ', 'u-1')
-    expect(getUsersByIds(db, ['u-1']).get('u-1')?.name).toBe('Alice Example')
   })
 })
 

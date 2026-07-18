@@ -34,6 +34,8 @@ import {
   normalizeEmail,
   preauthInviteAllows,
   pruneInvites,
+  removeAllInvitesForAccount,
+  removeAllMembersForAccount,
   removeMember as removeMemberRow,
   revokeInvite,
   upsertMember,
@@ -88,6 +90,7 @@ export interface LocalAccountAdminPort extends AccountAdminPort {
     joinedAt: string
   }): Membership
   assertWorkspaceErasureAuthorityInTx(actor: ActorContext, workspaceId: string): void
+  eraseWorkspaceAdministrationInTx(workspaceId: string): readonly string[]
 }
 
 function failure(
@@ -477,8 +480,19 @@ export function sqliteAccountAdminPort(input: {
 
     assertWorkspaceErasureAuthorityInTx(actor, workspaceId): void {
       assertAdministrativeAssurance(actor, requireMfa, trustedLocal)
-      const role = assertAccountAuthority(db, actor, workspaceId, 'transfer-ownership', trustedLocal)
+      const role = assertAccountAuthority(db, actor, workspaceId, 'erase-workspace', trustedLocal)
       if (role !== 'owner') throw failure('FORBIDDEN', 'Only the workspace owner may erase it.')
+    },
+
+    eraseWorkspaceAdministrationInTx(workspaceId) {
+      const principalIds = [...new Set(
+        listMembersForAccount(db, workspaceId).map((row) => row.userId),
+      )]
+      removeAllMembersForAccount(db, workspaceId)
+      removeAllInvitesForAccount(db, workspaceId)
+      return principalIds.filter((principalId) =>
+        !listMembershipsForUser(db, principalId).some((row) =>
+          row.status === 'active' && getRow(db, 'accounts', row.accountId) !== undefined))
     },
 
     async listWorkspacesForPrincipal({ principalId }) {
@@ -663,7 +677,7 @@ export function sqliteAccountAdminPort(input: {
       return created
     },
 
-    async acceptInvitation({ actor, token, command }) {
+    async acceptInvitation({ actor, token, principalEmail, emailVerified, command }) {
       const invite = getInvite(db, token)
       if (!invite) throw failure('NOT_FOUND', 'Invite not found.', command.commandId)
       const passwordMode = actor.assurance === 'password' || actor.assurance === 'mfa'
@@ -681,24 +695,14 @@ export function sqliteAccountAdminPort(input: {
             if (invitation.token === token) invitationSecretReplay.delete(createCommandId)
           }
         },
-        execute: () => {
-          // Resolve mutable identity attributes only after the principal/workspace lock is held and
-          // inside the same synchronous SQLite transaction as token consumption. This prevents an
-          // email change from racing a pre-authorized invitation claim.
-          const identity = db.prepare(`SELECT email, emailVerified FROM user WHERE id = ?`)
-            .get(actor.principalId) as { email: string; emailVerified: number | boolean } | undefined
-          if (!identity) {
-            throw failure('NOT_FOUND', 'No local identity exists for this session.', command.commandId)
-          }
-          return claimInvitation({
+        execute: () => claimInvitation({
             token,
             principalId: actor.principalId,
-            principalEmail: identity.email,
-            emailVerified: identity.emailVerified === true || identity.emailVerified === 1,
+            principalEmail,
+            emailVerified,
             passwordMode,
             command,
-          })
-        },
+          }),
       })
       return accepted
     },

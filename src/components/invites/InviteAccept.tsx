@@ -24,6 +24,11 @@ import { roleLabel, roleSummary } from '../../lib/accessCopy'
 import { Badge } from '../ui/badge'
 import { useAuth } from '../../auth/authContext'
 import {
+  clearExternalSignInError,
+  externalSignInErrorUrl,
+  hasExternalSignInError,
+} from '../../auth/externalSignInError'
+import {
   reloadCurrentPage,
   replaceWithAccountPicker,
   replaceWithJoinedAccount,
@@ -105,6 +110,7 @@ export function InviteAccept() {
 function InviteAcceptForToken({ token }: { token: string | undefined }) {
   const { authMode, user, providers: configuredProviders, refreshAuth } = useAuth()
   const providers = configuredProviders ?? []
+  const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href))
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
@@ -133,6 +139,15 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   useEffect(() => {
     currentUser.current = user
   }, [user])
+
+  useEffect(() => {
+    if (!returnedWithExternalError) return
+    window.history.replaceState(
+      window.history.state,
+      '',
+      clearExternalSignInError(window.location.href),
+    )
+  }, [returnedWithExternalError])
 
   // Preserve the command across a true retry with unchanged credential input. Once the person
   // edits the semantic payload, a new idempotency identity is required or the server must correctly
@@ -169,7 +184,12 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
         }
         previewed.current = token
         setPreview(parsedPreview)
-        setState(currentUser.current ? { kind: 'ready' } : { kind: 'auth' })
+        setState(currentUser.current
+          ? { kind: 'ready' }
+          : {
+              kind: 'auth',
+              ...(returnedWithExternalError ? { message: m.login_sso_failed() } : {}),
+            })
       } catch (err) {
         if (cancelled) return
         // Preview is read-only, so a transport failure cannot have consumed the invite. Keep this
@@ -181,7 +201,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
     return () => {
       cancelled = true
     }
-  }, [token])
+  }, [returnedWithExternalError, token])
 
   const acceptInvite = async (): Promise<void> => {
     if (!token || previewed.current !== token || accepting.current) return
@@ -317,7 +337,11 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
     setState({ kind: 'auth' })
     try {
       const result = provider.kind === 'oidc'
-        ? await authClient.signIn.oauth2({ providerId: provider.id, callbackURL: window.location.href })
+        ? await authClient.signIn.oauth2({
+            providerId: provider.id,
+            callbackURL: window.location.href,
+            errorCallbackURL: externalSignInErrorUrl(window.location.href),
+          })
         : await authClient.signIn.social({
             provider: provider.id as 'google' | 'microsoft' | 'github',
             callbackURL: window.location.href,

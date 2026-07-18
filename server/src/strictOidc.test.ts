@@ -344,6 +344,29 @@ describe('strictOidcUserInfo', () => {
     await expect(client.metadata()).rejects.toThrow('size limit')
   })
 
+  it('rejects malformed provider JSON and retries discovery on the next attempt', async () => {
+    let attempts = 0
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      attempts += 1
+      if (attempts === 1) {
+        return new Response('{malformed', { headers: { 'content-type': 'application/json' } })
+      }
+      return Response.json({
+        ...requiredDiscoveryCapabilities,
+        issuer,
+        authorization_endpoint: `${issuer}/auth`,
+        token_endpoint: `${issuer}/token`,
+        jwks_uri: jwksUrl,
+        userinfo_endpoint: userInfoUrl,
+        id_token_signing_alg_values_supported: ['RS256'],
+      })
+    }))
+    const client = createStrictOidcClient({ issuer, clientId, discoveryUrl })
+    await expect(client.metadata()).rejects.toThrow('malformed JSON')
+    await expect(client.metadata()).resolves.toMatchObject({ issuer })
+    expect(attempts).toBe(2)
+  })
+
   it('rejects unsafe discovered endpoints before redirect or token exchange can use them', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({
       ...requiredDiscoveryCapabilities,

@@ -4,7 +4,7 @@ storage:
 web:
   http: 0.0.0.0:5556
 oauth2:
-  skipApprovalScreen: true
+  skipApprovalScreen: false
 enablePasswordDB: true
 staticClients:
   - id: capacitylens-e2e

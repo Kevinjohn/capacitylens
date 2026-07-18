@@ -14,11 +14,13 @@
 // here preserves existing product imports while the administrative policy moves out of this module.
 import type { Role } from '../account/types'
 import {
+  canAdministerAccount,
   canAdministerIdentity,
   canAdministerIdentityAcrossWorkspaces,
   canManageMemberRole as canManageCanonicalMemberRole,
   canRemoveMember as canRemoveCanonicalMember,
   isAtLeast as isAtLeastCanonicalRole,
+  type AccountAdminAction,
 } from '../account/policy'
 export type { Role } from '../account/types'
 
@@ -47,29 +49,33 @@ export type Action =
   | 'deleteAccount'
   | 'transferOwnership'
 
-// The role tiers are strictly nested for every gated Action (viewer ⊂ editor ⊂ admin ⊂ owner), so
-// this product matrix records only the minimum role per action. Tier ordering remains owned by the
-// neutral account policy and is consumed through `isAtLeastCanonicalRole`; it is not duplicated in
-// product policy.
+// Product-data policy stays here; account-administration policy lives in account/policy.ts. Both
+// use the account boundary's one canonical role ordering.
 
 /**
- * The minimum role required for each {@link Action} — the matrix from the CapacityLens Decisions
- * table, expressed as the lowest tier that may perform the action. A role satisfies an action iff
- * the canonical account policy places it at or above this minimum role.
+ * The minimum role required for CapacityLens product-data actions. Account administration is
+ * delegated to `canAdministerAccount` below and has no duplicate thresholds in this module.
  *
- * `satisfies Record<Action, Role>` is load-bearing: it makes the table exhaustive over `Action` at
- * COMPILE time, so a newly-added Action with no rule here is a build error rather than a silent
- * fail-open.
+ * `satisfies Record<ProductDataAction, Role>` is load-bearing: a newly-added product-data action
+ * with no rule is a build error rather than a silent fail-open.
  */
 const MIN_TIER = {
   read: 'viewer', // any member
   write: 'editor', // editor and up
-  manageMembers: 'admin', // admin and up
-  manageInvites: 'admin', // admin and up
   purge: 'admin', // admin and up
-  deleteAccount: 'owner', // owner only
-  transferOwnership: 'owner', // owner only
-} as const satisfies Record<Action, Role>
+} as const satisfies Record<ProductDataAction, Role>
+
+/** CapacityLens names mapped to the account boundary's canonical administrative operations.
+ * This table deliberately contains no role thresholds: account policy owns those exactly once. */
+const ACCOUNT_ADMIN_ACTION = {
+  manageMembers: 'manage-members',
+  manageInvites: 'manage-invitations',
+  deleteAccount: 'erase-workspace',
+  transferOwnership: 'transfer-ownership',
+} as const satisfies Record<AccountAdministrationAction, AccountAdminAction>
+
+type ProductDataAction = 'read' | 'write' | 'purge'
+type AccountAdministrationAction = Exclude<Action, ProductDataAction>
 
 /**
  * The single pure authority for "may this role perform this action" on an account. The server
@@ -81,8 +87,9 @@ const MIN_TIER = {
  * action, and the static matrix. It is a leaf module (only depends on the {@link Role} type) so
  * both server and client can import it freely.
  *
- * INVARIANT: this is the ONLY place the role/action matrix is encoded. Affordance code and route
- * guards must call `can` rather than re-deriving "is this role an admin?" inline.
+ * INVARIANT: product-data thresholds are encoded here; account-administration thresholds are
+ * encoded in `account/policy.ts`. Affordances and route guards call `can` rather than re-deriving
+ * role tests inline.
  *
  * Fail-closed: an unrecognised role or action yields `false` (the types prevent reaching this in
  * well-typed code; the guard is the safe default at an untyped boundary).
@@ -92,7 +99,9 @@ const MIN_TIER = {
  * @returns `true` iff `role` is at or above the action's required tier; `false` otherwise.
  */
 export function can(role: Role, action: Action): boolean {
-  const minRole = MIN_TIER[action]
+  const accountAction = (ACCOUNT_ADMIN_ACTION as Partial<Record<Action, AccountAdminAction>>)[action]
+  if (accountAction !== undefined) return canAdministerAccount(role, accountAction)
+  const minRole = (MIN_TIER as Partial<Record<Action, Role>>)[action]
   return minRole !== undefined && isAtLeastCanonicalRole(role, minRole)
 }
 

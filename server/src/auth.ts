@@ -800,12 +800,18 @@ export function authFromEnv(
     ? `__Host-${application.applicationId}`
     : application.applicationId
   const sessionCookieName = `${cookiePrefix}.session_token=`
+  const browserAuthErrorUrl = new URL('/', publicUrl)
+  browserAuthErrorUrl.searchParams.set('externalSignInError', '1')
 
   const instance = betterAuth({
     database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
     secret,
     baseURL,
     basePath: '/api/auth',
+    // OAuth/OIDC callback failures are browser navigations, not JSON API calls. Route them back to
+    // the product's sign-in wall, which renders one stable non-sensitive message and removes the
+    // provider-controlled query values. Per-flow errorCallbackURL values preserve invite routes.
+    onAPIError: { errorURL: browserAuthErrorUrl.toString() },
     // Better Auth defaults verification identifiers to plaintext. Reset identifiers contain the
     // live bearer token (`reset-password:<token>`), so a DB/backup reader could otherwise take over
     // the account. The library hashes on both create and consume, preserving the normal API while
@@ -1080,17 +1086,31 @@ export function authFromEnv(
       if (strictOidcClient && strictOidcAuthorizationProxyPath) {
         const requestUrl = new URL(request.url)
         if (request.method === 'GET' && requestUrl.pathname === strictOidcAuthorizationProxyPath) {
-          const metadata = await strictOidcClient.metadata()
-          const target = new URL(metadata.authorization_endpoint)
-          for (const [key, value] of requestUrl.searchParams) target.searchParams.append(key, value)
-          return new Response(null, {
-            status: 302,
-            headers: {
-              location: target.toString(),
-              'cache-control': 'no-store',
-              pragma: 'no-cache',
-            },
-          })
+          try {
+            const metadata = await strictOidcClient.metadata()
+            const target = new URL(metadata.authorization_endpoint)
+            for (const [key, value] of requestUrl.searchParams) target.searchParams.append(key, value)
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location: target.toString(),
+                'cache-control': 'no-store',
+                pragma: 'no-cache',
+              },
+            })
+          } catch (error) {
+            console.error('Strict OIDC authorization initialization failed.', error)
+            const target = new URL(browserAuthErrorUrl)
+            target.searchParams.set('error', 'provider_unavailable')
+            return new Response(null, {
+              status: 302,
+              headers: {
+                location: target.toString(),
+                'cache-control': 'no-store',
+                pragma: 'no-cache',
+              },
+            })
+          }
         }
       }
       return raw.handler(request)

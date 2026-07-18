@@ -292,6 +292,8 @@ export function registerAccountRoutes(
         : await accountAdminPort.acceptInvitation({
           actor: req.accountActor!,
           token,
+          principalEmail: req.user!.email,
+          emailVerified: req.user!.emailVerified,
           command: accountCommand(req),
         })
       const now = new Date().toISOString()

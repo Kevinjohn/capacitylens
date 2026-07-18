@@ -18,7 +18,8 @@ new features and **patch** versions carry fixes.
 - Added first-class strict OIDC with exact issuer/discovery pinning, endpoint validation before
   redirect or secret use, bounded no-redirect provider fetches, signed ID-token audience and
   timestamp verification, asymmetric JWKS rotation, user-info subject binding, verified-email
-  admission and a real reference-IdP browser conformance flow.
+  admission and a pinned reference-IdP browser certification matrix covering the complete callback,
+  denial, malformed-discovery and provider-unavailable paths.
 - Added named account deployment profiles, independent contract/conformance/security versions, a
   sibling implementation register and a severity-based security-fix propagation checklist.
 - Added a first-class **Team & access** destination for every role, plain-language capability
@@ -48,6 +49,12 @@ new features and **patch** versions carry fixes.
   days; conflicting values now refuse startup.
 - Promoted strict OIDC out of experimental status. Named social providers remain experimental;
   hosted deployments enforce OIDC-only and reject password/open-signup configuration.
+- Hardened the account boundary so identity deletion SQL is owned only by the identity adapter,
+  membership and invitation erasure are owned by the account-administration adapter, and the
+  orchestration layer can reach neither storage implementation directly or transitively.
+- Single-sourced administrative authorization—including workspace erasure—in account policy while
+  retaining CapacityLens-owned scheduling, purge and field-visibility policy. An executable seam
+  check prevents the product and account decisions from drifting.
 - Moved member and invitation management out of Settings and made app members versus scheduled
   Resources explicit throughout the access flow.
 - Moved the required-field legend in data-entry modals to the bottom of each form, above the
@@ -64,6 +71,13 @@ new features and **patch** versions carry fixes.
 - Enforced durable federated linking by `(issuer, subject)` rather than email, removed invitation
   storage access from the auth-vendor hook, and ensured local erasure never deletes an upstream IdP
   identity.
+- Added one capability-aware `IdentityPort` contract suite run unchanged against Better Auth,
+  trusted-local and a vendor-free fake, plus whole-tree and transitive dependency checks. Unsupported
+  credential, reset and administrative-revocation capabilities now fail with the normalized
+  `UNSUPPORTED_CAPABILITY` contract and command correlation.
+- Routed OIDC callback, denial and provider-initialization failures back to the appropriate signed-
+  out, invitation or authenticated-step-up product surface without reflecting provider-controlled
+  details; the browser removes those query values after displaying stable retry guidance.
 - Made password invitation signup all-or-compensated, persisted double failures for reconciliation,
   coupled reset/revocation authority to execution revisions, and kept bearer values out of command
   and audit records.

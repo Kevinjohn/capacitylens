@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, loadState, type Db } from './db'
-import { upsertMember } from './controlTables'
-import { resolveRole } from './membership'
+import { getMemberRole, upsertMember } from './controlTables'
 import { authFromEnv, runAuthMigrations, DEMO_USER } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
@@ -53,7 +52,7 @@ function assertUsableOrg(db: Db, accountId: string, userId: string): void {
   expect(acc, 'account row exists').toBeDefined()
   const internal = state.clients.filter((c) => c.accountId === accountId && c.builtin === true)
   expect(internal, 'exactly one built-in Internal client').toHaveLength(1)
-  expect(resolveRole(db, { id: userId } as never, accountId)).toBe('owner')
+  expect(getMemberRole(db, accountId, userId)).toBe('owner')
 }
 
 describe('POST /api/orgs (P1.8) — auth-on', () => {
@@ -168,7 +167,7 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
     const { app, db } = await appWithAuth()
     seedOne(db)
     const { cookie, userId } = await signUp(app, 'inactive@capacitylens.dev')
-    // A non-active status is NOT a member for access purposes (see membership.ts ACTIVE-ONLY).
+    // A non-active status is NOT a member for access purposes (the account adapter is active-only).
     upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'invited' as never, createdAt: TS })
 
     const res = await createOrg(app, { name: 'Org D' }, { cookie })
@@ -271,7 +270,7 @@ describe('POST /api/orgs (P1.8) — atomicity', () => {
     const after = loadState(db)
     expect(after.accounts.map((a) => a.id).sort()).toEqual(before.accounts.map((a) => a.id).sort())
     expect(after.clients.filter((c) => c.accountId === id)).toHaveLength(1) // still exactly one Internal
-    expect(resolveRole(db, { id: userId } as never, id)).toBe('owner') // membership unchanged
+    expect(getMemberRole(db, id, userId)).toBe('owner') // membership unchanged
   })
 })
 

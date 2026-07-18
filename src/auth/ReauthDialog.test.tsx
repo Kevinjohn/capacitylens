@@ -10,9 +10,14 @@ import type { AuthProviderInfo, AuthUser } from './authContext'
 // wrapper turns into a retry) and shows the failure INLINE without closing.
 
 const signInEmail = vi.fn()
+const signInOauth2 = vi.fn()
 vi.mock('./authClient', () => ({
   authClient: {
-    signIn: { email: (...args: unknown[]) => signInEmail(...args), oauth2: vi.fn(), social: vi.fn() },
+    signIn: {
+      email: (...args: unknown[]) => signInEmail(...args),
+      oauth2: (...args: unknown[]) => signInOauth2(...args),
+      social: vi.fn(),
+    },
     twoFactor: { verifyTotp: vi.fn() },
   },
 }))
@@ -23,18 +28,22 @@ vi.mock('./authClient', () => ({
 function Harness({
   user,
   providers = [],
+  authMode = 'password',
 }: {
   user: AuthUser | null
   providers?: AuthProviderInfo[]
+  authMode?: 'password' | 'sso'
 }) {
   const pending = useSyncExternalStore(subscribeReauth, reauthPending)
   if (!pending) return <div>no-dialog</div>
-  return <ReauthDialog authMode="password" user={user} providers={providers} />
+  return <ReauthDialog authMode={authMode} user={user} providers={providers} />
 }
 
 afterEach(() => {
   if (reauthPending()) resolveReauth(false)
   signInEmail.mockReset()
+  signInOauth2.mockReset()
+  window.history.replaceState({}, '', '/')
 })
 
 const user: AuthUser = { id: 'u1', email: 'owner@acme.test' }
@@ -81,6 +90,26 @@ describe('ReauthDialog (SESSION_NOT_FRESH step-up)', () => {
     // Still open, still pending — the user can try again.
     expect(screen.getByRole('heading', { name: "Confirm it's you" })).toBeInTheDocument()
     expect(reauthPending()).toBe(true)
+  })
+
+  it('preserves the product route and supplies a marked OIDC failure return', async () => {
+    signInOauth2.mockResolvedValue({ data: {}, error: null })
+    window.history.replaceState({}, '', '/team?tab=access')
+    render(<Harness
+      authMode="sso"
+      user={user}
+      providers={[{ id: 'sso', label: 'Single sign-on', kind: 'oidc', experimental: false }]}
+    />)
+    void requestReauth()
+    await screen.findByRole('heading', { name: "Confirm it's you" })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue with Single sign-on' }))
+
+    await waitFor(() => expect(signInOauth2).toHaveBeenCalledWith({
+      providerId: 'sso',
+      callbackURL: 'http://localhost:3000/team?tab=access',
+      errorCallbackURL: 'http://localhost:3000/team?tab=access&externalSignInError=1',
+    }))
   })
 })
 

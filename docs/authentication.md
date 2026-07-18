@@ -145,5 +145,9 @@ registration over `common` for a single-organization deployment.
 The account conformance suite runs with server CI. The strict OIDC gate additionally includes
 cryptographic issuer/audience/signature/key-rotation tests and a real Dex browser flow covering
 bootstrap, provider callback, local session, preauthorized invitation, membership, account
-selection and local-vs-provider logout semantics. See `docs/account-boundary.md` for the contract,
-version and sibling propagation model.
+selection and local-vs-provider logout semantics. Separate fresh-process Dex runs inject malformed
+discovery and provider unavailability; callback-shaped denial/failure cases prove the product's
+retryable, non-reflecting browser error surface. The same marked return is consumed by the signed-out
+wall, invitation flow or authenticated shell, so a failed SSO step-up cannot leave provider detail in
+the address bar. See `docs/account-boundary.md` for the contract, version and sibling propagation
+model.

@@ -43,6 +43,12 @@ memberships, roles, invitations and the policy facts needed for identity-adminis
 idempotency and reconciliation state. Permission matrices and role ranking stay in pure policy or
 the owning port.
 
+Storage ownership is mechanically deny-by-default across `server/src`, rather than checked through
+a list of files expected to behave. Identity SQL is confined to the identity adapter/composition;
+membership and invitation SQL is confined to the administration adapter and its persistence module.
+The same architecture suite follows runtime imports and proves the coordinator has no transitive
+path to either adapter or its tables.
+
 Invitation and member-administration HTTP handlers live in
 `server/src/accounts/accountRoutes.ts`; `server/src/app.ts` supplies product composition,
 authorization and compatibility callbacks. The route adapter imports the administration port and
@@ -146,16 +152,21 @@ integrate with these internals.
 
 `shared/src/account/conformance.ts` publishes contract, conformance, minimum-security and profile
 metadata independently of the product version. Server CI runs pure policy/contract tests, fake-flow
-conformance, local identity/account adapter tests, architecture dependency tests and strict OIDC
-cryptographic tests. The E2E workflow adds a pinned Dex provider and the real browser callback.
+conformance, local account-adapter tests, architecture dependency tests and strict OIDC cryptographic
+tests. One capability-aware identity contract runs unchanged against the Better Auth adapter,
+trusted-local adapter and vendor-free fake; a profile may omit credentials, reset or administrative
+revocation only through the normalized fail-closed `UNSUPPORTED_CAPABILITY` result.
+
+The E2E workflow adds pinned Dex and a fault-controlled discovery front door. It proves bootstrap,
+preauthorized invitation, stable issuer/subject re-entry, local sign-out, provider denial, callback
+failure, malformed discovery and provider unavailability through the real product browser surface.
 
 Identical behavior means identical within the same named deployment profile. Password and SSO-only
 products intentionally expose different credential ceremonies.
 
-The registry and propagation procedure live in
-`to-my-siblings/account-security-propagation-checklist.md`. Passing an old conformance suite is not
-evidence of current security; every sibling must meet the recorded minimum version and attach CI
-evidence for each security-fix identifier.
+The sibling handbook owns the implementation registry and propagation procedure. Passing an old
+conformance suite is not evidence of current security; every sibling must meet the recorded minimum
+version and attach CI evidence for each security-fix identifier.
 
 ## Known accepted limits
 

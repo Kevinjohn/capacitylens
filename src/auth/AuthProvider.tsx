@@ -6,6 +6,8 @@ import { useStore } from '../store/useStore'
 import { AuthContext, type AuthMode, type AuthProviderInfo, type AuthUser } from './authContext'
 import { validateAuthUser } from './validateAuthUser'
 import { reauthPending, subscribeReauth } from './reauthCoordinator'
+import { clearExternalSignInError, hasExternalSignInError } from './externalSignInError'
+import { m } from '@/i18n'
 import {
   cacheAuthSnapshot,
   clearOfflineDataForCurrentUser,
@@ -239,6 +241,26 @@ function ReauthMount({
   )
 }
 
+/** Consume an OIDC failure that returned to an already-authenticated product route. Signed-out and
+ * invitation routes own the same marker in their local surfaces; this host covers step-up failures,
+ * where the existing session means the login wall is intentionally not rendered. */
+function AuthenticatedExternalSignInFailure() {
+  const [failed] = useState(() => hasExternalSignInError(window.location.href))
+  const setNotice = useStore((state) => state.setNotice)
+
+  useEffect(() => {
+    if (!failed) return
+    window.history.replaceState(
+      window.history.state,
+      '',
+      clearExternalSignInError(window.location.href),
+    )
+    setNotice(m.login_sso_failed(), 'error')
+  }, [failed, setNotice])
+
+  return null
+}
+
 /**
  * Boot-time auth boundary.
  *
@@ -449,6 +471,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {status.authMode !== 'off' && <AuthenticatedExternalSignInFailure />}
       {/* Step-up re-auth host (DEFECT B): renders the "Confirm it's you" dialog when a
           security-sensitive action hits a SESSION_NOT_FRESH 403. Auth-on only — 'off' never 403s
           on freshness, so it needs no step-up UI (and this keeps the off/demo path unchanged). */}

@@ -579,6 +579,7 @@
   "login_password": "Password",
   "login_failed": "Sign-in failed.",
   "login_network_error": "Could not reach the server. Check your connection and try again.",
+  "login_sso_failed": "Single sign-on was not completed. Try again or contact your administrator.",
   "login_degraded_notice": "Sign-in configuration could not be loaded, so password sign-in is shown as a fallback. If this instance uses single sign-on, try again shortly or contact your administrator.",
   "identity_err_name": "Enter a valid name.",
   "identity_err_email": "Enter a valid email address.",

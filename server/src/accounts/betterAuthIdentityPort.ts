@@ -25,9 +25,10 @@ import {
   erasePrincipalCommandHistoryInTx,
   getSessionAuthentication,
   providerIdForIssuer,
+  removePrincipalSessionAssurance,
+  removeSecurityRevision,
   removeSessionAssurance,
 } from './state'
-import { eraseLocalPrincipalInTx } from '../erasure'
 import { applicationSessionHandle } from './sessionHandle'
 
 export interface LocalIdentityPort extends IdentityPort {
@@ -85,6 +86,52 @@ function receipt(commandId: string): OperationReceipt {
 
 function tableExists(db: Db, table: string): boolean {
   return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined
+}
+
+function accountLinkUserId(value: string): string | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null) return null
+  const link = (parsed as { link?: unknown }).link
+  if (typeof link !== 'object' || link === null) return null
+  const userId = (link as { userId?: unknown }).userId
+  if (typeof userId === 'string') return userId
+  return typeof userId === 'number' && Number.isFinite(userId) ? String(userId) : null
+}
+
+/** Delete only this installation's Better Auth identity state inside the caller's transaction. */
+function eraseLocalPrincipalInTx(db: Db, principalId: string): void {
+  if (!tableExists(db, 'user')) return
+
+  removePrincipalSessionAssurance(db, principalId)
+  if (tableExists(db, 'verification')) {
+    const rows = db.prepare(`SELECT id, value FROM verification`).all() as Array<{
+      id: string
+      value: string
+    }>
+    const removeVerification = db.prepare(`DELETE FROM verification WHERE id = ?`)
+    for (const row of rows) {
+      if (row.value === principalId || accountLinkUserId(row.value) === principalId) {
+        removeVerification.run(row.id)
+      }
+    }
+  }
+
+  if (tableExists(db, 'session')) {
+    db.prepare(`DELETE FROM session WHERE userId = ?`).run(principalId)
+  }
+  if (tableExists(db, 'account')) {
+    db.prepare(`DELETE FROM account WHERE userId = ?`).run(principalId)
+  }
+  if (tableExists(db, 'twoFactor')) {
+    db.prepare(`DELETE FROM twoFactor WHERE userId = ?`).run(principalId)
+  }
+  db.prepare(`DELETE FROM user WHERE id = ?`).run(principalId)
+  removeSecurityRevision(db, principalId)
 }
 
 /** Better Auth and SQLite mechanics narrowed behind the provider-neutral IdentityPort. */

@@ -22,10 +22,32 @@ vi.mock('./authClient', () => ({
 import { LoginScreen } from './LoginScreen'
 
 beforeEach(() => {
+  window.history.replaceState({}, '', '/')
   signInEmail.mockReset()
   signUpEmail.mockReset()
   verifyTotp.mockReset()
   verifyBackupCode.mockReset()
+})
+
+describe('LoginScreen — external callback failures', () => {
+  it('shows stable retry guidance and removes provider-controlled query values', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/?externalSignInError=1&error=access_denied&error_description=provider-secret',
+    )
+    render(<LoginScreen
+      authMode="sso"
+      providers={[{ id: 'sso', label: 'Single sign-on', kind: 'oidc', experimental: false }]}
+      onSignedIn={vi.fn()}
+    />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Single sign-on was not completed. Try again or contact your administrator.',
+    )
+    expect(screen.getByRole('alert')).not.toHaveTextContent('provider-secret')
+    await waitFor(() => expect(window.location.search).toBe(''))
+  })
 })
 
 describe('LoginScreen — multi-factor challenge', () => {

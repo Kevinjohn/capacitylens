@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync, readdirSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { dirname, relative, resolve } from 'node:path'
 
 const serverRoot = resolve(import.meta.dirname, '../..')
 const sharedAccountRoot = resolve(serverRoot, '../../shared/src/account')
@@ -16,6 +16,44 @@ function sourceFiles(directory: string): string[] {
   })
 }
 
+function runtimeImports(file: string): string[] {
+  const source = readFileSync(file, 'utf8')
+  const imports = new Set([
+    ...[...source.matchAll(/import\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)]
+      .map((match) => match[1]!),
+    ...[...source.matchAll(/(?:import|export)\s*['"]([^'"]+)['"]/g)]
+      .map((match) => match[1]!),
+    ...[...source.matchAll(/import\s*\(\s*['"]([^'"]+)['"]\s*\)/g)]
+      .map((match) => match[1]!),
+    ...[...source.matchAll(/export\s+(?!type\b)[\s\S]*?\sfrom\s+['"]([^'"]+)['"]/g)]
+      .map((match) => match[1]!),
+  ].filter((specifier) => specifier.startsWith('.')))
+  return [...imports].flatMap((specifier) => {
+    const base = resolve(dirname(file), specifier)
+    const candidates = [base, `${base}.ts`, `${base}.tsx`, resolve(base, 'index.ts')]
+    const resolved = candidates.find((candidate) => existsSync(candidate))
+    return resolved ? [resolved] : []
+  })
+}
+
+function dependencyPath(start: string, forbidden: ReadonlySet<string>): string[] | null {
+  const queue: string[][] = [[start]]
+  const visited = new Set<string>()
+  while (queue.length > 0) {
+    const path = queue.shift()!
+    const current = path.at(-1)!
+    if (visited.has(current)) continue
+    visited.add(current)
+    if (current !== start && forbidden.has(current)) return path
+    for (const dependency of runtimeImports(current)) queue.push([...path, dependency])
+  }
+  return null
+}
+
+function displayPath(path: readonly string[]): string {
+  return path.map((file) => relative(serverRoot, file)).join(' -> ')
+}
+
 describe('account-boundary architecture', () => {
   it('keeps the shared contract free of UI, transport, persistence, and auth-vendor imports', () => {
     for (const file of sourceFiles(sharedAccountRoot)) {
@@ -28,11 +66,81 @@ describe('account-boundary architecture', () => {
   })
 
   it('keeps the coordinator orchestration-only', () => {
-    const source = readFileSync(resolve(serverRoot, 'accounts/localAccountFlows.ts'), 'utf8')
+    const coordinator = resolve(serverRoot, 'accounts/localAccountFlows.ts')
+    const source = readFileSync(coordinator, 'utf8')
     expect(source).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE)\b/)
     expect(source).not.toMatch(/from ['"].*(?:controlTables|better-auth)/)
     expect(source).not.toMatch(/ROLE_RANK|MIN_(?:ADMIN_)?TIER/)
     expect(source).not.toMatch(/(?:===|!==)\s*['"](?:owner|admin|editor|viewer)['"]/)
+
+    const forbidden = new Set([
+      resolve(serverRoot, 'auth.ts'),
+      resolve(serverRoot, 'controlTables.ts'),
+      resolve(serverRoot, 'erasure.ts'),
+      resolve(serverRoot, 'accounts/betterAuthIdentityPort.ts'),
+      resolve(serverRoot, 'accounts/sqliteAccountAdminPort.ts'),
+    ])
+    const path = dependencyPath(coordinator, forbidden)
+    expect(path ? displayPath(path) : null).toBeNull()
+  })
+
+  it('calibrates the transitive dependency scanner against a known adapter edge', () => {
+    const adapter = resolve(serverRoot, 'accounts/sqliteAccountAdminPort.ts')
+    const controlTables = resolve(serverRoot, 'controlTables.ts')
+    const path = dependencyPath(adapter, new Set([controlTables]))
+    expect(path?.map((file) => relative(serverRoot, file))).toEqual([
+      'accounts/sqliteAccountAdminPort.ts',
+      'controlTables.ts',
+    ])
+  })
+
+  it('single-sources account-administration thresholds behind the account policy seam', () => {
+    const productPolicy = readFileSync(resolve(serverRoot, '../../shared/src/domain/access.ts'), 'utf8')
+    const accountPolicy = readFileSync(resolve(sharedAccountRoot, 'policy.ts'), 'utf8')
+    const productThresholds = productPolicy.match(/const MIN_TIER = \{[\s\S]*?\n\}/)?.[0] ?? ''
+    expect(productThresholds).not.toMatch(/manageMembers|manageInvites|deleteAccount|transferOwnership/)
+    expect(productPolicy).toContain('canAdministerAccount(role, accountAction)')
+    expect(accountPolicy).toMatch(/'manage-members':\s*'admin'/)
+    expect(accountPolicy).toMatch(/'manage-invitations':\s*'admin'/)
+    expect(accountPolicy).toMatch(/'transfer-ownership':\s*'owner'/)
+    expect(accountPolicy).toMatch(/'erase-workspace':\s*'owner'/)
+  })
+
+  it('makes account and identity storage ownership deny-by-default across production source', () => {
+    const production = sourceFiles(serverRoot)
+    const identitySqlOwners = new Set([
+      resolve(serverRoot, 'auth.ts'),
+      resolve(serverRoot, 'accounts/betterAuthIdentityPort.ts'),
+    ])
+    const accountSqlOwners = new Set([
+      resolve(serverRoot, 'controlTables.ts'),
+      resolve(serverRoot, 'db.ts'),
+      resolve(serverRoot, 'accounts/sqliteAccountAdminPort.ts'),
+    ])
+    const controlTableImporters = new Set([
+      resolve(serverRoot, 'db.ts'),
+      resolve(serverRoot, 'accounts/sqliteAccountAdminPort.ts'),
+    ])
+    // `account` is Better Auth's singular provider-link table; CapacityLens product workspaces use
+    // the plural `accounts`, so it can be enforced here without confusing the two ownership zones.
+    const sqlTableOperation = String.raw`\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|(?:CREATE\s+)?TABLE(?:\s+IF\s+NOT\s+EXISTS)?|ALTER\s+TABLE|DROP\s+TABLE)\s+(?:["'\x60]|\[)?(?:\w+\.)?(?:["'\x60]|\[)?`
+    const identitySql = new RegExp(
+      `${sqlTableOperation}(?:user|session|account|verification|twoFactor)\\b`,
+      'i',
+    )
+    const accountSql = new RegExp(`${sqlTableOperation}(?:account_members|invites)\\b`, 'i')
+
+    for (const file of production) {
+      const source = readFileSync(file, 'utf8')
+      if (!identitySqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(identitySql)
+      if (!accountSqlOwners.has(file)) expect(source, relative(serverRoot, file)).not.toMatch(accountSql)
+      if (!controlTableImporters.has(file)) {
+        expect(source, relative(serverRoot, file)).not.toMatch(/from ['"].*controlTables['"]/)
+      }
+      if (![resolve(serverRoot, 'auth.ts'), resolve(serverRoot, 'strictOidc.ts')].includes(file)) {
+        expect(source, relative(serverRoot, file)).not.toMatch(/from ['"]better-auth(?:\/[^'"]*)?['"]/)
+      }
+    }
   })
 
   it('prevents product routes from reaching identity or membership storage directly', () => {

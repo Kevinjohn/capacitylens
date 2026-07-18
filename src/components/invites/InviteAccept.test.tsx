@@ -128,6 +128,7 @@ describe('InviteAccept preview and acceptance', () => {
     expect(authClientMock.signInOauth2).toHaveBeenCalledWith({
       providerId: 'sso',
       callbackURL: window.location.href,
+      errorCallbackURL: 'http://localhost:3000/?externalSignInError=1',
     })
     expect(authClientMock.signInEmail).not.toHaveBeenCalled()
   })

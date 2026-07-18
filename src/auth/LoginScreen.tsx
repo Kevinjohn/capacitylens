@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Button, Callout, FieldError } from '../components/common/ui'
 import { inputClass } from '../components/common/controls'
@@ -9,6 +9,11 @@ import type { AuthProviderInfo } from './authContext'
 import { validateText } from '../lib/validation'
 import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import {
+  clearExternalSignInError,
+  externalSignInErrorUrl,
+  hasExternalSignInError,
+} from './externalSignInError'
 
 // The flag-gated login wall (production plan P3.3; US-NAV-10). Only ever rendered when
 // the server reports authMode 'password' or 'sso' AND there is no session — the default
@@ -40,7 +45,9 @@ export function LoginScreen({
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [setupToken, setSetupToken] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [returnedWithExternalError] = useState(() => hasExternalSignInError(window.location.href))
+  const [error, setError] = useState<string | null>(() =>
+    returnedWithExternalError ? m.login_sso_failed() : null)
   const [busy, setBusy] = useState(false)
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [twoFactorCode, setTwoFactorCode] = useState('')
@@ -60,6 +67,15 @@ export function LoginScreen({
   const setupTokenId = useId()
   const errorId = useId()
   const setup = authMode === 'password' && needsSetup && !setupClosed
+
+  useEffect(() => {
+    if (!returnedWithExternalError) return
+    window.history.replaceState(
+      window.history.state,
+      '',
+      clearExternalSignInError(window.location.href),
+    )
+  }, [returnedWithExternalError])
 
   const signInWithPassword = async (e: FormEvent) => {
     e.preventDefault()
@@ -172,7 +188,11 @@ export function LoginScreen({
       // On success the client follows the provider redirect; only a failure returns here.
       const result =
         provider.kind === 'oidc'
-          ? await authClient.signIn.oauth2({ providerId: provider.id, callbackURL: window.location.href })
+          ? await authClient.signIn.oauth2({
+              providerId: provider.id,
+              callbackURL: window.location.href,
+              errorCallbackURL: externalSignInErrorUrl(window.location.href),
+            })
           : await authClient.signIn.social({
               provider: provider.id as 'google' | 'microsoft' | 'github',
               callbackURL: window.location.href,

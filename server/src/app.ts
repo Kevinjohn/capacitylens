@@ -29,6 +29,7 @@ import { actorContextFromSession, localAccountFlows } from './accounts/localAcco
 import { KeyedOperationLock } from './accounts/operationLock'
 import { trustedLocalIdentityPort } from './accounts/trustedLocalIdentityPort'
 import { registerAccountRoutes } from './accounts/accountRoutes'
+import { eraseWorkspaceProductDataInTx } from './erasure'
 
 // The identity requireUser attaches to every gated request. Session/identity
 // plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
@@ -84,10 +85,9 @@ import {
   wipe,
 } from './db'
 import { sqliteTenantStore } from './tenantStore'
-// P2.6b per-tenant DELETE + member-PII erasure — the SINGLE permissioned path that wipes an account's
-// PII everywhere (scoped AppData via FK cascade, the control tables, AND Better Auth user/account/session).
-// Called ONLY from the two 'purge'-gated delete vectors below. eraseAccount opens its own tx; the batch
-// (already inside tx) uses eraseAccountInTx (node:sqlite has no nested BEGIN).
+// P2.6b tenant erasure is composed below through AccountFlows: product data, account administration
+// and local identity state retain separate owners while the local coordinator preserves one SQLite
+// transaction for both direct and already-transactional batch paths.
 import {
   can,
   canSeePrivateNames,
@@ -852,6 +852,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     identity: identityPort,
     administration: accountAdminPort,
     lock: accountLock,
+    eraseProductWorkspaceInTx: (workspaceId) => eraseWorkspaceProductDataInTx(db, workspaceId),
     audit: { append: (event) => auditSink.append(event) },
   })
   const logOn = opts.log === true
@@ -2258,10 +2259,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // for an already absent account.
           if (!targetExisted && authMode === 'off') return reply.code(204).send()
         }
-        // P2.6b: an account hard-delete is a TENANT ERASURE, not a bare row delete. eraseAccount drops
-        // the account (FK-cascading its scoped AppData) AND sweeps the control tables + Better Auth PII
-        // for any sole-member, all in one transaction. A scoped delete stays the plain idempotent
-        // deleteRow (its accountId-scoped cascade is sufficient; no PII to erase).
+        // P2.6b: an account hard-delete is a TENANT ERASURE, not a bare row delete. AccountFlows
+        // coordinates the product cascade, administration sweep and orphaned local-identity erasure
+        // in one transaction. A scoped delete stays the plain idempotent deleteRow.
         if (entity === 'accounts') {
           await accountFlows.eraseWorkspace({
             actor: req.accountActor!,
@@ -2591,9 +2591,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   throw new ValidationError('That record belongs to a different company.')
                 }
               }
-              // P2.6b: an account DELETE in the batch is a TENANT ERASURE (control tables + Better Auth
-              // PII), same as the direct route. We are ALREADY inside tx() here, so call eraseAccountInTx
-              // (NOT eraseAccount — node:sqlite has no nested BEGIN). Scoped deletes stay plain deleteRow.
+              // P2.6b: an account DELETE in the batch is a TENANT ERASURE (account administration +
+              // local identity PII), same as the direct route. This batch already owns tx(), so use
+              // the coordinator's existing-transaction variant. Scoped deletes stay plain deleteRow.
               // Either way, mirror the DB's FK cascade into `state` (deleteAccountCascade /
               // deleteFromState) so a later op in the SAME batch validates against the post-cascade
               // truth, not a stale pre-delete snapshot (Finding 82).

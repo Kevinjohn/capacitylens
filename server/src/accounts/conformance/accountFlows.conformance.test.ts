@@ -99,6 +99,7 @@ function administrationPort(overrides: Partial<LocalAccountAdminPort> = {}): Loc
       joinedAt,
     })),
     assertWorkspaceErasureAuthorityInTx: vi.fn(),
+    eraseWorkspaceAdministrationInTx: vi.fn(() => []),
     listWorkspacesForPrincipal: vi.fn(async () => []),
     getMembership: vi.fn(async () => member),
     listMemberships: vi.fn(async () => [member]),
@@ -188,6 +189,9 @@ describe('AccountFlows conformance', () => {
         identity,
         administration,
         lock,
+        eraseProductWorkspaceInTx: (workspaceId) => {
+          db!.prepare(`DELETE FROM accounts WHERE id = ?`).run(workspaceId)
+        },
         audit,
       }),
     }

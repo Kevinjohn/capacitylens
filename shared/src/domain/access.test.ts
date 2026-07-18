@@ -10,6 +10,7 @@ import {
   canResetMemberAcrossAccounts,
 } from './access'
 import type { Role, Action } from './access'
+import { canAdministerAccount } from '../account/policy'
 
 // These tests are an INDEPENDENT oracle of the CapacityLens Decisions access matrix: the expected
 // booleans below are hard-coded by hand from the spec, NOT derived from the implementation. If
@@ -99,6 +100,25 @@ describe('can(role, action) — the pure access matrix', () => {
       const expected = EXPECTED[role][action]
       it(`can('${role}', '${action}') === ${expected}`, () => {
         expect(can(role, action)).toBe(expected)
+      })
+    }
+  }
+})
+
+describe('CapacityLens/account-policy ownership seam', () => {
+  const mapped = {
+    manageMembers: 'manage-members',
+    manageInvites: 'manage-invitations',
+    deleteAccount: 'erase-workspace',
+    transferOwnership: 'transfer-ownership',
+  } as const
+
+  for (const role of ROLES) {
+    for (const [productAction, accountAction] of Object.entries(mapped) as Array<
+      [keyof typeof mapped, (typeof mapped)[keyof typeof mapped]]
+    >) {
+      it(`${role}/${productAction} delegates to canonical ${accountAction} policy`, () => {
+        expect(can(role, productAction)).toBe(canAdministerAccount(role, accountAction))
       })
     }
   }

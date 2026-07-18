@@ -9,7 +9,7 @@ import { type Db, readSlice, replaceAccountSlice } from './db'
 // BEHIND THIS INTERFACE ONLY, with no change to any caller. That is the whole point of the seam: the
 // routes depend on TenantStore, not on db.ts, so the storage backend is replaceable in one place.
 //
-// THE NO-CROSS-TENANT INVARIANT (mirrors the aspiration documented in membership.ts): no caller may
+// THE NO-CROSS-TENANT INVARIANT (mirrors the account-boundary contract): no caller may
 // issue a cross-tenant query. Every method is keyed by a single accountId and returns/writes ONLY
 // that account's slice; readSlice's predicates (db.ts) enforce it at the SQL layer. A future
 // implementation MUST preserve this — a method that could touch >1 account breaks the seam's contract.

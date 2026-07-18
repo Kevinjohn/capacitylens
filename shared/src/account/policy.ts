@@ -5,6 +5,7 @@ export type AccountAdminAction =
   | 'manage-members'
   | 'manage-invitations'
   | 'transfer-ownership'
+  | 'erase-workspace'
 
 const ROLE_RANK: Readonly<Record<Role, number>> = {
   viewer: 0,
@@ -18,6 +19,7 @@ const MIN_ADMIN_TIER = {
   'manage-members': 'admin',
   'manage-invitations': 'admin',
   'transfer-ownership': 'owner',
+  'erase-workspace': 'owner',
 } as const satisfies Record<AccountAdminAction, Role>
 
 export function isAtLeast(role: Role, minimum: Role): boolean {

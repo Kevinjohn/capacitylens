@@ -2,11 +2,12 @@ import { AccountContractError } from '@capacitylens/shared/account/errors'
 import type { LocalPrincipal, OperationReceipt } from '@capacitylens/shared/account/types'
 import type { LocalIdentityPort } from './betterAuthIdentityPort'
 
-function unsupported(): never {
+function unsupported(commandId?: string): never {
   throw new AccountContractError({
     code: 'UNSUPPORTED_CAPABILITY',
     message: 'This identity operation is unavailable in trusted-local mode.',
     retryable: false,
+    commandId,
   })
 }
 
@@ -43,11 +44,11 @@ export function trustedLocalIdentityPort(principal: LocalPrincipal): LocalIdenti
     async signOut() { return { setCookies: [] } },
     async listSessions() { return [] },
     async revokeOwnSession({ command }) { return receipt(command.commandId) },
-    async createProvisionalCredentialPrincipal() { return unsupported() },
-    async compensateProvisionalPrincipal() { return unsupported() },
+    async createProvisionalCredentialPrincipal({ command }) { return unsupported(command.commandId) },
+    async compensateProvisionalPrincipal({ command }) { return unsupported(command.commandId) },
     async deprovisionLocalPrincipal({ command }) { return receipt(command.commandId) },
-    async issuePasswordReset() { return unsupported() },
-    async revokePasswordResetCeremony() { return unsupported() },
-    async revokePrincipalSessions() { return unsupported() },
+    async issuePasswordReset({ command }) { return unsupported(command.commandId) },
+    async revokePasswordResetCeremony({ command }) { return unsupported(command.commandId) },
+    async revokePrincipalSessions({ command }) { return unsupported(command.commandId) },
   }
 }

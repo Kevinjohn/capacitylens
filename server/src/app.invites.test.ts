@@ -5,11 +5,11 @@ import { openDb, insertAll, loadState, type Db } from './db'
 import {
   createInvite,
   getInvite,
+  getMemberRole,
   upsertMember,
   normalizeEmail,
   preauthInviteAllows,
 } from './controlTables'
-import { resolveRole } from './membership'
 import { authFromEnv, runAuthMigrations, DEMO_USER } from './auth'
 import { PASSWORD_ENV, call, cookiesOf, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
@@ -251,12 +251,12 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
 
     // User B (no prior membership) accepts.
     const b = await signUp(app, 'joiner@capacitylens.dev')
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBeNull() // not yet a member
+    expect(getMemberRole(db, 'a1', b.userId)).toBeNull() // not yet a member
     const res = await acceptReq(app, token, { cookie: b.cookie })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ accountId: 'a1', role: 'editor' })
     // Role bound, token stamped used.
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('editor')
+    expect(getMemberRole(db, 'a1', b.userId)).toBe('editor')
     expect(getInvite(db, token)!.usedAt).not.toBeNull()
   })
 
@@ -272,13 +272,13 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
     expect((await acceptReq(app, token, { cookie: b.cookie })).statusCode).toBe(200)
     const usedAtAfterFirst = getInvite(db, token)!.usedAt
     expect(usedAtAfterFirst).not.toBeNull()
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('viewer')
+    expect(getMemberRole(db, 'a1', b.userId)).toBe('viewer')
 
     // Second accept (same token, same user) is rejected and changes nothing.
     const second = await acceptReq(app, token, { cookie: b.cookie })
     expect(second.statusCode).toBe(409)
     expect(getInvite(db, token)!.usedAt).toBe(usedAtAfterFirst)
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('viewer')
+    expect(getMemberRole(db, 'a1', b.userId)).toBe('viewer')
   })
 
   it('consumes an invite without changing an existing sole-owner membership', async () => {
@@ -292,7 +292,7 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
     const accepted = await acceptReq(app, token, { cookie: owner.cookie })
     expect(accepted.statusCode).toBe(200)
     expect(accepted.json()).toEqual({ accountId: 'a1', role: 'owner' })
-    expect(resolveRole(db, { id: owner.userId } as never, 'a1')).toBe('owner')
+    expect(getMemberRole(db, 'a1', owner.userId)).toBe('owner')
     expect(getInvite(db, token)?.usedAt).not.toBeNull()
   })
 
@@ -314,7 +314,7 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
 
     const res = await acceptReq(app, 'expired-token-xyz', { cookie: b.cookie })
     expect(res.statusCode).toBe(410)
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBeNull()
+    expect(getMemberRole(db, 'a1', b.userId)).toBeNull()
     expect(getInvite(db, 'expired-token-xyz')!.usedAt).toBeNull() // not consumed
   })
 
@@ -341,7 +341,7 @@ describe('POST /api/invites/:token/accept (P1.9 accept)', () => {
       vi.setSystemTime('2026-07-14T12:00:00.000Z')
       const res = await acceptReq(app, token, { cookie: user.cookie })
       expect(res.statusCode).toBe(410)
-      expect(resolveRole(db, { id: user.userId } as never, 'a1')).toBeNull()
+      expect(getMemberRole(db, 'a1', user.userId)).toBeNull()
     } finally {
       vi.useRealTimers()
     }
@@ -416,7 +416,7 @@ describe('POST /api/invites/:token/signup — password invite onboarding', () =>
     })
     expect(me.json().user.emailVerified).toBe(true)
     expect(me.json().user.name).toBe('New Person')
-    expect(resolveRole(db, { id: me.json().user.id } as never, 'a1')).toBe('editor')
+    expect(getMemberRole(db, 'a1', me.json().user.id)).toBe('editor')
     expect((await acceptReq(app, token, { cookie: cookiesOf(signedIn) })).statusCode).toBe(409)
   })
 })
@@ -433,7 +433,7 @@ describe('invites — OFF mode (trusted-local)', () => {
 
     const res = await acceptReq(app, token)
     expect(res.statusCode).toBe(200)
-    expect(resolveRole(db, { id: DEMO_USER.id } as never, 'a1')).toBe('editor')
+    expect(getMemberRole(db, 'a1', DEMO_USER.id)).toBe('editor')
     expect(getInvite(db, token)!.usedAt).not.toBeNull()
   })
 })
@@ -552,7 +552,7 @@ describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
     const b = await signUp(app, 'link-joiner@capacitylens.dev')
     const res = await acceptReq(app, token, { cookie: b.cookie })
     expect(res.statusCode).toBe(200)
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('editor')
+    expect(getMemberRole(db, 'a1', b.userId)).toBe('editor')
   })
 
   it('preauth + WRONG email → 403; membership NOT created; invite NOT consumed (usedAt stays null)', async () => {
@@ -572,7 +572,7 @@ describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
     verifyUserEmail(db, 'wrong@capacitylens.dev')
     const res = await acceptReq(app, token, { cookie: b.cookie })
     expect(res.statusCode).toBe(403)
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBeNull() // no bind
+    expect(getMemberRole(db, 'a1', b.userId)).toBeNull() // no bind
     expect(getInvite(db, token)!.usedAt).toBeNull() // NOT consumed — still live for the right caller
   })
 
@@ -592,7 +592,7 @@ describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
     const b = await signUp(app, 'newhire@capacitylens.dev')
     const res = await acceptReq(app, token, { cookie: b.cookie })
     expect(res.statusCode).toBe(200)
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('editor')
+    expect(getMemberRole(db, 'a1', b.userId)).toBe('editor')
     expect(getInvite(db, token)!.usedAt).not.toBeNull()
   })
 
@@ -619,7 +619,7 @@ describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
     const res = await acceptReq(app, token, { cookie: b.cookie })
     expect(res.statusCode).toBe(200)
     expect(res.json()).toEqual({ accountId: 'a1', role: 'editor' })
-    expect(resolveRole(db, { id: b.userId } as never, 'a1')).toBe('editor')
+    expect(getMemberRole(db, 'a1', b.userId)).toBe('editor')
     expect(getInvite(db, token)!.usedAt).not.toBeNull()
   })
 
@@ -639,7 +639,7 @@ describe('POST /api/invites/:token/accept (P1.10 preauth gate)', () => {
 
     const res = await acceptReq(app, token)
     expect(res.statusCode).toBe(200)
-    expect(resolveRole(db, { id: DEMO_USER.id } as never, 'a1')).toBe('admin')
+    expect(getMemberRole(db, 'a1', DEMO_USER.id)).toBe('admin')
     expect(getInvite(db, token)!.usedAt).not.toBeNull()
   })
 })

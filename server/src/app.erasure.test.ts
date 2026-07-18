@@ -1,10 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
 import { buildApp } from './app'
 import { openDb, insertAll, type Db } from './db'
 import { upsertMember, createInvite } from './controlTables'
-import * as controlTables from './controlTables'
-import { eraseAccount } from './erasure'
 import { authFromEnv, countUsers, runAuthMigrations } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
@@ -17,7 +15,7 @@ import { reserveAccountCommand } from './accounts/state'
 // suite proves the erasure now closes all three surfaces, AND keeps two hard invariants: it touches
 // ONLY the target tenant (cross-tenant), and a member still in ANOTHER account is NOT erased.
 //
-// Each case asserts OBSERVABLE DB state via raw SELECT (mirroring getUsersByIds' query style) rather
+// Each case asserts OBSERVABLE DB state via raw SELECT rather
 // than trusting a helper — the point is to prove the bytes are gone from the actual tables.
 
 const TS = '2026-01-01T00:00:00.000Z'
@@ -319,16 +317,19 @@ describe('P2.6b erasure — (e) atomic rollback (fail-closed)', () => {
     const u = await signUp(app, 'rollback-owner@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
 
-    // Force a deterministic mid-tx throw: removeAllInvitesForAccount runs AFTER the account row +
-    // members are deleted but BEFORE the PII scrub, so a throw here proves the EARLIER deletes roll back.
-    const spy = vi
-      .spyOn(controlTables, 'removeAllInvitesForAccount')
-      .mockImplementationOnce(() => {
-        throw new Error('forced mid-erasure failure (test)')
-      })
+    // Force a deterministic failure from the account-administration adapter after product and
+    // membership deletion have begun. The enclosing AccountFlows transaction must roll everything
+    // back rather than committing a partly erased tenant.
+    db.exec(`
+      CREATE TRIGGER force_mid_erasure_failure
+      BEFORE DELETE ON account_members
+      WHEN OLD.accountId = 'a1'
+      BEGIN
+        SELECT RAISE(ABORT, 'forced mid-erasure failure');
+      END;
+    `)
 
-    expect(() => eraseAccount(db, 'a1')).toThrow(/forced mid-erasure failure/)
-    spy.mockRestore()
+    expect((await deleteAccountRoute(app, 'a1', u.cookie)).statusCode).toBe(500)
 
     // The tx rolled back: NOTHING changed. Account row, its scoped client, the membership, and the
     // user's real PII are ALL still present (a partial erasure must never commit).

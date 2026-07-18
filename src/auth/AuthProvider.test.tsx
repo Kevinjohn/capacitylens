@@ -119,6 +119,37 @@ describe('AuthProvider — server mode', () => {
     expect(fetchSpy).toHaveBeenCalledWith('http://api.test/api/auth/me', expect.objectContaining({ credentials: 'include', signal: expect.any(AbortSignal) }))
   })
 
+  it('surfaces and clears an OIDC step-up failure for an authenticated session', async () => {
+    window.history.replaceState(
+      {},
+      '',
+      '/team?tab=access&externalSignInError=1&error=access_denied&error_description=provider-secret',
+    )
+    try {
+      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+      vi.stubGlobal('fetch', vi.fn(async () => me(200, {
+        authMode: 'sso',
+        user: { id: 'owner', name: 'Owner', email: 'owner@example.com' },
+        providers: [{ id: 'sso', label: 'Single sign-on', kind: 'oidc', experimental: false }],
+      })))
+      const { AuthProvider, useStore } = await freshProvider()
+      render(
+        <AuthProvider>
+          <div>authenticated-app</div>
+        </AuthProvider>,
+      )
+
+      expect(await screen.findByText('authenticated-app')).toBeInTheDocument()
+      await waitFor(() => expect(useStore.getState().notice).toMatchObject({
+        message: 'Single sign-on was not completed. Try again or contact your administrator.',
+        tone: 'error',
+      }))
+      expect(window.location.href).toBe('http://localhost:3000/team?tab=access')
+    } finally {
+      window.history.replaceState({}, '', '/')
+    }
+  })
+
   it('does not mark a cached active tenant online merely because the identity check succeeds', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => me(200, { authMode: 'off', user: null })))

@@ -16,6 +16,8 @@ describe('account administration policy', () => {
     expect(canAdministerAccount('admin', 'manage-members')).toBe(true)
     expect(canAdministerAccount('admin', 'transfer-ownership')).toBe(false)
     expect(canAdministerAccount('owner', 'transfer-ownership')).toBe(true)
+    expect(canAdministerAccount('admin', 'erase-workspace')).toBe(false)
+    expect(canAdministerAccount('owner', 'erase-workspace')).toBe(true)
   })
 
   it('keeps Owner outside ordinary role and removal operations', () => {

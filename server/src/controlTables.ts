@@ -1,6 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { isAccountRole, type Role } from '@capacitylens/shared/account/types'
-import { cleanText } from '@capacitylens/shared/lib/strings'
 import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { revokeResetTokensForUser } from './auth'
 import { bumpSecurityRevision } from './accounts/state'
@@ -295,15 +294,14 @@ export function upsertMember(db: Db, member: AccountMember): void {
   // -write choke point, precisely so no elevation path (PATCH role, transfer-ownership, invite
   // accept, POST /api/orgs) can forget it — the sprinkle-at-each-callsite approach missed two.
   // No-op when the user holds no reset token (the common case: fresh membership) or in OFF mode
-  // (no Better Auth tables). revokeResetTokensForUser lives in auth.ts (its verification table is
-  // Better Auth's); this module already reaches into a Better Auth table via getUsersByIds.
+  // (no Better Auth tables). The reset-token implementation remains identity-owned in auth.ts.
   revokeResetTokensForUser(db, member.userId)
   bumpSecurityRevision(db, member.userId)
 }
 
 /**
- * Resolve one login's role for one account, or `null` if it is not a member. The primitive P1.2's
- * `resolveRole` wraps; permissioned routes call that to drive the pure `can(role, action)` check.
+ * Resolve one login's role for one account, or `null` if it is not a member. The account adapter
+ * narrows this to active memberships before applying canonical account policy.
  *
  * @param db         The open SQLite handle.
  * @param accountId  The account to look up.
@@ -752,39 +750,6 @@ export function removeAllMembersForAccount(db: Db, accountId: string): void {
  */
 export function removeAllInvitesForAccount(db: Db, accountId: string): void {
   db.prepare(`DELETE FROM invites WHERE accountId = ?`).run(accountId)
-}
-
-/**
- * Resolve display identity (name + email) for a set of user ids — the ONLY place the member-management
- * code reads Better Auth's `user` table, and ONLY to render an AUTHORIZED admin's member list. The
- * `user` table lives in the same SQLite file as the control tables (see auth.ts); this reads `name`
- * and `email` for member-row display, nothing more, and never on an unauthorized path (the caller is
- * the gated GET members route, which has already passed `manageMembers`).
- *
- * The IN-clause is built from PARAMETERISED placeholders (one `?` per id) — never string-interpolated
- * — so a crafted user id can't inject SQL. An EMPTY `ids` short-circuits to an empty map (a zero-id IN
- * clause is invalid SQL). A user id with no `user` row is simply absent from the map (the caller
- * degrades a missing identity to null, it does not throw).
- *
- * @param db   The open SQLite handle.
- * @param ids  The user ids to resolve (de-duplication is the caller's concern; duplicates are harmless).
- * @returns A Map keyed by user id → `{ name, email }` (each possibly null); ids with no row are absent.
- */
-export function getUsersByIds(
-  db: Db,
-  ids: string[],
-): Map<string, { name: string | null; email: string | null }> {
-  const map = new Map<string, { name: string | null; email: string | null }>()
-  if (ids.length === 0) return map // a zero-id IN () is invalid SQL — short-circuit
-  const placeholders = ids.map(() => '?').join(', ')
-  const rows = db
-    .prepare(`SELECT id, name, email FROM user WHERE id IN (${placeholders})`)
-    .all(...ids) as Array<{ id: string; name: string | null; email: string | null }>
-  for (const r of rows) {
-    const name = typeof r.name === 'string' ? cleanText(r.name) : ''
-    map.set(r.id, { name: name || null, email: r.email ?? null })
-  }
-  return map
 }
 
 /**

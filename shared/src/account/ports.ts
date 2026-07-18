@@ -117,6 +117,9 @@ export interface AccountAdminPort {
   acceptInvitation(input: {
     actor: ActorContext
     token: string
+    /** Attributes from the verified application session; never accept these from a request body. */
+    principalEmail: string
+    emailVerified: boolean
     command: CommandIdentity
   }): Promise<Membership>
   claimInvitationForPrincipal(input: {
