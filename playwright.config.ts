@@ -5,7 +5,7 @@ import { defineConfig, devices } from '@playwright/test'
 //   db-backed   — the SQLite server (:8787, reset enabled, temp DB) + a second Vite
 //                 dev server (:5273) whose same-origin /api proxy targets that server
 //                 through the entity-level ServerSyncAdapter. *.db.spec.ts run here.
-//   auth-backed — a third server (:8887) booted with CAPACITYLENS_AUTH=password (fresh DB per
+//   auth-backed — a third server (:8887) booted with SMALLSASS_ACCOUNT_MODE=password (fresh DB per
 //                 run) + a Vite dev server (:5373) whose /api proxy targets it — the ONLY place the
 //                 flag-gated login screen exists (US-NAV-10). *.auth.spec.ts run here.
 const API_PORT = 8787
@@ -80,6 +80,11 @@ export default defineConfig({
     {
       name: 'db-backed',
       testMatch: /\.db\.spec\.ts$/,
+      // Every DB-backed test resets the same SQLite fixture in beforeEach. Running those resets
+      // concurrently can abort another page's in-flight account read and makes the suite pass by
+      // luck against mutually changing state. Keep this one shared-database project serial; the
+      // browser-only and auth projects retain their normal parallelism.
+      workers: 1,
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${DB_WEB_PORT}` },
     },
     {
@@ -155,7 +160,8 @@ export default defineConfig({
           },
           {
             command: 'pnpm run dev:oidc',
-            url: `http://localhost:${OIDC_WEB_PORT}`,
+            // Readiness must traverse Vite's /api proxy, not merely prove that Vite can serve HTML.
+            url: `http://localhost:${OIDC_WEB_PORT}/api/health`,
             reuseExistingServer: false,
             timeout: 120_000,
             env: { CAPACITYLENS_DEV_API_PORT: String(OIDC_API_PORT) },
@@ -174,7 +180,9 @@ export default defineConfig({
           },
           {
             command: 'pnpm run dev:api',
-            url: `http://localhost:${DB_WEB_PORT}`,
+            // Warm and verify the browser's real Vite → API path before the first page mounts.
+            // Waiting on the Vite root alone can race its first proxied fetch on a cold start.
+            url: `http://localhost:${DB_WEB_PORT}/api/health`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
             // Match the packaged nginx topology: the browser stays same-origin and Vite proxies
@@ -183,7 +191,7 @@ export default defineConfig({
             env: { CAPACITYLENS_DEV_API_PORT: String(API_PORT) },
           },
           {
-            // CAPACITYLENS_AUTH=password + a dev-only secret live in the pnpm script; the DB file is
+            // SMALLSASS_ACCOUNT_MODE=password + a dev-only secret live in the pnpm script; the DB file is
             // recreated on every boot so sign-up state never leaks between runs. NEVER reuse an
             // already-running :8887 — the wipe + CAPACITYLENS_CREATE_ADMIN_ADMIN bootstrap only run
             // on a fresh spawn, so an adopted stale server (older env, dirty DB) fails the
@@ -197,7 +205,7 @@ export default defineConfig({
           },
           {
             command: 'pnpm run dev:auth',
-            url: `http://localhost:${AUTH_WEB_PORT}`,
+            url: `http://localhost:${AUTH_WEB_PORT}/api/health`,
             reuseExistingServer: !process.env.CI,
             timeout: 120_000,
             env: { CAPACITYLENS_DEV_API_PORT: String(AUTH_API_PORT) },

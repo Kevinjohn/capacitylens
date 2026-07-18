@@ -48,22 +48,46 @@ export function useSchedulerViewport({
   useLayoutEffect(() => {
     const el = scrollRef.current
     if (!el) return
+    let measuredWidth = -1
+    let measuredHeight = -1
+    let measuredRootFontSize = -1
+    const readMeasurements = () => ({
+      width: el.clientWidth,
+      height: el.clientHeight,
+      rootFontSize: parseFloat(getComputedStyle(document.documentElement).fontSize) || 16,
+    })
     const measure = () => {
-      setTimelineWidth(el.clientWidth)
-      setTimelineHeight(el.clientHeight)
-      setRootFontSizePx(parseFloat(getComputedStyle(document.documentElement).fontSize) || 16)
+      const { width, height, rootFontSize } = readMeasurements()
+      if (width !== measuredWidth) {
+        measuredWidth = width
+        setTimelineWidth(width)
+      }
+      if (height !== measuredHeight) {
+        measuredHeight = height
+        setTimelineHeight(height)
+      }
+      if (rootFontSize !== measuredRootFontSize) {
+        measuredRootFontSize = rootFontSize
+        setRootFontSizePx(rootFontSize)
+      }
     }
     measure()
     if (typeof ResizeObserver === 'undefined') return
-    let raf = 0
+    let resizeTimer = 0
     const onResize = () => {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(measure)
+      // ResizeObserver always reports once after observe(), even though the synchronous measure
+      // above already captured that geometry. Firefox can deliver a deferred callback for that
+      // redundant notification while React is replaying layout effects in development Strict
+      // Mode, so do not schedule (or dispatch state for) unchanged dimensions.
+      const { width, height, rootFontSize } = readMeasurements()
+      if (width === measuredWidth && height === measuredHeight && rootFontSize === measuredRootFontSize) return
+      clearTimeout(resizeTimer)
+      resizeTimer = window.setTimeout(measure, 0)
     }
     const observer = new ResizeObserver(onResize)
     observer.observe(el)
     return () => {
-      cancelAnimationFrame(raf)
+      clearTimeout(resizeTimer)
       observer.disconnect()
     }
   }, [])
@@ -72,12 +96,28 @@ export function useSchedulerViewport({
   useLayoutEffect(() => {
     const el = headerRef.current
     if (!el) return
-    const measure = () => setStickyHeaderHeight(el.offsetHeight || LAYOUT.headerHeight)
+    let measuredHeight = -1
+    const measure = () => {
+      const height = el.offsetHeight || LAYOUT.headerHeight
+      if (height === measuredHeight) return
+      measuredHeight = height
+      setStickyHeaderHeight(height)
+    }
     measure()
     if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(measure)
+    let resizeTimer = 0
+    const onResize = () => {
+      const height = el.offsetHeight || LAYOUT.headerHeight
+      if (height === measuredHeight) return
+      clearTimeout(resizeTimer)
+      resizeTimer = window.setTimeout(measure, 0)
+    }
+    const observer = new ResizeObserver(onResize)
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      clearTimeout(resizeTimer)
+      observer.disconnect()
+    }
   }, [])
 
   const availableWidth = (timelineWidth || FALLBACK_TIMELINE_WIDTH) - LAYOUT.leftColWidth

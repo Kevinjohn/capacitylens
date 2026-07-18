@@ -10,6 +10,32 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.24.1-alpha.2] — 2026-07-18
+
+This Alpha 2 patch hardens the local release-certification path after running the complete
+non-mutation gate across the application, server, migrations, all supported browsers, strict OIDC
+and production dependencies. There is no application-data, export-schema or database-schema change.
+
+### Changed
+
+- Made browser dates deterministic without virtualising timers or animation frames, keeping
+  date-sensitive schedule assertions stable while preserving native interaction timing.
+- Made Playwright wait for the proxied API health endpoint before starting database, password-auth
+  and OIDC browser tests, and serialised the shared-SQLite project so one reset cannot interrupt
+  another test's account read.
+- Moved auth-backed E2E and the isolated access lab onto the canonical `SMALLSASS_ACCOUNT_*`
+  configuration names, stripping hostile inherited account settings before applying the lab's
+  fixed loopback-only posture.
+
+### Fixed
+
+- Fixed a Firefox development-mode render-phase warning caused by redundant ResizeObserver updates;
+  viewport and sticky-header measurements now dispatch only when dimensions actually change.
+- Fixed a WebKit lazy-module import race by removing a redundant navigation from the command-palette
+  test, and fixed cold-start database fetch failures by verifying the complete Vite-to-API path.
+- Fixed inherited colour-control variables producing contradictory runner warnings in the full
+  cross-browser and strict-OIDC launchers while retaining deterministic non-colour output.
+
 ## [0.24.0-alpha.2] — 2026-07-18
 
 This Alpha 2 release completes a broad separation-of-concerns pass over the application shell,
@@ -1015,7 +1041,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.0-alpha.2...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.1-alpha.2...HEAD
+[0.24.1-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.0-alpha.2...v0.24.1-alpha.2
 [0.24.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.4-alpha.0...v0.24.0-alpha.2
 [0.23.4-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.3-alpha.0...v0.23.4-alpha.0
 [0.23.3-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.0-alpha.0...v0.23.3-alpha.0

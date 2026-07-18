@@ -6,7 +6,7 @@ import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_ADMIN, BOOTSTRAP_
 test.use({ reducedMotion: 'reduce' })
 
 // US-NAV-10: the flag-gated login wall, against the auth-backed project's server
-// (CAPACITYLENS_AUTH=password on :8887 — see playwright.config.ts). The default deploy keeps
+// (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). The default deploy keeps
 // auth off, so this is the ONLY place the login screen exists; the rest of the suite
 // running unchanged in the other two projects is the off-guarantee.
 
@@ -29,7 +29,7 @@ async function seedUser(request: APIRequestContext, email = EMAIL) {
   if (!res.ok()) expect(res.status()).toBe(422)
 }
 
-test.describe('login screen (CAPACITYLENS_AUTH=password)', () => {
+test.describe('login screen (SMALLSASS_ACCOUNT_MODE=password)', () => {
   test('unauthenticated visit shows the login screen, not the app — and the API 401s', async ({
     page,
     request,

@@ -11,7 +11,7 @@ import { dismissIntroIfPresent } from './helpers'
 test.use({ reducedMotion: 'reduce' })
 
 // P1.11 — Owner/Admin member management, against the auth-backed project's server
-// (CAPACITYLENS_AUTH=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
+// (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and
 // invites admin B + editor C (both accept via the API). Then, as B (admin), we drive the Team &
 // access UI: list members, change C editor→viewer, mint a viewer invite (the link appears once),
 // revoke it. We assert the Owner option AND the transfer affordance are ABSENT for B in
@@ -27,7 +27,7 @@ const OWNER = `m-owner-${STAMP}@capacitylens.dev`
 const ADMIN = `m-admin-${STAMP}@capacitylens.dev`
 const EDITOR = `m-editor-${STAMP}@capacitylens.dev`
 
-test.describe('member management (CAPACITYLENS_AUTH=password)', () => {
+test.describe('member management (SMALLSASS_ACCOUNT_MODE=password)', () => {
   test('admin manages members but not owner-only ops; ownership changes only by transfer; no cross-tenant leak', async ({
     page,
     request,

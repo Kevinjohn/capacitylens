@@ -4,7 +4,7 @@ import { dismissIntroIfPresent } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
-// P1.9 — invite accept, against the auth-backed project's server (CAPACITYLENS_AUTH=password on
+// P1.9 — invite accept, against the auth-backed project's server (SMALLSASS_ACCOUNT_MODE=password on
 // :8887 — see playwright.config.ts). Owner A signs up, bootstraps an org (via the operator bootstrap
 // token, since the auth-e2e DB is seeded so A is not first-run), and mints an editor invite token via
 // POST /api/invites. User B then opens /invite/<token> in the browser: the safe preview loads without
@@ -22,7 +22,7 @@ const OWNER = `owner-${STAMP}@capacitylens.dev`
 const JOINER = `joiner-${STAMP}@capacitylens.dev`
 const NEW_JOINER = `new-joiner-${STAMP}@capacitylens.dev`
 
-test.describe('invite accept (CAPACITYLENS_AUTH=password)', () => {
+test.describe('invite accept (SMALLSASS_ACCOUNT_MODE=password)', () => {
   test('a signed-in user opens a valid invite link and joins; reusing the token is 409', async ({
     page,
     request,

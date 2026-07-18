@@ -48,8 +48,6 @@ test.describe('Command palette', () => {
   })
 
   test('opens from an input field (Ctrl+K fires even while typing)', async ({ page }) => {
-    await openApp(page, 'Studio North', '/resources')
-    // The filter/search for resources if any, or just check from the scheduler toolbar search
     await openApp(page)
     // Focus the "Search people…" input on the scheduler
     const searchInput = page.getByPlaceholder('Search people…')

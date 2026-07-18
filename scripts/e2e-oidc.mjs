@@ -12,8 +12,22 @@ let discoveryFault = 'healthy'
 let dexStarted = false
 let primaryFailure = null
 
+function childEnvironment(extra = {}) {
+  const env = { ...process.env, ...extra }
+  if ('NO_COLOR' in env) {
+    delete env.NO_COLOR
+    env.FORCE_COLOR = '0'
+  }
+  return env
+}
+
 function run(command, args, options = {}) {
-  const result = spawnSync(command, args, { stdio: 'inherit', ...options })
+  const { env, ...spawnOptions } = options
+  const result = spawnSync(command, args, {
+    stdio: 'inherit',
+    ...spawnOptions,
+    env: childEnvironment(env),
+  })
   if (result.error) throw result.error
   if (result.status !== 0) throw new Error(`${command} exited with status ${result.status}.`)
 }
@@ -73,11 +87,10 @@ async function playwright(phase, filterArgs) {
       ...filterArgs,
     ], {
       stdio: 'inherit',
-      env: {
-        ...process.env,
+      env: childEnvironment({
         CAPACITYLENS_E2E_PHASE: `oidc-${phase}`,
         CAPACITYLENS_OIDC_E2E: '1',
-      },
+      }),
     })
     child.once('error', reject)
     child.once('exit', (status) => {
@@ -116,6 +129,7 @@ try {
     if (dexStarted) {
       const logs = spawnSync('docker', ['logs', '--timestamps', container], {
         encoding: 'utf8',
+        env: childEnvironment(),
         maxBuffer: 10 * 1024 * 1024,
       })
       if (logs.error) throw logs.error
@@ -128,6 +142,7 @@ try {
   if (dexStarted) {
     const removed = spawnSync('docker', ['rm', '--force', container], {
       encoding: 'utf8',
+      env: childEnvironment(),
     })
     if (removed.error || removed.status !== 0) {
       cleanupFailure ??= removed.error ?? new Error(

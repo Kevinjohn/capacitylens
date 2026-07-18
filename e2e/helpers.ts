@@ -6,23 +6,39 @@ import { expect, type Locator, type Page } from '@playwright/test'
 // window runs forward from today. So once the real wall-clock drifts past that window
 // the seeded bars scroll into the past and off-screen, and every spec that clicks,
 // hovers or drags a seed bar (or asserts the 3-4 June over-marker) starts failing for
-// reasons that have nothing to do with the code under test. Freeze the browser clock
-// to a date inside the seed window so the suite is deterministic whenever it runs.
-// `setFixedTime` pins only Date/now — timers (scroll, drag, popovers) keep running —
-// and noon gives a wide margin against host/browser timezone offsets.
-const FIXED_NOW = new Date('2026-06-03T12:00:00')
+// reasons that have nothing to do with the code under test. Freeze Date/Date.now to a
+// date inside the seed window so the suite is deterministic whenever it runs. Do not use
+// Playwright's page.clock here: in Firefox it virtualises requestAnimationFrame too, and its
+// timer pump can fire a pending scheduler scroll frame during React's Strict Mode layout-effect
+// replay. Noon gives a wide margin against host/browser timezone offsets.
+const FIXED_NOW = '2026-06-03T12:00:00'
 
-// KNOWN HARNESS GAP (deliberate, low priority): the suite has NO global `page.on('pageerror')`
-// / `console.error` gate, so a route that throws but still renders the element a spec asserts on
-// could pass silently. In practice most specs assert specific post-nav content, so a hard crash
-// (which drops to the ErrorBoundary) already fails them — the gap is only the narrow "threw but
-// the asserted node happened to render anyway" case. We do NOT close it with a naive listener:
-// (1) it would have to be a `test.extend` fixture and all 45 spec files import `{ test }` straight
-// from '@playwright/test', so retrofitting is broad churn for a P4; and (2) a naive gate FLAKES on
-// WebKit's benign dev-server "Importing a module script failed" chunk race (caught by the
-// ErrorBoundary, absent from the prod bundle), so any real gate must allowlist that exact message,
-// scoped to WebKit. If a route-crash regression ever slips through, THAT is the trigger to add the
-// allowlisted fixture — not before.
+/** Freeze only the browser's Date constructor and Date.now, leaving every timer API native. */
+export async function freezeBrowserDate(page: Page): Promise<void> {
+  await page.addInitScript((fixedNow) => {
+    const NativeDate = Date
+    const fixedMs = new NativeDate(fixedNow).getTime()
+
+    function FixedDate(this: Date, ...args: unknown[]) {
+      if (!new.target) return new NativeDate(fixedMs).toString()
+      return Reflect.construct(NativeDate, args.length ? args : [fixedMs], new.target)
+    }
+
+    Object.setPrototypeOf(FixedDate, NativeDate)
+    FixedDate.prototype = NativeDate.prototype
+    Object.defineProperty(FixedDate, 'name', { value: 'Date' })
+    Object.defineProperty(FixedDate, 'now', { value: () => fixedMs })
+    globalThis.Date = FixedDate as unknown as DateConstructor
+  }, FIXED_NOW)
+}
+
+// KNOWN HARNESS GAP (deliberate, low priority): the suite has no global `page.on('pageerror')` /
+// `console.error` gate, so a route that throws but still renders the element a spec asserts on could
+// pass silently. Most specs assert specific post-navigation content and Vite forwards browser
+// errors to the runner, so hard crashes are already visible. Closing the remaining narrow gap needs
+// a shared `test.extend` fixture (all spec files currently import directly from Playwright), which is
+// broader churn than this helper warrants. Do not allowlist WebKit module-import failures: they can
+// reveal a real test race, such as navigating away before a lazy route has finished loading.
 
 /** Click through the once-per-device "What CapacityLens is" intro page if this load shows it
  *  (`capacitylens/introSeen` — skipped once dismissed). Waits for the intro's Continue button OR
@@ -48,7 +64,7 @@ export async function dismissIntroIfPresent(page: Page, landedOn: Locator): Prom
 // the seeded company, so they navigate through `openApp` instead of `goto('/')`.
 export async function openApp(page: Page, company = 'Studio North', path = '/'): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
-  await page.clock.setFixedTime(FIXED_NOW)
+  await freezeBrowserDate(page)
   await page.goto(path)
   // A cosmetic demo "fake sign-in" gate now precedes the company picker in the default
   // (auth-off) deploy. It is skipped once "signed in" (the flag persists), so wait for
@@ -76,7 +92,7 @@ export async function openApp(page: Page, company = 'Studio North', path = '/'):
 // `createCompany` fills the name, submits, and clears the same post-create intro gate as `openApp`.
 export async function openNewCompanyForm(page: Page): Promise<void> {
   // Must precede goto so the app reads the frozen date on its first render.
-  await page.clock.setFixedTime(FIXED_NOW)
+  await freezeBrowserDate(page)
   await page.goto('/')
   // Same cosmetic demo "fake sign-in" gate as `openApp`, ahead of the picker here too.
   const signIn = page.getByTestId('fake-sign-in')

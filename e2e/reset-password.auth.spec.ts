@@ -4,7 +4,7 @@ import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser
 test.use({ reducedMotion: 'reduce' })
 
 // P1.18 — admin-issued password-reset links, against the auth-backed project's server
-// (CAPACITYLENS_AUTH=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an
+// (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an
 // org, invites member B (editor), then mints B a reset link from Team & access in the BROWSER
 // (the write-once reset-link block). B — signed OUT, which is the whole point of a reset — opens the
 // link, sets a new password, and signs in with it; the old password is asserted dead at the API
@@ -17,7 +17,7 @@ const STAMP = Date.now()
 const OWNER = `reset-owner-${STAMP}@capacitylens.dev`
 const MEMBER = `reset-member-${STAMP}@capacitylens.dev`
 
-test.describe('password reset link (CAPACITYLENS_AUTH=password)', () => {
+test.describe('password reset link (SMALLSASS_ACCOUNT_MODE=password)', () => {
   test('admin mints a reset link in Team & access; the locked-out member sets a new password with it', async ({
     page,
     request,

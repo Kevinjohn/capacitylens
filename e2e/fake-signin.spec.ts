@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { freezeBrowserDate } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -9,11 +10,9 @@ test.use({ reducedMotion: 'reduce' })
 // deploy (the real login wall) is covered by login.auth.spec.ts, where this demo gate stays
 // dormant (AppShell only mounts it when authMode === 'off').
 
-const FIXED_NOW = new Date('2026-06-03T12:00:00')
-
 test.describe('fake sign-in (cosmetic demo gate)', () => {
   test('precedes the company picker; signing in reveals it, then the app', async ({ page }) => {
-    await page.clock.setFixedTime(FIXED_NOW)
+    await freezeBrowserDate(page)
     await page.goto('/')
 
     // The demo sign-in is the first screen — the picker is walled off behind it.
@@ -46,7 +45,7 @@ test.describe('fake sign-in (cosmetic demo gate)', () => {
   })
 
   test('staying signed in persists across reload; Sign out returns to the demo sign-in', async ({ page }) => {
-    await page.clock.setFixedTime(FIXED_NOW)
+    await freezeBrowserDate(page)
     await page.goto('/')
     await page.getByTestId('fake-sign-in').click()
     await expect(page.getByRole('heading', { name: 'Choose a company' })).toBeVisible()

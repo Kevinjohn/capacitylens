@@ -1,7 +1,7 @@
 import { expect, request as playwrightRequest, type APIRequestContext } from '@playwright/test'
 
 // Shared plumbing for the auth-backed Playwright specs (*.auth.spec.ts), which all run against the
-// auth-e2e server (CAPACITYLENS_AUTH=password on :8887 — see playwright.config.ts). Extracted here so
+// auth-e2e server (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Extracted here so
 // the bootstrap token, sign-up payload shape, and Set-Cookie collapse live in ONE place rather than a
 // copy per spec (they were duplicated across members/invite/viewer/login/reset-password).
 
