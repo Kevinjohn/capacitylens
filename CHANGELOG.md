@@ -10,6 +10,102 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.2] — 2026-07-18
+
+This Alpha 2 minor release completes the provider-neutral account boundary, strict OIDC support and
+the separation-of-concerns pass across the application shell, scheduler, persistence and server
+lifecycle paths. It also promotes the local release checklist into independently visible CI gates
+and records a complete local certification across unit, integration, migration, browser, OIDC,
+dependency-audit and mutation suites.
+
+The portable export format remains at schema v8. SQLite databases advance from v14 to v15 to add
+durable account-command and reconciliation state; existing databases receive the normal verified
+pre-migration rollback snapshot before the forward-only migration runs.
+
+### Added
+
+- Added provider-neutral identity and account-administration ports, a policy-owned command
+  coordinator and idempotent/reconcilable cross-port flows. Architecture tests keep product routes,
+  orchestration and account policy away from raw identity and membership storage.
+- Added Better Auth, trusted-local and vendor-free identity implementations behind one capability-
+  aware contract suite, with normalized unsupported-capability and correlated command outcomes.
+- Added durable SQLite account-boundary state for command attempts, compensation and reconciliation,
+  together with an operator reconciliation command and explicit database migration v15.
+- Added first-class strict OIDC with exact issuer/discovery pinning, bounded no-redirect discovery
+  and user-info fetches, signed ID-token verification, JWKS rotation, subject binding, verified-email
+  admission and pre-authorised invitation/bootstrap controls.
+- Added a digest-pinned Dex browser matrix covering successful sign-in, invitation admission,
+  provider denial, malformed discovery and provider unavailability without weakening password mode.
+- Added a first-class **Team & access** destination, persistent role summaries, safe invitation
+  previews, write-once invite/reset links and an isolated Owner/Admin/Editor/Viewer access lab.
+- Added focused app-entry, shell, team-directory, scheduler-viewport and allocation-gesture
+  controllers; runtime-preference and scheduler-navigation store slices; and a shared server
+  lifecycle transition pipeline for archive, restore, soft-delete and purge.
+- Added independent GitHub jobs for workflow analysis, application/server gates, account-boundary
+  conformance, released-database migration rehearsal, production dependency audit, cross-browser
+  E2E, strict OIDC, container smoke/security scans, CodeQL, Scorecard, SBOM and hardened ZAP checks.
+
+### Changed
+
+- Routed browser account operations, invitation signup, member administration, password/session
+  reset, workspace provisioning and erasure through the account boundary while preserving server-
+  side authorization as the independent tenant backstop.
+- Made `SMALLSASS_ACCOUNT_*` the canonical account configuration namespace. Existing CapacityLens
+  and Better Auth spellings remain temporary warning aliases; conflicting canonical and legacy
+  values refuse startup.
+- Promoted strict OIDC from experimental status. Hosted deployments can enforce an OIDC-only
+  profile, while named social providers remain experimental and password authentication remains
+  the stable default.
+- Single-sourced application-data keys and parent-before-child write order across imports, browser
+  persistence and SQLite, with compile-time completeness checks for every scoped table.
+- Replaced independent persistence callbacks with one identity-safe coordinator and separated
+  application entry, global shell effects, scheduler rendering, viewport measurement and allocation
+  gestures into cohesive modules with explicit interfaces.
+- Centralised exact pre-authentication route classification and account-keyed Team & access state,
+  and made controlled form dirtiness an explicit contract for button-driven controls.
+- Kept mutation certification focused on pure domain and helper logic; React hook effects and event
+  orchestration remain covered by component and cross-browser behavior tests.
+
+### Fixed
+
+- Fixed privileged Team & access drafts, confirmations, locks, notices and write-once bearer links
+  surviving a company switch or being replaced by late member, invitation, reset, session or
+  clipboard completions from the previous company.
+- Fixed invitation-refresh failures erasing the last authoritative same-company list, and kept
+  administrative controls fail-closed while permissions or the current directory are unresolved.
+- Fixed controlled radio, switch and colour no-ops marking forms dirty, the immediate-Escape dirty-
+  state race, and one-use joined-company query cleanup affecting later navigation.
+- Fixed Firefox ResizeObserver updates dispatching during Strict Mode replay, WebKit lazy-route
+  import races, cold-start database fetch races and shared-SQLite Playwright resets interrupting
+  another test's account read.
+- Fixed E2E date determinism without virtualising animation frames or timers, and removed inherited
+  colour-control and account-deployment variables from isolated browser/OIDC/access-lab processes.
+
+### Security
+
+- Enforced durable federated identity linking by `(issuer, subject)`, verified-email admission and
+  unused pre-authorised invitations; local erasure never deletes an upstream identity.
+- Kept identity deletion, account membership/invitation erasure and scheduling-data erasure under
+  separate owners, with compensating/reconcilable command outcomes instead of cross-boundary SQL.
+- Enforced exactly one active Owner per member-bearing company, with deterministic legacy repair,
+  a definition-checked partial unique index and ownership changes only through atomic transfer.
+- Coupled password-reset and session-revocation authority to identity-global execution revisions,
+  kept bearer capabilities out of command/audit records and redacted invitation tokens from request
+  and structured security logs.
+- Hardened database startup and upgrades with application-id checks, future-version refusal,
+  immutable migration-ledger checksums, production configuration validation and verified rollback
+  snapshots before DDL.
+
+### Verification
+
+- Passed 1,782 application tests with enforced coverage and production bundle budgets, 767 server
+  tests, 120 account-conformance tests and the released v7→v15 migration/recovery rehearsal.
+- Passed 528 Chromium, Firefox and WebKit E2E tests plus the strict-OIDC healthy, malformed-discovery
+  and unavailable-provider phases.
+- Found no known high-severity production dependency vulnerability.
+- Reviewed 3,068 pure-logic mutants: 2,823 killed by assertions, 11 timed out, 190 survived, 44 had
+  no coverage and none errored, for a 92.37% score against the 85% release threshold.
+
 ## [0.24.1-alpha.2] — 2026-07-18
 
 This Alpha 2 patch hardens the local release-certification path after running the complete gate
@@ -1044,7 +1140,8 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.1-alpha.2...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.25.0-alpha.2...HEAD
+[0.25.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.1-alpha.2...v0.25.0-alpha.2
 [0.24.1-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.24.0-alpha.2...v0.24.1-alpha.2
 [0.24.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.4-alpha.0...v0.24.0-alpha.2
 [0.23.4-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.3-alpha.0...v0.23.4-alpha.0
