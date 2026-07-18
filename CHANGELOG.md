@@ -12,9 +12,10 @@ new features and **patch** versions carry fixes.
 
 ## [0.24.1-alpha.2] — 2026-07-18
 
-This Alpha 2 patch hardens the local release-certification path after running the complete
-non-mutation gate across the application, server, migrations, all supported browsers, strict OIDC
-and production dependencies. There is no application-data, export-schema or database-schema change.
+This Alpha 2 patch hardens the local release-certification path after running the complete gate
+across the application, server, migrations, all supported browsers, strict OIDC and production
+dependencies, followed by a reviewed 92.37% pure-logic mutation score. There is no application-data,
+export-schema or database-schema change.
 
 ### Changed
 
@@ -26,6 +27,8 @@ and production dependencies. There is no application-data, export-schema or data
 - Moved auth-backed E2E and the isolated access lab onto the canonical `SMALLSASS_ACCOUNT_*`
   configuration names, stripping hostile inherited account settings before applying the lab's
   fixed loopback-only posture.
+- Kept mutation certification focused on pure domain and helper logic by explicitly excluding React
+  hook orchestration, whose effects and events remain covered by component and cross-browser tests.
 
 ### Fixed
 

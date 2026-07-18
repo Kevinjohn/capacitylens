@@ -53,11 +53,13 @@ recovery behavior.
 Both gates also run the cryptographic implementation-path discovery check; a new primitive,
 certificate/key path or TLS configuration must be reviewed into `docs/security/crypto-inventory.json`.
 
-The mutation configuration deliberately measures the pure shared/scheduler/browser helper layer;
-it is not evidence for the Fastify/Better Auth implementation, which is covered by the separate
-server integration gate. Review surviving, timed-out and uncovered mutants rather than accepting
-the aggregate score alone. The latest triage is recorded in
-[`docs/security/mutation-review-2026-07-15.md`](security/mutation-review-2026-07-15.md).
+The mutation configuration deliberately measures the pure shared/scheduler/browser helper layer.
+React hooks are excluded because their effect and event orchestration is exercised by component and
+cross-browser tests rather than isolated pure-function mutation. The mutation score is not evidence
+for the Fastify/Better Auth implementation, which is covered by the separate server integration
+gate. Review surviving, timed-out and uncovered mutants rather than accepting the aggregate score
+alone. The latest triage is recorded in
+[`docs/security/mutation-review-2026-07-18.md`](security/mutation-review-2026-07-18.md).
 
 Cross-browser commands:
 
