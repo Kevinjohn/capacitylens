@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { openApp } from './helpers'
+import { disableCssMotion, openApp } from './helpers'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
@@ -74,6 +74,7 @@ test('scheduler in time-off draw mode (dark) has no serious or critical violatio
 // with scroll reset; clicking it opens the "Edit allocation" dialog.
 async function openAllocationEditor(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page)
+  await disableCssMotion(page)
   await page.getByRole('button', { name: '4w', exact: true }).click()
   await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
   // Robust open (it timed out once under parallel load): wait for the bar to actually be present and
@@ -92,7 +93,6 @@ async function openAllocationEditor(page: import('@playwright/test').Page): Prom
     await bar.click({ force: true })
   }
   await expect(page.getByRole('dialog', { name: 'Edit allocation' })).toBeVisible()
-  await page.waitForTimeout(350) // let the entrance animation settle (mid-fade reads as false low-contrast)
 }
 
 test('the allocation editor modal has no serious or critical violations', async ({ page }) => {

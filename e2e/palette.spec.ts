@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { openApp } from './helpers'
+import { disableCssMotion, openApp } from './helpers'
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
@@ -236,11 +236,9 @@ test.describe('Command palette', () => {
 
   test('palette has no serious or critical accessibility violations (light mode)', async ({ page }) => {
     await openApp(page)
+    await disableCssMotion(page)
     await page.keyboard.press('ControlOrMeta+k')
     await expect(page.getByTestId('command-palette')).toBeVisible()
-
-    // Wait for entrance animation to settle
-    await page.waitForTimeout(200)
 
     const results = await new AxeBuilder({ page }).withTags(WCAG).analyze()
     const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')

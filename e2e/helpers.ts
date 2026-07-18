@@ -32,6 +32,27 @@ export async function freezeBrowserDate(page: Page): Promise<void> {
   }, FIXED_NOW)
 }
 
+/** Remove CSS motion before an assertion that reads rendered colours or geometry.
+ *
+ * `reducedMotion: 'reduce'` shortens the app's animations, but WebKit can briefly retain a
+ * composited opacity frame after the animation reports as finished. Axe then samples the blended
+ * frame and reports false low-contrast violations. Installing the override before opening the
+ * animated surface and waiting for two paint frames makes those assertions deterministic without
+ * weakening the accessibility rules being checked. */
+export async function disableCssMotion(page: Page): Promise<void> {
+  await page.addStyleTag({
+    content: `
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    `,
+  })
+  await page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  }))
+}
+
 // KNOWN HARNESS GAP (deliberate, low priority): the suite has no global `page.on('pageerror')` /
 // `console.error` gate, so a route that throws but still renders the element a spec asserts on could
 // pass silently. Most specs assert specific post-navigation content and Vite forwards browser
