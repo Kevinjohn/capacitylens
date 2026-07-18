@@ -48,6 +48,7 @@
     "e2e:firefox": "CAPACITYLENS_FIREFOX_ONLY=1 playwright test --project=firefox",
     "e2e:browsers": "node scripts/e2e-browsers.mjs",
     "e2e:all": "node scripts/e2e-all.mjs",
+    "test:account-conformance": "pnpm run paraglide:compile && vitest run shared/src/account && pnpm --filter capacitylens-server exec vitest run src/accounts/conformance src/accounts/sqliteAccountAdminPort.test.ts src/accounts/state.test.ts src/accountConfig.test.ts",
     "gate": "pnpm run security:crypto-inventory && pnpm run paraglide:compile && tsc -b && eslint . && vitest run --coverage && vite build && pnpm run bundle:check",
     "mutation": "pnpm run paraglide:compile && stryker run",
     "rehearse:migrations": "pnpm --filter capacitylens-server rehearse:migrations",

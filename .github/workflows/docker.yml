@@ -7,10 +7,6 @@ on:
     branches: [main]
     tags: ['v*']
 
-# Pre-launch cost control: automatic runs are skipped while the repository is private; a manual
-# dispatch still validates the images and production smoke path. Once public, PR/main/tag coverage
-# resumes and this workflow supplies the README's dedicated Docker build badge.
-
 concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
@@ -21,7 +17,6 @@ permissions:
 jobs:
   docker:
     name: Compose build + production smoke
-    if: github.event_name == 'workflow_dispatch' || github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -34,6 +29,8 @@ jobs:
       CAPACITYLENS_SECURITY_LOG_FORWARDING: '1'
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
       # ubuntu-latest ships Docker and the Compose plugin.
       - name: Build all Docker Compose targets
         run: docker compose build

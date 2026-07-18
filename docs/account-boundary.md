@@ -151,13 +151,15 @@ integrate with these internals.
 ## Conformance and drift control
 
 `shared/src/account/conformance.ts` publishes contract, conformance, minimum-security and profile
-metadata independently of the product version. Server CI runs pure policy/contract tests, fake-flow
-conformance, local account-adapter tests, architecture dependency tests and strict OIDC cryptographic
-tests. One capability-aware identity contract runs unchanged against the Better Auth adapter,
+metadata independently of the product version. The named `Account boundary · ports · policies ·
+architecture` CI check runs pure policy/contract tests, fake-flow conformance, local account-adapter
+tests, profile validation and architecture dependency tests independently of the ordinary server
+gate. One capability-aware identity contract runs unchanged against the Better Auth adapter,
 trusted-local adapter and vendor-free fake; a profile may omit credentials, reset or administrative
 revocation only through the normalized fail-closed `UNSUPPORTED_CAPABILITY` result.
 
-The E2E workflow adds pinned Dex and a fault-controlled discovery front door. It proves bootstrap,
+The independent `Strict OIDC conformance · pinned Dex` E2E job adds a fault-controlled discovery
+front door. It proves bootstrap,
 preauthorized invitation, stable issuer/subject re-entry, local sign-out, provider denial, callback
 failure, malformed discovery and provider unavailability through the real product browser surface.
 

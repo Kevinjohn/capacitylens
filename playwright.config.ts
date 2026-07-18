@@ -34,6 +34,8 @@ const firefoxEnabled = firefoxOnly || !!process.env.CAPACITYLENS_FIREFOX
 // cross-engine `e2e:browsers` core run) and implied by either single-engine *_ONLY flag.
 const viteOnly = !!process.env.CAPACITYLENS_VITE_ONLY || webkitOnly || firefoxOnly
 const oidcOnly = !!process.env.CAPACITYLENS_OIDC_E2E
+const reportPhase = (process.env.CAPACITYLENS_E2E_PHASE ?? 'default')
+  .replace(/[^a-zA-Z0-9_-]+/g, '-')
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the
@@ -58,7 +60,14 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: process.env.CI ? 'github' : 'list',
+  reporter: process.env.CI
+    ? [
+        ['github'],
+        ['html', { outputFolder: `playwright-report/${reportPhase}`, open: 'never' }],
+        ['junit', { outputFile: `test-results/${reportPhase}.xml` }],
+      ]
+    : 'list',
+  outputDir: `test-results/artifacts/${reportPhase}`,
   use: {
     trace: 'on-first-retry',
   },

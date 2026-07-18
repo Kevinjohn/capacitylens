@@ -68,6 +68,10 @@ new features and **patch** versions carry fixes.
 
 ### Security
 
+- Made workflow static analysis, application/server gates, account-boundary conformance, released-
+  database migration rehearsal, production dependency audit, cross-browser E2E and strict-OIDC/Dex
+  certification independently visible CI jobs. Failed browser jobs now retain phase-specific HTML,
+  JUnit, trace and reference-IdP log evidence.
 - Enforced durable federated linking by `(issuer, subject)` rather than email, removed invitation
   storage access from the auth-vendor hook, and ensured local erasure never deletes an upstream IdP
   identity.

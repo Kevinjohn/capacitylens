@@ -6,16 +6,11 @@ on:
   schedule:
     - cron: '30 1 * * 6'
 
-# OpenSSF publishing is available for public repositories (or private repositories with GitHub
-# Advanced Security). Keep this workflow present while private, but skip its runner-backed job
-# until the repository is eligible to publish a verifiable badge result.
-
 permissions: read-all
 
 jobs:
   analysis:
     name: OpenSSF Scorecard analysis
-    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     permissions:
       contents: read

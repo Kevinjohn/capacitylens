@@ -31,13 +31,19 @@ function run(label, env, extraArgs = []) {
 
 // 1) Chromium plus the DB/auth projects. No alternative-engine flag means the three server-backed
 //    projects retain their ordinary browser and get the only multi-server invocation.
-const chromium = run('Chromium + DB/auth', {})
+const chromium = run('Chromium + DB/auth', { CAPACITYLENS_E2E_PHASE: 'chromium-server' })
 
 // 2) WebKit/Safari against one Vite server, even when Chromium failed.
-const webkit = run('WebKit/Safari', { CAPACITYLENS_WEBKIT_ONLY: '1' }, ['--project', 'webkit'])
+const webkit = run('WebKit/Safari', {
+  CAPACITYLENS_E2E_PHASE: 'webkit',
+  CAPACITYLENS_WEBKIT_ONLY: '1',
+}, ['--project', 'webkit'])
 
 // 3) Firefox/Gecko against one Vite server, even when either earlier invocation failed.
-const firefox = run('Firefox/Gecko', { CAPACITYLENS_FIREFOX_ONLY: '1' }, ['--project', 'firefox'])
+const firefox = run('Firefox/Gecko', {
+  CAPACITYLENS_E2E_PHASE: 'firefox',
+  CAPACITYLENS_FIREFOX_ONLY: '1',
+}, ['--project', 'firefox'])
 
 // Fail the run if any engine failed; 0 only when ALL passed.
 process.exit(chromium || webkit || firefox)

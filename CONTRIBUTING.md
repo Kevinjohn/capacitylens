@@ -24,6 +24,18 @@ pnpm run gate:server
 pnpm run e2e
 ```
 
+Authentication, account, invitation, membership, authorization, session and erasure changes must
+also run the portable account boundary check. Identity-provider and OIDC changes additionally run
+the pinned reference-provider browser suite:
+
+```bash
+pnpm run test:account-conformance
+pnpm run e2e:oidc
+```
+
+Run `pnpm run rehearse:migrations` whenever a change touches a database migration, persisted
+authentication shape or Better Auth version.
+
 Run the applicable cross-browser suite for interaction or layout changes:
 
 ```bash

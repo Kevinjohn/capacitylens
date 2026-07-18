@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from 'node:child_process'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 
@@ -6,7 +7,10 @@ const image = 'ghcr.io/dexidp/dex:v2.45.1@sha256:8499afd690c437f52301efd2b05b245
 const container = `capacitylens-oidc-e2e-${process.pid}`
 const config = fileURLToPath(new URL('../e2e/oidc/dex.yaml', import.meta.url))
 const discovery = 'http://127.0.0.1:5556/dex/.well-known/openid-configuration'
+const dexLog = fileURLToPath(new URL('../test-results/oidc/dex.log', import.meta.url))
 let discoveryFault = 'healthy'
+let dexStarted = false
+let primaryFailure = null
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { stdio: 'inherit', ...options })
@@ -62,14 +66,18 @@ async function listenForDiscoveryFaults() {
   })
 }
 
-async function playwright(filterArgs) {
+async function playwright(phase, filterArgs) {
   await new Promise((resolve, reject) => {
     const child = spawn('pnpm', [
       'exec', 'playwright', 'test', 'e2e/oidc.oidc.spec.ts', '--project=oidc-backed',
       ...filterArgs,
     ], {
       stdio: 'inherit',
-      env: { ...process.env, CAPACITYLENS_OIDC_E2E: '1' },
+      env: {
+        ...process.env,
+        CAPACITYLENS_E2E_PHASE: `oidc-${phase}`,
+        CAPACITYLENS_OIDC_E2E: '1',
+      },
     })
     child.once('error', reject)
     child.once('exit', (status) => {
@@ -86,15 +94,50 @@ try {
     '--volume', `${config}:/etc/dex/config.yaml:ro`,
     image, 'dex', 'serve', '/etc/dex/config.yaml',
   ])
+  dexStarted = true
   await waitForDiscovery()
   await listenForDiscoveryFaults()
   discoveryFault = 'healthy'
-  await playwright(['--grep-invert', '@discovery-fault'])
+  await playwright('healthy', ['--grep-invert', '@discovery-fault'])
   discoveryFault = 'malformed'
-  await playwright(['--grep', '@malformed-discovery'])
+  await playwright('malformed-discovery', ['--grep', '@malformed-discovery'])
   discoveryFault = 'unavailable'
-  await playwright(['--grep', '@unavailable-discovery'])
+  await playwright('unavailable-discovery', ['--grep', '@unavailable-discovery'])
+} catch (error) {
+  primaryFailure = error
 } finally {
-  await new Promise((resolve) => faultProxy.close(resolve))
-  spawnSync('docker', ['rm', '--force', container], { stdio: 'ignore' })
+  let cleanupFailure = null
+  try {
+    if (faultProxy.listening) {
+      await new Promise((resolve, reject) => {
+        faultProxy.close((error) => error ? reject(error) : resolve())
+      })
+    }
+    if (dexStarted) {
+      const logs = spawnSync('docker', ['logs', '--timestamps', container], {
+        encoding: 'utf8',
+        maxBuffer: 10 * 1024 * 1024,
+      })
+      if (logs.error) throw logs.error
+      mkdirSync(new URL('../test-results/oidc/', import.meta.url), { recursive: true })
+      writeFileSync(dexLog, `${logs.stdout ?? ''}${logs.stderr ?? ''}`)
+    }
+  } catch (error) {
+    cleanupFailure = error
+  }
+  if (dexStarted) {
+    const removed = spawnSync('docker', ['rm', '--force', container], {
+      encoding: 'utf8',
+    })
+    if (removed.error || removed.status !== 0) {
+      cleanupFailure ??= removed.error ?? new Error(
+        `Could not remove Dex container: ${removed.stderr?.trim() || `status ${removed.status}`}`,
+      )
+    }
+  }
+  if (primaryFailure && cleanupFailure) {
+    throw new AggregateError([primaryFailure, cleanupFailure], 'OIDC conformance and cleanup failed.')
+  }
+  if (primaryFailure) throw primaryFailure
+  if (cleanupFailure) throw cleanupFailure
 }

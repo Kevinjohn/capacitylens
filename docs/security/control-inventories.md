@@ -120,5 +120,5 @@ review, but the operator must document retention, access groups, time synchroniz
   release provenance. DAST is two-tier: the blocking baseline validates the hardened posture — the
   configuration the deployment guide recommends — while the out-of-the-box default posture is
   scanned weekly as a non-blocking published report, documenting rather than asserting its
-  residual surface. Workflow conditions run automatically when public and remain manually runnable
-  while private.
+  residual surface. The public-repository workflows run automatically on their documented events
+  and remain manually runnable for deliberate reruns.

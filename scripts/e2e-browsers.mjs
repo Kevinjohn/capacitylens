@@ -31,12 +31,19 @@ function run(label, env, extraArgs = []) {
 //    they're defined). CAPACITYLENS_FIREFOX stays unset, so Firefox is NOT in this invocation.
 const chromeWebkit = run(
   'Chromium + WebKit/Safari',
-  { CAPACITYLENS_WEBKIT: '1', CAPACITYLENS_VITE_ONLY: '1' },
+  {
+    CAPACITYLENS_E2E_PHASE: 'chromium-webkit',
+    CAPACITYLENS_WEBKIT: '1',
+    CAPACITYLENS_VITE_ONLY: '1',
+  },
   ['--project', 'chromium', '--project', 'webkit'],
 )
 
 // 2) Firefox/Gecko core specs on its own, AFTER the above — runs even when it failed.
-const firefox = run('Firefox/Gecko', { CAPACITYLENS_FIREFOX_ONLY: '1' }, ['--project', 'firefox'])
+const firefox = run('Firefox/Gecko', {
+  CAPACITYLENS_E2E_PHASE: 'firefox',
+  CAPACITYLENS_FIREFOX_ONLY: '1',
+}, ['--project', 'firefox'])
 
 // Fail the run if either engine failed; 0 only when BOTH passed.
 process.exit(chromeWebkit || firefox)

@@ -29,7 +29,10 @@ local-only credentials, prebuilt Studio North fixture and expected visibility ma
 ```bash
 pnpm run gate
 pnpm run gate:server
+pnpm run test:account-conformance
 pnpm run e2e
+pnpm run e2e:oidc
+pnpm run rehearse:migrations
 pnpm run coverage
 pnpm run mutation
 ```
@@ -40,6 +43,13 @@ The build also enforces a budget on the main JavaScript entry chunk; route-level
 separate so authentication and settings code do not inflate first load unnoticed.
 `gate:server` checks the Node/SQLite workspace. Default E2E runs demo, database-backed and
 password-auth flows in Chromium.
+`test:account-conformance` is the stable, independently reportable account-boundary check: it runs
+the shared contract/policy tests, the same `IdentityPort` contract against Better Auth,
+trusted-local and vendor-free implementations, the coordinator invariants, SQLite account-adapter
+tests, profile validation and whole-tree architecture rules. `e2e:oidc` runs the real browser flow
+against the digest-pinned Dex provider, including malformed and unavailable discovery paths.
+`rehearse:migrations` upgrades a released database fixture and verifies preservation, rollback and
+recovery behavior.
 Both gates also run the cryptographic implementation-path discovery check; a new primitive,
 certificate/key path or TLS configuration must be reviewed into `docs/security/crypto-inventory.json`.
 
@@ -71,50 +81,48 @@ browsers are unsupported; the application does not weaken headers or crypto for 
 
 ## GitHub Actions policy
 
-During pre-launch development the repository is private and local checks are the source of truth.
-Push, pull-request and scheduled workflow events may appear in GitHub as **skipped**, but they do
-not start a hosted runner. This prevents small development pushes and Dependabot pull requests
-from repeatedly consuming the private-repository Actions allowance.
-
-Run the complete remote gate deliberately from **GitHub → Actions → gate → Run workflow**, or:
+CapacityLens is a public repository. Pull requests, pushes to `main`, release tags and the documented
+scheduled canaries run automatically; `workflow_dispatch` remains available for deliberate reruns:
 
 ```bash
 gh workflow run gate.yml --ref main
+gh workflow run e2e.yml --ref main
 ```
 
-A manual gate runs the code gates and production dependency audit. Cross-browser E2E and Docker
-Compose smoke tests are separate workflows so their README badges report independent status. The gate also
-uploads `coverage/lcov.info` to Codecov when the repository has a `CODECOV_TOKEN` secret. CodeQL and
-Scorecard remain skipped while the repository is private because their public result services are not
-enabled for this repository.
+The `gate` workflow exposes independent jobs for workflow static analysis, DCO, application checks,
+server checks, account conformance, released-database migration rehearsal and the production
+dependency audit. Independent jobs run even when another category fails, avoiding a red application
+test hiding an account, migration or dependency result. Coverage is uploaded when the repository has
+a `CODECOV_TOKEN` secret.
 
-When the repository becomes public, the workflow conditions automatically restore:
+The `e2e` workflow runs cross-browser behavior and strict OIDC/Dex conformance as independent jobs.
+Each Playwright phase writes a distinct HTML report, JUnit result and trace directory; failed jobs
+retain those artifacts for seven days, and the OIDC artifact includes timestamped Dex logs. Docker
+Compose smoke tests remain separate so the README badges report independent status.
 
-- code gates for pull requests, pushes to `main`, release tags and the monthly canary;
-- Chromium, Firefox and WebKit E2E for pull requests, pushes to `main`, release tags and its monthly canary;
-- Docker Compose builds and production smoke tests for pull requests, pushes to `main` and release
-  tags;
-- CodeQL for pull requests, `main` and its weekly schedule.
-- OpenSSF Scorecard for `main` and its weekly schedule.
-- full-history secret scanning, dependency review, source SBOM, container vulnerability scanning,
-  two OWASP ZAP baselines and tagged release provenance through `security.yml`. The blocking ZAP
-  scan boots the hardened posture — password authentication, required MFA, scheduled backups and
-  the operator attestations, with credentials minted and masked per run — so a finding there is a
-  regression in the recommended configuration. A second, non-blocking job scans the out-of-the-box
-  default posture on the weekly schedule and uploads its report as an artifact. Reviewed
-  secret-scan findings (deliberately fake test fixtures) are pinned in `.gitleaksignore`.
+CodeQL runs on pull requests, `main` and its weekly schedule. OpenSSF Scorecard runs on `main` and
+weekly. The security workflow performs full-history secret scanning, PR dependency review, source
+SBOM generation, container vulnerability scanning, two OWASP ZAP baselines and tagged-release
+provenance. The blocking ZAP scan boots the hardened posture — password authentication, required
+MFA, scheduled backups and operator attestations, with credentials minted and masked per run — so a
+finding there is a regression in the recommended configuration. A second, non-blocking job scans
+the out-of-the-box default posture weekly and uploads its report as an artifact. Reviewed secret-scan
+fixture findings are pinned in `.gitleaksignore`. See
+`docs/security/security-review-2026-07-14.md` for assessment scope and residual controls.
 
-The security workflow remains manually runnable while private and becomes automatic on its
-documented public-repository events. See `docs/security/security-review-2026-07-14.md` for the
-assessment scope and residual controls.
+The `main` ruleset requires every pull-request job that protects shipped behavior: all `gate` jobs,
+both `e2e` jobs, the Docker production smoke, CodeQL analysis, secret scan, dependency review, source
+SBOM, container vulnerability scan and the blocking hardened-posture ZAP baseline. Weekly-only,
+tag-only and informational jobs are not required because they do not produce a status on every pull
+request. Required checks must never be configured by a display name that no current PR workflow
+emits; update the ruleset in the same change whenever a workflow or job name changes.
 
 The coverage badge needs a Codecov project and a repository secret named `CODECOV_TOKEN`; uploads
 are deliberately skipped until that secret exists. Scorecard needs `publish_results: true` and its
 OIDC permission, which are configured in `.github/workflows/scorecard.yml`.
 
-Standard GitHub-hosted runners are free for public repositories. Dependabot's monthly npm, GitHub
-Actions and Docker updates remain enabled while private; pnpm is updated from `/` because the root
-workspace owns the shared lockfile.
+Dependabot's monthly npm, GitHub Actions and Docker updates remain enabled; pnpm is updated from `/`
+because the root workspace owns the shared lockfile.
 
 ## Repository map
 
