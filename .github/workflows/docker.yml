@@ -38,7 +38,7 @@ jobs:
         run: docker compose up -d
       - name: Wait for API health through nginx
         run: |
-          for i in $(seq 1 30); do
+          for _ in {1..30}; do
             if curl -fsS http://localhost:8080/api/health; then
               echo
               exit 0
