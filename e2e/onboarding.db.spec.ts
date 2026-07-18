@@ -68,8 +68,10 @@ test.describe('single-company-per-instance policy (client-side affordance + serv
       },
     })
     expect(res.status()).toBe(403)
-    expect(await res.json()).toEqual({
+    expect(await res.json()).toMatchObject({
+      code: 'FORBIDDEN',
       error: 'This instance allows a single company. Set CAPACITYLENS_MULTI_ACCOUNT=1 to allow more.',
+      retryable: false,
     })
 
     // The rejected create must not have landed — still exactly the two seeded companies.

@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, statSy
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
+import type { AccountAuditEvent } from '@capacitylens/shared/account/audit'
 import { buildApp } from './app'
 import { openDb } from './db'
 import {
@@ -79,13 +80,25 @@ async function scaffold(app: FastifyInstance) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('AuditRecord shape (1)', () => {
-  it('POST writes one well-formed JSONL line with real ids + changedFields = row keys', async () => {
+  it('POST writes normalized account correlation plus the compatible product mutation record', async () => {
     const { app, lines } = fileApp()
     const res = await post(app, 'accounts', account('a1'))
     expect(res.statusCode).toBe(201)
     const recs = lines()
-    expect(recs).toHaveLength(1)
-    const rec = recs[0]
+    expect(recs).toHaveLength(2)
+    const accountEvent = recs.find(
+      (record) => (record as { action: string }).action === 'workspace.provisioned',
+    ) as unknown as AccountAuditEvent
+    expect(accountEvent).toMatchObject({
+      applicationId: 'capacitylens',
+      workspaceId: 'a1',
+      actorPrincipalId: 'demo',
+      targetPrincipalId: 'demo',
+      action: 'workspace.provisioned',
+      outcome: 'success',
+      changedFields: ['workspace', 'membership'],
+    })
+    const rec = recs.find((record) => record.action === 'create')!
     expect(rec.action).toBe('create')
     expect(rec.entity).toBe('accounts')
     expect(rec.id).toBe('a1')
@@ -107,10 +120,33 @@ describe('AuditRecord shape (1)', () => {
 describe('idempotent control-plane audit semantics', () => {
   it('does not append inviteRevoke for an already-absent invite', async () => {
     const { app, lines } = fileApp()
+    expect((await post(app, 'accounts', account('a1'))).statusCode).toBe(201)
     const before = lines().length
     const res = await call(app, { method: 'DELETE', url: '/api/accounts/a1/invites/missing' })
     expect(res.statusCode).toBe(204)
     expect(lines().slice(before).filter((record) => record.action === 'inviteRevoke')).toHaveLength(0)
+  })
+
+  it('does not append a second mutation event when an invitation command is replayed', async () => {
+    const { app, lines } = fileApp()
+    expect((await post(app, 'accounts', account('a1'))).statusCode).toBe(201)
+    const request: InjectOptions = {
+      method: 'POST',
+      url: '/api/invites',
+      headers: {
+        'idempotency-key': 'audit-idempotency-0001',
+        'x-account-command-id': 'audit-command-0000001',
+      },
+      payload: { accountId: 'a1', role: 'viewer' },
+    }
+
+    expect((await call(app, request)).statusCode).toBe(201)
+    expect((await call(app, request)).statusCode).toBe(201)
+
+    expect(lines().filter((record) => record.action === 'inviteCreate')).toHaveLength(1)
+    expect(lines().filter(
+      (record) => (record as unknown as { action: string }).action === 'invitation.created',
+    )).toHaveLength(1)
   })
 })
 

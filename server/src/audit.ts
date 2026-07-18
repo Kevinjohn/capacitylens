@@ -1,8 +1,10 @@
 import { appendFileSync, chmodSync, renameSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import type { AccountAuditEvent } from '@capacitylens/shared/account/audit'
 
 // Append-only JSONL audit sink (P1.15, flag CAPACITYLENS_AUDIT — ON BY DEFAULT, opt-out =off).
-// One line per AppData mutation, SERVER-MODE ONLY: the sink lives in the server (built in
+// It records one legacy product AuditRecord per AppData mutation plus normalized AccountAuditEvent
+// entries emitted by cross-port account flows. SERVER-MODE ONLY: the sink lives in the server (built in
 // index.ts from env), so the default local/no-server deploy never runs it — buildApp's factory
 // defaults to noopAuditSink(), keeping the default deploy and every test byte-identical unless a
 // sink is explicitly passed.
@@ -10,9 +12,9 @@ import { dirname, join } from 'node:path'
 // THE #1 INVARIANT — NO RAW PII EVER REACHES A LINE. `changedFields` is field NAMES only
 // (Object.keys of the wire body/row); a VALUE, a ROW, or a request BODY must NEVER be handed to
 // append(). Names + ids are operational metadata (who changed what, when); values are tenant PII
-// (a time-off note, a person's name) and are deliberately excluded. The callers in app.ts compute
-// changedFields with `Object.keys` and pass a typed AuditRecord — never an object — so the type
-// itself is the guardrail. See app.ts's post-commit audit() hooks (one per mutating route).
+// (a time-off note, a person's name) and are deliberately excluded. Product callers compute
+// changedFields with `Object.keys`; AccountFlows emits fixed field names and command correlation.
+// Neither path passes a request body, row, bearer, credential, token or claim set.
 
 /**
  * One audit line. ALL fields are operational metadata — never tenant data.
@@ -45,6 +47,8 @@ export interface AuditRecord {
   changedFields: string[]
 }
 
+export type AuditEntry = AuditRecord | AccountAuditEvent
+
 /**
  * The audit write port. `append` is SYNCHRONOUS and MUST NOT throw: a broken audit sink can never
  * fail a request (the mutation already committed). It returns `true` on a successful write, `false`
@@ -54,7 +58,7 @@ export interface AuditRecord {
  */
 export interface AuditSink {
   /** Write one line. Never throws; returns false on failure (and latches `degraded`). */
-  append(record: AuditRecord): boolean
+  append(record: AuditEntry): boolean
   /** Latched true once any append failed — the soft signal deep-health surfaces. */
   readonly degraded: boolean
 }
@@ -92,8 +96,9 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
   }
   let degraded = false
   let loggedOnce = false
+  let permissionsPinned = false
   return {
-    append(record: AuditRecord): boolean {
+    append(record: AuditEntry): boolean {
       try {
         // statSync throws ENOENT before the very first write (no file yet) — that's size 0, not a
         // failure, so it's swallowed here; any OTHER stat error (permissions, a broken mount) falls
@@ -104,9 +109,17 @@ export function fileAuditSink(file: string, log: (msg: string) => void, opts: Fi
         } catch (statErr) {
           if ((statErr as NodeJS.ErrnoException).code !== 'ENOENT') throw statErr
         }
-        if (size >= maxBytes) renameSync(file, `${file}.1`)
+        if (size >= maxBytes) {
+          renameSync(file, `${file}.1`)
+          permissionsPinned = false
+        }
         appendFileSync(file, JSON.stringify(record) + '\n', { encoding: 'utf8', flag: 'a', mode: 0o600 })
-        chmodSync(file, 0o600)
+        // `mode` applies only when appendFileSync creates a file. Pin an existing file once when the
+        // sink first uses it, and pin each new generation once after rotation—not on every hot-path append.
+        if (!permissionsPinned) {
+          chmodSync(file, 0o600)
+          permissionsPinned = true
+        }
         return true
       } catch (err) {
         // FAIL-NEVER: the mutation already committed — an audit write failure (append, OR the

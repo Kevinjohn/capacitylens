@@ -28,16 +28,16 @@ function seedAccount(db: Db, id: string): void {
 // this suite's "old password still works / no longer works" assertions test the right credential.
 const PASSWORD = 'password-123456'
 
-// 'sso' mode without a real IdP: explicit endpoint URLs (no discovery fetch at build time) are
-// enough for authFromEnv to construct the instance — the reset route must 400 before touching it.
+// 'sso' mode without a real IdP: discovery is parsed but not fetched at construction time, so the
+// reset route can prove it refuses before touching the provider.
 const SSO_ENV = {
   CAPACITYLENS_AUTH: 'sso',
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123',
   BETTER_AUTH_URL: 'http://localhost:8787',
   CAPACITYLENS_SSO_CLIENT_ID: 'client-id',
   CAPACITYLENS_SSO_CLIENT_SECRET: 'client-secret',
-  CAPACITYLENS_SSO_AUTHORIZATION_URL: 'https://idp.example/authorize',
-  CAPACITYLENS_SSO_TOKEN_URL: 'https://idp.example/token',
+  CAPACITYLENS_SSO_DISCOVERY_URL: 'https://idp.example/.well-known/openid-configuration',
+  CAPACITYLENS_SSO_ISSUER: 'https://idp.example',
 }
 
 async function appWith(

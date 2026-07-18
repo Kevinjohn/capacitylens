@@ -88,7 +88,6 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
   const added: Client[] = []
   const duplicateIds = new Map<ID, ID>()
   const retained = new Set<ID>()
-  const retainedById = new Set<ID>()
   const builtinsByAccount = new Map<ID, Client[]>()
   for (const client of data.clients) {
     if (
@@ -118,18 +117,17 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
       return leftCreatedAt.localeCompare(rightCreatedAt) || left.id.localeCompare(right.id)
     })
     retained.add(builtins[0].id)
-    retainedById.add(builtins[0].id)
     for (const duplicate of builtins.slice(1)) duplicateIds.set(duplicate.id, builtins[0].id)
   }
   const needsRestamp = data.clients.some(
-    (client) => retainedById.has(client.id) &&
+    (client) => retained.has(client.id) &&
       (client.name !== INTERNAL_CLIENT_NAME || client.color !== INTERNAL_CLIENT_COLOR || client.builtin !== true),
   )
   if (added.length === 0 && duplicateIds.size === 0 && !needsRestamp) return data
   const clients = data.clients.filter((client) => {
     if (!client || typeof client !== 'object' || client.builtin !== true) return true
     return retained.has(client.id) || !duplicateIds.has(client.id)
-  }).map((client) => retainedById.has(client.id)
+  }).map((client) => retained.has(client.id)
     ? { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const }
     : client)
   const projects = duplicateIds.size === 0

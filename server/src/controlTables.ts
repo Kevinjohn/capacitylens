@@ -1,7 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto'
-import type { Role } from '@capacitylens/shared/domain/access'
-import { cleanText, MAX_EMAIL_LENGTH } from '@capacitylens/shared/lib/strings'
+import { isAccountRole, type Role } from '@capacitylens/shared/account/types'
+import { cleanText } from '@capacitylens/shared/lib/strings'
+import { isAccountEmail, normalizeAccountEmail } from '@capacitylens/shared/account/validation'
 import { revokeResetTokensForUser } from './auth'
+import { bumpSecurityRevision } from './accounts/state'
 import type { Db } from './db'
 import { tx } from './txn'
 
@@ -46,12 +48,7 @@ export interface AccountMember {
   createdAt: string
 }
 
-/** The role values accepted on write. Single source for the runtime guard below; mirrors the pure
- *  `Role` union in shared (kept in lock-step — adding a role there means adding it here). */
-const KNOWN_ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer']
-
-const isKnownRole = (value: unknown): value is Role =>
-  typeof value === 'string' && (KNOWN_ROLES as readonly string[]).includes(value)
+const isKnownRole = isAccountRole
 
 /**
  * Create the membership control table (and its lookup indexes) if absent. IDEMPOTENT — every
@@ -281,7 +278,7 @@ function inviteHasColumn(db: Db, column: string): boolean {
 export function upsertMember(db: Db, member: AccountMember): void {
   if (!isKnownRole(member.role)) {
     throw new Error(
-      `upsertMember: unknown role ${JSON.stringify(member.role)} — expected one of ${KNOWN_ROLES.join(', ')}.`,
+      `upsertMember: unknown role ${JSON.stringify(member.role)} — expected owner, admin, editor, or viewer.`,
     )
   }
   db.prepare(
@@ -301,6 +298,7 @@ export function upsertMember(db: Db, member: AccountMember): void {
   // (no Better Auth tables). revokeResetTokensForUser lives in auth.ts (its verification table is
   // Better Auth's); this module already reaches into a Better Auth table via getUsersByIds.
   revokeResetTokensForUser(db, member.userId)
+  bumpSecurityRevision(db, member.userId)
 }
 
 /**
@@ -316,6 +314,16 @@ export function getMemberRole(db: Db, accountId: string, userId: string): Role |
   const row = db
     .prepare(`SELECT role FROM account_members WHERE accountId = ? AND userId = ?`)
     .get(accountId, userId) as { role?: string } | undefined
+  return isKnownRole(row?.role) ? row.role : null
+}
+
+/** Security-sensitive role lookup. Legacy control rows may carry a non-active status; those rows
+ * never confer application or administrative authority and must be indistinguishable from absence. */
+export function getActiveMemberRole(db: Db, accountId: string, userId: string): Role | null {
+  const row = db.prepare(`
+    SELECT role FROM account_members
+     WHERE accountId = ? AND userId = ? AND status = 'active'
+  `).get(accountId, userId) as { role?: string } | undefined
   return isKnownRole(row?.role) ? row.role : null
 }
 
@@ -640,7 +648,6 @@ export function migrateMemberResetCeremoniesV14(db: Db): void {
  * assertControlTablesCurrent because migration v8 intentionally calls that historical assertion
  * before the owner migrations have run. */
 export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
-  assertSingleOwnerControlPlaneV10(db)
   const columns = db.prepare(`PRAGMA index_info(${SINGLE_OWNER_INDEX})`).all() as Array<{ name: string }>
   const definition = db.prepare(
     `SELECT tbl_name AS tableName, sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
@@ -660,6 +667,13 @@ export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
     normalizeSql(definition.sql) !== expectedDefinition
   ) {
     throw new Error(`DB control schema has an invalid definition for partial unique index ${SINGLE_OWNER_INDEX}.`)
+  }
+
+  const pendingOwnerInvite = db.prepare(
+    `SELECT id FROM invites WHERE role = 'owner' AND usedAt IS NULL LIMIT 1`,
+  ).get() as { id: string } | undefined
+  if (pendingOwnerInvite) {
+    throw new Error('DB control data contains an unused Owner invite; ownership must be transferred, never invited.')
   }
 
   // Auth-off demo datasets intentionally have no membership rows. Once an account has any active
@@ -690,7 +704,13 @@ export function assertSingleOwnerControlPlaneCurrent(db: Db): void {
  * @param userId     The login whose membership to remove.
  */
 export function removeMember(db: Db, accountId: string, userId: string): void {
-  db.prepare(`DELETE FROM account_members WHERE accountId = ? AND userId = ?`).run(accountId, userId)
+  const result = db.prepare(
+    `DELETE FROM account_members WHERE accountId = ? AND userId = ?`,
+  ).run(accountId, userId)
+  if (result.changes > 0) {
+    revokeResetTokensForUser(db, userId)
+    bumpSecurityRevision(db, userId)
+  }
 }
 
 /**
@@ -707,7 +727,14 @@ export function removeMember(db: Db, accountId: string, userId: string): void {
  * @param accountId  The account whose memberships to remove entirely.
  */
 export function removeAllMembersForAccount(db: Db, accountId: string): void {
+  const affected = db.prepare(
+    `SELECT DISTINCT userId FROM account_members WHERE accountId = ?`,
+  ).all(accountId) as Array<{ userId: string }>
   db.prepare(`DELETE FROM account_members WHERE accountId = ?`).run(accountId)
+  for (const { userId } of affected) {
+    revokeResetTokensForUser(db, userId)
+    bumpSecurityRevision(db, userId)
+  }
 }
 
 /**
@@ -804,7 +831,7 @@ export interface Invite {
 export function createInvite(db: Db, invite: Invite): void {
   if (!isKnownRole(invite.role)) {
     throw new Error(
-      `createInvite: unknown role ${JSON.stringify(invite.role)} — expected one of ${KNOWN_ROLES.join(', ')}.`,
+      `createInvite: unknown role ${JSON.stringify(invite.role)} — expected owner, admin, editor, or viewer.`,
     )
   }
   db.prepare(
@@ -896,7 +923,7 @@ export function getInvite(db: Db, token: string): Invite | null {
  * @returns The trimmed, lowercased form used for storage and comparison.
  */
 export function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase()
+  return normalizeAccountEmail(email)
 }
 
 /**
@@ -945,10 +972,7 @@ export function preauthInviteAllows(
  * @returns `true` if it has a single `@` with non-empty local + domain parts.
  */
 export function looksLikeEmail(email: string): boolean {
-  if (email.length > MAX_EMAIL_LENGTH || email !== email.trim()) return false
-  const at = email.indexOf('@')
-  // Exactly one '@', and it is neither the first nor the last character.
-  return at > 0 && at === email.lastIndexOf('@') && at < email.length - 1
+  return isAccountEmail(email)
 }
 
 /**

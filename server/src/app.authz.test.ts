@@ -888,6 +888,8 @@ describe('P1.5 authorize — OFF mode stays allow-all/no-op (the #1 invariant)',
     // Direct route: DELETE /api/accounts/a1 (no cookie, no membership) → 204.
     const direct = await call(app, { method: 'DELETE', url: '/api/accounts/a1' })
     expect(direct.statusCode).toBe(204)
+    // The trusted-local contract remains idempotent after the coordinator extraction.
+    expect((await call(app, { method: 'DELETE', url: '/api/accounts/a1' })).statusCode).toBe(204)
     // Batch op: {method:'DELETE',table:'accounts',id:'a2'} → 200.
     const batch = await call(app, {
       method: 'POST',

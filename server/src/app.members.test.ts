@@ -6,6 +6,7 @@ import { upsertMember, getMemberRole, getInvite } from './controlTables'
 import { authFromEnv, runAuthMigrations, type Auth } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
+import { recordSessionAssurance } from './accounts/state'
 
 // P1.11 — Owner/Admin member-management endpoints. Mirrors app.invites.test.ts: drives sign-up →
 // membership → the five new routes (GET/PATCH/DELETE members, GET/DELETE invites) plus the Owner
@@ -242,11 +243,20 @@ function timestamplessAuth(userId: string): Auth {
     api: {
       getSession: async () => ({
         user: { id: userId, email: 'undated@capacitylens.dev', emailVerified: true, name: 'Undated' },
+        session: {
+          id: 'undated-session',
+          // Deliberately malformed: the adapter must preserve ordinary access but treat freshness
+          // as unverifiable. A real Better Auth session always supplies this field.
+          createdAt: undefined as unknown as string,
+          expiresAt: '2026-12-31T00:00:00.000Z',
+        },
       }),
       requestPasswordReset: async () => ({ status: true }),
     },
     options: {},
     providers: [],
+    federatedIssuers: new Map(),
+    ensureProviderBindings: () => {},
     revokeUserSessions: async () => {},
     createCredentialUser: async () => ({ id: userId }),
     deleteCredentialUser: async () => {},
@@ -259,6 +269,7 @@ describe('step-up freshness gate — missing sessionCreatedAt fails closed', () 
     seedTwo(db)
     upsertMember(db, { accountId: 'a1', userId: 'undated-owner', role: 'owner', status: 'active', createdAt: TS })
     upsertMember(db, { accountId: 'a1', userId: 'undated-target', role: 'editor', status: 'active', createdAt: TS })
+    recordSessionAssurance(db, 'undated-session', 'undated-owner', 'password')
     const app = buildApp(db, { authMode: 'password', auth: timestamplessAuth('undated-owner') })
 
     const result = await revokeSessionsReq(app, 'a1', 'undated-target')
@@ -272,6 +283,7 @@ describe('step-up freshness gate — missing sessionCreatedAt fails closed', () 
     const db = openDb(':memory:')
     seedTwo(db)
     upsertMember(db, { accountId: 'a1', userId: 'undated-owner', role: 'owner', status: 'active', createdAt: TS })
+    recordSessionAssurance(db, 'undated-session', 'undated-owner', 'password')
     const app = buildApp(db, { authMode: 'password', auth: timestamplessAuth('undated-owner') })
 
     expect((await call(app, { method: 'GET', url: '/api/state?accountId=a1' })).statusCode).toBe(200)

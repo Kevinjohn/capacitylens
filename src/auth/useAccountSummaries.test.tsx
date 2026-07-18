@@ -107,6 +107,14 @@ describe('fetchAccountSummaries — response classification', () => {
     await expect(fetchAccountSummaries()).resolves.toBeNull()
   })
 
+  it('refuses a cached directory when a caller requires authoritative reconciliation', async () => {
+    vi.mocked(readCachedAccountSummaries).mockClear()
+    vi.stubGlobal('fetch', vi.fn(async () => json(503, { error: 'down' })))
+
+    await expect(fetchAccountSummaries({ allowCachedFallback: false })).resolves.toBeNull()
+    expect(readCachedAccountSummaries).not.toHaveBeenCalled()
+  })
+
   it('a 5xx plus an unreadable offline directory still resolves null instead of rejecting', async () => {
     const cacheError = new Error('IndexedDB unavailable')
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})

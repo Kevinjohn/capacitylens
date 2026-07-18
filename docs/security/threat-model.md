@@ -62,15 +62,20 @@ must not be publicly reachable and the proxy must overwrite rather than append f
 | Offline cache disclosure/tampering | Role-filtered input; non-extractable device key; AES-GCM with random IV/AAD; tamper/expiry deletion; viewer-only | offline cache tests |
 | Database corruption/partial write | Startup foreign-key check; WAL; transactions; optimistic concurrency; atomic imports/backups | migration, transaction and restore-drill tests |
 | Log erasure/injection or invisible attack | Structured serialization, no values/credentials, restrictive modes, health degradation latch and optional separate JSON forwarding | audit/log/production-guard tests |
-| SSRF/provider substitution | Operator-only exact provider configuration; HTTPS endpoints; loopback-only HTTP exception; no embedded credentials; library issuer/signature checks | auth configuration tests; provider still experimental |
-| Resource exhaustion | 512 accepted-socket ceiling; per-IP rate limit including health; 2-active/16-queued scrypt and 8-active/32-queued HIBP work; import/CSP caps; request timeouts; constant health | resource-queue/rate-limit/health/import/CSP tests |
+| SSRF/provider substitution | Operator-only exact issuer/discovery; endpoints validated before redirect or secret use; HTTPS outside loopback; no credentials/redirects; 10-second and 1 MiB provider-response bounds; signed ID-token issuer/audience/timestamp verification; JWKS rotation and user-info subject binding | strict OIDC crypto/exchange tests and pinned Dex browser conformance |
+| Resource exhaustion | 512 accepted-socket ceiling; per-IP application/CSP rate limit with constant-work health exempt for reliable liveness; 2-active/16-queued scrypt and 8-active/32-queued HIBP work; import/CSP caps; request timeouts | resource-queue/rate-limit/health/import/CSP tests |
 | Supply-chain compromise | Exact lockfile, pinned action/base-image commits/digests, Dependabot, CodeQL, Gitleaks, dependency review, SBOM, Trivy, ZAP and tagged provenance | local gates and public/manual workflows |
 
 ## Residual and accepted risks
 
-- Generic OIDC/social authentication remains experimental. The auth library is relied upon for
-  protocol-level state, nonce, issuer, signature and audience processing; each configured provider
-  needs staging interoperability and logout/session-lifetime testing.
+- Strict OIDC is first-class. Better Auth owns state, PKCE and cookies; the account adapter owns
+  issuer-pinned endpoint selection, the bounded no-redirect code exchange, ID-token
+  signature/audience/timestamp checks, JWKS rotation and user-info subject equality. Named social
+  providers remain experimental and every
+  IdP still needs staging interoperability, MFA-policy and logout/session-lifetime testing.
+- IdP disablement does not revoke already-issued local sessions. The accepted maximum is the
+  remaining twelve-hour absolute lifetime or thirty minutes inactivity; local revocation is an
+  incident-response requirement and back-channel logout must be reconsidered before hosted GA.
 - Required TOTP is optional. Password-only deployments do not meet ASVS 5.0 Level 2 requirement
   V6.3.3; when enabled, TOTP meets L2 but remains phishable and insufficient for L3.
 - Existing legacy Better Auth scrypt hashes use the former weaker profile until the user changes or

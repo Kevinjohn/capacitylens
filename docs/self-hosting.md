@@ -19,23 +19,24 @@ TLS are recommended hardening, not prerequisites for a small community deploymen
 git clone https://github.com/Kevinjohn/capacitylens.git
 cd capacitylens
 cp .env.example .env
-openssl rand -base64 48  # BETTER_AUTH_SECRET
-openssl rand -base64 48  # CAPACITYLENS_SETUP_TOKEN
+openssl rand -base64 48  # SMALLSASS_ACCOUNT_SECRET
+openssl rand -base64 48  # SMALLSASS_ACCOUNT_SETUP_TOKEN
 ```
 
 At minimum, edit `.env`:
 
 ```dotenv
-CAPACITYLENS_AUTH=password
-BETTER_AUTH_SECRET=<first generated value>
-BETTER_AUTH_URL=https://capacity.example.com
-CAPACITYLENS_SETUP_TOKEN=<second generated value>
+SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-password
+SMALLSASS_ACCOUNT_MODE=password
+SMALLSASS_ACCOUNT_SECRET=<first generated value>
+SMALLSASS_ACCOUNT_PUBLIC_URL=https://capacity.example.com
+SMALLSASS_ACCOUNT_SETUP_TOKEN=<second generated value>
 CAPACITYLENS_HTTPS=1
 CAPACITYLENS_RATE_LIMIT=300
 ```
 
 Password breach screening remains on by default. TOTP MFA is optional; set
-`CAPACITYLENS_REQUIRE_MFA=1` when every password user should be required to enroll before accessing
+`SMALLSASS_ACCOUNT_REQUIRE_MFA=1` when every password user should be required to enroll before accessing
 company data.
 
 Compose also creates a private, per-install P-256 CA and API leaf certificate on the
@@ -63,7 +64,7 @@ the container host. The public edge must overwrite `X-Forwarded-Proto` with the 
 scheme. If that proxy emits HSTS itself, `CAPACITYLENS_HTTPS` may stay unset; otherwise set it only
 when the public response is actually HTTPS. Never expose the API container directly.
 
-The first password owner must enter `CAPACITYLENS_SETUP_TOKEN`. Remove the value from the running
+The first password owner must enter `SMALLSASS_ACCOUNT_SETUP_TOKEN`. Remove the value from the running
 environment after setup if your deployment process permits; it cannot create a second first user.
 When required MFA is enabled, complete enrollment immediately, store recovery codes in a password
 manager and verify that a second sign-in is challenged before opening the service to users.
@@ -71,10 +72,10 @@ manager and verify that a second sign-in is challenged before opening the servic
 ## Production checklist
 
 - `NODE_ENV=production` (the image sets it).
-- `CAPACITYLENS_AUTH=password` or `sso`; auth-off production is refused by default.
-- Public `BETTER_AUTH_URL` exactly matches the browser origin and uses HTTPS.
-- `BETTER_AUTH_SECRET` and setup/provider secrets come from a password manager, not Git.
-- `CAPACITYLENS_ALLOW_OPEN_SIGNUP`, `CAPACITYLENS_ALLOW_RESET` and
+- `SMALLSASS_ACCOUNT_MODE=password` or `sso`; auth-off production is refused by default.
+- Public `SMALLSASS_ACCOUNT_PUBLIC_URL` exactly matches the browser origin and uses HTTPS.
+- `SMALLSASS_ACCOUNT_SECRET` and setup/provider secrets come from a password manager, not Git.
+- `SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP`, `CAPACITYLENS_ALLOW_RESET` and
   `CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION` are unset.
 - Rate limiting is a positive integer; local audit logging remains enabled.
 - Database and any enabled backup paths are persistent and outside release directories.
@@ -82,9 +83,9 @@ manager and verify that a second sign-in is challenged before opening the servic
 
 Recommended hardening, deliberately optional for community self-hosting:
 
-- Set `CAPACITYLENS_REQUIRE_MFA=1` to require TOTP for password users.
+- Set `SMALLSASS_ACCOUNT_REQUIRE_MFA=1` to require TOTP for password users.
 - Leave breached-password checking enabled; isolated/offline deployments may set
-  `CAPACITYLENS_PASSWORD_BREACH_CHECK=off` and accept the startup warning.
+  `SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off` and accept the startup warning.
 - Put the database, audit log and backups on encrypted storage, then—and only then—set
   `CAPACITYLENS_STORAGE_ENCRYPTED=1` to record that operator attestation.
 - Copy backups off-host and restore-test them. The application also works with local snapshots only,
@@ -111,7 +112,7 @@ requests/minute, backup intervals at most 35,000 minutes, retained snapshots at 
 audit rotation at most 1,048,576 MiB. Invalid values fall back to their documented safe defaults in
 development. Production refuses a missing, invalid or zero rate limit.
 
-## Experimental SSO/social
+## Strict OIDC and experimental social providers
 
 Read `docs/authentication.md` first. In password mode, provider buttons are additive. Configure both
 id and secret for any provider; partial configuration refuses startup.
@@ -119,15 +120,25 @@ id and secret for any provider; partial configuration refuses startup.
 For the first external identity, set an explicit allow-list:
 
 ```dotenv
-CAPACITYLENS_SSO_BOOTSTRAP_EMAILS=owner@example.com
+SMALLSASS_ACCOUNT_DEPLOYMENT_PROFILE=self-hosted-sso-only
+SMALLSASS_ACCOUNT_MODE=sso
+SMALLSASS_ACCOUNT_OIDC_CLIENT_ID=capacitylens
+SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET=<secret-manager value>
+SMALLSASS_ACCOUNT_OIDC_ISSUER=https://identity.example.com
+SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL=https://identity.example.com/.well-known/openid-configuration
+SMALLSASS_ACCOUNT_OIDC_BOOTSTRAP_EMAILS=owner@example.com
 ```
 
 Subsequent new identities must match an unused, non-expired pre-authorised invitation. Test the
-exact provider in staging. Switch to `CAPACITYLENS_AUTH=sso` only when password recovery is no
-longer required and generic OIDC is configured. Requiring MFA at the IdP remains strongly
-recommended; after testing that policy and its recovery path, set
-`CAPACITYLENS_SSO_MFA_ENFORCED=1`. Without it, startup continues with a warning because CapacityLens
-cannot infer equivalent assurance from every provider's tokens.
+exact IdP in staging. The issuer and discovery URL are both mandatory, the `openid` scope cannot be
+removed, and explicit authorization/token endpoint overrides are rejected. Use
+`self-hosted-mixed` with password mode only when a local password fallback is a deliberate
+self-hosted choice. Requiring MFA at the IdP remains strongly recommended; after testing that
+policy and its recovery path, set `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED=1`. Named Google, Microsoft
+and GitHub providers remain experimental; strict OIDC is the supported provider-neutral path.
+After the first successful startup, the configured generic provider id and issuer are an immutable
+pair. Changing either side refuses startup to protect existing `(issuer, subject)` correlations;
+plan an explicit reviewed identity migration instead of editing those values in place.
 
 ## Bare-metal outline
 

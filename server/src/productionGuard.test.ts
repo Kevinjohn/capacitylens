@@ -47,7 +47,7 @@ describe('evaluateProductionPosture', () => {
     const result = productionPosture({ CAPACITYLENS_AUTH: undefined, CAPACITYLENS_HTTPS: undefined })
     expect(result.refusals).toHaveLength(1)
     // The single refusal must name the auth env var / mode so the operator knows what to change.
-    expect(result.refusals[0]).toMatch(/CAPACITYLENS_AUTH/)
+    expect(result.refusals[0]).toMatch(/SMALLSASS_ACCOUNT_MODE/)
     expect(result.refusals[0]).toMatch(/auth is OFF/)
     // HTTPS unset here, so a warning is expected — the refusal does not suppress warnings.
     expect(result.warnings.length).toBeGreaterThan(0)
@@ -95,7 +95,7 @@ describe('evaluateProductionPosture', () => {
     expect(result.refusals).toEqual([])
     expect(result.warnings).toHaveLength(5)
     for (const variable of [
-      'CAPACITYLENS_REQUIRE_MFA',
+      'SMALLSASS_ACCOUNT_REQUIRE_MFA',
       'CAPACITYLENS_AUDIT_STDOUT',
       'CAPACITYLENS_STORAGE_ENCRYPTED',
       'CAPACITYLENS_SECURITY_LOG_FORWARDING',
@@ -112,7 +112,7 @@ describe('evaluateProductionPosture', () => {
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
     })
     expect(result.refusals).toEqual([])
-    expect(result.warnings.some((w) => /CAPACITYLENS_ALLOW_OPEN_SIGNUP/.test(w))).toBe(true)
+    expect(result.warnings.some((w) => /SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP/.test(w))).toBe(true)
   })
 
   it('refuses the development-only bootstrap-owner flag in production', () => {

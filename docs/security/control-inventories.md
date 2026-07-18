@@ -47,7 +47,7 @@ add their documented browser and server exchanges.
 | Breach lookup | SHA-1 only as required by HIBP k-anonymity protocol | ephemeral candidate digest; five-character prefix sent | never used as a verifier or security hash; response padding enabled |
 | Offline snapshot | Web Crypto AES-256-GCM, 96-bit random IV and AAD | non-extractable per-browser random device key | schema v2; corrupt/expired records and v1 plaintext deleted; device clear destroys key/data |
 | Invite/reset lookup | SHA-256 token digest | CSPRNG token shown once | expiry, use/revocation and account deletion remove state |
-| Session/auth/MFA | Better Auth/Node crypto | `BETTER_AUTH_SECRET`, session tokens, encrypted backup codes/TOTP state | 32+ character operator secret; rotate to invalidate sessions; secret manager/operator rotation required |
+| Session/auth/MFA | Better Auth/Node crypto | `SMALLSASS_ACCOUNT_SECRET`, session tokens, encrypted backup codes/TOTP state | 32+ character operator secret; rotate to invalidate sessions; secret manager/operator rotation required |
 | Internal service TLS | OpenSSL P-256/SHA-256, Node HTTPS and nginx verification | per-install root-only CA key; API-only leaf key; public CA/leaf | automatic in Compose; optional for same-host bare metal; configured identities never fall back silently; coordinated renewal/recreation |
 | Public TLS/provider assertion crypto | TLS proxy, Node trust store and Better Auth providers | public certificates/provider metadata | operator certificate lifecycle; HTTPS-only provider configuration; library updates through lockfile |
 
@@ -80,7 +80,7 @@ path check cannot inspect.
 | Password scrypt | 2 active + 16 queued | overflow fails closed; queue releases after success or failure |
 | HIBP range service | 8 active + 32 queued; 5-second call | overflow, timeout, redirect or outage fails password mutation closed |
 | CSP report ingestion | 64 KiB and 20 emitted events/request | malformed/oversize rejected; excess array entries discarded; normal IP rate limit applies |
-| OIDC/social provider | bounded by 512 active API requests/process | provider error is surfaced; no application retry loop; disable unstable experimental provider |
+| OIDC/social provider | bounded by 512 active API requests/process | strict OIDC discovery/JWKS/user-info failures fail closed with no application retry loop; disable an unstable named social provider |
 | Backup operation | one in flight | scheduler skips overlap; shutdown waits for completion before closing SQLite |
 
 ## Security and audit event inventory
@@ -99,8 +99,9 @@ review, but the operator must document retention, access groups, time synchroniz
 
 ## Third parties and build inputs
 
-- Runtime: Node.js 24, Better Auth, Fastify/server packages, React/UI packages, SQLite in Node, nginx
-  and the HIBP range service; configured social/OIDC providers are optional and experimental.
+- Runtime: Node.js 24, Better Auth, `jose`, Fastify/server packages, React/UI packages, SQLite in
+  Node, nginx and the HIBP range service; strict OIDC is first-class and named social providers are
+  optional/experimental.
 - Build/test: pnpm registry packages, GitHub Actions, CodeQL, Playwright browsers, Vitest, ESLint,
   Stryker, Gitleaks, Syft/Anchore, Trivy and OWASP ZAP.
 - `pnpm-lock.yaml` pins the dependency graph. Docker base images are digest-pinned. GitHub actions

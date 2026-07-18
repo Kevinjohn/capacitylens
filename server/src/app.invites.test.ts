@@ -91,6 +91,26 @@ describe('POST /api/invites (P1.9 create) — gate', () => {
     expect(Date.parse(stored.expiresAt)).toBeGreaterThan(Date.now())
   })
 
+  it('replays the same default-expiry invitation command without minting a second bearer', async () => {
+    const { app, db } = await appWithAuth()
+    seedOne(db)
+    const { cookie, userId } = await signUp(app, 'invite-replay-owner@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
+    const headers = {
+      cookie,
+      'idempotency-key': 'invite-replay-idempotency-01',
+      'x-account-command-id': 'invite-replay-command-000001',
+    }
+
+    const first = await createInviteReq(app, { accountId: 'a1', role: 'editor' }, headers)
+    const replay = await createInviteReq(app, { accountId: 'a1', role: 'editor' }, headers)
+
+    expect(first.statusCode).toBe(201)
+    expect(replay.statusCode).toBe(201)
+    expect(replay.json()).toEqual(first.json())
+    expect(db.prepare(`SELECT COUNT(*) AS count FROM invites`).get()).toEqual({ count: 1 })
+  })
+
   it.each([
     ['malformed', 'not-a-date', /valid ISO-8601/],
     ['past', '2000-01-01T00:00:00.000Z', /future/],
@@ -500,7 +520,15 @@ describe('POST /api/invites (P1.10 create) — preauthEmail', () => {
     const { cookie, userId } = await signUp(app, 'owner3@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
 
-    for (const bad of ['not-an-email', 'two@@at.io', '@nolocal.io', 'nodomain@', `${'a'.repeat(250)}@x.io`]) {
+    for (const bad of [
+      'not-an-email',
+      'two@@at.io',
+      '@nolocal.io',
+      'nodomain@',
+      `${'a'.repeat(250)}@x.io`,
+      null,
+      42,
+    ]) {
       const res = await createInviteReq(
         app,
         { accountId: 'a1', role: 'editor', preauthEmail: bad },

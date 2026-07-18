@@ -263,7 +263,7 @@ describe('schema migration of an existing on-disk DB', () => {
       db.exec(`CREATE TABLE verification (id TEXT PRIMARY KEY, value TEXT NOT NULL)`)
       db.prepare(`INSERT INTO verification (id, value) VALUES (?, ?)`).run('demoted-reset', 'demoted-admin')
       // Roll the ledger back to "just before v14" so the next openDb() re-runs ONLY the v14 migration.
-      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 14`)
+      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 14`)
       db.exec(`PRAGMA user_version = 13`)
       db.close()
 
@@ -545,6 +545,7 @@ describe('schema migration of an existing on-disk DB', () => {
       { version: 12, name: 'revoke-owner-reset-ceremonies' },
       { version: 13, name: 'snap-legacy-account-colors' },
       { version: 14, name: 'revoke-member-reset-ceremonies' },
+      { version: 15, name: 'add-account-boundary-state' },
     ])
     // Shipped checksums are immutable: later migrations must never invalidate an upgraded database.
     expect(history[0].checksum).toBe('90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d')

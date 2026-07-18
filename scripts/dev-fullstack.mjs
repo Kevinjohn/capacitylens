@@ -38,7 +38,7 @@ if (!Number.isInteger(nodeMajor) || nodeMajor < 24) {
 const API_PORT = parsePort(process.env.CAPACITYLENS_DEV_API_PORT, 8787, 'CAPACITYLENS_DEV_API_PORT')
 // Vite is strictPort:true on 5173 (vite.config.ts), so a collision there is a hard EADDRINUSE AFTER
 // the API child has already booted. Pre-flight it too (below), symmetric with the API check.
-const WEB_PORT = parsePort(5173, 5173, 'WEB_PORT')
+const WEB_PORT = 5173
 
 /**
  * Resolve true iff something is already listening on 127.0.0.1:port. A short-lived connect probe —

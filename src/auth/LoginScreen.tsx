@@ -358,7 +358,9 @@ export function LoginScreen({
           ) : null}
           {!setup && providers.length > 0 && (
             <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4">
-              <p className="text-xs text-muted">{m.login_external_experimental()}</p>
+              {providers.some((provider) => provider.experimental) ? (
+                <p className="text-xs text-muted">{m.login_external_experimental()}</p>
+              ) : null}
               <FieldError>{authMode === 'sso' ? error : null}</FieldError>
               {providers.map((provider) => (
                 <Button key={`${provider.kind}:${provider.id}`} variant="ghost" onClick={() => void signInWithProvider(provider)} disabled={busy}>

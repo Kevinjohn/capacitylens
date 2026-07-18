@@ -37,13 +37,31 @@ describe('single-company cap — POST /api/accounts (generic create)', () => {
     const app = buildApp(atCapDb(), { optimisticConcurrency: false })
     const res = await call(app, { method: 'POST', url: '/api/accounts', payload: account('brandNew') })
     expect(res.statusCode).toBe(403)
-    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: 'FORBIDDEN' })
+    expect(res.json().commandId).toEqual(expect.any(String))
   })
 
   it('zero accounts: the FIRST account still succeeds (201) — the bootstrap case is unaffected', async () => {
     const app = buildApp(openDb(':memory:'))
     const res = await call(app, { method: 'POST', url: '/api/accounts', payload: account('firstOne') })
     expect(res.statusCode).toBe(201)
+  })
+
+  it('replays the committed row when server-owned timestamps change between POST retries', async () => {
+    const app = buildApp(openDb(':memory:'))
+    const headers = {
+      'idempotency-key': 'generic-post-replay-key-0001',
+      'x-account-command-id': 'generic-post-replay-command-001',
+    }
+    const first = await call(app, {
+      method: 'POST', url: '/api/accounts', payload: account('replayed-post'), headers,
+    })
+    const replay = await call(app, {
+      method: 'POST', url: '/api/accounts', payload: account('replayed-post'), headers,
+    })
+    expect(first.statusCode, first.body).toBe(201)
+    expect(replay.statusCode, replay.body).toBe(201)
+    expect(replay.json()).toEqual(first.json())
   })
 
   it('multiAccount: true restores the open create even at-cap', async () => {
@@ -72,6 +90,23 @@ describe('single-company cap — PUT /api/accounts/:id (create-via-upsert)', () 
     const res = await call(app, { method: 'PUT', url: '/api/accounts/brandNew3', payload: account('brandNew3') })
     expect(res.statusCode).toBe(200)
   })
+
+  it('replays the committed row when server-owned timestamps change between PUT retries', async () => {
+    const app = buildApp(openDb(':memory:'))
+    const headers = {
+      'idempotency-key': 'generic-put-replay-key-00001',
+      'x-account-command-id': 'generic-put-replay-command-0001',
+    }
+    const first = await call(app, {
+      method: 'PUT', url: '/api/accounts/replayed-put', payload: account('replayed-put'), headers,
+    })
+    const replay = await call(app, {
+      method: 'PUT', url: '/api/accounts/replayed-put', payload: account('replayed-put'), headers,
+    })
+    expect(first.statusCode, first.body).toBe(200)
+    expect(replay.statusCode, replay.body).toBe(200)
+    expect(replay.json()).toEqual(first.json())
+  })
 })
 
 describe('single-company cap — PATCH /api/accounts/:id (never a create — sanity)', () => {
@@ -95,6 +130,28 @@ describe('single-company cap — POST /api/batch (accounts-PUT pre-scan)', () =>
     const res = await batchPutAccount(app, 'brandNew4')
     expect(res.statusCode).toBe(403)
     expect(res.json()).toEqual({ error: CAP_MESSAGE })
+  })
+
+  it('zero accounts: the first batch-created account succeeds with its owner membership', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db)
+    const res = await batchPutAccount(app, 'first')
+
+    expect(res.statusCode).toBe(200)
+    expect((await call(app, { method: 'GET', url: '/api/state' })).json().accounts)
+      .toEqual([expect.objectContaining({ id: 'first' })])
+  })
+
+  it('serializes concurrent first-account batches and lets only one pass the cap', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db)
+    const responses = await Promise.all([
+      batchPutAccount(app, 'concurrent-first'),
+      batchPutAccount(app, 'concurrent-second'),
+    ])
+
+    expect(responses.map((response) => response.statusCode).sort()).toEqual([200, 403])
+    expect((await call(app, { method: 'GET', url: '/api/state' })).json().accounts).toHaveLength(1)
   })
 
   it('projects all creates in one batch, so two accounts cannot pass against the same empty snapshot', async () => {
@@ -129,6 +186,25 @@ describe('single-company cap — POST /api/batch (accounts-PUT pre-scan)', () =>
         ],
       },
     })
+    expect(res.statusCode).toBe(200)
+    const state = await call(app, { method: 'GET', url: '/api/state' })
+    expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(['replacement'])
+  })
+
+  it('applies the cap to final batch state even when replacement creation precedes deletion', async () => {
+    const db = atCapDb()
+    const app = buildApp(db)
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/batch',
+      payload: {
+        ops: [
+          { method: 'PUT', table: 'accounts', id: 'replacement', row: account('replacement') },
+          { method: 'DELETE', table: 'accounts', id: 'a1' },
+        ],
+      },
+    })
+
     expect(res.statusCode).toBe(200)
     const state = await call(app, { method: 'GET', url: '/api/state' })
     expect(state.json().accounts.map((row: { id: string }) => row.id)).toEqual(['replacement'])

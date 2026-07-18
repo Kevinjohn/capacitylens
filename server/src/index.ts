@@ -9,6 +9,7 @@ import {
   runAuthMigrations,
   createBootstrapAdmin,
   countUsers,
+  DEFAULT_ACCOUNT_APPLICATION,
   AuthConfigError,
   authControlTablesNeedMigration,
   ensureAuthControlTables,
@@ -17,6 +18,11 @@ import {
 import { parseBackupConfig, startBackups, writePreMigrationBackup } from './backup'
 import { compositeAuditSink, fileAuditSink, noopAuditSink, parseAuditConfig, streamAuditSink } from './audit'
 import { loadInternalTls } from './internalTls'
+import { resolveAccountEnvironment } from './accountConfig'
+import type { BoundApplication } from '@capacitylens/shared/account/types'
+import { localExternalIdentityAdmission } from './accounts/externalIdentityAdmission'
+
+const ACCOUNT_APPLICATION: BoundApplication = DEFAULT_ACCOUNT_APPLICATION
 
 // Secrets, SQLite/WAL files, audit logs, and backups created by this process must never inherit a
 // permissive shell/container umask. Individual writers also pin 0600 for defence in depth.
@@ -91,24 +97,23 @@ process.umask(0o077)
 //                                   file is renamed to <file>.1 (replacing any existing .1)
 //                                   before the next line is appended, bounding on-disk usage to
 //                                   ~2x the cap. Only read when audit is on.
-//   CAPACITYLENS_AUTH                     off|password|sso (default off = no Better Auth at
+//   SMALLSASS_ACCOUNT_MODE                off|password|sso (default off = no Better Auth at
 //                                   all; only the thin /api/auth/me exists). Any other
 //                                   value refuses to boot. When ≠ off:
-//   BETTER_AUTH_SECRET              required — session signing secret (32+ chars).
-//   BETTER_AUTH_URL                 required — the public origin the browser uses.
-//   CAPACITYLENS_ALLOW_OPEN_SIGNUP        '1' to keep email self-registration open unconditionally
+//   SMALLSASS_ACCOUNT_SECRET              required — local session signing secret (32+ chars).
+//   SMALLSASS_ACCOUNT_PUBLIC_URL          required — the public origin the browser uses.
+//   SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP   '1' to keep email self-registration open unconditionally
 //                                   (trusted-instance/dev escape). Default off: sign-up is closed
-//                                   except for an EMPTY user table plus CAPACITYLENS_SETUP_TOKEN.
-//   CAPACITYLENS_SETUP_TOKEN              required secret for that first owner sign-up, presented
+//                                   except for an EMPTY user table plus the account setup token.
+//   SMALLSASS_ACCOUNT_SETUP_TOKEN         required secret for that first owner sign-up, presented
 //                                   by the setup form. A fresh password instance refuses to boot
 //                                   without it unless open signup/bootstrap-admin was explicit.
 //   CAPACITYLENS_CREATE_ADMIN_ADMIN       development-only first-owner helper (also available as
 //                                   --create-owner-admin-admin). It creates admin@admin.admin with
 //                                   a generated password only when the password user table is empty.
-//                                   Production refuses this path; use CAPACITYLENS_SETUP_TOKEN.
-//   CAPACITYLENS_SSO_*                    sso mode only: CLIENT_ID + CLIENT_SECRET, plus
-//                                   DISCOVERY_URL or AUTHORIZATION_URL + TOKEN_URL
-//                                   (optional PROVIDER_ID, SCOPES).
+//                                   Production refuses this path; use the account setup token.
+//   SMALLSASS_ACCOUNT_OIDC_*              strict OIDC: CLIENT_ID + CLIENT_SECRET + exact ISSUER +
+//                                   DISCOVERY_URL (optional PROVIDER_ID, LABEL and SCOPES).
 
 // CORS is locked down by default to the local Vite dev/e2e origins (DEFAULT_CORS, the
 // same fail-closed default buildApp uses). Set CAPACITYLENS_CORS_ORIGIN explicitly (e.g. your
@@ -152,6 +157,13 @@ if (resetForbidden(process.env)) {
   process.exit(1)
 }
 
+let accountEnv: Record<string, string | undefined>
+try {
+  accountEnv = resolveAccountEnvironment(process.env).env
+} catch (error) {
+  refuseToStart(error instanceof Error ? error.message : String(error))
+}
+
 const dbPath = process.env.CAPACITYLENS_DB ?? 'capacitylens.db'
 const port = parsePort(process.env.PORT)
 // Bind localhost-only by default so a dev/laptop run isn't reachable from the LAN; set
@@ -169,7 +181,7 @@ const https = process.env.CAPACITYLENS_HTTPS === '1'
 const log = process.env.CAPACITYLENS_LOG === '1'
 const healthDeep = process.env.CAPACITYLENS_HEALTH_DEEP === '1'
 const rateLimit = parseRateLimit(process.env.CAPACITYLENS_RATE_LIMIT)
-const requireMfa = process.env.CAPACITYLENS_REQUIRE_MFA === '1'
+const requireMfa = accountEnv.CAPACITYLENS_REQUIRE_MFA === '1'
 let internalTls: ReturnType<typeof loadInternalTls>
 try {
   internalTls = loadInternalTls(process.env)
@@ -197,7 +209,7 @@ const backupConfig = parseBackupConfig(process.env)
 // Validate every pure production posture rule before opening the database. A deployment typo must
 // not advance the schema and then fail for a reason that was knowable without touching storage.
 const posture = evaluateProductionPosture(
-  bootstrapAdmin ? { ...process.env, CAPACITYLENS_CREATE_ADMIN_ADMIN: '1' } : process.env,
+  bootstrapAdmin ? { ...accountEnv, CAPACITYLENS_CREATE_ADMIN_ADMIN: '1' } : accountEnv,
 )
 for (const w of posture.warnings) {
   console.warn(`capacitylens-server: production posture warning — ${w}`)
@@ -220,12 +232,18 @@ try {
   const migrationPlan = planDatabaseMigrations(db)
   // Resolve every auth/provider option while the database is still at its original version.
   // authFromEnv's app-owned DDL is deferred until the app migration succeeds.
-  ;({ mode: authMode, auth } = authFromEnv(db, process.env, {
+  ;({ mode: authMode, auth } = authFromEnv(db, accountEnv, {
     trustedOrigins: corsOrigin.split(',').map((s) => s.trim()).filter(Boolean),
     deferDatabaseSetup: true,
+    application: ACCOUNT_APPLICATION,
+    externalIdentityAdmission: (candidate) => localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: accountEnv.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+      candidate,
+    }),
   }))
   const authMigrationPlan = auth ? await planAuthSchemaMigrations(auth) : { pending: false, tables: [] }
-  const authControlMigration = auth ? authControlTablesNeedMigration(db, process.env) : false
+  const authControlMigration = auth ? authControlTablesNeedMigration(db, accountEnv) : false
   const needsMigrationSnapshot =
     migrationPlan.migrations.length > 0 || authMigrationPlan.pending || authControlMigration
   if (needsMigrationSnapshot && !migrationPlan.fresh) {
@@ -237,7 +255,10 @@ try {
     })
   }
   initializeOpenDb(db, dbPath)
-  if (auth) ensureAuthControlTables(db, process.env)
+  if (auth) {
+    ensureAuthControlTables(db, accountEnv)
+    auth.ensureProviderBindings()
+  }
 } catch (e) {
   try {
     db?.close()
@@ -275,11 +296,11 @@ try {
   if (
     authMode === 'password' &&
     countUsers(db) === 0 &&
-    process.env.CAPACITYLENS_ALLOW_OPEN_SIGNUP !== '1' &&
-    !process.env.CAPACITYLENS_SETUP_TOKEN
+    accountEnv.CAPACITYLENS_ALLOW_OPEN_SIGNUP !== '1' &&
+    !accountEnv.CAPACITYLENS_SETUP_TOKEN
   ) {
     throw new AuthConfigError(
-      'A fresh password instance requires CAPACITYLENS_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).',
+      'A fresh password instance requires SMALLSASS_ACCOUNT_SETUP_TOKEN (or an explicit bootstrap-admin/open-signup override).',
     )
   }
 } catch (e) {
@@ -293,7 +314,7 @@ try {
 if (authMode === 'password' && countUsers(db) === 0) {
   console.warn(
     'capacitylens-server: SETUP LOCKED — no user accounts exist yet; owner creation requires the ' +
-      'configured CAPACITYLENS_SETUP_TOKEN.',
+      'configured SMALLSASS_ACCOUNT_SETUP_TOKEN.',
   )
 }
 
@@ -316,6 +337,7 @@ const securityLog = (event: Record<string, unknown>) => {
 }
 
 const app = buildApp(db, {
+  application: ACCOUNT_APPLICATION,
   internalTls,
   allowReset,
   corsOrigin,

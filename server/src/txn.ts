@@ -9,13 +9,14 @@ let savepointId = 0
  * migration wrap the older focused helpers (table rebuilds, control-table repair, data repair)
  * without either weakening their local atomicity or attempting an invalid nested BEGIN.
  */
-export function tx(db: Db, fn: () => void, mode: 'deferred' | 'immediate' = 'deferred'): void {
+export function tx<T>(db: Db, fn: () => T, mode: 'deferred' | 'immediate' = 'deferred'): T {
   if (db.isTransaction) {
     const savepoint = `capacitylens_tx_${++savepointId}`
     db.exec(`SAVEPOINT ${savepoint}`)
     try {
-      fn()
+      const result = fn()
       db.exec(`RELEASE SAVEPOINT ${savepoint}`)
+      return result
     } catch (e) {
       try {
         db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`)
@@ -25,13 +26,13 @@ export function tx(db: Db, fn: () => void, mode: 'deferred' | 'immediate' = 'def
       }
       throw e
     }
-    return
   }
 
   db.exec(mode === 'immediate' ? 'BEGIN IMMEDIATE' : 'BEGIN')
   try {
-    fn()
+    const result = fn()
     db.exec('COMMIT')
+    return result
   } catch (e) {
     // Roll back, but NEVER let a ROLLBACK failure MASK the original error. If BEGIN never armed a
     // transaction or the connection is gone, db.exec('ROLLBACK') itself throws — swallow ONLY that

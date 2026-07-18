@@ -1,6 +1,13 @@
 import { allocationWorksOnDay, eachDayISO, isWithin, isWorkingWeekday } from '@capacitylens/shared/lib/dateMath'
 import type { Allocation, ID, ISODate, Resource, TimeOff } from '@capacitylens/shared/types/entities'
 
+/** Blocks carry placement but no hourly load. Reuse this projection across every capacity surface. */
+export function capacityAllocationsForMode(allocations: Allocation[], blocksMode: boolean): Allocation[] {
+  return blocksMode
+    ? allocations.map((allocation) => ({ ...allocation, hoursPerDay: 0 }))
+    : allocations
+}
+
 // Capacity reflects real availability: a resource has 0 available hours on a
 // non-working weekday or a time-off day, otherwise their workingHoursPerDay.
 // A day is over-allocated when allocated hours exceed available hours. A normal

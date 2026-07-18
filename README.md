@@ -95,7 +95,8 @@ in-memory demo adapter.
 
 ## Authentication and offline access
 
-- Password authentication is the stable default. Social providers and generic OIDC are experimental.
+- Password authentication is the stable self-hosted default. Strict OIDC is first-class; named
+  Google, Microsoft and GitHub providers remain experimental. Hosted deployments are OIDC-only.
 - Password mode defaults to breached-password screening and supports optional required TOTP MFA,
   with fixed/idle session limits, host-only cookies and user-controlled session revocation.
 - Optional offline access stores a verified snapshot for up to seven days.

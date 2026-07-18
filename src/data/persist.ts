@@ -192,6 +192,17 @@ export function attachPersistence(
       retryTimer = null
     }
   }
+  const acknowledge = (data: AppData) => {
+    const acknowledgesLatest = unacknowledged === data || unacknowledged === null
+    if (unacknowledged === data) unacknowledged = null
+    if (pending === data) pending = null
+    // A response for an older snapshot cannot clear the failure/retry state of a newer write.
+    if (!acknowledgesLatest) return
+    retryAttempts = 0
+    failedSinceSuccess = false
+    cancelRetry()
+    onSuccess?.()
+  }
   // Refresh-on-focus throttle (P1.16): coming back to the tab re-hydrates the active account's
   // slice, but a user flipping between tabs would otherwise refetch on every focus. Cap the cadence
   // to once per 30s; the timestamp is taken at refresh START so two focus events inside the window
@@ -208,16 +219,9 @@ export function attachPersistence(
     // for the in-memory demo adapter).
     const round = adapter.saveAll(data).then(
       () => {
-        const acknowledgesLatest = unacknowledged === data || unacknowledged === null
-        if (unacknowledged === data) unacknowledged = null
         // A normal save that started before a newer teardown flush must not erase that newer flush's
-        // failure state. Otherwise it cancels the retry while the newer snapshot remains unsaved.
-        if (acknowledgesLatest) {
-          retryAttempts = 0
-          failedSinceSuccess = false
-          cancelRetry()
-          onSuccess?.()
-        }
+        // failure state. `acknowledge` applies that ordering rule for every save path.
+        acknowledge(data)
       },
       (e: unknown) => {
         failedSinceSuccess = true
@@ -339,15 +343,7 @@ export function attachPersistence(
     // success clears this exact snapshot; failure is surfaced and enters the normal retry machinery.
     void adapter.saveAll(data, { unload: true }).then(
       () => {
-        const acknowledgesLatest = unacknowledged === data || unacknowledged === null
-        if (unacknowledged === data) unacknowledged = null
-        if (pending === data) pending = null
-        if (acknowledgesLatest) {
-          retryAttempts = 0
-          failedSinceSuccess = false
-          cancelRetry()
-          onSuccess?.()
-        }
+        acknowledge(data)
       },
       (error: unknown) => {
         failedSinceSuccess = true

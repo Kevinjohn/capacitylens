@@ -1,22 +1,34 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import type { ServerOptions as HttpsServerOptions } from 'node:https'
 import Fastify from 'fastify'
 import rateLimitPlugin from '@fastify/rate-limit'
 import helmetPlugin from '@fastify/helmet'
-import { MAX_RATE_LIMIT, parseRateLimit } from './rateLimit'
+import { MAX_RATE_LIMIT, normalizeRateLimit, parseRateLimit } from './rateLimit'
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import {
   DEMO_USER,
-  RESET_LINK_TTL_SECONDS,
+  DEFAULT_ACCOUNT_APPLICATION,
   countUsers,
-  mintPasswordResetToken,
   type Auth,
   type AuthMode,
   type SessionUser,
 } from './auth'
-import { betterAuthAdapter, type AuthAdapter } from './authAdapter'
-import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
-import { cleanText } from '@capacitylens/shared/lib/strings'
+import {
+  type ActorContext,
+  type ApplicationSession,
+  type BoundApplication,
+  type CommandIdentity,
+} from '@capacitylens/shared/account/types'
+import { ACCOUNT_SESSION_FRESH_AGE_SECONDS } from '@capacitylens/shared/account/sessionPolicy'
+import { AccountContractError, statusForAccountFailure } from '@capacitylens/shared/account/errors'
+import { boundApplicationFailure } from '@capacitylens/shared/account/validation'
+import type { AccountAdminPort } from '@capacitylens/shared/account/ports'
+import { betterAuthIdentityPort } from './accounts/betterAuthIdentityPort'
+import { sqliteAccountAdminPort } from './accounts/sqliteAccountAdminPort'
+import { actorContextFromSession, localAccountFlows } from './accounts/localAccountFlows'
+import { KeyedOperationLock } from './accounts/operationLock'
+import { trustedLocalIdentityPort } from './accounts/trustedLocalIdentityPort'
+import { registerAccountRoutes } from './accounts/accountRoutes'
 
 // The identity requireUser attaches to every gated request. Session/identity
 // plumbing ONLY — accountId stays client-asserted (ownsRow is still the tenant guard);
@@ -24,6 +36,7 @@ import { cleanText } from '@capacitylens/shared/lib/strings'
 declare module 'fastify' {
   interface FastifyRequest {
     user: SessionUser | null
+    accountActor: ActorContext | null
   }
 }
 import { parseData, MAX_IMPORT_RECORDS } from '@capacitylens/shared/data/transfer'
@@ -71,41 +84,15 @@ import {
   wipe,
 } from './db'
 import { sqliteTenantStore } from './tenantStore'
-import { listAccounts, resolveRole } from './membership'
-import {
-  createInvite,
-  getInvite,
-  InviteAlreadyUsedError,
-  getMemberRole,
-  getUsersByIds,
-  listInvitesForAccount,
-  listMembersForAccount,
-  listMembershipsForUser,
-  looksLikeEmail,
-  markInviteUsed,
-  newInviteId,
-  normalizeEmail,
-  preauthInviteAllows,
-  pruneInvites,
-  removeMember,
-  revokeInvite,
-  upsertMember,
-  type Invite,
-} from './controlTables'
 // P2.6b per-tenant DELETE + member-PII erasure — the SINGLE permissioned path that wipes an account's
 // PII everywhere (scoped AppData via FK cascade, the control tables, AND Better Auth user/account/session).
 // Called ONLY from the two 'purge'-gated delete vectors below. eraseAccount opens its own tx; the batch
 // (already inside tx) uses eraseAccountInTx (node:sqlite has no nested BEGIN).
-import { eraseAccount, eraseAccountInTx } from './erasure'
 import {
   can,
   canSeePrivateNames,
-  canManageMemberRole,
-  canRemoveMember,
-  canResetMemberAcrossAccounts,
   canSeeTimeOffNote,
   type Action,
-  type Role,
 } from '@capacitylens/shared/domain/access'
 import { redactPrivateName } from '@capacitylens/shared/domain/privateNames'
 import { tx } from './txn'
@@ -117,11 +104,6 @@ import { type AuditRecord, type AuditSink, noopAuditSink } from './audit'
 // by Fastify with 413 before our handlers run (mirrors the client's import guard).
 const BODY_LIMIT = 5 * 1024 * 1024
 
-const inviteIsExpired = (expiresAt: string, now = Date.now()): boolean => {
-  const expiry = Date.parse(expiresAt)
-  return !Number.isFinite(expiry) || now >= expiry
-}
-
 // Cap on ops per POST /api/batch request (the MAX_IMPORT_RECORDS precedent, applied to the sync
 // path). BODY_LIMIT bounds request BYTES, but not request WORK: every operation is sanitized,
 // authorized, validated and applied to the in-memory projection, so op COUNT is still a real cost
@@ -131,6 +113,15 @@ const inviteIsExpired = (expiresAt: string, now = Date.now()): boolean => {
 // crafted/looping flood. Checked BEFORE the pre-scan and tx, so an over-cap batch writes nothing.
 // Exported for the test that pins the boundary.
 export const MAX_BATCH_OPS = 5000
+
+// Lifecycle routes read and replace the whole tenant slice. Every confidential field must therefore
+// be present on the read or the replacement would erase it. One shared object makes that contract
+// impossible to update for only some lifecycle transitions.
+const FULL_SLICE_READ = Object.freeze({
+  includeTimeOffNote: true,
+  includeInactive: true,
+  includePrivateNames: true,
+})
 
 // Fastify defaults BOTH to 0 (disabled). The documented deploy fronts this server with Nginx,
 // which buffers/queues the client connection — 30s is generous headroom for that hop, and it's
@@ -142,14 +133,7 @@ export const MAX_SERVER_CONNECTIONS = 512
 const CSP_REPORT_BODY_LIMIT = 64 * 1024
 const MAX_CSP_REPORTS_PER_REQUEST = 20
 
-/** Default invite lifetime (P1.9): a link with no explicit `expiresAt` in the create body expires
- *  7 days after it is minted. A short-ish default keeps a leaked/forgotten link from staying live
- *  indefinitely; a caller can shorten it via the body's `expiresAt`. */
-const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000
-/** Hard ceiling for bearer lifetime even when an API caller supplies expiresAt. */
-const MAX_INVITE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 const MIN_BOOTSTRAP_TOKEN_BYTES = 32
-const ISO_INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/
 
 // Fail-CLOSED CORS default: only the local Vite dev/e2e origins may make cross-origin
 // browser calls. The factory itself uses this (not a wildcard) so a caller that forgets
@@ -160,6 +144,8 @@ export const DEFAULT_CORS =
   'http://localhost:5173,http://localhost:5273,http://127.0.0.1:5173,http://127.0.0.1:5273'
 
 export interface AppOptions {
+  /** Stable identity and display branding for this product installation's account boundary. */
+  application?: BoundApplication
   /** Optional internal HTTPS identity for a reverse-proxy/service hop. The default Compose
    * topology provisions and verifies it; a trusted same-host loopback proxy may omit it. */
   internalTls?: Pick<HttpsServerOptions, 'key' | 'cert' | 'minVersion'>
@@ -181,8 +167,8 @@ export interface AppOptions {
   healthDeep?: boolean
   /** CAPACITYLENS_RATE_LIMIT=<n> — n requests/minute per IP across /api/* (a guard against an
    *  accidental client loop hammering the single-writer SQLite file and remote resource
-   *  exhaustion). Health participates in the same per-IP budget. <= 0 / omitted ⇒ the plugin is not registered at
-   *  all (today's behaviour) — see parseRateLimit for the fail-closed env parse. */
+   *  exhaustion). Health is exempt so liveness probes cannot be starved by application traffic.
+   *  <= 0 / omitted ⇒ the plugin is not registered at all — see parseRateLimit for the fail-closed env parse. */
   rateLimit?: number
   /** Key the rate limit on the first X-Forwarded-For hop instead of the socket address.
    *  Set ONLY when the listen host is loopback (i.e. behind the Nginx proxy, where every
@@ -244,8 +230,9 @@ export interface AppOptions {
   /** CAPACITYLENS_AUDIT (P1.15) — the append-only JSONL audit sink. ON-by-default is decided at
    *  the index.ts layer (which builds a fileAuditSink from env, or a noop when =off); THIS factory
    *  defaults to noopAuditSink() so tests AND the default local/no-server deploy are byte-identical
-   *  unless a real sink is explicitly injected. NEVER pass a row/body into the sink — only the
-   *  typed AuditRecord whose changedFields are field NAMES (the #1 no-PII invariant). */
+   *  unless a real sink is explicitly injected. NEVER pass a row/body into the sink — only typed
+   *  product or normalized account entries whose changedFields are field NAMES (the #1 no-PII
+   *  invariant). */
   audit?: AuditSink
 }
 
@@ -340,16 +327,63 @@ function toWebHeaders(raw: FastifyRequest['headers']): Headers {
   return headers
 }
 
+function sessionUserFromApplicationSession(session: ApplicationSession): SessionUser {
+  return {
+    id: session.principal.id,
+    email: session.principal.email,
+    emailVerified: session.principal.emailVerified,
+    name: session.principal.displayName,
+    twoFactorEnabled:
+      session.assurance === 'mfa' ||
+      session.assurance === 'federated' ||
+      session.assurance === 'trusted-local',
+    sessionCreatedAt: session.createdAt,
+  }
+}
+
+function accountCommand(req: FastifyRequest): CommandIdentity {
+  const rawIdempotency = req.headers['idempotency-key']
+  const rawCommand = req.headers['x-account-command-id']
+  const valid = (value: unknown): value is string =>
+    typeof value === 'string' && /^[A-Za-z0-9_-]{16,128}$/.test(value)
+  if (rawIdempotency !== undefined && !valid(rawIdempotency)) {
+    throw new AccountContractError({
+      code: 'VALIDATION_FAILED',
+      message: 'Idempotency-Key must be a 16–128 character opaque base64url-style identifier.',
+      retryable: false,
+    })
+  }
+  if (rawCommand !== undefined && !valid(rawCommand)) {
+    throw new AccountContractError({
+      code: 'VALIDATION_FAILED',
+      message: 'X-Account-Command-Id must be a 16–128 character opaque base64url-style identifier.',
+      retryable: false,
+    })
+  }
+  const idempotencyKey = valid(rawIdempotency) ? rawIdempotency : newId()
+  // They serve different purposes and remain independent even for compatibility callers that do
+  // not yet send either header: the command id is the reconciliation handle, while the
+  // idempotency key identifies one semantic retry ceremony.
+  const commandId = valid(rawCommand) ? rawCommand : newId()
+  return { commandId, idempotencyKey }
+}
+
+/** Stable server-owned id for an omitted workspace id. A retry carrying the same command must
+ * address the same workspace rather than minting a new id and conflicting with its own ledger. */
+function generatedWorkspaceId(commandId: string): string {
+  return `w_${createHash('sha256')
+    .update('capacitylens-workspace-command\0')
+    .update(commandId)
+    .digest('base64url')
+    .slice(0, 21)}`
+}
+
 const isKnownTable = (entity: string): entity is keyof typeof TABLES =>
   Object.prototype.hasOwnProperty.call(TABLES, entity)
 
 // Request-validation guard for the invite-create role (P1.9). A bad/missing role is a CALLER fault
 // (400), distinct from createInvite's loud throw (a 500-tier integrity backstop for a role that
 // somehow slipped past here). Mirrors the closed Role vocabulary in shared/domain/access.
-const INVITE_ROLES: readonly Role[] = ['owner', 'admin', 'editor', 'viewer']
-const isKnownRole = (value: unknown): value is Role =>
-  typeof value === 'string' && (INVITE_ROLES as readonly string[]).includes(value)
-
 // A table is "scoped" (tenant-owned) when it carries an accountId column — every table
 // except top-level `accounts`. Scoped deletes must assert ownership via accountId.
 const isScopedTable = (entity: keyof typeof TABLES): boolean =>
@@ -417,9 +451,8 @@ function accountFieldsFrozen(
 // (and otherwise sends no ACAO header, so the browser blocks the cross-origin call).
 // Requests with no Origin (curl, server-to-server, Playwright's APIRequestContext)
 // are unaffected — CORS only governs browser cross-origin reads.
-function resolveCorsOrigin(reqOrigin: string | undefined, allow: string): string | null {
-  const list = allow.split(',').map((s) => s.trim()).filter(Boolean)
-  return reqOrigin && list.includes(reqOrigin) ? reqOrigin : null
+function resolveCorsOrigin(reqOrigin: string | undefined, allow: ReadonlySet<string>): string | null {
+  return reqOrigin && allow.has(reqOrigin) ? reqOrigin : null
 }
 
 function requestOriginIsSameOrigin(req: FastifyRequest, reqOrigin: string, trustForwarded: boolean): boolean {
@@ -507,6 +540,9 @@ class StaleWriteError extends Error {
   }
 }
 
+/** Internal control signal: a post-lock batch authorization recheck already sent its refusal. */
+class BatchAuthorizationResponseSent extends Error {}
+
 /**
  * The stale-write predicate (optimistic concurrency), shared by the direct PUT route and the batch
  * PUT loop so the two paths can never drift: a write is stale ONLY when a stored row exists, BOTH
@@ -547,6 +583,14 @@ function stampServerRevision(
     createdAt: typeof existing?.createdAt === 'string' ? existing.createdAt : now,
     updatedAt: now,
   }
+}
+
+/** Server-owned revision fields are result metadata, not semantic account-command input. */
+function canonicalAccountProductPayload(row: Record<string, unknown>): Record<string, unknown> {
+  const canonical = { ...row }
+  delete canonical.createdAt
+  delete canonical.updatedAt
+  return canonical
 }
 
 // STATE parameter, not `db`: this is a pure existence check against the caller's already-loaded
@@ -711,12 +755,18 @@ function accountCreateCapped(db: Db, opts: AppOptions): boolean {
  * WHO only — the single-company cap (WHETHER a new company may exist; accountCreateCapped) is a
  * separate gate the callers apply themselves.
  */
-function userMayCreateAccount(db: Db, authMode: AuthMode, userId: string): boolean {
+async function userMayCreateAccount(
+  db: Db,
+  administration: AccountAdminPort,
+  authMode: AuthMode,
+  userId: string,
+): Promise<boolean> {
   return (
     countAccounts(db) === 0 || // (1) first-run bootstrap
     authMode === 'off' || // (2) trusted-local — the caller is DEMO_USER
     // (3) an ACTIVE owner/admin of ANY existing account (admin-tier = can manageMembers).
-    listMembershipsForUser(db, userId).some((m) => m.status === 'active' && can(m.role, 'manageMembers'))
+    (await administration.listWorkspacesForPrincipal({ principalId: userId }))
+      .some((membership) => can(membership.role, 'manageMembers'))
   )
 }
 
@@ -771,10 +821,39 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   ) {
     throw new Error(`CAPACITYLENS_BOOTSTRAP_TOKEN must be at least ${MIN_BOOTSTRAP_TOKEN_BYTES} bytes.`)
   }
-  // P0.5.8: build the provider-neutral session-verify port ONCE. requireUser + /api/auth/me
-  // depend only on this AuthAdapter, never on Better Auth directly. In 'off' mode no adapter
-  // is built (and `auth` is already null), so Better Auth is never touched — the OFF guarantee.
-  const authAdapter: AuthAdapter | null = auth ? betterAuthAdapter(auth) : null
+  const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION
+  const applicationFailure = boundApplicationFailure(application)
+  if (applicationFailure) throw new Error(`buildApp: ${applicationFailure}`)
+  // One fail-never sink receives both legacy product mutation records and normalized account-flow
+  // events. Construct it before the account boundary so the coordinator—not its HTTP caller—owns
+  // audit correlation for cross-port commands.
+  const auditSink = opts.audit ?? noopAuditSink()
+  const accountLock = new KeyedOperationLock()
+  const identityPort = auth && authMode !== 'off'
+    ? betterAuthIdentityPort({ applicationId: application.applicationId, auth, authMode, db })
+    : trustedLocalIdentityPort({
+        id: DEMO_USER.id,
+        displayName: DEMO_USER.name,
+        email: DEMO_USER.email,
+        emailVerified: true,
+        linkedSubject: null,
+      })
+  const accountAdminPort = sqliteAccountAdminPort({
+    applicationId: application.applicationId,
+    db,
+    lock: accountLock,
+    trustedLocal: authMode === 'off',
+    requireMfa: authMode === 'password' && opts.requireMfa === true,
+    audit: { append: (event) => auditSink.append(event) },
+  })
+  const accountFlows = localAccountFlows({
+    applicationId: application.applicationId,
+    db,
+    identity: identityPort,
+    administration: accountAdminPort,
+    lock: accountLock,
+    audit: { append: (event) => auditSink.append(event) },
+  })
   const logOn = opts.log === true
   const app = Fastify({
     ...(opts.internalTls ? { https: opts.internalTls } : {}),
@@ -814,17 +893,30 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   app.server.maxConnections = MAX_SERVER_CONNECTIONS
   // Fail-closed: an omitted corsOrigin locks to the localhost allow-list, NOT a wildcard.
   const corsOrigin = opts.corsOrigin ?? DEFAULT_CORS
-  if (corsOrigin.split(',').some((origin) => origin.trim() === '*')) {
+  const corsOrigins = new Set(corsOrigin.split(',').map((origin) => origin.trim()).filter(Boolean))
+  if (corsOrigins.has('*')) {
     throw new Error('CORS requires explicit origins when cookie authentication is enabled.')
   }
   // 500s with logging ON go through the request-scoped logger (one parseable JSON line,
   // correlated with the request); OFF keeps today's bare console.error.
   const sendFail = (reply: FastifyReply, err: unknown) =>
     fail(reply, err, logOn ? (e: unknown) => reply.log.error(e) : undefined)
-  const inviteFail = (reply: FastifyReply, err: unknown) =>
-    err instanceof InviteAlreadyUsedError
-      ? reply.code(409).send({ error: err.message })
-      : sendFail(reply, err)
+  const accountFail = (reply: FastifyReply, err: unknown) => {
+    if (!(err instanceof AccountContractError)) return sendFail(reply, err)
+    const retryAfterSeconds = (
+      typeof err.failure.retryAfterSeconds === 'number' &&
+      Number.isFinite(err.failure.retryAfterSeconds) &&
+      err.failure.retryAfterSeconds >= 0
+    ) ? err.failure.retryAfterSeconds : undefined
+    if (retryAfterSeconds !== undefined) reply.header('retry-after', String(Math.ceil(retryAfterSeconds)))
+    return reply.code(statusForAccountFailure(err.failure)).send({
+      error: err.failure.message,
+      code: err.failure.code,
+      retryable: err.failure.retryable,
+      ...(err.failure.commandId ? { commandId: err.failure.commandId } : {}),
+      ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
+    })
+  }
   const securityEvent = (event: Record<string, unknown>): void => {
     try {
       // Central path-secret boundary: every security event passes here, including early auth/MFA/
@@ -867,7 +959,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     const fwStatus = (err as { statusCode?: number }).statusCode
     if (typeof fwStatus === 'number') {
       if (fwStatus >= 500) {
-        securityEvent({ event: 'unexpected_error', outcome: 'failure', method: req.method, path: redactSecretUrl(req.url), status: fwStatus })
+        securityEvent({ event: 'unexpected_error', outcome: 'failure', method: req.method, path: req.url, status: fwStatus })
         if (logOn) req.log.error(err)
         else console.error(err)
         return reply.code(fwStatus).send({ error: 'Internal server error' })
@@ -938,11 +1030,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // behind the Nginx proxy every socket is loopback, so rateLimitTrustForwarded swaps the
   // key to the first X-Forwarded-For hop there (and only there). 429s flow through the
   // setErrorHandler above, so the refusal is the API's usual { error } JSON shape.
-  const configuredRateLimit = opts.rateLimit ?? 0
-  const rateLimitMax = Number.isSafeInteger(configuredRateLimit) &&
-    configuredRateLimit > 0 && configuredRateLimit <= MAX_RATE_LIMIT
-    ? configuredRateLimit
-    : 0
+  const rateLimitMax = normalizeRateLimit(opts.rateLimit ?? 0)
   if (rateLimitMax > 0) {
     void app.register(rateLimitPlugin, {
       max: rateLimitMax,
@@ -979,7 +1067,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         event: 'authentication',
         outcome: reply.statusCode < 400 ? 'success' : 'failure',
         method: req.method,
-        path: redactSecretUrl(path),
+        path,
         status: reply.statusCode,
         remoteIp: req.ip,
         userId: req.user?.id,
@@ -996,6 +1084,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // 'off' attaches the synthetic demo identity and continues — no request that succeeds
   // today may fail. Other modes resolve the Better Auth session or 401.
   app.decorateRequest('user', null)
+  app.decorateRequest('accountActor', null)
   app.addHook('preHandler', async (req: FastifyRequest, reply: FastifyReply) => {
     const path = req.url.split('?', 1)[0]
     if (
@@ -1009,17 +1098,27 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // display name, proposed role and expiry — never tenant rows, members or identity facts.
     if (/^\/api\/invites\/[^/]+\/signup$/.test(path)) return
     if (req.method === 'GET' && /^\/api\/invites\/[^/]+\/preview$/.test(path)) return
+    if (req.method === 'POST' && path === '/api/account-commands/reconcile') return
     if (authMode === 'off') {
       req.user = DEMO_USER
+      req.accountActor = {
+        principalId: DEMO_USER.id,
+        sessionId: 'trusted-local',
+        assurance: 'trusted-local',
+        fresh: true,
+        mfaSatisfied: true,
+      }
       return
     }
     try {
-      const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
-      if (!user) {
+      const session = await identityPort!.verifyApplicationSession({ headers: toWebHeaders(req.headers) })
+      if (!session) {
         securityEvent({ event: 'authentication_required', outcome: 'blocked', method: req.method, path, remoteIp: req.ip })
         return reply.code(401).send({ error: 'Sign in to continue.' })
       }
+      const user = sessionUserFromApplicationSession(session)
       req.user = user
+      req.accountActor = actorContextFromSession(session)
       if (authMode === 'password' && opts.requireMfa === true && user.twoFactorEnabled !== true) {
         securityEvent({ event: 'mfa_required', outcome: 'blocked', method: req.method, path, userId: user.id })
         return reply.code(403).send({
@@ -1043,14 +1142,6 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // a server whose DB is broken is a lie).
   const healthStmt = opts.healthDeep === true ? db.prepare('SELECT 1') : null
 
-  // The audit sink (P1.15). Defaults to noopAuditSink() so the default deploy + every test are
-  // byte-identical unless index.ts injects a real fileAuditSink (ON by default in server mode).
-  const auditSink = opts.audit ?? noopAuditSink()
-
-  // changedFields for an audit line = the wire body/row's field NAMES (never values). This is the
-  // ONLY thing ever derived from a body for the audit trail — the #1 no-PII invariant.
-  const fieldNames = acceptedFieldNames
-
   // Record one audit line and, ONLY on a write failure, set the uniform warning header. The header
   // (not a body field) is the warning mechanism on ALL six routes — it keeps entity row payloads
   // pure and works for the bodyless 204 DELETE. append() never throws (see audit.ts), so this can't
@@ -1071,10 +1162,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
    * `false`, so a caller guards with `if (!authorize(...)) return`.
    *
    * OFF mode (the default, trusted-local) is a NO-OP allow-all: it returns `true` on the FIRST line,
-   * BEFORE any membership read — `req.user` is the synthetic DEMO_USER and `resolveRole`/`can` never
-   * run. This pins the #1 invariant (OFF = exactly today's behaviour). Auth-on resolves the caller's
-   * membership role for `accountId` and runs the pure `can(role, action)` matrix:
-   *   - non-member (`resolveRole === null`) → 403,
+   * BEFORE any membership read — `req.user` is the synthetic DEMO_USER and the account port / `can`
+   * never run. This pins the #1 invariant (OFF = exactly today's behaviour). Auth-on asks the account
+   * administration port for the caller's active role and runs the pure `can(role, action)` matrix:
+   *   - non-member (`role === null`) → 403,
    *   - member but insufficient tier (`can === false`) → 403,
    *   - otherwise allowed.
    *
@@ -1094,8 +1185,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     accountId: string,
     action: Action,
   ): boolean {
-    if (authMode === 'off') return true // OFF = allow-all; resolveRole/can NEVER run.
-    const role = resolveRole(db, req.user!, accountId)
+    if (authMode === 'off') return true // OFF = allow-all; the account port / can NEVER run.
+    const role = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
     if (role === null) {
       securityEvent({ event: 'authorization', outcome: 'denied', action, accountId, userId: req.user?.id })
       reply.code(403).send({ error: 'Forbidden.' }) // not a member of this account
@@ -1116,7 +1207,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // Date.parse(undefined ?? '') is NaN, and NaN fails Number.isFinite → stale.
       const sessionCreatedAtMs = Date.parse(req.user?.sessionCreatedAt ?? '')
       const timestampMissing = !Number.isFinite(sessionCreatedAtMs)
-      if (timestampMissing || Date.now() - sessionCreatedAtMs > 15 * 60 * 1000) {
+      if (
+        timestampMissing ||
+        Date.now() - sessionCreatedAtMs > ACCOUNT_SESSION_FRESH_AGE_SECONDS * 1000
+      ) {
         securityEvent({
           event: 'step_up_required',
           outcome: 'blocked',
@@ -1148,7 +1242,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     if ((table !== 'timeOff' && table !== 'clients' && table !== 'projects') || authMode === 'off') {
       return ALL_FIELDS_VISIBLE
     }
-    const role = typeof accountId === 'string' ? resolveRole(db, req.user!, accountId) : null
+    const role = typeof accountId === 'string'
+      ? accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
+      : null
     return {
       canSeeTimeOffNote: role !== null && canSeeTimeOffNote(role),
       canSeePrivateNames: role !== null && canSeePrivateNames(role),
@@ -1182,7 +1278,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
   // only root-level hooks run there — a child-scoped hook would leave preflights as
   // bare 404s without CORS headers, silently blocking every cross-origin write.
   app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
-    const listedOrigin = resolveCorsOrigin(req.headers.origin, corsOrigin)
+    const listedOrigin = resolveCorsOrigin(req.headers.origin, corsOrigins)
     const fetchSite = req.headers['sec-fetch-site']
     // Sec-Fetch-Site is a forbidden browser-controlled header and therefore the most direct signal
     // for the packaged proxy path (where an outer TLS edge or non-default port can make server-side
@@ -1211,7 +1307,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     ) {
       securityEvent({
         event: 'cross_site_request', outcome: 'blocked', method: req.method,
-        path: redactSecretUrl(req.url), origin: req.headers.origin, fetchSite,
+        path: req.url, origin: req.headers.origin, fetchSite,
       })
       return reply.code(403).send({ error: 'Cross-site request rejected.' })
     }
@@ -1226,7 +1322,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // secret headers. Never reflect arbitrary requested headers on credentialed origins.
     reply.header(
       'Access-Control-Allow-Headers',
-      'Content-Type, x-capacitylens-bootstrap-token, x-capacitylens-setup-token',
+      'Content-Type, Idempotency-Key, x-account-command-id, x-capacitylens-bootstrap-token, x-capacitylens-setup-token',
     )
     if (req.method === 'OPTIONS') reply.code(204).send()
   })
@@ -1292,8 +1388,8 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return { authMode, user: DEMO_USER, providers: [], multiAccount, canCreateAccount: capAllows }
       }
       try {
-        const user = await authAdapter!.verifySession(toWebHeaders(req.headers))
-        if (!user) {
+        const session = await identityPort!.verifyApplicationSession({ headers: toWebHeaders(req.headers) })
+        if (!session) {
           // First-run signal: password mode + an EMPTY user table means the setup-token-guarded
           // bootstrap is available (the live gate in auth.ts), so the login screen offers
           // "Create the owner account" instead of a dead-end sign-in. "The user count is zero" is
@@ -1307,13 +1403,14 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             ...(needsSetup ? { needsSetup: true } : {}),
           })
         }
+        const user = sessionUserFromApplicationSession(session)
         return {
           authMode,
           user,
           mfaRequired: authMode === 'password' && opts.requireMfa === true && user.twoFactorEnabled !== true,
           providers: auth?.providers ?? [],
           multiAccount,
-          canCreateAccount: capAllows && userMayCreateAccount(db, authMode, user.id),
+          canCreateAccount: capAllows && await userMayCreateAccount(db, accountAdminPort, authMode, user.id),
         }
       } catch (e) {
         // The auth backend failed — NOT "no session". Surface a 503 with a clear, DISTINCT message
@@ -1372,24 +1469,31 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // The login → account list that drives the AccountPicker (P1.13). OFF mode is trusted-local:
     // EVERY account is accessible, so return all summaries with NO membership gate — branch on
     // authMode === 'off' BEFORE touching membership (the OFF guarantee). Auth-on returns ONLY the
-    // caller's memberships via listAccounts. Returns AccountSummary[] = [{ id, name, role }].
-    app.get('/api/accounts', (req) => {
+    // caller's memberships through AccountAdminPort. Returns AccountSummary[] = [{ id, name, role }].
+    app.get('/api/accounts', async (req) => {
       if (authMode === 'off') {
         // No membership in off mode: every account is visible. Map to the same AccountSummary shape
-        // listAccounts returns ({ id, name, role }) so the auth-on / auth-off shapes are identical on
+        // The account port maps to ({ id, name, role }) so the auth-on / auth-off shapes are identical on
         // the wire. The role is 'owner' — the trusted-local full-access sentinel: OFF is byte-identical
         // to today's no-login deploy, so the client's pure `can('owner', …)` keeps OFF fully editable
         // (and a Viewer read-only mode is reachable ONLY auth-on, where a real membership role exists).
         return loadState(db).accounts.map((a) => ({ id: a.id, name: a.name, role: 'owner' as const }))
       }
-      return listAccounts(db, req.user!)
+      const memberships = await accountAdminPort.listWorkspacesForPrincipal({
+        principalId: req.accountActor!.principalId,
+      })
+      return memberships.map((membership) => ({
+        id: membership.workspaceId,
+        name: membership.workspaceName,
+        role: membership.role,
+      }))
     })
 
     // Whole-state read backs the client's PersistenceAdapter.loadAll(). Only WRITES are entity-level;
     // reads stay whole-tree so hydration is one round-trip.
     //
     // P1.4: when `?accountId=` is PRESENT, return that account's scoped slice via the TenantStore
-    // (OFF mode: no gate — trusted-local; auth-on: a thin membership-existence guard — resolveRole
+    // (OFF mode: no gate — trusted-local; auth-on: a thin membership-existence guard — a null role
     // null ⇒ 403, so auth-on can't cross-tenant-read; the richer per-action can() gate is P1.5).
     app.get('/api/state', (req, reply) => {
       const { accountId } = req.query as { accountId?: string }
@@ -1404,9 +1508,11 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // P1.6 field-level redaction: the time-off `note` is owner/admin-only. Decide visibility from
         // the caller's role and redact it SERVER-SIDE so it never serializes for an Editor/Viewer.
         // OFF mode = trusted-local ⇒ include. Auth-on: owner/admin include, editor/viewer omit.
-        // resolveRole is non-null here (authorize('read') already proved membership); the `role !==
+        // The port role is non-null here (authorize('read') already proved membership); the `role !==
         // null` guard is belt-and-braces / fail-closed (an unexpected null omits the note, never leaks).
-        const role = authMode === 'off' ? null : resolveRole(db, req.user!, accountId)
+        const role = authMode === 'off'
+          ? null
+          : accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
         const includeTimeOffNote = authMode === 'off' || (role !== null && canSeeTimeOffNote(role))
         const includePrivateNames = authMode === 'off' || (role !== null && canSeePrivateNames(role))
         // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
@@ -1460,15 +1566,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // Unlike those bare row writes, /api/orgs ALSO mints the account's built-in Internal client and
     // makes the caller its Owner, in ONE transaction.
     //
-    // AUTHORIZATION (computed BEFORE any write). Two SEPARATE gates, both must pass:
+    // AUTHORIZATION is evaluated by AccountAdminPort INSIDE the coordinator's transaction while
+    // the application-wide provisioning lock is held. That closes the check/write race between two
+    // concurrent first-company requests while keeping policy out of the coordinator itself. Two
+    // separate conditions must pass:
     //
-    //   GATE 0 — the single-company cap (WHETHER a new company may exist at all; see
-    //   AppOptions.multiAccount). Checked FIRST, ahead of `allowed` below, so a denied caller sees
-    //   the actionable cap message rather than the generic 'Forbidden.' `allowed` would send. Not
-    //   bypassed by OFF mode or the bootstrap token — see the cap's own doc comment.
+    //   (1) The single-company cap (WHETHER a new company may exist at all; see
+    //       AppOptions.multiAccount). It is evaluated first so a denied caller sees the actionable
+    //       cap message. OFF mode and the bootstrap token do not bypass it.
     //
-    //   GATE 1 — `allowed` (WHO may create it, once GATE 0 permits). Arms (1)–(3) live in
-    //   userMayCreateAccount (shared with /api/auth/me's canCreateAccount flag). Allowed iff ANY of:
+    //   (2) WHO may create it once the cap permits. AccountAdminPort applies the same four arms that
+    //       /api/auth/me mirrors for its advisory canCreateAccount flag. Allowed iff ANY of:
     //   (1) ZERO accounts exist — first-run bootstrap (anyone may create the very first org; this
     //       is also the only case GATE 0 lets through by default, so it's the common path).
     //   (2) OFF mode (trusted-local) — mirrors the authorize() OFF no-op; req.user is DEMO_USER.
@@ -1479,664 +1587,71 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // Otherwise 403 — the acceptance criterion: a STRANGER cannot create an org once any account
     // exists, absent a bootstrap token. The gate runs in auth-on AND off; in off mode (1)/(2) already
     // allow, so the token/membership branches are moot there.
-    app.post('/api/orgs', (req, reply) => {
-      const accountCount = (db.prepare('SELECT COUNT(*) AS n FROM accounts').get() as { n: number }).n
-      // GATE 0 — see the comment block above. `!opts.multiAccount && accountCount > 0` mirrors
-      // accountCreateCapped exactly (inlined here since accountCount is already in hand).
-      if (!opts.multiAccount && accountCount > 0) {
-        return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
-      }
-      const allowed =
-        // (1)/(2)/(3) — the shared WHO-may-create predicate, ALSO the source of /api/auth/me's
-        // `canCreateAccount` flag so the advertised affordance and this gate cannot drift.
-        userMayCreateAccount(db, authMode, req.user!.id) ||
-        // (4) — curl-only, deliberately NOT in the shared predicate (see its doc comment).
-        bootstrapTokenMatches(opts.bootstrapToken, req.headers['x-capacitylens-bootstrap-token'])
-      if (!allowed) {
-        return reply.code(403).send({ error: 'Forbidden.' })
-      }
+    app.post('/api/orgs', async (req, reply) => {
       // Build a VALID account row from the body (name required; colour repaired; junk schedulingMode
       // dropped) via the SAME sanitize/validate the generic account create uses — so /api/orgs can't
       // persist a row the generic path would reject. The id is generated server-side when the body
       // omits one (the org-create caller need not mint it, unlike the entity sync path); a provided id
       // is accepted and validated like any other write.
       try {
+        const command = accountCommand(req)
+        const bootstrapAuthorized = bootstrapTokenMatches(
+          opts.bootstrapToken,
+          req.headers['x-capacitylens-bootstrap-token'],
+        )
         const now = new Date().toISOString()
         const id = typeof (req.body as { id?: unknown })?.id === 'string' && (req.body as { id: string }).id.trim() !== ''
           ? (req.body as { id: string }).id
-          : newId()
+          : generatedWorkspaceId(command.commandId)
         const accountRow = sanitizeWrite('accounts', {
           ...(req.body as Record<string, unknown>),
           id,
           createdAt: now,
           updatedAt: now,
         })
-        validateWrite(loadState(db), 'accounts', accountRow)
-        // Atomic: the account, its built-in Internal client, and the Owner membership commit together
-        // or not at all (tx rolls back on any throw). Minting the Internal here is correct precisely
-        // because an /api/orgs caller does NOT separately sync one (so there is no second builtin to
-        // collide — the account is brand-new, freshly inserted in this same tx). The OFF-mode owner is
-        // DEMO_USER (id 'demo'); the membership table is not gated/read in off mode, so the row is
-        // harmless bookkeeping there.
-        tx(db, () => {
-          insertRow(db, 'accounts', accountRow)
-          insertRow(db, 'clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
-          upsertMember(db, {
-            accountId: id,
-            userId: req.user!.id,
-            role: 'owner',
-            status: 'active',
-            createdAt: now,
+        // Server timestamps are result data, not caller intent. Excluding them from the command
+        // digest lets an identical retry replay the first committed row after wall time advances.
+        const canonicalAccountRow = canonicalAccountProductPayload(accountRow)
+        const provisioned = await accountFlows.provisionWorkspace({
+          actor: req.accountActor!,
+          workspaceId: id,
+          joinedAt: now,
+          command,
+          multiWorkspace: opts.multiAccount === true,
+          bootstrapAuthorized,
+          canonicalProductPayload: canonicalAccountRow,
+          provisionProductData: () => {
+            validateWrite(loadState(db), 'accounts', accountRow)
+            insertRow(db, 'accounts', accountRow)
+            insertRow(db, 'clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
+            return accountRow
+          },
+        })
+        const created = provisioned.product as Record<string, unknown>
+        const createdId = String(created.id)
+        if (!provisioned.replayed) {
+          audit(reply, {
+            ts: String(created.createdAt), userId: req.user!.id, accountId: createdId,
+            action: 'create', entity: 'accounts', id: createdId,
+            changedFields: acceptedFieldNames('accounts', created),
           })
-        })
-        audit(reply, {
-          ts: now, userId: req.user!.id, accountId: id, action: 'create', entity: 'accounts', id,
-          changedFields: fieldNames('accounts', accountRow),
-        })
-        return reply.code(201).send(accountRow)
+        }
+        return reply.code(201).send(provisioned.product)
       } catch (err) {
-        return sendFail(reply, err)
+        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
       }
     })
 
-    // Invite CREATE (P1.9): mint a single-use, expiring link that pre-sets a role for `accountId`.
-    // Body: { accountId, role, expiresAt? }. GATED 'manageInvites' (admin+ of THAT account) via the
-    // same authorize seam every permissioned route uses — OFF mode is the allow-all no-op (the token
-    // is minted as DEMO_USER's act), auth-on requires admin-tier membership of `accountId` (a
-    // cross-tenant stranger → 403). The token is a 32-byte CSPRNG value, base64url-encoded; it is the
-    // ONLY secret here, so it is NEVER logged (it's returned in the body to the authorised caller and
-    // nowhere else).
-    //
-    // P1.10 — an optional `preauthEmail` may be attached: a non-empty, email-shaped value is stored
-    // NORMALIZED (trim+lowercase) and turns this into a pre-authorised invite that the accept route
-    // binds ONLY for a caller whose VERIFIED email matches it (see preauthInviteAllows). Absent/empty
-    // ⇒ stored as null ⇒ a P1.9 link invite (any signed-in caller may accept). Nothing is ever
-    // emailed — the admin still hands out the link; preauthEmail only narrows who may redeem it.
-    app.post('/api/invites', (req, reply) => {
-      const body = (req.body ?? {}) as {
-        accountId?: unknown
-        role?: unknown
-        expiresAt?: unknown
-        preauthEmail?: unknown
-      }
-      if (typeof body.accountId !== 'string' || body.accountId.length === 0) {
-        return reply.code(400).send({ error: 'accountId must be a non-empty string.' })
-      }
-      if (!isKnownRole(body.role)) {
-        return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
-      }
-      if (body.role === 'owner') {
-        return reply.code(400).send({
-          error: 'Owner access cannot be invited. Transfer ownership to an existing member instead.',
-        })
-      }
-      // Shape-check preauthEmail here, BEFORE the authorize() gate below, so a malformed email is
-      // rejected with 400 and never reaches the write. A non-string, or a
-      // string that is empty after trim ⇒ link invite (null). A non-empty value MUST look like an
-      // email (single '@', non-empty local+domain) — junk is a 400, never silently dropped (that
-      // would mint a link invite the admin didn't intend, widening who may accept).
-      let preauthEmail: string | null = null
-      if (typeof body.preauthEmail === 'string') {
-        const trimmed = body.preauthEmail.trim()
-        if (trimmed.length > 0) {
-          if (!looksLikeEmail(trimmed)) {
-            return reply.code(400).send({ error: 'preauthEmail must be a valid email address.' })
-          }
-          preauthEmail = normalizeEmail(trimmed) // store normalized so accept compares normalized↔normalized
-        }
-      }
-      // Gate BEFORE any write: admin+ of this account may create invites; a non-member/under-tier is 403.
-      if (!authorize(req, reply, body.accountId, 'manageInvites')) return
-      const requestedExpiry = body.expiresAt
-      const nowMs = Date.now()
-      let expiresAt: string
-      if (requestedExpiry === undefined) {
-        expiresAt = new Date(nowMs + INVITE_TTL_MS).toISOString()
-      } else {
-        if (
-          typeof requestedExpiry !== 'string' ||
-          !ISO_INSTANT_RE.test(requestedExpiry) ||
-          !Number.isFinite(Date.parse(requestedExpiry))
-        ) {
-          return reply.code(400).send({ error: 'expiresAt must be a valid ISO-8601 timestamp.' })
-        }
-        const parsed = Date.parse(requestedExpiry)
-        if (parsed <= nowMs) {
-          return reply.code(400).send({ error: 'expiresAt must be in the future.' })
-        }
-        if (parsed > nowMs + MAX_INVITE_TTL_MS) {
-          return reply.code(400).send({ error: 'Invites may be valid for at most 30 days.' })
-        }
-        expiresAt = new Date(parsed).toISOString()
-      }
-      const token = randomBytes(32).toString('base64url')
-      const now = new Date().toISOString()
-      try {
-        pruneInvites(db, now)
-        const invite: Invite = {
-          token,
-          // Non-secret handle (P1.11) — list/revoke key on this; the token stays write-once.
-          id: newInviteId(),
-          accountId: body.accountId,
-          role: body.role,
-          // null ⇒ P1.9 link invite (any signed-in caller); a normalized email ⇒ P1.10 preauth.
-          preauthEmail,
-          expiresAt,
-          usedAt: null,
-          createdAt: now,
-        }
-        createInvite(db, invite)
-        audit(reply, {
-          ts: now, userId: req.user!.id, accountId: invite.accountId, action: 'inviteCreate',
-          entity: 'invite', id: invite.id, changedFields: ['role', 'preauthEmail', 'expiresAt'],
-        })
-        // Echo back what the caller needs to build the link — NOT createdAt/usedAt. preauthEmail is
-        // echoed (the admin set it; convenient confirmation of the NORMALIZED value), and only to this
-        // already-authorised admin — it is never exposed on any read path (invites are off AppData).
-        return reply
-          .code(201)
-          .send({ id: invite.id, token, accountId: invite.accountId, role: invite.role, expiresAt, preauthEmail })
-      } catch (err) {
-        return sendFail(reply, err)
-      }
-    })
-
-    // Invite PREVIEW: public because a new invitee has no session yet, but still bearer-authorized —
-    // only someone holding the unguessable token can read this deliberately small display shape.
-    // No membership/user table is touched, and no account data beyond the company name leaves.
-    app.get('/api/invites/:token/preview', (req, reply) => {
-      const { token } = req.params as { token: string }
-      try {
-        const invite = getInvite(db, token)
-        if (!invite) return reply.code(404).send({ error: 'Invite not found.' })
-        if (invite.usedAt !== null) {
-          return reply.code(409).send({ error: 'This invite has already been used.' })
-        }
-        if (inviteIsExpired(invite.expiresAt)) {
-          return reply.code(410).send({ error: 'This invite has expired.' })
-        }
-        if (invite.role === 'owner') {
-          return reply.code(410).send({ error: 'This Owner invite is no longer valid. Ownership must be transferred.' })
-        }
-        const account = getRow(db, 'accounts', invite.accountId) as { name?: unknown } | undefined
-        if (!account || typeof account.name !== 'string') {
-          return reply.code(410).send({ error: 'The company for this invite no longer exists.' })
-        }
-        return {
-          accountName: account.name,
-          role: invite.role,
-          expiresAt: invite.expiresAt,
-        }
-      } catch (err) {
-        return inviteFail(reply, err)
-      }
-    })
-
-    // Invite ACCEPT (P1.9): a signed-in caller redeems a link, binding the invited role to THEIR
-    // membership. NO authorize() call — the membership is the OUTPUT of this route, not a precondition
-    // (requireUser upstream already proved a real session, or attached DEMO_USER in OFF mode). The
-    // token-state checks ARE the gate: unknown → 404, already-used → 409, expired → 410. P1.10 adds an
-    // email-preauth gate AFTER those and BEFORE the bind: a non-null preauthEmail must match the
-    // caller's email; SSO also requires the IdP's verified-email assertion, while password mode uses
-    // possession of the addressed invite as verification. A null preauthEmail is the P1.9 link path
-    // (any signed-in caller). On success the membership upsert and
-    // the single-use stamp commit in ONE transaction (atomic bind), and markInviteUsed's
-    // `usedAt IS NULL` clause double-guards single-use against a concurrent race.
-    app.post('/api/invites/:token/accept', (req, reply) => {
-      const { token } = req.params as { token: string }
-      try {
-        const invite = getInvite(db, token)
-        if (!invite) return reply.code(404).send({ error: 'Invite not found.' })
-        if (invite.usedAt !== null) {
-          return reply.code(409).send({ error: 'This invite has already been used.' })
-        }
-        if (inviteIsExpired(invite.expiresAt)) {
-          return reply.code(410).send({ error: 'This invite has expired.' })
-        }
-        if (invite.role === 'owner') {
-          return reply.code(410).send({ error: 'This Owner invite is no longer valid. Ownership must be transferred.' })
-        }
-        if (!getRow(db, 'accounts', invite.accountId)) {
-          return reply.code(410).send({ error: 'The company for this invite no longer exists.' })
-        }
-        // P1.10 email-preauth gate. OFF mode (trusted-local) SKIPS it entirely — mirroring authorize's
-        // OFF allow-all no-op and P1.9's OFF behaviour: the synthetic DEMO_USER may accept any invite.
-        // Auth-on: the pure preauthInviteAllows decides. A wrong email is 403 with NO bind and NO
-        // mutation; SSO also rejects an unverified matching email, while password mode deliberately
-        // accepts it because the invite is the verification proof. usedAt stays null after any 403.
-        if (
-          authMode !== 'off' &&
-          !preauthInviteAllows(invite.preauthEmail, req.user!, authMode === 'password')
-        ) {
-          return reply
-            .code(403)
-            .send({ error: 'This invite is reserved for a different account.' })
-        }
-        const now = new Date().toISOString()
-        // Atomic: the membership and the consume commit together or roll back together — a half-applied
-        // accept (role bound but token still live, or token consumed with no membership) is impossible.
-        // Explicitly widen after the non-invitational Owner guard above: an existing membership may
-        // itself be Owner, and accepting a lower-tier link must preserve that role exactly.
-        let effectiveRole: Role = invite.role
-        tx(db, () => {
-          const existingRole = getMemberRole(db, invite.accountId, req.user!.id)
-          // An invite adds a membership; it is not a role-management route. Preserve any existing
-          // membership exactly, which closes both sole-owner downgrade and bearer-link upgrade
-          // paths. Administrators use the guarded member-management endpoint for role changes.
-          effectiveRole = existingRole ?? invite.role
-          if (existingRole !== effectiveRole) {
-            upsertMember(db, {
-              accountId: invite.accountId,
-              userId: req.user!.id,
-              role: effectiveRole,
-              status: 'active',
-              createdAt: now,
-            })
-          }
-          markInviteUsed(db, invite.token, now)
-        })
-        audit(reply, {
-          ts: now, userId: req.user!.id, accountId: invite.accountId, action: 'inviteAccept',
-          entity: 'membership', id: req.user!.id, changedFields: ['role'],
-        })
-        return reply.code(200).send({ accountId: invite.accountId, role: effectiveRole })
-      } catch (err) {
-        return inviteFail(reply, err)
-      }
-    })
-
-    // Password-only invite onboarding. The bearer token narrowly authorizes creating one identity;
-    // the membership bind and token consumption then commit atomically before the route succeeds.
-    // The client signs in afterwards and goes straight to the app because the invite is already used.
-    app.post('/api/invites/:token/signup', async (req, reply) => {
-      if (authMode !== 'password' || !auth) return reply.code(404).send({ error: 'Not found.' })
-      const { token } = req.params as { token: string }
-      const invite = getInvite(db, token)
-      if (!invite) return reply.code(404).send({ error: 'Invite not found.' })
-      if (invite.usedAt !== null) {
-        return reply.code(409).send({ error: 'This invite has already been used.' })
-      }
-      if (inviteIsExpired(invite.expiresAt)) {
-        return reply.code(410).send({ error: 'This invite has expired.' })
-      }
-      if (invite.role === 'owner') {
-        return reply.code(410).send({ error: 'This Owner invite is no longer valid. Ownership must be transferred.' })
-      }
-      if (!getRow(db, 'accounts', invite.accountId)) {
-        return reply.code(410).send({ error: 'The company for this invite no longer exists.' })
-      }
-      const body = (req.body ?? {}) as { email?: unknown; name?: unknown; password?: unknown }
-      const email = typeof body.email === 'string' ? normalizeEmail(body.email) : ''
-      if (!looksLikeEmail(email)) {
-        return reply.code(400).send({ error: 'A valid email address is required.' })
-      }
-      const name = typeof body.name === 'string' ? cleanText(body.name) : ''
-      if (name.length === 0) {
-        return reply.code(400).send({ error: 'Name is required.' })
-      }
-      if (
-        typeof body.password !== 'string' ||
-        body.password.length < MIN_PASSWORD_LENGTH ||
-        body.password.length > MAX_PASSWORD_LENGTH
-      ) {
-        return reply.code(400).send({
-          error: `Password must be ${MIN_PASSWORD_LENGTH}–${MAX_PASSWORD_LENGTH} characters.`,
-        })
-      }
-      if (invite.preauthEmail !== null && email !== invite.preauthEmail) {
-        return reply.code(403).send({ error: 'This invite is reserved for a different email address.' })
-      }
-      try {
-        // The email-addressed bearer invite is the password deployment's email proof. Link invites
-        // create an unverified identity but remain valid because their acceptance is not email-bound.
-        const user = await auth.createCredentialUser(
-          email,
-          name,
-          body.password,
-          invite.preauthEmail !== null,
-        )
-        try {
-          const now = new Date().toISOString()
-          // Claim the invite for the newly-created identity immediately. Leaving it live until a
-          // second browser request would let one bearer mint unlimited credential users. The member
-          // row and single-use stamp are atomic; if sign-in is interrupted, the user can sign in later.
-          tx(db, () => {
-            const live = getInvite(db, token)
-            if (live?.usedAt !== null && live?.usedAt !== undefined) throw new InviteAlreadyUsedError()
-            if (
-              !live ||
-              inviteIsExpired(live.expiresAt) ||
-              !getRow(db, 'accounts', live.accountId)
-            ) {
-              throw new Error('This invite can no longer be claimed.')
-            }
-            upsertMember(db, {
-              accountId: invite.accountId,
-              userId: user.id,
-              role: invite.role,
-              status: 'active',
-              createdAt: now,
-            })
-            markInviteUsed(db, token, now)
-          })
-        } catch (claimError) {
-          try {
-            await auth.deleteCredentialUser(user.id)
-          } catch (rollbackError) {
-            throw new AggregateError(
-              [claimError, rollbackError],
-              `Invite claim failed and the provisional credential identity (${user.id}) could not be rolled back.`,
-              { cause: rollbackError },
-            )
-          }
-          throw claimError
-        }
-        audit(reply, {
-          ts: new Date().toISOString(), userId: user.id, accountId: invite.accountId,
-          action: 'inviteAccept', entity: 'member', id: user.id, changedFields: ['role', 'status'],
-        })
-        return reply.code(201).send({ ok: true, accountId: invite.accountId, role: invite.role })
-      } catch (err) {
-        return inviteFail(reply, err)
-      }
-    })
-
-    // ── Member management (P1.11) ────────────────────────────────────────────────────────────────
-    // Owner/Admin list / change-role / revoke members of THEIR account, plus list / revoke outstanding
-    // invites. Every route gates through the SAME authorize seam (cross-tenant → 403 automatically):
-    // members under 'manageMembers', invites under 'manageInvites' (both admin-tier). The pure shared
-    // guards (canManageMemberRole / canRemoveMember) keep Owner outside ordinary role and removal
-    // operations for every actor. Owner changes are not ordinary member mutations: the single
-    // Owner moves only through the transactional transfer endpoint, while a partial unique index and
-    // boot assertion enforce exactly one Owner for every member-bearing company. OFF mode
-    // (trusted-local) has no real member model, so the list routes return empty and the mutate routes
-    // are inert no-ops — the UI is hidden in OFF anyway, but the endpoints must not crash if called.
-
-    // LIST members. Joins the membership rows with Better Auth user identity (name/email, read ONLY
-    // here, only for this authorized admin). isSelf marks the caller's own row (the client derives its
-    // role from it). A missing name/email degrades to null — never a throw.
-    app.get('/api/accounts/:accountId/members', (req, reply) => {
-      const { accountId } = req.params as { accountId: string }
-      if (!authorize(req, reply, accountId, 'manageMembers')) return
-      // OFF mode: no real member model (req.user is DEMO_USER, membership is unread) — return empty so
-      // the shape is honest and nothing crashes. The UI is hidden in OFF, so this is belt-and-braces.
-      if (authMode === 'off') return { members: [] }
-      const members = listMembersForAccount(db, accountId)
-      const identities = getUsersByIds(db, members.map((m) => m.userId))
-      // mayResetPassword mirrors the SERVER's full cross-account reset judgment onto every row so the
-      // client can hide the reset control for any target the reset route would refuse (a 403). This is
-      // the no-drift pattern the shared access module cites: the button is never OFFERED for a target
-      // the server would DENY, so the affordance and the enforcement can't disagree. Password mode
-      // only — 'sso' delegates credentials to the IdP (resets are meaningless), 'off' returned above.
-      // Build the caller's role-by-account map ONCE; per member a listMembershipsForUser is fine
-      // (member lists are small — this app targets small agencies), matching the reset route's shape.
-      const canReset = authMode === 'password'
-      const actorRoles = new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
-      return {
-        members: members.map((m) => {
-          const who = identities.get(m.userId)
-          const isSelf = m.userId === req.user!.id
-          const mayResetPassword =
-            canReset
-              ? canResetMemberAcrossAccounts(
-                  actorRoles,
-                  new Map(listMembershipsForUser(db, m.userId).map((mem) => [mem.accountId, mem.role])),
-                  isSelf,
-                )
-              : false
-          const mayRevokeSessions = canResetMemberAcrossAccounts(
-            actorRoles,
-            new Map(listMembershipsForUser(db, m.userId).map((mem) => [mem.accountId, mem.role])),
-            isSelf,
-          )
-          return {
-            userId: m.userId,
-            role: m.role,
-            status: m.status,
-            createdAt: m.createdAt,
-            name: who?.name ?? null,
-            email: who?.email ?? null,
-            isSelf,
-            mayResetPassword,
-            mayRevokeSessions,
-          }
-        }),
-      }
-    })
-
-    // CHANGE a non-owner member's ordinary role. Owner is rejected at shape/policy level for every
-    // actor; the only ownership mutation is the explicit atomic transfer route below.
-    app.patch('/api/accounts/:accountId/members/:userId', (req, reply) => {
-      const { accountId, userId } = req.params as { accountId: string; userId: string }
-      const body = (req.body ?? {}) as { role?: unknown }
-      if (!isKnownRole(body.role)) {
-        return reply.code(400).send({ error: 'role must be one of owner, admin, editor, viewer.' })
-      }
-      if (body.role === 'owner') {
-        return reply.code(400).send({
-          error: 'Owner access cannot be assigned as a role change. Use transfer ownership instead.',
-        })
-      }
-      const nextRole = body.role
-      if (!authorize(req, reply, accountId, 'manageMembers')) return
-      try {
-        const targetRole = getMemberRole(db, accountId, userId)
-        if (targetRole === null) return reply.code(404).send({ error: 'Not a member of this account.' })
-        // OFF mode short-circuited authorize to allow-all, so resolveRole would be null — but OFF has
-        // no real actor role to evaluate the pure guard against. The UI is hidden in OFF; treat a
-        // mutate call as a harmless no-op rather than crash on a null actor role.
-        if (authMode === 'off') return reply.code(200).send({ userId, role: nextRole })
-        const actorRole = resolveRole(db, req.user!, accountId)! // non-null: authorize proved membership
-        if (!canManageMemberRole(actorRole, targetRole, nextRole)) {
-          return reply.code(403).send({ error: 'Forbidden.' })
-        }
-        // upsertMember burns the target's outstanding reset links (P1.18 TOCTOU close) — a role
-        // change would otherwise let a pre-change link redeem into the new role. Centralised there so
-        // every membership-write path gets it; see the note in controlTables.ts upsertMember.
-        upsertMember(db, {
-          accountId,
-          userId,
-          role: nextRole,
-          status: 'active',
-          createdAt: new Date().toISOString(),
-        })
-        audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'memberRole',
-          entity: 'membership', id: userId, changedFields: ['role'],
-        })
-        return reply.code(200).send({ userId, role: nextRole })
-      } catch (err) {
-        return sendFail(reply, err)
-      }
-    })
-
-    // REVOKE a member. 404 non-member; 403 by the pure guard (the Owner is never removable here).
-    // 204 on success.
-    app.delete('/api/accounts/:accountId/members/:userId', (req, reply) => {
-      const { accountId, userId } = req.params as { accountId: string; userId: string }
-      if (!authorize(req, reply, accountId, 'manageMembers')) return
-      try {
-        const targetRole = getMemberRole(db, accountId, userId)
-        if (targetRole === null) return reply.code(404).send({ error: 'Not a member of this account.' })
-        if (authMode === 'off') {
-          // OFF: no real actor role; the UI is hidden — a revoke is an inert no-op (don't crash).
-          return reply.code(204).send()
-        }
-        const actorRole = resolveRole(db, req.user!, accountId)! // non-null: authorize proved membership
-        if (!canRemoveMember(actorRole, targetRole)) {
-          return reply.code(403).send({ error: 'Forbidden.' })
-        }
-        removeMember(db, accountId, userId)
-        audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'memberRemove',
-          entity: 'membership', id: userId, changedFields: [],
-        })
-        return reply.code(204).send()
-      } catch (err) {
-        return sendFail(reply, err)
-      }
-    })
-
-    // TRANSFER ownership (P1.11): hand the account to another EXISTING member and step the caller down
-    // to admin, atomically. Gated 'transferOwnership' — the ONE action above admin in the matrix, so a
-    // mere admin is 403 (authorize resolves the caller's role for this account). Body { toUserId }. The
-    // target must already be an active member (404 else) and not the caller (400 — you're already owner).
-    // Demote-caller and promote-target commit in ONE tx, so no other request observes an ownerless
-    // account and the v10 unique index never permits co-owners. OFF mode
-    // (trusted-local) has no real owner model, so it is an inert no-op success (the UI is hidden in OFF).
-    app.post('/api/accounts/:accountId/transfer-ownership', (req, reply) => {
-      const { accountId } = req.params as { accountId: string }
-      const body = (req.body ?? {}) as { toUserId?: unknown }
-      if (typeof body.toUserId !== 'string' || body.toUserId.length === 0) {
-        return reply.code(400).send({ error: 'toUserId must be a non-empty string.' })
-      }
-      const toUserId = body.toUserId
-      if (!authorize(req, reply, accountId, 'transferOwnership')) return
-      if (toUserId === req.user!.id) {
-        return reply.code(400).send({ error: 'You are already the owner of this account.' })
-      }
-      try {
-        if (authMode === 'off') {
-          // OFF: no real member model (req.user is DEMO_USER) — inert no-op, matching the member routes.
-          return reply.code(200).send({ toUserId, role: 'owner' })
-        }
-        const targetRole = getMemberRole(db, accountId, toUserId)
-        if (targetRole === null) return reply.code(404).send({ error: 'Not a member of this account.' })
-        const now = new Date().toISOString()
-        // Atomic hand-over: demote then promote inside one transaction. The v10 partial unique index
-        // forbids two active Owners, while transaction isolation means no other request can observe
-        // the intermediate statement with no Owner.
-        // Both upserts burn their users' outstanding reset links (P1.18 TOCTOU close, centralised in
-        // upsertMember): the promoted target's pre-promotion link can't redeem into the new owner
-        // identity, and the demoted caller's are cleared too (harmless).
-        tx(db, () => {
-          upsertMember(db, { accountId, userId: req.user!.id, role: 'admin', status: 'active', createdAt: now })
-          upsertMember(db, { accountId, userId: toUserId, role: 'owner', status: 'active', createdAt: now })
-        })
-        audit(reply, {
-          ts: now, userId: req.user!.id, accountId, action: 'ownershipTransfer',
-          entity: 'membership', id: toUserId, changedFields: ['role'],
-        })
-        return reply.code(200).send({ toUserId, role: 'owner' })
-      } catch (err) {
-        return sendFail(reply, err)
-      }
-    })
-
-    // RESET PASSWORD (P1.18): mint a single-use, 24h reset LINK token for a member — the app has
-    // no email infrastructure (a standing non-goal), so the admin hands the link over out-of-band,
-    // exactly like an invite. Gated 'manageMembers' + the pure canResetMemberPassword guard (an
-    // admin must never reset an OWNER — a reset link is an account-takeover capability, so this is
-    // the same escalation door the no-admin→owner-grant rule closes). Password mode ONLY: 'sso'
-    // delegates credentials to the IdP (400, not a crash), and OFF has no credentials at all. The
-    // token rides Better Auth's own verification store (single-use, expiring) and is WRITE-ONCE:
-    // returned exactly here, never listed or read back — same posture as the invite token.
-    app.post('/api/accounts/:accountId/members/:userId/reset-password', async (req, reply) => {
-      const { accountId, userId } = req.params as { accountId: string; userId: string }
-      if (!authorize(req, reply, accountId, 'manageMembers')) return
-      if (authMode !== 'password') {
-        // 'sso': the IdP owns sign-in — resetting a local password is meaningless there. 'off':
-        // trusted-local, no credential model (and no UI shows the button) — a clear 400 either way.
-        return reply
-          .code(400)
-          .send({ error: 'Password reset links require CAPACITYLENS_AUTH=password.' })
-      }
-      try {
-        // CROSS-ACCOUNT authority: the minted token controls the target's account-GLOBAL credential,
-        // so the actor must hold reset-authority over the target in EVERY account the target belongs
-        // to — not just this one. Otherwise an admin (or even owner) of account X could reset a user
-        // who is a mere editor in X but the OWNER of account Y, taking over Y (reachable only under
-        // CAPACITYLENS_MULTI_ACCOUNT). In the single-account default this reduces to the per-account
-        // guard. Pass both users' full role-by-account maps to the pure decision. NOTE: every
-        // MembershipStatus is 'active' today (controlTables.ts), so no status filter is applied; if a
-        // 'pending'/'suspended' status is ever added, the ACTOR map must filter to active (authority
-        // must not come from a non-active membership) — the target map stays all-rows (fail-closed).
-        const actorRoles = new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
-        const targetRoles = new Map(listMembershipsForUser(db, userId).map((mem) => [mem.accountId, mem.role]))
-        // The target must be a member of THIS account (the account being managed) — 404 otherwise.
-        // Read it straight off the targetRoles map we just built (it holds the same account_members
-        // fact getMemberRole would re-query) — one query, one source of truth.
-        if (!targetRoles.has(accountId)) {
-          return reply.code(404).send({ error: 'Not a member of this account.' })
-        }
-        // A self-reset (actor === target) is exempt from the cross-account check — you cannot escalate
-        // against your own identity — which keeps the self-reset promise working for a user who holds
-        // a lower role in another account (see canResetMemberAcrossAccounts).
-        if (!canResetMemberAcrossAccounts(actorRoles, targetRoles, userId === req.user!.id)) {
-          return reply
-            .code(403)
-            .send({ error: 'This member belongs to another account where you lack password-reset authority.' })
-        }
-        // Membership rows key on userId; Better Auth mints reset tokens by email — the same
-        // admin-only identity read the member LIST uses (the one sanctioned user-table read).
-        const email = getUsersByIds(db, [userId]).get(userId)?.email
-        const token = email ? await mintPasswordResetToken(auth!, email) : null
-        if (token === null) {
-          // A membership row without a matching Better Auth user (or one with no email) — nothing
-          // to reset against. Surfaced, not swallowed: the admin sees WHY no link appeared.
-          return reply.code(404).send({ error: 'No sign-in identity found for this member.' })
-        }
-        const expiresAt = new Date(Date.now() + RESET_LINK_TTL_SECONDS * 1000).toISOString()
-        audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'passwordResetIssue',
-          entity: 'identity', id: userId, changedFields: ['credential'],
-        })
-        return reply.code(201).send({ token, expiresAt })
-      } catch (err) {
-        return sendFail(reply, err)
-      }
-    })
-
-    // Revoke every active session for a member. Session state is identity-global, so the actor must
-    // have reset-equivalent authority in every account the target belongs to; an admin of account X
-    // cannot disrupt an owner of account Y merely because the identity is also present in X.
-    app.post('/api/accounts/:accountId/members/:userId/revoke-sessions', async (req, reply) => {
-      const { accountId, userId } = req.params as { accountId: string; userId: string }
-      if (!authorize(req, reply, accountId, 'manageMembers')) return
-      if (authMode === 'off' || !auth) return reply.code(400).send({ error: 'Sessions require authentication.' })
-      try {
-        const actorRoles = new Map(listMembershipsForUser(db, req.user!.id).map((mem) => [mem.accountId, mem.role]))
-        const targetRoles = new Map(listMembershipsForUser(db, userId).map((mem) => [mem.accountId, mem.role]))
-        if (!targetRoles.has(accountId)) return reply.code(404).send({ error: 'Not a member of this account.' })
-        if (!canResetMemberAcrossAccounts(actorRoles, targetRoles, userId === req.user!.id)) {
-          return reply.code(403).send({ error: 'You lack session-revocation authority for this identity.' })
-        }
-        await auth.revokeUserSessions(userId)
-        audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'sessionsRevoke',
-          entity: 'identity', id: userId, changedFields: ['sessions'],
-        })
-        return reply.code(204).send()
-      } catch (err) {
-        return sendFail(reply, err)
-      }
-    })
-
-    // LIST outstanding invites — NO token in the response (it's a write-once bearer secret; see
-    // listInvitesForAccount). Gated 'manageInvites'. OFF → empty.
-    app.get('/api/accounts/:accountId/invites', (req, reply) => {
-      const { accountId } = req.params as { accountId: string }
-      if (!authorize(req, reply, accountId, 'manageInvites')) return
-      if (authMode === 'off') return { invites: [] }
-      pruneInvites(db)
-      return { invites: listInvitesForAccount(db, accountId) }
-    })
-
-    // REVOKE an invite by its non-secret id. Idempotent + scoped by accountId (cross-tenant guard);
-    // 204 regardless of whether a row existed (don't leak existence). Gated 'manageInvites'.
-    app.delete('/api/accounts/:accountId/invites/:id', (req, reply) => {
-      const { accountId, id } = req.params as { accountId: string; id: string }
-      if (!authorize(req, reply, accountId, 'manageInvites')) return
-      try {
-        const revoked = revokeInvite(db, accountId, id) // idempotent; accountId predicate is the cross-tenant guard
-        if (revoked > 0) audit(reply, {
-          ts: new Date().toISOString(), userId: req.user!.id, accountId, action: 'inviteRevoke',
-          entity: 'invite', id, changedFields: [],
-        })
-        return reply.code(204).send()
-      } catch (err) {
-        return sendFail(reply, err)
-      }
+    registerAccountRoutes(app, {
+      authMode,
+      authenticationConfigured: auth !== null,
+      administration: accountAdminPort,
+      identity: identityPort,
+      flows: accountFlows,
+      authorize,
+      command: accountCommand,
+      audit,
+      fail: accountFail,
     })
 
     // ── P2.5a entity-lifecycle action routes ───────────────────────────────────────────────────────
@@ -2211,11 +1726,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // includeInactive:true so we can SEE an already-archived/deleted row (and 409 on it, rather than
         // 404). includeTimeOffNote:TRUE is LOAD-BEARING — we write the WHOLE slice back via
         // replaceAccountSlice, so a note stripped from the read would be ERASED on persist.
-        const slice = store.readSlice(accountId, {
-          includeTimeOffNote: true,
-          includeInactive: true,
-          includePrivateNames: true,
-        })
+        const slice = store.readSlice(accountId, FULL_SLICE_READ)
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id) // cross-account → throw; absent → null
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'archived')) return
@@ -2248,11 +1759,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const accountId = lifecyclePreamble(req, reply, entity, 'write')
       if (accountId === null) return
       try {
-        const slice = store.readSlice(accountId, {
-          includeTimeOffNote: true,
-          includeInactive: true,
-          includePrivateNames: true,
-        })
+        const slice = store.readSlice(accountId, FULL_SLICE_READ)
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'unarchived')) return
@@ -2288,11 +1795,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const accountId = lifecyclePreamble(req, reply, entity, 'purge')
       if (accountId === null) return
       try {
-        const slice = store.readSlice(accountId, {
-          includeTimeOffNote: true,
-          includeInactive: true,
-          includePrivateNames: true,
-        })
+        const slice = store.readSlice(accountId, FULL_SLICE_READ)
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'deleted')) return
@@ -2349,11 +1852,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       const accountId = lifecyclePreamble(req, reply, entity, 'purge')
       if (accountId === null) return
       try {
-        const slice = store.readSlice(accountId, {
-          includeTimeOffNote: true,
-          includeInactive: true,
-          includePrivateNames: true,
-        })
+        const slice = store.readSlice(accountId, FULL_SLICE_READ)
         const row = findOwned(slice, accountId, entity as LifecycleEntity, id)
         if (!row) return reply.code(404).send({ error: 'Not found' })
         if (rejectBuiltinClient(reply, entity as LifecycleEntity, row, 'purged')) return
@@ -2384,7 +1883,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
 
     // Account creation mints its built-in Internal in the same transaction below. A later client
     // write carrying its own deterministic Internal is handled as a generated-row replacement.
-    app.post('/api/:entity', (req, reply) => {
+    app.post('/api/:entity', async (req, reply) => {
       const { entity } = req.params as { entity: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
       // A missing/non-object body (no Content-Type, or a literal JSON `null`) would otherwise
@@ -2412,15 +1911,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // the Internal client + owner membership atomically, which this bare row write never did).
       // authMode 'off' keeps the open create (trusted-local parity — the demo/local/e2e client
       // syncs new companies through the entity routes), still BOUNDED by the single-company cap
-      // just below: unconditional only for the first-run (zero-account) case; once any account
-      // exists it requires opts.multiAccount, same as every other create vector. Account DELETE is
+      // inside AccountFlows: unconditional only for the first-run (zero-account) case; once any
+      // account exists it requires opts.multiAccount, same as every other create vector. Account DELETE is
       // separately gated 'purge' (admin+) on BOTH vectors — the direct DELETE /api/accounts/:id
       // route AND the batch accounts-DELETE op (see both below).
       if (entity === 'accounts' && authMode !== 'off') {
         return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
-      }
-      if (entity === 'accounts' && accountCreateCapped(db, opts)) {
-        return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
       }
       if (isScopedTable(entity)) {
         if (!authorize(req, reply, requestRow.accountId as string, 'write')) return
@@ -2440,35 +1936,55 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           tx(db, () => {
             replaceGeneratedBuiltin(db, state, generatedReplacement, row)
           })
-        } else {
+        } else if (entity !== 'accounts') {
           validateWrite(state, entity, row)
         }
+        let responseRow = row
+        let replayed = false
         if (entity === 'accounts') {
-          tx(db, () => {
-            insertRow(db, entity, row)
-            insertRow(db, 'clients', buildInternalClient(row.id as string, row.createdAt as string) as unknown as Record<string, unknown>)
+          const provisioned = await accountFlows.provisionWorkspace({
+            actor: req.accountActor!,
+            workspaceId: row.id as string,
+            joinedAt: row.createdAt as string,
+            command: accountCommand(req),
+            multiWorkspace: opts.multiAccount === true,
+            bootstrapAuthorized: false,
+            canonicalProductPayload: canonicalAccountProductPayload(row),
+            provisionProductData: () => {
+              // Run validation only on first execution, inside the same transaction as the insert.
+              // A committed command replay must not be rejected merely because the account now
+              // exists or the single-company cap became full after its original success.
+              validateWrite(loadState(db), entity, row)
+              insertRow(db, entity, row)
+              insertRow(db, 'clients', buildInternalClient(row.id as string, row.createdAt as string) as unknown as Record<string, unknown>)
+              return row
+            },
           })
+          responseRow = provisioned.product as Record<string, unknown>
+          replayed = provisioned.replayed
         } else if (!generatedReplacement) insertRow(db, entity, row)
         // P1.15 audit (post-commit). changedFields = the row's field NAMES (never values).
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: (row.accountId as string | undefined) ?? row.id as string,
-          action: 'create',
-          entity,
-          id: row.id as string,
-          changedFields: fieldNames(entity, row),
-        })
-        return reply.code(201).send(row)
+        if (!replayed) {
+          audit(reply, {
+            ts: new Date().toISOString(),
+            userId: req.user!.id,
+            accountId: (responseRow.accountId as string | undefined) ?? responseRow.id as string,
+            action: 'create',
+            entity,
+            id: responseRow.id as string,
+            changedFields: acceptedFieldNames(entity, responseRow),
+          })
+        }
+        return reply.code(201).send(responseRow)
       } catch (err) {
-        return sendFail(reply, err)
+        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
       }
     })
 
     // Idempotent upsert by id — the verb the client sync adapter uses for every
     // create AND update, so a replayed batch (after a partial failure) is safe. The
     // body's id must match the URL id.
-    app.put('/api/:entity/:id', (req, reply) => {
+    app.put('/api/:entity/:id', async (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
       if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
@@ -2484,6 +2000,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // accountId immutable.
       if (isScopedTable(entity) && !authorize(req, reply, body.accountId as string, 'write')) return
       try {
+        const workspaceCommand = entity === 'accounts' ? accountCommand(req) : null
         const existing = getRow(db, entity, id)
         if (entity === 'clients' && existing?.builtin === true) {
           return reply.code(400).send({ error: 'The built-in Internal client cannot be modified.' })
@@ -2529,6 +2046,22 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // never saw — see sanitizeWrite) AND to redact the note from everything echoed back below,
         // the 409 conflict payload included.
         const vis = fieldVisibilityFor(req, entity, body.accountId)
+        // Only trusted-local compatibility creates can arrive here as a completed provisioning
+        // replay. Authenticated account creation is closed on this route, so awaiting the
+        // coordinator during an ordinary authenticated update would introduce a yield between the
+        // role decision above and the write below (allowing a concurrent removal to stale-authorize
+        // the update for no replay benefit).
+        if (authMode === 'off' && entity === 'accounts' && existing && workspaceCommand) {
+          const replay = await accountFlows.replayWorkspaceProvisioning<Record<string, unknown>>({
+            actor: req.accountActor!,
+            workspaceId: id,
+            command: workspaceCommand,
+            canonicalProductPayload: canonicalAccountProductPayload(
+              sanitizeWrite(entity, body, existing, vis),
+            ),
+          })
+          if (replay) return reply.code(200).send(redactWriteEcho(entity, replay.product, vis))
+        }
         // Optimistic concurrency (opt-in): refuse to overwrite a strictly newer row — the
         // predicate is isStaleWrite, SHARED with the batch loop so the two paths can't drift.
         // The 409's `current` payload is a READ of the stored row, so it gets the same note
@@ -2546,14 +2079,28 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // the batch handler's Finding 82, applied here for consistency).
         const state = loadState(db)
         const generatedReplacement = generatedBuiltinReplacement(state, entity, row)
+        let responseRow = row
+        let replayed = false
         if (entity === 'accounts' && !existing) {
           // A company is not usable without its singleton Internal client. Commit both rows as
           // one unit so a constraint/storage failure cannot leave a degraded company behind.
-          tx(db, () => {
-            validateWrite(state, entity, row, existing)
-            upsertRow(db, entity, row)
-            upsertRow(db, 'clients', buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>)
+          const provisioned = await accountFlows.provisionWorkspace({
+            actor: req.accountActor!,
+            workspaceId: id,
+            joinedAt: row.createdAt as string,
+            command: workspaceCommand!,
+            multiWorkspace: opts.multiAccount === true,
+            bootstrapAuthorized: false,
+            canonicalProductPayload: canonicalAccountProductPayload(row),
+            provisionProductData: () => {
+              validateWrite(state, entity, row, existing)
+              upsertRow(db, entity, row)
+              upsertRow(db, 'clients', buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>)
+              return row
+            },
           })
+          responseRow = provisioned.product as Record<string, unknown>
+          replayed = provisioned.replayed
         } else if (generatedReplacement) {
           tx(db, () => {
             replaceGeneratedBuiltin(db, state, generatedReplacement, row)
@@ -2563,19 +2110,21 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           upsertRow(db, entity, row)
         }
         // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
-        audit(reply, {
-          ts: new Date().toISOString(),
-          userId: req.user!.id,
-          accountId: (body.accountId as string | undefined) ?? id,
-          action: existing ? 'update' : 'create',
-          entity,
-          id,
-          changedFields: fieldNames(entity, body),
-        })
+        if (!replayed) {
+          audit(reply, {
+            ts: new Date().toISOString(),
+            userId: req.user!.id,
+            accountId: (body.accountId as string | undefined) ?? id,
+            action: existing ? 'update' : 'create',
+            entity,
+            id,
+            changedFields: acceptedFieldNames(entity, body),
+          })
+        }
         // A write response is a read: apply the same note/private-name projections as /api/state.
-        return reply.code(200).send(redactWriteEcho(entity, row, vis))
+        return reply.code(200).send(redactWriteEcho(entity, responseRow, vis))
       } catch (err) {
-        return sendFail(reply, err)
+        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
       }
     })
 
@@ -2661,7 +2210,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           action: 'patch',
           entity,
           id,
-          changedFields: fieldNames(entity, req.body),
+          changedFields: acceptedFieldNames(entity, req.body),
         })
         // The merge carries stored protected fields into `merged`; apply the normal read projection.
         return reply.code(200).send(redactWriteEcho(entity, stamped, vis))
@@ -2670,7 +2219,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       }
     })
 
-    app.delete('/api/:entity/:id', (req, reply) => {
+    app.delete('/api/:entity/:id', async (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
       if (isLifecycleEntity(entity)) {
@@ -2703,12 +2252,23 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // tombstoned record: only an owner may erase the tenant and orphaned member identities.
           // OFF mode short-circuits to allow so the default deploy can still delete companies.
           if (!authorize(req, reply, id, 'deleteAccount')) return
+          // Preserve the auth-off API's established idempotent-delete contract. The coordinated
+          // erasure path deliberately requires a real workspace so authenticated callers cannot
+          // use it as an existence oracle, but trusted-local deletion historically returned 204
+          // for an already absent account.
+          if (!targetExisted && authMode === 'off') return reply.code(204).send()
         }
         // P2.6b: an account hard-delete is a TENANT ERASURE, not a bare row delete. eraseAccount drops
         // the account (FK-cascading its scoped AppData) AND sweeps the control tables + Better Auth PII
         // for any sole-member, all in one transaction. A scoped delete stays the plain idempotent
         // deleteRow (its accountId-scoped cascade is sufficient; no PII to erase).
-        if (entity === 'accounts') eraseAccount(db, id)
+        if (entity === 'accounts') {
+          await accountFlows.eraseWorkspace({
+            actor: req.accountActor!,
+            workspaceId: id,
+            command: accountCommand(req),
+          })
+        }
         else deleteRow(db, entity, id) // idempotent
         // P1.15 audit (post-commit). A delete carries no field set → changedFields = []. accountId
         // is the asserted owner for a scoped table, else the (accounts) row's own id.
@@ -2723,7 +2283,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         })
         return reply.code(204).send()
       } catch (err) {
-        return sendFail(reply, err)
+        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
       }
     })
 
@@ -2736,7 +2296,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     // prior data intact. Each op reuses the SAME ownsRow / sanitizeWrite / validateWrite the
     // per-entity routes use; one in-memory state projection is loaded inside the transaction and
     // advanced after each op, so a child validates against a parent a sibling op just upserted.
-    app.post('/api/batch', (req, reply) => {
+    app.post('/api/batch', async (req, reply) => {
       const body = req.body as { ops?: unknown }
       if (!body || !Array.isArray(body.ops)) {
         return reply.code(400).send({ error: 'ops array is required' })
@@ -2832,37 +2392,34 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         return reply.code(403).send({ error: SINGLE_COMPANY_CAP_MESSAGE })
       }
 
-      for (const op of ops) {
-        if (op?.table === 'accounts' && op.method === 'DELETE') {
-          if (!authorize(req, reply, op.id, 'deleteAccount')) return
-          continue
-        }
-        if (op?.table === 'accounts' && op.method === 'PUT') {
-          // Only look up a STRING id — a missing/non-string id would throw on the SQLite bind here,
-          // and is anyway left to the apply loop's own null-id validation (→ 400).
-          const existingAccount = typeof op.id === 'string' ? getRow(db, 'accounts', op.id) : undefined
-          if (existingAccount) {
-            // A batch PUT on an EXISTING account is an UPDATE → gate 'write' (the same cross-tenant
-            // account-write guard the per-route PUT/PATCH now apply). NEVER capped — enforcement is
-            // create-time only.
-            if (!authorize(req, reply, op.id, 'write')) return
-          } else if (authMode !== 'off') {
-            // A CREATE (no existing row) is CLOSED when auth is on — the old onboarding exemption
-            // is an authz bypass now that POST /api/orgs exists (see ACCOUNT_CREATE_CLOSED_MESSAGE).
-            // Fails the WHOLE batch: same one-403-no-partial-write semantics as every pre-scan denial.
-            reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
-            return
+      const authorizeBatchOperations = (): boolean => {
+        for (const op of ops) {
+          if (op?.table === 'accounts' && op.method === 'DELETE') {
+            if (!authorize(req, reply, op.id, 'deleteAccount')) return false
+            continue
           }
-          // OFF-mode creates were already checked against the batch's projected FINAL account
-          // set above. Rechecking each create against the unchanged pre-transaction DB would both
-          // reintroduce the two-create bypass and incorrectly reject an atomic delete+replacement.
-          continue
+          if (op?.table === 'accounts' && op.method === 'PUT') {
+            const existingAccount = getRow(db, 'accounts', op.id)
+            if (existingAccount) {
+              if (!authorize(req, reply, op.id, 'write')) return false
+            } else if (authMode !== 'off') {
+              reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
+              return false
+            }
+            // OFF-mode creates are checked against the projected final set and rechecked by the
+            // provisioning policy inside the transaction.
+            continue
+          }
+          if (!isScopedTable(op.table)) continue
+          const accountId = op.method === 'PUT'
+            ? (op.row as { accountId?: string } | undefined)?.accountId
+            : op.accountId
+          if (!authorize(req, reply, accountId as string, 'write')) return false
         }
-        if (typeof op?.table !== 'string' || !isKnownTable(op.table) || !isScopedTable(op.table)) continue
-        const accountId = op.method === 'PUT' ? (op.row as { accountId?: string } | undefined)?.accountId : op.accountId
-        if (!authorize(req, reply, accountId as string, 'write')) return
+        return true
       }
-      // Field visibility, memoized PER REQUEST: fieldVisibilityFor pays a resolveRole membership
+      if (!authorizeBatchOperations()) return
+      // Field visibility, memoized PER REQUEST: fieldVisibilityFor pays an account-port membership
       // query for every timeOff/client/project row, and a batch may carry up to MAX_BATCH_OPS of them
       // — each op would otherwise re-run the identical lookup inside the write tx. Memoizing by
       // accountId is exact, not approximate: the caller (req.user) is fixed for the request, and
@@ -2901,7 +2458,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       })
       const revisions: Array<{ table: string; id: string; createdAt: string; updatedAt: string }> = []
       try {
-        tx(db, () => {
+        const erasedWorkspaceIds = ops.flatMap((op) =>
+          op?.method === 'DELETE' && op.table === 'accounts' && typeof op.id === 'string'
+            ? [op.id]
+            : [])
+        await accountFlows.withWorkspaceErasureLocks(erasedWorkspaceIds, () => {
+          // Lock acquisition may yield behind another membership/ownership mutation. Re-evaluate
+          // every permission after the wait and immediately before the synchronous transaction so
+          // the pre-scan can never become stale authorization for a destructive or cross-tenant op.
+          if (!authorizeBatchOperations()) throw new BatchAuthorizationResponseSent()
+          return tx(db, () => {
           // Finding 82: loadState(db) is a SELECT * across every table — hoisted ONCE here
           // instead of once PER OP (a batch of MAX_BATCH_OPS could otherwise force 5 000 full-DB
           // scans in one transaction). `state` is then advanced in lockstep with every write
@@ -2911,16 +2477,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           // assertAllocationRefs, assertResourceExists), so the projection must track every
           // scoped table, not just the one each op touches.
           let state = loadState(db)
+          const projectedWorkspaceIds = new Set(state.accounts.map((account) => account.id))
+          for (const op of ops) {
+            if (op?.table !== 'accounts' || typeof op.id !== 'string') continue
+            if (op.method === 'PUT') projectedWorkspaceIds.add(op.id)
+            else if (op.method === 'DELETE') projectedWorkspaceIds.delete(op.id)
+          }
+          const projectedWorkspaceCount = projectedWorkspaceIds.size
           const mintedInternalIds = new Set<string>()
           for (const op of ops) {
-            if (!op || typeof op !== 'object') {
-              throw new ValidationError('Each op must be an object.')
-            }
             const { method, table, id } = op
-            if (typeof table !== 'string' || typeof id !== 'string') {
-              throw new ValidationError('Each op needs a string table and id.')
-            }
-            if (!isKnownTable(table)) throw new ValidationError(`Unknown entity: ${table}`)
+            // Shape, method, known-table and id validation completed before authorization and before
+            // opening this transaction. This loop owns only state-dependent validation and mutation.
             if (method === 'PUT') {
               const row = op.row
               if (!row || typeof row !== 'object' || (row as { id?: unknown }).id !== id) {
@@ -2981,6 +2549,18 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                 existing,
               )
               const generatedReplacement = generatedBuiltinReplacement(state, table, clean)
+              if (table === 'accounts' && !existing) {
+                // Evaluate provisioning policy before inserting the account, against the final
+                // count of the whole atomic batch. The surrounding application-wide lock is shared
+                // with /api/orgs; any later storage failure rolls this membership write back.
+                accountFlows.provisionWorkspaceInExistingTransaction({
+                  workspaceId: id,
+                  principalId: req.accountActor!.principalId,
+                  joinedAt: clean.createdAt as string,
+                  multiWorkspace: opts.multiAccount === true,
+                  projectedWorkspaceCount,
+                })
+              }
               if (generatedReplacement) {
                 replaceGeneratedBuiltin(db, state, generatedReplacement, clean)
                 state = applyGeneratedBuiltinReplacement(state, generatedReplacement, clean)
@@ -3018,7 +2598,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               // deleteFromState) so a later op in the SAME batch validates against the post-cascade
               // truth, not a stale pre-delete snapshot (Finding 82).
               if (table === 'accounts') {
-                eraseAccountInTx(db, id)
+                accountFlows.eraseWorkspaceInExistingTransaction(id)
                 state = deleteAccountCascade(state, id)
               } else {
                 deleteRow(db, table, id)
@@ -3028,6 +2608,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               throw new ValidationError(`Unknown op method: ${String(method)}`)
             }
           }
+          })
+        }, {
+          // Serialize every top-level account mutation with /api/orgs. The batch re-evaluates its
+          // projected final count inside this lock and transaction, so concurrent first-company
+          // batches cannot both commit against the same empty snapshot.
+          serializeWorkspaceProvisioning: ops.some((op) => op?.table === 'accounts'),
         })
         // P1.15 audit (POST-COMMIT — outside the tx). The whole batch is all-or-nothing, so we
         // only get here once it committed; a rolled-back batch threw above and logs NOTHING. One
@@ -3048,7 +2634,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
                   action: auditedAction,
                   entity: op.table,
                   id: op.id,
-                  changedFields: fieldNames(op.table, op.row),
+                  changedFields: acceptedFieldNames(op.table, op.row),
                 }
               : {
                   ts,
@@ -3064,6 +2650,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (auditFailed) reply.header('x-capacitylens-audit-warning', 'true')
         return reply.code(200).send({ ok: true, applied: ops.length, revisions, auditWarning: auditFailed })
       } catch (err) {
+        if (err instanceof BatchAuthorizationResponseSent) return
         // Stale-write conflict (optimistic concurrency): mirror the direct PUT route's 409 +
         // `current` payload. tx() has already rolled the WHOLE batch back by the time this runs
         // (all-or-nothing), so no op from the conflicted batch persisted — the client re-syncs
@@ -3071,7 +2658,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         if (err instanceof StaleWriteError) {
           return reply.code(409).send({ error: err.message, current: err.current })
         }
-        return sendFail(reply, err)
+        return err instanceof AccountContractError ? accountFail(reply, err) : sendFail(reply, err)
       }
     })
 
@@ -3104,7 +2691,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // the open behaviour (demo/e2e parity — authorize no-ops there).
       if (!authorize(req, reply, body.accountId, 'purge')) return
       if (authMode !== 'off') {
-        const role = resolveRole(db, req.user!, body.accountId)
+        const role = accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, body.accountId)
         if (role === null || !canSeePrivateNames(role)) {
           return reply.code(403).send({ error: 'Only the account owner can import data.' })
         }

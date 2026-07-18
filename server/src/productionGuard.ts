@@ -111,30 +111,30 @@ export function evaluateProductionPosture(env: {
       // Operator opted in: run the open/demo posture in production ON PURPOSE. Downgrade to a
       // warning so it is still visible, but let the daemon boot.
       warnings.push(
-        'auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set CAPACITYLENS_AUTH=password|sso to require login.',
+        'auth is OFF in production but CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1, so the open/demo dataset (DEMO_USER, no login) is deliberately exposed to anyone who can reach this server. Unset CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION and set SMALLSASS_ACCOUNT_MODE=password|sso to require login.',
       )
     } else {
       // The dev/open posture P3.1 retires. Fail closed: the demo dataset would be world
       // readable+writable. Name both the fix and the explicit opt-in escape.
       refusals.push(
-        'auth is OFF (CAPACITYLENS_AUTH unset or "off") under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set CAPACITYLENS_AUTH=password or sso to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.',
+        'auth is OFF (SMALLSASS_ACCOUNT_MODE unset or "off") under NODE_ENV=production — the open/demo dataset (DEMO_USER, no login) would be world-readable and world-writable. Set SMALLSASS_ACCOUNT_MODE=password or sso to require login, or set CAPACITYLENS_ALLOW_OPEN_IN_PRODUCTION=1 to deliberately run the open/demo posture.',
       )
     }
   }
 
   if (mode === 'password' && env.CAPACITYLENS_REQUIRE_MFA !== '1') {
     warnings.push(
-      'CAPACITYLENS_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.',
+      'SMALLSASS_ACCOUNT_REQUIRE_MFA is not 1, so password users are not required to enroll TOTP MFA. MFA is optional for self-hosting but strongly recommended for internet-facing deployments.',
     )
   }
   if (mode === 'sso' && env.CAPACITYLENS_SSO_MFA_ENFORCED !== '1') {
     warnings.push(
-      'CAPACITYLENS_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.',
+      'SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED is not 1, so CapacityLens has no operator assurance that the configured identity provider requires MFA. This is optional for self-hosting but strongly recommended.',
     )
   }
   if (mode === 'password' && env.CAPACITYLENS_PASSWORD_BREACH_CHECK === 'off') {
     warnings.push(
-      'CAPACITYLENS_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.',
+      'SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off disables breached-password screening. This is supported for isolated/offline deployments but weakens password protection.',
     )
   }
   // Validate with the SAME parser the limiter uses (parseRateLimit), not a looser Number()+isSafeInteger
@@ -181,7 +181,7 @@ export function evaluateProductionPosture(env: {
   }
   if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1') {
     warnings.push(
-      'CAPACITYLENS_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset CAPACITYLENS_ALLOW_OPEN_SIGNUP unless you intend open registration.',
+      'SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP=1 under NODE_ENV=production enables open self-registration. Self-service signup should normally be closed/invite-only in production; unset SMALLSASS_ACCOUNT_ALLOW_OPEN_SIGNUP unless you intend open registration.',
     )
   }
   if (env.CAPACITYLENS_CREATE_ADMIN_ADMIN === '1') {

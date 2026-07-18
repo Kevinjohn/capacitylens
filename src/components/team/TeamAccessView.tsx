@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { can, canSeePrivateNames, canSeeTimeOffNote, type Role } from '@capacitylens/shared/domain/access'
 import { usePermissionStatus, useRole } from '../../auth/permissionContext'
 import { useAuth } from '../../auth/authContext'
-import { roleLabel, roleSummary } from '../../lib/accessCopy'
+import { accessLabelFor, accessSummaryFor } from '../../lib/accessCopy'
 import { accessExperienceFor } from '../../lib/accessMode'
 import { useOfflineState } from '../../data/useOfflineState'
 import { MembersSection } from '../settings/MembersSection'
@@ -39,32 +39,14 @@ export function TeamAccessView() {
   // deliberately disabled and the server cannot confirm membership.
   const effectiveRole: Role | null = offline.readOnly ? 'viewer' : resolvedRole
   const mayManage = !offline.readOnly && resolvedRole !== null && can(resolvedRole, 'manageMembers')
-  const accessLabel = offline.readOnly
-    ? m.access_offline_label()
-    : accessExperience === 'demo'
-      ? m.access_demo_label()
-      : accessExperience === 'open'
-        ? m.access_open_label()
-        : permissionStatus === 'pending'
-          ? m.access_checking_label()
-          : permissionStatus === 'unavailable'
-            ? m.access_unavailable_label()
-            : resolvedRole
-              ? roleLabel(resolvedRole)
-              : m.access_unavailable_label()
-  const accessSummary = offline.readOnly
-    ? m.access_offline_summary()
-    : accessExperience === 'demo'
-      ? m.access_demo_summary()
-      : accessExperience === 'open'
-        ? m.access_open_summary()
-        : permissionStatus === 'pending'
-          ? m.access_checking_summary()
-          : permissionStatus === 'unavailable'
-            ? m.access_unavailable_summary()
-            : resolvedRole
-              ? roleSummary(resolvedRole)
-              : m.access_unavailable_summary()
+  const accessCopyInput = {
+    offlineReadOnly: offline.readOnly,
+    experience: accessExperience,
+    permissionStatus,
+    role: resolvedRole,
+  }
+  const accessLabel = accessLabelFor(accessCopyInput)
+  const accessSummary = accessSummaryFor(accessCopyInput)
   const accessWarning = offline.readOnly
     ? null
     : accessExperience === 'demo'

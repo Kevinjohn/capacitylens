@@ -1,6 +1,11 @@
 import type { Db } from './db'
-import { deleteRow } from './db'
+import { deleteRow, getRow } from './db'
 import { tx } from './txn'
+import {
+  erasePrincipalCommandHistoryInTx,
+  removePrincipalSessionAssurance,
+  removeSecurityRevision,
+} from './accounts/state'
 import {
   listMembersForAccount,
   listMembershipsForUser,
@@ -22,13 +27,14 @@ import {
 //      and outstanding password-reset tokens.
 // This module closes all three.
 //
-// BETTER AUTH SCHEMA PIN (verified 2026-06-26 against better-auth 1.6.20, the version in package.json):
+// BETTER AUTH SCHEMA PIN (reverified 2026-07-18 against better-auth 1.6.23, the version in package.json):
 //   user(id PK, name NOT NULL, email NOT NULL+UNIQUE, emailVerified, image NULLABLE, createdAt, updatedAt)
 //   account(id PK, …, userId NOT NULL, …)   — the SSO/credential link rows
 //   session(id PK, …, userId NOT NULL)       — the live session rows
 //   verification(id PK, identifier, value, …) — reset tokens store userId directly in `value`;
 //     database-backed OAuth account-link state stores JSON with the userId at `link.userId`
-// We DELETE all four identity surfaces for a user who loses their last membership. Deleting the
+//   twoFactor(id PK, userId, secret, backupCodes, …) — TOTP and recovery material
+// We DELETE all five identity surfaces for a user who loses their last membership. Deleting the
 // `user` row, rather than retaining a scrubbed shell, is also load-bearing for password-mode
 // recovery: setup-token-guarded first-run signup and bootstrap reopen only when the user table is
 // empty. If a future
@@ -42,8 +48,9 @@ import {
  * rather than throw `no such table: user`. (In OFF mode `account_members` is also empty, so there are
  * no member ids to erase anyway; this guard is what makes an OFF-mode account delete safe.)
  *
- * Checks `sqlite_master` for the `user` table specifically: the four auth tables are always created
- * together by one `runAuthMigrations`, so the presence of `user` is a sound proxy for all four.
+ * Checks `sqlite_master` for the `user` table specifically. Production auth migrations create the
+ * core identity tables together; targeted conformance fixtures may omit tables whose behavior they
+ * do not exercise.
  */
 function authTablesPresent(db: Db): boolean {
   const row = db
@@ -52,10 +59,14 @@ function authTablesPresent(db: Db): boolean {
   return row?.name === 'user'
 }
 
+function authTablePresent(db: Db, table: string): boolean {
+  return db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?`).get(table) !== undefined
+}
+
 /**
  * Extract the user id from Better Auth's database-backed OAuth account-link state. Ordinary OAuth
  * sign-in states have no `link`; account-link states store a JSON object containing
- * `{ link: { email, userId }, ... }` in `verification.value` (better-auth 1.6.20, state.mjs).
+ * `{ link: { email, userId }, ... }` in `verification.value` (better-auth 1.6.23, state.mjs).
  *
  * Malformed and unrelated values are intentionally ignored. Password-reset rows are handled by the
  * separate exact `value === userId` check because their value is the bare user id, not JSON.
@@ -92,11 +103,12 @@ function accountLinkUserId(value: string): string | null {
  *  4. Per-user identity deletion, guarded by {@link authTablesPresent} (skipped entirely in OFF/auth-off mode,
  *     where the auth tables don't exist and `memberIds` is `[]` anyway). For EACH captured user, the
  *     MULTI-ACCOUNT RETENTION rule: after step 3 their membership of THIS account is gone, so
- *     `listMembershipsForUser` now returns only OTHER accounts' memberships. A user still in another
- *     account is retained unchanged (they remain an active member elsewhere); only a user with ZERO
- *     remaining memberships is erased — reset tokens, live sessions, credential links, and finally the
- *     user row itself are deleted. Removing that final row reopens password-mode first-run recovery when
- *     this was the last company and user.
+ *     `listMembershipsForUser` now returns only OTHER accounts' memberships. A user is retained only
+ *     when at least one of those rows is active and points at a live account. Inactive or dangling
+ *     control rows confer no access and must not indefinitely retain identity PII. Every other user is
+ *     erased — reset tokens, live sessions, credential links, and finally the user row itself are
+ *     deleted. Removing that final row reopens password-mode first-run recovery when this was the last
+ *     company and user.
  *
  * SURFACE-NOT-SWALLOW: this opens no try/catch — every step's throw (a missing table,
  * an FK error) propagates to the enclosing `tx`, which ROLLS BACK and rethrows. A partial erasure must
@@ -105,7 +117,7 @@ function accountLinkUserId(value: string): string | null {
  * @param db         The open SQLite handle (already inside a transaction).
  * @param accountId  The account to erase.
  */
-export function eraseAccountInTx(db: Db, accountId: string): void {
+export function eraseWorkspaceDataAndMembershipsInTx(db: Db, accountId: string): string[] {
   // (1) Capture member user ids BEFORE any delete — the membership rows vanish in step 3.
   const memberIds = listMembersForAccount(db, accountId).map((m) => m.userId)
 
@@ -118,9 +130,24 @@ export function eraseAccountInTx(db: Db, accountId: string): void {
 
   // (4) Per-user identity deletion. Skip cleanly when the Better Auth tables are absent (OFF/auth-off) — there
   // memberIds is [] and `user`/`account`/`session` don't exist, so this never throws "no such table".
+  if (!authTablesPresent(db)) return []
+  const hasLiveMembership = (userId: string): boolean =>
+    listMembershipsForUser(db, userId).some(
+      (membership) => membership.status === 'active' && getRow(db, 'accounts', membership.accountId) !== undefined,
+    )
+  const erasedUserIds = new Set(memberIds.filter((userId) => !hasLiveMembership(userId)))
+  return [...erasedUserIds]
+}
+
+/** Delete one installation-local identity and its local provider/session state inside an existing
+ * SQLite transaction. This never calls an upstream provider API and never deletes an upstream IdP
+ * subject; only this installation's Better Auth rows are in scope. */
+export function eraseLocalPrincipalInTx(db: Db, userId: string): void {
   if (!authTablesPresent(db)) return
-  const erasedUserIds = new Set(memberIds.filter((userId) => listMembershipsForUser(db, userId).length === 0))
-  if (erasedUserIds.size === 0) return
+
+  // Assurance handles are deliberately not bearer tokens, but they are still principal-owned
+  // security state. Delete them by their explicit ownership key before removing provider sessions.
+  removePrincipalSessionAssurance(db, userId)
 
   // Verification rows have no userId column. Password-reset rows carry the bare id in `value`, while
   // database-backed OAuth account-link states encode it inside JSON at `link.userId`. Scan once and
@@ -129,7 +156,7 @@ export function eraseAccountInTx(db: Db, accountId: string): void {
   const revokeVerification = db.prepare(`DELETE FROM verification WHERE id = ?`)
   for (const row of verificationRows) {
     const linkedUserId = accountLinkUserId(row.value)
-    if (erasedUserIds.has(row.value) || (linkedUserId !== null && erasedUserIds.has(linkedUserId))) {
+    if (row.value === userId || linkedUserId === userId) {
       revokeVerification.run(row.id)
     }
   }
@@ -137,13 +164,23 @@ export function eraseAccountInTx(db: Db, accountId: string): void {
   const killSessions = db.prepare(`DELETE FROM session WHERE userId = ?`)
   const unlinkAccount = db.prepare(`DELETE FROM account WHERE userId = ?`)
   const deleteUser = db.prepare(`DELETE FROM user WHERE id = ?`)
-  for (const userId of erasedUserIds) {
-    // Sole-member-of-the-erased-tenant: all user-bound verifications were revoked above. Kill sessions,
-    // unlink credentials, then remove the identity row. This order mirrors Better Auth's own deleteUser
-    // dependency order; all statements are parameterised (no string interpolation of ids).
-    killSessions.run(userId)
-    unlinkAccount.run(userId)
-    deleteUser.run(userId)
+  killSessions.run(userId)
+  unlinkAccount.run(userId)
+  // Password profiles install Better Auth's two-factor plugin table outside the four core auth
+  // tables. It contains the TOTP secret, encrypted recovery codes and lockout state, so erase it
+  // explicitly rather than relying on a library-owned foreign-key action that may change on upgrade.
+  if (authTablePresent(db, 'twoFactor')) {
+    db.prepare(`DELETE FROM twoFactor WHERE userId = ?`).run(userId)
+  }
+  deleteUser.run(userId)
+  removeSecurityRevision(db, userId)
+}
+
+export function eraseAccountInTx(db: Db, accountId: string): void {
+  const orphanedPrincipalIds = eraseWorkspaceDataAndMembershipsInTx(db, accountId)
+  for (const principalId of orphanedPrincipalIds) {
+    erasePrincipalCommandHistoryInTx(db, principalId)
+    eraseLocalPrincipalInTx(db, principalId)
   }
 }
 

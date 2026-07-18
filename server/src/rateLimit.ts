@@ -5,6 +5,11 @@
 
 export const MAX_RATE_LIMIT = 1_000_000
 
+/** Normalize a programmatic rate limit with the same bounds used by the environment parser. */
+export function normalizeRateLimit(value: number): number {
+  return Number.isSafeInteger(value) && value > 0 && value <= MAX_RATE_LIMIT ? value : 0
+}
+
 /** Fail-closed parse of CAPACITYLENS_RATE_LIMIT: only a positive integer turns the limiter on;
  *  unset, '0', negative, or any non-numeric junk ⇒ 0 = off (a typo must not guess a limit).
  *  Deliberately STRICTER than Number(): the digits-only regex rejects ' 100 ' (whitespace),
@@ -14,6 +19,5 @@ export const MAX_RATE_LIMIT = 1_000_000
  *  thing to the guard and another to the limiter. */
 export function parseRateLimit(raw: string | undefined): number {
   if (!raw || !/^\d+$/.test(raw)) return 0
-  const parsed = Number(raw)
-  return Number.isSafeInteger(parsed) && parsed > 0 && parsed <= MAX_RATE_LIMIT ? parsed : 0
+  return normalizeRateLimit(Number(raw))
 }

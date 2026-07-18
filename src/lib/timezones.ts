@@ -17,23 +17,45 @@ export function supportedTimeZones(): string[] {
   }
 }
 
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>()
+const recentOffsets = new Map<string, { minute: number; label: string }>()
+
+function offsetFormatter(timeZone: string): Intl.DateTimeFormat {
+  const cached = offsetFormatters.get(timeZone)
+  if (cached) return cached
+  const formatter = new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' })
+  offsetFormatters.set(timeZone, formatter)
+  return formatter
+}
+
 /** Return the current UTC offset for an IANA zone in a compact, unambiguous form. */
 export function timeZoneOffsetLabel(timeZone: string, date = new Date()): string {
   try {
-    const value = new Intl.DateTimeFormat('en-US', {
-      timeZone,
-      timeZoneName: 'longOffset',
-    })
+    // Some real zones change offset part-way through a UTC hour (for example Lord Howe's
+    // half-hour DST transition). Cache only within one UTC minute so repeated form renders stay
+    // cheap without carrying the pre-transition label across that boundary.
+    const minute = Math.floor(date.getTime() / 60_000)
+    const cached = recentOffsets.get(timeZone)
+    if (cached?.minute === minute) return cached.label
+    const value = offsetFormatter(timeZone)
       .formatToParts(date)
       .find((part) => part.type === 'timeZoneName')?.value
 
-    if (!value || value === 'GMT' || value === 'UTC') return 'UTC+00:00'
+    let label: string
+    if (!value || value === 'GMT' || value === 'UTC') {
+      label = 'UTC+00:00'
+    } else {
+      const match = value.match(/^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/)
+      if (!match) {
+        label = value.replace(/^GMT/, 'UTC')
+      } else {
+        const [, sign, hours, minutes = '00'] = match
+        label = `UTC${sign}${hours.padStart(2, '0')}:${minutes}`
+      }
+    }
 
-    const match = value.match(/^(?:GMT|UTC)([+-])(\d{1,2})(?::?(\d{2}))?$/)
-    if (!match) return value.replace(/^GMT/, 'UTC')
-
-    const [, sign, hours, minutes = '00'] = match
-    return `UTC${sign}${hours.padStart(2, '0')}:${minutes}`
+    recentOffsets.set(timeZone, { minute, label })
+    return label
   } catch {
     // The zone list itself is validated by supportedTimeZones(); this is only a defensive
     // fallback for an older Intl implementation or an unexpected persisted value.

@@ -29,6 +29,10 @@ import {
   migrateSingleOwnerControlPlaneV10,
   SINGLE_OWNER_INDEX,
 } from './controlTables'
+import {
+  ACCOUNT_BOUNDARY_STATE_V15_SQL,
+  assertAccountBoundaryStateCurrent,
+} from './accounts/state'
 
 // Thin data-access layer over node:sqlite. No validation here — that is the shared
 // domain-core's job (see validate.ts). These helpers only map between SQL rows and the
@@ -39,7 +43,7 @@ import {
 export type Db = DatabaseSync
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 14
+export const DB_SCHEMA_VERSION = 15
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
@@ -354,6 +358,15 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
       assertSingleOwnerControlPlaneCurrent(db)
     },
   ),
+  defineMigration(
+    15,
+    'add-account-boundary-state',
+    ACCOUNT_BOUNDARY_STATE_V15_SQL,
+    (db) => {
+      db.exec(ACCOUNT_BOUNDARY_STATE_V15_SQL)
+      assertAccountBoundaryStateCurrent(db)
+    },
+  ),
 ]
 
 if (DATABASE_MIGRATIONS.at(-1)?.version !== DB_SCHEMA_VERSION) {
@@ -493,6 +506,7 @@ export function initializeOpenDb(
   assertSchemaCurrent(db)
   assertControlTablesCurrent(db)
   assertSingleOwnerControlPlaneCurrent(db)
+  assertAccountBoundaryStateCurrent(db)
   assertMigrationHistory(db, DB_SCHEMA_VERSION)
   if (pragmaNumber(db, 'user_version') !== DB_SCHEMA_VERSION) {
     throw new Error(`Database migration did not reach expected version ${DB_SCHEMA_VERSION}.`)

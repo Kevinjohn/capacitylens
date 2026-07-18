@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { betterAuth } from 'better-auth'
-import { APIError, createAuthMiddleware } from 'better-auth/api'
+import { APIError, createAuthMiddleware, getSessionFromCtx } from 'better-auth/api'
 import type { BetterAuthOptions, BetterAuthPlugin } from 'better-auth'
 import type { SocialProviders } from 'better-auth/social-providers'
 import { genericOAuth } from 'better-auth/plugins/generic-oauth'
@@ -9,13 +9,30 @@ import { twoFactor } from 'better-auth/plugins'
 import { getMigrations } from 'better-auth/db/migration'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import { cleanText } from '@capacitylens/shared/lib/strings'
-import type { Db } from './db'
+import { APP_NAME } from '@capacitylens/shared/brand'
+import type { AccountMode, BoundApplication } from '@capacitylens/shared/account/types'
+import { boundApplicationFailure } from '@capacitylens/shared/account/validation'
 import {
+  ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS,
+  ACCOUNT_SESSION_FRESH_AGE_SECONDS,
+} from '@capacitylens/shared/account/sessionPolicy'
+import type { Db } from './db'
+import { accountConfigKey, resolveAccountEnvironment } from './accountConfig'
+import { createStrictOidcClient, type StrictOidcClient } from './strictOidc'
+import {
+  PASSWORD_CONTEXT_WORDS,
+  PasswordPolicyDependencyError,
   PasswordPolicyError,
   assertNoContextSpecificPassword,
   assertPasswordNotBreached,
   scryptPasswordHasher,
 } from './passwordSecurity'
+import {
+  bindFederatedProvider,
+  recordSessionAssurance,
+  removeSessionAssurance,
+} from './accounts/state'
+import { applicationSessionHandle } from './accounts/sessionHandle'
 
 // Better Auth integration (production plan P3.1). Decision (Phase 0 #7): a third-party
 // OSS library owns the session/credential/OIDC machinery — accepted precisely so we
@@ -32,17 +49,17 @@ import {
 // tables.ts / sanitize) deliberately do not cover them, and db.ts wipe()/loadState()
 // never touch them.
 
-export type AuthMode = 'off' | 'password' | 'sso'
+/** @deprecated Prefer the provider-neutral AccountMode outside the identity adapter. */
+export type AuthMode = AccountMode
 
 /** Public, non-secret provider metadata exposed by `/api/auth/me` so the login screen never
  * hardcodes a provider id or advertises a provider the server did not configure. Every external
- * provider remains explicitly experimental until CapacityLens has exercised its callback flow in
- * production. */
+ * named social providers remain experimental; the strict generic OIDC path is first-class. */
 export interface AuthProviderInfo {
   id: string
   label: string
   kind: 'social' | 'oidc'
-  experimental: true
+  experimental: boolean
 }
 
 /** The narrow Better Auth surface the server actually uses. betterAuth()'s concrete
@@ -54,7 +71,14 @@ export interface Auth {
   /** Web-standard Request → Response handler, mounted at /api/auth/* when mode ≠ off. */
   handler: (request: Request) => Promise<Response>
   api: {
-    getSession: (input: { headers: Headers }) => Promise<{ user: SessionUser } | null>
+    getSession: (input: { headers: Headers }) => Promise<{
+      user: SessionUser
+      session?: {
+        id: string
+        createdAt: string
+        expiresAt: string | null
+      }
+    } | null>
     /** Better Auth's server-side reset-token mint (P1.18) — call it ONLY through
      *  {@link mintPasswordResetToken}, which provides the AsyncLocalStorage capture context the
      *  sendResetPassword callback delivers the token into. Anti-enumeration by design: it resolves
@@ -65,6 +89,10 @@ export interface Auth {
   options: BetterAuthOptions
   /** Configured external identity providers, safe to return to unauthenticated clients. */
   providers: AuthProviderInfo[]
+  /** Configured upstream issuer for each local provider alias. Used for `(issuer, subject)` keys. */
+  federatedIssuers: ReadonlyMap<string, string>
+  /** Validate and persist immutable issuer-to-provider aliases after app migrations complete. */
+  ensureProviderBindings: () => void
   /** Create a user + credential account as ONE atomic-by-convention operation, bypassing the
    *  public sign-up ROUTE entirely (and with it, the route's minPasswordLength check —
    *  internalAdapter.createUser never validates password shape, only the sign-up.mjs handler
@@ -108,6 +136,16 @@ export const DEMO_USER: SessionUser = {
   twoFactorEnabled: true,
 }
 
+export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
+  applicationId: 'capacitylens',
+  displayName: APP_NAME,
+  branding: {
+    totpIssuer: APP_NAME,
+    passwordContextWords: PASSWORD_CONTEXT_WORDS,
+    defaultProviderLabel: 'Single sign-on',
+  },
+}
+
 /**
  * The normalized session principal the whole server depends on (membership lookups,
  * `/api/auth/me`, P1.10 invite binding) — decoupled from Better Auth's richer user type.
@@ -138,6 +176,30 @@ interface RawSessionUser {
   name: string
   emailVerified?: boolean | null
   twoFactorEnabled?: boolean | null
+}
+
+interface SessionActivityAdapter {
+  deleteSession(token: string): Promise<void>
+  updateSession(token: string, session: { updatedAt: Date }): Promise<unknown>
+}
+
+/** Apply the app's idle timeout to a session Better Auth has already resolved. */
+async function enforceSessionActivity<Session extends {
+  session: { token: string; updatedAt: Date | string }
+}>(session: Session, adapter: SessionActivityAdapter): Promise<Session | null> {
+  const lastActivity = new Date(session.session.updatedAt).getTime()
+  const now = Date.now()
+  const elapsed = now - lastActivity
+  if (!Number.isFinite(lastActivity) || elapsed > SESSION_INACTIVITY_TTL_SECONDS * 1000) {
+    await adapter.deleteSession(session.session.token)
+    return null
+  }
+  if (elapsed >= SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS * 1000) {
+    const updatedAt = new Date(now)
+    await adapter.updateSession(session.session.token, { updatedAt })
+    session.session.updatedAt = updatedAt
+  }
+  return session
 }
 
 /**
@@ -188,7 +250,8 @@ function setupTokenMatches(configured: string | undefined, presented: string | n
  *  a reset link grants an EXISTING identity, so it stays the shorter-lived of the two). */
 export const RESET_LINK_TTL_SECONDS = 60 * 60 * 24
 /** A session can never outlive this wall-clock duration, regardless of activity. */
-export const SESSION_ABSOLUTE_TTL_SECONDS = 12 * 60 * 60
+export const SESSION_ABSOLUTE_TTL_SECONDS = ACCOUNT_SESSION_ABSOLUTE_TTL_SECONDS
+export const SESSION_FRESH_AGE_SECONDS = ACCOUNT_SESSION_FRESH_AGE_SECONDS
 /** Re-authentication is required after this much server-observed inactivity. */
 export const SESSION_INACTIVITY_TTL_SECONDS = 30 * 60
 /** Bound session activity writes while keeping idle expiry accurate to within one minute. */
@@ -327,7 +390,7 @@ export function parseAuthMode(raw: string | undefined): AuthMode {
   const mode = raw === undefined || raw === '' ? 'off' : raw
   if (mode === 'off' || mode === 'password' || mode === 'sso') return mode
   throw new AuthConfigError(
-    `CAPACITYLENS_AUTH must be 'off', 'password' or 'sso' — got '${raw}'. Unset it for today's no-auth behaviour.`,
+    `SMALLSASS_ACCOUNT_MODE must be 'off', 'password' or 'sso' — got '${raw}'. Unset it for today's no-auth behaviour.`,
   )
 }
 
@@ -340,7 +403,7 @@ export const MIN_BETTER_AUTH_SECRET_LENGTH = 32
 
 function required(env: Env, key: string, context: string): string {
   const value = env[key]
-  if (!value) throw new AuthConfigError(`${key} is required when ${context}.`)
+  if (!value) throw new AuthConfigError(`${accountConfigKey(key)} is required when ${context}.`)
   return value
 }
 
@@ -349,7 +412,9 @@ function optionalPair(env: Env, idKey: string, secretKey: string, label: string)
   const secret = env[secretKey]
   if (!id && !secret) return null
   if (!id || !secret) {
-    throw new AuthConfigError(`${idKey} and ${secretKey} must both be set to enable ${label}.`)
+    throw new AuthConfigError(
+      `${accountConfigKey(idKey)} and ${accountConfigKey(secretKey)} must both be set to enable ${label}.`,
+    )
   }
   return [id, secret]
 }
@@ -361,15 +426,23 @@ function secureProviderUrl(env: Env, key: string): string | undefined {
   try {
     url = new URL(raw)
   } catch (cause) {
-    throw new AuthConfigError(`${key} must be an absolute URL.`, { cause })
+    throw new AuthConfigError(`${accountConfigKey(key)} must be an absolute URL.`, { cause })
   }
   const loopback = url.hostname === 'localhost' || url.hostname.endsWith('.localhost') ||
     url.hostname === '127.0.0.1' || url.hostname === '[::1]'
   if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) {
-    throw new AuthConfigError(`${key} must use https:// (loopback http:// is allowed for development).`)
+    throw new AuthConfigError(
+      `${accountConfigKey(key)} must use https:// (loopback http:// is allowed for development).`,
+    )
   }
-  if (url.username || url.password) throw new AuthConfigError(`${key} must not contain URL credentials.`)
-  return url.toString()
+  if (url.username || url.password) {
+    throw new AuthConfigError(`${accountConfigKey(key)} must not contain URL credentials.`)
+  }
+  // Issuer identifiers are exact strings in OIDC. URL#toString() adds a trailing slash to a bare
+  // origin, which would turn a correct configured `https://idp.example` issuer into a different
+  // identity namespace and reject otherwise matching discovery metadata. Validate through URL,
+  // but preserve the operator's trimmed value verbatim for protocol comparison.
+  return raw
 }
 
 /** Native social providers assembled from env. Unset pairs are absent; a partial pair refuses
@@ -397,7 +470,11 @@ function socialProvidersFromEnv(env: Env): SocialProviders {
   return providers
 }
 
-function externalProviderInfo(env: Env, genericProviderId: string | null): AuthProviderInfo[] {
+function externalProviderInfo(
+  env: Env,
+  genericProviderId: string | null,
+  defaultProviderLabel: string,
+): AuthProviderInfo[] {
   const providers: AuthProviderInfo[] = []
   if (env.CAPACITYLENS_GOOGLE_CLIENT_ID && env.CAPACITYLENS_GOOGLE_CLIENT_SECRET) {
     providers.push({ id: 'google', label: 'Google', kind: 'social', experimental: true })
@@ -411,9 +488,9 @@ function externalProviderInfo(env: Env, genericProviderId: string | null): AuthP
   if (genericProviderId) {
     providers.push({
       id: genericProviderId,
-      label: env.CAPACITYLENS_SSO_LABEL?.trim() || 'Single sign-on',
+      label: env.CAPACITYLENS_SSO_LABEL?.trim() || defaultProviderLabel,
       kind: 'oidc',
-      experimental: true,
+      experimental: false,
     })
   }
   return providers
@@ -423,36 +500,37 @@ function externalIdentityPath(path: string | undefined): boolean {
   return path?.startsWith('/callback/') === true || path?.startsWith('/oauth2/callback/') === true
 }
 
-/** Decide whether Better Auth may create a new external identity. Existing identities do not pass
- * through this creation hook. The first user needs an operator allow-list entry; later users need
- * a live email-preauthorised invite. Unverified or missing email always fails closed. */
-export function externalIdentityAllowed(db: Db, env: Env, user: { email?: string; emailVerified?: boolean }): boolean {
-  if (user.emailVerified !== true || !user.email) return false
-  const email = user.email.trim().toLowerCase()
-  if (!email) return false
-
-  const bootstrapEmails = (env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS ?? '')
-    .split(',')
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean)
-  if (countUsers(db) === 0 && bootstrapEmails.includes(email)) return true
-
-  const invite = db.prepare(`
-    SELECT 1 AS allowed
-      FROM invites
-     WHERE lower(trim(preauthEmail)) = ?
-       AND usedAt IS NULL
-       AND expiresAt > ?
-     LIMIT 1
-  `).get(email, new Date().toISOString()) as { allowed?: number } | undefined
-  return invite?.allowed === 1
+export function providerIdFromExternalContext(context: {
+  path?: string
+  params?: Record<string, unknown>
+} | null | undefined): string | null {
+  if (!externalIdentityPath(context?.path)) return null
+  // Better Auth's database-hook context uses the route template as `path` and carries the concrete
+  // provider in params. Older/custom adapters may provide a concrete path instead, so retain that
+  // safe fallback while explicitly refusing template placeholders.
+  const parameter = context?.params?.providerId ?? context?.params?.id
+  const value = typeof parameter === 'string'
+    ? parameter
+    : context?.path?.split('/').filter(Boolean).at(-1)
+  if (!value || value.startsWith(':')) return null
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    // A malformed percent escape is attacker-controlled path input, not an internal failure.
+    // Returning no provider keeps assurance fail-closed while Better Auth renders its normal 4xx.
+    return null
+  }
 }
 
 /** Create/repair CapacityLens's first-owner claim table after configuration validation and app
  * migrations have succeeded. authFromEnv calls this immediately for normal library/test callers;
  * production startup defers it so invalid auth configuration cannot mutate a pre-migration DB. */
 export function ensureAuthControlTables(db: Db, env: Env): void {
-  if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1') return
+  // Open registration applies only to email credentials. A first external identity still needs
+  // the single-winner bootstrap claim, so this table is required in both registration postures.
+  // Keep `env` in the signature because startup planning deliberately shares the same contract as
+  // the other conditional auth controls, even though this control is now unconditional in auth-on.
+  void env
   db.exec(`CREATE TABLE IF NOT EXISTS capacitylens_bootstrap_claim (
     id INTEGER PRIMARY KEY CHECK (id = 1), claimedAt TEXT NOT NULL, claimToken TEXT NOT NULL
   )`)
@@ -469,7 +547,7 @@ export function ensureAuthControlTables(db: Db, env: Env): void {
 /** Read-only signal used by startup planning so an existing database is snapshotted before this
  * conditional auth-control schema is first created or repaired. */
 export function authControlTablesNeedMigration(db: Db, env: Env): boolean {
-  if (env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1') return false
+  void env
   const columns = db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all() as Array<{ name: string }>
   return !columns.some((column) => column.name === 'claimToken')
 }
@@ -485,29 +563,51 @@ export function authControlTablesNeedMigration(db: Db, env: Env): boolean {
 export function authFromEnv(
   db: Db,
   env: Env,
-  opts: { trustedOrigins?: string[]; deferDatabaseSetup?: boolean } = {},
+  opts: {
+    trustedOrigins?: string[]
+    deferDatabaseSetup?: boolean
+    application?: BoundApplication
+    /** Account-boundary admission decision for a prospective external local principal. Omission
+     * fails closed; ordinary sign-in for an already-linked principal does not use this hook. */
+    externalIdentityAdmission?: (candidate: {
+      email?: string
+      emailVerified?: boolean
+    }) => boolean | Promise<boolean>
+  } = {},
 ): { mode: AuthMode; auth: Auth | null } {
+  env = resolveAccountEnvironment(env, {
+    ...(process.env.NODE_ENV === 'test' ? { warn: () => {} } : {}),
+  }).env
   const mode = parseAuthMode(env.CAPACITYLENS_AUTH)
   if (mode === 'off') return { mode, auth: null }
+  const application = opts.application ?? DEFAULT_ACCOUNT_APPLICATION
+  const applicationFailure = boundApplicationFailure(application)
+  if (applicationFailure) throw new AuthConfigError(applicationFailure)
 
-  const secret = required(env, 'BETTER_AUTH_SECRET', `CAPACITYLENS_AUTH=${mode}`)
+  const secret = required(env, 'BETTER_AUTH_SECRET', `SMALLSASS_ACCOUNT_MODE=${mode}`)
   // Fail closed + loud on a weak secret (message states the requirement + actual length,
   // never the secret value itself — no leak into logs/exit output).
   if (secret.length < MIN_BETTER_AUTH_SECRET_LENGTH) {
     throw new AuthConfigError(
-      `BETTER_AUTH_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when CAPACITYLENS_AUTH=${mode} (got ${secret.length}).`,
+      `SMALLSASS_ACCOUNT_SECRET must be at least ${MIN_BETTER_AUTH_SECRET_LENGTH} characters when SMALLSASS_ACCOUNT_MODE=${mode} (got ${secret.length}).`,
     )
   }
-  const baseURL = required(env, 'BETTER_AUTH_URL', `CAPACITYLENS_AUTH=${mode}`)
+  const baseURL = required(env, 'BETTER_AUTH_URL', `SMALLSASS_ACCOUNT_MODE=${mode}`)
 
   let publicUrl: URL
   try {
     publicUrl = new URL(baseURL)
   } catch (cause) {
-    throw new AuthConfigError('BETTER_AUTH_URL must be an absolute http:// or https:// URL.', { cause })
+    throw new AuthConfigError('SMALLSASS_ACCOUNT_PUBLIC_URL must be an absolute http:// or https:// URL.', { cause })
   }
   if (publicUrl.protocol !== 'http:' && publicUrl.protocol !== 'https:') {
-    throw new AuthConfigError('BETTER_AUTH_URL must use http:// or https://.')
+    throw new AuthConfigError('SMALLSASS_ACCOUNT_PUBLIC_URL must use http:// or https://.')
+  }
+  if (publicUrl.username || publicUrl.password || publicUrl.search || publicUrl.hash) {
+    throw new AuthConfigError('SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without credentials, a query string, or a fragment.')
+  }
+  if (publicUrl.pathname !== '/' && publicUrl.pathname !== '') {
+    throw new AuthConfigError('SMALLSASS_ACCOUNT_PUBLIC_URL must be an origin without a path.')
   }
   const loopbackHost =
     publicUrl.hostname === 'localhost' ||
@@ -516,7 +616,7 @@ export function authFromEnv(
     publicUrl.hostname === '[::1]'
   if (env.NODE_ENV === 'production' && publicUrl.protocol !== 'https:' && !loopbackHost) {
     throw new AuthConfigError(
-      'BETTER_AUTH_URL must use https:// for a non-loopback production origin; credentials and session cookies must not cross plaintext HTTP.',
+      'SMALLSASS_ACCOUNT_PUBLIC_URL must use https:// for a non-loopback production origin; credentials and session cookies must not cross plaintext HTTP.',
     )
   }
 
@@ -529,33 +629,85 @@ export function authFromEnv(
   }
   if (mode === 'sso' && !genericSsoConfigured) {
     throw new AuthConfigError(
-      'CAPACITYLENS_AUTH=sso requires CAPACITYLENS_SSO_CLIENT_ID and CAPACITYLENS_SSO_CLIENT_SECRET.',
+      'SMALLSASS_ACCOUNT_MODE=sso requires SMALLSASS_ACCOUNT_OIDC_CLIENT_ID and SMALLSASS_ACCOUNT_OIDC_CLIENT_SECRET.',
     )
   }
   const genericProviderId = genericSsoConfigured ? env.CAPACITYLENS_SSO_PROVIDER_ID || 'sso' : null
   if (genericProviderId && !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(genericProviderId)) {
-    throw new AuthConfigError('CAPACITYLENS_SSO_PROVIDER_ID must match ^[a-z0-9][a-z0-9_-]{0,63}$.')
+    throw new AuthConfigError('SMALLSASS_ACCOUNT_OIDC_PROVIDER_ID must match ^[a-z0-9][a-z0-9_-]{0,63}$.')
   }
   const discoveryUrl = secureProviderUrl(env, 'CAPACITYLENS_SSO_DISCOVERY_URL')
+  const genericIssuer = secureProviderUrl(env, 'CAPACITYLENS_SSO_ISSUER')
+  if (genericIssuer) {
+    const issuerUrl = new URL(genericIssuer)
+    if (issuerUrl.search || issuerUrl.hash) {
+      throw new AuthConfigError('SMALLSASS_ACCOUNT_OIDC_ISSUER must not contain a query string or fragment.')
+    }
+  }
   const authorizationUrl = secureProviderUrl(env, 'CAPACITYLENS_SSO_AUTHORIZATION_URL')
   const tokenUrl = secureProviderUrl(env, 'CAPACITYLENS_SSO_TOKEN_URL')
   const plugins: BetterAuthPlugin[] = []
+  let strictOidcClient: StrictOidcClient | null = null
+  let strictOidcAuthorizationProxyPath: string | null = null
   if (genericProviderId) {
+    if (!genericIssuer) {
+      throw new AuthConfigError('Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_ISSUER for stable issuer-and-subject identity correlation.')
+    }
+    const scopes = (env.CAPACITYLENS_SSO_SCOPES ?? 'openid profile email').split(/\s+/).filter(Boolean)
+    if (!scopes.includes('openid')) {
+      throw new AuthConfigError('Generic OIDC requires the openid scope.')
+    }
+    if (!discoveryUrl) {
+      throw new AuthConfigError(
+        'Strict OIDC requires SMALLSASS_ACCOUNT_OIDC_DISCOVERY_URL; endpoint-only generic OAuth is not accepted.',
+      )
+    }
+    if (authorizationUrl || tokenUrl) {
+      throw new AuthConfigError(
+        'Strict OIDC endpoints must come from discovery; explicit authorization and token endpoint overrides are not accepted.',
+      )
+    }
+    const genericClientId = required(env, 'CAPACITYLENS_SSO_CLIENT_ID', 'generic SSO')
+    const genericClientSecret = required(env, 'CAPACITYLENS_SSO_CLIENT_SECRET', 'generic SSO')
+    strictOidcClient = createStrictOidcClient({
+      issuer: genericIssuer,
+      clientId: genericClientId,
+      clientSecret: genericClientSecret,
+      discoveryUrl,
+    })
+    strictOidcAuthorizationProxyPath = `/api/auth/oidc/authorize/${genericProviderId}`
+    const oidcClient = strictOidcClient
     plugins.push(genericOAuth({
       config: [{
         providerId: genericProviderId,
-        clientId: required(env, 'CAPACITYLENS_SSO_CLIENT_ID', 'generic SSO'),
-        clientSecret: required(env, 'CAPACITYLENS_SSO_CLIENT_SECRET', 'generic SSO'),
-        discoveryUrl,
-        authorizationUrl,
-        tokenUrl,
-        scopes: (env.CAPACITYLENS_SSO_SCOPES ?? 'openid profile email').split(' ').filter(Boolean),
+        clientId: genericClientId,
+        clientSecret: genericClientSecret,
+        // Do not give the generic plugin the discovery URL: it consumes discovery endpoints before
+        // validating their issuer or transport. Its generated authorization request instead visits
+        // our same-origin proxy below, and its code exchange delegates to the same issuer-pinned
+        // metadata object. No browser redirect or client secret crosses an unvalidated endpoint.
+        authorizationUrl: new URL(strictOidcAuthorizationProxyPath, publicUrl).toString(),
+        // genericOAuth shape-validates a token URL while creating the authorization response even
+        // when a custom getToken owns exchange. Keep that required placeholder same-origin; it is
+        // never requested because getToken below always resolves the validated discovery endpoint.
+        tokenUrl: new URL(`/api/auth/oidc/token/${genericProviderId}`, publicUrl).toString(),
+        issuer: genericIssuer,
+        // RFC 9207's authorization-response `iss` parameter is optional and is not emitted by
+        // otherwise-conformant providers such as Dex. Do not make that extension a portability
+        // requirement. The trust decision remains strict: discovery is issuer-pinned and
+        // strictOidcUserInfo verifies the signed ID token's issuer and client audience before
+        // accepting any identity claims.
+        requireIssuerValidation: false,
+        pkce: true,
+        getToken: oidcClient.exchangeCode,
+        getUserInfo: oidcClient.getUserInfo,
+        scopes,
       }],
     }))
   }
   if (mode === 'password') {
     plugins.push(twoFactor({
-      issuer: 'CapacityLens',
+      issuer: application.branding.totpIssuer,
       allowPasswordless: true,
       twoFactorCookieMaxAge: 5 * 60,
       trustDeviceMaxAge: 7 * 24 * 60 * 60,
@@ -563,12 +715,6 @@ export function authFromEnv(
       accountLockout: { enabled: true, maxFailedAttempts: 5, durationSeconds: 15 * 60 },
     }))
   }
-  if (genericProviderId && !discoveryUrl && !(authorizationUrl && tokenUrl)) {
-    throw new AuthConfigError(
-      'Generic SSO needs CAPACITYLENS_SSO_DISCOVERY_URL, or CAPACITYLENS_SSO_AUTHORIZATION_URL + CAPACITYLENS_SSO_TOKEN_URL.',
-    )
-  }
-
   // SECURE DEFAULT (P1.7) + FIRST-RUN SETUP: self-service signup is closed / invite-only by
   // design (Decisions — social SSO is the primary path; email+password a secondary fallback),
   // with EXACTLY ONE bootstrap exception: an EMPTY user table plus the operator-configured setup
@@ -583,13 +729,30 @@ export function authFromEnv(
   const allowOpenSignup = env.CAPACITYLENS_ALLOW_OPEN_SIGNUP === '1'
   const setupToken = env.CAPACITYLENS_SETUP_TOKEN || undefined
   if (mode === 'password' && setupToken && Buffer.byteLength(setupToken, 'utf8') < 32) {
-    throw new AuthConfigError('CAPACITYLENS_SETUP_TOKEN must be at least 32 bytes.')
+    throw new AuthConfigError('SMALLSASS_ACCOUNT_SETUP_TOKEN must be at least 32 bytes.')
   }
   // Resolve every remaining provider configuration before the first explicit database DDL below.
   // An invalid provider/URL must not leave a bootstrap-control table behind on an otherwise
   // untouched database merely because validation happened in an unfortunate order.
   const configuredSocialProviders = socialProvidersFromEnv(env)
-  const configuredProviderInfo = externalProviderInfo(env, genericProviderId)
+  const configuredProviderInfo = externalProviderInfo(
+    env,
+    genericProviderId,
+    application.branding.defaultProviderLabel,
+  )
+  // Experimental social providers still receive a stable issuer namespace so identity
+  // correlation is always (issuer, subject), never email or a mutable display label. Generic
+  // OIDC uses its actual issuer URL and remains the first-class path.
+  const configuredFederatedIssuers = new Map<string, string>()
+  if (configuredSocialProviders.google) configuredFederatedIssuers.set('google', 'https://accounts.google.com')
+  if (configuredSocialProviders.microsoft) {
+    configuredFederatedIssuers.set(
+      'microsoft',
+      `urn:better-auth:microsoft:${env.CAPACITYLENS_MICROSOFT_TENANT_ID || 'common'}`,
+    )
+  }
+  if (configuredSocialProviders.github) configuredFederatedIssuers.set('github', 'urn:better-auth:github')
+  if (genericProviderId && genericIssuer) configuredFederatedIssuers.set(genericProviderId, genericIssuer)
   const acquireBootstrapClaim = (): string => {
     const claimToken = randomBytes(24).toString('base64url')
     try {
@@ -619,16 +782,24 @@ export function authFromEnv(
   const baseHasher = scryptPasswordHasher(testRuntime ? 2 ** 10 : undefined)
   const passwordHash = async (password: string): Promise<string> => {
     try {
-      assertNoContextSpecificPassword(password)
+      assertNoContextSpecificPassword(password, application.branding.passwordContextWords)
       if (breachCheckEnabled) await assertPasswordNotBreached(password)
     } catch (error) {
       if (error instanceof PasswordPolicyError) {
         throw APIError.from('BAD_REQUEST', { message: error.message, code: error.code })
       }
+      if (error instanceof PasswordPolicyDependencyError) {
+        throw APIError.from('SERVICE_UNAVAILABLE', { message: error.message, code: error.code })
+      }
       throw error
     }
     return baseHasher.hash(password)
   }
+
+  const cookiePrefix = publicUrl.protocol === 'https:'
+    ? `__Host-${application.applicationId}`
+    : application.applicationId
+  const sessionCookieName = `${cookiePrefix}.session_token=`
 
   const instance = betterAuth({
     database: db, // node:sqlite DatabaseSync — same file as the app data (see header)
@@ -655,13 +826,15 @@ export function authFromEnv(
 
             // Open EMAIL registration never opens external identity creation as a side effect.
             // Social/OIDC remains verified-email + invitation/allow-list gated in every posture.
-            if (externalSignup && !externalIdentityAllowed(db, env, sanitizedUser)) {
+            if (externalSignup && !await opts.externalIdentityAdmission?.(sanitizedUser)) {
               throw APIError.from('FORBIDDEN', {
-                message: 'This identity is not invited to this CapacityLens instance.',
+                message: `This identity is not invited to this ${application.displayName} instance.`,
                 code: 'EXTERNAL_IDENTITY_NOT_INVITED',
               })
             }
-            if (allowOpenSignup) return { data: sanitizedUser }
+            // Open signup applies only to email credentials. External identities remain subject to
+            // the first-principal bootstrap claim and later invitation admission in every posture.
+            if (allowOpenSignup && emailSignup) return { data: sanitizedUser }
 
             // The route-level check may have observed zero users concurrently with another
             // request. Re-check at the actual user insertion boundary and fail closed once the
@@ -686,11 +859,47 @@ export function authFromEnv(
           },
         },
       },
+      session: {
+        create: {
+          after: async (session, context) => {
+            const assurance = externalIdentityPath(context?.path)
+              ? 'federated'
+              : context?.path?.startsWith('/two-factor/')
+                ? 'mfa'
+                : 'password'
+            const providerId = assurance === 'federated'
+              ? providerIdFromExternalContext(context)
+              : null
+            if (assurance === 'federated' && (!providerId || !configuredFederatedIssuers.has(providerId))) {
+              throw new Error('External session creation did not resolve a configured provider id.')
+            }
+            recordSessionAssurance(
+              db,
+              applicationSessionHandle(application.applicationId, String(session.token)),
+              String(session.userId),
+              assurance,
+              providerId,
+            )
+          },
+        },
+        delete: {
+          after: async (session) => {
+            removeSessionAssurance(
+              db,
+              applicationSessionHandle(application.applicationId, String(session.token)),
+            )
+          },
+        },
+      },
     },
+    // Email is an attribute, never an account-link key. Linking requires a separate authenticated
+    // ceremony outside an OIDC callback, so a newly observed issuer/subject cannot attach itself to
+    // an existing local principal merely by presenting the same verified email address.
+    account: { accountLinking: { disableImplicitLinking: true } },
     emailAndPassword: {
       enabled: mode === 'password',
       // The static library flag stays OFF so the sign-up gate has ONE owner: the live hooks.before
-      // below (see the SECURE DEFAULT comment above). Better Auth 1.6.20 enforces disableSignUp
+      // below (see the SECURE DEFAULT comment above). Better Auth 1.6.23 enforces disableSignUp
       // even for server-side auth.api.signUpEmail calls (sign-up.mjs:143), so leaving it on would
       // also break the BROWSER first-run bootstrap (the login screen's "Create the owner account"
       // form, which really does POST /api/auth/sign-up/email) — the headless
@@ -730,14 +939,32 @@ export function authFromEnv(
     // closes immediately after the first identity is created.
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (allowOpenSignup) return
+        // Resolve a presented session once at the Better Auth pipeline boundary. Endpoint session
+        // middleware reuses ctx.context.session, and /get-session can return it directly, so idle
+        // enforcement no longer causes a wrapper lookup followed by the endpoint's second lookup.
+        const cookie = ctx.headers?.get('cookie') ?? ''
+        const sessionPresented = cookie.includes(sessionCookieName) || ctx.headers?.has('authorization') === true
+        let activeHookSession: Awaited<ReturnType<typeof getSessionFromCtx>> | undefined
+        if (sessionPresented) {
+          const resolved = await getSessionFromCtx(ctx, { disableCookieCache: true, disableRefresh: true })
+          activeHookSession = resolved
+            ? await enforceSessionActivity(resolved, ctx.context.internalAdapter)
+            : null
+          ctx.context.session = activeHookSession
+          if (ctx.path === '/get-session' && activeHookSession) return activeHookSession
+        }
+        const continuingContext = () => activeHookSession === undefined
+          ? undefined
+          : { context: { session: activeHookSession } }
+
         if (externalIdentityPath(ctx.path)) {
           if (countUsers(db) === 0) {
-            return { context: { bootstrapClaimToken: acquireBootstrapClaim() } }
+            return { context: { ...continuingContext()?.context, bootstrapClaimToken: acquireBootstrapClaim() } }
           }
-          return
+          return continuingContext()
         }
-        if (ctx.path !== '/sign-up/email') return
+        if (allowOpenSignup) return continuingContext()
+        if (ctx.path !== '/sign-up/email') return continuingContext()
         // A fresh password instance is never claimable merely because it is reachable. The
         // operator configures CAPACITYLENS_SETUP_TOKEN and the owner-setup form presents it in
         // this header. index.ts also refuses a fresh password boot when the secret is absent.
@@ -745,9 +972,9 @@ export function authFromEnv(
           countUsers(db) === 0 &&
           setupTokenMatches(setupToken, ctx.headers?.get('x-capacitylens-setup-token') ?? null)
         ) {
-          return { context: { bootstrapClaimToken: acquireBootstrapClaim() } }
+          return { context: { ...continuingContext()?.context, bootstrapClaimToken: acquireBootstrapClaim() } }
         }
-        // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.20), so the
+        // The EXACT refusal Better Auth's own disableSignUp emits (sign-up.mjs, 1.6.23), so the
         // client and tests see one unchanged error shape regardless of which gate closed the door.
         throw APIError.from('BAD_REQUEST', {
           message: 'Email and password sign up is not enabled',
@@ -755,9 +982,12 @@ export function authFromEnv(
         })
       }),
       after: createAuthMiddleware(async (ctx) => {
-        // Open signup never creates the claim table. Closed signup releases its claim on both
-        // success and failure so erasing the sole identity can reopen setup in the same process.
-        if (!allowOpenSignup && (ctx.path === '/sign-up/email' || externalIdentityPath(ctx.path))) {
+        // Email open signup does not acquire a claim. External first-owner and closed email setup
+        // release any claim on both success and failure so a failed attempt cannot strand setup.
+        if (
+          externalIdentityPath(ctx.path) ||
+          (!allowOpenSignup && ctx.path === '/sign-up/email')
+        ) {
           const claimToken = (ctx as { bootstrapClaimToken?: unknown }).bootstrapClaimToken
           if (typeof claimToken === 'string') {
             db.prepare(`DELETE FROM capacitylens_bootstrap_claim WHERE id = 1 AND claimToken = ?`).run(claimToken)
@@ -778,7 +1008,7 @@ export function authFromEnv(
     // out of document.cookie (no JS read).
     advanced: {
       useSecureCookies: false,
-      cookiePrefix: publicUrl.protocol === 'https:' ? '__Host-capacitylens' : 'capacitylens',
+      cookiePrefix,
       defaultCookieAttributes: {
         sameSite: 'lax',
         httpOnly: true,
@@ -788,7 +1018,11 @@ export function authFromEnv(
     // Fixed 12-hour absolute lifetime: refresh is disabled, so activity can never extend a stolen
     // session indefinitely. The wrapper below separately enforces a 30-minute inactivity timeout
     // without moving expiresAt. `freshAge` supplies a 15-minute step-up window for sensitive actions.
-    session: { expiresIn: SESSION_ABSOLUTE_TTL_SECONDS, disableSessionRefresh: true, freshAge: 15 * 60 },
+    session: {
+      expiresIn: SESSION_ABSOLUTE_TTL_SECONDS,
+      disableSessionRefresh: true,
+      freshAge: SESSION_FRESH_AGE_SECONDS,
+    },
     telemetry: { enabled: false },
   })
   // betterAuth construction validates its resolved options but does not own this app-specific
@@ -812,7 +1046,7 @@ export function authFromEnv(
       requestPasswordReset: Auth['api']['requestPasswordReset']
     }
     options: BetterAuthOptions
-    // Better Auth's async init context (verified against better-auth 1.6.20,
+    // Better Auth's async init context (reverified against better-auth 1.6.23,
     // dist/auth/base.mjs:37 `$context: authContext` and dist/db/internal-adapter.mjs:78-91,148-161,
     // 499-505 for the createUser/deleteUser/linkAccount shapes, dist/context/create-context.mjs:
     // 175-183 for `password.hash`). Read ONLY through {@link Auth.createCredentialUser} — see its
@@ -835,37 +1069,40 @@ export function authFromEnv(
     }>
   }
 
-  // Better Auth's disabled refresh preserves the absolute expiry, but by itself does not provide
-  // an inactivity timeout. Treat its session.updatedAt as last activity: stale or malformed state
-  // is deleted before either an application route OR a Better Auth route can consume it. Active
-  // sessions are touched at most once per minute and expiresAt is deliberately never changed.
-  const activeSession = async (headers: Headers) => {
-    const session = await raw.api.getSession({ headers })
-    if (!session) return null
-    const lastActivity = new Date(session.session.updatedAt).getTime()
-    const now = Date.now()
-    const elapsed = now - lastActivity
-    if (!Number.isFinite(lastActivity) || elapsed > SESSION_INACTIVITY_TTL_SECONDS * 1000) {
-      const ctx = await raw.$context
-      await ctx.internalAdapter.deleteSession(session.session.token)
-      return null
-    }
-    if (elapsed >= SESSION_ACTIVITY_WRITE_INTERVAL_SECONDS * 1000) {
-      const ctx = await raw.$context
-      await ctx.internalAdapter.updateSession(session.session.token, { updatedAt: new Date(now) })
-    }
-    return session
-  }
+  // raw.api.getSession runs through the same hooks.before pipeline as HTTP routes, so the session is
+  // already idle-checked and touched once before it reaches this provider-neutral adapter.
+  const activeSession = (headers: Headers) => raw.api.getSession({ headers })
 
   const auth: Auth = {
     // Enforce inactivity even when a caller goes directly to an authenticated Better Auth route
     // such as change-password rather than first touching an application data route.
     handler: async (request) => {
-      await activeSession(request.headers)
+      if (strictOidcClient && strictOidcAuthorizationProxyPath) {
+        const requestUrl = new URL(request.url)
+        if (request.method === 'GET' && requestUrl.pathname === strictOidcAuthorizationProxyPath) {
+          const metadata = await strictOidcClient.metadata()
+          const target = new URL(metadata.authorization_endpoint)
+          for (const [key, value] of requestUrl.searchParams) target.searchParams.append(key, value)
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: target.toString(),
+              'cache-control': 'no-store',
+              pragma: 'no-cache',
+            },
+          })
+        }
+      }
       return raw.handler(request)
     },
     options: raw.options,
     providers: configuredProviderInfo,
+    federatedIssuers: configuredFederatedIssuers,
+    ensureProviderBindings: () => {
+      for (const [providerId, issuer] of configuredFederatedIssuers) {
+        bindFederatedProvider(db, application.applicationId, issuer, providerId)
+      }
+    },
     api: {
       async getSession(input) {
         const session = await activeSession(input.headers)
@@ -874,6 +1111,16 @@ export function authFromEnv(
           user: {
             ...normalizeSessionUser(session.user),
             sessionCreatedAt: new Date(session.session.createdAt).toISOString(),
+          },
+          session: {
+            // Better Auth exposes the bearer token rather than its database row id here. Hash it
+            // before it crosses our identity boundary; callers receive a stable opaque handle,
+            // never a credential that could authenticate a request.
+            id: applicationSessionHandle(application.applicationId, session.session.token),
+            createdAt: new Date(session.session.createdAt).toISOString(),
+            expiresAt: new Date(
+              new Date(session.session.createdAt).getTime() + SESSION_ABSOLUTE_TTL_SECONDS * 1000,
+            ).toISOString(),
           },
         }
       },
@@ -885,6 +1132,7 @@ export function authFromEnv(
     deleteCredentialUser: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUser(userId)),
     revokeUserSessions: (userId) => raw.$context.then((ctx) => ctx.internalAdapter.deleteUserSessions(userId)),
   }
+  if (!opts.deferDatabaseSetup) auth.ensureProviderBindings()
   return { mode, auth }
 }
 
@@ -1033,7 +1281,7 @@ export async function createBootstrapAdmin(
 ): Promise<'created' | 'skipped'> {
   if (mode !== 'password' || !auth) {
     throw new AuthConfigError(
-      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when CAPACITYLENS_AUTH is '${mode}'. Set CAPACITYLENS_AUTH=password, or drop the flag.`,
+      `--create-owner-admin-admin (CAPACITYLENS_CREATE_ADMIN_ADMIN=1) creates an email+password credential, which is meaningless when SMALLSASS_ACCOUNT_MODE is '${mode}'. Set SMALLSASS_ACCOUNT_MODE=password, or drop the flag.`,
     )
   }
   if (countUsers(db) > 0) {

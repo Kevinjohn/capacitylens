@@ -1,5 +1,5 @@
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
-import { capacityForWindow, dayCapacity, utilization as utilizationOf } from '../../lib/capacity'
+import { capacityAllocationsForMode, capacityForWindow, dayCapacity, utilization as utilizationOf } from '../../lib/capacity'
 import { resolveBarColor } from '@capacitylens/shared/lib/color'
 import { timeOffTypeLabels, resourceDisplayName } from '../../lib/metadata'
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
@@ -208,6 +208,12 @@ export function buildSchedulerModel(
     return true
   }
 
+  const timelineStart = days[0]
+  const timelineEnd = days[days.length - 1]
+  const intersectsTimeline = (row: { startDate: ISODate; endDate: ISODate }) =>
+    timelineStart !== undefined && timelineEnd !== undefined &&
+    row.endDate >= timelineStart && row.startDate <= timelineEnd
+
   // Disciplines on → group by discipline (ungrouped bucket, then the external band, last). Off →
   // one flat group of every NON-external resource, with the external band STILL trailing (the band
   // is required regardless of disciplines on/off). SchedulerGrid renders the flat group without a
@@ -248,11 +254,6 @@ export function buildSchedulerModel(
         // HIDDEN tentative one is correctly treated as unmatched — not rendered as a
         // full-opacity, zero-bar "ghost" row that escapes the show-unmatched filter.
         const dimmed = workFilterActive && !allAllocs.some(allocVisible)
-        const timelineStart = days[0]
-        const timelineEnd = days[days.length - 1]
-        const intersectsTimeline = (row: { startDate: ISODate; endDate: ISODate }) =>
-          timelineStart !== undefined && timelineEnd !== undefined &&
-          row.endDate >= timelineStart && row.startDate <= timelineEnd
         const visibleAllocs = (dimmed ? allAllocs.filter(notTentativeHidden) : allAllocs.filter(allocVisible))
           .filter(intersectsTimeline)
         const { lanes, laneCount } = packLanes(visibleAllocs)
@@ -275,9 +276,7 @@ export function buildSchedulerModel(
         })
         // Capacity reflects ALL the resource's allocations (truthful load), not the filtered view.
         // External rows carry none — flat, unmarked day cells and no time-off blocks.
-        const capacityAllocs = blocksMode
-          ? allAllocs.map((allocation) => ({ ...allocation, hoursPerDay: 0 }))
-          : allAllocs
+        const capacityAllocs = capacityAllocationsForMode(allAllocs, blocksMode)
         const dayStates: DayState[] = isExternal
           ? days.map(() => ({ over: false, unavailable: false }))
           : days.map((d) => {

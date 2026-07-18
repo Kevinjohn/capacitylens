@@ -94,11 +94,26 @@ This is the short, present-tense record of decisions that constrain future work.
   and inviting a member never creates a schedulable person.
 - Team & access is a first-class destination visible to every role so members can understand their
   own access; only Owner/Admin receive directory, invitation and access-management controls.
-- Email/password is stable. Social and generic OIDC providers are experimental and clearly marked.
-- Provider support is additive in password mode; `CAPACITYLENS_AUTH=sso` is the SSO-only posture.
+- The account layer is an embedded repository-local boundary: neutral contracts, `IdentityPort`,
+  `AccountAdminPort` and an orchestration-only `AccountFlows` coordinator. It permanently shares the
+  product process, SQLite file and checksummed product migration ledger unless a separately approved
+  future trigger changes topology.
+- Each installation owns its local principals, sessions and memberships. Siblings share
+  implementation/conformance, never account records. Federated correlation is exact
+  `(issuer, subject)`, never email; local deprovisioning cannot delete an upstream IdP identity.
+- Email/password is stable for self-hosting. Strict OIDC is first-class; named Google, Microsoft and
+  GitHub providers remain experimental. Arbitrary generic OAuth is unsupported.
+- Named profiles are `self-hosted-password`, `self-hosted-mixed`, `self-hosted-sso-only` and
+  `hosted-oidc-only`. Hosted is SSO-only and refuses password configuration. A future product
+  grouping layer may integrate only as an external OIDC provider, never through account internals.
+- IdP disablement stops new authentication but not an already-issued local session. Hosted accepts
+  the bounded lag of thirty minutes inactivity or twelve hours absolute; back-channel logout or an
+  equivalent must be reconsidered before hosted GA.
 - Email self-registration is closed by default. External identities require a verified email and
   a live invitation; initial SSO ownership requires an operator email allow-list.
-- Secure-cookie behavior follows the public `BETTER_AUTH_URL`, including behind a TLS proxy.
+- Secure-cookie behavior follows the public `SMALLSASS_ACCOUNT_PUBLIC_URL`, including behind a TLS
+  proxy. Legacy product/vendor-prefixed account variables remain warning aliases for at least two
+  minor releases and 90 days; conflicting aliases refuse startup.
 - Password mode defaults to breached-password screening; required TOTP MFA is an operator opt-in.
   Sessions have a fixed twelve-hour lifetime; privileged actions require a session no older than
   fifteen minutes regardless of MFA policy. The client answers the freshness refusal with an

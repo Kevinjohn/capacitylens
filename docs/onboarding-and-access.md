@@ -121,8 +121,8 @@ Additional rules:
 
 | Layer | Responsibility | Current implementation |
 | --- | --- | --- |
-| Session | Establish a verified identity | Better Auth through `AuthProvider`; password stable, SSO experimental |
-| Membership | Bind identity to company and role | Server-only `account_members`; `listAccounts` and `resolveRole` |
+| Session | Establish a verified identity | Neutral `IdentityPort` through `AuthProvider`; password and strict OIDC are first-class, named social providers experimental |
+| Membership | Bind identity to company and role | Server-only `account_members` through the neutral `AccountAdminPort`; product authorization consumes its active-role lookup |
 | Action policy | Decide whether the role may read/write/administer | Pure shared `can(role, action)` matrix used by server and client |
 | Tenant boundary | Prevent cross-company reads/writes | Server resolves membership before scoped reads and writes; every scoped entity also carries `accountId` |
 | Field visibility | Remove confidential columns/identities | Server redacts time-off notes below Admin and private real names below Owner |

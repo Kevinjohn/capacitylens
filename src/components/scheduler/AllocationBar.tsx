@@ -7,7 +7,7 @@ import { useCanEdit } from '../../auth/permissionContext'
 import { useDragResize } from '../../hooks/useDragResize'
 import { applyGesture, type DragMode } from '../../lib/gestureMath'
 import { ensureBarColors } from '@capacitylens/shared/lib/color'
-import { capacityAdvisory, dayCapacity } from '../../lib/capacity'
+import { capacityAdvisory, capacityAllocationsForMode, dayCapacity } from '../../lib/capacity'
 import { eachDayISO, parseDate } from '@capacitylens/shared/lib/dateMath'
 import { schedulingModeFor, visibleRange } from '../../store/selectors'
 import { allocationStatusLabels, resourceDisplayName } from '../../lib/metadata'
@@ -70,9 +70,10 @@ function capacityAnnouncement(resourceId: ID): string {
   if (!resource || !isCapacityTracked(resource)) return ''
   const name = resourceDisplayName(resource)
   const blocksMode = schedulingModeFor(data, useStore.getState().activeAccountId) === 'blocks'
-  const allocs = data.allocations
-    .filter((a) => a.resourceId === resourceId)
-    .map((allocation) => blocksMode ? { ...allocation, hoursPerDay: 0 } : allocation)
+  const allocs = capacityAllocationsForMode(
+    data.allocations.filter((a) => a.resourceId === resourceId),
+    blocksMode,
+  )
   if (allocs.length === 0) return m.scheduler_sr_announce_clear({ name })
   // The over-marker spans every day the resource has work; bound the scan to that union extent…
   const timeOff = data.timeOff.filter((t) => t.resourceId === resourceId)
@@ -322,9 +323,10 @@ export const AllocationBar = memo(function AllocationBar({
         let advisory = ''
         // External parties have no capacity — skip the over-capacity / time-off advisory for them.
         if (resource && isCapacityTracked(resource)) {
-          const others = data.allocations
-            .filter((a) => a.resourceId === effResourceId && a.id !== bar.allocation.id)
-            .map((allocation) => isBlocks ? { ...allocation, hoursPerDay: 0 } : allocation)
+          const others = capacityAllocationsForMode(
+            data.allocations.filter((a) => a.resourceId === effResourceId && a.id !== bar.allocation.id),
+            isBlocks,
+          )
           const overTimeOff = data.timeOff.filter((t) => t.resourceId === effResourceId)
           const { overDays, timeOffDays } = capacityAdvisory(resource, others, overTimeOff, dates.startDate, dates.endDate, isBlocks ? 0 : reconciledHours, bar.allocation.ignoreWeekends)
           const bits: string[] = []

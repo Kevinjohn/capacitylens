@@ -12,6 +12,8 @@ const API_PORT = 8787
 const DB_WEB_PORT = 5273
 const AUTH_API_PORT = 8887
 const AUTH_WEB_PORT = 5373
+const OIDC_API_PORT = 8897
+const OIDC_WEB_PORT = 5473
 
 // Cross-browser opt-in (WebKit/Safari + Firefox/Gecko). `e2e:webkit` / `e2e:firefox` set the
 // matching *_ONLY flag: each runs ONLY that browser's twin of the core in-memory demo specs against
@@ -31,6 +33,7 @@ const firefoxEnabled = firefoxOnly || !!process.env.CAPACITYLENS_FIREFOX
 // aren't needed and the webServer list trims to Vite alone: set directly by CAPACITYLENS_VITE_ONLY (the
 // cross-engine `e2e:browsers` core run) and implied by either single-engine *_ONLY flag.
 const viteOnly = !!process.env.CAPACITYLENS_VITE_ONLY || webkitOnly || firefoxOnly
+const oidcOnly = !!process.env.CAPACITYLENS_OIDC_E2E
 
 // The base app under Vite on :5173 — the only server the core (and WebKit/Firefox) specs need.
 // Runs the in-memory DEMO build so the core specs stay backend-free now that server is the
@@ -62,7 +65,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium',
-      testIgnore: /\.(db|auth)\.spec\.ts$/,
+      testIgnore: /\.(db|auth|oidc)\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'], baseURL: 'http://localhost:5173' },
     },
     {
@@ -75,6 +78,13 @@ export default defineConfig({
       testMatch: /\.auth\.spec\.ts$/,
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${AUTH_WEB_PORT}` },
     },
+    ...(oidcOnly
+      ? [{
+          name: 'oidc-backed',
+          testMatch: /\.oidc\.spec\.ts$/,
+          use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${OIDC_WEB_PORT}` },
+        }]
+      : []),
     // Safari/WebKit & Firefox twins of the core in-memory demo specs (owner; WebKit 2026-06-13,
     // Firefox 2026-06-16): the exact same specs as `chromium` (testIgnore matches), run on the
     // other engines to catch Safari-/Gecko-only rendering and interaction regressions. Kept OUT of
@@ -86,7 +96,7 @@ export default defineConfig({
       ? [
           {
             name: 'webkit',
-            testIgnore: /\.(db|auth)\.spec\.ts$/,
+            testIgnore: /\.(db|auth|oidc)\.spec\.ts$/,
             use: { ...devices['Desktop Safari'], baseURL: 'http://localhost:5173' },
           },
         ]
@@ -95,7 +105,7 @@ export default defineConfig({
       ? [
           {
             name: 'firefox',
-            testIgnore: /\.(db|auth)\.spec\.ts$/,
+            testIgnore: /\.(db|auth|oidc)\.spec\.ts$/,
             // No `dependencies` here on purpose: `e2e:all` sequences Firefox AFTER the WebKit matrix
             // at the SCRIPT level (scripts/e2e-all.mjs runs two invocations) so Firefox runs
             // unconditionally — a project dependency on `webkit` would SKIP Firefox whenever the
@@ -125,6 +135,23 @@ export default defineConfig({
   // servers the db/auth specs depend on).
   webServer: process.env.CAPACITYLENS_REHEARSAL_URL
     ? []
+    : oidcOnly
+      ? [
+          {
+            command: 'pnpm run start:oidc-e2e',
+            cwd: './server',
+            url: `http://localhost:${OIDC_API_PORT}/api/health`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+          },
+          {
+            command: 'pnpm run dev:oidc',
+            url: `http://localhost:${OIDC_WEB_PORT}`,
+            reuseExistingServer: false,
+            timeout: 120_000,
+            env: { CAPACITYLENS_DEV_API_PORT: String(OIDC_API_PORT) },
+          },
+        ]
     : viteOnly
       ? [devWebServer]
       : [

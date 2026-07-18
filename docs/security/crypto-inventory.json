@@ -18,8 +18,28 @@
       "purpose": "Unkeyed SHA-256 database-state digests for temporary anonymised migration rollback rehearsals"
     },
     {
+      "path": "server/scripts/reconcile-account-command.ts",
+      "purpose": "Unkeyed SHA-256 digest of a non-secret operator reconciliation reference so free-form incident metadata is not retained in the command ledger"
+    },
+    {
       "path": "server/src/app.ts",
-      "purpose": "CSPRNG bearer values, constant-time bootstrap comparison and HTTPS server options"
+      "purpose": "CSPRNG bearer values, constant-time bootstrap comparison, deterministic SHA-256 workspace identifiers and HTTPS server options"
+    },
+    {
+      "path": "server/src/accounts/betterAuthIdentityPort.ts",
+      "purpose": "SHA-256 reset/fallback handles, a per-process 256-bit compensation key and constant-time compensation-handle verification"
+    },
+    {
+      "path": "server/src/accounts/commands.ts",
+      "purpose": "Domain-separated unkeyed SHA-256 digests for canonical idempotency payload comparison without retaining bearer/password inputs"
+    },
+    {
+      "path": "server/src/accounts/sqliteAccountAdminPort.ts",
+      "purpose": "256-bit CSPRNG invitation bearers and domain-separated SHA-256 bearer indexing for account commands"
+    },
+    {
+      "path": "server/src/accounts/sessionHandle.ts",
+      "purpose": "Domain-separated SHA-256 application-local handles that prevent session bearer tokens crossing the account boundary"
     },
     {
       "path": "server/src/auth.ts",
@@ -50,12 +70,20 @@
       "purpose": "Production warning when internal TLS is absent and posture handling for configured identities"
     },
     {
+      "path": "server/src/strictOidc.ts",
+      "purpose": "JOSE verification of asymmetric signed OIDC ID tokens with issuer, audience, timestamp and remotely rotated JWKS enforcement"
+    },
+    {
       "path": "shared/src/lib/id.ts",
       "purpose": "Secure-context UUID generation"
     },
     {
       "path": "src/data/offlineCache.ts",
       "purpose": "Non-extractable AES-256-GCM offline snapshot encryption with random IV and AAD"
+    },
+    {
+      "path": "src/account/accountClient.ts",
+      "purpose": "Secure-context UUID generation plus SHA-256 semantic payload fingerprints for non-secret account-command correlation and safe unknown-outcome reconciliation"
     }
   ]
 }

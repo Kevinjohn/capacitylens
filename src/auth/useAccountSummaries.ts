@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import { API_BASE, isServerConfigured } from '../data/apiConfig'
+import { isServerConfigured } from '../data/apiConfig'
 import { useStore } from '../store/useStore'
 import type { AccountSummary } from '../store/useStore'
-import type { Role } from '@capacitylens/shared/domain/access'
-import { requestSignal } from '../data/requestTimeout'
+import { isAccountRole } from '@capacitylens/shared/account/types'
+import { accountClient } from '../account/accountClient'
 import {
   cacheAccountSummaries,
   readCachedAccountSummaries,
@@ -25,11 +25,6 @@ import {
 // trusted via an `as` cast). It runs OUTSIDE the tenant gate (called at the top of AppShell, before
 // the tenant gate) so the picker has the list before a tenant is chosen.
 
-/** Narrowing guard for the UNTRUSTED `role` of a `/api/accounts` entry. */
-function isRole(v: unknown): v is Role {
-  return v === 'owner' || v === 'admin' || v === 'editor' || v === 'viewer'
-}
-
 /** Coerce one UNTRUSTED `/api/accounts` array entry to an {@link AccountSummary}, or null if it's
  *  off-spec (not an object, missing id/name). A null entry is DROPPED — a malformed row must never
  *  crash the picker or smuggle a bogus account in. A valid account with an unrecognized role stays
@@ -40,7 +35,7 @@ function toSummary(entry: unknown): AccountSummary | null {
   const e = entry as { id?: unknown; name?: unknown; role?: unknown }
   if (typeof e.id !== 'string' || e.id.length === 0) return null
   if (typeof e.name !== 'string') return null
-  if (!isRole(e.role)) {
+  if (!isAccountRole(e.role)) {
     console.warn('fetchAccountSummaries: /api/accounts returned an unrecognized role; marking it unavailable', entry)
     return { id: e.id, name: e.name, role: 'viewer', roleStatus: 'unavailable' }
   }
@@ -66,8 +61,13 @@ function toSummary(entry: unknown): AccountSummary | null {
 export async function fetchAccountSummaries(init?: {
   signal?: AbortSignal
   acceptEffects?: () => boolean
+  /** Mutation reconciliation and access transitions need a live server answer, not an offline
+   * snapshot that cannot prove whether the operation committed. Ordinary picker reads may fall
+   * back to the encrypted, user-bound read-only cache. */
+  allowCachedFallback?: boolean
 }): Promise<AccountSummary[] | null> {
   const acceptEffects = init?.acceptEffects ?? (() => true)
+  const allowCachedFallback = init?.allowCachedFallback ?? true
   const cachedFallback = async (): Promise<AccountSummary[] | null> => {
     const cached = await readCachedAccountSummaries()
     if (!cached) return null
@@ -86,8 +86,8 @@ export async function fetchAccountSummaries(init?: {
     }
   }
   try {
-    const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include', signal: requestSignal(init?.signal) })
-    if (!res.ok) return res.status >= 500 ? safeCachedFallback() : null
+    const res = await accountClient.listWorkspaces(init?.signal)
+    if (!res.ok) return res.status >= 500 && allowCachedFallback ? safeCachedFallback() : null
     const body: unknown = await res.json()
     // UNTRUSTED external input: validate each entry's shape; drop off-spec rows rather than trusting
     // an `as` cast. A 200 whose body is NOT an array (a proxy HTML page, a server bug) is MALFORMED,
@@ -126,7 +126,7 @@ export async function fetchAccountSummaries(init?: {
     const transportFailure = e instanceof TypeError ||
       (e instanceof DOMException && (e.name === 'AbortError' || e.name === 'TimeoutError'))
     if (!transportFailure) return null
-    return safeCachedFallback()
+    return allowCachedFallback ? safeCachedFallback() : null
   }
 }
 

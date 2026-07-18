@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { createHmac } from 'node:crypto'
 import type { FastifyInstance, InjectOptions, LightMyRequestResponse } from 'fastify'
 import { buildApp } from './app'
@@ -19,6 +19,8 @@ import {
 } from './auth'
 import type { Auth } from './auth'
 import { MIN_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
+import { finishAccountCommand, reserveAccountCommand } from './accounts/state'
+import { applicationSessionHandle } from './accounts/sessionHandle'
 
 // P3.1/P3.2/P3.5 (flag CAPACITYLENS_AUTH → opts.authMode/auth). The load-bearing assertion set:
 // OFF is byte-for-byte today (the whole existing app.test.ts suite already enforces that
@@ -73,8 +75,8 @@ const SSO_ENV = {
   CAPACITYLENS_AUTH: 'sso',
   CAPACITYLENS_SSO_CLIENT_ID: 'client-id',
   CAPACITYLENS_SSO_CLIENT_SECRET: 'client-secret',
-  CAPACITYLENS_SSO_AUTHORIZATION_URL: 'https://idp.test/authorize',
-  CAPACITYLENS_SSO_TOKEN_URL: 'https://idp.test/token',
+  CAPACITYLENS_SSO_DISCOVERY_URL: 'https://idp.test/.well-known/openid-configuration',
+  CAPACITYLENS_SSO_ISSUER: 'https://idp.test',
 }
 
 async function appWithAuth(env: Record<string, string>): Promise<FastifyInstance> {
@@ -109,6 +111,121 @@ describe('CAPACITYLENS_AUTH off (default)', () => {
       payload: { email: 'a@b.test', password: 'password-123456', name: 'X' },
     })
     expect(signUp.statusCode).toBe(404)
+  })
+
+  it('rejects malformed caller-supplied command headers instead of silently replacing them', async () => {
+    const app = buildApp(openDb(':memory:'))
+    const res = await call(app, {
+      method: 'POST',
+      url: '/api/orgs',
+      headers: {
+        'idempotency-key': 'short',
+        'x-account-command-id': 'also-short',
+      },
+      payload: { name: 'Studio' },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toMatchObject({ code: 'VALIDATION_FAILED' })
+  })
+
+  it('generates independent command and idempotency identities for compatibility callers', async () => {
+    const db = openDb(':memory:')
+    const app = buildApp(db)
+    const response = await call(app, {
+      method: 'POST',
+      url: '/api/orgs',
+      payload: { name: 'Studio' },
+    })
+    expect(response.statusCode).toBe(201)
+    const recorded = db.prepare(
+      `SELECT commandId, idempotencyKey FROM account_commands WHERE operation LIKE 'workspace-provisioning:%'`,
+    ).get() as { commandId: string; idempotencyKey: string }
+    expect(recorded.commandId).not.toBe(recorded.idempotencyKey)
+  })
+
+  it('exposes command status only when both reconciliation bearers and operation match', async () => {
+    const db = openDb(':memory:')
+    const commandId = 'command-000000000001'
+    const idempotencyKey = 'idempotency-0000001'
+    reserveAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'workspace-provisioning:actor:demo-user',
+      idempotencyKey,
+      commandId,
+      actorPrincipalId: 'demo-user',
+      workspaceId: 'workspace-1',
+      payloadHash: 'a'.repeat(64),
+    })
+    finishAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'workspace-provisioning:actor:demo-user',
+      idempotencyKey,
+      status: 'completed',
+      resultJson: '{}',
+    })
+    const app = buildApp(db)
+
+    const found = await call(app, {
+      method: 'POST',
+      url: '/api/account-commands/reconcile',
+      payload: { commandId, operation: 'workspace-provisioning', idempotencyKey },
+    })
+    expect(found.statusCode).toBe(200)
+    expect(found.json()).toMatchObject({ status: 'completed', receipt: { commandId } })
+    expect((await call(app, {
+      method: 'POST',
+      url: '/api/account-commands/reconcile',
+      payload: { commandId, operation: 'workspace-provisioning', idempotencyKey: 'wrong-idempotency-1' },
+    })).statusCode).toBe(404)
+  })
+
+  it('redacts operator repair coordinates from the public command-status ceremony', async () => {
+    const db = openDb(':memory:')
+    const commandId = 'command-000000000002'
+    const idempotencyKey = 'idempotency-0000002'
+    reserveAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'password-reset:actor:principal-actor',
+      idempotencyKey,
+      commandId,
+      actorPrincipalId: 'principal-actor',
+      targetPrincipalId: 'principal-target',
+      workspaceId: 'workspace-secret',
+      payloadHash: 'b'.repeat(64),
+    })
+    finishAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'password-reset:actor:principal-actor',
+      idempotencyKey,
+      status: 'reconciliation_required',
+      failureCode: 'DEPENDENCY_UNAVAILABLE',
+      resultJson: JSON.stringify({
+        kind: 'password-reset-revocation-failed',
+        workspaceId: 'workspace-secret',
+        targetPrincipalId: 'principal-target',
+        provisionalPrincipalId: 'principal-provisional',
+        ceremonyId: 'ceremony-secret',
+      }),
+    })
+    const app = buildApp(db)
+
+    const response = await call(app, {
+      method: 'POST',
+      url: '/api/account-commands/reconcile',
+      payload: { commandId, operation: 'password-reset', idempotencyKey },
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.json()).toMatchObject({
+      status: 'reconciliation-required',
+      repair: {
+        kind: 'password-reset-revocation-failed',
+        workspaceId: null,
+        targetPrincipalId: null,
+        provisionalPrincipalId: null,
+        ceremonyId: null,
+      },
+    })
+    expect(response.body).not.toMatch(/workspace-secret|principal-target|principal-provisional|ceremony-secret/)
   })
 })
 
@@ -354,26 +471,128 @@ describe('CAPACITYLENS_AUTH password', () => {
     expect(out.statusCode).toBe(200)
     expect((await call(app, { method: 'GET', url: '/api/state', headers: { cookie } })).statusCode).toBe(401)
   })
+
+  it('lists and revokes sessions through neutral opaque handles without exposing bearer tokens', async () => {
+    const db = openDb(':memory:')
+    const configured = authFromEnv(db, PASSWORD_ENV)
+    await runAuthMigrations(configured.auth!)
+    const app = buildApp(db, { authMode: configured.mode, auth: configured.auth })
+    const signUp = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'sessions@capacitylens.dev', password: 'password-123456', name: 'Sessions' },
+    })
+    const cookie = cookiesOf(signUp)
+    const raw = db.prepare(`SELECT token, userId FROM session`).get() as { token: string; userId: string }
+    const staleToken = 'stale-session-bearer-token'
+    const staleHandle = applicationSessionHandle('capacitylens', staleToken)
+    db.prepare(`
+      INSERT INTO session (id, expiresAt, token, createdAt, updatedAt, ipAddress, userAgent, userId)
+      VALUES (?, ?, ?, ?, ?, NULL, NULL, ?)
+    `).run(
+      'stale-session-row',
+      '2026-01-01T12:00:00.000Z',
+      staleToken,
+      '2026-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+      raw.userId,
+    )
+    db.prepare(`
+      INSERT INTO account_session_assurance (sessionId, principalId, assurance, providerId, createdAt)
+      VALUES (?, ?, 'password', NULL, ?)
+    `).run(staleHandle, raw.userId, '2026-01-01T00:00:00.000Z')
+
+    const listed = await call(app, { method: 'GET', url: '/api/account/sessions', headers: { cookie } })
+    expect(listed.statusCode).toBe(200)
+    const sessions = listed.json() as Array<{ id: string; current: boolean }>
+    expect(sessions).toHaveLength(1)
+    expect(sessions[0]).toMatchObject({ current: true })
+    expect(JSON.stringify(sessions)).not.toContain(raw.token)
+    expect(db.prepare(`SELECT 1 FROM session WHERE id = 'stale-session-row'`).get()).toBeUndefined()
+    expect(db.prepare(`SELECT 1 FROM account_session_assurance WHERE sessionId = ?`).get(staleHandle))
+      .toBeUndefined()
+
+    const revoked = await call(app, {
+      method: 'DELETE',
+      url: `/api/account/sessions/${sessions[0]!.id}`,
+      headers: {
+        cookie,
+        'idempotency-key': 'session-idempotency-0001',
+        'x-account-command-id': 'session-command-0000001',
+      },
+    })
+    expect(revoked.statusCode).toBe(200)
+    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(401)
+  })
+
+  it('propagates sign-out cookie clearing through the neutral account route', async () => {
+    const app = await appWithAuth(PASSWORD_ENV)
+    const signUp = await call(app, {
+      method: 'POST',
+      url: '/api/auth/sign-up/email',
+      payload: { email: 'neutral-out@capacitylens.dev', password: 'password-123456', name: 'Out' },
+    })
+    const cookie = cookiesOf(signUp)
+    const out = await call(app, { method: 'POST', url: '/api/account/sign-out', headers: { cookie } })
+    expect(out.statusCode).toBe(200)
+    expect(String(out.headers['set-cookie'])).toMatch(/Max-Age=0|Expires=/i)
+    expect((await call(app, { method: 'GET', url: '/api/auth/me', headers: { cookie } })).statusCode).toBe(401)
+  })
 })
 
 describe('CAPACITYLENS_AUTH sso', () => {
-  it('issues a redirect to the configured provider', async () => {
-    const app = await appWithAuth(SSO_ENV)
-    const res = await call(app, {
-      method: 'POST',
-      url: '/api/auth/sign-in/oauth2',
-      payload: { providerId: 'sso', callbackURL: '/' },
+  it('discovers strict OIDC and issues a stateful PKCE redirect', async () => {
+    const originalFetch = globalThis.fetch
+    vi.stubGlobal('fetch', async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input)
+      if (url === SSO_ENV.CAPACITYLENS_SSO_DISCOVERY_URL) {
+        return new Response(JSON.stringify({
+          issuer: 'https://idp.test',
+          authorization_endpoint: 'https://idp.test/authorize',
+          token_endpoint: 'https://idp.test/token',
+          userinfo_endpoint: 'https://idp.test/userinfo',
+          jwks_uri: 'https://idp.test/jwks',
+          response_types_supported: ['code'],
+          subject_types_supported: ['public'],
+          id_token_signing_alg_values_supported: ['RS256'],
+          code_challenge_methods_supported: ['S256'],
+        }), { headers: { 'content-type': 'application/json' } })
+      }
+      return originalFetch(input, init)
     })
-    expect(res.statusCode).toBe(200)
-    const body = res.json() as { url: string; redirect: boolean }
-    expect(body.redirect).toBe(true)
-    expect(body.url.startsWith('https://idp.test/authorize')).toBe(true)
+    try {
+      const app = await appWithAuth(SSO_ENV)
+      const res = await call(app, {
+        method: 'POST',
+        url: '/api/auth/sign-in/oauth2',
+        payload: { providerId: 'sso', callbackURL: '/' },
+      })
+      expect(res.statusCode).toBe(200)
+      const body = res.json() as { url: string; redirect: boolean }
+      const proxy = new URL(body.url)
+      expect(body.redirect).toBe(true)
+      expect(proxy.origin + proxy.pathname).toBe('http://localhost:8787/api/auth/oidc/authorize/sso')
+      const resolved = await call(app, {
+        method: 'GET',
+        url: proxy.pathname + proxy.search,
+      })
+      expect(resolved.statusCode).toBe(302)
+      const redirect = new URL(String(resolved.headers.location))
+      expect(redirect.origin + redirect.pathname).toBe('https://idp.test/authorize')
+      expect(redirect.searchParams.get('response_type')).toBe('code')
+      expect(redirect.searchParams.get('scope')?.split(' ')).toEqual(expect.arrayContaining(['openid']))
+      expect(redirect.searchParams.get('state')).toBeTruthy()
+      expect(redirect.searchParams.get('code_challenge')).toBeTruthy()
+      expect(redirect.searchParams.get('code_challenge_method')).toBe('S256')
+    } finally {
+      vi.stubGlobal('fetch', originalFetch)
+    }
   })
 })
 
 // P1.7 — native social providers wired from env. Assert against the resolved betterAuth
 // options (auth.options is the exact object we passed; see better-auth createBetterAuth),
-// which is the robust introspection point in this version (1.6.20).
+// which is the robust introspection point in this version (1.6.23).
 describe('social providers (P1.7)', () => {
   const SOCIAL_ENV = {
     ...PASSWORD_ENV,
@@ -499,8 +718,12 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     expect(cookiesOf(res)).toContain('capacitylens.session_token')
   })
 
-  it('open signup validation failures do not touch the absent bootstrap-claim table', async () => {
-    const app = await appWithAuth({ ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
+  it('open email signup validation failures leave the external bootstrap-claim table empty', async () => {
+    const env = { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' }
+    const db = openDb(':memory:')
+    const { mode, auth } = authFromEnv(db, env)
+    await runAuthMigrations(auth!)
+    const app = buildApp(db, { authMode: mode, auth })
     const invalid = await call(app, {
       method: 'POST',
       url: '/api/auth/sign-up/email',
@@ -508,10 +731,13 @@ describe('closed self-registration (P1.7) + first-run bootstrap', () => {
     })
     expect(invalid.statusCode).toBeGreaterThanOrEqual(400)
     expect(invalid.statusCode).toBeLessThan(500)
+    expect(
+      (db.prepare(`SELECT COUNT(*) AS n FROM capacitylens_bootstrap_claim`).get() as { n: number }).n,
+    ).toBe(0)
   })
 
   it('keeps the library flag OFF — the live hook owns the gate (disableSignUp stays false)', () => {
-    // Better Auth 1.6.20 enforces disableSignUp even for server-side auth.api.signUpEmail
+    // Better Auth 1.6.23 enforces disableSignUp even for server-side auth.api.signUpEmail
     // (sign-up.mjs:143), so the static flag must stay false in BOTH postures — the closed
     // behaviour above comes from hooks.before, never from this option.
     const open = authFromEnv(openDb(':memory:'), { ...CLOSED_ENV, CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1' })
@@ -648,6 +874,8 @@ describe('first-run owner bootstrap (createBootstrapAdmin)', () => {
       api: { getSession: async () => null, requestPasswordReset: async () => ({ status: true }) },
       options: {},
       providers: [],
+      federatedIssuers: new Map(),
+      ensureProviderBindings: () => {},
       revokeUserSessions: async () => {},
       createCredentialUser: (email, name, password) =>
         createCredentialUserWith(
@@ -746,7 +974,7 @@ describe('boot refusal (AuthConfigError)', () => {
     ).toThrow(/setup_token must be at least 32 bytes/i)
   })
 
-  it('sso mode without provider endpoints refuses', () => {
+  it('sso mode without OIDC discovery refuses', () => {
     const db = openDb(':memory:')
     expect(() =>
       authFromEnv(db, {
@@ -754,9 +982,20 @@ describe('boot refusal (AuthConfigError)', () => {
         CAPACITYLENS_AUTH: 'sso',
         CAPACITYLENS_SSO_CLIENT_ID: 'id',
         CAPACITYLENS_SSO_CLIENT_SECRET: 'secret',
-        // no discovery URL and no authorization+token pair
+        // no discovery URL
       }),
     ).toThrow(AuthConfigError)
+  })
+
+  it('rejects explicit authorization or token endpoint overrides for strict OIDC', () => {
+    expect(() => authFromEnv(openDb(':memory:'), {
+      ...SSO_ENV,
+      CAPACITYLENS_SSO_AUTHORIZATION_URL: 'https://idp.test/authorize',
+    })).toThrow(/endpoints must come from discovery/i)
+    expect(() => authFromEnv(openDb(':memory:'), {
+      ...SSO_ENV,
+      CAPACITYLENS_SSO_TOKEN_URL: 'https://idp.test/token',
+    })).toThrow(/endpoints must come from discovery/i)
   })
 
   it('rejects plaintext, credential-bearing, and non-HTTP identity-provider endpoints', () => {
@@ -777,8 +1016,7 @@ describe('boot refusal (AuthConfigError)', () => {
   it('permits plaintext provider endpoints only on explicit loopback development hosts', () => {
     expect(() => authFromEnv(openDb(':memory:'), {
       ...SSO_ENV,
-      CAPACITYLENS_SSO_AUTHORIZATION_URL: 'http://localhost:9999/authorize',
-      CAPACITYLENS_SSO_TOKEN_URL: 'http://127.0.0.1:9999/token',
+      CAPACITYLENS_SSO_DISCOVERY_URL: 'http://localhost:9999/.well-known/openid-configuration',
     })).not.toThrow()
   })
 

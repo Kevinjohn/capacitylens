@@ -12,6 +12,15 @@ new features and **patch** versions carry fixes.
 
 ### Added
 
+- Added a provider-neutral account contract with separate identity and account-administration ports,
+  an orchestration-only command coordinator, idempotent/reconcilable cross-port flows and architecture
+  checks that keep product routes away from raw account and identity storage.
+- Added first-class strict OIDC with exact issuer/discovery pinning, endpoint validation before
+  redirect or secret use, bounded no-redirect provider fetches, signed ID-token audience and
+  timestamp verification, asymmetric JWKS rotation, user-info subject binding, verified-email
+  admission and a real reference-IdP browser conformance flow.
+- Added named account deployment profiles, independent contract/conformance/security versions, a
+  sibling implementation register and a severity-based security-fix propagation checklist.
 - Added a first-class **Team & access** destination for every role, plain-language capability
   summaries, persistent sidebar role labels, safe invite previews with explicit acceptance, and an
   optional onboarding link.
@@ -31,6 +40,14 @@ new features and **patch** versions carry fixes.
 
 ### Changed
 
+- Moved every browser account request behind one account client and routed invitation signup,
+  member administration, password reset, session revocation, workspace provisioning and erasure
+  through the account boundary while preserving the public CapacityLens URLs.
+- Made `SMALLSASS_ACCOUNT_*` the canonical account configuration namespace. Existing
+  CapacityLens/Better Auth spellings remain warning aliases for at least two minor releases and 90
+  days; conflicting values now refuse startup.
+- Promoted strict OIDC out of experimental status. Named social providers remain experimental;
+  hosted deployments enforce OIDC-only and reject password/open-signup configuration.
 - Moved member and invitation management out of Settings and made app members versus scheduled
   Resources explicit throughout the access flow.
 - Moved the required-field legend in data-entry modals to the bottom of each form, above the
@@ -44,6 +61,14 @@ new features and **patch** versions carry fixes.
 
 ### Security
 
+- Enforced durable federated linking by `(issuer, subject)` rather than email, removed invitation
+  storage access from the auth-vendor hook, and ensured local erasure never deletes an upstream IdP
+  identity.
+- Made password invitation signup all-or-compensated, persisted double failures for reconciliation,
+  coupled reset/revocation authority to execution revisions, and kept bearer values out of command
+  and audit records.
+- Documented the hosted IdP-offboarding limit: disabling an upstream identity blocks new sign-ins
+  but existing local sessions can remain for up to twelve hours absolute or thirty minutes idle.
 - Enforced exactly one active Owner per member-bearing company with deterministic legacy repair, a
   definition-checked partial unique index and a boot-time zero/co-owner assertion. Owner invitations
   and ordinary Owner role assignment/removal are rejected; ownership changes only through the

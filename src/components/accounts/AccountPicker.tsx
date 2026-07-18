@@ -1,14 +1,13 @@
 import { useId, useState } from 'react'
-import { API_BASE, isServerConfigured } from '../../data/apiConfig'
-import { apiFetch, API_BULK_TIMEOUT_MS } from '../../data/requestTimeout'
-import { apiFetchReauth } from '../../auth/apiFetchReauth'
+import { isServerConfigured } from '../../data/apiConfig'
+import { accountClient, accountCommandOutcomeUnknown } from '../../account/accountClient'
 import { useStore } from '../../store/useStore'
 import { useAuth } from '../../auth/authContext'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { can } from '@capacitylens/shared/domain/access'
 import { Badge } from '../ui/badge'
-import { roleLabel } from '../../lib/accessCopy'
+import { accessLabelFor } from '../../lib/accessCopy'
 import { accessExperienceFor } from '../../lib/accessMode'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
@@ -21,6 +20,7 @@ import { DEFAULT_COLORS } from '../../lib/palette'
 import type { AccountSummary } from '../../store/useStore'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
+import { useOfflineState } from '../../data/useOfflineState'
 
 // Onboarding capture (P1.14): the create-company form sets language, week-start and time zone —
 // the three fields the server FREEZES after creation (a later change → 409). They're captured here,
@@ -80,6 +80,7 @@ export function AccountPicker() {
   // the moments the boot-time snapshot goes stale (see the call sites below).
   const { authMode, canCreateAccount, refreshAuth } = useAuth()
   const accessExperience = accessExperienceFor(authMode)
+  const offline = useOfflineState()
 
   const [creating, setCreating] = useState(false)
   // True while the server-mode create POST is in flight — guards the double-submit a slow /api/orgs
@@ -116,20 +117,30 @@ export function AccountPicker() {
   const createOrgOnServer = async (trimmed: string) => {
     setSubmitting(true)
     try {
-      const res = await apiFetch(`${API_BASE}/api/orgs`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: trimmed,
-          color: DEFAULT_COLORS.account,
-          weekStartsOn,
-          timezone,
-          language: DEFAULT_LANGUAGE,
-          internalColourMode: 'grey',
-        }),
+      const res = await accountClient.createWorkspace({
+        name: trimmed,
+        color: DEFAULT_COLORS.account,
+        weekStartsOn,
+        timezone,
+        language: DEFAULT_LANGUAGE,
+        internalColourMode: 'grey',
       })
       if (!res.ok) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          // A response can fail after the command commits (proxy timeout, worker restart, or a
+          // still-running ledger entry). Close the form and reconcile before allowing a retry.
+          const list = await fetchAccountSummaries({ allowCachedFallback: false })
+          if (list !== null) setAccountSummaries(list)
+          await refreshAuth()
+          resetForm()
+          setNotice(
+            list !== null
+              ? 'The create request had an unknown outcome. The company list was refreshed; check it before trying again.'
+              : 'The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again.',
+            'warning',
+          )
+          return
+        }
         // The server's message (single-company cap / org-create gate) is the useful one; the
         // status-stamped fallback covers an unreadable body.
         fail(null, (await readApiError(res)) ?? m.picker_err_create({ status: res.status }))
@@ -172,12 +183,14 @@ export function AccountPicker() {
     } catch (e) {
       // Once dispatched, a transport rejection cannot tell us whether the atomic create committed.
       // Reconcile first and close the form so an immediate retry cannot mint a duplicate company.
-      const list = await fetchAccountSummaries()
+      const list = await fetchAccountSummaries({ allowCachedFallback: false })
       if (list !== null) setAccountSummaries(list)
       await refreshAuth()
       resetForm()
       setNotice(
-        `The create request had an unknown outcome. The company list was refreshed; check it before trying again. ${errorMessage(e)}`,
+        list !== null
+          ? `The create request had an unknown outcome. The company list was refreshed; check it before trying again. ${errorMessage(e)}`
+          : `The create request had an unknown outcome and the company list could not be refreshed. Reload before trying again. ${errorMessage(e)}`,
         'warning',
       )
     } finally {
@@ -230,16 +243,22 @@ export function AccountPicker() {
     if (deleting) return
     setDeleting(true)
     try {
-      const res = await apiFetchReauth(
-        `${API_BASE}/api/accounts/${encodeURIComponent(id)}`,
-        { method: 'DELETE', credentials: 'include' },
-        // Whole-tenant erasure is a BULK op — a transactional cascade over every scoped row plus
-        // members' orphaned identities — so it gets the 120s bound, not the 15s interactive one. A
-        // large tenant on a healthy-but-slow server must not be aborted mid-erase into a spurious
-        // "delete failed" while the server actually committed the removal.
-        API_BULK_TIMEOUT_MS,
-      )
+      // The account client applies the bulk timeout because whole-tenant erasure can legitimately
+      // outlive the interactive request bound while its transaction completes.
+      const res = await accountClient.eraseWorkspace(id)
       if (!res.ok) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          const fresh = await fetchAccountSummaries({ allowCachedFallback: false })
+          if (fresh !== null) setAccountSummaries(fresh)
+          await refreshAuth()
+          setNotice(
+            fresh !== null
+              ? 'The delete request had an unknown outcome. The company list was refreshed — verify it before retrying.'
+              : 'The delete request had an unknown outcome and the company list could not be refreshed. Reload before retrying.',
+            'warning',
+          )
+          return
+        }
         setNotice((await readApiError(res)) ?? m.picker_err_delete({ status: res.status }), 'error')
         return
       }
@@ -258,11 +277,13 @@ export function AccountPicker() {
       // now-deleted company in the picker (re-clicking it 403s) until a manual reload. Reconcile
       // instead: re-read the authoritative /api/accounts list and adopt it (the company drops out
       // if the erase committed; a failed re-read leaves the list untouched, same as before).
-      const fresh = await fetchAccountSummaries()
+      const fresh = await fetchAccountSummaries({ allowCachedFallback: false })
       if (fresh !== null) setAccountSummaries(fresh)
       await refreshAuth()
       setNotice(
-        `The delete request had an unknown outcome. The company list was refreshed — verify it before retrying. ${errorMessage(e)}`,
+        fresh !== null
+          ? `The delete request had an unknown outcome. The company list was refreshed — verify it before retrying. ${errorMessage(e)}`
+          : `The delete request had an unknown outcome and the company list could not be refreshed. Reload before retrying. ${errorMessage(e)}`,
         'warning',
       )
     } finally {
@@ -341,13 +362,12 @@ export function AccountPicker() {
           <ul className="space-y-2">
             {accounts.map((a, index) => {
               const roleDescriptionId = `${roleDescriptionPrefix}-company-role-${index}`
-              const accessLabel = accessExperience === 'demo'
-                ? m.access_demo_label()
-                : accessExperience === 'open'
-                  ? m.access_open_label()
-                  : a.roleStatus === 'unavailable'
-                    ? m.access_unavailable_label()
-                    : roleLabel(a.role)
+              const accessLabel = accessLabelFor({
+                offlineReadOnly: offline.readOnly,
+                experience: accessExperience,
+                permissionStatus: a.roleStatus ?? 'resolved',
+                role: a.role,
+              })
               return (
               <li key={a.id} className="flex items-center gap-2">
                 <button

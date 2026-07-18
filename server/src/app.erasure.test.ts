@@ -8,6 +8,7 @@ import { eraseAccount } from './erasure'
 import { authFromEnv, countUsers, runAuthMigrations } from './auth'
 import { PASSWORD_ENV, call, signUp } from './testHelpers'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
+import { reserveAccountCommand } from './accounts/state'
 
 // P2.6b — per-tenant DELETE + member-PII erasure. The existing 'purge'-gated account hard-delete (both
 // the direct DELETE /api/accounts/:id route AND the batch accounts/DELETE op) used to drop ONLY the
@@ -61,10 +62,17 @@ const authAccountCount = (db: Db, userId: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM account WHERE userId = ?`).get(userId) as { n: number }).n
 const sessionCount = (db: Db, userId: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM session WHERE userId = ?`).get(userId) as { n: number }).n
+const sessionAssuranceCount = (db: Db, userId: string): number =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM account_session_assurance WHERE principalId = ?`)
+    .get(userId) as { n: number }).n
+const twoFactorCount = (db: Db, userId: string): number =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM twoFactor WHERE userId = ?`).get(userId) as { n: number }).n
 const verificationCount = (db: Db, userId: string): number =>
   (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE value = ?`).get(userId) as { n: number }).n
 const verificationExists = (db: Db, id: string): boolean =>
   (db.prepare(`SELECT COUNT(*) AS n FROM verification WHERE id = ?`).get(id) as { n: number }).n === 1
+const commandExists = (db: Db, commandId: string): boolean =>
+  (db.prepare(`SELECT COUNT(*) AS n FROM account_commands WHERE commandId = ?`).get(commandId) as { n: number }).n === 1
 
 function seedResetToken(db: Db, userId: string, id = `verification-${userId}`): void {
   db.prepare(
@@ -115,6 +123,26 @@ describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     const u2 = await signUp(app, 'a-owner2@capacitylens.dev')
     seedMembershipAndInvite(db, 'a1', u1.userId, 'owner')
     seedMembershipAndInvite(db, 'a2', u2.userId, 'owner')
+    // Use the retained a2 owner as actor so identity cleanup cannot incidentally remove this row.
+    // The only reason the target command disappears must be its a1 workspace correlation.
+    reserveAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'prior-workspace-command',
+      idempotencyKey: 'prior-workspace-idempotency',
+      commandId: 'prior-workspace-command',
+      actorPrincipalId: u2.userId,
+      workspaceId: 'a1',
+      payloadHash: 'c'.repeat(64),
+    })
+    reserveAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'retained-workspace-command',
+      idempotencyKey: 'retained-workspace-idempotency',
+      commandId: 'retained-workspace-command',
+      actorPrincipalId: u2.userId,
+      workspaceId: 'a2',
+      payloadHash: 'd'.repeat(64),
+    })
 
     // Sanity: everything is present before the delete.
     expect(accountCount(db, 'a1')).toBe(1)
@@ -130,12 +158,14 @@ describe('P2.6b erasure — (a) delete cascades ONLY the target account (cross-t
     expect(scopedClientCount(db, 'a1')).toBe(0)
     expect(memberCount(db, 'a1')).toBe(0)
     expect(inviteCount(db, 'a1')).toBe(0)
+    expect(commandExists(db, 'prior-workspace-command')).toBe(false)
 
     // a2 is wholly INTACT: account row, scoped clients, membership row, invite, and its user PII.
     expect(accountCount(db, 'a2')).toBe(1)
     expect(scopedClientCount(db, 'a2')).toBe(1)
     expect(memberCount(db, 'a2')).toBe(1)
     expect(inviteCount(db, 'a2')).toBe(1)
+    expect(commandExists(db, 'retained-workspace-command')).toBe(true)
     expect(userRow(db, u2.userId)?.email).toBe('a-owner2@capacitylens.dev')
   })
 })
@@ -147,13 +177,28 @@ describe('P2.6b erasure — (b) last-company identity removal reopens password s
     const u = await signUp(app, 'sole-owner@capacitylens.dev')
     upsertMember(db, { accountId: 'a1', userId: u.userId, role: 'owner', status: 'active', createdAt: TS })
     seedResetToken(db, u.userId)
+    reserveAccountCommand(db, {
+      applicationId: 'capacitylens',
+      operation: 'password-reset:actor:prior-admin',
+      idempotencyKey: 'prior-reset-idempotency',
+      commandId: 'prior-reset-command',
+      actorPrincipalId: 'prior-admin',
+      targetPrincipalId: u.userId,
+      payloadHash: 'a'.repeat(64),
+    })
     seedAccountLinkState(db, u.userId, 'sole-owner@capacitylens.dev', 'link-sole-owner')
     seedAccountLinkState(db, 'unrelated-user', 'unrelated@capacitylens.dev', 'link-unrelated')
+    db.prepare(`
+      INSERT INTO twoFactor (id, secret, backupCodes, userId, verified, failedVerificationCount)
+      VALUES (?, ?, ?, ?, 1, 0)
+    `).run('two-factor-sole-owner', 'totp-secret', 'encrypted-recovery-codes', u.userId)
 
     // Pre-state: real identity, credential link, live session, and outstanding reset token.
     expect(userRow(db, u.userId)?.email).toBe('sole-owner@capacitylens.dev')
     expect(authAccountCount(db, u.userId)).toBeGreaterThanOrEqual(1)
     expect(sessionCount(db, u.userId)).toBeGreaterThanOrEqual(1)
+    expect(sessionAssuranceCount(db, u.userId)).toBeGreaterThanOrEqual(1)
+    expect(twoFactorCount(db, u.userId)).toBe(1)
     expect(verificationCount(db, u.userId)).toBe(1)
     expect(verificationExists(db, 'link-sole-owner')).toBe(true)
     expect(verificationExists(db, 'link-unrelated')).toBe(true)
@@ -163,10 +208,24 @@ describe('P2.6b erasure — (b) last-company identity removal reopens password s
     expect(userRow(db, u.userId)).toBeUndefined()
     expect(authAccountCount(db, u.userId)).toBe(0)
     expect(sessionCount(db, u.userId)).toBe(0)
+    expect(sessionAssuranceCount(db, u.userId)).toBe(0)
+    expect(twoFactorCount(db, u.userId)).toBe(0)
     expect(verificationCount(db, u.userId)).toBe(0)
     expect(verificationExists(db, 'link-sole-owner')).toBe(false)
     expect(verificationExists(db, 'link-unrelated')).toBe(true)
     expect(countUsers(db)).toBe(0)
+    expect(db.prepare(`SELECT 1 FROM account_commands WHERE commandId = 'prior-reset-command'`).get())
+      .toBeUndefined()
+    expect(db.prepare(`
+      SELECT actorPrincipalId, targetPrincipalId, workspaceId, status
+        FROM account_commands
+       WHERE operation = 'workspace-erasure'
+    `).get()).toEqual({
+      actorPrincipalId: null,
+      targetPrincipalId: null,
+      workspaceId: null,
+      status: 'completed',
+    })
 
     // The dead cookie now sees a genuine first-run state, and the live signup gate consults the
     // same zero-user fact per request. No restart or manual DB repair is required.
@@ -205,8 +264,35 @@ describe('P2.6b erasure — (c) MULTI-ACCOUNT member RETAINED (the headline)', (
     expect(row!.email).toBe('multi-account-member@capacitylens.dev')
     expect(authAccountCount(db, m.userId)).toBeGreaterThanOrEqual(1)
     expect(sessionCount(db, m.userId)).toBeGreaterThanOrEqual(1)
-    expect(verificationCount(db, m.userId)).toBe(1)
+    // Removing any membership advances the identity-security revision and conservatively burns
+    // outstanding reset ceremonies, even when the local identity remains for another account.
+    expect(verificationCount(db, m.userId)).toBe(0)
     expect(verificationExists(db, 'link-multi-account')).toBe(true)
+  })
+
+  it.each([
+    ['inactive', 'a2'],
+    ['active', 'missing-account'],
+  ] as const)('does not retain identity PII for a remaining %s membership row without live access', async (status, otherAccountId) => {
+    const { app, db } = await appWithAuth()
+    insertAll(db, { ...emptyAppData(), accounts: [account('a1'), account('a2')] } as unknown as AppData)
+    const member = await signUp(app, `${status}-${otherAccountId}@capacitylens.dev`)
+    upsertMember(db, { accountId: 'a1', userId: member.userId, role: 'owner', status: 'active', createdAt: TS })
+    upsertMember(db, { accountId: otherAccountId, userId: member.userId, role: 'editor', status: 'active', createdAt: TS })
+    if (status === 'inactive') {
+      // Historical/corrupt databases can contain a status outside the current active-only contract.
+      // The erasure boundary must fail closed even though new typed writes cannot create this row.
+      db.prepare(`UPDATE account_members SET status = 'inactive' WHERE accountId = ? AND userId = ?`)
+        .run(otherAccountId, member.userId)
+    }
+
+    expect((await deleteAccountRoute(app, 'a1', member.cookie)).statusCode).toBe(204)
+
+    // Inactive and dangling control rows grant no product access, so neither is a lawful reason to
+    // retain the installation-local identity after its final live membership has been erased.
+    expect(userRow(db, member.userId)).toBeUndefined()
+    expect(authAccountCount(db, member.userId)).toBe(0)
+    expect(sessionCount(db, member.userId)).toBe(0)
   })
 })
 

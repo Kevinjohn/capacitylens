@@ -96,9 +96,10 @@ test.describe('viewer read-only mode (CAPACITYLENS_AUTH=password)', () => {
     await expect(page.getByTestId('view-only')).toBeVisible()
     await expect(page.getByTestId('active-role')).toContainText('Viewer')
     await page.getByRole('link', { name: 'Team & access' }).click()
-    await expect(page.getByTestId('current-access')).toContainText('Viewer')
-    await expect(page.getByText('View the schedule')).toBeVisible()
-    await expect(page.getByText('Edit scheduling data')).toHaveClass(/text-muted/)
+    const currentAccess = page.getByTestId('current-access')
+    await expect(currentAccess).toContainText('Viewer')
+    await expect(currentAccess.getByText('View the schedule')).toBeVisible()
+    await expect(currentAccess.getByText('Edit scheduling data')).toHaveClass(/text-muted/)
     await expect(page.getByText(/An Owner or Admin manages invitations/)).toBeVisible()
     await expect(page.getByTestId('members-section')).toHaveCount(0)
 

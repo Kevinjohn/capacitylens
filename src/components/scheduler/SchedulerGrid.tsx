@@ -4,7 +4,7 @@ import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { useActiveScopedData } from '../../store/useScopedData'
-import { disciplinesEnabledFor, externalEnabledFor, internalColourModeFor, placeholdersEnabledFor, visibleRange } from '../../store/selectors'
+import { disciplinesEnabledFor, externalEnabledFor, internalColourModeFor, placeholdersEnabledFor, schedulingModeFor, visibleRange } from '../../store/selectors'
 import { addDaysISO, eachDayISO, startOfWeekISO, todayISO } from '@capacitylens/shared/lib/dateMath'
 import { FALLBACK_TIMELINE_WIDTH, UTILIZATION_WINDOW_DAYS, WEEK_SNAP_IDLE_MS, WEEKEND_COLUMN_REM, resolveDayWidth } from '../../lib/schedulerConfig'
 import { Avatar, EmptyState } from '../common/ui'
@@ -225,7 +225,7 @@ export function SchedulerGrid() {
   const visibleWeeksLabel =
     ui.zoom === 1 ? m.scheduler_visible_weeks_label_one({ count: ui.zoom }) : m.scheduler_visible_weeks_label_other({ count: ui.zoom })
 
-  const blocksMode = useStore((s) => (s.data.accounts.find((a) => a.id === s.activeAccountId)?.schedulingMode ?? 'hourly') === 'blocks')
+  const blocksMode = useStore((s) => schedulingModeFor(s.data, s.activeAccountId) === 'blocks')
 
   const model = useMemo(
     () =>

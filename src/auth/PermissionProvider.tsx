@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { API_BASE, isServerConfigured } from '../data/apiConfig'
+import { isServerConfigured } from '../data/apiConfig'
 import { useStore } from '../store/useStore'
 import { useAuth } from './authContext'
 import { PermissionContext } from './permissionContext'
 import type { Role } from '@capacitylens/shared/domain/access'
-import { requestSignal } from '../data/requestTimeout'
+import { isAccountRole } from '@capacitylens/shared/account/types'
+import { accountClient } from '../account/accountClient'
 import { useOfflineState } from '../data/useOfflineState'
 
 // Client permission boundary (production plan P1.12). It resolves the caller's ROLE for the ACTIVE
@@ -21,12 +22,6 @@ import { useOfflineState } from '../data/useOfflineState'
 // viewer for affordance safety and separately labelled pending/unavailable for explanatory UI.
 // This prevents an optimistic edit window after every account switch and prevents local UI
 // divergence while the permission endpoint is unavailable. OFF/demo still use null (editable).
-
-/** Narrowing guard for the untrusted `role` field of each `/api/accounts` entry. Off-spec data
- *  degrades to the provider's fail-closed viewer projection. */
-function isRole(v: unknown): v is Role {
-  return v === 'owner' || v === 'admin' || v === 'editor' || v === 'viewer'
-}
 
 /**
  * Resolve and provide the caller's role for the active account (P1.12).
@@ -80,7 +75,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
       // Viewer projection for the new account until the keyed fetch resolves.
       setActiveRole('viewer')
       try {
-        const res = await fetch(`${API_BASE}/api/accounts`, { credentials: 'include', signal: requestSignal() })
+        const res = await accountClient.listWorkspaces()
         if (!res.ok) {
           if (!cancelled) {
             setFetched({ accountId: activeAccountId, membershipRevision, status: 'unavailable' })
@@ -97,7 +92,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
               typeof a === 'object' && a !== null && (a as { id?: unknown }).id === activeAccountId,
             )
           : undefined
-        if (!entry || !isRole(entry.role)) {
+        if (!entry || !isAccountRole(entry.role)) {
           if (!cancelled) {
             setFetched({ accountId: activeAccountId, membershipRevision, status: 'unavailable' })
           }

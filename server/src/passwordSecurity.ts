@@ -99,6 +99,11 @@ export class PasswordPolicyError extends Error {
   readonly code = 'PASSWORD_COMPROMISED'
 }
 
+/** A fail-closed breach-screening dependency failure is operational, not a user validation error. */
+export class PasswordPolicyDependencyError extends Error {
+  readonly code = 'PASSWORD_CHECK_UNAVAILABLE'
+}
+
 async function boundedResponseText(response: Response): Promise<string> {
   const declared = Number(response.headers.get('content-length'))
   if (Number.isFinite(declared) && declared > MAX_HIBP_RESPONSE_BYTES) {
@@ -122,9 +127,12 @@ async function boundedResponseText(response: Response): Promise<string> {
   return text + decoder.decode()
 }
 
-export function assertNoContextSpecificPassword(password: string): void {
+export function assertNoContextSpecificPassword(
+  password: string,
+  contextWords: readonly string[] = PASSWORD_CONTEXT_WORDS,
+): void {
   const lowered = password.toLocaleLowerCase('en-GB')
-  if (PASSWORD_CONTEXT_WORDS.some((word) => lowered.includes(word))) {
+  if (contextWords.some((word) => lowered.includes(word.toLocaleLowerCase('en-GB')))) {
     throw new PasswordPolicyError('Choose a password that does not contain the product name or an administrative role.')
   }
 }
@@ -152,16 +160,24 @@ export async function assertPasswordNotBreached(
       }),
     )
   } catch (cause) {
-    throw new PasswordPolicyError('The breached-password check is temporarily unavailable; try again later.', { cause })
+    throw new PasswordPolicyDependencyError(
+      'The breached-password check is temporarily unavailable; try again later.',
+      { cause },
+    )
   }
   if (!response.ok) {
-    throw new PasswordPolicyError(`The breached-password check failed with HTTP ${response.status}; try again later.`)
+    throw new PasswordPolicyDependencyError(
+      `The breached-password check failed with HTTP ${response.status}; try again later.`,
+    )
   }
   let responseText: string
   try {
     responseText = await boundedResponseText(response)
   } catch (cause) {
-    throw new PasswordPolicyError('The breached-password response was invalid; try again later.', { cause })
+    throw new PasswordPolicyDependencyError(
+      'The breached-password response was invalid; try again later.',
+      { cause },
+    )
   }
   const found = responseText.split(/\r?\n/).some((line) => line.split(':', 1)[0]?.toUpperCase() === suffix)
   if (found) throw new PasswordPolicyError('This password appears in a known breach. Choose a different password.')

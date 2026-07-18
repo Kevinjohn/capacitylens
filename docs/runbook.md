@@ -107,10 +107,54 @@ For suspected account or session compromise:
 2. Preserve database, 0600 audit files, forwarded security events and relevant proxy logs without
    altering originals.
 3. Use the member/session revocation control for a contained identity incident; rotate provider
-   credentials and `BETTER_AUTH_SECRET` when all sessions must be invalidated.
+   credentials and `SMALLSASS_ACCOUNT_SECRET` when all local sessions must be invalidated.
 4. Review memberships, invitations, session-revocation and audit events.
 5. Patch/upgrade, restore only if integrity requires it, then re-enable access.
 6. Follow applicable notification and disclosure obligations.
+
+### Hosted OIDC leaver or compromised upstream identity
+
+IdP disablement prevents a new sign-in but does not revoke a local session already issued by a
+product. Without local revocation, a continuously active session can remain valid until its fixed
+twelve-hour expiry; an inactive one expires after thirty minutes. Product sign-out also ends only
+the local session and does not promise to end the browser's provider session.
+
+For a leaver or upstream compromise:
+
+1. Disable the identity and revoke provider sessions at the IdP.
+2. In every affected product installation, use Team & access to revoke that local principal's
+   sessions. Do not assume one product's local revocation propagates to siblings.
+3. Review `(issuer, subject)`, memberships, outstanding invitations, account audit and provider
+   logs. Do not correlate or merge identities by email.
+4. For broad compromise, restrict the proxy, rotate the OIDC client secret and local account secret,
+   then require fresh sign-in. Coordinate rotation because changing the local secret invalidates all
+   product sessions.
+5. Record the actual containment time against the twelve-hour/thirty-minute maximum.
+
+Near-immediate back-channel logout is not currently implemented. It is a mandatory architecture
+revisit before hosted GA; do not describe the current posture as instant global revocation.
+
+### Account command reconciliation
+
+Account commands that cross the local database and an identity provider may enter
+`reconciliation_required` when the provider outcome or a compensation cannot be proven. The
+browser command-status endpoint returns only status and a redacted repair kind; workspace,
+target-principal, provisional-principal and ceremony coordinates remain operator-only in the local
+ledger/CLI path. Neither surface returns a bearer token.
+
+1. Stop retrying the command with a new idempotency key.
+2. Inspect the account audit event and the `account_commands` repair coordinates, then verify the
+   actual membership, session, reset-ceremony or provisional-identity state.
+3. Complete or undo the intended effect using the normal administrative control. Record an
+   incident/change reference without credentials, tokens or personal data.
+4. Stop the application process so the repair cannot race live command execution. Using the same
+   release that most recently started the database, close the repaired record with:
+   `pnpm --filter capacitylens-server exec tsx scripts/reconcile-account-command.ts <database> <application-id> <command-id> <operator-reference>`.
+   The tool stores only a SHA-256 digest of the operator reference, refuses records that are no
+   longer awaiting reconciliation, and refuses an older schema rather than running migrations
+   outside the normal pre-migration backup ceremony.
+5. Confirm the status is now `compensated`, retain the audit evidence and retry only with a new
+   command identity if the business operation is still required.
 
 For disk-full or snapshot failure, stop write traffic before attempting cleanup. Never delete the
 only known-good snapshot.
@@ -129,7 +173,9 @@ remain. Apply the deployment's retention schedule to those copies and document l
   deploy, smoke test and retain a rollback image. For schema-bearing releases, retain the migration
   rehearsal result with the release evidence.
 - After auth/crypto changes: exercise enrollment, recovery-code storage, session revocation,
-  password-reset invalidation and the password-breach-service outage path in staging.
+  password-reset invalidation and the password-breach-service outage path in staging. For strict
+  OIDC, also run issuer/audience/signature/key-rotation tests and `pnpm run e2e:oidc` against the
+  pinned reference provider.
 
 ## Service and overload limits
 
@@ -144,8 +190,9 @@ HIBP range lookups are limited to eight active calls plus thirty-two queued call
 five-second timeout; overflow or upstream failure rejects password creation/change/reset closed.
 The CSP collector accepts at most 64 KiB and logs at most twenty projected reports per request.
 Configured OIDC/social exchanges remain bounded by the 512-request process ceiling and the
-provider/library HTTP lifecycle; monitor provider latency and 5xx responses, and remove an unstable
-experimental provider rather than adding an unbounded retry loop.
+provider/library HTTP lifecycle; monitor provider latency and 5xx responses. Strict OIDC fails
+closed on discovery, JWKS or user-info outage and has no unbounded application retry loop. Disable an
+unstable named social provider; investigate strict-OIDC availability with the IdP operator.
 
 An uncaught exception or unhandled rejection emits a `process_failure` security event, drains the
 API and exits non-zero. Compose restarts it automatically. Alert on every such event and on restart

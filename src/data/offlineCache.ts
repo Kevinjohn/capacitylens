@@ -2,6 +2,7 @@ import type { AppData } from '@capacitylens/shared/types/entities'
 import type { AuthMode, AuthUser } from '../auth/authContext'
 import { validateAuthUser } from '../auth/validateAuthUser'
 import { validateAccountSlice } from './validateAccountSlice'
+import { isAccountRole, type Role } from '@capacitylens/shared/account/types'
 
 const OFFLINE_PREF_KEY = 'capacitylens/offlineRead'
 const DB_NAME = 'capacitylens-offline-v1'
@@ -34,7 +35,7 @@ export interface OfflineAuthSnapshot {
 export interface OfflineAccountSummary {
   id: string
   name: string
-  role: 'owner' | 'admin' | 'editor' | 'viewer'
+  role: Role
 }
 
 interface OfflineState {
@@ -219,8 +220,6 @@ async function getValidated<T>(key: string, validate: (value: unknown) => T | nu
   return { key: record.key, savedAt: record.savedAt, value }
 }
 
-const ROLES = new Set(['owner', 'admin', 'editor', 'viewer'])
-
 function validateAuthSnapshot(value: unknown): OfflineAuthSnapshot | null {
   if (!isRecord(value) || !['off', 'password', 'sso'].includes(String(value.authMode))) return null
   if (!validateAuthUser(value.user)) return null
@@ -236,7 +235,7 @@ function validateAccountSummaries(value: unknown): OfflineAccountSummary[] | nul
       typeof row.id !== 'string' ||
       row.id.length === 0 ||
       typeof row.name !== 'string' ||
-      !ROLES.has(String(row.role))
+      !isAccountRole(row.role)
     ) return null
   }
   return value as OfflineAccountSummary[]

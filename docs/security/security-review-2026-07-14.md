@@ -46,7 +46,7 @@ deployment-specific verification.
 | CL-03 | Session lifetime, visibility and containment were incomplete | High | Fixed 12-hour and 30-minute idle limits, 15-minute freshness for privileged actions, `__Host-` cookies, user session inventory/revocation, admin identity-global revocation with cross-account authority checks, reset invalidation |
 | CL-04 | CORS alone was treated as the browser cross-site boundary | High | Root hook now rejects unsafe disallowed Origin or cross-site Fetch Metadata requests; exact origin CORS remains additive defense |
 | CL-05 | Offline tenant snapshots were plaintext in browser storage | High | AES-256-GCM, non-extractable device key, random IV/AAD, tamper/expiry deletion, legacy plaintext wipe and viewer-only behavior |
-| CL-06 | SSO-only production could silently inherit unknown single-factor assurance | High | `CAPACITYLENS_SSO_MFA_ENFORCED=1` records tested IdP assurance; its absence now warns instead of refusing startup |
+| CL-06 | SSO-only production could silently inherit unknown single-factor assurance | High | `SMALLSASS_ACCOUNT_SSO_MFA_ENFORCED=1` records tested IdP assurance; its absence warns instead of refusing startup |
 | CL-07 | Provider/password-check URLs allowed unsafe configuration or redirect behavior | High | Provider endpoints require credential-free absolute HTTPS (loopback HTTP only in development); HIBP endpoint is fixed, time-bounded, no-redirect and fail-closed |
 | CL-08 | Security events were not a complete, separately forwardable stream | High | Typed security JSON plus mutation audit JSON exist; local audit remains required, while stdout/external forwarding is optional and absence is warned |
 | CL-09 | Production could claim data protection without encrypted persistent storage | High | The storage attestation is documented as external evidence only; its absence now warns so simple self-hosting can use ordinary host storage |
@@ -76,7 +76,7 @@ data sensitivity or user population changes.
 | Required MFA is optional; TOTP is phishable | V6.3.3 L2/L3 | Password-only is supported with a warning; required TOTP meets L2 when enabled but is not phishing-resistant | Enable required MFA for sensitive/public multi-user deployments; add WebAuthn/passkeys before high-assurance use |
 | Breached-password screening can be disabled | V6.2.12 L2 | HIBP k-anonymity checking remains default and fail-closed when enabled; `off` emits a warning | Disable only for an isolated/offline deployment with a documented alternative password-risk decision |
 | Legacy Better Auth password hashes retain the old work factor until credential rotation | V11.2.2/V11.4.2 | Verify-only compatibility; all new/reset/change hashes use `scrypt-v1` | Prompt or require password reset after upgrade if the old database may have been exposed |
-| OIDC/social behavior is provider-dependent | V6.8.4, V7.1.3/V7.6.1 | HTTPS/identity/invite gates; SSO MFA acknowledgement; explicitly experimental | Provider-specific staging tests, claim assurance validation and coordinated logout before declaring stable |
+| OIDC/social behavior is provider-dependent | V6.8.4, V7.1.3/V7.6.1 | Strict OIDC validates issuer and every endpoint before redirect/secret use, bounds no-redirect provider fetches, verifies signed audience-bound ID tokens, JWKS rotation, user-info subject and invite admission; named social remains experimental | Capture IdP-specific staging/MFA evidence; locally revoke sessions during offboarding; revisit back-channel logout before hosted GA |
 | No adaptive IP/device/location risk engine or anomalous-login user notification | V6.3.5/V6.3.7, V8.2.4/V8.4.2 | Opt-in required MFA, throttling, typed events, fresh privileged actions and operator alerts | Add risk engine/notifications for a public multi-organization SaaS footprint |
 | Reset/invite bearer values appear in one-time link paths | V14.2.1 | No-referrer, no-store, access-log suppression, short expiry, hashing/use/revocation | Move to a separate out-of-band code exchange if URL exposure is unacceptable |
 | Browser offline data remains usable by compromised same-origin code | V14.3.3 | Opt-in, encrypted, non-extractable key, seven-day expiry, role filtered and read-only | Disable offline mode for high-sensitivity tenants; enforce managed-device controls |
@@ -113,7 +113,7 @@ data sensitivity or user population changes.
 | API7 Server Side Request Forgery | End users cannot supply fetch destinations; configured identity endpoints are HTTPS validated and the fixed HIBP request refuses redirects. |
 | API8 Security Misconfiguration | Production refuses auth-off, invalid rate limits, disabled local audit and unsafe bootstrap; optional MFA/storage/forwarding/internal-TLS gaps warn; headers, CORS, cache and containers remain hardened. |
 | API9 Improper Inventory Management | Entry-point, data, crypto, log and dependency inventories are versioned in `docs/security`; no undocumented versioned API exists. |
-| API10 Unsafe Consumption of APIs | HIBP is time-bounded/no-redirect/fail-closed; IdP responses are delegated to maintained protocol libraries and provider support remains experimental. |
+| API10 Unsafe Consumption of APIs | HIBP is time-bounded/no-redirect/fail-closed. Strict OIDC validates discovered endpoints before use, refuses server-side redirects, bounds JSON to 1 MiB/10 seconds and cryptographically verifies identity claims; named social providers remain experimental. |
 
 ## OWASP SAMM view
 
@@ -136,9 +136,9 @@ data sensitivity or user population changes.
 - Better Auth/provider protocol code, import/migration, cryptography, backup/restore, service worker,
   shell/process execution in development scripts and release workflows are “risky/dangerous” areas:
   require focused tests and security review when changed.
-- Rotate `BETTER_AUTH_SECRET` and provider credentials after suspected exposure, staff/access change
+- Rotate `SMALLSASS_ACCOUNT_SECRET` and provider credentials after suspected exposure, staff/access change
   or provider requirement, and at the operator's documented interval. Rotation of
-  `BETTER_AUTH_SECRET` invalidates sessions. TLS/storage/backup keys follow the platform key policy.
+  `SMALLSASS_ACCOUNT_SECRET` invalidates sessions. TLS/storage/backup keys follow the platform key policy.
 - Review this report, threat model, inventories, action/image pins and ASVS release at least annually
   and after a material auth, tenancy, deployment or data-classification change.
 

@@ -1,14 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
 import { openDb } from './db'
 import {
   authControlTablesNeedMigration,
   authFromEnv,
   ensureAuthControlTables,
-  externalIdentityAllowed,
   planAuthSchemaMigrations,
+  providerIdFromExternalContext,
   runAuthMigrations,
 } from './auth'
+import { localExternalIdentityAdmission } from './accounts/externalIdentityAdmission'
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
@@ -22,6 +23,8 @@ const PASSWORD_ENV = {
 }
 
 describe('startup configuration before database migration', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   it('can resolve auth options without application DDL, then creates controls explicitly', () => {
     const db = new DatabaseSync(':memory:', { enableForeignKeyConstraints: false })
     const configured = authFromEnv(db, PASSWORD_ENV, { deferDatabaseSetup: true })
@@ -43,6 +46,82 @@ describe('startup configuration before database migration', () => {
       .toThrow(/google/i)
     expect(db.prepare(`SELECT name FROM sqlite_master WHERE type = 'table'`).all()).toEqual([])
     db.close()
+  })
+
+  it('refuses an OIDC issuer with query or fragment identity ambiguity', () => {
+    expect(() => authFromEnv(openDb(':memory:'), {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: 'client',
+      CAPACITYLENS_SSO_CLIENT_SECRET: 'secret',
+      CAPACITYLENS_SSO_DISCOVERY_URL: 'https://idp.example/.well-known/openid-configuration',
+      CAPACITYLENS_SSO_ISSUER: 'https://idp.example/tenant?version=2',
+    })).toThrow(/query string or fragment/i)
+  })
+
+  it('refuses public URLs that are not a bare origin', () => {
+    for (const publicUrl of [
+      'https://user:pass@capacity.example',
+      'https://capacity.example/deployment',
+      'https://capacity.example?tenant=one',
+      'https://capacity.example#fragment',
+    ]) {
+      expect(() => authFromEnv(openDb(':memory:'), {
+        ...PASSWORD_ENV,
+        BETTER_AUTH_URL: publicUrl,
+      })).toThrow(/must be an origin/)
+    }
+  })
+
+  it('issuer-validates discovery before the browser reaches its authorization endpoint', async () => {
+    const discoveryUrl = 'https://idp.example/.well-known/openid-configuration'
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      issuer: 'https://idp.example',
+      response_types_supported: ['code'],
+      subject_types_supported: ['public'],
+      authorization_endpoint: 'https://login.idp.example/authorize',
+      token_endpoint: 'https://idp.example/token',
+      jwks_uri: 'https://idp.example/keys',
+      userinfo_endpoint: 'https://idp.example/userinfo',
+      id_token_signing_alg_values_supported: ['RS256'],
+    })))
+    const { auth } = authFromEnv(openDb(':memory:'), {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: 'client',
+      CAPACITYLENS_SSO_CLIENT_SECRET: 'secret',
+      CAPACITYLENS_SSO_DISCOVERY_URL: discoveryUrl,
+      CAPACITYLENS_SSO_ISSUER: 'https://idp.example',
+    })
+    const response = await auth!.handler(new Request(
+      'http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque&scope=openid',
+    ))
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe(
+      'https://login.idp.example/authorize?client_id=client&state=opaque&scope=openid',
+    )
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
+  it('fails closed before redirect when discovery does not match the pinned issuer', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
+      issuer: 'https://attacker.example',
+      authorization_endpoint: 'https://attacker.example/authorize',
+      token_endpoint: 'https://attacker.example/token',
+      jwks_uri: 'https://attacker.example/keys',
+      userinfo_endpoint: 'https://attacker.example/userinfo',
+      id_token_signing_alg_values_supported: ['RS256'],
+    })))
+    const { auth } = authFromEnv(openDb(':memory:'), {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_SSO_CLIENT_ID: 'client',
+      CAPACITYLENS_SSO_CLIENT_SECRET: 'secret',
+      CAPACITYLENS_SSO_DISCOVERY_URL: 'https://idp.example/.well-known/openid-configuration',
+      CAPACITYLENS_SSO_ISSUER: 'https://idp.example',
+    })
+
+    await expect(auth!.handler(new Request(
+      'http://localhost:8787/api/auth/oidc/authorize/sso?client_id=client&state=opaque',
+    ))).rejects.toThrow('issuer does not match')
   })
 
   it('plans both app-owned auth controls and Better Auth DDL before executing either', async () => {
@@ -123,6 +202,32 @@ describe('cookie/session hardening (P1.16)', () => {
 })
 
 describe('external identity creation gate', () => {
+  it('resolves the concrete provider from a parameterized database-hook route', () => {
+    expect(providerIdFromExternalContext({
+      path: '/oauth2/callback/:providerId',
+      params: { providerId: 'sso' },
+    })).toBe('sso')
+    expect(providerIdFromExternalContext({ path: '/callback/google' })).toBe('google')
+    expect(providerIdFromExternalContext({ path: '/oauth2/callback/:providerId' })).toBeNull()
+  })
+
+  it('disables implicit email-based account linking', () => {
+    const { auth } = authFromEnv(openDb(':memory:'), PASSWORD_ENV)
+    expect(auth!.options.account?.accountLinking?.disableImplicitLinking).toBe(true)
+  })
+
+  it('binds every configured external provider to a stable issuer namespace', () => {
+    const db = openDb(':memory:')
+    const { auth } = authFromEnv(db, {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_GOOGLE_CLIENT_ID: 'google-client',
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: 'google-secret',
+    })
+    expect(auth!.federatedIssuers.get('google')).toBe('https://accounts.google.com')
+    expect(db.prepare(`SELECT issuer FROM account_federated_provider_bindings WHERE providerId = 'google'`).get())
+      .toEqual({ issuer: 'https://accounts.google.com' })
+  })
+
   it('stays enforced when open email registration is deliberately enabled', async () => {
     const db = openDb(':memory:')
     const { auth } = authFromEnv(db, {
@@ -130,6 +235,8 @@ describe('external identity creation gate', () => {
       CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
       CAPACITYLENS_GOOGLE_CLIENT_ID: 'google-client',
       CAPACITYLENS_GOOGLE_CLIENT_SECRET: 'google-secret',
+    }, {
+      externalIdentityAdmission: async () => false,
     })
     const before = auth!.options.databaseHooks?.user?.create?.before
     expect(before).toBeTypeOf('function')
@@ -142,16 +249,77 @@ describe('external identity creation gate', () => {
     ).rejects.toThrow(/not invited/)
   })
 
+  it('keeps the first-external-identity claim control when email registration is open', () => {
+    const db = openDb(':memory:')
+    const env = {
+      ...PASSWORD_ENV,
+      CAPACITYLENS_ALLOW_OPEN_SIGNUP: '1',
+      CAPACITYLENS_GOOGLE_CLIENT_ID: 'google-client',
+      CAPACITYLENS_GOOGLE_CLIENT_SECRET: 'google-secret',
+    }
+    authFromEnv(db, env)
+
+    expect(authControlTablesNeedMigration(db, env)).toBe(false)
+    expect(db.prepare(`PRAGMA table_info(capacitylens_bootstrap_claim)`).all()).not.toEqual([])
+  })
+
   it('allows only a verified, explicitly allow-listed first identity', () => {
     const db = openDb(':memory:')
     authFromEnv(db, PASSWORD_ENV) // initializes Better Auth's user table
     const env = { CAPACITYLENS_SSO_BOOTSTRAP_EMAILS: ' owner@example.com, second@example.com ' }
-    expect(externalIdentityAllowed(db, env, { email: 'OWNER@example.com', emailVerified: true })).toBe(true)
-    expect(externalIdentityAllowed(db, env, { email: 'owner@example.com', emailVerified: false })).toBe(false)
-    expect(externalIdentityAllowed(db, env, { email: 'stranger@example.com', emailVerified: true })).toBe(false)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+      candidate: { email: 'OWNER@example.com', emailVerified: true },
+    })).toBe(true)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+      candidate: { email: 'owner@example.com', emailVerified: false },
+    })).toBe(false)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: env.CAPACITYLENS_SSO_BOOTSTRAP_EMAILS,
+      candidate: { email: 'stranger@example.com', emailVerified: true },
+    })).toBe(false)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: 'not-an-email',
+      candidate: { email: 'not-an-email', emailVerified: true },
+    })).toBe(false)
   })
 
-  it('allows a verified email with a live unused pre-authorised invite', () => {
+  it('allows a verified email with a live unused pre-authorised invite after bootstrap', async () => {
+    const db = openDb(':memory:')
+    const { auth } = authFromEnv(db, PASSWORD_ENV)
+    await runAuthMigrations(auth!)
+    await auth!.createCredentialUser(
+      'existing-owner@example.com',
+      'Existing Owner',
+      'Unrelated-phrase-4827!',
+      true,
+    )
+    db.prepare(`INSERT INTO accounts (id, name, color, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?)`)
+      .run('account-1', 'Inviting workspace', '#6366f1', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
+    db.prepare(`INSERT INTO invites
+      (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
+      VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`)
+      .run('hash', 'invite-1', 'account-1', 'viewer', 'person@example.com', '2999-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
+
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: undefined,
+      candidate: { email: ' Person@Example.com ', emailVerified: true },
+    })).toBe(true)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: undefined,
+      candidate: { email: 'person@example.com', emailVerified: false },
+    })).toBe(false)
+  })
+
+  it('does not let an invitation replace the first-external-identity allow-list', () => {
     const db = openDb(':memory:')
     authFromEnv(db, PASSWORD_ENV)
     db.prepare(`INSERT INTO invites
@@ -159,19 +327,42 @@ describe('external identity creation gate', () => {
       VALUES (?, ?, ?, ?, ?, ?, NULL, ?)`)
       .run('hash', 'invite-1', 'account-1', 'viewer', 'person@example.com', '2999-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
 
-    expect(externalIdentityAllowed(db, {}, { email: ' Person@Example.com ', emailVerified: true })).toBe(true)
-    expect(externalIdentityAllowed(db, {}, { email: 'person@example.com', emailVerified: false })).toBe(false)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: undefined,
+      candidate: { email: 'person@example.com', emailVerified: true },
+    })).toBe(false)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: 'person@example.com',
+      candidate: { email: 'person@example.com', emailVerified: true },
+    })).toBe(true)
   })
 
-  it('rejects expired and consumed invitations', () => {
+  it('rejects expired and consumed invitations after bootstrap', async () => {
     const db = openDb(':memory:')
-    authFromEnv(db, PASSWORD_ENV)
+    const { auth } = authFromEnv(db, PASSWORD_ENV)
+    await runAuthMigrations(auth!)
+    await auth!.createCredentialUser(
+      'existing-owner@example.com',
+      'Existing Owner',
+      'Unrelated-phrase-4827!',
+      true,
+    )
     const insert = db.prepare(`INSERT INTO invites
       (tokenHash, id, accountId, role, preauthEmail, expiresAt, usedAt, createdAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
     insert.run('expired-hash', 'expired', 'account-1', 'viewer', 'expired@example.com', '2000-01-01T00:00:00.000Z', null, '1999-01-01T00:00:00.000Z')
     insert.run('used-hash', 'used', 'account-1', 'viewer', 'used@example.com', '2999-01-01T00:00:00.000Z', '2026-01-02T00:00:00.000Z', '2026-01-01T00:00:00.000Z')
-    expect(externalIdentityAllowed(db, {}, { email: 'expired@example.com', emailVerified: true })).toBe(false)
-    expect(externalIdentityAllowed(db, {}, { email: 'used@example.com', emailVerified: true })).toBe(false)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: undefined,
+      candidate: { email: 'expired@example.com', emailVerified: true },
+    })).toBe(false)
+    expect(localExternalIdentityAdmission({
+      db,
+      bootstrapEmails: undefined,
+      candidate: { email: 'used@example.com', emailVerified: true },
+    })).toBe(false)
   })
 })

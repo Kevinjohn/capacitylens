@@ -260,6 +260,27 @@ describe('AuthProvider — server mode', () => {
     }
   })
 
+  it('SSO invite routes render before sign-in so the provider callback preserves the token', async () => {
+    window.history.pushState({}, '', '/invite/invite-token')
+    try {
+      vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
+      vi.stubGlobal('fetch', vi.fn(async () => me(401, {
+        authMode: 'sso',
+        providers: [{ id: 'sso', label: 'Single sign-on', kind: 'oidc', experimental: false }],
+      })))
+      const { AuthProvider } = await freshProvider()
+      render(
+        <AuthProvider>
+          <div>invite-page</div>
+        </AuthProvider>,
+      )
+      expect(await screen.findByText('invite-page')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Sign in' })).not.toBeInTheDocument()
+    } finally {
+      window.history.pushState({}, '', '/')
+    }
+  })
+
   it('a 401 with needsSetup:true shows the first-run owner-setup form instead of sign-in', async () => {
     vi.stubEnv('VITE_CAPACITYLENS_API', 'http://api.test')
     vi.stubGlobal('fetch', vi.fn(async () => me(401, { authMode: 'password', needsSetup: true, providers: [] })))

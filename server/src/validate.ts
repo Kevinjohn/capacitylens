@@ -254,9 +254,6 @@ export function validateWrite(
     if (row.builtin === true && (row.name !== INTERNAL_CLIENT_NAME || row.color !== INTERNAL_CLIENT_COLOR)) {
       throw new ValidationError('The built-in Internal client has a fixed name and colour.')
     }
-    if (existing?.builtin === true && row.builtin !== true) {
-      throw new ValidationError('The built-in Internal client cannot be converted to a regular client.')
-    }
     if (row.builtin === true && wouldAddSecondBuiltin(state.clients, row.accountId as string, row.id as string)) {
       throw new ValidationError('This company already has its built-in Internal client.')
     }

@@ -20,12 +20,15 @@ export interface AuthProviderInfo {
   id: string
   label: string
   kind: 'social' | 'oidc'
-  experimental: true
+  experimental: boolean
 }
 
 export interface AuthContextValue {
   authMode: AuthMode
   user: AuthUser | null
+  /** Configured public provider metadata. Needed by pre-session invite and re-authentication
+   * surfaces so they use the same server-owned provider list as the ordinary login wall. */
+  providers?: readonly AuthProviderInfo[]
   /** May the UI offer to create ANOTHER company? Mirrors the server's POST /api/orgs gate — the
    *  single-company-per-instance cap AND the caller's standing (auth-on: an active owner/admin
    *  somewhere, or first-run bootstrap). The SERVER stays the authoritative enforcer (the create
@@ -54,6 +57,7 @@ export interface AuthContextValue {
 export const AuthContext = createContext<AuthContextValue>({
   authMode: 'off',
   user: null,
+  providers: [],
   canCreateAccount: true,
   multiAccount: true,
   refreshAuth: async () => {},

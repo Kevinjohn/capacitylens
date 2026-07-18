@@ -23,6 +23,6 @@ export const MIN_PASSWORD_LENGTH = 15
  * (src/auth/ResetPassword.tsx), so an over-long passphrase gets an actionable bound instead of a
  * generic failure — and the bound the client states is always the one the server enforces.
  *
- * 128 matches Better Auth 1.6.20's own default; pinned so a library upgrade can't silently move it.
+ * 128 matches Better Auth 1.6.23's own default; pinned so a library upgrade can't silently move it.
  */
 export const MAX_PASSWORD_LENGTH = 128

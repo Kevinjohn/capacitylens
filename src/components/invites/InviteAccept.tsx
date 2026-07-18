@@ -1,7 +1,12 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { API_BASE, isServerConfigured } from '../../data/apiConfig'
-import { apiFetch } from '../../data/requestTimeout'
+import { isServerConfigured } from '../../data/apiConfig'
+import {
+  accountClient,
+  accountCommandOutcomeUnknown,
+  newBrowserAccountCommand,
+  type BrowserAccountCommand,
+} from '../../account/accountClient'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { useStore } from '../../store/useStore'
@@ -14,6 +19,7 @@ import { validateText } from '../../lib/validation'
 import { MAX_EMAIL_LENGTH, MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import type { Role } from '@capacitylens/shared/domain/access'
+import { isAccountRole, type InvitationRole } from '@capacitylens/shared/account/types'
 import { roleLabel, roleSummary } from '../../lib/accessCopy'
 import { Badge } from '../ui/badge'
 import { useAuth } from '../../auth/authContext'
@@ -41,13 +47,13 @@ type State =
   // setActiveAccount) hasn't settled yet. The success message renders as soon as we're 'joined';
   // the Continue link renders only once `activating` is false — see the effect for why.
   | { kind: 'joined'; accountId: string; role: Role; activating: boolean }
-  | { kind: 'error'; message: string }
+  | { kind: 'error'; message: string; retryAccept?: boolean }
   | { kind: 'auth'; message?: string }
   | { kind: 'local' } // the demo build (no server) — invites are a server-mode feature
 
 interface InvitePreview {
   accountName: string
-  role: Role
+  role: InvitationRole
   expiresAt: string
 }
 
@@ -62,16 +68,23 @@ function messageForStatus(status: number, bodyError: string | undefined): string
   if (status === 401) return m.invite_err_signin()
   return m.invite_err_generic()
 }
-const isRole = (value: unknown): value is Role =>
-  value === 'owner' || value === 'admin' || value === 'editor' || value === 'viewer'
-
 function parsePreview(value: unknown): InvitePreview | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const row = value as Record<string, unknown>
   if (typeof row.accountName !== 'string' || row.accountName.trim().length === 0) return null
-  if (!isRole(row.role)) return null
+  if (!isAccountRole(row.role) || row.role === 'owner') return null
   if (typeof row.expiresAt !== 'string' || !Number.isFinite(Date.parse(row.expiresAt))) return null
   return { accountName: row.accountName, role: row.role, expiresAt: row.expiresAt }
+}
+
+async function accountFailure(response: Response): Promise<{ code: string | null; message: string | null }> {
+  const body: unknown = await response.json().catch(() => null)
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { code: null, message: null }
+  const failure = body as { code?: unknown; error?: unknown }
+  return {
+    code: typeof failure.code === 'string' ? failure.code : null,
+    message: typeof failure.error === 'string' && failure.error.length > 0 ? failure.error : null,
+  }
 }
 
 /**
@@ -84,7 +97,14 @@ function parsePreview(value: unknown): InvitePreview | null {
  */
 export function InviteAccept() {
   const { token } = useParams<{ token: string }>()
-  const { user, refreshAuth } = useAuth()
+  // React Router may preserve the route element while only changing `:token`. Key the stateful
+  // implementation so preview data and command identities can never cross invitation URLs.
+  return <InviteAcceptForToken key={token ?? ''} token={token} />
+}
+
+function InviteAcceptForToken({ token }: { token: string | undefined }) {
+  const { authMode, user, providers: configuredProviders, refreshAuth } = useAuth()
+  const providers = configuredProviders ?? []
   const setActiveAccount = useStore((s) => s.setActiveAccount)
   const setAccountSummaries = useStore((s) => s.setAccountSummaries)
   // The initial render already encodes the no-fetch outcomes (the demo build; a missing token — which the
@@ -101,10 +121,25 @@ export function InviteAccept() {
   const [preview, setPreview] = useState<InvitePreview | null>(null)
   const [busy, setBusy] = useState(false)
   const errorId = useId()
-  // React StrictMode double-invokes effects in development. Preview is read-only, but deduping it
-  // avoids flicker and noisy requests. The mutating accept action has its own synchronous guard.
-  const previewed = useRef(false)
+  // Records a successfully parsed preview, not an in-flight attempt. React StrictMode cancels and
+  // restarts effects in development; marking the first attempt as complete before it resolves would
+  // suppress the replacement request and strand the page on “Checking invite…”.
+  const previewed = useRef<string | null>(null)
+  const currentUser = useRef(user)
   const accepting = useRef(false)
+  const acceptCommand = useRef<BrowserAccountCommand | null>(null)
+  const signupCommand = useRef<BrowserAccountCommand | null>(null)
+
+  useEffect(() => {
+    currentUser.current = user
+  }, [user])
+
+  // Preserve the command across a true retry with unchanged credential input. Once the person
+  // edits the semantic payload, a new idempotency identity is required or the server must correctly
+  // reject it as a conflicting reuse of the prior command.
+  useEffect(() => {
+    signupCommand.current = newBrowserAccountCommand()
+  }, [token, name, email, password])
 
   // Per-route document.title (WCAG 2.4.2). This route renders OUTSIDE AppShell (see router.tsx), so
   // it isn't covered by the shell's nav-driven title effect — set it here from the same `invite_title`
@@ -116,62 +151,88 @@ export function InviteAccept() {
 
   useEffect(() => {
     if (!isServerConfigured() || !token) return // demo build / no token: nothing to preview
-    if (previewed.current) return
-    previewed.current = true
+    let cancelled = false
 
     void (async () => {
       try {
-        const previewResponse = await apiFetch(
-          `${API_BASE}/api/invites/${encodeURIComponent(token)}/preview`,
-          { credentials: 'include' },
-        )
+        const previewResponse = await accountClient.previewInvitation(token)
+        if (cancelled) return
         if (!previewResponse.ok) {
           setState({ kind: 'error', message: messageForStatus(previewResponse.status, await readApiError(previewResponse)) })
           return
         }
         const parsedPreview = parsePreview(await previewResponse.json().catch(() => null))
+        if (cancelled) return
         if (!parsedPreview) {
           setState({ kind: 'error', message: m.invite_err_preview_invalid() })
           return
         }
+        previewed.current = token
         setPreview(parsedPreview)
-        setState(user ? { kind: 'ready' } : { kind: 'auth' })
+        setState(currentUser.current ? { kind: 'ready' } : { kind: 'auth' })
       } catch (err) {
+        if (cancelled) return
         // Preview is read-only, so a transport failure cannot have consumed the invite. Keep this
         // distinct from an accept failure, whose outcome may genuinely be unknown.
         console.error('InviteAccept: preview request failed', err)
         setState({ kind: 'error', message: m.invite_err_network() })
       }
     })()
-  }, [token, user])
+    return () => {
+      cancelled = true
+    }
+  }, [token])
 
   const acceptInvite = async (): Promise<void> => {
-    if (!token || accepting.current) return
+    if (!token || previewed.current !== token || accepting.current) return
     accepting.current = true
     setBusy(true)
     setState({ kind: 'accepting' })
     try {
-      const res = await apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/accept`, {
-        method: 'POST',
-        credentials: 'include',
-      })
+      const command = acceptCommand.current ?? (acceptCommand.current = newBrowserAccountCommand())
+      const res = await accountClient.acceptInvitation(token, command)
       if (!res.ok) {
+        const failure = await accountFailure(res)
+        const outcomeUnknown = res.status >= 500 ||
+          (res.status === 409 && failure.code === 'COMMAND_IN_PROGRESS')
+        if (
+          res.status >= 400 && res.status < 500 &&
+          (res.status !== 409 || failure.code !== 'COMMAND_IN_PROGRESS')
+        ) {
+          acceptCommand.current = newBrowserAccountCommand()
+        }
         if (res.status === 401) {
           setState({ kind: 'auth' })
         } else {
-          setState({ kind: 'error', message: messageForStatus(res.status, await readApiError(res)) })
+          let reconciliation = ''
+          if (outcomeUnknown) {
+            const list = await fetchAccountSummaries({ allowCachedFallback: false })
+            if (list !== null) setAccountSummaries(list)
+            reconciliation = list !== null
+              ? 'Your company list was refreshed; check it before safely retrying this same request.'
+              : 'Your company list could not be refreshed. Reload before safely retrying this same request.'
+          }
+          setState({
+            kind: 'error',
+            message: outcomeUnknown
+              ? `${failure.message ?? 'The invite request has not reached a final result.'} ${reconciliation}`
+              : messageForStatus(res.status, failure.message ?? undefined),
+            retryAccept: outcomeUnknown,
+          })
         }
         return
       }
 
       const body = (await res.json().catch(() => ({}))) as { accountId?: string; role?: string }
       const accountId = typeof body.accountId === 'string' && body.accountId.length > 0 ? body.accountId : ''
-      if (!accountId || !isRole(body.role)) {
-        const list = await fetchAccountSummaries()
+      if (!accountId || !isAccountRole(body.role)) {
+        const list = await fetchAccountSummaries({ allowCachedFallback: false })
         if (list !== null) setAccountSummaries(list)
         setState({
           kind: 'error',
-          message: 'The invite may have been accepted, but the server returned an invalid result. The company list was refreshed; continue to the app to verify membership.',
+          message: list !== null
+            ? 'The invite may have been accepted, but the server returned an invalid result. The company list was refreshed; continue to the app to verify membership.'
+            : 'The invite may have been accepted, but the server returned an invalid result and the company list could not be refreshed. Reload to verify membership.',
         })
         return
       }
@@ -179,7 +240,10 @@ export function InviteAccept() {
       // Use the role returned by the mutation, not the proposed role in the preview: the server may
       // have resolved an existing membership with a different effective role.
       setState({ kind: 'joined', accountId, role: body.role, activating: true })
-      const list = await fetchAccountSummaries({ signal: AbortSignal.timeout(5000) })
+      const list = await fetchAccountSummaries({
+        signal: AbortSignal.timeout(5000),
+        allowCachedFallback: false,
+      })
       if (list !== null) {
         setAccountSummaries(list)
         if (list.some((account) => account.id === accountId)) setActiveAccount(accountId)
@@ -189,11 +253,14 @@ export function InviteAccept() {
       // The POST may have reached the server before the transport failed, so do not invite a blind
       // retry. Refresh authoritative membership state and explain how to verify the outcome.
       console.error('InviteAccept: accept request failed', error)
-      const list = await fetchAccountSummaries()
+      const list = await fetchAccountSummaries({ allowCachedFallback: false })
       if (list !== null) setAccountSummaries(list)
       setState({
         kind: 'error',
-        message: 'The invite request had an unknown outcome. Your company list was refreshed; continue to the app to check whether you joined before retrying the link.',
+        message: list !== null
+          ? 'The invite request had an unknown outcome. Your company list was refreshed; continue to the app to check whether you joined before retrying the link.'
+          : 'The invite request had an unknown outcome and your company list could not be refreshed. Reload before retrying the link.',
+        retryAccept: true,
       })
     } finally {
       accepting.current = false
@@ -213,7 +280,10 @@ export function InviteAccept() {
    * `/api/accounts` by AppShell before activation and then removed from the URL. */
   const enterJoinedCompany = async (accountId?: string): Promise<void> => {
     await refreshAuth()
-    const list = await fetchAccountSummaries({ signal: AbortSignal.timeout(5000) })
+    const list = await fetchAccountSummaries({
+      signal: AbortSignal.timeout(5000),
+      allowCachedFallback: false,
+    })
     if (list !== null) {
       setAccountSummaries(list)
       const target = accountId
@@ -242,8 +312,29 @@ export function InviteAccept() {
     }
   }
 
+  const signInWithProvider = async (provider: (typeof providers)[number]): Promise<void> => {
+    setBusy(true)
+    setState({ kind: 'auth' })
+    try {
+      const result = provider.kind === 'oidc'
+        ? await authClient.signIn.oauth2({ providerId: provider.id, callbackURL: window.location.href })
+        : await authClient.signIn.social({
+            provider: provider.id as 'google' | 'microsoft' | 'github',
+            callbackURL: window.location.href,
+          })
+      if (result.error) {
+        setState({ kind: 'auth', message: result.error.message ?? m.login_failed() })
+        setBusy(false)
+      }
+    } catch (error) {
+      console.error('InviteAccept: SSO sign-in request failed', error)
+      setState({ kind: 'auth', message: m.login_network_error() })
+      setBusy(false)
+    }
+  }
+
   const createAccount = async () => {
-    if (!token) return
+    if (!token || previewed.current !== token) return
     const report = (_field: string | null, message: string) => setState({ kind: 'auth', message })
     const cleanName = validateText(name, report, { field: 'name', requiredMessage: m.identity_err_name() })
     if (cleanName === null) return
@@ -258,21 +349,27 @@ export function InviteAccept() {
     }
     setBusy(true)
     setState({ kind: 'auth' })
+    let commandOutcomeUnknown = false
     try {
-      const res = await apiFetch(`${API_BASE}/api/invites/${encodeURIComponent(token)}/signup`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: cleanName, email: cleanEmail, password }),
-      })
+      const command = signupCommand.current ?? (signupCommand.current = newBrowserAccountCommand())
+      const res = await accountClient.signupWithInvitation(token, {
+        name: cleanName,
+        email: cleanEmail,
+        password,
+      }, command)
       if (!res.ok) {
-        throw new Error((await readApiError(res)) ?? messageForStatus(res.status, undefined))
+        commandOutcomeUnknown = await accountCommandOutcomeUnknown(res)
+        const failure = await accountFailure(res)
+        if (res.status >= 400 && res.status < 500 && !commandOutcomeUnknown) {
+          signupCommand.current = newBrowserAccountCommand()
+        }
+        throw new Error(failure.message ?? messageForStatus(res.status, undefined))
       }
       const signupBody = (await res.json().catch(() => null)) as Record<string, unknown> | null
       const accountId = typeof signupBody?.accountId === 'string' && signupBody.accountId.length > 0
         ? signupBody.accountId
         : null
-      if (!accountId || !isRole(signupBody?.role)) {
+      if (!accountId || !isAccountRole(signupBody?.role)) {
         throw new Error('The account was created, but the server returned an invalid company result. Sign in to verify the new membership.')
       }
       const { error } = await authClient.signIn.email({ email: cleanEmail, password })
@@ -283,7 +380,8 @@ export function InviteAccept() {
     } catch (error) {
       const transportFailure = error instanceof TypeError ||
         (error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError'))
-      if (transportFailure) {
+      const unknownFailure = transportFailure || commandOutcomeUnknown
+      if (unknownFailure) {
         try {
           const signInResult = await authClient.signIn.email({ email: cleanEmail, password })
           if (!signInResult.error) {
@@ -303,7 +401,7 @@ export function InviteAccept() {
       }
       setState({
         kind: 'auth',
-        message: transportFailure
+        message: unknownFailure
           ? 'Account creation had an unknown outcome. Try signing in with these credentials before creating another account.'
           : error instanceof Error ? error.message : m.invite_err_generic(),
       })
@@ -381,6 +479,48 @@ export function InviteAccept() {
             </>
           )}
           {state.kind === 'auth' && (
+            authMode === 'sso' ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted">
+                  Sign in with the invited identity, then review and accept this invitation.
+                </p>
+                <FieldError id={errorId}>{state.message}</FieldError>
+                {providers.length === 0 ? (
+                  <FieldError>No single sign-on provider is available. Contact the operator.</FieldError>
+                ) : (
+                  <div className="space-y-2">
+                    {providers.map((provider) => (
+                      <Button
+                        key={provider.id}
+                        type="button"
+                        className="w-full"
+                        disabled={busy}
+                        onClick={() => void signInWithProvider(provider)}
+                      >
+                        Continue with {provider.label}
+                      </Button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+            <div className="space-y-4">
+            {providers.length > 0 && (
+              <div className="space-y-2">
+                {providers.map((provider) => (
+                  <Button
+                    key={provider.id}
+                    type="button"
+                    className="w-full"
+                    disabled={busy}
+                    onClick={() => void signInWithProvider(provider)}
+                  >
+                    Continue with {provider.label}
+                  </Button>
+                ))}
+                <p className="text-center text-xs text-muted">or use an email and password</p>
+              </div>
+            )}
             <form onSubmit={(event) => void signIn(event)} className="space-y-3" noValidate>
               <p className="text-sm text-muted">{m.invite_onboard_intro()}</p>
               <label className="block">
@@ -430,14 +570,21 @@ export function InviteAccept() {
                 </Button>
               </div>
             </form>
+            </div>
+            )
           )}
           {state.kind === 'error' && (
             <>
               <FieldError>{state.message}</FieldError>
-              <div className="flex justify-end">
+              <div className="flex flex-wrap justify-end gap-2">
                 <Link to="/" className={linkButtonClass}>
                   {m.invite_go_to_app()}
                 </Link>
+                {state.retryAccept && preview && user && (
+                  <Button type="button" disabled={busy} onClick={() => void acceptInvite()}>
+                    Retry accept
+                  </Button>
+                )}
               </div>
             </>
           )}

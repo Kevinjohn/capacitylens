@@ -19,6 +19,7 @@ const excluded = /(?:^|\/)(?:node_modules|reports|coverage|dist|src\/paraglide|t
 const eligible = /(?:\.[cm]?[jt]sx?|\.mjs|\.sh|\.conf)$/
 const markers = [
   /(?:from|require\()['"]node:crypto/,
+  /from\s+['"]jose['"]/,
   /\bcrypto\.(?:subtle|randomUUID|getRandomValues)\s*\(?/,
   /\b(?:AES-GCM|scrypt|timingSafeEqual|createHash|createHmac|randomBytes)\b/,
   /\bopenssl\b/,

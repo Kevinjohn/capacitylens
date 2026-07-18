@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { API_BASE, isServerConfigured } from '../../data/apiConfig'
+import { isServerConfigured } from '../../data/apiConfig'
 import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
@@ -12,8 +12,8 @@ import {
   canRemoveMember,
   type Role,
 } from '@capacitylens/shared/domain/access'
-import { apiFetch } from '../../data/requestTimeout'
-import { apiFetchReauth } from '../../auth/apiFetchReauth'
+import { isAccountRole, type InvitationRole } from '@capacitylens/shared/account/types'
+import { accountClient, accountCommandOutcomeUnknown } from '../../account/accountClient'
 import { MAX_EMAIL_LENGTH } from '@capacitylens/shared/lib/strings'
 import { roleLabel, roleSummary } from '../../lib/accessCopy'
 import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
@@ -47,14 +47,13 @@ interface Member {
 
 interface InviteSummary {
   id: string
-  role: Role
+  role: InvitationRole
   preauthEmail: string | null
   expiresAt: string
   usedAt: string | null
   createdAt: string
 }
 
-const KNOWN_ROLES = new Set<Role>(['owner', 'admin', 'editor', 'viewer'])
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value)
 const isTimestamp = (value: unknown): value is string =>
@@ -66,7 +65,7 @@ function parseMembers(value: unknown): Member[] | null {
     if (
       !isRecord(row) ||
       typeof row.userId !== 'string' || row.userId.length === 0 ||
-      !KNOWN_ROLES.has(row.role as Role) ||
+      !isAccountRole(row.role) ||
       row.status !== 'active' ||
       !isTimestamp(row.createdAt) ||
       !(row.name === null || typeof row.name === 'string') ||
@@ -85,7 +84,7 @@ function parseInvites(value: unknown): InviteSummary[] | null {
     if (
       !isRecord(row) ||
       typeof row.id !== 'string' || row.id.length === 0 ||
-      !KNOWN_ROLES.has(row.role as Role) ||
+      !isAccountRole(row.role) || row.role === 'owner' ||
       !(row.preauthEmail === null || typeof row.preauthEmail === 'string') ||
       !isTimestamp(row.expiresAt) ||
       !(row.usedAt === null || isTimestamp(row.usedAt)) ||
@@ -198,7 +197,7 @@ export function MembersSection() {
   // self-gated us out (render nothing).
   const [gate, setGate] = useState<'loading' | 'shown' | 'hidden'>('loading')
 
-  const [inviteRole, setInviteRole] = useState<Role>('editor')
+  const [inviteRole, setInviteRole] = useState<InvitationRole>('editor')
   const [invitePreauth, setInvitePreauth] = useState('')
   // The freshly-minted link, shown ONCE after a successful create (the token is write-once). Keep
   // its non-secret invite id so a revoke or authoritative list refresh can clear a now-dead link.
@@ -210,7 +209,6 @@ export function MembersSection() {
   const [resetLink, setResetLink] = useState<
     { userId: string; link: string; member: string; expiresAt: string } | null
   >(null)
-  const [unknownResetFor, setUnknownResetFor] = useState<string | null>(null)
   const [transferTarget, setTransferTarget] = useState<Member | null>(null)
   const [roleChange, setRoleChange] = useState<{ member: Member; nextRole: Role } | null>(null)
   // Bumped after every mutation to re-run the fetch effect (a re-read keeps the list authoritative).
@@ -220,6 +218,10 @@ export function MembersSection() {
   const [busyAction, setBusyAction] = useState<string | null>(null)
 
   const enabled = authMode !== 'off' && isServerConfigured()
+  const requestAccountId = (): string => {
+    if (!activeAccountId) throw new Error('No active account is available for this account operation.')
+    return activeAccountId
+  }
   const reload = useCallback(() => setReloadKey((k) => k + 1), [])
   const beginAction = (key: string): boolean => {
     if (actionLock.current !== null) return false
@@ -247,7 +249,7 @@ export function MembersSection() {
     if (!accountId) return 'failed'
     invalidateMemberships()
     await refreshAuth()
-    const summaries = await fetchAccountSummaries()
+    const summaries = await fetchAccountSummaries({ allowCachedFallback: false })
     // A cached fallback is useful for ordinary offline viewing but is not evidence of the caller's
     // post-mutation role. Fail closed instead of accepting a stale membership list as authority.
     if (summaries === null || offlineStateSnapshot().readOnly) {
@@ -286,8 +288,8 @@ export function MembersSection() {
     }
     try {
       const [memberResponse, inviteResponse] = await Promise.all([
-        apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members`, { credentials: 'include' }),
-        apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites`, { credentials: 'include' }),
+        accountClient.listMembers(requestAccountId()),
+        accountClient.listInvitations(requestAccountId()),
       ])
       if (!memberResponse.ok || !inviteResponse.ok) throw new Error('The authoritative lists could not be reloaded.')
       const nextMembers = parseMembers(await memberResponse.json())
@@ -325,9 +327,7 @@ export function MembersSection() {
     const current = () => !cancelled && requestGeneration.current === generation
     void (async () => {
       try {
-        const res = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/members`, {
-          credentials: 'include',
-        })
+        const res = await accountClient.listMembers(activeAccountId)
         if (res.status === 403) {
           if (!current()) return
           setGate('hidden') // a viewer/editor (or non-member) — hide the whole section.
@@ -345,9 +345,7 @@ export function MembersSection() {
         setMembers(membersBody)
         setGate('shown')
         // Invites are a separate, also-gated read; failure there is non-fatal to the member list.
-        const invRes = await apiFetch(`${API_BASE}/api/accounts/${activeAccountId}/invites`, {
-          credentials: 'include',
-        })
+        const invRes = await accountClient.listInvitations(activeAccountId)
         if (!invRes.ok) {
           if (!current()) return
           const message = (await readApiError(invRes)) ?? m.settings_members_err_load({ status: invRes.status })
@@ -387,13 +385,15 @@ export function MembersSection() {
     if (nextRole === mem.role) return
     if (!beginAction(`role:${mem.userId}`)) return
     try {
-      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: nextRole }),
-      })
+      const res = await accountClient.changeMemberRole(requestAccountId(), mem.userId, nextRole)
       if (!res.ok) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          await reconcileUnknownMutation(
+            'The role change had an unknown outcome.',
+            { callerAccessMayHaveChanged: mem.isSelf },
+          )
+          return
+        }
         fail(null, (await readApiError(res)) ?? m.settings_members_err_change_role({ status: res.status }))
         return
       }
@@ -418,11 +418,15 @@ export function MembersSection() {
   const removeMember = async (mem: Member) => {
     if (!beginAction(`remove:${mem.userId}`)) return
     try {
-      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      if (!res.ok && res.status !== 204) {
+      const res = await accountClient.removeMember(requestAccountId(), mem.userId)
+      if (!res.ok) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          await reconcileUnknownMutation(
+            'The member removal had an unknown outcome.',
+            { callerAccessMayHaveChanged: mem.isSelf },
+          )
+          return
+        }
         fail(null, (await readApiError(res)) ?? m.settings_members_err_remove({ status: res.status }))
         return
       }
@@ -446,13 +450,15 @@ export function MembersSection() {
   const transferOwnership = async (mem: Member) => {
     if (!beginAction(`transfer:${mem.userId}`)) return
     try {
-      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/transfer-ownership`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ toUserId: mem.userId }),
-      })
+      const res = await accountClient.transferOwnership(requestAccountId(), mem.userId)
       if (!res.ok) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          await reconcileUnknownMutation(
+            'The ownership transfer had an unknown outcome.',
+            { callerAccessMayHaveChanged: true },
+          )
+          return
+        }
         fail(null, (await readApiError(res)) ?? m.settings_members_err_transfer({ status: res.status }))
         return
       }
@@ -482,20 +488,21 @@ export function MembersSection() {
   // link out of the write-once block below and hands it over directly. `mem` is NOT `m` (i18n).
   const resetPassword = async (mem: Member) => {
     if (!beginAction(`reset:${mem.userId}`)) return
-    if (unknownResetFor === mem.userId) setUnknownResetFor(null)
     setResetLink(null)
     try {
-      const res = await apiFetchReauth(
-        `${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}/reset-password`,
-        { method: 'POST', credentials: 'include' },
-      )
+      const res = await accountClient.issuePasswordReset(requestAccountId(), mem.userId)
       if (res.status !== 201) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          await reconcileUnknownMutation(
+            'The reset-token request had an unknown outcome. Its one-time value may be unavailable; retrying this same action will reconcile the original command.',
+          )
+          return
+        }
         fail(null, (await readApiError(res)) ?? m.settings_members_err_reset({ status: res.status }))
         return
       }
       const body = parseTokenResponse(await res.json())
       if (!body?.expiresAt) {
-        setUnknownResetFor(mem.userId)
         await reconcileUnknownMutation('A reset token was minted but its one-time value was lost. Use the reset action again only to deliberately replace it.')
         return
       }
@@ -509,9 +516,7 @@ export function MembersSection() {
         expiresAt: body.expiresAt,
       })
       setNotice(m.settings_members_reset_created())
-      setUnknownResetFor(null)
     } catch (e) {
-      setUnknownResetFor(mem.userId)
       await reconcileUnknownMutation(`The reset-token request had an unknown outcome. Its value may be lost; using reset again will replace it. ${errorMessage(e)}`)
     } finally {
       endAction()
@@ -521,17 +526,30 @@ export function MembersSection() {
   const revokeSessions = async (mem: Member) => {
     if (!beginAction(`sessions:${mem.userId}`)) return
     try {
-      const res = await apiFetchReauth(
-        `${API_BASE}/api/accounts/${activeAccountId}/members/${mem.userId}/revoke-sessions`,
-        { method: 'POST', credentials: 'include' },
-      )
+      const res = await accountClient.revokeMemberSessions(requestAccountId(), mem.userId)
       if (res.status !== 204) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          if (mem.isSelf) {
+            // The command may have invalidated this browser's own session. Re-enter through the
+            // auth wall; sessionStorage retains the command identity if an operator retries.
+            window.location.reload()
+            return
+          }
+          await reconcileUnknownMutation('Session revocation had an unknown outcome.')
+          return
+        }
         fail(null, (await readApiError(res)) ?? `Sessions could not be revoked (${res.status}).`)
         return
       }
       setNotice('Active sessions revoked.')
       if (mem.isSelf) window.location.reload()
     } catch (e) {
+      if (mem.isSelf) {
+        // A rejected transport promise can still follow a committed server-side revocation. Do not
+        // leave tenant data rendered under a session whose validity is now unknown.
+        window.location.reload()
+        return
+      }
       await reconcileUnknownMutation(`Session revocation had an unknown outcome. ${errorMessage(e)}`)
     } finally {
       endAction()
@@ -547,17 +565,18 @@ export function MembersSection() {
     }
     if (!beginAction('invite:create')) return
     try {
-      const res = await apiFetchReauth(`${API_BASE}/api/invites`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accountId: activeAccountId,
+      const res = await accountClient.createInvitation({
+          accountId: requestAccountId(),
           role: inviteRole,
           ...(trimmed ? { preauthEmail: trimmed } : {}),
-        }),
       })
       if (res.status !== 201) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          await reconcileUnknownMutation(
+            'The invite creation had an unknown outcome. Revoke any new unknown invite before creating another.',
+          )
+          return
+        }
         fail('invite', (await readApiError(res)) ?? m.settings_members_err_create_invite({ status: res.status }))
         return
       }
@@ -586,11 +605,12 @@ export function MembersSection() {
   const revokeInvite = async (id: string) => {
     if (!beginAction(`invite:revoke:${id}`)) return
     try {
-      const res = await apiFetchReauth(`${API_BASE}/api/accounts/${activeAccountId}/invites/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
-      if (!res.ok && res.status !== 204) {
+      const res = await accountClient.revokeInvitation(requestAccountId(), id)
+      if (!res.ok) {
+        if (await accountCommandOutcomeUnknown(res)) {
+          await reconcileUnknownMutation('The invite revocation had an unknown outcome.')
+          return
+        }
         fail(null, m.settings_members_err_revoke_invite({ status: res.status }))
         return
       }
@@ -741,7 +761,7 @@ export function MembersSection() {
                 data-testid="invite-role"
                 aria-label={m.settings_invite_role_aria()}
                 value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as Role)}
+                onChange={(e) => setInviteRole(e.target.value as InvitationRole)}
                 disabled={busyAction !== null}
                 className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
               >

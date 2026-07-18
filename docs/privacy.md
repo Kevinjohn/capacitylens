@@ -46,7 +46,7 @@ Have I Been Pwned Pwned Passwords range API by default. It sends the first five 
 characters of the password's SHA-1 digest, with padded responses enabled; it never sends the
 password or complete digest. The lookup occurs only while setting a credential, not during normal
 sign-in. It fails closed when unavailable. Non-production isolated deployments can set
-`CAPACITYLENS_PASSWORD_BREACH_CHECK=off`; production supports that opt-out with a startup warning.
+`SMALLSASS_ACCOUNT_PASSWORD_BREACH_CHECK=off`; production supports that opt-out with a startup warning.
 Operators should include this outbound security service in their network/privacy assessment.
 
 If an operator enables social/OIDC sign-in, the browser navigates to that chosen identity provider

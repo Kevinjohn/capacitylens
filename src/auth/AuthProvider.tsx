@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { API_BASE, isServerConfigured } from '../data/apiConfig'
-import { requestSignal } from '../data/requestTimeout'
+import { isServerConfigured } from '../data/apiConfig'
+import { accountClient } from '../account/accountClient'
 import { useStore } from '../store/useStore'
 import { AuthContext, type AuthMode, type AuthProviderInfo, type AuthUser } from './authContext'
 import { validateAuthUser } from './validateAuthUser'
@@ -67,7 +67,7 @@ function isAuthProvider(v: unknown): v is AuthProviderInfo {
     typeof provider.label === 'string' &&
     provider.label.length > 0 &&
     (provider.kind === 'social' || provider.kind === 'oidc') &&
-    provider.experimental === true
+    typeof provider.experimental === 'boolean'
   )
 }
 
@@ -89,10 +89,7 @@ function boolFieldOr(v: unknown, fallback: boolean): boolean {
  *  Module-scope so the component's effects only subscribe to its result. */
 async function fetchAuthStatus(acceptEffects: () => boolean): Promise<Status | null> {
   try {
-    const res = await fetch(`${API_BASE}/api/auth/me`, {
-      credentials: 'include',
-      signal: requestSignal(), // the one shared request-timeout/abort seam (15s + AbortSignal.any fallback)
-    })
+    const res = await accountClient.me()
     if (res.status === 401) {
       // POLICY (see DECISIONS.md — the 401 sign-in-wall contract): a 401 ALWAYS lands the signed-out
       // user on the sign-in wall. It can never be worse to let a signed-out user attempt sign-in, so
@@ -350,9 +347,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('AuthProvider: offline access could not be disabled after cleanup failed', disableError)
         }
       }
-      const { authClient } = await import('./authClient')
-      const result = await authClient.signOut()
-      if (result.error) throw new Error(result.error.message ?? 'Sign-out failed.')
+      const response = await accountClient.signOut()
+      if (!response.ok) throw new Error(`Sign-out failed (${response.status}).`)
     } catch (e) {
       console.error('AuthProvider: sign-out failed', e)
     } finally {
@@ -390,13 +386,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // visitor onto React Router's bare 404 dead-end; failing the match here instead keeps the login
     // wall as the fallback (a styled screen with a way in), which is the safer degrade.
     if (/^\/reset-password\/[^/]+$/.test(window.location.pathname)) return <>{children}</>
-    // Password invite onboarding must render before a session exists: an existing identity signs in
-    // here, then reviews and explicitly accepts after reload; the create-account action uses the
-    // invite-authorized endpoint that atomically creates identity + membership and consumes the token.
-    if (
-      status.authMode === 'password' &&
-      /^\/invite\/[^/]+$/.test(window.location.pathname)
-    ) {
+    // Invite onboarding must render before a session exists. Password mode offers the token-scoped
+    // credential flow; SSO mode initiates the configured provider with this invite URL as its
+    // callback, then reviews and explicitly accepts after the authenticated reload. Neither path
+    // exposes tenant data before the invitation is consumed.
+    if (/^\/invite\/[^/]+$/.test(window.location.pathname)) {
       // Invite signup consumes the token before the new session exists. Give the pre-session route
       // a real refreshAuth so it can verify the freshly-created session and destination before a
       // fresh authenticated boot re-attaches tenant persistence. No tenant data is exposed: user
@@ -406,6 +400,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           value={{
             authMode: status.authMode,
             user: null,
+            providers: status.providers,
             canCreateAccount: false,
             multiAccount: false,
             refreshAuth,
@@ -446,6 +441,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         authMode: status.authMode,
         user: status.user,
+        providers: status.providers,
         canCreateAccount: status.canCreateAccount,
         multiAccount: status.multiAccount,
         refreshAuth,

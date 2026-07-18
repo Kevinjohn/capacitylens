@@ -57,6 +57,45 @@ function assertUsableOrg(db: Db, accountId: string, userId: string): void {
 }
 
 describe('POST /api/orgs (P1.8) — auth-on', () => {
+  it('replays a server-id/default-timestamp create with the same command after the cap is full', async () => {
+    const { app, db } = await appWithAuth()
+    const { cookie, userId } = await signUp(app, 'replay-founder@capacitylens.dev')
+    const headers = {
+      cookie,
+      'idempotency-key': 'org-replay-idempotency-0001',
+      'x-account-command-id': 'org-replay-command-0000001',
+    }
+
+    const first = await createOrg(app, { name: 'Replay Studio' }, headers)
+    const replay = await createOrg(app, { name: 'Replay Studio' }, headers)
+
+    expect(first.statusCode, first.body).toBe(201)
+    expect(replay.statusCode).toBe(201)
+    expect(replay.json()).toEqual(first.json())
+    expect(loadState(db).accounts).toHaveLength(1)
+    assertUsableOrg(db, first.json().id as string, userId)
+  })
+
+  it('serializes concurrent first-company creates and rechecks the cap under the account lock', async () => {
+    const { app, db } = await appWithAuth()
+    const { cookie } = await signUp(app, 'concurrent-founder@capacitylens.dev')
+    const responses = await Promise.all([
+      createOrg(app, { name: 'Concurrent One' }, {
+        cookie,
+        'idempotency-key': 'org-concurrent-idempotency-01',
+        'x-account-command-id': 'org-concurrent-command-000001',
+      }),
+      createOrg(app, { name: 'Concurrent Two' }, {
+        cookie,
+        'idempotency-key': 'org-concurrent-idempotency-02',
+        'x-account-command-id': 'org-concurrent-command-000002',
+      }),
+    ])
+
+    expect(responses.map((response) => response.statusCode).sort()).toEqual([201, 403])
+    expect(loadState(db).accounts).toHaveLength(1)
+  })
+
   it('zero-account bootstrap: a signed-up user creates the first org; a now-Owner can create a second', async () => {
     // multiAccount: true — the SECOND create below is exactly what the single-company cap denies by
     // default once any account exists (see the "default cap" describe block); this test is about the
@@ -66,14 +105,14 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
     const { cookie, userId } = await signUp(app, 'founder@capacitylens.dev')
 
     const first = await createOrg(app, { name: 'First Studio' }, { cookie })
-    expect(first.statusCode).toBe(201)
+    expect(first.statusCode, first.body).toBe(201)
     const id1 = first.json().id as string
     assertUsableOrg(db, id1, userId) // account + Internal + Owner, atomically
 
     // Now an Owner of an existing account, the SAME user creates a second org (owner-of-existing path),
     // even though accounts no longer number zero.
     const second = await createOrg(app, { name: 'Second Studio' }, { cookie })
-    expect(second.statusCode).toBe(201)
+    expect(second.statusCode, second.body).toBe(201)
     assertUsableOrg(db, second.json().id as string, userId)
   })
 
@@ -96,7 +135,7 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
     upsertMember(db, { accountId: 'a1', userId, role: 'owner', status: 'active', createdAt: TS })
 
     const res = await createOrg(app, { name: 'Org B' }, { cookie })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode, res.body).toBe(201)
     assertUsableOrg(db, res.json().id as string, userId)
   })
 
@@ -108,7 +147,7 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
     upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
 
     const res = await createOrg(app, { name: 'Org C' }, { cookie })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode, res.body).toBe(201)
     assertUsableOrg(db, res.json().id as string, userId)
   })
 
@@ -120,7 +159,7 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
       upsertMember(db, { accountId: 'a1', userId, role, status: 'active', createdAt: TS })
 
       const res = await createOrg(app, { name: `Org ${role}` }, { cookie })
-      expect(res.statusCode, `${role} denied`).toBe(403)
+      expect(res.statusCode, `${role} denied: ${res.body}`).toBe(403)
       expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1'])
     }
   })
@@ -147,7 +186,7 @@ describe('POST /api/orgs (P1.8) — auth-on', () => {
     const { app, db } = await appWithAuth() // zero accounts -> the gate allows, so the create runs
     const { cookie, userId } = await signUp(app, 'repair@capacitylens.dev')
     const res = await createOrg(app, { name: 'Repaired', color: 'not-a-hex' }, { cookie })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode, res.body).toBe(201)
     const id = res.json().id as string
     expect(typeof id).toBe('string')
     expect(id.length).toBeGreaterThan(0) // server-minted when the body omits one
@@ -168,7 +207,7 @@ describe('POST /api/orgs (P1.8) — bootstrap token', () => {
     const { cookie, userId } = await signUp(app, 'operator@capacitylens.dev')
 
     const res = await createOrg(app, { name: 'Provisioned' }, { cookie, 'x-capacitylens-bootstrap-token': TOKEN })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode, res.body).toBe(201)
     assertUsableOrg(db, res.json().id as string, userId)
   })
 
@@ -206,7 +245,7 @@ describe('POST /api/orgs (P1.8) — OFF mode (trusted-local)', () => {
     seedOne(db) // even with an account already present, OFF mode allows (trusted-local)
 
     const res = await createOrg(app, { name: 'Local Co' })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode, res.body).toBe(201)
     assertUsableOrg(db, res.json().id as string, DEMO_USER.id)
   })
 })
@@ -221,7 +260,7 @@ describe('POST /api/orgs (P1.8) — atomicity', () => {
 
     // First create succeeds and fixes the account id.
     const ok = await createOrg(app, { name: 'Real Org' }, { cookie })
-    expect(ok.statusCode).toBe(201)
+    expect(ok.statusCode, ok.body).toBe(201)
     const id = ok.json().id as string
     const before = loadState(db)
 
@@ -248,7 +287,7 @@ describe('POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
     const { app } = await appWithAuth() // multiAccount defaults to false; zero accounts
     const { cookie } = await signUp(app, 'first-org-cap@capacitylens.dev')
     const res = await createOrg(app, { name: 'First Studio' }, { cookie })
-    expect(res.statusCode).toBe(201)
+    expect(res.statusCode, res.body).toBe(201)
   })
 
   it('2nd org via an owner of an existing account -> 403 policy message, NOT 201', async () => {
@@ -259,7 +298,8 @@ describe('POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
 
     const res = await createOrg(app, { name: 'Second Studio' }, { cookie })
     expect(res.statusCode).toBe(403)
-    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: 'FORBIDDEN' })
+    expect(res.json().commandId).toEqual(expect.any(String))
     expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1']) // nothing created
   })
 
@@ -271,7 +311,8 @@ describe('POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
 
     const res = await createOrg(app, { name: 'Provisioned' }, { cookie, 'x-capacitylens-bootstrap-token': TOKEN })
     expect(res.statusCode).toBe(403)
-    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: 'FORBIDDEN' })
+    expect(res.json().commandId).toEqual(expect.any(String))
     expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1'])
   })
 
@@ -282,7 +323,8 @@ describe('POST /api/orgs (P1.8) — single-company cap (default multiAccount: fa
 
     const res = await createOrg(app, { name: 'Local Co 2' })
     expect(res.statusCode).toBe(403)
-    expect(res.json()).toEqual({ error: CAP_MESSAGE })
+    expect(res.json()).toMatchObject({ error: CAP_MESSAGE, code: 'FORBIDDEN' })
+    expect(res.json().commandId).toEqual(expect.any(String))
     expect(loadState(db).accounts.map((a) => a.id)).toEqual(['a1'])
   })
 })

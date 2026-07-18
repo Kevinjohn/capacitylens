@@ -43,6 +43,10 @@ const KNOWN_TABLES = new Set([
   'twoFactor',
   'verification',
   'capacitylens_bootstrap_claim',
+  'account_security_revisions',
+  'account_commands',
+  'account_session_assurance',
+  'account_federated_provider_bindings',
   DATABASE_MIGRATION_TABLE,
 ])
 
@@ -99,6 +103,38 @@ function remapIds(db: DatabaseSync, table: string, idColumn: string, references:
   }
 }
 
+/** App-owned control tables intentionally have no foreign keys, so corrupted or legacy rows can
+ * reference a principal/workspace that has no parent row for remapIds() to discover. Scrub those
+ * residual opaque identifiers too: a kept rehearsal snapshot must not retain source-installation
+ * identifiers merely because the live database could no longer resolve them. */
+function scrubDanglingReferences(
+  db: DatabaseSync,
+  parentTable: string,
+  parentColumn: string,
+  references: Reference[],
+  label: string,
+): void {
+  for (const reference of references) {
+    if (!hasTable(db, reference.table) || !columns(db, reference.table).has(reference.column)) continue
+    const table = quoteIdentifier(reference.table)
+    const column = quoteIdentifier(reference.column)
+    const replacement = `'rehearsal-dangling-${label}-' || rowid`
+    if (!hasTable(db, parentTable) || !columns(db, parentTable).has(parentColumn)) {
+      db.exec(`UPDATE ${table} SET ${column} = ${replacement} WHERE ${column} IS NOT NULL`)
+      continue
+    }
+    db.exec(
+      `UPDATE ${table} AS child
+          SET ${column} = ${replacement}
+        WHERE ${column} IS NOT NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM ${quoteIdentifier(parentTable)} AS parent
+             WHERE parent.${quoteIdentifier(parentColumn)} = child.${column}
+          )`,
+    )
+  }
+}
+
 /** Sanitise only a temporary online snapshot. Unknown tables fail closed so a new auth/plugin table
  * cannot carry secrets into a kept rehearsal directory until the redaction policy covers it. */
 function anonymise(db: DatabaseSync): void {
@@ -121,6 +157,7 @@ function anonymise(db: DatabaseSync): void {
       { table: 'timeOff', column: 'accountId' },
       { table: 'account_members', column: 'accountId' },
       { table: 'invites', column: 'accountId' },
+      { table: 'account_commands', column: 'workspaceId' },
     ])
     remapIds(db, 'clients', 'id', [{ table: 'projects', column: 'clientId' }])
     remapIds(db, 'disciplines', 'id', [{ table: 'resources', column: 'disciplineId' }])
@@ -148,12 +185,43 @@ function anonymise(db: DatabaseSync): void {
       { table: 'session', column: 'userId' },
       { table: 'twoFactor', column: 'userId' },
       { table: 'account_members', column: 'userId' },
+      { table: 'account_security_revisions', column: 'principalId' },
+      { table: 'account_commands', column: 'actorPrincipalId' },
+      { table: 'account_commands', column: 'targetPrincipalId' },
+      { table: 'account_session_assurance', column: 'principalId' },
     ])
     remapIds(db, 'account', 'id', [])
+    // Assurance keys are application-scoped hashes of bearer session tokens, not Better Auth row
+    // ids, so anonymise the two namespaces independently.
     remapIds(db, 'session', 'id', [])
     remapIds(db, 'twoFactor', 'id', [])
     remapIds(db, 'verification', 'id', [])
     remapIds(db, 'invites', 'id', [])
+    remapIds(db, 'account_commands', 'commandId', [])
+    remapIds(db, 'account_session_assurance', 'sessionId', [])
+    remapIds(db, 'account_federated_provider_bindings', 'providerId', [
+      { table: 'account', column: 'providerId' },
+      { table: 'account_session_assurance', column: 'providerId' },
+    ])
+    scrubDanglingReferences(db, 'accounts', 'id', [
+      { table: 'account_members', column: 'accountId' },
+      { table: 'invites', column: 'accountId' },
+      { table: 'account_commands', column: 'workspaceId' },
+    ], 'workspace')
+    scrubDanglingReferences(db, 'user', 'id', [
+      { table: 'account_members', column: 'userId' },
+      { table: 'account_security_revisions', column: 'principalId' },
+      { table: 'account_commands', column: 'actorPrincipalId' },
+      { table: 'account_commands', column: 'targetPrincipalId' },
+      { table: 'account_session_assurance', column: 'principalId' },
+    ], 'principal')
+    // Credential rows and stale/legacy federated rows do not necessarily have a corresponding
+    // application binding. Their providerId still identifies the source installation, so scrub
+    // every value that the binding remap above could not resolve.
+    scrubDanglingReferences(db, 'account_federated_provider_bindings', 'providerId', [
+      { table: 'account', column: 'providerId' },
+      { table: 'account_session_assurance', column: 'providerId' },
+    ], 'provider')
 
     updateIfPresent(db, 'accounts', 'name', `'Rehearsal Account ' || rowid`)
     updateIfPresent(
@@ -193,6 +261,28 @@ function anonymise(db: DatabaseSync): void {
     updateIfPresent(db, 'invites', 'tokenHash', `'rehearsal-invite-hash-' || rowid`)
     updateIfPresent(db, 'invites', 'preauthEmail', `CASE WHEN preauthEmail IS NULL THEN NULL ELSE 'invite-' || rowid || '@example.invalid' END`)
     updateIfPresent(db, 'capacitylens_bootstrap_claim', 'claimToken', `'rehearsal-disabled'`)
+    updateIfPresent(db, 'account_commands', 'applicationId', `'rehearsal-app'`)
+    updateIfPresent(db, 'account_commands', 'operation', `'rehearsal-operation-' || rowid`)
+    updateIfPresent(db, 'account_commands', 'idempotencyKey', `'rehearsal-key-' || rowid`)
+    updateIfPresent(db, 'account_commands', 'payloadHash', `lower(hex(zeroblob(32)))`)
+    updateIfPresent(
+      db,
+      'account_commands',
+      'resultJson',
+      `CASE
+         WHEN status = 'pending' THEN NULL
+         WHEN status = 'completed' THEN '{}'
+         WHEN resultJson IS NULL THEN NULL
+         ELSE '{"kind":"rehearsal-redacted"}'
+       END`,
+    )
+    updateIfPresent(db, 'account_federated_provider_bindings', 'applicationId', `'rehearsal-app'`)
+    updateIfPresent(
+      db,
+      'account_federated_provider_bindings',
+      'issuer',
+      `'https://idp-' || rowid || '.example.invalid'`,
+    )
     db.exec('COMMIT;')
   } catch (error) {
     db.exec('ROLLBACK;')
@@ -220,7 +310,8 @@ function serialisable(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(serialisable)
   if (value && typeof value === 'object') {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(
+      Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+        a < b ? -1 : a > b ? 1 : 0).map(
         ([key, item]) => [key, serialisable(item)],
       ),
     )

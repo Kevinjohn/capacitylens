@@ -25,7 +25,7 @@ import { LINKS } from '../lib/navLinks'
 import { AUDIT_WARNING_EVENT } from '../lib/auditWarning'
 import { useOfflineState } from '../data/useOfflineState'
 import { hasUnsavedPersistenceWrites } from '../data/persist'
-import { roleLabel } from '../lib/accessCopy'
+import { accessLabelFor } from '../lib/accessCopy'
 import { accessExperienceFor } from '../lib/accessMode'
 import { readJoinedAccountHandoff } from '../lib/joinedAccountHandoff'
 
@@ -516,19 +516,12 @@ function ActiveRoleBadge() {
   const offline = useOfflineState()
   const accessExperience = accessExperienceFor(authMode)
   const resolvedRole = accessExperience === 'authenticated' && permissionStatus === 'resolved' ? role : null
-  const label = offline.readOnly
-    ? m.access_offline_label()
-    : accessExperience === 'demo'
-      ? m.access_demo_label()
-      : accessExperience === 'open'
-        ? m.access_open_label()
-        : permissionStatus === 'pending'
-          ? m.access_checking_label()
-          : permissionStatus === 'unavailable'
-            ? m.access_unavailable_label()
-            : resolvedRole
-              ? roleLabel(resolvedRole)
-              : m.access_unavailable_label()
+  const label = accessLabelFor({
+    offlineReadOnly: offline.readOnly,
+    experience: accessExperience,
+    permissionStatus,
+    role: resolvedRole,
+  })
   const viewOnly = offline.readOnly || resolvedRole === 'viewer'
   return (
     <Badge

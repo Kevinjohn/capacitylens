@@ -75,6 +75,20 @@ function stampName(now: Date): string {
   return `capacitylens-${date}-${time}-${ms}.db`
 }
 
+/** Atomically reserve a unique temporary snapshot path, retrying only name collisions. */
+function claimBackupTemp(nextFile: () => string): { file: string; tmp: string } {
+  for (;;) {
+    const file = nextFile()
+    const tmp = `${file}.tmp`
+    try {
+      writeFileSync(tmp, '', { flag: 'wx', mode: 0o600 })
+      return { file, tmp }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+    }
+  }
+}
+
 export interface PreMigrationBackupOptions {
   dbPath: string
   fromVersion: number
@@ -100,19 +114,11 @@ export async function writePreMigrationBackup(
   const stamp = stampName(now()).replace(/^capacitylens-/, '').replace(/\.db$/, '')
   const base = `capacitylens-pre-migration-v${options.fromVersion}-to-v${options.toVersion}-${stamp}`
   let suffix = 0
-  let file: string
-  let tmp: string
-  for (;;) {
-    file = join(dir, `${base}${suffix === 0 ? '' : `-${suffix}`}.db`)
-    tmp = `${file}.tmp`
-    try {
-      writeFileSync(tmp, '', { flag: 'wx', mode: 0o600 })
-      break
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-      suffix += 1
-    }
-  }
+  const { file, tmp } = claimBackupTemp(() => {
+    const currentSuffix = suffix
+    suffix += 1
+    return join(dir, `${base}${currentSuffix === 0 ? '' : `-${currentSuffix}`}.db`)
+  })
 
   try {
     if (typeof backup === 'function') await backup(db, tmp)
@@ -320,18 +326,7 @@ export function startBackups(
     // exclusive create is what stops a sibling instance from writing into the same temp file.
     // EEXIST just means the name is taken — bump to the next stamp and retry (terminates:
     // uniqueStamp strictly advances past one of finitely many files per iteration).
-    let file: string
-    let tmp: string
-    for (;;) {
-      file = join(config.dir, uniqueStamp())
-      tmp = `${file}.tmp`
-      try {
-        writeFileSync(tmp, '', { flag: 'wx', mode: 0o600 })
-        break
-      } catch (e) {
-        if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e
-      }
-    }
+    const { file, tmp } = claimBackupTemp(() => join(config.dir, uniqueStamp()))
     try {
       // Write to the temp name and rename on success: rename is atomic on the same filesystem,
       // so a torn write (crash, full disk) never sits behind a valid snapshot name.

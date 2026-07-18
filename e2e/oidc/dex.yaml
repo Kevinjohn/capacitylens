@@ -1,0 +1,23 @@
+issuer: http://127.0.0.1:5556/dex
+storage:
+  type: memory
+web:
+  http: 0.0.0.0:5556
+oauth2:
+  skipApprovalScreen: true
+enablePasswordDB: true
+staticClients:
+  - id: capacitylens-e2e
+    secret: capacitylens-e2e-secret
+    name: CapacityLens OIDC conformance client
+    redirectURIs:
+      - http://localhost:5473/api/auth/oauth2/callback/sso
+staticPasswords:
+  - email: oidc-owner@example.com
+    hash: $2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W
+    username: oidc-owner
+    userID: 36a9d42b-0aba-4d63-bd15-74ac357b2026
+  - email: oidc-member@example.com
+    hash: $2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W
+    username: oidc-member
+    userID: 774a6ca1-ebd5-44b7-99a3-61538c0171cf

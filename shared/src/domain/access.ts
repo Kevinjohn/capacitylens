@@ -10,23 +10,17 @@
 // `can(role, action)` and `canSeeTimeOffNote(role)` to THIS file (the pure policy matrix); this
 // file deliberately holds only the `Role` type today.
 
-/**
- * The account-wide access role a login holds for one account (the binding lives in the
- * `account_members` server-control table; see server/src/controlTables.ts).
- *
- * Role semantics (the single source of truth — mirrors the CapacityLens Decisions):
- * - `'owner'`  — every capability, INCLUDING ownership-transfer. Exactly one per account, enforced
- *                by the server database; the only role that can hand the account to someone else.
- * - `'admin'`  — manage members + invites and purge (hard-delete) data; everything an editor can
- *                do, but NOT owner-only operations (ownership-transfer).
- * - `'editor'` — create / edit / delete scheduling data; cannot manage members, invites, or purge.
- * - `'viewer'` — read-only; no writes of any kind.
- *
- * INVARIANT: this is the ONLY definition of the role set. The pure permission matrix added in P1.3
- * (`can`) keys off exactly these four values; any new role must be added here first so both the
- * matrix and the membership table agree on the vocabulary.
- */
-export type Role = 'owner' | 'admin' | 'editor' | 'viewer'
+// Canonical account vocabulary lives in the provider-neutral account contract. Re-exporting Role
+// here preserves existing product imports while the administrative policy moves out of this module.
+import type { Role } from '../account/types'
+import {
+  canAdministerIdentity,
+  canAdministerIdentityAcrossWorkspaces,
+  canManageMemberRole as canManageCanonicalMemberRole,
+  canRemoveMember as canRemoveCanonicalMember,
+  isAtLeast as isAtLeastCanonicalRole,
+} from '../account/policy'
+export type { Role } from '../account/types'
 
 /**
  * A guarded capability the access matrix gates. These are coarse policy *actions* (not 1:1 with
@@ -54,22 +48,14 @@ export type Action =
   | 'transferOwnership'
 
 // The role tiers are strictly nested for every gated Action (viewer ⊂ editor ⊂ admin ⊂ owner), so
-// the matrix is encoded as a per-action MINIMUM TIER plus a role→rank lookup, rather than spelling
-// out an allow-list per action. Higher rank = more capable; a role passes iff its rank ≥ the
-// action's minimum-tier rank. Encoding "owner > admin > editor > viewer" once (here) keeps the
-// matrix a single small table and makes "and up" literal — no per-action list can drift out of tier
-// order. The named ranks (no magic numbers) below are the only place the ordering lives.
-const ROLE_RANK: Readonly<Record<Role, number>> = {
-  viewer: 0,
-  editor: 1,
-  admin: 2,
-  owner: 3,
-} as const
+// this product matrix records only the minimum role per action. Tier ordering remains owned by the
+// neutral account policy and is consumed through `isAtLeastCanonicalRole`; it is not duplicated in
+// product policy.
 
 /**
  * The minimum role required for each {@link Action} — the matrix from the CapacityLens Decisions
  * table, expressed as the lowest tier that may perform the action. A role satisfies an action iff
- * its {@link ROLE_RANK} is ≥ the rank of this minimum role.
+ * the canonical account policy places it at or above this minimum role.
  *
  * `satisfies Record<Action, Role>` is load-bearing: it makes the table exhaustive over `Action` at
  * COMPILE time, so a newly-added Action with no rule here is a build error rather than a silent
@@ -107,19 +93,14 @@ const MIN_TIER = {
  */
 export function can(role: Role, action: Action): boolean {
   const minRole = MIN_TIER[action]
-  const have = ROLE_RANK[role]
-  const need = ROLE_RANK[minRole]
-  // Fail-closed at an untyped boundary: an unknown role/action makes a rank `undefined`, and any
-  // comparison with `undefined` is `false` — so we deny rather than fall open.
-  if (have === undefined || need === undefined) return false
-  return have >= need
+  return minRole !== undefined && isAtLeastCanonicalRole(role, minRole)
 }
 
 /**
  * Is `role` at or above the minimum tier `min` in the strict role hierarchy
  * (viewer ⊂ editor ⊂ admin ⊂ owner)? The pure tier-comparison primitive the member-management
- * guards below build on, single-sourced from {@link ROLE_RANK} so "and up" never drifts from the
- * matrix the {@link can} matrix already encodes.
+ * guards below build on, delegated to the neutral account policy so "and up" never drifts from
+ * account administration.
  *
  * PURE: no I/O, no session — just the two roles. Fail-closed at an untyped boundary: an unrecognised
  * role makes a rank `undefined`, and any comparison with `undefined` is `false` — so it denies rather
@@ -127,13 +108,10 @@ export function can(role: Role, action: Action): boolean {
  *
  * @param role - the role being tested.
  * @param min  - the minimum tier `role` must reach.
- * @returns `true` iff `ROLE_RANK[role] >= ROLE_RANK[min]`; `false` otherwise (incl. unknown roles).
+ * @returns `true` iff the canonical account tier for `role` reaches `min`; `false` otherwise.
  */
 export function isAtLeast(role: Role, min: Role): boolean {
-  const have = ROLE_RANK[role]
-  const need = ROLE_RANK[min]
-  if (have === undefined || need === undefined) return false
-  return have >= need
+  return isAtLeastCanonicalRole(role, min)
 }
 
 /**
@@ -158,10 +136,7 @@ export function isAtLeast(role: Role, min: Role): boolean {
  * @returns `true` iff the role change is permitted by the pure matrix; `false` otherwise.
  */
 export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole: Role): boolean {
-  if (!can(actorRole, 'manageMembers')) return false
-  // Exactly-one-owner invariant: Owner is changed only by the explicit atomic transfer route.
-  if (nextRole === 'owner' || targetRole === 'owner') return false
-  return true
+  return canManageCanonicalMemberRole(actorRole, targetRole, nextRole)
 }
 
 /**
@@ -183,9 +158,7 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
  * @returns `true` iff the removal is permitted by the pure matrix; `false` otherwise.
  */
 export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
-  if (!can(actorRole, 'manageMembers')) return false
-  if (targetRole === 'owner') return false
-  return true
+  return canRemoveCanonicalMember(actorRole, targetRole)
 }
 
 /**
@@ -211,10 +184,7 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
  * @returns `true` iff issuing the reset link is permitted by the pure matrix; `false` otherwise.
  */
 export function canResetMemberPassword(actorRole: Role, targetRole: Role): boolean {
-  if (!can(actorRole, 'manageMembers')) return false
-  // An admin cannot reset an owner's password (only an owner may — reset = takeover capability).
-  if (targetRole === 'owner' && actorRole !== 'owner') return false
-  return true
+  return canAdministerIdentity(actorRole, targetRole)
 }
 
 /**
@@ -262,17 +232,11 @@ export function canResetMemberAcrossAccounts(
   targetRolesByAccount: ReadonlyMap<string, Role>,
   isSelf: boolean,
 ): boolean {
-  if (targetRolesByAccount.size === 0) return false // no identity to reset — fail closed.
-  // Self-reset: no cross-account standing needed — you cannot escalate against your own identity
-  // (see the SELF-RESET EXEMPTION above). The empty-map fail-closed rule above still applies.
-  if (isSelf) return true
-  for (const [accountId, targetRole] of targetRolesByAccount) {
-    const actorRole = actorRolesByAccount.get(accountId)
-    // Not a co-member of an account the target belongs to → no standing to take over that identity.
-    if (actorRole === undefined) return false
-    if (!canResetMemberPassword(actorRole, targetRole)) return false
-  }
-  return true
+  return canAdministerIdentityAcrossWorkspaces(
+    actorRolesByAccount,
+    targetRolesByAccount,
+    isSelf,
+  )
 }
 
 /**

@@ -46,4 +46,11 @@ describe('time zone option labels', () => {
     expect(timeZoneOffsetLabel('Europe/London', winter)).toBe('UTC+00:00')
     expect(timeZoneOptionLabel('America/New_York', 'America/New_York', summer)).toBe('America/New_York (UTC-04:00)')
   })
+
+  it('does not cache across a half-hour DST transition inside one UTC hour', () => {
+    expect(timeZoneOffsetLabel('Australia/Lord_Howe', new Date('2026-10-03T15:15:00.000Z')))
+      .toBe('UTC+10:30')
+    expect(timeZoneOffsetLabel('Australia/Lord_Howe', new Date('2026-10-03T15:45:00.000Z')))
+      .toBe('UTC+11:00')
+  })
 })

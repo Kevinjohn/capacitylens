@@ -24,6 +24,7 @@ import {
   looksLikeEmail,
   type AccountMember,
 } from './controlTables'
+import { ensureAccountBoundaryState } from './accounts/state'
 import type { Db } from './db'
 
 // Unit tests for the membership server-CONTROL table (P1.1). A bare in-memory DB + ensureControlTables
@@ -36,6 +37,7 @@ const TS = '2026-01-01T00:00:00.000Z'
 const freshDb = (): Db => {
   const db = new DatabaseSync(':memory:')
   ensureControlTables(db)
+  ensureAccountBoundaryState(db)
   return db
 }
 
