@@ -10,6 +10,8 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.23.4-alpha.0] — 2026-07-18
+
 ### Added
 
 - Added a provider-neutral account contract with separate identity and account-administration ports,
@@ -962,7 +964,11 @@ An Alpha-feedback round: four scheduler / sidebar refinements.
   (resources, disciplines, clients, projects, tasks), import/export, light/dark themes,
   the command palette, and an optional SQLite-backed server behind the persistence seam.
 
-[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.20.0-alpha.3...HEAD
+[Unreleased]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.4-alpha.0...HEAD
+[0.23.4-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.3-alpha.0...v0.23.4-alpha.0
+[0.23.3-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.23.0-alpha.0...v0.23.3-alpha.0
+[0.23.0-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.20.1-alpha.0...v0.23.0-alpha.0
+[0.20.1-alpha.0]: https://github.com/Kevinjohn/capacitylens/compare/v0.20.0-alpha.3...v0.20.1-alpha.0
 [0.20.0-alpha.3]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.20.0-alpha.3
 [0.20.0-alpha.2]: https://github.com/Kevinjohn/capacitylens/commit/a0078d6d1e45f98492fca3cd878b6d5e77ad4353
 [0.20.0-alpha.1]: https://github.com/Kevinjohn/capacitylens/releases/tag/v0.20.0-alpha.1
