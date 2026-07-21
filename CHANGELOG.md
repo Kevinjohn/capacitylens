@@ -10,6 +10,19 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.4] — 2026-07-21
+
+This patch release removes the local SmallSass sibling handbook and extraction workspace from the
+published CapacityLens repository. The files remain available locally but are now ignored by Git,
+keeping product changes and release commits focused on CapacityLens.
+
+### Changed
+
+- Added `/to-my-siblings/` to `.gitignore` so the local handbook, reference kit, planning records
+  and extraction work no longer appear as application changes.
+- Removed the previously tracked sibling material from the Git index without deleting the local
+  working copy or rewriting repository history.
+
 ## [0.25.0-alpha.3] — 2026-07-21
 
 This patch release consolidates the browser UI on shadcn primitives and trims stale implementation

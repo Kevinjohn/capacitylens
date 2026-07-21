@@ -37,6 +37,9 @@ stryker.log
 # Design/competitor reference scraps — not app assets
 /_input/
 
+# Local SmallSass sibling handbook and extraction workspace
+/to-my-siblings/
+
 # Paraglide (inlang) generated i18n output (P1.5.1) — compiled from project.inlang + messages/
 # on dev/build/test/gate (those scripts precompile); the committed source is the input, this isn't.
 src/paraglide/
