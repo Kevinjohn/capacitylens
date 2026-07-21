@@ -144,7 +144,10 @@ describe('AccountPicker create + open + delete', () => {
     expect(created.weekStartsOn).toBe(0)
     expect(created.timezone).toBe('Europe/London')
     expect(created.language).toBe('en')
-  })
+    // 15s, not the 5s default: this is the file's heaviest userEvent sequence (dialog + radio +
+    // listbox + 9 typed keystrokes, ~0.6s on dev hardware) and it deterministically exceeded 5s
+    // on contended CI runners (gate run 29868452988, twice) while every other test passed.
+  }, 15_000)
 
   it('validates a blank name', async () => {
     const user = userEvent.setup()
