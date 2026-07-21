@@ -226,3 +226,13 @@ the sanitised released-schema artifacts under `server/src/fixtures/databases/`.
 The complete E2E matrix also uses web/API ports 5273, 5373 and 8887. Stop an existing dev stack
 before E2E; Playwright intentionally refuses to reuse the demo/auth servers because persistence
 flavour matters.
+The access lab and strict-OIDC E2E harness both reserve web/API 5473/8897 and cannot run together;
+stop the access lab before OIDC certification.
+
+Development/test environment controls are intentionally separate from production configuration.
+`API_PORT` belongs only to `scripts/serve-dist.mjs`; Playwright/package orchestration owns
+`CAPACITYLENS_E2E_PHASE`, `CAPACITYLENS_WEBKIT`, `CAPACITYLENS_WEBKIT_ONLY`,
+`CAPACITYLENS_FIREFOX`, `CAPACITYLENS_FIREFOX_ONLY`, `CAPACITYLENS_VITE_ONLY` and
+`CAPACITYLENS_OIDC_E2E`. `CAPACITYLENS_REHEARSAL_URL` is the one operator-supplied test control: it
+points the rehearsal browser project at the staged upgraded deployment. CI pins
+`ACTIONLINT_VERSION`; update that pin alongside its download/checksum workflow review.

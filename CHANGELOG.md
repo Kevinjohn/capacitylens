@@ -372,8 +372,9 @@ compatible with the previous alpha: there is no export-schema or database-schema
   member administration, password reset, session revocation, workspace provisioning and erasure
   through the account boundary while preserving the public CapacityLens URLs.
 - Made `SMALLSASS_ACCOUNT_*` the canonical account configuration namespace. Existing
-  CapacityLens/Better Auth spellings remain warning aliases for at least two minor releases and 90
-  days; conflicting values now refuse startup.
+  CapacityLens/Better Auth spellings remain warning aliases until both two stable minor releases and
+  90 days have elapsed from the first stable release carrying the namespace. The alpha does not
+  start that clock; conflicting values now refuse startup.
 - Promoted strict OIDC out of experimental status. Named social providers remain experimental;
   hosted deployments enforce OIDC-only and reject password/open-signup configuration.
 - Hardened the account boundary so identity deletion SQL is owned only by the identity adapter,
