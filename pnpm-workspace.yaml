@@ -25,6 +25,8 @@ patchedDependencies:
 # Stryker's typed-rest-client transitively accepts qs 6.x. Keep it on the first release that
 # fixes GHSA-q8mj-m7cp-5q26 instead of leaving the development/mutation toolchain vulnerable.
 overrides:
+  fast-uri@>=3.0.0 <=3.1.3: ^3.1.4
+  fast-uri@>=4.0.0 <=4.1.0: ^4.1.1
   qs: 6.15.2
 
 # pnpm 11 blocks dependency postinstall scripts by default; esbuild's is the one we
@@ -32,3 +34,7 @@ overrides:
 # allowlist explicit so a newly introduced lifecycle script fails a clean install.
 allowBuilds:
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - fast-uri@4.1.1
+  - fast-uri@3.1.4
