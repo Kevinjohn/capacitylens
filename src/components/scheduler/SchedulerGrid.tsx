@@ -22,6 +22,7 @@ import type { GroupModel, RowModel } from './schedulerModel'
 import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
 import type { ID, ISODate } from '@capacitylens/shared/types/entities'
 import { Button } from '../ui/button'
+import { TooltipProvider } from '../ui/tooltip'
 
 type ModalState =
   | { kind: 'edit'; allocationId: ID }
@@ -435,11 +436,15 @@ export function SchedulerGrid() {
   }
 
   return (
-    // h-full passthrough wrapper: holds the scrolling role="grid" plus its sibling live region.
-    // The grid must own ONLY row/rowgroup children (WCAG aria-required-children), so the polite
-    // status region lives HERE, a sibling of the grid — not inside it. It's sr-only (position:
-    // absolute, zero layout), so this wrapper adds no visual change and the grid's h-full still
-    // resolves against the same definite height it did before.
+    // A SINGLE shared TooltipProvider for the whole grid: every AllocationBar's popover is a
+    // provider-less TooltipRoot, so the provider machinery is paid once here instead of per bar
+    // across the virtualised grid (the same hoist pattern as ui/sidebar.tsx).
+    <TooltipProvider>
+    {/* h-full passthrough wrapper: holds the scrolling role="grid" plus its sibling live region.
+        The grid must own ONLY row/rowgroup children (WCAG aria-required-children), so the polite
+        status region lives HERE, a sibling of the grid — not inside it. It's sr-only (position:
+        absolute, zero layout), so this wrapper adds no visual change and the grid's h-full still
+        resolves against the same definite height it did before. */}
     <div className="h-full">
       <div
         ref={scrollRef}
@@ -592,5 +597,6 @@ export function SchedulerGrid() {
         {srAnnouncement && <span key={srAnnouncement.seq}>{srAnnouncement.text}</span>}
       </div>
     </div>
+    </TooltipProvider>
   )
 }

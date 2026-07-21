@@ -33,6 +33,15 @@ function Tooltip({
   )
 }
 
+// Provider-less Root, for collections that hoist a SINGLE shared TooltipProvider above many
+// tooltips (e.g. the scheduler grid over its virtualised bars) rather than paying the provider's
+// per-instance machinery on every one. Callers using this MUST render under a <TooltipProvider>.
+function TooltipRoot({
+  ...props
+}: React.ComponentProps<typeof TooltipPrimitive.Root>) {
+  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />
+}
+
 function TooltipTrigger({
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
@@ -42,9 +51,12 @@ function TooltipTrigger({
 function TooltipContent({
   className,
   sideOffset = 4,
+  // Default-true so every existing tooltip keeps its arrow; a rich-card caller (the scheduler
+  // allocation popover) opts out to match the old arrow-less card.
+  showArrow = true,
   children,
   ...props
-}: React.ComponentProps<typeof TooltipPrimitive.Content>) {
+}: React.ComponentProps<typeof TooltipPrimitive.Content> & { showArrow?: boolean }) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
@@ -57,10 +69,12 @@ function TooltipContent({
         {...props}
       >
         {children}
-        <TooltipPrimitive.Arrow className="bg-elevated fill-elevated z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+        {showArrow && (
+          <TooltipPrimitive.Arrow className="bg-elevated fill-elevated z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]" />
+        )}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   )
 }
 
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
+export { Tooltip, TooltipRoot, TooltipTrigger, TooltipContent, TooltipProvider }

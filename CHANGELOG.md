@@ -10,6 +10,18 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.9] — 2026-07-21
+
+This patch release fixes regressions from the alpha.8 scheduler popover migration (accessibility,
+click behaviour, layering, toolbar breakpoint) and keeps its intentional improvements.
+
+### Fixed
+
+- Kept the scheduler allocation popover on-screen by repositioning it near viewport edges instead
+  of letting it clip offscreen.
+- Sized dialogs against the visible viewport height so they fit correctly when mobile browser
+  chrome is showing.
+
 ## [0.25.0-alpha.8] — 2026-07-21
 
 This patch release completes the shadcn consolidation by removing overlapping UI abstractions and

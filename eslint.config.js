@@ -13,6 +13,9 @@ export default defineConfig([
     'test-results',
     '**/node_modules',
     '.claude/worktrees/**',
+    // Local Claude Code workflow scripts run inside an async wrapper where
+    // top-level `return` is legal — they parse as errors as standalone JS.
+    '.claude/workflows/**',
     // Internal copy-ready sibling snapshots are documentation, not CapacityLens source inputs.
     'to-my-siblings/reference-kit/**',
     // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.

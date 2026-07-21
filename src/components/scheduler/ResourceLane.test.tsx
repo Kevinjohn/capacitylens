@@ -1,6 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, act } from '@testing-library/react'
+import { render as rtlRender, screen, act, type RenderOptions } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
+import type { ReactNode } from 'react'
+import { TooltipProvider } from '../ui/tooltip'
+
+// AllocationBar (rendered by ResourceLane) now uses a provider-less TooltipRoot — the single
+// TooltipProvider is hoisted to SchedulerGrid — so isolated lane renders must supply a provider.
+const render = (ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) =>
+  rtlRender(ui, { wrapper: TooltipProvider, ...options })
 import { ResourceLane } from './ResourceLane'
 import { buildColumnGeometry } from './columnGeometry'
 import type { BarLayout, DayState, TimeOffBlock } from './schedulerModel'

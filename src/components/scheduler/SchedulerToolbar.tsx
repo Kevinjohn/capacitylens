@@ -197,7 +197,7 @@ export function SchedulerToolbar() {
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={m.scheduler_search_people_placeholder()}
           aria-label={m.scheduler_search_people_aria()}
-          className="w-44 @max-2xl:w-full"
+          className="w-44 @max-[680px]:w-full"
         />
         {disciplinesEnabled && (
           <Select

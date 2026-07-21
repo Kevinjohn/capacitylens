@@ -11,7 +11,7 @@ import type { ColumnGeometry } from './columnGeometry'
 import type { ID } from '@capacitylens/shared/types/entities'
 import type { BarLayout } from './schedulerModel'
 import { useAllocationGesture } from './useAllocationGesture'
-import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
+import { TooltipRoot, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 
 /** Hours/day for display: days-mode rescaling can yield a repeating decimal
  *  (e.g. 24h over 7 working days = 3.4285…), so round to 2 dp for labels/popovers.
@@ -69,10 +69,15 @@ export const AllocationBar = memo(function AllocationBar({
   const hideHours = isBlocks || bar.external
   const barLabelPrefs = useStore((s) => s.barLabelPrefs)
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
-  // Radix Tooltip owns positioning/collision/portal-layering now; we only own the open flag so the
-  // exact open-on-enter/focus, close-on-leave/blur behaviour (and the drag suppression below) is
-  // preserved. Open is gated on `!dragging` at render (Radix `open` prop) so a popover never shows
-  // mid-drag, and the pointerdown that starts a drag also calls hidePopover() first.
+  // Radix Tooltip owns positioning/collision/portal-layering now; the manual enter/leave/focus/blur
+  // handlers below are the SOLE authors of this open flag. We deliberately do NOT wire Radix's
+  // onOpenChange: Radix's built-in close-on-pointerdown/click is exactly the behaviour we must not
+  // have (a read-only viewer clicking a bar would otherwise dismiss its own popover), so the Root is
+  // driven purely by our controlled `open` prop. Open is gated on `!dragging` at render so a popover
+  // never shows mid-drag, and the pointerdown that starts a drag also calls hidePopover() first.
+  // (Trade-off: we also forgo Radix's Escape-to-close — the old hand-rolled popover had none either,
+  // so this is parity, and there is no way to accept only Escape in onOpenChange without also
+  // re-admitting the pointerdown/click close that causes the regression.)
   const [popoverOpen, setPopoverOpen] = useState(false)
   const showPopover = () => setPopoverOpen(true)
   const hidePopover = () => setPopoverOpen(false)
@@ -111,11 +116,13 @@ export const AllocationBar = memo(function AllocationBar({
   const gripLine = <span aria-hidden className="pointer-events-none h-4 w-0.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-60" />
 
   return (
-    // Radix Tooltip: controlled `open` so we keep the hand-tuned enter/focus/leave/blur behaviour
-    // AND the drag suppression, while positioning, collision-flipping and body-portal layering come
-    // from Radix instead of getBoundingClientRect + fixed inline coords. The bar div IS the trigger
-    // (asChild), so its data-testid / data-alloc-id / role / aria-label are untouched.
-    <Tooltip open={popoverOpen && !dragging} onOpenChange={(o) => { if (!dragging) setPopoverOpen(o) }}>
+    // Radix Tooltip: fully controlled `open` (no onOpenChange) so we keep the hand-tuned
+    // enter/focus/leave/blur behaviour AND the drag suppression, while positioning, collision-
+    // flipping and body-portal layering come from Radix instead of getBoundingClientRect + fixed
+    // inline coords. The bar div IS the trigger (asChild), so its data-testid / data-alloc-id /
+    // role / aria-label are untouched. TooltipRoot is the provider-less Root; the single shared
+    // TooltipProvider lives in SchedulerGrid so the grid pays that machinery once, not per bar.
+    <TooltipRoot open={popoverOpen && !dragging}>
       <TooltipTrigger asChild>
       <div
         data-testid="allocation-bar"
@@ -198,7 +205,7 @@ export const AllocationBar = memo(function AllocationBar({
           // element opacity, which used to wash out the label and break its contrast.
           border: tentative ? `1px dashed ${ink}` : undefined,
           transform: translateY ? `translateY(${translateY}px)` : undefined,
-          zIndex: dragging ? 50 : undefined,
+          zIndex: dragging ? 'var(--z-index-drag)' : undefined,
           // WCAG 2.4.11 (Focus Not Obscured): on focus the browser scrolls this bar into view, but
           // the grid's sticky date header (top, z-20) and sticky utilisation column (left, z-30)
           // overlap the scroll viewport — without a margin a near-edge bar lands fully behind them.
@@ -245,20 +252,33 @@ export const AllocationBar = memo(function AllocationBar({
         )}
       </div>
       </TooltipTrigger>
-      {/* Radix portals this to <body> (TooltipPrimitive.Portal), so the time-off draw-mode net in
-          index.css (`body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover`) still matches —
-          it's keyed off the `.scheduler-alloc-popover` class (a body descendant), not the DOM nesting.
-          Belt-and-braces with the bar-layer `inert` (which blocks the enter/focus that opens it) and
-          the `!dragging` open gate above. `aria-hidden`: the trigger's own aria-label already speaks
-          the humanised status/dates/note, so the tooltip stays a purely visual read (no double SR
-          announcement). Side/align/offset reproduce the old below-the-bar, left-aligned placement. */}
+      {/* Render the content subtree ONLY when it can actually show (`popoverOpen && !dragging`):
+          Radix never mounts it mid-drag anyway, so gating here stops the date-fns format/parse,
+          i18n and allocationStatusLabels() calls in the card body from re-evaluating on every
+          pointermove frame during a drag (they used to run on every render). Radix tolerates a
+          conditionally-mounted Content. */}
+      {popoverOpen && !dragging && (
+      // Radix portals this to <body> (TooltipPrimitive.Portal), so the time-off draw-mode net in
+      // index.css (`body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover`) still matches —
+      // it's keyed off the `.scheduler-alloc-popover` class (a body descendant), not the DOM nesting.
+      // Belt-and-braces with the bar-layer `inert` (which blocks the enter/focus that opens it) and
+      // the `!dragging` gate. z-(--z-index-popover) lifts this ONE call site to the popover tier (60,
+      // matching the old `fixed z-[60]`) over the shared component's z-50 default; the shared default
+      // is left untouched so every other overlay stays at z-50. `aria-hidden` keeps the visible card
+      // out of the a11y tree (the trigger's aria-label already speaks the humanised status/dates/note).
+      // `aria-label` is Radix's escape hatch: it REPLACES the VisuallyHidden children-duplicate that
+      // the trigger's aria-describedby points at — so the accessible description resolves to this short
+      // affordance hint, not a second copy of the card content. Side/align/offset reproduce the old
+      // below-the-bar, left-aligned placement; showArrow={false} matches the old arrow-less card.
       <TooltipContent
         side="bottom"
         align="start"
         sideOffset={6}
+        showArrow={false}
         data-testid="allocation-popover"
         aria-hidden
-        className="scheduler-alloc-popover pointer-events-none w-60 rounded-lg p-3 font-normal"
+        aria-label={m.scheduler_bar_pop_footer()}
+        className="scheduler-alloc-popover pointer-events-none z-(--z-index-popover) w-60 rounded-lg p-3 font-normal"
       >
         <div className="mb-1 flex items-center gap-2">
           <span className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bg }} />
@@ -280,6 +300,7 @@ export const AllocationBar = memo(function AllocationBar({
           {m.scheduler_bar_pop_footer()}
         </div>
       </TooltipContent>
-    </Tooltip>
+      )}
+    </TooltipRoot>
   )
 })

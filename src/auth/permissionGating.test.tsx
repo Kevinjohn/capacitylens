@@ -1,7 +1,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render as rtlRender, screen, type RenderOptions } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { PermissionContext } from './permissionContext'
+import { TooltipProvider } from '../components/ui/tooltip'
+
+// AllocationBar now uses a provider-less TooltipRoot (the single TooltipProvider is hoisted to
+// SchedulerGrid), so isolated bar renders here must supply their own provider.
+const render = (ui: ReactNode, options?: Omit<RenderOptions, 'wrapper'>) =>
+  rtlRender(ui, { wrapper: TooltipProvider, ...options })
 import { ListPage } from '../components/common/dialogs'
 import { AllocationBar } from '../components/scheduler/AllocationBar'
 import { buildColumnGeometry } from '../components/scheduler/columnGeometry'
