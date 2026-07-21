@@ -20,7 +20,10 @@ jobs:
   browser-e2e:
     name: Chromium · Firefox · WebKit E2E
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 45, not 25: the three-browser matrix takes ~25m on contended shared runners (run
+    # 29868453803 passed with 4s to spare; run 29870179642 was killed mid-matrix while
+    # green). The cap exists to catch a hung run, not to race healthy ones.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
