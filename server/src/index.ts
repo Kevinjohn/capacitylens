@@ -71,9 +71,10 @@ process.umask(0o077)
 //                                   surface the audit-sink state: { ok: true, db: true,
 //                                   audit: 'ok' | 'degraded' } (200) or 503 { ok: false }.
 //                                   Default off = unconditional { ok: true }.
-//   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across every /api/* route,
-//                                   including health (safe integer 1–1,000,000). Production
-//                                   refuses a missing, zero or invalid value.
+//   CAPACITYLENS_RATE_LIMIT               requests/minute per IP across rate-limited /api/* routes
+//                                   (safe integer 1–1,000,000). /api/health is exempt so ordinary
+//                                   API traffic cannot starve the uptime probe. Production refuses
+//                                   a missing, zero or invalid value.
 //   CAPACITYLENS_BOOTSTRAP_TOKEN          shared secret enabling constrained org-creation via
 //                                   POST /api/orgs (header x-capacitylens-bootstrap-token)
 //                                   for a caller who is not yet an Owner/Admin. Default off

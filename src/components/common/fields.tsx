@@ -29,7 +29,6 @@ import { cn } from '@/lib/utils'
 import { m } from '@/i18n'
 import type { Weekday } from '@capacitylens/shared/types/entities'
 import { useMarkFormDirty } from './formDirty'
-import { inputClass, selectChevronClass, selectChevronStyle } from './controls'
 
 // Product field APIs composed from ShadCN's Field family.
 function RequiredFieldLabel({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
@@ -280,6 +279,8 @@ export interface Option {
   disabled?: boolean
 }
 
+const EMPTY_SELECT_VALUE = '__capacitylens_empty__'
+
 export function SelectField({
   label,
   value,
@@ -306,13 +307,14 @@ export function SelectField({
   testId?: string
 }) {
   const id = useId()
+  const hasEmptyOption = options.some((option) => option.value === '')
   return (
     <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Select
-        value={value}
+        value={value === '' && hasEmptyOption ? EMPTY_SELECT_VALUE : value}
         disabled={disabled}
-        onValueChange={onChange}
+        onValueChange={(next) => onChange(next === EMPTY_SELECT_VALUE ? '' : next)}
       >
         <SelectTrigger
           id={id}
@@ -328,61 +330,13 @@ export function SelectField({
         <SelectContent>
           <SelectGroup>
             {options.map((o) => (
-              <SelectItem key={o.value} value={o.value} disabled={o.disabled}>
+              <SelectItem key={o.value} value={o.value === '' ? EMPTY_SELECT_VALUE : o.value} disabled={o.disabled}>
                 {o.label}
               </SelectItem>
             ))}
           </SelectGroup>
         </SelectContent>
       </Select>
-    </Field>
-  )
-}
-
-/** Native select retained for the scheduler's dense editing surface. */
-export function NativeSelectField({
-  label,
-  value,
-  onChange,
-  options,
-  placeholder,
-  disabled,
-  invalid,
-  required,
-  describedById,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  options: Option[]
-  placeholder?: string
-  disabled?: boolean
-  invalid?: boolean
-  required?: boolean
-  describedById?: string
-}) {
-  const id = useId()
-  return (
-    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
-      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
-      <select
-        id={id}
-        className={cn(inputClass, selectChevronClass)}
-        style={selectChevronStyle}
-        value={value}
-        disabled={disabled}
-        aria-required={required || undefined}
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? describedById : undefined}
-        onChange={(event) => onChange(event.target.value)}
-      >
-        {placeholder !== undefined && <option value="">{placeholder}</option>}
-        {options.map((option) => (
-          <option key={option.value} value={option.value} disabled={option.disabled}>
-            {option.label}
-          </option>
-        ))}
-      </select>
     </Field>
   )
 }

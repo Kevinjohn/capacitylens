@@ -7,6 +7,8 @@ import { byDisciplineOrder } from '../../store/selectors'
 import { DisciplineForm } from './DisciplineForm'
 import type { Discipline } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
+import { Fragment } from 'react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 export function DisciplineList() {
   const disciplines = useActiveScopedData().disciplines
@@ -26,20 +28,23 @@ export function DisciplineList() {
           {m.list_disciplines_empty()}
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-line rounded border border-line bg-surface">
-          {sorted.map((d) => (
-            <li key={d.id} data-testid="discipline-row" className="flex items-center justify-between px-3 py-2">
-              <span className="flex items-center gap-2">
+        <ItemGroup className="rounded-md border bg-card">
+          {sorted.map((d, index) => (
+            <Fragment key={d.id}>
+            {index > 0 && <ItemSeparator />}
+            <Item size="sm" role="listitem" data-testid="discipline-row" className="rounded-none">
+              <ItemContent className="flex-row items-center gap-2">
                 <ColorSwatch color={d.color ?? NEUTRAL_COLOR} />
                 {d.name}
-              </span>
-              <span className="flex gap-2">
+              </ItemContent>
+              <ItemActions>
                 <EditButton onClick={() => setEditing(d)} />
                 <DeleteButton onClick={() => setConfirming(d)} />
-              </span>
-            </li>
+              </ItemActions>
+            </Item>
+            </Fragment>
           ))}
-        </ul>
+        </ItemGroup>
       )}
 
       {creating && <DisciplineForm onClose={() => setCreating(false)} />}

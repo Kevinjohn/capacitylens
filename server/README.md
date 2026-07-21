@@ -18,8 +18,9 @@ for disposable tests.
 - Writes are sanitised and validated, optimistic concurrency is on by default, and batch/import
   operations are transactional.
 - Audit records contain actor/entity/field names but not values.
-- `/api/health` is public and rate limited; deep health uses a constant readiness query, while
-  startup performs the full SQLite foreign-key integrity check.
+- `/api/health` is public and rate-limit exempt so ordinary API traffic cannot starve the uptime
+  probe; deep health uses a constant readiness query, while startup performs the full SQLite
+  foreign-key integrity check.
 - Unsafe browser requests enforce same-origin CSRF signals and all API responses are non-cacheable.
 - Internal TLS is optional for a trusted same-host loopback proxy; Compose enables it automatically
   and nginx verifies the API service name without a plaintext fallback.

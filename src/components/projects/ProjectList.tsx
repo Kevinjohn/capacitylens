@@ -10,6 +10,8 @@ import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
 import { resolveProjectColor } from '@capacitylens/shared/lib/color'
 import { useStore } from '../../store/useStore'
 import { internalColourModeFor } from '../../store/selectors'
+import { Fragment } from 'react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
  *  when the project has active allocations that archiving would pull out of the schedule. */
@@ -46,23 +48,26 @@ export function ProjectList() {
           {m.list_projects_empty()}
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-line rounded border border-line bg-surface">
-          {projects.map((p) => (
-            <li key={p.id} data-testid="project-row" className="flex items-center justify-between px-3 py-2">
-              <span className="flex items-center gap-2">
+        <ItemGroup className="rounded-md border bg-card">
+          {projects.map((p, index) => (
+            <Fragment key={p.id}>
+            {index > 0 && <ItemSeparator />}
+            <Item size="sm" role="listitem" data-testid="project-row" className="rounded-none">
+              <ItemContent className="flex-row items-center gap-2">
                 <ColorSwatch
                   color={resolveProjectColor(p, clients.find((client) => client.id === p.clientId), internalColourMode)}
                 />
                 <span className="font-medium">{p.name}</span>
                 <span className="text-sm text-muted">· {clientName(p.clientId)}</span>
-              </span>
-              <span className="flex gap-2">
+              </ItemContent>
+              <ItemActions>
                 <EditButton onClick={() => setEditing(p)} />
                 <DeleteButton label={m.list_projects_archive_aria({ name: p.name })} onClick={() => setConfirming(p)} />
-              </span>
-            </li>
+              </ItemActions>
+            </Item>
+            </Fragment>
           ))}
-        </ul>
+        </ItemGroup>
       )}
 
       {creating && <ProjectForm onClose={() => setCreating(false)} />}

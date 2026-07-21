@@ -33,6 +33,8 @@ import {
   replaceWithAccountPicker,
   replaceWithJoinedAccount,
 } from '../../lib/joinedAccountHandoff'
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from '../ui/item'
 
 // Invite accept page for /invite/:token. On mount, in SERVER mode, it previews the invite.
 // A signed-in person must then explicitly accept before the single-use POST is sent. The server is
@@ -436,29 +438,28 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
-          <h1 className="text-lg font-semibold text-ink">{m.invite_title()}</h1>
-        </div>
-        <div className="space-y-3 rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <Card>
+        <CardHeader className="text-center">
+          <div className="text-2xl font-bold text-brand">{APP_NAME}</div>
+          <CardTitle><h1>{m.invite_title()}</h1></CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
           {preview && (
-            <section className="rounded-md border border-line bg-canvas p-3" data-testid="invite-preview">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <Item variant="muted" data-testid="invite-preview">
+                <ItemContent>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted">{m.invite_company_label()}</p>
-                  <h2 className="mt-0.5 text-base font-semibold text-ink">{preview.accountName}</h2>
-                </div>
-                <div className="text-right">
+                  <ItemTitle><h2>{preview.accountName}</h2></ItemTitle>
+                  <ItemDescription>{roleSummary(preview.role)}</ItemDescription>
+                  <ItemDescription>{m.invite_existing_role_note()}</ItemDescription>
+                  <ItemDescription>{m.invite_expires({ when: new Date(preview.expiresAt).toLocaleString() })}</ItemDescription>
+                </ItemContent>
+                <ItemActions className="self-start text-right">
+                  <div>
                   <p className="text-xs font-medium text-muted">{m.invite_proposed_role_label()}</p>
                   <Badge>{roleLabel(preview.role)}</Badge>
-                </div>
-              </div>
-              <p className="mt-2 text-sm text-muted">{roleSummary(preview.role)}</p>
-              <p className="mt-2 text-xs text-muted">{m.invite_existing_role_note()}</p>
-              <p className="mt-2 text-xs text-muted">
-                {m.invite_expires({ when: new Date(preview.expiresAt).toLocaleString() })}
-              </p>
-            </section>
+                  </div>
+                </ItemActions>
+            </Item>
           )}
           {state.kind === 'previewing' && (
             <p role="status" className="text-sm text-muted">
@@ -504,7 +505,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           )}
           {state.kind === 'auth' && (
             authMode === 'sso' ? (
-              <div className="space-y-3">
+              <div className="flex flex-col gap-3">
                 <p className="text-sm text-muted">
                   Sign in with the invited identity, then review and accept this invitation.
                 </p>
@@ -512,7 +513,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                 {providers.length === 0 ? (
                   <FieldError>No single sign-on provider is available. Contact the operator.</FieldError>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="flex flex-col gap-2">
                     {providers.map((provider) => (
                       <Button
                         key={provider.id}
@@ -528,9 +529,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                 )}
               </div>
             ) : (
-            <div className="space-y-4">
+            <div className="flex flex-col gap-4">
             {providers.length > 0 && (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-2">
                 {providers.map((provider) => (
                   <Button
                     key={provider.id}
@@ -545,7 +546,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                 <p className="text-center text-xs text-muted">or use an email and password</p>
               </div>
             )}
-            <form onSubmit={(event) => void signIn(event)} className="space-y-3" noValidate>
+            <form onSubmit={(event) => void signIn(event)} className="flex flex-col gap-3" noValidate>
               <p className="text-sm text-muted">{m.invite_onboard_intro()}</p>
               <TextField
                 label={m.invite_name()}
@@ -615,7 +616,8 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
               </div>
             </>
           )}
-        </div>
+        </CardContent>
+        </Card>
       </main>
     </div>
   )

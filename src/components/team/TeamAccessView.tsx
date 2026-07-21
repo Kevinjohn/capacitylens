@@ -7,6 +7,8 @@ import { accessExperienceFor } from '../../lib/accessMode'
 import { useOfflineState } from '../../data/useOfflineState'
 import { MembersSection } from '../settings/MembersSection'
 import { Badge } from '../ui/badge'
+import { Alert, AlertDescription } from '../ui/alert'
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Icon } from '../common/Icon'
 import { m } from '@/i18n'
 
@@ -56,27 +58,26 @@ export function TeamAccessView() {
         : null
 
   return (
-    <div className="mx-auto max-w-4xl space-y-5 p-6">
+    <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
       <header>
         <h1 className="text-xl font-semibold text-ink">{m.access_title()}</h1>
         <p className="mt-1 max-w-2xl text-sm text-muted">{m.access_intro()}</p>
       </header>
 
-      <section className="rounded-lg border border-line bg-surface p-4" data-testid="current-access">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-sm font-semibold text-ink">{m.access_current_heading()}</h2>
-            <p className="mt-1 text-sm text-muted">
-              {accessSummary}
-            </p>
-          </div>
+      <Card data-testid="current-access">
+        <CardHeader>
+          <CardTitle><h2>{m.access_current_heading()}</h2></CardTitle>
+          <CardDescription>{accessSummary}</CardDescription>
+          <CardAction>
           <Badge variant={effectiveRole === 'viewer' || !effectiveRole ? 'outline' : 'default'}>
             {accessLabel}
           </Badge>
-        </div>
+          </CardAction>
+        </CardHeader>
 
+        <CardContent>
         {effectiveRole ? (
-          <ul className="mt-4 grid gap-2 sm:grid-cols-2" aria-label={m.access_capabilities_label()}>
+          <ul className="grid gap-2 sm:grid-cols-2" aria-label={m.access_capabilities_label()}>
             {capabilities(effectiveRole).map((capability) => (
               <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
                 <Icon
@@ -91,23 +92,32 @@ export function TeamAccessView() {
             ))}
           </ul>
         ) : accessWarning ? (
-          <p className="mt-3 rounded-md bg-canvas p-3 text-sm text-muted">{accessWarning}</p>
+          <Alert>
+            <AlertDescription>{accessWarning}</AlertDescription>
+          </Alert>
         ) : null}
-      </section>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="rounded-lg border border-line bg-surface p-4">
-          <h2 className="text-sm font-semibold text-ink">{m.access_members_heading()}</h2>
-          <p className="mt-1 text-sm text-muted">{m.access_members_explainer()}</p>
-          {!authenticated && <p className="mt-3 text-xs font-medium text-muted">{m.access_members_demo_note()}</p>}
-        </section>
-        <section className="rounded-lg border border-line bg-surface p-4">
-          <h2 className="text-sm font-semibold text-ink">{m.access_resources_heading()}</h2>
-          <p className="mt-1 text-sm text-muted">{m.access_resources_explainer()}</p>
+        <Card>
+          <CardHeader>
+            <CardTitle><h2>{m.access_members_heading()}</h2></CardTitle>
+            <CardDescription>{m.access_members_explainer()}</CardDescription>
+          </CardHeader>
+          {!authenticated && <CardContent className="text-xs font-medium text-muted">{m.access_members_demo_note()}</CardContent>}
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle><h2>{m.access_resources_heading()}</h2></CardTitle>
+            <CardDescription>{m.access_resources_explainer()}</CardDescription>
+          </CardHeader>
+          <CardContent>
           <Link to="/resources" className="mt-3 inline-block text-sm font-medium text-brand underline-offset-2 hover:underline">
             {m.access_open_resources()}
           </Link>
-        </section>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Keep the write-once link state mounted across a fail-closed membership recheck. The wrapper
@@ -119,10 +129,12 @@ export function TeamAccessView() {
         </div>
       )}
       {authenticated && !offline.readOnly && permissionStatus === 'resolved' && !mayManage ? (
-        <section className="rounded-lg border border-line bg-surface p-4">
-          <h2 className="text-sm font-semibold text-ink">{m.access_management_heading()}</h2>
-          <p className="mt-1 text-sm text-muted">{m.access_management_restricted()}</p>
-        </section>
+        <Card>
+          <CardHeader>
+            <CardTitle><h2>{m.access_management_heading()}</h2></CardTitle>
+            <CardDescription>{m.access_management_restricted()}</CardDescription>
+          </CardHeader>
+        </Card>
       ) : null}
     </div>
   )

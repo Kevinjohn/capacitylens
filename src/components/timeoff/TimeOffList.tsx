@@ -8,6 +8,8 @@ import { formatShortDate, formatDayCount } from '../../lib/dateDisplay'
 import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
+import { Fragment } from 'react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 export function TimeOffList() {
   const data = useActiveScopedData()
@@ -40,10 +42,12 @@ export function TimeOffList() {
           {m.list_timeoff_empty()}
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-line rounded border border-line bg-surface">
-          {timeOff.map((t) => (
-            <li key={t.id} data-testid="timeoff-row" className="flex items-center justify-between px-3 py-2">
-              <span>
+        <ItemGroup className="rounded-md border bg-card">
+          {timeOff.map((t, index) => (
+            <Fragment key={t.id}>
+            {index > 0 && <ItemSeparator />}
+            <Item size="sm" role="listitem" data-testid="timeoff-row" className="rounded-none">
+              <ItemContent>
                 <span className="font-medium">{resourceName(t.resourceId)}</span>
                 {/* Deliberately spare: the start date (terse) and how many days. The end date, type
                     and note are stored (and surfaced on the schedule's time-off block) but left off
@@ -52,14 +56,15 @@ export function TimeOffList() {
                   {' '}
                   · {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
                 </span>
-              </span>
-              <span className="flex gap-2">
+              </ItemContent>
+              <ItemActions>
                 <EditButton onClick={() => setEditing(t)} />
                 <DeleteButton onClick={() => setConfirming(t)} />
-              </span>
-            </li>
+              </ItemActions>
+            </Item>
+            </Fragment>
           ))}
-        </ul>
+        </ItemGroup>
       )}
 
       {creating && <TimeOffForm onClose={() => setCreating(false)} />}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useStore } from '../../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../../store/selectors'
 import { useActiveScopedData } from '../../store/useScopedData'
@@ -14,6 +14,8 @@ import { isExternalResource } from '@capacitylens/shared/types/entities'
 import type { Resource, ResourceKind } from '@capacitylens/shared/types/entities'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
+import { Badge } from '../ui/badge'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 export function ResourceList() {
   const data = useActiveScopedData()
@@ -54,22 +56,22 @@ export function ResourceList() {
     (disciplinesEnabled ? disciplines.find((d) => d.id === r.disciplineId)?.color : undefined) ?? r.color
 
   const renderRow = (r: Resource) => (
-    <li key={r.id} data-testid="resource-row" className="flex items-center justify-between px-3 py-2">
-      <span className="flex flex-wrap items-center gap-2">
+    <Item size="sm" role="listitem" data-testid="resource-row" className="rounded-none">
+      <ItemContent className="flex-row flex-wrap items-center gap-2">
         <ColorSwatch color={swatchColor(r)} />
         <span className="font-medium">{resourceDisplayName(r)}</span>
         {r.kind === 'placeholder' && (
-          <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">{m.list_resources_placeholder_badge()}</span>
+          <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>
         )}
         <span className="text-sm text-muted">
           {` · ${r.role}${disciplinesEnabled ? ` · ${disciplineName(r.disciplineId)}` : ''} · ${m.list_resources_hours_per_day({ hours: r.workingHoursPerDay })}`}
         </span>
-      </span>
-      <span className="flex gap-2">
+      </ItemContent>
+      <ItemActions>
         <EditButton onClick={() => setEditing(r)} />
         <DeleteButton label={m.list_resources_archive_aria({ name: resourceDisplayName(r) })} onClick={() => setConfirming(r)} />
-      </span>
-    </li>
+      </ItemActions>
+    </Item>
   )
 
   // `enrich` carries the icon/description/CTA for the *genuinely-empty* People box. The
@@ -85,7 +87,14 @@ export function ResourceList() {
         {empty}
       </EmptyState>
     ) : (
-      <ul className="divide-y divide-line rounded border border-line bg-surface">{rows.map(renderRow)}</ul>
+      <ItemGroup className="rounded-md border bg-card">
+        {rows.map((resource, index) => (
+          <Fragment key={resource.id}>
+            {index > 0 && <ItemSeparator />}
+            {renderRow(resource)}
+          </Fragment>
+        ))}
+      </ItemGroup>
     )
 
   return (
@@ -138,21 +147,24 @@ export function ResourceList() {
               {m.list_resources_external_empty()}
             </EmptyState>
           ) : (
-            <ul className="divide-y divide-line rounded border border-line bg-surface">
-              {externals.map((r) => (
-                <li key={r.id} data-testid="external-row" className="flex items-center justify-between px-3 py-2">
-                  <span className="flex flex-wrap items-center gap-2">
+            <ItemGroup className="rounded-md border bg-card">
+              {externals.map((r, index) => (
+                <Fragment key={r.id}>
+                {index > 0 && <ItemSeparator />}
+                <Item size="sm" role="listitem" data-testid="external-row" className="rounded-none">
+                  <ItemContent className="flex-row flex-wrap items-center gap-2">
                     <ColorSwatch color={NEUTRAL_COLOR} />
                     <span className="font-medium">{r.name ?? r.role}</span>
                     {r.name && r.role && <span className="text-sm text-muted">· {r.role}</span>}
-                  </span>
-                  <span className="flex gap-2">
+                  </ItemContent>
+                  <ItemActions>
                     <EditButton onClick={() => ext.setEditing(r)} />
                     <DeleteButton label={m.list_resources_archive_aria({ name: r.name ?? r.role })} onClick={() => ext.setConfirming(r)} />
-                  </span>
-                </li>
+                  </ItemActions>
+                </Item>
+                </Fragment>
               ))}
-            </ul>
+            </ItemGroup>
           )}
         </section>
       )}

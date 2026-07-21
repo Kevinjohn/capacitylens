@@ -2,7 +2,8 @@
 
 ## Health and logs
 
-`GET /api/health` is unauthenticated and rate limited. With `CAPACITYLENS_HEALTH_DEEP=1`, it runs a
+`GET /api/health` is unauthenticated, constant-work and deliberately exempt from rate limiting so
+API traffic cannot starve the public uptime probe. With `CAPACITYLENS_HEALTH_DEEP=1`, it runs a
 constant SQLite readiness query and reports audit degradation; startup separately performs the full
 foreign-key integrity check before accepting traffic. Monitor health through the same public proxy
 users reach and do not expose the API container directly.

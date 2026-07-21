@@ -210,6 +210,15 @@ describe('MembersSection — self-gate', () => {
     expect(container.firstChild).toBeNull()
   })
 
+  it('renders an empty directory message without exposing an empty ARIA list', async () => {
+    vi.stubGlobal('fetch', mockFetch([]))
+    renderSection()
+
+    const section = await screen.findByTestId('members-section')
+    expect(within(section).queryByTestId('member-row')).not.toBeInTheDocument()
+    expect(within(section).queryByRole('list')).not.toBeInTheDocument()
+  })
+
   it('surfaces a malformed member response instead of trusting it', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({
       ok: true,

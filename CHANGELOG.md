@@ -10,6 +10,32 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.6] — 2026-07-21
+
+This patch release completes the alpha UI alignment around shadcn primitives while preserving the
+scheduler's purpose-built timeline. It replaces the remaining parallel component patterns in the
+agreed surfaces without changing the portable export or SQLite database schema versions.
+
+### Added
+
+- Added the shadcn Item family as the shared composition for compact management and administrative
+  rows.
+
+### Changed
+
+- Migrated management lists, Members, Archived, Team, account selection and invitation surfaces to
+  shadcn Item, Card, Field, Alert and Badge compositions.
+- Replaced the scheduler's remaining native text, date, select, checkbox, toggle and row-action
+  controls with shadcn and Radix primitives while retaining the bespoke timeline grid.
+- Aligned operator documentation with the existing rate-limit exemption for the public health
+  probe.
+
+### Fixed
+
+- Kept empty member-directory copy outside ARIA list semantics and added regression coverage.
+- Updated component comments and operator documentation to describe current behavior rather
+  than retired implementation details.
+
 ## [0.25.0-alpha.5] — 2026-07-21
 
 This patch release completes the alpha UI consolidation around shadcn primitives outside the

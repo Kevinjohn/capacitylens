@@ -8,6 +8,8 @@ import { archiveImpact } from '@capacitylens/shared/domain/lifecycle'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
 import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
+import { Fragment } from 'react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
  *  ("this also hides N projects and M allocations") when the client has active work beneath it — so
@@ -47,20 +49,23 @@ export function ClientList() {
           {m.list_clients_empty()}
         </EmptyState>
       ) : (
-        <ul className="divide-y divide-line rounded border border-line bg-surface">
-          {clients.map((c) => (
-            <li key={c.id} data-testid="client-row" className="flex items-center justify-between px-3 py-2">
-              <span className="flex items-center gap-2">
+        <ItemGroup className="rounded-md border bg-card">
+          {clients.map((c, index) => (
+            <Fragment key={c.id}>
+            {index > 0 && <ItemSeparator />}
+            <Item size="sm" role="listitem" data-testid="client-row" className="rounded-none">
+              <ItemContent className="flex-row items-center gap-2">
                 <ColorSwatch color={c.color} />
                 {c.name}
-              </span>
-              <span className="flex gap-2">
+              </ItemContent>
+              <ItemActions>
                 <EditButton onClick={() => setEditing(c)} />
                 <DeleteButton label={m.list_clients_archive_aria({ name: c.name })} onClick={() => setConfirming(c)} />
-              </span>
-            </li>
+              </ItemActions>
+            </Item>
+            </Fragment>
           ))}
-        </ul>
+        </ItemGroup>
       )}
 
       {creating && <ClientForm onClose={() => setCreating(false)} />}

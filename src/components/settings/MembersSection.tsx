@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useState, type ReactNode } from 'react'
 import { isServerConfigured } from '../../data/apiConfig'
 import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
@@ -24,6 +24,9 @@ import { refreshActiveAccountSlice } from '../../data/persist'
 import { offlineStateSnapshot } from '../../data/offlineCache'
 import { useOfflineState } from '../../data/useOfflineState'
 import { useTeamDirectory } from './useTeamDirectory'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { FieldSet, FieldLegend } from '../ui/field'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
 // Owner/Admin list members, change a member's role, revoke a member, and list/revoke outstanding
@@ -274,10 +277,12 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
   if (gate === 'loading' || gate === 'hidden') return null
   if (gate === 'error') {
     return (
-      <section className="rounded border border-line bg-surface p-4" data-testid="members-section">
-        <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_members_heading()}</h2>
-        <FieldError id={errorId}>{error}</FieldError>
-      </section>
+      <Card data-testid="members-section">
+        <CardHeader>
+          <CardTitle><h2>{m.settings_members_heading()}</h2></CardTitle>
+        </CardHeader>
+        <CardContent><FieldError id={errorId}>{error}</FieldError></CardContent>
+      </Card>
     )
   }
 
@@ -576,20 +581,21 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 
   return (
     <>
-    <section className="rounded border border-line bg-surface p-4" data-testid="members-section">
-      <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_members_heading()}</h2>
-      <p className="mb-3 text-xs text-muted">
-        {m.settings_members_intro()}
-      </p>
+    <Card data-testid="members-section">
+      <CardHeader>
+        <CardTitle><h2>{m.settings_members_heading()}</h2></CardTitle>
+        <CardDescription>{m.settings_members_intro()}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
 
       <FieldError id={errorId}>{errorField === null ? error : null}</FieldError>
 
       {/* Members list */}
-      <div className="mb-4 divide-y divide-line">
-        {members && members.length === 0 && (
-          <p className="py-2 text-sm text-muted">{m.settings_members_empty()}</p>
-        )}
-        {members?.map((mem) => {
+      {members && members.length === 0 ? (
+        <p className="py-2 text-sm text-muted">{m.settings_members_empty()}</p>
+      ) : (
+      <ItemGroup>
+        {members?.map((mem, index) => {
           // NB: the row var is `mem`, NOT `m` — `m` is the imported i18n message catalogue (P1.5.2);
           // shadowing it here would make `m.settings_*()` resolve against the Member object instead.
           // Ordinary role changes never touch the Owner. Ownership uses the explicit transfer below.
@@ -605,17 +611,15 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           // so the old `authMode === 'password'` / `myRole` conditions here would be redundant.
           const mayReset = mem.mayResetPassword
           return (
-            <div
-              key={mem.userId}
-              className="flex flex-wrap items-center justify-between gap-2 py-2"
-              data-testid="member-row"
-            >
-              <div className="min-w-0">
+            <Fragment key={mem.userId}>
+            {index > 0 && <ItemSeparator />}
+            <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="member-row">
+              <ItemContent className="min-w-0">
                 <span className="text-sm text-ink">{labelFor(mem)}</span>
                 {mem.isSelf && <span className="ml-1 text-xs text-muted">{m.settings_member_you()}</span>}
                 <span className="ml-2 text-xs text-muted">· {mem.status}</span>
-              </div>
-              <div className="flex items-center gap-2">
+              </ItemContent>
+              <ItemActions className="flex-wrap justify-end">
                 {mayTouch ? (
                   <span data-testid="member-role-select">
                     <SelectField
@@ -656,11 +660,13 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                 {isOwner && (
                   <span className="text-xs text-muted">{m.settings_member_sole_owner_protected()}</span>
                 )}
-              </div>
-            </div>
+              </ItemActions>
+            </Item>
+            </Fragment>
           )
         })}
-      </div>
+      </ItemGroup>
+      )}
 
       {/* Freshly-minted password-reset link (P1.18) — write-once, same posture as the invite link
           below: shown straight from the create response and never read back. Named + dated so the
@@ -686,8 +692,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       )}
 
       {/* Invite form */}
-      <div className="mb-4 flex flex-col gap-2 rounded border border-line p-3">
-        <h3 className="text-xs font-semibold text-ink">{m.settings_invite_heading()}</h3>
+      <FieldSet className="gap-2 rounded-md border p-3">
+        <FieldLegend variant="label">{m.settings_invite_heading()}</FieldLegend>
         <div className="flex flex-wrap items-end gap-2">
           <div className="min-w-40">
             <SelectField
@@ -729,33 +735,35 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             copyLink={copyLink}
           />
         )}
-      </div>
+      </FieldSet>
 
       {/* Outstanding invites */}
       {invites.length > 0 && (
-        <div>
+        <div className="flex flex-col gap-1">
           <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_invites_outstanding_heading()}</h3>
-          <div className="divide-y divide-line">
-            {invites.map((inv) => (
-              <div
-                key={inv.id}
-                className="flex flex-wrap items-center justify-between gap-2 py-2"
-                data-testid="invite-row"
-              >
-                <span className="text-sm text-ink">
+          <ItemGroup>
+            {invites.map((inv, index) => (
+              <Fragment key={inv.id}>
+              {index > 0 && <ItemSeparator />}
+              <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="invite-row">
+                <ItemContent className="text-sm text-ink">
                   <span className="capitalize">{inv.role}</span>
                   {inv.preauthEmail ? m.settings_invite_suffix_email({ email: inv.preauthEmail }) : m.settings_invite_suffix_link()}
                   {inv.usedAt ? m.settings_invite_suffix_used() : m.settings_invite_suffix_expires({ date: inv.expiresAt.slice(0, 10) })}
-                </span>
+                </ItemContent>
+                <ItemActions>
                 <Button variant="ghost" testId="invite-revoke" disabled={busyAction !== null} onClick={() => void revokeInvite(inv.id)}>
                   {m.settings_invite_revoke()}
                 </Button>
-              </div>
+                </ItemActions>
+              </Item>
+              </Fragment>
             ))}
-          </div>
+          </ItemGroup>
         </div>
       )}
-    </section>
+      </CardContent>
+    </Card>
     {transferTarget && (
       <ConfirmDialog
         title={m.settings_transfer_owner_title()}

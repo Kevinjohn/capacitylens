@@ -5,6 +5,8 @@ import { ConfirmDialog, DeleteButton, EditButton, EmptyState, ListPage } from '.
 import { ActivityForm } from './ActivityForm'
 import type { Activity } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
+import { Fragment } from 'react'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 export function ActivityList() {
   const data = useActiveScopedData()
@@ -31,8 +33,8 @@ export function ActivityList() {
   const projectActivities = activities.filter((a) => a.kind === 'project')
 
   const renderRow = (activity: Activity, showLabel: boolean) => (
-    <li key={activity.id} data-testid="activity-row" className="flex items-center justify-between px-3 py-2">
-      <span>
+    <Item size="sm" role="listitem" data-testid="activity-row" className="rounded-none">
+      <ItemContent>
         <span className="font-medium">{activity.name}</span>
         {showLabel && (
           <span className="text-sm text-muted">
@@ -40,12 +42,12 @@ export function ActivityList() {
             · {projectLabel(activity.projectId)}
           </span>
         )}
-      </span>
-      <span className="flex gap-2">
+      </ItemContent>
+      <ItemActions>
         <EditButton onClick={() => setEditing(activity)} />
         <DeleteButton onClick={() => setConfirming(activity)} />
-      </span>
-    </li>
+      </ItemActions>
+    </Item>
   )
 
   // Three kind-sections share this box, each always rendered. To avoid three identical CTAs
@@ -68,9 +70,14 @@ export function ActivityList() {
         {empty}
       </EmptyState>
     ) : (
-      <ul data-testid={testid} className="divide-y divide-line rounded border border-line bg-surface">
-        {rows.map((a) => renderRow(a, showLabel))}
-      </ul>
+      <ItemGroup data-testid={testid} className="rounded-md border bg-card">
+        {rows.map((activity, index) => (
+          <Fragment key={activity.id}>
+            {index > 0 && <ItemSeparator />}
+            {renderRow(activity, showLabel)}
+          </Fragment>
+        ))}
+      </ItemGroup>
     )
 
   return (

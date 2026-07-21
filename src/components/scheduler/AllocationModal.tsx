@@ -18,15 +18,17 @@ import {
   Modal,
   NumberField,
   RequiredLegend,
-  NativeSelectField,
+  SelectField,
   TextAreaField,
   type Option,
 } from '../common/ui'
-import { inputClass } from '../common/controls'
 import { capacityAdvisory } from '../../lib/capacity'
 import { allocationStatusOptions, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
 import type { AllocationStatus, ISODate } from '@capacitylens/shared/types/entities'
+import { Checkbox } from '../ui/checkbox'
+import { Field, FieldLabel } from '../ui/field'
+import { Input } from '../ui/input'
 
 /** Snap a seeded days-of-work value to 6 decimals: enough to erase float round-trip
  *  noise (e.g. 8 × 3/7 × 7/8 = 2.9999…) WITHOUT distorting a legitimate fraction
@@ -98,6 +100,7 @@ export function AllocationModal(props: AllocationModalProps) {
   const [error, setError] = useState<string | null>(null)
   const [errorField, setErrorField] = useState<string | null>(null)
   const errorId = useId()
+  const includeWeekendsId = useId()
   const fail = (field: string | null, message: string) => {
     setError(message)
     setErrorField(field)
@@ -147,7 +150,7 @@ export function AllocationModal(props: AllocationModalProps) {
   // Placeholders and externals are each gated behind a per-account pref (both default OFF). When
   // off, drop them from the assignee picker — EXCEPT the allocation's currently-selected resource
   // (risk A): keep a hidden placeholder/external in the options when it's the one already assigned,
-  // so editing shows the correct value in the <select> instead of silently reassigning the work to
+  // so editing shows the correct value in the chooser instead of silently reassigning the work to
   // someone else on save.
   const resourceOptions: Option[] = data.resources
     .filter((r) => placeholdersEnabled || r.kind !== 'placeholder' || r.id === resourceId)
@@ -390,20 +393,19 @@ export function AllocationModal(props: AllocationModalProps) {
       }
     >
       {!create && (
-        <NativeSelectField label={m.form_allocation_assignee_label()} value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder={m.form_allocation_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
+        <SelectField label={m.form_allocation_assignee_label()} value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder={m.form_allocation_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
       )}
       {isPlaceholder && <p className="text-xs text-muted">{m.form_allocation_placeholder_locked()}</p>}
 
-      <NativeSelectField
+      <SelectField
         label={m.form_allocation_project_label()}
         value={projectId}
         onChange={onProjectChange}
         options={projectOptions}
       />
-      <NativeSelectField label={m.form_allocation_activity_label()} value={activityId} onChange={setActivityId} options={activityOptions} placeholder={m.form_allocation_select_activity_placeholder()} required invalid={errorField === 'activity'} describedById={errorId} />
-      <div className="flex gap-2">
-        <input
-          className={inputClass}
+      <SelectField label={m.form_allocation_activity_label()} value={activityId} onChange={setActivityId} options={activityOptions} placeholder={m.form_allocation_select_activity_placeholder()} required invalid={errorField === 'activity'} describedById={errorId} />
+      <Field orientation="horizontal">
+        <Input
           value={newActivityName}
           maxLength={MAX_NAME_LENGTH}
           placeholder={projectId ? m.form_allocation_new_activity_placeholder() : m.form_allocation_new_repeatable_activity_placeholder()}
@@ -413,7 +415,7 @@ export function AllocationModal(props: AllocationModalProps) {
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddActivity() } }}
         />
         <AddButton label={m.form_allocation_add_activity()} variant="ghost" onClick={onAddActivity} />
-      </div>
+      </Field>
 
       {isExternal ? (
         <div className="flex gap-2">
@@ -469,21 +471,20 @@ export function AllocationModal(props: AllocationModalProps) {
           <NumberField label={m.form_allocation_hours_per_day_label()} value={hoursPerDay} onChange={setHoursPerDay} min={0} max={MAX_HOURS_PER_DAY} required invalid={errorField === 'hours'} describedById={errorId} />
         </>
       )}
-      <NativeSelectField label={m.form_allocation_status_label()} value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={allocationStatusOptions()} />
+      <SelectField label={m.form_allocation_status_label()} value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={allocationStatusOptions()} />
       <TextAreaField label={m.form_allocation_note_label()} value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
 
       {/* Externals have no working week — their booking is a literal start/end span, so the weekend
           toggle is meaningless and hidden (they store ignoreWeekends: true). */}
       {!isExternal && (
-        <label className="flex items-center gap-2 text-sm text-muted">
-          <input
-            type="checkbox"
-            className="rounded border-line"
+        <Field orientation="horizontal">
+          <Checkbox
+            id={includeWeekendsId}
             checked={ignoreWeekends}
-            onChange={(e) => setIgnoreWeekends(e.target.checked)}
+            onCheckedChange={(checked) => setIgnoreWeekends(checked === true)}
           />
-          <span>{m.form_allocation_include_weekends()}</span>
-        </label>
+          <FieldLabel htmlFor={includeWeekendsId}>{m.form_allocation_include_weekends()}</FieldLabel>
+        </Field>
       )}
 
       {advisory && <Callout>{m.form_allocation_advisory({ advisory })}</Callout>}

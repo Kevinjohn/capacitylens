@@ -15,6 +15,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { Badge } from './ui/badge'
 import { Spinner } from './ui/spinner'
 import { Button } from './ui/button'
+import { Alert, AlertDescription } from './ui/alert'
 import { cn } from '@/lib/utils'
 import { m } from '@/i18n'
 import { LINKS } from '../lib/navLinks'
@@ -216,16 +217,16 @@ export function AppShell() {
       </nav>
       <main id="main" tabIndex={-1} className="flex-1 overflow-auto">
         {offline.readOnly && (
-          <div role="status" data-testid="offline-read-only" className="bg-brand px-4 py-2 text-sm font-medium text-white">
-            {m.app_offline_read_only({
+          <Alert role="status" data-testid="offline-read-only" className="rounded-none border-x-0 border-t-0">
+            <AlertDescription>{m.app_offline_read_only({
               updated: offline.lastUpdated ? new Date(offline.lastUpdated).toLocaleString() : m.app_offline_unknown_time(),
-            })}
-          </div>
+            })}</AlertDescription>
+          </Alert>
         )}
         {persistError && (
-          <div role="alert" className="bg-danger px-4 py-2 text-sm font-medium text-white">
-            {m.app_persist_error()}
-          </div>
+          <Alert variant="destructive" className="rounded-none border-x-0 border-t-0">
+            <AlertDescription>{m.app_persist_error()}</AlertDescription>
+          </Alert>
         )}
         {hydrated ? (
           <Suspense fallback={loader}>

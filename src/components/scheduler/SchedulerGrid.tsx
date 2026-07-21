@@ -21,6 +21,7 @@ import { useSchedulerViewport } from './useSchedulerViewport'
 import type { GroupModel, RowModel } from './schedulerModel'
 import { isCapacityTracked, isExternalResource } from '@capacitylens/shared/types/entities'
 import type { ID, ISODate } from '@capacitylens/shared/types/entities'
+import { Button } from '../ui/button'
 
 type ModalState =
   | { kind: 'edit'; allocationId: ID }
@@ -251,15 +252,14 @@ export function SchedulerGrid() {
       style={{ height: LAYOUT.groupHeaderHeight }}
     >
       <div role="rowheader" aria-colindex={1} className="sticky left-0 z-10 shrink-0" style={{ width: LAYOUT.leftColWidth }}>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           onClick={() => toggleGroup(group.key)}
           aria-expanded={!ui.collapsedGroups.includes(group.key)}
-          className="flex h-full w-full items-center gap-2 bg-surface px-3 text-xs font-semibold uppercase tracking-wide hover:bg-canvas"
+          className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
         >
           <Icon
             name={ui.collapsedGroups.includes(group.key) ? 'chevron-right' : 'chevron-down'}
-            size={14}
             className="text-faint"
           />
           <span
@@ -267,7 +267,7 @@ export function SchedulerGrid() {
             style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
           />
           <span className="truncate text-ink">{group.title}</span>
-        </button>
+        </Button>
       </div>
       <div role="gridcell" aria-colindex={2} className="flex shrink-0 items-center px-3 text-xs text-faint" style={{ width: totalWidth }}>
         {ui.collapsedGroups.includes(group.key)
@@ -374,21 +374,19 @@ export function SchedulerGrid() {
             {/* Viewer (P1.12): no per-row create affordance. Hidden, not disabled — a viewer schedule
                 is display-only. The utilisation % below still renders (a read, not an edit). */}
             {canEdit && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={() => {
                 const d = visibleStartDate()
                 setModal({ kind: 'create', resourceId: resource.id, startDate: d, endDate: d })
               }}
               aria-label={m.scheduler_add_allocation_for({ name: resourceDisplayName(resource) })}
               title={m.scheduler_add_allocation()}
-              // Hover tints brand-soft (the AA-validated Add/Save pastel pair), not the old
-              // hover:bg-canvas — canvas is the page background, so on a bg-surface row that hover
-              // was near-invisible. "+" is the create affordance, so it reads as the brand action.
-              className="flex w-11 flex-1 items-center justify-center text-muted transition hover:bg-brand-soft hover:text-brand-soft-ink"
+              className="h-auto w-11 flex-1 rounded-none text-muted"
             >
-              <Icon name="plus" size={15} />
-            </button>
+              <Icon name="plus" />
+            </Button>
             )}
             {utilizationPrefs.showPersonal && isCapacityTracked(resource) && (
             <span

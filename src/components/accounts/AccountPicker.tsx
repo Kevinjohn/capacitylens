@@ -22,7 +22,9 @@ import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 import { useOfflineState } from '../../data/useOfflineState'
 import { Button as ShadButton } from '../ui/button'
-import { Card } from '../ui/card'
+import { Alert, AlertDescription } from '../ui/alert'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card'
+import { Item, ItemGroup } from '../ui/item'
 
 // Onboarding capture (P1.14): the create-company form sets language, week-start and time zone —
 // the three fields the server FREEZES after creation (a later change → 409). They're captured here,
@@ -349,19 +351,21 @@ export function AccountPicker() {
         </div>
 
         {accounts.length === 0 && !creating ? (
-          <div data-testid="company-empty-options" className="mt-4 space-y-2">
+          <div data-testid="company-empty-options" className="mt-4 flex flex-col gap-2">
             {canCreateAccount && (
-              <Card className="gap-0 p-3">
+              <Card>
+                <CardHeader>
+                  <CardDescription>{m.picker_empty_create_hint()}</CardDescription>
+                </CardHeader>
+                <CardFooter>
                 <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />
-                <p className="mt-2 text-xs text-muted">{m.picker_empty_create_hint()}</p>
+                </CardFooter>
               </Card>
             )}
-            <div className="rounded-lg border border-line bg-surface px-3 py-3 text-sm text-muted shadow-sm">
-              {m.picker_empty_invite()}
-            </div>
+            <Alert><AlertDescription>{m.picker_empty_invite()}</AlertDescription></Alert>
           </div>
         ) : (
-          <ul className="space-y-2">
+          <ItemGroup className="gap-2">
             {accounts.map((a, index) => {
               const roleDescriptionId = `${roleDescriptionPrefix}-company-role-${index}`
               const accessLabel = accessLabelFor({
@@ -371,7 +375,7 @@ export function AccountPicker() {
                 role: a.role,
               })
               return (
-              <li key={a.id} className="flex items-center gap-2">
+              <Item key={a.id} role="listitem" className="gap-2 p-0">
                 <ShadButton
                   variant="outline"
                   aria-label={a.name}
@@ -396,14 +400,19 @@ export function AccountPicker() {
                 {a.roleStatus !== 'unavailable' && can(a.role, 'deleteAccount') && (
                   <DeleteButton label={m.picker_delete_company({ name: a.name })} onClick={() => setConfirming(a)} />
                 )}
-              </li>
+              </Item>
               )
             })}
-          </ul>
+          </ItemGroup>
         )}
 
         {creating ? (
-          <form noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="mt-4 space-y-3 rounded-lg border border-line bg-surface p-4">
+          <form noValidate onSubmit={(e) => { e.preventDefault(); submit() }} className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle><h2>{m.picker_new()}</h2></CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
             <TextField
               label={m.picker_company_name()}
               value={name}
@@ -437,12 +446,14 @@ export function AccountPicker() {
               <p className="text-sm text-muted" data-testid="create-language">{m.picker_language_english()}</p>
             </div>
             <FieldError id={errorId}>{error}</FieldError>
-            <div className="flex items-center justify-end gap-2">
+            </CardContent>
+            <CardFooter className="justify-end">
               <Button variant="ghost" onClick={resetForm}>
                 {m.picker_cancel()}
               </Button>
               <Button type="submit" disabled={submitting}>{m.picker_create()}</Button>
-            </div>
+            </CardFooter>
+          </Card>
           </form>
         ) : (
           // The button itself disappears whenever a create would be refused — the single-company

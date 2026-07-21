@@ -8,6 +8,17 @@ import { DEFAULT_ACCOUNT_ID, makeAppData, setExternalEnabled, setPlaceholdersEna
 
 const ACC = DEFAULT_ACCOUNT_ID
 
+async function chooseOption(
+  _user: ReturnType<typeof userEvent.setup>,
+  label: string,
+  optionName: string,
+) {
+  const trigger = screen.getByRole('combobox', { name: label })
+  trigger.focus()
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+  fireEvent.click(screen.getByRole('option', { name: optionName }))
+}
+
 function base(): AppData {
   return makeAppData({
     clients: [{ id: 'c1', accountId: ACC, createdAt: 't', updatedAt: 't', name: 'Acme', color: '#111' }],
@@ -43,8 +54,8 @@ describe('AllocationModal create', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalled()
@@ -62,8 +73,8 @@ describe('AllocationModal create', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={vi.fn()} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
 
     // Clearing a date must NOT produce a NaN-geometry allocation.
     fireEvent.change(screen.getByLabelText('Start Date'), { target: { value: '' } })
@@ -91,8 +102,8 @@ describe('AllocationModal create', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     const hours = screen.getByLabelText('Hours / day')
     fireEvent.change(hours, { target: { value: '40' } })
     fireEvent.submit(hours.closest('form')!) // Enter-submit, no blur clamp
@@ -111,14 +122,16 @@ describe('AllocationModal create', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId: ph.id, startDate: '2026-06-01', endDate: '2026-06-02' }} onClose={onClose} />)
 
-    const projectSelect = screen.getByLabelText('Project')
-    expect(projectSelect).toHaveValue('p1')
+    const projectSelect = screen.getByRole('combobox', { name: 'Project' })
+    expect(projectSelect).toHaveTextContent('Acme / Lightning')
     // Bound project + the project-less option are offered; another project (p2 / "Other") is not.
+    fireEvent.keyDown(projectSelect, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: 'No project (internal / cross-project)' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'Acme / Other' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
 
     // Only the bound project's activity is offered.
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Activity', 'Wireframes')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalled()
@@ -150,8 +163,8 @@ describe('AllocationModal days mode', () => {
     expect(screen.queryByLabelText('End')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Hours / day')).not.toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '5' } })
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '10' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -172,8 +185,8 @@ describe('AllocationModal days mode', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={vi.fn()} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '0' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -189,8 +202,8 @@ describe('AllocationModal days mode', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={vi.fn()} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '5' } })
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '1' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
@@ -212,8 +225,8 @@ describe('AllocationModal days mode', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId: r.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={onClose} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days of work'), { target: { value: '5' } })
     // Empty the "Days over" field — emits NaN — then submit the form directly (Enter from a
     // single number input), which skips the field's on-blur clamp.
@@ -238,8 +251,8 @@ describe('AllocationModal days mode', () => {
     expect(screen.getByLabelText('Days over')).toHaveValue(5)
     expect(screen.getByLabelText('Days of work')).toHaveValue(5) // full-time across the span
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 8 })
@@ -286,8 +299,8 @@ describe('AllocationModal blocks mode', () => {
     expect(screen.queryByLabelText('Hours / day')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Days of work')).not.toBeInTheDocument()
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '10' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -309,8 +322,8 @@ describe('AllocationModal blocks mode', () => {
 
     expect(screen.getByLabelText('Days over')).toHaveValue(5)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations[0]).toMatchObject({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 0 })
@@ -322,8 +335,8 @@ describe('AllocationModal blocks mode', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId: resource.id, startDate: '2026-06-01', endDate: '2026-06-01' }} onClose={vi.fn()} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
     fireEvent.change(screen.getByLabelText('Days over'), { target: { value: '1.5' } })
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -340,7 +353,7 @@ describe('AllocationModal edit', () => {
     const user = userEvent.setup()
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
-    await user.selectOptions(screen.getByLabelText('Assignee'), b.id)
+    await chooseOption(user, 'Assignee', 'Bob')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(useStore.getState().data.allocations.find((x) => x.id === alloc.id)!.resourceId).toBe(b.id)
@@ -348,16 +361,17 @@ describe('AllocationModal edit', () => {
 
   it('snaps the project to the placeholder bound project when reassigned, restricting options', async () => {
     const a = useStore.getState().addResource({ ...person('Alice'), workingDays: [1, 2, 3, 4, 5] })
-    const ph = useStore.getState().addResource({
+    useStore.getState().addResource({
       kind: 'placeholder', role: 'Designer', employmentType: 'permanent', workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#a', projectId: 'p2',
     })
     const alloc = useStore.getState().addAllocation({ resourceId: a.id, activityId: 't1', startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     const user = userEvent.setup()
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
-    await user.selectOptions(screen.getByLabelText('Assignee'), ph.id)
-    expect(screen.getByLabelText('Project')).toHaveValue('p2')
+    await chooseOption(user, 'Assignee', 'Placeholder (slot)')
+    expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent('Acme / Other')
     // The non-bound project (p1 / "Lightning") is no longer offered to the placeholder.
+    fireEvent.keyDown(screen.getByRole('combobox', { name: 'Project' }), { key: 'ArrowDown' })
     expect(screen.queryByRole('option', { name: 'Acme / Lightning' })).not.toBeInTheDocument()
   })
 
@@ -371,10 +385,11 @@ describe('AllocationModal edit', () => {
     setPlaceholdersEnabled(false)
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
-    const assignee = screen.getByLabelText('Assignee')
-    expect(assignee).toHaveValue(ph.id)
+    const assignee = screen.getByRole('combobox', { name: 'Assignee' })
+    expect(assignee).toHaveTextContent('Placeholder (slot)')
     // The placeholder option is present (labelled "Placeholder (slot)") even though placeholders are
-    // hidden — without it the <select> would coerce to the first option and silently reassign.
+    // hidden — without it the picker would silently reassign to another available option.
+    fireEvent.keyDown(assignee, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: 'Placeholder (slot)' })).toBeInTheDocument()
   })
 
@@ -391,10 +406,11 @@ describe('AllocationModal edit', () => {
     setExternalEnabled(false)
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
-    const assignee = screen.getByLabelText('Assignee')
-    expect(assignee).toHaveValue(ext.id)
+    const assignee = screen.getByRole('combobox', { name: 'Assignee' })
+    expect(assignee).toHaveTextContent('Northstar Partners (external)')
     // The external option is present (labelled "Northstar Partners (external)") even though externals are
-    // hidden — without it the <select> would coerce to the first option and silently reassign.
+    // hidden — without it the picker would silently reassign to another available option.
+    fireEvent.keyDown(assignee, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: 'Northstar Partners (external)' })).toBeInTheDocument()
   })
 
@@ -408,8 +424,8 @@ describe('AllocationModal edit', () => {
     const alloc = useStore.getState().addAllocation({ resourceId: ph.id, activityId: gen.id, startDate: '2026-06-01', endDate: '2026-06-02', hoursPerDay: 8, status: 'confirmed' })
     render(<AllocationModal allocationId={alloc.id} onClose={vi.fn()} />)
 
-    expect(screen.getByLabelText('Project')).toHaveValue('') // general, not the bound 'p1'
-    expect(screen.getByLabelText('Activity')).toHaveValue(gen.id)
+    expect(screen.getByRole('combobox', { name: 'Project' })).toHaveTextContent('No project (internal / cross-project)')
+    expect(screen.getByRole('combobox', { name: 'Activity' })).toHaveTextContent('Admin')
   })
 
   it('duplicates an allocation', async () => {
@@ -434,8 +450,8 @@ describe('AllocationModal Enter key submission', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
 
     // Pressing Enter in the Hours/day number input should submit
     await user.click(screen.getByLabelText('Hours / day'))
@@ -455,8 +471,8 @@ describe('AllocationModal Enter key submission', () => {
     const user = userEvent.setup()
     render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={onClose} />)
 
-    await user.selectOptions(screen.getByLabelText('Project'), 'p1')
-    await user.selectOptions(screen.getByLabelText('Activity'), 't1')
+    await chooseOption(user, 'Project', 'Acme / Lightning')
+    await chooseOption(user, 'Activity', 'Wireframes')
 
     // Pressing Enter in a textarea inserts a newline — it must NOT submit the form
     const noteTextarea = screen.getByLabelText('Note')

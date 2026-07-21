@@ -5,6 +5,17 @@ import { SchedulerToolbar } from './SchedulerToolbar'
 import { emptyFilters, useStore } from '../../store/useStore'
 import { resetStoreWithAccount } from '../../test/fixtures'
 
+async function chooseOption(
+  _user: ReturnType<typeof userEvent.setup>,
+  label: string,
+  optionName: string,
+) {
+  const trigger = screen.getByRole('combobox', { name: label })
+  trigger.focus()
+  fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+  fireEvent.click(screen.getByRole('option', { name: optionName }))
+}
+
 beforeEach(() => {
   resetStoreWithAccount()
   useStore.getState().clearFilters()
@@ -16,10 +27,10 @@ describe('SchedulerToolbar zoom control', () => {
     const user = userEvent.setup()
     render(<SchedulerToolbar />)
 
-    await user.click(screen.getByRole('button', { name: '8w' }))
+    await user.click(screen.getByRole('radio', { name: '8w' }))
     expect(useStore.getState().ui.zoom).toBe(8)
 
-    await user.click(screen.getByRole('button', { name: '1w' }))
+    await user.click(screen.getByRole('radio', { name: '1w' }))
     expect(useStore.getState().ui.zoom).toBe(1)
   })
 })
@@ -126,11 +137,12 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
     repeatable: useStore.getState().addActivity({ name: 'Design', kind: 'repeatable' }),
   })
 
-  it('renders the Activities dropdown with grouped Internal / Cross-project options', () => {
+  it('renders the Activities dropdown with grouped Internal / Cross-project options', async () => {
     seedLensActivities()
     render(<SchedulerToolbar />)
-    const select = screen.getByLabelText('Filter by activity')
+    const select = screen.getByRole('combobox', { name: 'Filter by activity' })
     expect(select).toBeInTheDocument()
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
     expect(screen.getByRole('option', { name: 'Internal — All' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Cross-project — All' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument()
@@ -148,7 +160,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
     useStore.getState().setFilters({ projectId: 'p1' }) // an active project lens
     render(<SchedulerToolbar />)
 
-    await user.selectOptions(screen.getByLabelText('Filter by activity'), repeatable.id)
+    await chooseOption(user, 'Filter by activity', 'Design')
 
     expect(useStore.getState().ui.filters.activityId).toBe(repeatable.id)
     expect(useStore.getState().ui.filters.activityKind).toBeNull()
@@ -161,7 +173,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
     useStore.getState().setFilters({ clientId: 'c1' })
     render(<SchedulerToolbar />)
 
-    await user.selectOptions(screen.getByLabelText('Filter by activity'), 'kind:internal')
+    await chooseOption(user, 'Filter by activity', 'Internal — All')
 
     expect(useStore.getState().ui.filters.activityKind).toBe('internal')
     expect(useStore.getState().ui.filters.activityId).toBeNull()
@@ -176,7 +188,7 @@ describe('SchedulerToolbar Activities filter (standalone lens)', () => {
     useStore.getState().setFilters({ activityId: repeatable.id })
     render(<SchedulerToolbar />)
 
-    await user.selectOptions(screen.getByLabelText('Filter by project'), project.id)
+    await chooseOption(user, 'Filter by project', 'Lightning')
 
     expect(useStore.getState().ui.filters.projectId).toBe(project.id)
     expect(useStore.getState().ui.filters.activityId).toBeNull()

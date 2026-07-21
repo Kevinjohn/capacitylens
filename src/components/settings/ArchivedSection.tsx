@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { isServerConfigured } from '../../data/apiConfig'
 import {
   fetchInactiveSlice,
@@ -16,6 +16,8 @@ import { can } from '@capacitylens/shared/domain/access'
 import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from '@capacitylens/shared/domain/lifecycle'
 import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
 import type { AppData, Client, Project, Resource } from '@capacitylens/shared/types/entities'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 // Settings → "Archived & deleted" — the client-admin view of the data-lifecycle (P2.5b), the
 // COUNTERPART to the normal active-only views. It lists the resources/clients/projects the scheduler
@@ -170,28 +172,30 @@ export function ArchivedSection() {
   if (server && gate !== 'shown') return null
 
   return (
-    <section className="rounded border border-line bg-surface p-4" data-testid="archived-section">
-      <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_archived_heading()}</h2>
-      <p className="mb-3 text-xs text-muted">{m.settings_archived_intro()}</p>
+    <>
+    <Card data-testid="archived-section">
+      <CardHeader>
+        <CardTitle><h2>{m.settings_archived_heading()}</h2></CardTitle>
+        <CardDescription>{m.settings_archived_intro()}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
 
       {rows.length === 0 && <p className="py-2 text-sm text-muted">{m.settings_archived_empty()}</p>}
 
       {/* Archived group — restore (→ active) or delete (→ tombstone). */}
       {archived.length > 0 && (
-        <div className="mb-4">
+        <div className="flex flex-col gap-1">
           <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_archived()}</h3>
-          <div className="divide-y divide-line">
-            {archived.map((r) => (
-              <div
-                key={`${r.entity}-${r.id}`}
-                className="flex flex-wrap items-center justify-between gap-2 py-2"
-                data-testid="archived-row"
-              >
-                <span className="min-w-0">
+          <ItemGroup>
+            {archived.map((r, index) => (
+              <Fragment key={`${r.entity}-${r.id}`}>
+              {index > 0 && <ItemSeparator />}
+              <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="archived-row">
+                <ItemContent className="min-w-0">
                   <span className="text-sm text-ink">{r.name}</span>
                   <span className="ml-2 text-xs text-muted">· {TYPE_LABEL[r.entity]()}</span>
-                </span>
-                <div className="flex items-center gap-2">
+                </ItemContent>
+                <ItemActions>
                   <Button
                     variant="ghost"
                     testId="archived-restore"
@@ -208,19 +212,20 @@ export function ArchivedSection() {
                   >
                     {m.settings_archived_delete()}
                   </Button>
-                </div>
-              </div>
+                </ItemActions>
+              </Item>
+              </Fragment>
             ))}
-          </div>
+          </ItemGroup>
         </div>
       )}
 
       {/* Deleted (tombstone) group — permanent purge, gated by canPurge + the purge role tier. */}
       {deleted.length > 0 && (
-        <div>
+        <div className="flex flex-col gap-1">
           <h3 className="mb-1 text-xs font-semibold text-ink">{m.settings_archived_group_deleted()}</h3>
-          <div className="divide-y divide-line">
-            {deleted.map((r) => {
+          <ItemGroup>
+            {deleted.map((r, index) => {
               // Exact-instant "now", not date-only midnight: a midnight-truncated timestamp would
               // let the client stay up to ~24h more conservative than the server's own boundary check.
               const purgeable = canPurge(r.raw, new Date().toISOString())
@@ -228,17 +233,15 @@ export function ArchivedSection() {
               // disabled, so a screen reader hears WHY it can't act yet, not just the button name.
               const hintId = `${hintBaseId}-${r.entity}-${r.id}`
               return (
-                <div
-                  key={`${r.entity}-${r.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 py-2"
-                  data-testid="deleted-row"
-                >
-                  <span className="min-w-0">
+                <Fragment key={`${r.entity}-${r.id}`}>
+                {index > 0 && <ItemSeparator />}
+                <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="deleted-row">
+                  <ItemContent className="min-w-0">
                     <span className="text-sm text-ink">{r.name}</span>
                     <span className="ml-2 text-xs text-muted">· {TYPE_LABEL[r.entity]()}</span>
-                  </span>
+                  </ItemContent>
                   {mayPurge && (
-                    <div className="flex items-center gap-2">
+                    <ItemActions>
                       {!purgeable && (
                         <span id={hintId} className="text-xs text-muted">
                           {m.settings_archived_purge_locked_hint({ days: PURGE_MIN_AGE_DAYS })}
@@ -254,15 +257,18 @@ export function ArchivedSection() {
                       >
                         {m.settings_archived_purge()}
                       </Button>
-                    </div>
+                    </ItemActions>
                   )}
-                </div>
+                </Item>
+                </Fragment>
               )
             })}
-          </div>
+          </ItemGroup>
         </div>
       )}
 
+      </CardContent>
+    </Card>
       {confirmingDelete && (
         <ConfirmDialog
           title={m.settings_archived_delete_title()}
@@ -288,6 +294,6 @@ export function ArchivedSection() {
           onCancel={() => setConfirmingPurge(null)}
         />
       )}
-    </section>
+    </>
   )
 }
