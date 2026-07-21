@@ -49,6 +49,83 @@ describe('AllocationBar interactions', () => {
     expect(screen.queryByTestId('allocation-popover')).toBeNull()
   })
 
+  describe('Escape closes the focus popover (keyboard accessibility)', () => {
+    it('closes an open popover on Escape while KEEPING focus on the bar', () => {
+      const a = seedAllocation()
+      render(<AllocationBar bar={{ ...barFor(a), project: 'Project Lightning', client: 'Acme' }} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      const bar = screen.getByTestId('allocation-bar')
+
+      // A keyboard user tabs to the bar → focus opens the detail popover (it occludes neighbours).
+      act(() => bar.focus())
+      expect(document.activeElement).toBe(bar)
+      expect(screen.getByTestId('allocation-popover')).toBeInTheDocument()
+
+      // Escape closes the topmost transient surface WITHOUT moving focus off the bar.
+      fireEvent.keyDown(bar, { key: 'Escape' })
+      expect(screen.queryByTestId('allocation-popover')).toBeNull()
+      expect(document.activeElement).toBe(bar)
+    })
+
+    it('reopens on a fresh focus EDGE (blur then refocus) after an Escape-close', () => {
+      const a = seedAllocation()
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      const bar = screen.getByTestId('allocation-bar')
+
+      act(() => bar.focus())
+      fireEvent.keyDown(bar, { key: 'Escape' })
+      expect(screen.queryByTestId('allocation-popover')).toBeNull()
+
+      // Escape must not be instantly undone by the lingering focus; only a NEW focus edge reopens it.
+      act(() => bar.blur())
+      act(() => bar.focus())
+      expect(screen.getByTestId('allocation-popover')).toBeInTheDocument()
+    })
+
+    it('does NOT swallow Escape mid-drag — the gesture hook still cancels the drag', () => {
+      const a = seedAllocation()
+      render(<AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />)
+      const bar = screen.getByTestId('allocation-bar')
+
+      fireEvent.pointerDown(bar, { clientX: 50, button: 0 })
+      document.dispatchEvent(new MouseEvent('pointermove', { clientX: 120, bubbles: true })) // start dragging
+      expect(useStore.getState().draggingAllocationId).toBe(a.id)
+
+      // Escape while dragging belongs to the drag-cancel path (a document keydown listener); the
+      // popover handler must defer so the drag aborts without committing (mirrors the pointercancel
+      // abort). If it were swallowed here the drag would never cancel.
+      fireEvent.keyDown(bar, { key: 'Escape' })
+      expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe('2026-06-01')
+      expect(useStore.getState().draggingAllocationId).toBeNull()
+
+      // Listeners were torn down: a stray later pointerup must not commit a stale move.
+      document.dispatchEvent(new MouseEvent('pointerup', { clientX: 300, bubbles: true }))
+      expect(useStore.getState().data.allocations.find((x) => x.id === a.id)!.startDate).toBe('2026-06-01')
+    })
+
+    it('lets Escape PROPAGATE to ancestor handlers when the popover is closed', () => {
+      const a = seedAllocation()
+      const ancestorEsc = vi.fn()
+      render(
+        <div data-testid="ancestor" onKeyDown={(e) => e.key === 'Escape' && ancestorEsc()}>
+          <AllocationBar bar={barFor(a)} geom={GEOM} indexAtClientX={indexAtClientX} onEdit={vi.fn()} />
+        </div>,
+      )
+      const bar = screen.getByTestId('allocation-bar')
+
+      // Popover closed → the bar does not consume Escape, so an ancestor (dialog/sidebar) still sees it.
+      expect(screen.queryByTestId('allocation-popover')).toBeNull()
+      fireEvent.keyDown(bar, { key: 'Escape' })
+      expect(ancestorEsc).toHaveBeenCalledTimes(1)
+
+      // …but once the popover is open, the bar consumes Escape (closes it) and does NOT bubble.
+      act(() => bar.focus())
+      expect(screen.getByTestId('allocation-popover')).toBeInTheDocument()
+      fireEvent.keyDown(bar, { key: 'Escape' })
+      expect(screen.queryByTestId('allocation-popover')).toBeNull()
+      expect(ancestorEsc).toHaveBeenCalledTimes(1) // unchanged — did not propagate
+    })
+  })
+
   it('opens the editor on Enter (keyboard operable)', () => {
     const a = seedAllocation()
     const onEdit = vi.fn()

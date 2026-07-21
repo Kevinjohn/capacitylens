@@ -1,5 +1,6 @@
 import { laneTop, packLanes, rowHeightForLanes } from '../../lib/lanePacking'
 import { capacityAllocationsForMode, capacityForWindow, dayCapacity, utilization as utilizationOf } from '../../lib/capacity'
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
 import { resolveBarColor } from '@capacitylens/shared/lib/color'
 import { timeOffTypeLabels, resourceDisplayName } from '../../lib/metadata'
 import { externalBand, resourcesByDiscipline, type DisciplineGroup } from '../../store/selectors'
@@ -208,6 +209,16 @@ export function buildSchedulerModel(
     return true
   }
 
+  // The [visStart, visEnd] and [overStart, overEnd] windows are RESOURCE-INVARIANT — every row in
+  // this model reads the exact same two windows. Building their day arrays here, ONCE, and passing
+  // them into utilizationOf / capacityForWindow below avoids resources × (visibleDays + 14) redundant
+  // eachDayISO calls per model rebuild (this fires on every scroll-day change, zoom, filter keystroke
+  // and edit). Not sliced from `days`: `days` covers the SCROLLABLE timeline, while overStart/overEnd
+  // is a FIXED window anchored on today that can fall outside it (and visStart/visEnd, though always
+  // within `days` in practice, isn't worth a fragile index-based slice to save one extra pair of calls).
+  const visDays = eachDayISO(visStart, visEnd)
+  const overDays = eachDayISO(overStart, overEnd)
+
   const timelineStart = days[0]
   const timelineEnd = days[days.length - 1]
   const intersectsTimeline = (row: { startDate: ISODate; endDate: ISODate }) =>
@@ -298,10 +309,10 @@ export function buildSchedulerModel(
         // days in its denominator; overSoon follows the strict per-day allocated > available rule, so
         // a time-off day or an opted-in weekend can trip it while a merely-spanned weekend still cannot
         // (weekend-aware allocated hours are zero). External rows remain utilisation 0 and never over.
-        const utilization = isExternal ? 0 : utilizationOf(resource, capacityAllocs, resTimeOff, visStart, visEnd)
+        const utilization = isExternal ? 0 : utilizationOf(resource, capacityAllocs, resTimeOff, visStart, visEnd, visDays)
         let overSoon = false
         if (!isExternal) {
-          for (const c of capacityForWindow(resource, capacityAllocs, resTimeOff, overStart, overEnd)) {
+          for (const c of capacityForWindow(resource, capacityAllocs, resTimeOff, overStart, overEnd, overDays)) {
             if (c.allocated > c.available) {
               overSoon = true
               break

@@ -71,13 +71,17 @@ export const AllocationBar = memo(function AllocationBar({
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
   // Radix Tooltip owns positioning/collision/portal-layering now; the manual enter/leave/focus/blur
   // handlers below are the SOLE authors of this open flag. We deliberately do NOT wire Radix's
-  // onOpenChange: Radix's built-in close-on-pointerdown/click is exactly the behaviour we must not
-  // have (a read-only viewer clicking a bar would otherwise dismiss its own popover), so the Root is
-  // driven purely by our controlled `open` prop. Open is gated on `!dragging` at render so a popover
-  // never shows mid-drag, and the pointerdown that starts a drag also calls hidePopover() first.
-  // (Trade-off: we also forgo Radix's Escape-to-close — the old hand-rolled popover had none either,
-  // so this is parity, and there is no way to accept only Escape in onOpenChange without also
-  // re-admitting the pointerdown/click close that causes the regression.)
+  // onOpenChange: Radix 1.2.12 routes BOTH close-on-pointerdown/click AND Escape-close through the
+  // one onClose→onOpenChange(false) path — indistinguishable there — and the pointerdown/click close
+  // is exactly the behaviour we must not have (a read-only viewer clicking a bar would otherwise
+  // dismiss its own popover). So the Root is driven purely by our controlled `open` prop, gated on
+  // `!dragging` at render so a popover never shows mid-drag, and the pointerdown that starts a drag
+  // also calls hidePopover() first.
+  // Escape-to-close is therefore handled by our OWN keydown handler on the bar/trigger (below),
+  // OUTSIDE Radix's close pipeline — the only way to honour Escape without re-admitting the
+  // pointerdown/click close that caused the alpha.9 regression. It closes the popover while the bar
+  // KEEPS focus; because open is authored purely on focus/hover EDGES, nothing re-opens it until a
+  // fresh blur→refocus or mouseleave→mouseenter.
   const [popoverOpen, setPopoverOpen] = useState(false)
   const showPopover = () => setPopoverOpen(true)
   const hidePopover = () => setPopoverOpen(false)
@@ -168,21 +172,32 @@ export const AllocationBar = memo(function AllocationBar({
         onMouseLeave={hidePopover}
         onFocus={showPopover}
         onBlur={hidePopover}
-        onKeyDown={
-          canEdit
-            ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onEdit?.(bar.allocation.id)
-                } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
-                  e.preventDefault()
-                  // Alt = resize the start edge, Shift = resize the end edge, neither = move.
-                  const mode = e.altKey ? 'resize-start' : e.shiftKey ? 'resize-end' : 'move'
-                  nudge(mode, e.key === 'ArrowRight' ? 1 : -1)
-                }
-              }
-            : undefined
-        }
+        onKeyDown={(e) => {
+          // Escape closes an OPEN popover — the keyboard user's topmost transient surface — while
+          // the bar keeps focus (closing the innermost overlay is the platform convention). This is
+          // gated on the SETTLED popover, not a drag: while a drag is in progress `dragging` is true,
+          // the popover is already force-closed, and Escape belongs to the gesture hook's own
+          // document keydown listener (cancel-drag). So we defer to that path — don't consume Escape
+          // here — and only stop the event when we actually close a popover, so a closed popover lets
+          // Escape bubble to ancestor handlers (dialogs, sidebar) unchanged.
+          if (e.key === 'Escape' && popoverOpen && !dragging) {
+            e.preventDefault()
+            e.stopPropagation()
+            hidePopover()
+            return
+          }
+          // Everything below is editor-only interaction; viewers still get Escape-to-close above.
+          if (!canEdit) return
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onEdit?.(bar.allocation.id)
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault()
+            // Alt = resize the start edge, Shift = resize the end edge, neither = move.
+            const mode = e.altKey ? 'resize-start' : e.shiftKey ? 'resize-end' : 'move'
+            nudge(mode, e.key === 'ArrowRight' ? 1 : -1)
+          }
+        }}
         // `scheduler-bar` is the semantic hook for BOTH the time-off draw-mode recede AND the
         // focus indicator (index.css `.scheduler-bar:focus-visible`); the app styles by this class,
         // NOT by `data-testid` (which stays test-only selection). The focus indicator is a DUAL-TONE

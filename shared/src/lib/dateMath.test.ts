@@ -60,6 +60,36 @@ describe('dateMath', () => {
     expect(eachDayISO('2026-05-31', '2026-05-29')).toEqual([])
   })
 
+  it('eachDayISO returns a single-element array for a same-day range', () => {
+    expect(eachDayISO('2026-06-15', '2026-06-15')).toEqual(['2026-06-15'])
+  })
+
+  it('eachDayISO is empty for ANY end-before-start range, not just adjacent reversals', () => {
+    // Guards the single-parse rewrite's cursor loop against an off-by-one that would make a
+    // far-reversed range return something instead of [] (the `count <= 0` guard runs before
+    // the loop ever starts, so this must be empty regardless of how far end precedes start).
+    expect(eachDayISO('2026-06-15', '2026-01-01')).toEqual([])
+  })
+
+  it('eachDayISO steps correctly across a month boundary (stepwise addDays, not a single re-parse)', () => {
+    // The rewritten loop advances one calendar day at a time from a SINGLE parsed `start` — this
+    // pins that stepping through Jan 31 -> Feb 1 (and into a leap-day Feb) is byte-identical to the
+    // old per-iteration re-parse.
+    expect(eachDayISO('2026-01-30', '2026-02-02')).toEqual([
+      '2026-01-30',
+      '2026-01-31',
+      '2026-02-01',
+      '2026-02-02',
+    ])
+    // 2024 is a leap year: Feb 28 -> Feb 29 -> Mar 1.
+    expect(eachDayISO('2024-02-27', '2024-03-01')).toEqual([
+      '2024-02-27',
+      '2024-02-28',
+      '2024-02-29',
+      '2024-03-01',
+    ])
+  })
+
   it('weekdayOf returns 0=Sun … 6=Sat', () => {
     expect(weekdayOf('2026-05-31')).toBe(0) // Sunday
     expect(weekdayOf('2026-06-01')).toBe(1) // Monday

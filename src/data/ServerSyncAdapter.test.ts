@@ -494,6 +494,76 @@ describe('ServerSyncAdapter.saveAll', () => {
   })
 })
 
+describe('ServerSyncAdapter — durable acknowledged-revision translation (phantom-PUT guard)', () => {
+  // The store never writes the server's revision back into a row, so a previously-acked row keeps its
+  // client-side updatedAt forever while lastSynced holds the SERVER stamp. The translation the ack map
+  // performs is therefore needed on EVERY future diff, not just the first: a consume-once map deletes
+  // the entry after one use, so the very next diff sees store(clientStamp) ≠ lastSynced(serverStamp)
+  // and re-emits a phantom PUT — which re-stamps the row server-side and 409-discards another user's
+  // real edit. These specs pin the DURABLE translation.
+
+  // A commit receipt whose server revision is DISTINCT from the client stamp (the server owns
+  // timestamps), so a row left untranslated reads as changed against lastSynced.
+  const ackReceipt = (init?: RequestInit): Response => {
+    const ops = (JSON.parse(init!.body as string) as { ops: Array<{ table: string; id: string; row?: { createdAt: string; updatedAt: string } }> }).ops
+    return new Response(JSON.stringify({
+      ok: true,
+      applied: ops.length,
+      revisions: ops.filter((o) => o.row).map((o) => ({
+        table: o.table, id: o.id, createdAt: o.row!.createdAt, updatedAt: `${o.row!.updatedAt}::server`,
+      })),
+    }), { status: 200 })
+  }
+
+  it('emits ZERO further ops for a previously-acked row across many unrelated saves', async () => {
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    // Edit c1 → save → ack. The store keeps c1@TS1 (the server stamp is never written back into it).
+    await a.saveAll(withData({ clients: [client('c1', TS1)] }))
+    // Several UNRELATED saves, each adding a new client while c1 stays at its client stamp TS1.
+    await a.saveAll(withData({ clients: [client('c1', TS1), client('c2', TS1)] }))
+    await a.saveAll(withData({ clients: [client('c1', TS1), client('c2', TS1), client('c3', TS1)] }))
+    await a.saveAll(withData({ clients: [client('c1', TS1), client('c2', TS1), client('c3', TS1), client('c4', TS1)] }))
+    const batches = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls.map((c) => batchOps(c).map((o) => o.id))
+    // c1 is PUT exactly once (its first save) and never re-appears — no phantom re-PUT on alternate saves.
+    expect(batches).toEqual([['c1'], ['c2'], ['c3'], ['c4']])
+  })
+
+  it('emits exactly one PUT when a previously-acked row is genuinely edited again, then is durable anew', async () => {
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => ackReceipt(init)) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(withData({ clients: [client('c1', TS1)] })) // ack c1@TS1
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    // Genuine re-edit: c1 carries a NEW client stamp → exactly one PUT; the translation entry is replaced.
+    await a.saveAll(withData({ clients: [{ ...client('c1', TS2), name: 'Renamed' }] }))
+    let calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(calls).toHaveLength(1)
+    expect(batchOps(calls[0]).map((o) => o.id)).toEqual(['c1'])
+    // The re-edit re-acked c1@TS2; a following unrelated save must NOT re-PUT c1 (durable again).
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    await a.saveAll(withData({ clients: [{ ...client('c1', TS2), name: 'Renamed' }, client('c9', TS1)] }))
+    calls = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls
+    expect(batchOps(calls[0]).map((o) => o.id)).toEqual(['c9'])
+  })
+
+  it('clears the translation map on rehydrate, so a stale ack cannot mistranslate a reused stamp', async () => {
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith('/api/state')) return new Response(JSON.stringify(emptyAppData()), { status: 200 })
+      return ackReceipt(init)
+    }) as unknown as typeof fetch
+    const a = new ServerSyncAdapter('http://x', fetchImpl)
+    await a.saveAll(withData({ clients: [client('c1', TS1)] })) // ack: client TS1 → server 'TS1::server'
+    await a.loadAll() // rehydrate → seeds lastSynced (empty) AND clears the ack map
+    ;(fetchImpl as unknown as ReturnType<typeof vi.fn>).mockClear()
+    // A fresh create reusing stamp TS1. A leaked stale ack would translate it to the server stamp;
+    // a cleared map PUTs it with its real client stamp TS1.
+    await a.saveAll(withData({ clients: [client('c1', TS1)] }))
+    const wire = batchOps((fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]) as unknown as Array<{ id: string; row: Client }>
+    expect(wire.map((o) => o.id)).toEqual(['c1'])
+    expect(wire[0].row.updatedAt).toBe(TS1) // NOT 'TS1::server' — the stale translation was cleared
+  })
+})
+
 describe('lifecycle-entity deletes route out of the batch as ARCHIVE-ONLY convergence (DEFECT A)', () => {
   // The server 400-REJECTS a batch DELETE of a lifecycle entity (clients/projects/resources), steering
   // writers at the dedicated lifecycle routes. The old client emitted those deletes IN the batch, so a

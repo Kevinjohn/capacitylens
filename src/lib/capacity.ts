@@ -112,8 +112,15 @@ export function capacityForWindow(
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,
+  // Optional precomputed `eachDayISO(start, end)` result. buildSchedulerModel calls this (via
+  // `utilization`, directly, too) once PER RESOURCE with the SAME [start, end] window — hoisting
+  // the day-array build to the caller (computed once, reused across every resource) avoids
+  // resources × (visibleDays + 14) redundant parseISO/format calls per model rebuild. Falls back
+  // to deriving it here so every existing caller keeps working unchanged.
+  precomputedDays?: ISODate[],
 ): DayCapacity[] {
-  return eachDayISO(start, end).map((d) => dayCapacity(resource, d, allocations, timeOff))
+  const days = precomputedDays ?? eachDayISO(start, end)
+  return days.map((d) => dayCapacity(resource, d, allocations, timeOff))
 }
 
 /** Allocated / available over the window, counted over working days only.
@@ -126,10 +133,13 @@ export function utilization(
   timeOff: TimeOff[],
   start: ISODate,
   end: ISODate,
+  // See capacityForWindow's `precomputedDays` doc — passed straight through so the visible-window
+  // day array is built once per model rebuild, not once per resource.
+  precomputedDays?: ISODate[],
 ): number {
   let allocated = 0
   let available = 0
-  for (const day of capacityForWindow(resource, allocations, timeOff, start, end)) {
+  for (const day of capacityForWindow(resource, allocations, timeOff, start, end, precomputedDays)) {
     if (day.available === 0) continue // not a working day — neither side counts
     allocated += day.allocated
     available += day.available

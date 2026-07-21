@@ -10,6 +10,51 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.26.0-alpha.1] — 2026-07-21
+
+This minor release lands the fixes from a full-codebase review: multi-user sync correctness
+(phantom writes, purge revision stamping), scheduler data-loss and HiDPI display bugs, restored
+keyboard dismissal of the allocation popover, and a consolidation of the server's write pipeline
+that also removes full-database scans from single-entity writes.
+
+### Fixed
+
+- Stopped the sync layer re-sending unchanged rows after a save was acknowledged. The
+  acknowledged-revision translation is now durable instead of consume-once, so an edited-once row
+  no longer generates phantom writes for the rest of the session — writes that could advance the
+  row's server revision and cause another user's legitimate edit to be rejected and discarded.
+- Purging a project or client now stamps a fresh revision onto the rows the delete cascade
+  mutates (placeholder resources unbound from the project, activities unbound from a phase).
+  Previously those rows kept their old timestamp, so a colleague's already-open session could
+  fail validation with an unrecoverable error and be stuck unable to save until a manual reload;
+  now it gets the normal conflict-and-reload path.
+- Resizing a days-mode allocation that currently spans only non-working days no longer silently
+  zeroes its hours per day; the stored value is preserved.
+- Scheduler visible-window calculations now round sub-pixel scroll positions (as the week-snap
+  path already did), so utilisation percentages on HiDPI screens are computed over exactly the
+  window on screen rather than one day earlier.
+- Escape closes the allocation detail popover again while keeping focus on the bar — restoring
+  the keyboard dismissal that the alpha.9 click-behaviour fix removed — without reintroducing
+  click-to-dismiss for viewers.
+- Repairs to the built-in Internal client (name, colour, builtin flag) made during data
+  migration now persist to the server instead of being re-applied in memory on every load.
+
+### Changed
+
+- Consolidated the server's four separately-maintained generic-entity write paths (create,
+  replace, patch and batch) into a single shared pipeline. Error messages that had drifted
+  between the copies are unified, and malformed array request bodies are now rejected on create
+  and patch as they already were on replace.
+- Centralised the role-gated field policy (time-off notes, private client/project names) into
+  one declarative map that drives read redaction, write-side pinning and export visibility, so a
+  future gated field cannot be wired into fewer than all three.
+- Single-entity writes now validate against the writing account's data slice instead of loading
+  the entire multi-tenant database on every request, so write latency scales with the account,
+  not the server.
+- The scheduler model computes its capacity and utilisation day windows once per rebuild instead
+  of once per resource, and date-range expansion parses its input once instead of per day —
+  removing thousands of redundant date operations per scroll step on large teams.
+
 ## [0.25.0-alpha.9] — 2026-07-21
 
 This patch release fixes regressions from the alpha.8 scheduler popover migration (accessibility,

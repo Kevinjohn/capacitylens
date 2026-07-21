@@ -127,9 +127,20 @@ export function ensureInternalClients(data: AppData, now: ISOTimestamp): AppData
   const clients = data.clients.filter((client) => {
     if (!client || typeof client !== 'object' || client.builtin !== true) return true
     return retained.has(client.id) || !duplicateIds.has(client.id)
-  }).map((client) => retained.has(client.id)
-    ? { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const }
-    : client)
+  }).map((client) => {
+    if (!retained.has(client.id)) return client
+    // Bump updatedAt ONLY when the repair actually ALTERS a field. ServerSyncAdapter.diffOps detects
+    // changes solely by updatedAt, so a name/colour/builtin correction that left updatedAt untouched
+    // would be re-applied in memory on every load yet never emit a PUT — the repair never reaches the
+    // server. Bumping UNCONDITIONALLY would be the opposite disease: an already-canonical row would
+    // diff as changed on every load and churn phantom writes, so the guard must be exact.
+    const altered =
+      client.name !== INTERNAL_CLIENT_NAME ||
+      client.color !== INTERNAL_CLIENT_COLOR ||
+      client.builtin !== true
+    const repaired = { ...client, name: INTERNAL_CLIENT_NAME, color: INTERNAL_CLIENT_COLOR, builtin: true as const }
+    return altered ? { ...repaired, updatedAt: now } : repaired
+  })
   const projects = duplicateIds.size === 0
     ? data.projects
     : data.projects.map((project) => {

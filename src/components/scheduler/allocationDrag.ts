@@ -25,7 +25,8 @@ export function reconcileReassignedHours(current: number, target: Resource): num
  *  AND whether the clamp actually bit, so a gesture commit can surface the lost volume
  *  (the cap truncates work — the bar would otherwise silently show the clamped 24h).
  *  `clamped` is true ONLY when the raw derived hours exceeded MAX_HOURS_PER_DAY; a
- *  normal in-range resize, a move, and the divide-by-zero guard all report false. */
+ *  normal in-range resize, a move, the divide-by-zero guard, and the zero-old-span guard
+ *  all report false. */
 export function volumePreservingHoursClamped(
   prev: DateRange,
   next: DateRange,
@@ -34,7 +35,11 @@ export function volumePreservingHoursClamped(
 ): { hours: number; clamped: boolean } {
   const oldSpan = spanDays(prev.startDate, prev.endDate, opts)
   const newSpan = spanDays(next.startDate, next.endDate, opts)
-  const raw = newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
+  // A zero-working-day OLD span (e.g. a weekend-aware allocation currently covering only Sat–Sun)
+  // has no volume to preserve — `hoursPerDay * 0 / newSpan` is 0, and committing that would
+  // silently wipe the stored hours the moment the resize lands on a working day. Preserving the
+  // existing value is the only non-destructive choice (no defaulting to 8, no clamping).
+  const raw = oldSpan === 0 ? hoursPerDay : newSpan > 0 ? (hoursPerDay * oldSpan) / newSpan : hoursPerDay
   // Clamp to a real working day — collapsing the span (e.g. a resize dragged past the
   // opposite edge → 1-day span) would otherwise inflate hours/day without bound.
   return { hours: Math.max(0, Math.min(raw, MAX_HOURS_PER_DAY)), clamped: raw > MAX_HOURS_PER_DAY }

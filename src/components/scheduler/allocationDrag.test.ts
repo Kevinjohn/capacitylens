@@ -3,7 +3,7 @@ import { volumePreservingHoursClamped, computeGesture, snappedBarGeometry, recon
 import { buildColumnGeometry } from './columnGeometry'
 import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
 import type { DateRange } from '../../lib/gestureMath'
-import type { Resource } from '@capacitylens/shared/types/entities'
+import type { Resource, Weekday } from '@capacitylens/shared/types/entities'
 
 // These functions were extracted from AllocationBar so the gesture math could be tested
 // directly. The branches below are exactly the ones a happy-path drag interaction test
@@ -52,6 +52,34 @@ describe('volumePreservingHoursClamped', () => {
 
   it('reports clamped=false through the divide-by-zero guard (original hours, no clamp)', () => {
     expect(volumePreservingHoursClamped(range('2026-06-01', '2026-06-04'), range('2026-06-02', '2026-06-01'), IGNORE, 6)).toEqual({ hours: 6, clamped: false })
+  })
+
+  // A weekend-aware allocation spanning only Sat–Sun has ZERO working days in its OLD span. Before
+  // the fix, `hoursPerDay * 0 / newSpan` derives 0 and commits it with clamped=false — silent data
+  // loss, since the bar still renders but contributes nothing to utilisation. There is no volume to
+  // preserve when the old span had none, so the only non-destructive result is the stored hours,
+  // untouched.
+  const WEEKDAYS_ONLY = { workingDays: [1, 2, 3, 4, 5] as Weekday[] } // Mon–Fri; spanDays counts working days only
+
+  it('preserves hoursPerDay verbatim when the OLD span has zero working days (weekend-only allocation)', () => {
+    // 2026-06-06 = Sat, 2026-06-07 = Sun: a Sat-Sun old range has 0 working days.
+    expect(
+      volumePreservingHoursClamped(range('2026-06-06', '2026-06-07'), range('2026-06-01', '2026-06-04'), WEEKDAYS_ONLY, 6),
+    ).toEqual({ hours: 6, clamped: false })
+  })
+
+  it('does not zero hours when a zero-working-day old span is resized onto weekdays', () => {
+    // Resize-end drags a Sat-only allocation forward onto a full working week — the derived hours
+    // must stay the stored value, not collapse to 0 just because oldSpan/newSpan would otherwise
+    // divide out to nothing.
+    const { hours, clamped } = volumePreservingHoursClamped(
+      range('2026-06-06', '2026-06-06'), // Sat only, 0 working days
+      range('2026-06-06', '2026-06-12'), // extends across the following working week
+      WEEKDAYS_ONLY,
+      8,
+    )
+    expect(hours).toBe(8)
+    expect(clamped).toBe(false)
   })
 })
 

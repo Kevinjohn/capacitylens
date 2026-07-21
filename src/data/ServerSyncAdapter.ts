@@ -181,16 +181,35 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         const acknowledged = this.acknowledgedRevisions.get(key)
         if (!acknowledged || row.updatedAt !== acknowledged.client) return row
         changed = true
-        // Consumed: the server's canonical timestamps are now baked into the row that becomes
-        // lastSynced, so this entry has done its job — delete it to bound the Map (it otherwise grows
-        // one entry per distinct row ever PUT, for the tab's lifetime). If this result is later
-        // discarded (a seedGen race) or the batch throws, the worst case is one redundant idempotent
-        // PUT that simply re-remembers the revision — never data loss.
-        this.acknowledgedRevisions.delete(key)
+        // DURABLE translation, NOT consume-once — the entry MUST survive this diff. Nothing ever
+        // writes the server's revision back into the Zustand store, so the store's copy of this row
+        // keeps its client-side updatedAt for the tab's whole life. lastSynced holds the SERVER stamp;
+        // every future diff therefore re-sees store(clientStamp) ≠ lastSynced(serverStamp) and would
+        // re-emit a phantom PUT for a row the user never touched — which would re-stamp the row on the
+        // server and 409-discard another user's real edit. Keeping the entry lets each future diff
+        // translate the client stamp to the acknowledged server stamp, yielding ZERO ops. The entry is
+        // invalidated only when it stops applying: a genuine re-edit bumps row.updatedAt to a NEW value
+        // (this `=== acknowledged.client` guard then fails, so exactly one real PUT is emitted and
+        // rememberRevisions overwrites the entry with the new client→server pair), and a full rehydrate
+        // clears the whole Map (seedSnapshot). So the Map holds at most one entry per row edited since
+        // the last rehydrate — bounded, not consume-once.
         return { ...row, createdAt: acknowledged.server.createdAt, updatedAt: acknowledged.server.updatedAt }
       }) as never
     }
     return changed ? next : data
+  }
+
+  // Seed the diff snapshot to a freshly loaded slice and announce the seed to drain() (seedGen).
+  // Clearing the acknowledged-revision translations is PART of seeding: those entries map the prior
+  // session's client stamps onto server revisions, but a rehydrate replaces both lastSynced and the
+  // store with server-stamped rows, so the translations are now stale (and a fresh row reusing an old
+  // client stamp could be mistranslated). This is also the Map's cleanup boundary — see
+  // canonicalizeAcknowledged: without a rehydrate the Map only ever shrinks or overwrites, so seeding
+  // is where it is emptied.
+  private seedSnapshot(data: AppData): void {
+    this.lastSynced = data
+    this.seedGen += 1
+    this.acknowledgedRevisions.clear()
   }
 
   private rememberRevisions(ops: Op[], revisions: CommittedRevision[]): void {
@@ -238,10 +257,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // read (accountId present) is a real error and still throws below.
       if (accountId === undefined && res.status === 400) {
         const empty = emptyAppData()
-        if (myGen === this.loadGen) {
-          this.lastSynced = empty
-          this.seedGen += 1
-        }
+        if (myGen === this.loadGen) this.seedSnapshot(empty)
         return empty
       }
       if (!res.ok) {
@@ -303,8 +319,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       // while this fetch was in flight) must not seed — its slice is discarded by persist.ts's
       // token guard, and seeding here anyway would desync snapshot from data (see loadGen).
       if (myGen === this.loadGen) {
-        this.lastSynced = data
-        this.seedGen += 1 // announce the seed to drain() — see the seedGen doc
+        this.seedSnapshot(data) // announce the seed to drain() and clear stale ack translations
         setOfflineReadState(false)
         if (accountId !== undefined) {
           void cacheAccountSlice(accountId, data).catch((error) =>
@@ -323,10 +338,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
           const cachedIdentity = await readCachedAuthSnapshot({ acceptEffects: () => myGen === this.loadGen })
           if (cachedIdentity) {
             const empty = emptyAppData()
-            if (myGen === this.loadGen) {
-              this.lastSynced = empty
-              this.seedGen += 1
-            }
+            if (myGen === this.loadGen) this.seedSnapshot(empty)
             if (myGen === this.loadGen) setOfflineReadState(true, cachedIdentity.savedAt)
             return empty
           }
@@ -338,10 +350,7 @@ export class ServerSyncAdapter implements PersistenceAdapter {
         try {
           const cached = await readCachedAccountSlice(accountId)
           if (cached) {
-            if (myGen === this.loadGen) {
-              this.lastSynced = cached.value
-              this.seedGen += 1
-            }
+            if (myGen === this.loadGen) this.seedSnapshot(cached.value)
             if (myGen === this.loadGen) setOfflineReadState(true, cached.savedAt)
             return cached.value
           }

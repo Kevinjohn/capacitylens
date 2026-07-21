@@ -3,12 +3,14 @@ import {
   allocatedHoursOnDay,
   availableHoursOnDay,
   capacityAdvisory,
+  capacityForWindow,
   dayCapacity,
   isOnTimeOff,
   isWorkingDay,
   overAllocatedInWindow,
   utilization,
 } from './capacity'
+import { eachDayISO } from '@capacitylens/shared/lib/dateMath'
 import type { Allocation, Resource, TimeOff } from '@capacitylens/shared/types/entities'
 
 const makeResource = (over: Partial<Resource> = {}): Resource => ({
@@ -234,6 +236,25 @@ describe('utilization', () => {
     // hours must not inflate the ratio — a fully-booked person reads as 100%, not 140%.
     const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-14', hoursPerDay: 8 })]
     expect(utilization(r, allocs, [], '2026-06-01', '2026-06-14')).toBeCloseTo(1)
+  })
+
+  it('accepts an optional precomputed day array (capacityForWindow) and matches the derived-internally result', () => {
+    // buildSchedulerModel hoists eachDayISO(start, end) once per window and passes it through
+    // to avoid recomputing it per resource — this pins that passing it explicitly produces
+    // IDENTICAL output to the default (derive-internally) path.
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 4 })]
+    const precomputed = eachDayISO('2026-06-01', '2026-06-07')
+    const withPrecomputed = capacityForWindow(r, allocs, [], '2026-06-01', '2026-06-07', precomputed)
+    const withoutPrecomputed = capacityForWindow(r, allocs, [], '2026-06-01', '2026-06-07')
+    expect(withPrecomputed).toEqual(withoutPrecomputed)
+  })
+
+  it('accepts an optional precomputed day array (utilization) and matches the derived-internally result', () => {
+    const allocs = [makeAlloc({ startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 4 })]
+    const precomputed = eachDayISO('2026-06-01', '2026-06-07')
+    expect(utilization(r, allocs, [], '2026-06-01', '2026-06-07', precomputed)).toBeCloseTo(
+      utilization(r, allocs, [], '2026-06-01', '2026-06-07'),
+    )
   })
 
   it('does not count hours on a zero-availability day (a weekend an allocation opts into) toward the ratio', () => {

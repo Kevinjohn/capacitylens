@@ -55,7 +55,15 @@ export function eachDayISO(start: ISODate, end: ISODate): ISODate[] {
   const count = daysInclusive(start, end)
   if (count <= 0) return []
   const out: ISODate[] = []
-  for (let i = 0; i < count; i++) out.push(addDaysISO(start, i))
+  // Parse `start` ONCE and step the resulting Date with addDays, formatting each day once. The
+  // previous `addDaysISO(start, i)` per iteration re-parsed the start STRING every time (~n+1
+  // parses + n formats for an n-day range) — this is a hot path (per-resource capacity windows),
+  // so that redundant re-parsing shows up directly as scroll/zoom jank on large teams.
+  let cursor = parseISO(start)
+  for (let i = 0; i < count; i++) {
+    out.push(toISODate(cursor))
+    cursor = addDays(cursor, 1)
+  }
   return out
 }
 

@@ -51,6 +51,26 @@ function nextRevision(updatedAt: unknown): string {
   return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString()
 }
 
+// One fresh server revision for the SURVIVOR rows a purge cascade unbinds (a placeholder resource
+// whose projectId is cleared, an activity whose phaseId is cleared). The web store's purgeEntity
+// stamps those same FK edits with nextDataRevision; the server MUST match. Without it the survivor
+// keeps its old updatedAt, so a colleague's stale session passes the optimistic-concurrency
+// (isStaleWrite) check on that row yet fails referential validation with a 400 — not the 409 that
+// triggers the server-wins reload — and persist.ts burns its retries behind a permanent save banner.
+// Strictly newer than every row in the slice (like nextDataRevision) so no survivor's revision goes
+// backwards under clock skew.
+function cascadeRevision(data: AppData): string {
+  let newest: string | undefined
+  for (const rows of Object.values(data) as Array<Array<{ updatedAt?: unknown }>>) {
+    for (const row of rows) {
+      if (typeof row.updatedAt === 'string' && (newest === undefined || row.updatedAt > newest)) {
+        newest = row.updatedAt
+      }
+    }
+  }
+  return nextRevision(newest)
+}
+
 function replaceRow(
   data: AppData,
   entity: LifecycleEntityKey,
@@ -231,11 +251,13 @@ export function registerLifecycleRoutes(
           .send({ error: 'Cannot purge: must be a soft-deleted tombstone at least 30 days old.' })
       }
 
+      // resources cascade unbinds nothing (it only drops the resource + its allocations/timeOff), so
+      // it takes no revision; projects/clients unbind survivors and must stamp them — see cascadeRevision.
       const purged = rawEntity === 'resources'
         ? deleteResourceCascade(data, id)
         : rawEntity === 'projects'
-          ? deleteProjectCascade(data, id)
-          : deleteClientCascade(data, id)
+          ? deleteProjectCascade(data, id, cascadeRevision(data))
+          : deleteClientCascade(data, id, cascadeRevision(data))
       dependencies.store.write(accountId, purged)
       dependencies.audit(reply, {
         ts: new Date().toISOString(),

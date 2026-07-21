@@ -29,8 +29,8 @@ Secure host-only cookies even when Node sits behind an HTTP reverse proxy.
 
 The former `CAPACITYLENS_AUTH`, `BETTER_AUTH_*`, `CAPACITYLENS_SSO_*` and named-social variables
 remain aliases until both two stable minor releases and 90 days have elapsed from the first stable
-release containing the canonical namespace. The current 0.25 alpha does not start that clock: when
-0.25.0 stable ships, record its release date and remove no earlier than 0.27.0 and 90 days after that
+release containing the canonical namespace. The current 0.26 alpha does not start that clock: when
+0.26.0 stable ships, record its release date and remove no earlier than 0.28.0 and 90 days after that
 date. A legacy-only value warns once without logging its value. Canonical and legacy values that
 differ refuse startup.
 

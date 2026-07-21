@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { buildSchedulerModel, type GroupModel } from './schedulerModel'
 import { buildColumnGeometry } from './columnGeometry'
 import { eachDayISO, addDaysISO } from '@capacitylens/shared/lib/dateMath'
+import { capacityForWindow as capacityForWindowOf, utilization as utilizationOf } from '../../lib/capacity'
 import { emptyFilters } from '../../store/useStore'
 import { activeOnly } from '@capacitylens/shared/domain/lifecycle'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
@@ -729,5 +730,32 @@ describe('buildSchedulerModel — mutation-testing gap-fill', () => {
     const model = buildSchedulerModel(d, geom, days, start, end, start, end, emptyFilters(), true, true, true)
     const r1 = model.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!
     expect(r1.overSoon).toBe(true)
+  })
+
+  // Guards the performance hoist in buildSchedulerModel: visStart/visEnd and overStart/overEnd's day
+  // arrays are now computed ONCE (outside the per-resource loop) and passed into utilizationOf /
+  // capacityForWindow, instead of each resource re-deriving them via eachDayISO. This must not change
+  // a single resource's math — cross-check the model's per-resource utilization/overSoon against the
+  // SAME capacity.ts functions called directly (the pre-hoist call shape), for MULTIPLE resources with
+  // DIFFERENT allocations, so a bug that leaked one resource's window into another's would show up.
+  it('utilization/overSoon are IDENTICAL to calling the capacity functions directly, for every resource in a multi-resource model', () => {
+    const d = dataset()
+    // A distinct 3rd resource + allocation shape so three resources each have different load.
+    d.resources.push({ id: 'r3', accountId: 'acct-test', createdAt: 't', updatedAt: 't', kind: 'person', name: 'QA Quinn', role: 'QA', disciplineId: 'd-dev', employmentType: 'permanent', workingHoursPerDay: 6, workingDays: [1, 2, 3, 4, 5], color: '#6' })
+    d.allocations.push({ id: 'a5', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r3', activityId: 't2', startDate: '2026-06-01', endDate: '2026-06-05', hoursPerDay: 3, status: 'confirmed' })
+    const visStart = '2026-06-02'
+    const visEnd = '2026-06-05'
+    const overStart = '2026-06-01'
+    const overEnd = '2026-06-03'
+    const model = buildSchedulerModel(d, geom, days, visStart, visEnd, overStart, overEnd, emptyFilters(), true, true, true)
+    const rows = model.flatMap((g) => g.rows)
+    for (const resource of d.resources) {
+      const allocs = d.allocations.filter((a) => a.resourceId === resource.id)
+      const expectedUtil = utilizationOf(resource, allocs, [], visStart, visEnd)
+      const expectedOver = capacityForWindowOf(resource, allocs, [], overStart, overEnd).some((c) => c.allocated > c.available)
+      const row = rows.find((r) => r.resource.id === resource.id)!
+      expect(row.utilization).toBeCloseTo(expectedUtil)
+      expect(row.overSoon).toBe(expectedOver)
+    }
   })
 })

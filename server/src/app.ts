@@ -42,7 +42,7 @@ declare module 'fastify' {
   }
 }
 import { parseData, MAX_IMPORT_RECORDS } from '@capacitylens/shared/data/transfer'
-import type { AppData, Client, Project } from '@capacitylens/shared/types/entities'
+import type { AppData } from '@capacitylens/shared/types/entities'
 import { remapAndValidateImport, deleteAccountCascade } from '@capacitylens/shared/domain/mutations'
 // Shared lifecycle allow-list also protects the generic entity routes; the dedicated transition
 // pipeline is registered through routes/lifecycleRoutes below.
@@ -62,8 +62,23 @@ import {
   validateWrite,
   sanitizeWrite,
   ValidationError,
-  type SanitizeWriteOptions,
 } from './validate'
+import {
+  redactGatedEcho,
+  tableHasGatedFields,
+  visibilityForRole,
+  type SanitizeWriteOptions,
+} from './fieldPolicy'
+import {
+  applyGeneratedBuiltinReplacement,
+  builtinInternalWriteGuard,
+  checkEntityWriteBody,
+  FULL_SLICE_READ,
+  generatedBuiltinReplacement,
+  prepareScopedWrite,
+  replaceGeneratedBuiltin,
+  stampServerRevision,
+} from './writePipeline'
 import {
   type Db,
   deleteRow,
@@ -83,10 +98,8 @@ import { sqliteTenantStore } from './tenantStore'
 import {
   can,
   canSeePrivateNames,
-  canSeeTimeOffNote,
   type Action,
 } from '@capacitylens/shared/domain/access'
-import { redactPrivateName } from '@capacitylens/shared/domain/privateNames'
 import { tx } from './txn'
 import { newId } from '@capacitylens/shared/lib/id'
 import { buildInternalClient } from '@capacitylens/shared/data/internalClient'
@@ -554,100 +567,12 @@ function isStaleWrite(
   return Date.parse(existing.updatedAt) > Date.parse(row.updatedAt)
 }
 
-/** The server owns persistence timestamps; request timestamps are only precondition versions. */
-function stampServerRevision(
-  row: Record<string, unknown>,
-  existing?: Record<string, unknown>,
-): Record<string, unknown> {
-  const now = nextRevision(existing?.updatedAt)
-  return {
-    ...row,
-    createdAt: typeof existing?.createdAt === 'string' ? existing.createdAt : now,
-    updatedAt: now,
-  }
-}
-
 /** Server-owned revision fields are result metadata, not semantic account-command input. */
 function canonicalAccountProductPayload(row: Record<string, unknown>): Record<string, unknown> {
   const canonical = { ...row }
   delete canonical.createdAt
   delete canonical.updatedAt
   return canonical
-}
-
-// STATE parameter, not `db`: this is a pure existence check against the caller's already-loaded
-// AppData projection (Finding 82 — see the batch handler below, which maintains that projection
-// incrementally instead of re-scanning the DB per op). Every call site now hoists ITS OWN
-// loadState(db) once and threads it through, so this never triggers a fresh read itself.
-function generatedBuiltinReplacement(
-  state: AppData,
-  table: string,
-  row: Record<string, unknown>,
-): string | null {
-  if (table !== 'clients' || row.builtin !== true || typeof row.accountId !== 'string') return null
-  const generatedId = `internal:${row.accountId}`
-  return row.id !== generatedId && state.clients.some((c) => c.id === generatedId) ? generatedId : null
-}
-
-/** Replace the deterministic auto-created Internal client with a legacy/client-supplied id
- * without firing its ON DELETE CASCADE. Must run inside the caller's transaction.
- * `state` is the caller's already-loaded AppData projection (see generatedBuiltinReplacement) —
- * reused here instead of a fresh loadState(db), so a batch of many such ops stays O(1) DB scans. */
-function replaceGeneratedBuiltin(
-  db: Db,
-  state: AppData,
-  generatedId: string,
-  row: Record<string, unknown>,
-): void {
-  const accountId = row.accountId
-  if (typeof accountId !== 'string') {
-    throw new Error('Internal-client replacement requires a string accountId.')
-  }
-  const projected = {
-    ...state,
-    clients: state.clients.filter((client) => client.id !== generatedId),
-    projects: state.projects.map((project) =>
-      project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
-    ),
-  }
-  validateWrite(projected, 'clients', row)
-
-  // Temporarily unflag the old row before inserting the replacement so the partial unique index is
-  // never violated. The old FK target remains present until every dependent project has moved.
-  db.prepare(`UPDATE clients SET builtin = NULL WHERE id = ? AND accountId = ? AND builtin = 'true'`)
-    .run(generatedId, accountId)
-  upsertRow(db, 'clients', row)
-  for (const project of projected.projects.filter((project) => project.clientId === row.id)) {
-    const existing = getRow(db, 'projects', project.id)
-    if (existing?.clientId !== generatedId) continue
-    upsertRow(db, 'projects', {
-      ...project,
-      createdAt: existing.createdAt,
-      updatedAt: nextRevision(existing.updatedAt),
-    } as unknown as Record<string, unknown>)
-  }
-  deleteRow(db, 'clients', generatedId)
-}
-
-/** Mirror of replaceGeneratedBuiltin's DB effect onto an in-memory AppData projection (Finding
- *  82): swap the old auto-generated builtin client for `row`, re-pointing every project that
- *  referenced it. Field-exact parity (e.g. bumped `updatedAt`) isn't needed here — this state
- *  only feeds validateWrite's existence/FK checks for later ops in the same batch, never
- *  isStaleWrite or the response echo, both of which read the real row via getRow(db, ...). */
-function applyGeneratedBuiltinReplacement(
-  state: AppData,
-  generatedId: string,
-  row: Record<string, unknown>,
-): AppData {
-  return {
-    ...state,
-    clients: state.clients
-      .filter((client) => client.id !== generatedId)
-      .concat(row as unknown as Client),
-    projects: state.projects.map((project) =>
-      project.clientId === generatedId ? { ...project, clientId: row.id as string } : project,
-    ),
-  }
 }
 
 /** Upsert one row into an in-memory AppData projection by id — the state-mirror of upsertRow,
@@ -687,12 +612,6 @@ function deleteFromState(state: AppData, table: string, id: string): AppData {
     default:
       return state
   }
-}
-
-/** Produce a server-side lifecycle revision strictly newer than the stored row when possible. */
-function nextRevision(updatedAt: unknown): string {
-  const previous = typeof updatedAt === 'string' ? Date.parse(updatedAt) : Number.NaN
-  return new Date(Math.max(Date.now(), Number.isFinite(previous) ? previous + 1 : 0)).toISOString()
 }
 
 /** Fully visible writer context (unaffected tables, auth OFF, or an owner). One frozen module-level
@@ -1206,34 +1125,25 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     table: string,
     accountId: unknown,
   ): SanitizeWriteOptions {
-    if ((table !== 'timeOff' && table !== 'clients' && table !== 'projects') || authMode === 'off') {
+    // No gated fields on this table (or trusted-local OFF) ⇒ fully visible, no membership lookup.
+    if (!tableHasGatedFields(table) || authMode === 'off') {
       return ALL_FIELDS_VISIBLE
     }
     const role = typeof accountId === 'string'
       ? accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
-      : null
-    return {
-      canSeeTimeOffNote: role !== null && canSeeTimeOffNote(role),
-      canSeePrivateNames: role !== null && canSeePrivateNames(role),
-    }
+      : null // a non-string account id fails closed (every gated field hidden)
+    return visibilityForRole(role)
   }
 
-  /** Apply both field-level confidentiality projections to write/conflict/lifecycle response echoes.
-   * A write response is also a read and must never bypass the main state-read policy. */
+  /** Apply every field-level confidentiality projection (GATED_FIELD_POLICIES) to write/conflict/
+   * lifecycle response echoes. A write response is also a read and must never bypass the main
+   * state-read policy. */
   function redactWriteEcho(
     table: string,
     row: Record<string, unknown>,
     vis: SanitizeWriteOptions,
   ): Record<string, unknown> {
-    let visible = row
-    if (table === 'timeOff' && vis.canSeeTimeOffNote === false) {
-      visible = { ...visible }
-      delete visible.note
-    }
-    if ((table === 'clients' || table === 'projects') && vis.canSeePrivateNames === false) {
-      visible = redactPrivateName(visible as unknown as Client | Project) as unknown as Record<string, unknown>
-    }
-    return visible
+    return redactGatedEcho(table, row, vis)
   }
 
   // CORS response headers are not a CSRF control: browsers can still SEND a simple form request
@@ -1480,8 +1390,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         const role = authMode === 'off'
           ? null
           : accountAdminPort.roleForPrincipalInWorkspace(req.user!.id, accountId)
-        const includeTimeOffNote = authMode === 'off' || (role !== null && canSeeTimeOffNote(role))
-        const includePrivateNames = authMode === 'off' || (role !== null && canSeePrivateNames(role))
+        // Derive the export/read include flags from the SAME GATED_FIELD_POLICIES predicates that
+        // drive the write-pin and read-echo, so the three can never disagree. OFF is trusted-local ⇒
+        // include everything; otherwise each gated field is included iff the role may see it.
+        const vis = authMode === 'off' ? ALL_FIELDS_VISIBLE : visibilityForRole(role)
+        const includeTimeOffNote = vis.canSeeTimeOffNote !== false
+        const includePrivateNames = vis.canSeePrivateNames !== false
         // P2.5a admin "Archived & deleted" read. `?includeInactive=1` asks for the FULL slice
         // (archived + soft-deleted rows retained), which is privileged: it is gated at the SAME tier as
         // purge (admin+, `can(role, 'purge')`) — the lifecycle-management tier — so an editor/viewer
@@ -1588,7 +1502,9 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           bootstrapAuthorized,
           canonicalProductPayload: canonicalAccountRow,
           provisionProductData: () => {
-            validateWrite(loadState(db), 'accounts', accountRow)
+            // Finding 9: accounts validation is name-only (validate.ts), so it needs no cross-table
+            // data — a full-DB loadState here was pure waste. Scope to this account's (empty) slice.
+            validateWrite(store.readSlice(id, FULL_SLICE_READ), 'accounts', accountRow)
             insertRow(db, 'accounts', accountRow)
             insertRow(db, 'clients', buildInternalClient(id, now) as unknown as Record<string, unknown>)
             return accountRow
@@ -1635,24 +1551,16 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.post('/api/:entity', async (req, reply) => {
       const { entity } = req.params as { entity: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-      // A missing/non-object body (no Content-Type, or a literal JSON `null`) would otherwise
-      // null-deref below — body.accountId! for a scoped table, or sanitizeWrite's assertIdPresent
-      // for accounts — BEFORE the try block can turn it into a classified response, surfacing as a
-      // misclassified 500. Reject it here with the same shape/status /api/batch and /api/import use
-      // for a bad body.
-      if (!req.body || typeof req.body !== 'object') {
-        return reply.code(400).send({ error: 'A request body is required.' })
-      }
+      // Shared body-shape + builtin-Internal guard (Finding 7 funnel). A missing/non-object body
+      // would otherwise null-deref below (accountId! / sanitizeWrite's assertIdPresent) BEFORE the
+      // try block could classify it — a misclassified 500. checkEntityWriteBody rejects it with the
+      // same shape /api/batch and /api/import use.
+      const scoped = isScopedTable(entity)
+      const bodyCheck = checkEntityWriteBody('create', req.body, undefined, scoped)
+      if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error })
       const requestRow = req.body as Record<string, unknown>
-      if (typeof requestRow.id !== 'string') {
-        return reply.code(400).send({ error: 'A string id is required.' })
-      }
-      if (isScopedTable(entity) && typeof requestRow.accountId !== 'string') {
-        return reply.code(400).send({ error: 'A string accountId is required.' })
-      }
-      if (entity === 'clients' && requestRow.builtin === true) {
-        return reply.code(400).send({ error: 'The built-in Internal client is managed by the server.' })
-      }
+      const builtinCheck = builtinInternalWriteGuard('create', entity, undefined, requestRow)
+      if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error })
       // P1.5 write gate (scoped tables only). entity === 'accounts' CREATE is CLOSED when auth is
       // on: the old "onboarding exemption" (a freshly-signed-up user holds no membership yet, so
       // this create was left ungated) became an authz bypass once POST /api/orgs landed — see
@@ -1667,26 +1575,22 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       if (entity === 'accounts' && authMode !== 'off') {
         return reply.code(403).send({ error: ACCOUNT_CREATE_CLOSED_MESSAGE })
       }
-      if (isScopedTable(entity)) {
+      if (scoped) {
         if (!authorize(req, reply, requestRow.accountId as string, 'write')) return
       }
       try {
         // P1.6: a note-blind writer CREATING time off gets its `note` stripped (nothing stored
         // to preserve; they could never read back a note they authored) — see sanitizeWrite.
-        const vis = fieldVisibilityFor(req, entity, (req.body as { accountId?: unknown }).accountId)
-        const row = stampServerRevision(
-          sanitizeWrite(entity, req.body as Record<string, unknown>, undefined, vis),
-        )
-        // Loaded ONCE and threaded through both the builtin-replacement check and validateWrite,
-        // rather than each independently re-scanning every table (Finding 82's fix applied here too).
-        const state = loadState(db)
-        const generatedReplacement = generatedBuiltinReplacement(state, entity, row)
+        const vis = fieldVisibilityFor(req, entity, requestRow.accountId)
+        // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
+        // inline sanitize/stamp + a full-DB loadState here).
+        const { row, generatedReplacement, scopedState } = prepareScopedWrite({
+          store, entity, body: requestRow, existing: undefined, vis, verb: 'create',
+        })
         if (generatedReplacement) {
           tx(db, () => {
-            replaceGeneratedBuiltin(db, state, generatedReplacement, row)
+            replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row)
           })
-        } else if (entity !== 'accounts') {
-          validateWrite(state, entity, row)
         }
         let responseRow = row
         let replayed = false
@@ -1702,8 +1606,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             provisionProductData: () => {
               // Run validation only on first execution, inside the same transaction as the insert.
               // A committed command replay must not be rejected merely because the account now
-              // exists or the single-company cap became full after its original success.
-              validateWrite(loadState(db), entity, row)
+              // exists or the single-company cap became full after its original success. Reuses the
+              // funnel's scoped slice (Finding 9 — accounts validation is name-only, so the second
+              // full-DB loadState the old code ran here was pure waste).
+              validateWrite(scopedState, entity, row)
               insertRow(db, entity, row)
               insertRow(db, 'clients', buildInternalClient(row.id as string, row.createdAt as string) as unknown as Record<string, unknown>)
               return row
@@ -1736,24 +1642,19 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.put('/api/:entity/:id', async (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
-        return reply.code(400).send({ error: 'A request body is required.' })
-      }
+      const scoped = isScopedTable(entity)
+      const bodyCheck = checkEntityWriteBody('replace', req.body, id, scoped)
+      if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error })
       const body = req.body as Record<string, unknown>
-      if (body?.id !== id) return reply.code(400).send({ error: 'Body id must match the URL id.' })
-      if (isScopedTable(entity) && typeof body.accountId !== 'string') {
-        return reply.code(400).send({ error: 'A string accountId is required.' })
-      }
       // P1.5 write gate (scoped tables): membership + write tier for the body's accountId. The
       // ownsRow immutability guard below still runs — authorize gates WHO may write, ownsRow keeps
       // accountId immutable.
-      if (isScopedTable(entity) && !authorize(req, reply, body.accountId as string, 'write')) return
+      if (scoped && !authorize(req, reply, body.accountId as string, 'write')) return
       try {
         const workspaceCommand = entity === 'accounts' ? accountCommand(req) : null
         const existing = getRow(db, entity, id)
-        if (entity === 'clients' && existing?.builtin === true) {
-          return reply.code(400).send({ error: 'The built-in Internal client cannot be modified.' })
-        }
+        const builtinCheck = builtinInternalWriteGuard('replace', entity, existing, body)
+        if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error })
         // Account CREATE via upsert (`entity === 'accounts' && !existing` — no row at this id yet)
         // is CLOSED when auth is on, same as the generic POST: the old onboarding exemption is an
         // authz bypass now that POST /api/orgs exists (see ACCOUNT_CREATE_CLOSED_MESSAGE). Checked
@@ -1822,12 +1723,12 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             current: redactWriteEcho(entity, existing, vis),
           })
         }
-        const row = stampServerRevision(sanitizeWrite(entity, body, existing, vis), existing)
-        // Loaded ONCE and threaded through the builtin-replacement check and both validateWrite
-        // branches below, rather than each independently re-scanning every table (same fix as
-        // the batch handler's Finding 82, applied here for consistency).
-        const state = loadState(db)
-        const generatedReplacement = generatedBuiltinReplacement(state, entity, row)
+        // Finding 7/9 funnel: sanitize + stamp + ACCOUNT-SCOPED read + validate in one place (was an
+        // inline sanitize/stamp + a full-DB loadState here). An accounts CREATE and a generated-builtin
+        // replacement defer their validation (see prepareScopedWrite); every other write validated here.
+        const { row, generatedReplacement, scopedState } = prepareScopedWrite({
+          store, entity, body, existing, vis, verb: 'replace',
+        })
         let responseRow = row
         let replayed = false
         if (entity === 'accounts' && !existing) {
@@ -1842,7 +1743,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             bootstrapAuthorized: false,
             canonicalProductPayload: canonicalAccountProductPayload(row),
             provisionProductData: () => {
-              validateWrite(state, entity, row, existing)
+              validateWrite(scopedState, entity, row, existing)
               upsertRow(db, entity, row)
               upsertRow(db, 'clients', buildInternalClient(id, row.createdAt as string) as unknown as Record<string, unknown>)
               return row
@@ -1852,10 +1753,10 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           replayed = provisioned.replayed
         } else if (generatedReplacement) {
           tx(db, () => {
-            replaceGeneratedBuiltin(db, state, generatedReplacement, row)
+            replaceGeneratedBuiltin(db, scopedState, generatedReplacement, row)
           })
         } else {
-          validateWrite(state, entity, row, existing)
+          // Validation already ran in the funnel above (accounts UPDATE + every scoped write).
           upsertRow(db, entity, row)
         }
         // P1.15 audit (post-commit). changedFields = the PUT body's field NAMES (never values).
@@ -1883,25 +1784,17 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
     app.patch('/api/:entity/:id', (req, reply) => {
       const { entity, id } = req.params as { entity: string; id: string }
       if (!isKnownTable(entity)) return reply.code(404).send({ error: `Unknown entity: ${entity}` })
-      // Same guard as the generic POST — a missing/non-object body would otherwise null-deref
-      // inside accountFieldsFrozen's `field in incoming` check (entity === 'accounts'), which
-      // statusFor can't tell apart from an unexpected bug, so it would surface as a 500.
-      if (!req.body || typeof req.body !== 'object') {
-        return reply.code(400).send({ error: 'A request body is required.' })
-      }
-      if (
-        isScopedTable(entity) &&
-        'accountId' in (req.body as Record<string, unknown>) &&
-        typeof (req.body as Record<string, unknown>).accountId !== 'string'
-      ) {
-        return reply.code(400).send({ error: 'accountId must be a string when provided.' })
-      }
+      // Shared body-shape check (Finding 7 funnel). A missing/non-object body would otherwise
+      // null-deref inside accountFieldsFrozen's `field in incoming` check (accounts), a misclassified
+      // 500. For PATCH accountId is OPTIONAL — only a PRESENT non-string is rejected.
+      const scoped = isScopedTable(entity)
+      const bodyCheck = checkEntityWriteBody('patch', req.body, id, scoped)
+      if (bodyCheck) return reply.code(bodyCheck.status).send({ error: bodyCheck.error })
       try {
         const existing = getRow(db, entity, id)
         if (!existing) return reply.code(404).send({ error: 'Not found' })
-        if (entity === 'clients' && existing.builtin === true) {
-          return reply.code(400).send({ error: 'The built-in Internal client cannot be modified.' })
-        }
+        const builtinCheck = builtinInternalWriteGuard('patch', entity, existing, req.body as Record<string, unknown>)
+        if (builtinCheck) return reply.code(builtinCheck.status).send({ error: builtinCheck.error })
         // P1.5 account-write gate (see the PUT route): `accounts` isn't scoped, so the merged-accountId
         // authorize below never runs for it. A PATCH always targets an EXISTING row (404 above), so this
         // is always an UPDATE → require membership + write tier for the account's own id. OFF: no-op allow.
@@ -1925,7 +1818,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
         // (the merge inherits the stored accountId unless the body overrides it — and an override is
         // then refused by the ownsRow immutability guard just below). After the 404 so a missing row
         // is a 404, not a 403.
-        if (isScopedTable(entity) && !authorize(req, reply, merged.accountId as string, 'write')) return
+        if (scoped && !authorize(req, reply, merged.accountId as string, 'write')) return
         // accountId is immutable — a patch must not re-home the row to another company (ownsRow).
         if (!ownsRow(existing, merged.accountId)) {
           return reply.code(409).send({ error: 'That record belongs to a different company.' })
@@ -1948,7 +1841,13 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
           })
         }
         const stamped = stampServerRevision(merged, existing)
-        validateWrite(loadState(db), entity, stamped, existing)
+        // Finding 9: validate against the write's OWN account slice, not a full-DB loadState. ownsRow
+        // above already proved merged.accountId === existing.accountId, so this is the writing account
+        // (accounts key on id). PATCH keeps its own sanitize/authz ordering — its authz gate needs the
+        // merged accountId BEFORE the read — so it uses the shared scoped read rather than
+        // prepareScopedWrite (which reads+validates in one step).
+        const scopeId = entity === 'accounts' ? id : String(merged.accountId)
+        validateWrite(store.readSlice(scopeId, FULL_SLICE_READ), entity, stamped, existing)
         upsertRow(db, entity, stamped)
         // P1.15 audit (post-commit). changedFields = the PATCH req.body keys (the fields the caller
         // actually sent), NOT the merged row's keys — a patch's intent is the keys it touched.
@@ -2178,7 +2077,7 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
       // (in practice: one) ever populate the cache.
       const fieldVisCache = new Map<string, SanitizeWriteOptions>()
       const fieldVisFor = (table: string, accountId: unknown): SanitizeWriteOptions => {
-        if ((table !== 'timeOff' && table !== 'clients' && table !== 'projects') || typeof accountId !== 'string') {
+        if (!tableHasGatedFields(table) || typeof accountId !== 'string') {
           return fieldVisibilityFor(req, table, accountId) // no-lookup short-circuits; nothing to cache
         }
         const cached = fieldVisCache.get(accountId)
@@ -2244,18 +2143,20 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
               }
               // accountId is immutable (ownsRow): a write must not re-home an existing row.
               const existing = getRow(db, table, id)
-              if (table === 'clients' && existing?.builtin === true) {
-                if (mintedInternalIds.has(id)) {
-                  revisions.push({
-                    table,
-                    id,
-                    createdAt: existing.createdAt as string,
-                    updatedAt: existing.updatedAt as string,
-                  })
-                  continue
-                }
-                throw new ValidationError('The built-in Internal client cannot be modified.')
+              // Built-in Internal guard (Finding 7 — ONE implementation). The batch's own minted-
+              // Internal exception (an account's freshly-minted Internal is re-upserted in the SAME
+              // batch) is handled FIRST, then the shared guard supplies the rejection message.
+              if (table === 'clients' && existing?.builtin === true && mintedInternalIds.has(id)) {
+                revisions.push({
+                  table,
+                  id,
+                  createdAt: existing.createdAt as string,
+                  updatedAt: existing.updatedAt as string,
+                })
+                continue
               }
+              const builtinRejection = builtinInternalWriteGuard('replace', table, existing, row as Record<string, unknown>)
+              if (builtinRejection) throw new ValidationError(builtinRejection.error)
               if (!ownsRow(existing, (row as { accountId?: unknown }).accountId)) {
                 throw new ValidationError('That record belongs to a different company.')
               }

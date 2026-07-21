@@ -56,6 +56,39 @@ describe('built-in Internal client', () => {
     expect(ensureInternalClients(repaired, TS)).toBe(repaired)
   })
 
+  it('stamps a REPAIRED retained builtin with a fresh updatedAt so the repair persists', () => {
+    // ServerSyncAdapter.diffOps detects changes solely by updatedAt, so a name/colour correction that
+    // left updatedAt untouched would be re-applied in memory on every load yet never emit a PUT.
+    const NOW = '2026-06-01T00:00:00.000Z'
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' }],
+      clients: [
+        { id: 'internal:a1', accountId: 'a1', createdAt: TS, updatedAt: TS, name: 'JUNK NAME', color: '#000000', builtin: true } as Client,
+      ],
+    }
+    const internal = internalClientFor(ensureInternalClients(data, NOW).clients, 'a1')!
+    expect(internal.name).toBe(INTERNAL_CLIENT_NAME)
+    expect(internal.updatedAt).toBe(NOW)
+  })
+
+  it('leaves an already-canonical retained builtin updatedAt untouched (no phantom-write churn)', () => {
+    const NOW = '2026-06-01T00:00:00.000Z'
+    const data = {
+      ...emptyAppData(),
+      // a1 is canonical; a2 lacks a builtin, forcing the function past its no-op early return so the
+      // retain/restamp map actually runs over a1.
+      accounts: [
+        { id: 'a1', createdAt: TS, updatedAt: TS, name: 'A1', color: '#111111' },
+        { id: 'a2', createdAt: TS, updatedAt: TS, name: 'A2', color: '#222222' },
+      ],
+      clients: [buildInternalClient('a1', TS)],
+    }
+    const repaired = ensureInternalClients(data, NOW)
+    expect(internalClientFor(repaired.clients, 'a2')).toBeDefined() // the function DID run
+    expect(internalClientFor(repaired.clients, 'a1')!.updatedAt).toBe(TS) // canonical row NOT restamped
+  })
+
   it('migrate (v5→v6) backfills one Internal per account, idempotently and without duplicating a pre-existing one', () => {
     const blob = {
       schemaVersion: 5,

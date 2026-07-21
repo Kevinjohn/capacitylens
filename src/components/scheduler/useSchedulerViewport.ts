@@ -194,7 +194,10 @@ export function useSchedulerViewport({
       const el = scrollRef.current
       if (!el) return
       setScrollTop(el.scrollTop)
-      setLeftEdgeIdx(geom.indexAt(el.scrollLeft))
+      // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (HiDPI can store scrollLeft
+      // just below an integer column boundary; indexAt's strict floor would resolve that to the
+      // previous, narrower-under-minimised-weekends column).
+      setLeftEdgeIdx(geom.indexAt(Math.round(el.scrollLeft)))
 
       if (!snapToWeekStart) return
       clearTimeout(snapTimer.current)
@@ -219,13 +222,15 @@ export function useSchedulerViewport({
   useEffect(() => {
     if (!dragging && scrollRef.current) {
       setScrollTop(scrollRef.current.scrollTop)
-      setLeftEdgeIdx(geom.indexAt(scrollRef.current.scrollLeft))
+      // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (same HiDPI rationale as onScroll).
+      setLeftEdgeIdx(geom.indexAt(Math.round(scrollRef.current.scrollLeft)))
     }
   }, [dragging, geom])
 
   const visibleStartDate = useCallback((): ISODate => {
     const el = scrollRef.current
-    const index = el ? geom.indexAt(el.scrollLeft) : 0
+    // Round first — see weekSnap.ts's "SUB-PIXEL ROUNDING" note (same HiDPI rationale as onScroll).
+    const index = el ? geom.indexAt(Math.round(el.scrollLeft)) : 0
     return days[index] ?? days[0] ?? ui.originDate
   }, [geom, days, ui.originDate])
 

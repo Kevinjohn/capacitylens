@@ -17,6 +17,11 @@ import { isLifecycleEntityKey } from '@capacitylens/shared/domain/lifecycle'
 import { SCHEDULING_MODES, SCOPED_KEYS } from '@capacitylens/shared/types/entities'
 import type { AppData, ScopedEntityKey } from '@capacitylens/shared/types/entities'
 import { TABLES } from './tables'
+import { pinGatedFields, type SanitizeWriteOptions } from './fieldPolicy'
+
+// SanitizeWriteOptions is owned by fieldPolicy.ts (the single source of role-gated field policy);
+// re-exported here so existing importers (app.ts) keep their `from './validate'` import unchanged.
+export type { SanitizeWriteOptions } from './fieldPolicy'
 
 // The server is the integrity boundary for direct API writes. Two layers, both
 // reusing the SAME shared domain-core the client uses (so server rules can't drift
@@ -59,25 +64,6 @@ export function assertIdPresent(row: Record<string, unknown>): void {
 // AppData is automatically treated as scoped without an update here.
 const isScopedKey = (table: string): table is ScopedEntityKey =>
   (SCOPED_KEYS as string[]).includes(table)
-
-/** Caller-context options for {@link sanitizeWrite} — facts about the WRITER that the row body
- *  alone cannot carry, so field-level pinning rules can run at the same single funnel the
- *  tombstone pin uses (not as per-route hacks). */
-export interface SanitizeWriteOptions {
-  /**
-   * P1.6 write-side counterpart of the read redaction: `false` when the caller's role may NOT see
-   * the time-off `note` (the same `canSeeTimeOffNote` rule readSlice applies; auth OFF ⇒ always
-   * `true`). A note-blind writer round-trips rows the server REDACTED — their PUT body has no
-   * `note` key — so without a pin, upsertRow would store NULL (rowCodec: absent optional → SQL
-   * NULL) and silently ERASE a note the writer never saw. Defaults to `true` (visible), which is
-   * byte-identical to the pre-option behaviour, so callers writing tables other than `timeOff`
-   * need not pass it.
-   */
-  canSeeTimeOffNote?: boolean
-  /** Whether the writer may manage/read private client/project real-name fields. False for every
-   * authenticated role except owner; trusted-local/off mode passes true. */
-  canSeePrivateNames?: boolean
-}
 
 /** Copy only columns accepted by the table codec. Generic request bodies are untrusted; keeping
  * extra properties would leak them into audit metadata and response echoes even though SQLite
@@ -166,33 +152,14 @@ export function sanitizeWrite(
       if (typeof existing?.deletedAt === 'string') cleaned.deletedAt = existing.deletedAt
       else delete cleaned.deletedAt
     }
-    // P1.6 note-erasure guard (same PIN mechanism as the tombstones above): when the writer's role
-    // cannot see the time-off `note` (readSlice redacted it from every row they ever received),
-    // their write body is note-less BY CONSTRUCTION — so pin `note` to the stored value on an
-    // UPDATE, and strip it on a CREATE (existing === undefined ⇒ nothing to preserve; a note-blind
-    // writer also can't legitimately AUTHOR a note they'd never be able to read back). A writer who
-    // CAN see the note (owner/admin, or auth OFF) passes through untouched, so they can still
-    // change or clear it.
-    if (table === 'timeOff' && opts.canSeeTimeOffNote === false) {
-      if (typeof existing?.note === 'string') cleaned.note = existing.note
-      else delete cleaned.note
-    }
-    // Private identity fields are owner-only. A non-owner round-trips a private row whose `name`
-    // is already the quoted code name and whose raw `codeName` was removed by the read projection;
-    // pin all three fields to disk so an unrelated colour/client edit cannot overwrite the real
-    // name. For public rows/creates, strip attempted privacy fields while still allowing the public
-    // name itself to be authored by ordinary editors.
-    if ((table === 'clients' || table === 'projects') && opts.canSeePrivateNames === false) {
-      if (existing?.isPrivate === true) {
-        cleaned.name = existing.name
-        cleaned.isPrivate = true
-        if (typeof existing.codeName === 'string') cleaned.codeName = existing.codeName
-        else delete cleaned.codeName
-      } else {
-        delete cleaned.isPrivate
-        delete cleaned.codeName
-      }
-    }
+    // P1.6 field-confidentiality PINS (note-erasure guard + private-name guard): same PIN mechanism
+    // as the tombstones above, but the WHICH-fields-are-gated knowledge is single-sourced in
+    // GATED_FIELD_POLICIES (fieldPolicy.ts) so this write-pin can never drift from the read redaction
+    // and export-include sites. When the writer's role cannot see a gated field (readSlice redacted
+    // it from every row they ever received), their write body is missing that key BY CONSTRUCTION —
+    // pin it to the stored value on an UPDATE, strip it on a CREATE. A writer who CAN see the field
+    // (owner/admin, or auth OFF) passes through untouched.
+    pinGatedFields(table, cleaned, existing, opts)
     return cleaned
   }
   return copy

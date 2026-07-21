@@ -332,6 +332,46 @@ describe('P2.5a lifecycle — purge cascade removes the row + its descendants', 
   })
 })
 
+describe('P2.5a lifecycle — purge stamps the survivor rows the cascade unbinds', () => {
+  // The web store's purgeEntity passes nextDataRevision so a survivor whose FK is cleared (a
+  // placeholder unbound from the purged project) gets a fresh updatedAt. The server MUST match:
+  // without it the survivor keeps its old updatedAt, so a colleague's stale session passes the
+  // optimistic-concurrency check yet fails referential validation with a 400 (not the 409 that drives
+  // the server-wins reload) and persist.ts wedges behind a permanent save banner.
+  const placeholder = (id: string, accountId: string, projectId?: string, extra: Record<string, unknown> = {}) => ({
+    ...person(id, accountId, extra),
+    kind: 'placeholder',
+    projectId,
+  })
+
+  it('bumps an unbound placeholder to a fresh revision and leaves an unrelated row untouched', async () => {
+    const { app, db } = await appWithAuth()
+    const d = emptyAppData() as unknown as Record<string, unknown[]>
+    d.accounts = [account('a1')]
+    // A purge-eligible (aged tombstone) project, a placeholder BOUND to it, and an UNRELATED resource.
+    d.clients = [client('c1', 'a1')]
+    d.projects = [project('pBound', 'a1', 'c1', archivedTombstone)]
+    d.resources = [placeholder('phBound', 'a1', 'pBound'), person('rFree', 'a1')]
+    insertAll(db, d as unknown as AppData)
+
+    const { cookie, userId } = await signUp(app, 'survivor@capacitylens.dev')
+    upsertMember(db, { accountId: 'a1', userId, role: 'admin', status: 'active', createdAt: TS })
+
+    expect((await lifecycleAction(app, 'projects', 'pBound', 'purge', 'a1', cookie)).statusCode).toBe(204)
+
+    const body = (await readInactive(app, 'a1', cookie)).json()
+    expect(body.projects.map((p: { id: string }) => p.id)).not.toContain('pBound')
+    const phBound = body.resources.find((r: { id: string }) => r.id === 'phBound')
+    // Survivor: unbound from the purged project AND re-stamped to a fresh revision (newer than TS).
+    expect(phBound.projectId ?? null).toBeNull()
+    expect(phBound.updatedAt).not.toBe(TS)
+    expect(Date.parse(phBound.updatedAt)).toBeGreaterThan(Date.parse(TS))
+    // Untouched by the cascade → its revision must NOT be gratuitously bumped.
+    const rFree = body.resources.find((r: { id: string }) => r.id === 'rFree')
+    expect(rFree.updatedAt).toBe(TS)
+  })
+})
+
 describe('P2.5a lifecycle — resource soft-delete obfuscation persists (P2.3 carry-forward)', () => {
   const SENTINEL_NAME = 'SENTINEL_PERSON_NAME_XYZ'
 
