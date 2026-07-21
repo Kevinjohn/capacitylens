@@ -121,8 +121,8 @@ export function buildSchedulerModel(
   internalColourMode: InternalColourMode = 'grey',
   // Per-account BAR-ONLY view prefs (both default ON). When false they hide, from the schedule bars
   // ONLY, allocations on internal PROJECTS (activity kind 'project' whose project's client is the
-  // built-in Internal client) / internal ACTIVITIES (the project-less kinds, 'internal' and
-  // 'repeatable' — both render under the derived Internal client) respectively. See the
+  // built-in Internal client) / internal ACTIVITIES (kind 'internal' ONLY — cross-project
+  // 'repeatable' work is a distinct third group and is never hidden) respectively. See the
   // `barVisibleByInternalPref` filter below for the truthful-utilisation guarantee.
   showInternalProjects = true,
   showInternalActivities = true,
@@ -208,11 +208,10 @@ export function buildSchedulerModel(
   const barVisibleByInternalPref = (a: Allocation): boolean => {
     const activity = activityById.get(a.activityId)
     if (!activity) return true // dangling activityId — leave to the existing safe-fallback path
-    // Both project-less kinds ('internal' AND 'repeatable') count as "internal activities" here:
-    // their bars derive the builtin Internal client for display (activityMeta above), so a
-    // "Cross-project" bar reads "Internal · …" on the schedule — leaving it visible with the
-    // toggle off would contradict what the user sees.
-    if (!showInternalActivities && activity.kind !== 'project') return false
+    // OWNER DECISION (2026-07-22): internal, cross-project and client-project work are three
+    // DISTINCT groups — this toggle hides only kind 'internal'. Cross-project ('repeatable')
+    // bars stay visible even though they display under the derived Internal client label.
+    if (!showInternalActivities && activity.kind === 'internal') return false
     if (!showInternalProjects && activity.kind === 'project') {
       const clientId = activityMeta.get(a.activityId)?.clientId
       if (clientId !== undefined && clientById.get(clientId)?.builtin === true) return false

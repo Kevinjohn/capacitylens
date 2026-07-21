@@ -101,7 +101,7 @@
   "settings_internal_visibility_heading": "Internal work",
   "settings_internal_visibility_intro": "Set per company; both on by default. Turn these off to hide internal work from the schedule — the bars simply disappear, but the work still counts towards everyone's capacity and utilisation, so a fully-booked person stays fully booked. The data is kept and returns when you turn them back on.",
   "settings_show_internal_projects_toggle": "Show internal projects",
-  "settings_show_internal_activities_toggle": "Show internal & cross-project activities",
+  "settings_show_internal_activities_toggle": "Show internal activities",
   "settings_activity_create_heading": "Activity creation",
   "settings_activity_create_intro": "Set per company; on by default. When off, the scheduler's allocation form no longer offers the inline box for adding a brand-new activity — you pick from the existing activity list instead.",
   "settings_inline_activity_create_toggle": "Inline activity creation",

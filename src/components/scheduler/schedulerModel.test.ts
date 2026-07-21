@@ -464,8 +464,10 @@ describe('built-in Internal client bucketing + filter', () => {
 // Per-account BAR-ONLY hide prefs for internal work (showInternalProjects / showInternalActivities).
 // withInternal() gives r1 four allocations: a1 (Acme project), aIntProj (a project under the built-in
 // Internal client), aIntNoProj (a project-less internal-KIND activity), plus a2 (tentative Acme); we
-// add aRep (a project-less REPEATABLE activity) because BOTH project-less kinds render under the
-// derived Internal client and so both count as "internal activities" for the hide pref. The
+// add aRep (a project-less REPEATABLE activity) to pin the OWNER DECISION (2026-07-22) that
+// internal, cross-project and client-project work are three DISTINCT groups: the activities
+// toggle hides kind 'internal' ONLY, and cross-project bars survive both toggles being off
+// (even though they display under the derived Internal client label). The
 // two prefs are the two LAST positional args after blocksMode + internalColourMode.
 describe('internal-work bar-only hide prefs (showInternalProjects / showInternalActivities)', () => {
   function withInternalAndRepeatable(): AppData {
@@ -490,10 +492,10 @@ describe('internal-work bar-only hide prefs (showInternalProjects / showInternal
     expect(ids).toContain('aIntNoProj') // internal-kind activity bar
   })
 
-  it('(a) showInternalActivities=false hides BOTH project-less kinds (internal-client project bar stays)', () => {
+  it('(a) showInternalActivities=false hides internal-KIND bars only (cross-project + internal-client project stay)', () => {
     const ids = barIdsOf(buildPrefs(true, false))
     expect(ids).not.toContain('aIntNoProj') // kind 'internal' — hidden
-    expect(ids).not.toContain('aRep') // kind 'repeatable' — also project-less, labelled "Internal · …", hidden
+    expect(ids).toContain('aRep') // kind 'repeatable' — a distinct group, NEVER hidden by this toggle
     expect(ids).toContain('aIntProj') // a 'project' activity — NOT an internal activity, still shown
     expect(ids).toContain('a1') // ordinary Acme work untouched
   })
@@ -506,11 +508,11 @@ describe('internal-work bar-only hide prefs (showInternalProjects / showInternal
     expect(ids).toContain('a1') // ordinary Acme project (non-Internal client) untouched
   })
 
-  it('both false hides every Internal-labelled bar, but leaves ordinary work', () => {
+  it('both false hides internal projects + internal activities, but cross-project and ordinary work survive', () => {
     const ids = barIdsOf(buildPrefs(false, false))
     expect(ids).not.toContain('aIntProj')
     expect(ids).not.toContain('aIntNoProj')
-    expect(ids).not.toContain('aRep')
+    expect(ids).toContain('aRep') // cross-project is the third group — visible with BOTH toggles off
     expect(ids).toContain('a1')
   })
 
