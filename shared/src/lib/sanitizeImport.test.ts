@@ -365,6 +365,39 @@ describe('sanitizeAccount', () => {
     expect(sanitizeAccount({ internalColourMode: 1 }).internalColourMode).toBeUndefined()
   })
 
+  it('strips a non-boolean showInternalProjects', () => {
+    expect(sanitizeAccount({ showInternalProjects: 'yes' }).showInternalProjects).toBeUndefined()
+    expect(sanitizeAccount({ showInternalProjects: 1 }).showInternalProjects).toBeUndefined()
+    expect(sanitizeAccount({ showInternalProjects: null }).showInternalProjects).toBeUndefined()
+  })
+
+  it('keeps a boolean showInternalProjects (both true and false survive import)', () => {
+    expect(sanitizeAccount({ showInternalProjects: false }).showInternalProjects).toBe(false)
+    expect(sanitizeAccount({ showInternalProjects: true }).showInternalProjects).toBe(true)
+  })
+
+  it('strips a non-boolean showInternalActivities', () => {
+    expect(sanitizeAccount({ showInternalActivities: 'yes' }).showInternalActivities).toBeUndefined()
+    expect(sanitizeAccount({ showInternalActivities: 1 }).showInternalActivities).toBeUndefined()
+    expect(sanitizeAccount({ showInternalActivities: null }).showInternalActivities).toBeUndefined()
+  })
+
+  it('keeps a boolean showInternalActivities (both true and false survive import)', () => {
+    expect(sanitizeAccount({ showInternalActivities: false }).showInternalActivities).toBe(false)
+    expect(sanitizeAccount({ showInternalActivities: true }).showInternalActivities).toBe(true)
+  })
+
+  it('strips a non-boolean inlineActivityCreateEnabled', () => {
+    expect(sanitizeAccount({ inlineActivityCreateEnabled: 'yes' }).inlineActivityCreateEnabled).toBeUndefined()
+    expect(sanitizeAccount({ inlineActivityCreateEnabled: 1 }).inlineActivityCreateEnabled).toBeUndefined()
+    expect(sanitizeAccount({ inlineActivityCreateEnabled: null }).inlineActivityCreateEnabled).toBeUndefined()
+  })
+
+  it('keeps a boolean inlineActivityCreateEnabled (both true and false survive import)', () => {
+    expect(sanitizeAccount({ inlineActivityCreateEnabled: false }).inlineActivityCreateEnabled).toBe(false)
+    expect(sanitizeAccount({ inlineActivityCreateEnabled: true }).inlineActivityCreateEnabled).toBe(true)
+  })
+
   it('drops a language that is not the supported value (English-only until P1.5.1)', () => {
     expect(sanitizeAccount({ language: 'fr' }).language).toBeUndefined()
     expect(sanitizeAccount({ language: 123 }).language).toBeUndefined()

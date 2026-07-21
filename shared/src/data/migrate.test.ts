@@ -76,6 +76,30 @@ describe('migrate', () => {
     expect(out.accounts[0].internalColourMode).toBeUndefined()
   })
 
+  it('leaves a v8 account without the schedule view prefs absent so they read as shown/enabled (v8 → v9)', () => {
+    // v8→v9 is a metadata-only step (like v7→v8): the three new optional booleans stay ABSENT so the
+    // client's `?? true` reads them as shown/enabled — the migration materialises no defaults.
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#2d75da' }],
+    }
+    const out = migrate({ schemaVersion: 8, data })
+    expect(out.accounts[0].showInternalProjects).toBeUndefined()
+    expect(out.accounts[0].showInternalActivities).toBeUndefined()
+    expect(out.accounts[0].inlineActivityCreateEnabled).toBeUndefined()
+  })
+
+  it('preserves explicit false schedule view prefs across migration (v8 → v9)', () => {
+    const data = {
+      ...emptyAppData(),
+      accounts: [{ id: 'a1', createdAt: 't', updatedAt: 't', name: 'Studio', color: '#2d75da', showInternalProjects: false, showInternalActivities: false, inlineActivityCreateEnabled: false }],
+    }
+    const out = migrate({ schemaVersion: 8, data })
+    expect(out.accounts[0].showInternalProjects).toBe(false)
+    expect(out.accounts[0].showInternalActivities).toBe(false)
+    expect(out.accounts[0].inlineActivityCreateEnabled).toBe(false)
+  })
+
   it('backfills activity kind on a pre-v4 payload (v3 → v4): project-bound → project, project-less → repeatable', () => {
     // Legacy input still carries the OLD `tasks` key (pre-rename); migrate renames it to
     // `activities` (v4→v5) so the OUTPUT is asserted on `out.activities`.

@@ -287,6 +287,49 @@ describe('schema migration of an existing on-disk DB', () => {
     }
   })
 
+  it('v16 adds the account view-pref columns via the explicit ledger step, leaving existing rows untouched', () => {
+    // Drive migration 16 in ISOLATION through the real ledger/openDb path: take a current DB, simulate
+    // a pre-v16 shape (drop the three columns + roll the ledger back to 15), then reopen and prove the
+    // migration re-adds them, preserves the pre-existing row, and is idempotent on a second boot.
+    const path = join(tmpdir(), `capacitylens-migrate-v16-${process.pid}-${Date.now()}.db`)
+    const cleanup = () => {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try { unlinkSync(path + suffix) } catch { /* not present */ }
+      }
+    }
+    cleanup()
+    try {
+      const db = openDb(path) // fresh DB: already current (v16 columns present)
+      insertRow(db, 'accounts', { id: 'a1', name: 'Studio', color: '#e02727', createdAt: TS, updatedAt: TS })
+      for (const column of ['showInternalProjects', 'showInternalActivities', 'inlineActivityCreateEnabled']) {
+        db.exec(`ALTER TABLE accounts DROP COLUMN ${column}`)
+      }
+      db.exec(`DELETE FROM ${DATABASE_MIGRATION_TABLE} WHERE version >= 16`)
+      db.exec(`PRAGMA user_version = 15`)
+      db.close()
+
+      const upgraded = openDb(path)
+      const cols = (upgraded.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>).map((c) => c.name)
+      expect(cols).toEqual(expect.arrayContaining(['showInternalProjects', 'showInternalActivities', 'inlineActivityCreateEnabled']))
+      // The pre-existing account survived untouched; the newly-added columns read back absent.
+      const acct = getRow(upgraded, 'accounts', 'a1')
+      expect(acct?.name).toBe('Studio')
+      expect(acct?.showInternalProjects).toBeUndefined()
+      expect(acct?.showInternalActivities).toBeUndefined()
+      expect(acct?.inlineActivityCreateEnabled).toBeUndefined()
+      expect(upgraded.prepare(`SELECT version, name FROM ${DATABASE_MIGRATION_TABLE} WHERE version = 16`).get())
+        .toEqual({ version: 16, name: 'add-account-view-prefs' })
+      expect((upgraded.prepare(`PRAGMA user_version`).get() as { user_version: number }).user_version).toBe(DB_SCHEMA_VERSION)
+      upgraded.close()
+
+      const reopened = openDb(path)
+      expect(planDatabaseMigrations(reopened).migrations).toEqual([])
+      reopened.close()
+    } finally {
+      cleanup()
+    }
+  })
+
   it('upgrades an old-shape DB (NOT NULL projectId, missing new columns) to current', () => {
     const path = join(tmpdir(), `capacitylens-migrate-${process.pid}-${Date.now()}.db`)
     const cleanup = () => {
@@ -477,19 +520,30 @@ describe('schema migration of an existing on-disk DB', () => {
       old.close()
 
       const db = openDb(path)
-      // After migration, both new optional columns exist and round-trip a present boolean.
+      // After migration, both new optional columns exist and round-trip a present boolean. The v9/v16
+      // additive columns (internalColourMode + the three schedule view prefs) also come in via the
+      // migration chain and round-trip.
       insertRow(db, 'accounts', {
         id: 'a2', name: 'New Studio', color: '#222',
         placeholdersEnabled: true, externalEnabled: true,
+        showInternalProjects: false, showInternalActivities: false, inlineActivityCreateEnabled: false,
         createdAt: TS, updatedAt: TS,
       })
       const row = getRow(db, 'accounts', 'a2')
       expect(row?.placeholdersEnabled).toBe(true)
       expect(row?.externalEnabled).toBe(true)
-      // The old row (without the new fields) reads back without them (absent → default false client-side).
+      // JSON boolean columns round-trip an explicit `false` (not lost / not coerced to absent).
+      expect(row?.showInternalProjects).toBe(false)
+      expect(row?.showInternalActivities).toBe(false)
+      expect(row?.inlineActivityCreateEnabled).toBe(false)
+      // The old row (without the new fields) reads back without them (absent → default true client-side
+      // for the view prefs, false for placeholders/external).
       const old2 = getRow(db, 'accounts', 'a1')
       expect(old2?.placeholdersEnabled).toBeUndefined()
       expect(old2?.externalEnabled).toBeUndefined()
+      expect(old2?.showInternalProjects).toBeUndefined()
+      expect(old2?.showInternalActivities).toBeUndefined()
+      expect(old2?.inlineActivityCreateEnabled).toBeUndefined()
       db.close()
     } finally {
       cleanup()
@@ -546,6 +600,7 @@ describe('schema migration of an existing on-disk DB', () => {
       { version: 13, name: 'snap-legacy-account-colors' },
       { version: 14, name: 'revoke-member-reset-ceremonies' },
       { version: 15, name: 'add-account-boundary-state' },
+      { version: 16, name: 'add-account-view-prefs' },
     ])
     // Shipped checksums are immutable: later migrations must never invalidate an upgraded database.
     expect(history[0].checksum).toBe('90add4af35f1914f7de3ca031528ad81e061424526b50ae099512aacf650ef3d')

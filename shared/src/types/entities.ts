@@ -79,6 +79,19 @@ export interface Account extends Entity {
   /** Whether Internal activities/projects use neutral grey or their normal palette-derived colour.
    *  Absent = 'grey', the out-of-the-box behaviour. Saved project colours are preserved in grey mode. */
   internalColourMode?: InternalColourMode
+  /** Whether the schedule shows allocation bars for INTERNAL PROJECTS — activities whose project
+   *  belongs to the built-in Internal client (`Client.builtin === true`). Absent = true (shown),
+   *  contrast placeholdersEnabled's `?? false`. A pure VIEW pref: when false only the BARS are
+   *  hidden — the work stays in the data and in capacity/utilisation, and reappears when re-enabled. */
+  showInternalProjects?: boolean
+  /** Whether the schedule shows allocation bars for INTERNAL ACTIVITIES — activities of `kind:
+   *  'internal'`. Absent = true (shown). A pure VIEW pref exactly like showInternalProjects: hiding
+   *  removes only the bars, never the underlying load from capacity/utilisation. */
+  showInternalActivities?: boolean
+  /** Whether the scheduler's Allocation modal offers the inline "Add activity" input + button.
+   *  Absent = true (shown). When false the inline creator is not rendered; the Activity picker
+   *  itself still works normally. */
+  inlineActivityCreateEnabled?: boolean
 }
 
 /** Every domain entity belongs to exactly one account. Accounts themselves don't. */
@@ -359,8 +372,10 @@ export function externalCapacityDefaults(): Pick<Resource, 'employmentType' | 'w
  *  `Allocation.taskId` → `activityId`; v6 ensures every account has one built-in `Client`
  *  with `builtin: true` — the "Internal" pseudo-client; v7 adds optional client/project privacy
  *  fields, whose absent values already represent the public default; v8 adds the optional
- *  per-account Internal work colour mode, whose absence means grey.) */
-export const EXPORT_SCHEMA_VERSION = 8
+ *  per-account Internal work colour mode, whose absence means grey; v9 adds the optional per-account
+ *  schedule view prefs showInternalProjects / showInternalActivities / inlineActivityCreateEnabled,
+ *  whose absence means shown/enabled — read at `?? true`.) */
+export const EXPORT_SCHEMA_VERSION = 9
 
 export interface PersistedState {
   schemaVersion: number

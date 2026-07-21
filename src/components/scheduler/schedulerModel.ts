@@ -119,6 +119,13 @@ export function buildSchedulerModel(
   // Per-account Internal-work display preference. Grey is the absent/default mode; palette mode
   // restores the normal project/resource colour path without changing persisted entity colours.
   internalColourMode: InternalColourMode = 'grey',
+  // Per-account BAR-ONLY view prefs (both default ON). When false they hide, from the schedule bars
+  // ONLY, allocations on internal PROJECTS (activity kind 'project' whose project's client is the
+  // built-in Internal client) / internal ACTIVITIES (the project-less kinds, 'internal' and
+  // 'repeatable' — both render under the derived Internal client) respectively. See the
+  // `barVisibleByInternalPref` filter below for the truthful-utilisation guarantee.
+  showInternalProjects = true,
+  showInternalActivities = true,
 ): GroupModel[] {
   const search = filters.search.trim().toLowerCase()
   const projectById = new Map(data.projects.map((p) => [p.id, p]))
@@ -192,6 +199,26 @@ export function buildSchedulerModel(
   const notTentativeHidden = (a: Allocation): boolean => !(filters.hideTentative && a.status === 'tentative')
   const allocVisible = (a: Allocation): boolean =>
     matchesProjectClient(a) && matchesActivity(a) && notTentativeHidden(a)
+  // Per-account BAR-ONLY visibility for internal work. CRITICAL PRODUCT DECISION: this filter is
+  // applied ONLY when building `visibleAllocs` (bars + lane packing) — NEVER to `allAllocs`, which
+  // feeds capacityForWindow / utilization below. Utilisation and capacity numbers MUST stay TRUTHFUL:
+  // a person fully booked on internal work still shows as fully booked even when their internal bars
+  // are hidden. Internal-project detection uses the pre-built maps (no extra scans): a 'project'
+  // activity → its project's client (via activityMeta.clientId) → `builtin === true`.
+  const barVisibleByInternalPref = (a: Allocation): boolean => {
+    const activity = activityById.get(a.activityId)
+    if (!activity) return true // dangling activityId — leave to the existing safe-fallback path
+    // Both project-less kinds ('internal' AND 'repeatable') count as "internal activities" here:
+    // their bars derive the builtin Internal client for display (activityMeta above), so a
+    // "Cross-project" bar reads "Internal · …" on the schedule — leaving it visible with the
+    // toggle off would contradict what the user sees.
+    if (!showInternalActivities && activity.kind !== 'project') return false
+    if (!showInternalProjects && activity.kind === 'project') {
+      const clientId = activityMeta.get(a.activityId)?.clientId
+      if (clientId !== undefined && clientById.get(clientId)?.builtin === true) return false
+    }
+    return true
+  }
   const resourceVisible = (r: Resource): boolean => {
     // Placeholders are gated behind a per-account pref (default OFF). Dropping the row here is the
     // single chokepoint that also removes its bars, day-states, and utilisation contribution — the
@@ -267,6 +294,10 @@ export function buildSchedulerModel(
         const dimmed = workFilterActive && !allAllocs.some(allocVisible)
         const visibleAllocs = (dimmed ? allAllocs.filter(notTentativeHidden) : allAllocs.filter(allocVisible))
           .filter(intersectsTimeline)
+          // BAR-ONLY internal-work hide (see barVisibleByInternalPref). Applied here, after the
+          // capacity path has already taken `allAllocs`, so hiding an internal bar never changes the
+          // resource's utilisation/capacity — only which bars render.
+          .filter(barVisibleByInternalPref)
         const { lanes, laneCount } = packLanes(visibleAllocs)
         const laneById = new Map(lanes.map((l) => [l.id, l.lane]))
         const bars: BarLayout[] = visibleAllocs.map((a) => {

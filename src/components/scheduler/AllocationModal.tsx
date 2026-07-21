@@ -5,7 +5,7 @@ import { useStore } from '../../store/useStore'
 import { useActiveScopedData } from '../../store/useScopedData'
 import { parseDate, todayISO } from '@capacitylens/shared/lib/dateMath'
 import { blockHoursPerDay, daysOfWorkFor, endDateForSpan, hoursPerDayFor, MAX_SPAN_DAYS, spanDays } from '@capacitylens/shared/lib/schedulingDays'
-import { externalEnabledFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
+import { externalEnabledFor, inlineActivityCreateEnabledFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
 import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity'
 import { validateText } from '../../lib/validation'
 import { m } from '@/i18n'
@@ -57,6 +57,9 @@ export function AllocationModal(props: AllocationModalProps) {
   // Per-account view pref (default OFF): when off, external / 3rd parties are dropped from the
   // assignee picker (except an already-assigned one — same risk-A escape hatch as placeholders).
   const externalEnabled = useStore((s) => externalEnabledFor(s.data, s.activeAccountId))
+  // Per-account pref (default ON): when off, the inline "Add activity" input + button is not rendered.
+  // The Activity SelectField still works normally — you pick from the existing activity list.
+  const inlineActivityCreateEnabled = useStore((s) => inlineActivityCreateEnabledFor(s.data, s.activeAccountId))
   const calendarTimeZone = useStore((s) => s.data.accounts.find((a) => a.id === s.activeAccountId)?.timezone ?? 'Etc/GMT')
   const isDays = mode === 'days'
   const isBlocks = mode === 'blocks'
@@ -416,21 +419,23 @@ export function AllocationModal(props: AllocationModalProps) {
         options={projectOptions}
       />
       <SelectField label={m.form_allocation_activity_label()} value={activityId} onChange={setActivityId} options={activityOptions} placeholder={m.form_allocation_select_activity_placeholder()} required invalid={errorField === 'activity'} describedById={errorId} />
-      <Field orientation="horizontal">
-        <Input
-          value={newActivityName}
-          maxLength={MAX_NAME_LENGTH}
-          placeholder={projectId ? m.form_allocation_new_activity_placeholder() : m.form_allocation_new_repeatable_activity_placeholder()}
-          aria-label={m.form_allocation_new_activity_aria()}
-          aria-invalid={errorField === 'newactivity' || undefined}
-          onChange={(e) => setNewActivityName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddActivity() } }}
-        />
-        <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
-          <Plus data-icon="inline-start" />
-          {m.form_allocation_add_activity()}
-        </Button>
-      </Field>
+      {inlineActivityCreateEnabled && (
+        <Field orientation="horizontal">
+          <Input
+            value={newActivityName}
+            maxLength={MAX_NAME_LENGTH}
+            placeholder={projectId ? m.form_allocation_new_activity_placeholder() : m.form_allocation_new_repeatable_activity_placeholder()}
+            aria-label={m.form_allocation_new_activity_aria()}
+            aria-invalid={errorField === 'newactivity' || undefined}
+            onChange={(e) => setNewActivityName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddActivity() } }}
+          />
+          <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
+            <Plus data-icon="inline-start" />
+            {m.form_allocation_add_activity()}
+          </Button>
+        </Field>
+      )}
 
       {isExternal ? (
         <div className="flex gap-2">

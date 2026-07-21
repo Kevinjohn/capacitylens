@@ -70,6 +70,11 @@ const COLS_accounts = [
   { name: 'placeholdersEnabled', json: true, optional: true },
   { name: 'externalEnabled', json: true, optional: true },
   { name: 'internalColourMode', optional: true },
+  // Optional schedule view prefs (default true — shown/enabled). JSON so node:sqlite round-trips the
+  // boolean as "true"/"false"; absent → NULL → omitted on read, matching the client object.
+  { name: 'showInternalProjects', json: true, optional: true },
+  { name: 'showInternalActivities', json: true, optional: true },
+  { name: 'inlineActivityCreateEnabled', json: true, optional: true },
   ...META,
 ] as const satisfies ColumnSpec[]
 
@@ -321,7 +326,8 @@ CREATE TABLE IF NOT EXISTS timeOff (
  * shortcut around the ledger. */
 export const SCHEMA_SQL = SCHEMA_V8_SQL.replace(
   'placeholdersEnabled TEXT, externalEnabled TEXT,',
-  'placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT,',
+  'placeholdersEnabled TEXT, externalEnabled TEXT, internalColourMode TEXT, ' +
+    'showInternalProjects TEXT, showInternalActivities TEXT, inlineActivityCreateEnabled TEXT,',
 )
 
 /** Installed after boot-time duplicate repair so existing databases can be reconciled first. */

@@ -197,6 +197,14 @@ function migrateV7toV8(data: Record<string, unknown>): Record<string, unknown> {
   return data
 }
 
+// v8 → v9 added the optional per-account schedule view prefs showInternalProjects /
+// showInternalActivities / inlineActivityCreateEnabled. No transform is needed: absence deliberately
+// reads as true (shown/enabled) at the `?? true` read sites, and sanitizeAccount drops malformed
+// present values at the server boundary — exactly the v7→v8 precedent.
+function migrateV8toV9(data: Record<string, unknown>): Record<string, unknown> {
+  return data
+}
+
 export function migrate(raw: unknown): AppData {
   if (!raw || typeof raw !== 'object') return emptyAppData()
   const obj = raw as Record<string, unknown>
@@ -223,6 +231,9 @@ export function migrate(raw: unknown): AppData {
   }
   if (data && typeof data === 'object' && version < 8) {
     data = migrateV7toV8(data)
+  }
+  if (data && typeof data === 'object' && version < 9) {
+    data = migrateV8toV9(data)
   }
 
   return ensureInternalClients(normalize(data as Partial<AppData> | undefined), '2026-01-01T00:00:00.000Z')

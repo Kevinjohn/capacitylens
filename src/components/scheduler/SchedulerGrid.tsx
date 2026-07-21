@@ -5,7 +5,7 @@ import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { useActiveScopedData } from '../../store/useScopedData'
-import { disciplinesEnabledFor, externalEnabledFor, internalColourModeFor, placeholdersEnabledFor, schedulingModeFor } from '../../store/selectors'
+import { disciplinesEnabledFor, externalEnabledFor, internalColourModeFor, placeholdersEnabledFor, schedulingModeFor, showInternalActivitiesFor, showInternalProjectsFor } from '../../store/selectors'
 import { addDaysISO, todayISO } from '@capacitylens/shared/lib/dateMath'
 import { UTILIZATION_WINDOW_DAYS } from '../../lib/schedulerConfig'
 import { Avatar, EmptyState } from '../common/ui'
@@ -80,6 +80,10 @@ export function SchedulerGrid() {
   // Per-account Internal work colour preference. Grey is the absent/default mode; palette restores
   // saved project colours without changing the underlying project records.
   const internalColourMode = useStore((s) => internalColourModeFor(s.data, s.activeAccountId))
+  // Per-account BAR-ONLY hide prefs for internal work (both default ON). They remove only the bars —
+  // capacity/utilisation stay truthful (see buildSchedulerModel's barVisibleByInternalPref).
+  const showInternalProjects = useStore((s) => showInternalProjectsFor(s.data, s.activeAccountId))
+  const showInternalActivities = useStore((s) => showInternalActivitiesFor(s.data, s.activeAccountId))
   const toggleGroup = useStore((s) => s.toggleGroup)
   const clearFilters = useStore((s) => s.clearFilters)
   // WCAG 4.1.3: the latest screen-reader capacity announcement, set by AllocationBar after a
@@ -157,8 +161,10 @@ export function SchedulerGrid() {
         externalEnabled,
         blocksMode,
         internalColourMode,
+        showInternalProjects,
+        showInternalActivities,
       ),
-    [data, geom, days, visStart, visEnd, overStart, overEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled, blocksMode, internalColourMode],
+    [data, geom, days, visStart, visEnd, overStart, overEnd, ui.filters, disciplinesEnabled, placeholdersEnabled, externalEnabled, blocksMode, internalColourMode, showInternalProjects, showInternalActivities],
   )
 
   const todayX = today >= start && today <= end ? geom.xForDateInGeom(today) : null

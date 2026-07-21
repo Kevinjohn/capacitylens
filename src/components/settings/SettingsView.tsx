@@ -16,7 +16,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
-import { ConfirmDialog, ListPage, SegmentedControl, SwitchField, TextField } from '../common/ui'
+import { Avatar, ConfirmDialog, ListPage, SegmentedControl, SwitchField, TextField } from '../common/ui'
 import { SecuritySection } from './SecuritySection'
 import { ArchivedSection } from './ArchivedSection'
 import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
@@ -25,6 +25,7 @@ import { m } from '@/i18n'
 import type { ThemePref } from '../../lib/theme'
 import type { InternalColourMode, SchedulingMode } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { DEFAULT_COLORS } from '../../lib/palette'
 import { useCanEdit } from '../../auth/permissionContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -127,6 +128,11 @@ export function SettingsView() {
   const placeholdersEnabled: boolean = activeAccount?.placeholdersEnabled ?? false
   const externalEnabled: boolean = activeAccount?.externalEnabled ?? false
   const internalColourMode: InternalColourMode = activeAccount?.internalColourMode ?? 'grey'
+  // Per-account schedule view prefs (default ON — absent reads as shown/enabled, `?? true`, like
+  // disciplinesEnabled above and NOT the placeholders/external `?? false`).
+  const showInternalProjects: boolean = activeAccount?.showInternalProjects ?? true
+  const showInternalActivities: boolean = activeAccount?.showInternalActivities ?? true
+  const inlineActivityCreateEnabled: boolean = activeAccount?.inlineActivityCreateEnabled ?? true
   const allZones = supportedTimeZones()
   const tzOptions = allZones.includes(timezone) ? allZones : [timezone, ...allZones]
 
@@ -367,6 +373,34 @@ export function SettingsView() {
           </div>
         </SettingsCard>
 
+        <SettingsCard title={m.settings_internal_visibility_heading()} description={m.settings_internal_visibility_intro()}>
+          <div className="flex flex-col gap-3">
+            <ToggleRow
+              label={m.settings_show_internal_projects_toggle()}
+              on={showInternalProjects}
+              onToggle={() => updateAccount(activeAccount.id, { showInternalProjects: !showInternalProjects })}
+              disabled={!canEdit}
+            />
+            <ToggleRow
+              label={m.settings_show_internal_activities_toggle()}
+              on={showInternalActivities}
+              onToggle={() => updateAccount(activeAccount.id, { showInternalActivities: !showInternalActivities })}
+              disabled={!canEdit}
+            />
+          </div>
+        </SettingsCard>
+
+        <SettingsCard title={m.settings_activity_create_heading()} description={m.settings_activity_create_intro()}>
+          <div>
+            <ToggleRow
+              label={m.settings_inline_activity_create_toggle()}
+              on={inlineActivityCreateEnabled}
+              onToggle={() => updateAccount(activeAccount.id, { inlineActivityCreateEnabled: !inlineActivityCreateEnabled })}
+              disabled={!canEdit}
+            />
+          </div>
+        </SettingsCard>
+
         <SettingsCard title={m.settings_bar_labels_heading()} description={m.settings_bar_labels_intro()}>
           <div className="flex flex-col gap-3">
             {BAR_LABEL_OPTIONS.map((opt) => (
@@ -436,7 +470,14 @@ export function SettingsView() {
         {authMode !== 'off' && (
           <SettingsCard title={m.settings_account_heading()}>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">{m.settings_signed_in_as({ who: user?.email ?? user?.name ?? m.settings_signed_in_unknown() })}</p>
+              <div className="flex items-center gap-3">
+                <Avatar
+                  name={user?.name ?? user?.email ?? m.settings_signed_in_unknown()}
+                  color={DEFAULT_COLORS.account}
+                  imageUrl={user?.image ?? undefined}
+                />
+                <p className="text-sm text-muted-foreground">{m.settings_signed_in_as({ who: user?.email ?? user?.name ?? m.settings_signed_in_unknown() })}</p>
+              </div>
               <Button size="sm" variant="outline" onClick={() => void signOut()}>
                 {m.settings_account_sign_out()}
               </Button>

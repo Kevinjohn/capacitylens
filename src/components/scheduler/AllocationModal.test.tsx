@@ -439,6 +439,34 @@ describe('AllocationModal edit', () => {
   })
 })
 
+describe('AllocationModal inline activity creation pref', () => {
+  const addPerson = () => {
+    useStore.getState().addResource({
+      kind: 'person', name: 'Tyler', role: 'Designer', employmentType: 'permanent',
+      workingHoursPerDay: 8, workingDays: [1, 2, 3, 4, 5], color: '#111',
+    })
+    return useStore.getState().data.resources[0].id
+  }
+
+  it('renders the inline "Add activity" input + button by default (pref absent → enabled)', () => {
+    const resourceId = addPerson()
+    render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={vi.fn()} />)
+    expect(screen.getByLabelText('New activity name')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add activity' })).toBeInTheDocument()
+  })
+
+  it('hides the inline "Add activity" input + button when inlineActivityCreateEnabled is false — the Activity picker still works', () => {
+    const resourceId = addPerson()
+    useStore.getState().updateAccount(ACC, { inlineActivityCreateEnabled: false })
+    render(<AllocationModal create={{ resourceId, startDate: '2026-06-01', endDate: '2026-06-03' }} onClose={vi.fn()} />)
+    // The inline creator is gone…
+    expect(screen.queryByLabelText('New activity name')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add activity' })).not.toBeInTheDocument()
+    // …but the Activity SelectField is still rendered and usable.
+    expect(screen.getByRole('combobox', { name: 'Activity' })).toBeInTheDocument()
+  })
+})
+
 describe('AllocationModal Enter key submission', () => {
   it('submits when Enter is pressed in the Hours/day input (hourly mode)', async () => {
     useStore.getState().addResource({

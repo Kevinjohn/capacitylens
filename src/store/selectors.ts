@@ -40,6 +40,22 @@ export const externalEnabledFor = (data: AppData, activeAccountId: ID | null): b
 export const internalColourModeFor = (data: AppData, activeAccountId: ID | null): InternalColourMode =>
   data.accounts.find((a) => a.id === activeAccountId)?.internalColourMode ?? 'grey'
 
+/** Whether the schedule shows INTERNAL-PROJECT allocation bars (activities under the built-in Internal
+ *  client). Absent reads as TRUE (shown) — note the `?? true` (like disciplinesEnabledFor, NOT the
+ *  placeholders/external `?? false`). A pure VIEW pref: it hides only bars, never capacity/utilisation. */
+export const showInternalProjectsFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.showInternalProjects ?? true
+
+/** Whether the schedule shows INTERNAL-ACTIVITY allocation bars (kind 'internal'). Absent reads as
+ *  TRUE (shown), the exact analog of showInternalProjectsFor. Hides bars only, never capacity. */
+export const showInternalActivitiesFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.showInternalActivities ?? true
+
+/** Whether the Allocation modal offers the inline "Add activity" input + button. Absent reads as
+ *  TRUE (enabled). Single source so the modal gates on the same per-account value. */
+export const inlineActivityCreateEnabledFor = (data: AppData, activeAccountId: ID | null): boolean =>
+  data.accounts.find((a) => a.id === activeAccountId)?.inlineActivityCreateEnabled ?? true
+
 /** The active account's calendar config — timezone and week-start day.
  *  Absent fields fall back to the defaults (Etc/GMT, Monday). */
 export const calendarFor = (data: AppData, activeAccountId: ID | null): CalendarConfig => {

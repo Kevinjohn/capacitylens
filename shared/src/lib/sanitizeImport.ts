@@ -173,6 +173,19 @@ export function sanitizeAccount(rec: Record<string, unknown>): Record<string, un
   ) {
     delete rec.internalColourMode
   }
+  // Drop a non-boolean showInternalProjects rather than persist junk; its absence reads back as the
+  // default (true — shown) on the client (`?? true`), mirroring the disciplinesEnabled precedent.
+  if (rec.showInternalProjects !== undefined && typeof rec.showInternalProjects !== 'boolean') {
+    delete rec.showInternalProjects
+  }
+  // Drop a non-boolean showInternalActivities rather than persist junk; absence reads back as true (shown).
+  if (rec.showInternalActivities !== undefined && typeof rec.showInternalActivities !== 'boolean') {
+    delete rec.showInternalActivities
+  }
+  // Drop a non-boolean inlineActivityCreateEnabled rather than persist junk; absence reads back as true (enabled).
+  if (rec.inlineActivityCreateEnabled !== undefined && typeof rec.inlineActivityCreateEnabled !== 'boolean') {
+    delete rec.inlineActivityCreateEnabled
+  }
   return rec
 }
 

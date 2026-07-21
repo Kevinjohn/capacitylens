@@ -461,6 +461,73 @@ describe('built-in Internal client bucketing + filter', () => {
   })
 })
 
+// Per-account BAR-ONLY hide prefs for internal work (showInternalProjects / showInternalActivities).
+// withInternal() gives r1 four allocations: a1 (Acme project), aIntProj (a project under the built-in
+// Internal client), aIntNoProj (a project-less internal-KIND activity), plus a2 (tentative Acme); we
+// add aRep (a project-less REPEATABLE activity) because BOTH project-less kinds render under the
+// derived Internal client and so both count as "internal activities" for the hide pref. The
+// two prefs are the two LAST positional args after blocksMode + internalColourMode.
+describe('internal-work bar-only hide prefs (showInternalProjects / showInternalActivities)', () => {
+  function withInternalAndRepeatable(): AppData {
+    const d = withInternal()
+    d.activities.push({ id: 'tRep', accountId: 'acct-test', createdAt: 't', updatedAt: 't', name: 'Design', kind: 'repeatable' })
+    d.allocations.push({ id: 'aRep', accountId: 'acct-test', createdAt: 't', updatedAt: 't', resourceId: 'r1', activityId: 'tRep', startDate: '2026-06-05', endDate: '2026-06-05', hoursPerDay: 4, status: 'confirmed' })
+    return d
+  }
+  const buildPrefs = (showInternalProjects: boolean, showInternalActivities: boolean) =>
+    buildSchedulerModel(
+      withInternalAndRepeatable(), geom, days, start, end, start, end, emptyFilters(), true, true, true, false, 'grey',
+      showInternalProjects, showInternalActivities,
+    )
+  const barIdsOf = (m: GroupModel[]) => m.flatMap((g) => g.rows).flatMap((r) => r.bars).map((b) => b.allocation.id).sort()
+  const r1Util = (m: GroupModel[]) => m.flatMap((g) => g.rows).find((r) => r.resource.id === 'r1')!.utilization
+
+  it('(d) defaults (absent fields → true) show every internal bar', () => {
+    // No prefs passed at all: the params default to true, so nothing is hidden.
+    const model = buildSchedulerModel(withInternal(), geom, days, start, end, start, end, emptyFilters(), true, true, true)
+    const ids = barIdsOf(model)
+    expect(ids).toContain('aIntProj') // internal-client project bar
+    expect(ids).toContain('aIntNoProj') // internal-kind activity bar
+  })
+
+  it('(a) showInternalActivities=false hides BOTH project-less kinds (internal-client project bar stays)', () => {
+    const ids = barIdsOf(buildPrefs(true, false))
+    expect(ids).not.toContain('aIntNoProj') // kind 'internal' — hidden
+    expect(ids).not.toContain('aRep') // kind 'repeatable' — also project-less, labelled "Internal · …", hidden
+    expect(ids).toContain('aIntProj') // a 'project' activity — NOT an internal activity, still shown
+    expect(ids).toContain('a1') // ordinary Acme work untouched
+  })
+
+  it('(b) showInternalProjects=false hides internal-CLIENT project bars only (project-less activities stay)', () => {
+    const ids = barIdsOf(buildPrefs(false, true))
+    expect(ids).not.toContain('aIntProj') // project under the built-in Internal client — hidden
+    expect(ids).toContain('aIntNoProj') // project-less internal-kind activity — still shown
+    expect(ids).toContain('aRep') // project-less repeatable activity — still shown
+    expect(ids).toContain('a1') // ordinary Acme project (non-Internal client) untouched
+  })
+
+  it('both false hides every Internal-labelled bar, but leaves ordinary work', () => {
+    const ids = barIdsOf(buildPrefs(false, false))
+    expect(ids).not.toContain('aIntProj')
+    expect(ids).not.toContain('aIntNoProj')
+    expect(ids).not.toContain('aRep')
+    expect(ids).toContain('a1')
+  })
+
+  it('(c) utilisation is IDENTICAL with the toggles on and off — hidden internal work still counts', () => {
+    // THE product guarantee: hiding internal bars must NEVER change capacity/utilisation. r1 is booked
+    // on internal work; its utilisation with everything shown must equal its utilisation with both
+    // internal prefs OFF (bars gone, load unchanged).
+    const shown = r1Util(buildPrefs(true, true))
+    const hidden = r1Util(buildPrefs(false, false))
+    expect(hidden).toBe(shown)
+    // Sanity: r1 genuinely carries load (so the equality isn't a trivial 0 === 0), and the bar count
+    // really did drop — proving the toggles took effect while utilisation held.
+    expect(shown).toBeGreaterThan(0)
+    expect(barIdsOf(buildPrefs(false, false)).length).toBeLessThan(barIdsOf(buildPrefs(true, true)).length)
+  })
+})
+
 // Pan invariant — the load-bearing reason a Back/Forward pan keeps the visible-window utilisation
 // correct WITHOUT any layout measurement. `panDays(+7)` shifts the origin date by a week while
 // PRESERVING scrollLeft and dayWidth, so the visible-window start is still resolved by the SAME

@@ -43,7 +43,7 @@ import {
 export type Db = DatabaseSync
 
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
-export const DB_SCHEMA_VERSION = 15
+export const DB_SCHEMA_VERSION = 16
 
 /** `CPLN` in ASCII. SQLite reserves application_id for applications to identify their files. */
 export const CAPACITYLENS_APPLICATION_ID = 0x43504c4e
@@ -365,6 +365,29 @@ const DATABASE_MIGRATIONS: readonly DatabaseMigration[] = [
     (db) => {
       db.exec(ACCOUNT_BOUNDARY_STATE_V15_SQL)
       assertAccountBoundaryStateCurrent(db)
+    },
+  ),
+  defineMigration(
+    16,
+    'add-account-view-prefs',
+    [
+      'guard:PRAGMA table_info(accounts):view-prefs-missing',
+      'ALTER TABLE accounts ADD COLUMN showInternalProjects TEXT;',
+      'ALTER TABLE accounts ADD COLUMN showInternalActivities TEXT;',
+      'ALTER TABLE accounts ADD COLUMN inlineActivityCreateEnabled TEXT;',
+    ].join('\n'),
+    (db) => {
+      // Idempotent per-column ADD (mirrors migration 9's add-internal-colour-mode guard): a
+      // pre-ledger dev database may already carry a subset from the generic optional-column repair,
+      // so add only the columns that are actually missing. Absent columns read back as undefined and
+      // default to true (shown/enabled) on the client.
+      const existing = new Set(
+        (db.prepare(`PRAGMA table_info(accounts)`).all() as Array<{ name: string }>).map((column) => column.name),
+      )
+      for (const column of ['showInternalProjects', 'showInternalActivities', 'inlineActivityCreateEnabled']) {
+        if (!existing.has(column)) db.exec(`ALTER TABLE accounts ADD COLUMN ${column} TEXT;`)
+      }
+      assertSchemaCurrent(db)
     },
   ),
 ]
