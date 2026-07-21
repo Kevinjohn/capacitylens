@@ -329,6 +329,7 @@ function sessionUserFromApplicationSession(session: ApplicationSession): Session
     email: session.principal.email,
     emailVerified: session.principal.emailVerified,
     name: session.principal.displayName,
+    image: session.principal.image ?? null,
     twoFactorEnabled:
       session.assurance === 'mfa' ||
       session.assurance === 'federated' ||

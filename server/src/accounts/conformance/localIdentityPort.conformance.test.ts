@@ -14,6 +14,7 @@ const sessionUser: SessionUser = {
   name: 'One',
   email: 'same@example.com',
   emailVerified: true,
+  image: null,
 }
 
 function auth(getSession: Auth['api']['getSession']): Auth {

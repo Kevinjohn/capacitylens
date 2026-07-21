@@ -763,4 +763,46 @@ describe('Avatar', () => {
     const el = container.firstChild as HTMLElement
     expect(el.style.backgroundColor).toBe('rgb(236, 72, 153)')
   })
+
+  it('renders no photo <img> when no imageUrl is given (initials only)', () => {
+    const { container } = render(<Avatar name="Alice Smith" color="#111" />)
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.firstChild).toHaveTextContent('AS')
+  })
+
+  it('keeps the initials fallback while an imageUrl is still loading', () => {
+    // jsdom never resolves the Radix image load, so the primitive stays on its fallback — the
+    // signed-in user sees initials (never an empty circle) until the photo resolves.
+    const { container } = render(
+      <Avatar name="Alice Smith" color="#111" imageUrl="https://cdn.example/a.png" />,
+    )
+    expect(container.querySelector('img')).toBeNull()
+    expect(container.firstChild).toHaveTextContent('AS')
+  })
+
+  it('renders the photo <img> from imageUrl once it loads', () => {
+    // Radix mounts the <img> only after the image reports "loaded"; stub window.Image so the
+    // synchronous load-status probe returns "loaded" in jsdom (complete + non-zero naturalWidth).
+    class LoadedImage {
+      complete = true
+      naturalWidth = 1
+      crossOrigin: string | null = null
+      referrerPolicy = ''
+      src = ''
+      addEventListener() {}
+      removeEventListener() {}
+    }
+    vi.stubGlobal('Image', LoadedImage)
+    try {
+      const { container } = render(
+        <Avatar name="Alice Smith" color="#111" imageUrl="https://cdn.example/a.png" />,
+      )
+      const img = container.querySelector('img')
+      expect(img).not.toBeNull()
+      expect(img).toHaveAttribute('src', 'https://cdn.example/a.png')
+      expect(img).toHaveAttribute('alt', '')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
 })

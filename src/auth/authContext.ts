@@ -14,6 +14,9 @@ export interface AuthUser {
   name?: string
   email?: string
   twoFactorEnabled?: boolean
+  /** IdP-asserted avatar URL (OIDC `picture`), https-validated server-side. `null`/absent when the
+   *  provider carries no picture; only the signed-in user's own avatar is ever surfaced. */
+  image?: string | null
 }
 
 export interface AuthProviderInfo {

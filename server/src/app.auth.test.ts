@@ -257,8 +257,21 @@ describe('normalizeSessionUser (P1.7a)', () => {
       emailVerified: true,
       name: 'U One',
       twoFactorEnabled: false,
+      image: null,
     })
-    expect(Object.keys(out).sort()).toEqual(['email', 'emailVerified', 'id', 'name', 'twoFactorEnabled'])
+    expect(Object.keys(out).sort()).toEqual(['email', 'emailVerified', 'id', 'image', 'name', 'twoFactorEnabled'])
+  })
+
+  it('carries a validated https avatar URL through as image', () => {
+    expect(normalizeSessionUser({ ...RAW, image: 'https://cdn.example/u1.png' }).image)
+      .toBe('https://cdn.example/u1.png')
+  })
+
+  it('nulls image when absent or non-https (the https backstop mirrors strictOidc)', () => {
+    expect(normalizeSessionUser(RAW).image).toBeNull()
+    expect(normalizeSessionUser({ ...RAW, image: null }).image).toBeNull()
+    expect(normalizeSessionUser({ ...RAW, image: 'http://cdn.example/u1.png' }).image).toBeNull()
+    expect(normalizeSessionUser({ ...RAW, image: 'javascript:alert(1)' }).image).toBeNull()
   })
 })
 

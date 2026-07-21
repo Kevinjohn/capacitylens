@@ -242,7 +242,7 @@ function timestamplessAuth(userId: string): Auth {
     handler: async () => new Response(null),
     api: {
       getSession: async () => ({
-        user: { id: userId, email: 'undated@capacitylens.dev', emailVerified: true, name: 'Undated' },
+        user: { id: userId, email: 'undated@capacitylens.dev', emailVerified: true, name: 'Undated', image: null },
         session: {
           id: 'undated-session',
           // Deliberately malformed: the adapter must preserve ordinary access but treat freshness

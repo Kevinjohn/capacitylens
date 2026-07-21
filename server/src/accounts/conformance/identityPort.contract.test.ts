@@ -27,6 +27,7 @@ const PRINCIPAL: LocalPrincipal = {
   displayName: 'Conformance User',
   email: 'conformance@example.com',
   emailVerified: true,
+  image: null,
   linkedSubject: null,
 }
 const ACTOR: ActorContext = {
@@ -275,6 +276,7 @@ function betterAuthHarness(): Promise<Harness> {
             name: PRINCIPAL.displayName,
             email: PRINCIPAL.email,
             emailVerified: true,
+            image: null,
           },
           session: { id: sessionId, createdAt: NOW, expiresAt: LATER },
         }),

@@ -62,6 +62,10 @@ export interface LocalPrincipal {
   email: string
   emailVerified: boolean
   linkedSubject: FederatedSubject | null
+  /** IdP-asserted avatar URL for the SESSION principal (https-validated upstream). Absent/`null`
+   *  for trusted-local and any provider without a picture. Deliberately NOT on {@link
+   *  PrincipalSummary}: only the signed-in user's own avatar is surfaced — teammates stay initials. */
+  image?: string | null
 }
 
 export interface PrincipalSummary {

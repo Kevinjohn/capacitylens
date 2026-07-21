@@ -236,6 +236,7 @@ export function betterAuthIdentityPort(input: {
             displayName: resolved.user.name,
             email: resolved.user.email,
             emailVerified: resolved.user.emailVerified,
+            image: resolved.user.image,
             linkedSubject: linked
               ? {
                   issuer: linkedIssuer!,

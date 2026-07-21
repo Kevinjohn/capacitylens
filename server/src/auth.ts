@@ -134,6 +134,7 @@ export const DEMO_USER: SessionUser = {
   email: 'demo@capacitylens.local',
   emailVerified: true,
   twoFactorEnabled: true,
+  image: null,
 }
 
 export const DEFAULT_ACCOUNT_APPLICATION: BoundApplication = {
@@ -163,6 +164,10 @@ export interface SessionUser {
   emailVerified: boolean
   twoFactorEnabled?: boolean
   name: string
+  /** The IdP-asserted avatar URL (OIDC `picture` claim) mapped into Better Auth's `user.image`
+   *  column. Already https-validated at capture time by strictOidc's `optionalPictureUrl`; `null`
+   *  for accounts/providers that carry no picture. */
+  image: string | null
   /** Server-only freshness input for step-up checks; never used as an authenticator. */
   sessionCreatedAt?: string
 }
@@ -176,6 +181,7 @@ interface RawSessionUser {
   name: string
   emailVerified?: boolean | null
   twoFactorEnabled?: boolean | null
+  image?: string | null
 }
 
 interface SessionActivityAdapter {
@@ -220,7 +226,16 @@ export function normalizeSessionUser(raw: RawSessionUser): SessionUser {
     emailVerified: raw.emailVerified ?? false,
     twoFactorEnabled: raw.twoFactorEnabled === true,
     name: name || 'User',
+    image: normalizeImageUrl(raw.image),
   }
+}
+
+/** `user.image` is only ever written by strictOidc's `optionalPictureUrl` (https-only, no embedded
+ *  credentials, ≤2048 chars — see server/src/strictOidc.ts), so a stored value is already validated.
+ *  This backstop re-asserts the https invariant at the narrowing boundary so a non-https value (a
+ *  hand-edited row, a future writer) can never reach the client as an `<img src>`. */
+function normalizeImageUrl(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('https://') ? value : null
 }
 
 /** Misconfiguration that must refuse boot loudly (same posture as assertSchemaCurrent) —

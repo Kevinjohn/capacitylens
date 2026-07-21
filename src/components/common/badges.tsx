@@ -1,5 +1,5 @@
 import { ensureBarColors } from '@capacitylens/shared/lib/color'
-import { Avatar as ShadAvatar, AvatarFallback } from '../ui/avatar'
+import { Avatar as ShadAvatar, AvatarFallback, AvatarImage } from '../ui/avatar'
 
 // CapacityLens colour and avatar compositions.
 
@@ -16,11 +16,15 @@ export function Avatar({
   color,
   size = 28,
   placeholder = false,
+  imageUrl,
 }: {
   name: string
   color: string
   size?: number
   placeholder?: boolean
+  /** The signed-in user's own avatar (SSO `picture`). When set, the photo renders over the
+   *  initials; the Radix primitive keeps the initials as the fallback while it loads and on error. */
+  imageUrl?: string
 }) {
   const initials = placeholder
     ? PLACEHOLDER_AVATAR_SYMBOL
@@ -39,6 +43,7 @@ export function Avatar({
       style={{ width: size, height: size, backgroundColor: bg, color: ink }}
       className="ring-2 ring-surface"
     >
+      {imageUrl && <AvatarImage src={imageUrl} alt="" />}
       <AvatarFallback className="bg-transparent text-2xs font-semibold text-inherit">
         {initials}
       </AvatarFallback>
