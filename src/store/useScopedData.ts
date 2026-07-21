@@ -6,8 +6,7 @@ import { emptyAppData } from '@capacitylens/shared/types/entities'
 import type { AppData } from '@capacitylens/shared/types/entities'
 
 /**
- * The single read-side seam for multi-tenancy: every component that used to read `s.data` (or a slice
- * of it) reads through here instead, getting only the active account's entities.
+ * The read-side seam for multi-tenancy. Components receive only the active account's entities.
  *
  * Memoised on `(data, activeAccountId)` so the scoped object is stable between renders — avoiding the
  * `useSyncExternalStore` fresh-object trap.
@@ -24,13 +23,13 @@ export function useScopedData(): AppData {
 }
 
 /**
- * The active-only VIEW projection (P2.4): the same scoped AppData as {@link useScopedData}, but with
+ * The active-only view projection: the same scoped AppData as {@link useScopedData}, but with
  * every NON-active (archived OR soft-deleted) resource/client/project removed via the SHARED
  * `activeOnly` helper — so the rule is single-sourced with the server's per-account read.
  *
  * Use this in the NORMAL app VIEWS (scheduler, lists, forms' option-pickers, command palette, toolbar
- * filters); use the raw {@link useScopedData} ONLY for non-view consumers that must see ALL rows —
- * today just export (ImportExport), where archived/deleted rows are retained in the backup. Memoised
+ * filters); use the raw {@link useScopedData} only for consumers such as export that must retain
+ * archived/deleted rows. Memoised
  * on the scoped base so the projected object is stable between renders (same `useSyncExternalStore`
  * stability contract as {@link useScopedData}).
  *
@@ -42,7 +41,7 @@ export function useActiveScopedData(): AppData {
 }
 
 /**
- * The INACTIVE-data source for the client-admin view (P2.5b) — the COUNTERPART to
+ * The inactive-data source for the client-admin view — the counterpart to
  * {@link useActiveScopedData}. It returns the RAW scoped AppData (every row: active, archived AND
  * soft-deleted) WITHOUT the active-only projection, so the admin view can partition the rows by
  * `lifecycleStatus(e)` and list the archived / deleted ones the normal views hide.
@@ -55,9 +54,7 @@ export function useActiveScopedData(): AppData {
  * runs server-side in `readSlice`), so the store's `data` holds no archived/deleted rows. The admin
  * view (ArchivedSection) instead fetches them directly with `?includeInactive=1`; this hook is the
  * DEMO-build/OFF source only.
- * Returns {@link useScopedData} unchanged today (a thin, clearly-named wrapper), kept distinct from
- * `useScopedData` so the admin view's intent reads at the call site and a future server-mode change
- * lands in ONE place.
+ * Returns {@link useScopedData} unchanged. The distinct name makes the admin view's intent explicit.
  *
  * @returns The active account's RAW {@link AppData} slice including archived and soft-deleted rows.
  */

@@ -15,7 +15,6 @@ import {
   SelectField,
   ColorField,
   WeekdayPicker,
-  TemporaryTag,
   ColorSwatch,
   Avatar,
   SegmentedControl,
@@ -23,8 +22,6 @@ import {
 import { useStore } from '../../store/useStore'
 import { colorName } from '../../lib/palette'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
-import type { Resource } from '@capacitylens/shared/types/entities'
-import { WORKDAYS } from '../../test/fixtures'
 
 beforeEach(() => {
   useStore.getState().replaceAll(emptyAppData())
@@ -721,39 +718,6 @@ describe('WeekdayPicker', () => {
     const fieldset = container.querySelector('fieldset')!
     expect(fieldset).toHaveAttribute('aria-invalid', 'true')
     expect(fieldset).toHaveAttribute('aria-describedby', 'err-1')
-  })
-})
-
-// ─── TemporaryTag ──────────────────────────────────────────────────────────
-
-const baseResource = (): Resource => ({
-  id: 'r1',
-  accountId: 'acct-test',
-  createdAt: 't',
-  updatedAt: 't',
-  kind: 'person',
-  name: 'Alice',
-  role: 'Dev',
-  employmentType: 'permanent',
-  workingHoursPerDay: 8,
-  workingDays: WORKDAYS,
-  color: '#111',
-})
-
-describe('TemporaryTag', () => {
-  it('renders "Temp" tag for a freelancer', () => {
-    render(<TemporaryTag resource={{ ...baseResource(), employmentType: 'freelancer' }} />)
-    expect(screen.getByText('Temp')).toBeInTheDocument()
-  })
-
-  it('renders "Temp" tag for a contractor', () => {
-    render(<TemporaryTag resource={{ ...baseResource(), employmentType: 'contractor' }} />)
-    expect(screen.getByText('Temp')).toBeInTheDocument()
-  })
-
-  it('renders nothing for a permanent employee', () => {
-    const { container } = render(<TemporaryTag resource={{ ...baseResource(), employmentType: 'permanent' }} />)
-    expect(container).toBeEmptyDOMElement()
   })
 })
 

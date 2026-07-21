@@ -3,14 +3,15 @@ import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { Button, FieldError } from '../components/common/ui'
-import { inputClass, linkButtonClass } from '../components/common/controls'
+import { inputClass } from '../components/common/controls'
+import { Button as ShadButton } from '../components/ui/button'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import { messageForFailure } from './resetPasswordFailure'
 import { m } from '@/i18n'
 import { requestSignal } from '../data/requestTimeout'
 
-// Password-reset page (P1.18; route /reset-password/:token). The token arrives out-of-band — an
+// Password-reset page for /reset-password/:token. The token arrives out-of-band — an
 // Owner/Admin minted it in Team & access and handed the link over directly (the app has no
 // email infrastructure, a standing non-goal). This page collects the new password and POSTs Better
 // Auth's PUBLIC redeem endpoint, `${API_BASE}/api/auth/reset-password` — a plain fetch, not the
@@ -32,7 +33,7 @@ type State =
   | { kind: 'local' } // the demo build (no server) — password reset is a server-mode feature
 
 /**
- * Reset-password page for `/reset-password/:token` (P1.18).
+ * Reset-password page for `/reset-password/:token`.
  *
  * Renders a new-password + confirmation form and redeems the admin-issued single-use token against
  * Better Auth's public reset endpoint. Success offers "Go to sign in" as a FULL page load (a plain
@@ -167,9 +168,9 @@ export function ResetPassword() {
               <div className="flex justify-end">
                 {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean
                     boot is what re-runs AuthProvider's /me check and lands on the login screen. */}
-                <a href="/" className={linkButtonClass}>
-                  {m.reset_go_signin()}
-                </a>
+                <ShadButton asChild size="sm">
+                  <a href="/">{m.reset_go_signin()}</a>
+                </ShadButton>
               </div>
             </div>
           )}

@@ -1,17 +1,6 @@
-// Access control — the pure, environment-agnostic role vocabulary. This module is a types-only
-// leaf (no runtime deps, no I/O, no session) so BOTH halves of the app can import it without
-// pulling in anything heavier: the server (membership / control tables, P1.1) and, later, the
-// client. Defining the role set ONCE here is what stops the server's notion of a role drifting
-// from the client's.
-//
-// DECISION (P1.1): `Role` lands in shared from P1.1 — earlier than the permission matrix — because
-// it is pure domain consumed by the server's membership control table NOW and by P1.3's `can()` +
-// the client LATER. Single-sourcing it avoids two definitions drifting. P1.3 will ADD `Action`,
-// `can(role, action)` and `canSeeTimeOffNote(role)` to THIS file (the pure policy matrix); this
-// file deliberately holds only the `Role` type today.
-
-// Canonical account vocabulary lives in the provider-neutral account contract. Re-exporting Role
-// here preserves existing product imports while the administrative policy moves out of this module.
+// CapacityLens product permissions. Canonical account roles and administrative policy live in the
+// provider-neutral account contract; this module adds product-data actions and field visibility.
+// Both the browser and server import these pure rules so affordances and enforcement cannot drift.
 import type { Role } from '../account/types'
 import {
   canAdministerAccount,
@@ -26,7 +15,7 @@ export type { Role } from '../account/types'
 
 /**
  * A guarded capability the access matrix gates. These are coarse policy *actions* (not 1:1 with
- * HTTP routes); P1.5's `requirePermission` maps each protected route onto one of these before
+ * HTTP routes); `requirePermission` maps each protected route onto one of these before
  * calling {@link can}. The required tier is documented per member:
  *
  * - `'read'`             — view an account's scheduling data. ANY member (owner | admin | editor | viewer).
@@ -79,8 +68,8 @@ type AccountAdministrationAction = Exclude<Action, ProductDataAction>
 
 /**
  * The single pure authority for "may this role perform this action" on an account. The server
- * (P1.5 `requirePermission`) resolves the caller's role for the account (a membership lookup) and
- * then calls THIS; the client (P1.12 `useCanEdit`) calls the SAME function for affordances — so the
+ * resolves the caller's role for the account and then calls this function; the client uses the
+ * same function for affordances, so the
  * permission decision is single-sourced and the two halves cannot drift.
  *
  * PURE by contract: no I/O, no session/Headers param, no Date, no randomness — just the role, the
@@ -125,7 +114,7 @@ export function isAtLeast(role: Role, min: Role): boolean {
 
 /**
  * May `actorRole` change a member's role from `targetRole` to `nextRole`? The PURE policy behind
- * member-management role edits (P1.11) — single-sourced HERE so the client affordance and the server
+ * member-management role edits — single-sourced here so the client affordance and the server
  * route guard decide identically and cannot drift (the client uses it to hide controls; the server
  * is the backstop that actually enforces it).
  *
@@ -150,7 +139,7 @@ export function canManageMemberRole(actorRole: Role, targetRole: Role, nextRole:
 
 /**
  * May `actorRole` remove (revoke) a member holding `targetRole`? The PURE policy behind member
- * removal (P1.11) — single-sourced HERE alongside {@link canManageMemberRole} for the same
+ * removal — single-sourced here alongside {@link canManageMemberRole} for the same
  * no-drift reason (client hides the control, server enforces it).
  *
  * Rules (deny by default):
@@ -172,7 +161,7 @@ export function canRemoveMember(actorRole: Role, targetRole: Role): boolean {
 
 /**
  * May `actorRole` issue a password-reset link for a member holding `targetRole`? The PURE policy
- * behind admin-issued reset links (P1.18) — single-sourced HERE alongside {@link canRemoveMember}
+ * behind admin-issued reset links — single-sourced here alongside {@link canRemoveMember}
  * for the same no-drift reason (client hides the control, server enforces it).
  *
  * Rules (deny by default — same who-may-touch-whom shape as removal, because a reset link IS an
@@ -198,7 +187,7 @@ export function canResetMemberPassword(actorRole: Role, targetRole: Role): boole
 
 /**
  * May `actor` issue a password-reset link for `target`, judged across EVERY account the target
- * belongs to (P1.18 cross-account escalation fix)?
+ * belongs to?
  *
  * A reset link sets the target's Better Auth credential, which is account-GLOBAL: whoever redeems it
  * can sign in as the target into EVERY account the target is a member of. So the per-account
@@ -253,7 +242,7 @@ export function canResetMemberAcrossAccounts(
  *
  * Kept SEPARATE from the {@link Action} matrix on purpose — this is a *field-visibility* rule
  * (which columns to project), not a *route action* (whether to allow a request). The server
- * enforces it by redacting `note` from the read slice for everyone below admin (P1.6); the client
+ * enforces it by redacting `note` from the read slice for everyone below admin; the client
  * uses the same predicate to decide whether to render the field. It is not an `Action` because
  * there is no request to gate — the request (a read) is already allowed; this only narrows the
  * payload.

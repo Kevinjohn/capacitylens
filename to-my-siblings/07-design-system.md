@@ -200,7 +200,7 @@ class strings.
 - `aria-required`, `aria-invalid` and associated error id.
 - Browser caps backstop shared validation.
 - Preset colour field uses a named grid.
-- Switch uses `role="switch"` and `aria-checked`.
+- Switch uses the shadcn Switch primitive.
 - Segmented control uses proper radio semantics.
 - First intended field is marked for modal autofocus.
 

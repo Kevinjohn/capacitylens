@@ -48,7 +48,7 @@ export function SegmentedControl<T extends string | number>({
   /**
    * When true, every segment is a disabled button (native `disabled` + `aria-disabled`, muted +
    * cursor-not-allowed) so the selected value is shown but can't change. Used for the FROZEN
-   * week-start control in Settings (P1.14). Default false — other call sites are unaffected.
+   * week-start control in Settings. Default false.
    */
   disabled?: boolean
 }) {

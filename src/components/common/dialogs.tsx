@@ -8,6 +8,15 @@ import { useCanEdit } from '../../auth/permissionContext'
 import { m } from '@/i18n'
 import { cn } from '@/lib/utils'
 import { Button as ShadButton } from '../ui/button'
+import { Dialog, DialogTitle } from '../ui/dialog'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from '../ui/empty'
 import { Icon, type IconName } from './Icon'
 // FOCUSABLE_SELECTOR + restoreFocus + wrapTabWithin live in ./focus (shared with
 // CommandPalette, and react-refresh forbids exporting non-component helpers from this
@@ -15,14 +24,13 @@ import { Icon, type IconName } from './Icon'
 import { FOCUSABLE_SELECTOR, restoreFocus, wrapTabWithin } from './focus'
 import { FormDirtyContext } from './formDirty'
 
-// Dialogs & page layout slice of the shared kit (re-exported from ./ui). Colours come
-// from semantic tokens (see index.css), so everything adapts to dark mode automatically.
+// Product dialog and page compositions. The generic controls come from shadcn; Modal keeps the
+// product's dirty-form guard and non-modal accessibility behavior.
 
 type ButtonVariant = 'primary' | 'ghost' | 'danger'
 
-// CapacityLens's three button NAMES mapped onto shadcn's button aesthetic (Button base in
-// ../ui/button) via a plain Record lookup (capacitylens's original idiom — no second same-named
-// cva). The colours bind to capacitylens's own --c-* brand/danger tokens (the bg-brand* /
+// CapacityLens's three action meanings map onto shadcn's Button scaffold. The colours bind to
+// CapacityLens's --c-* brand/danger tokens (the bg-brand* /
 // bg-danger* utilities) rather than shadcn's slate --primary. `primary` is the positive-action
 // fill: green makes create/save/continue actions immediately distinct from blue navigation and
 // identity accents. `danger` is the destructive read: capacitylens's AA-safe
@@ -65,9 +73,8 @@ export function Button({
   className?: string
 }) {
   return (
-    // shadcn Button base supplies the layout/focus-ring/disabled scaffold (size="sm" keeps
-    // capacitylens's compact footer height); we override its variant colours with capacitylens's brand
-    // tokens via className. The capacitylens prop API (ariaLabel/describedById/testId) is mapped
+    // shadcn Button supplies the layout, focus ring and disabled behavior. The product prop API
+    // maps descriptive names onto native aria/data attributes.
     // onto the native aria-/data- attributes the base forwards.
     <ShadButton
       size="sm"
@@ -95,7 +102,7 @@ export function Button({
 // getByRole('button', { name: … }) selectors are unaffected by the text→icon swap.
 
 /** A create button with a leading "+" before the label. The label stays the accessible name
- *  (the plus is decorative), so `getByRole('button', { name: 'Add …' })` is unchanged. Variant
+ *  (the plus is decorative), so `getByRole('button', { name: 'Add …' })` matches. Variant
  *  defaults to the solid primary fill; pass `ghost` for inline/secondary add affordances. */
 export function AddButton({
   label,
@@ -118,8 +125,8 @@ export function AddButton({
 
 /** Icon-only Edit button for a list row. `label` is BOTH the accessible name and the hover
  *  tooltip — it defaults to "Edit" so per-row selectors keep matching; pass a contextual label
- *  (e.g. "Edit Acme") where rows need to disambiguate. Renders NOTHING for a Viewer (P1.12) — one
- *  gate here covers every list row's edit affordance; the server 403 is the backstop regardless. */
+ *  (e.g. "Edit Acme") where rows need to disambiguate. It is hidden from viewers; server
+ *  authorization remains the security boundary. */
 export function EditButton({
   label = m.form_edit(),
   onClick,
@@ -139,8 +146,8 @@ export function EditButton({
 
 /** Icon-only Delete button for a list row — the danger-variant twin of EditButton. `label`
  *  defaults to "Delete" (so per-row selectors keep matching); pass a contextual label where
- *  rows need to disambiguate (e.g. "Delete Studio North" on the company picker). Renders NOTHING
- *  for a Viewer (P1.12) — one gate here covers every list row's delete affordance. */
+ *  rows need to disambiguate (e.g. "Delete Studio North" on the company picker). It is hidden from
+ *  viewers. */
 export function DeleteButton({
   label = m.form_delete(),
   onClick,
@@ -202,7 +209,7 @@ export function Modal({
   // — axe critical `aria-required-children`). Rendering through a portal makes the dialog a child of
   // <body>, so it's no longer a DOM descendant of whatever roled element opened it. This relocates
   // WHERE it renders only; the panel's backdrop-parent relationship the ColorField press-swallow +
-  // unit tests read is unchanged (the portal target is body, but the backdrop still wraps the Content).
+  // unit tests read (the portal target is body, but the backdrop still wraps the Content).
   const panelRef = useRef<HTMLDivElement>(null)
   const downOnBackdropRef = useRef(false)
   const setNotice = useStore((s) => s.setNotice)
@@ -274,7 +281,7 @@ export function Modal({
   // Capture the trigger before Radix's FocusScope moves focus, then restore to it on UNMOUNT
   // (the effect cleanup) — Radix has no Trigger here, and onCloseAutoFocus fires only on a
   // controlled open→closed transition, NOT on the hard unmount callers actually use
-  // ({isOpen && <Modal/>}). So the restore lives here, exactly as capacitylens did pre-Radix.
+  // ({isOpen && <Modal/>}), so the restore lives in the unmount cleanup.
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null
     // Restore synchronously, exactly once, here in the cleanup — callers use
@@ -296,7 +303,7 @@ export function Modal({
     // modal={false}: see the shell note above. onOpenChange only fires if some path slips
     // past the neutralised Radix dismissals; route it through the same guard so it can never
     // bypass the dirty check.
-    <DialogPrimitive.Root open modal={false} onOpenChange={(next) => { if (!next) requestCloseRef.current() }}>
+    <Dialog open modal={false} onOpenChange={(next) => { if (!next) requestCloseRef.current() }}>
       {/* Plain backdrop div (not DialogPrimitive.Overlay — that renders null in non-modal
           mode). It wraps the panel, so the dialog's parentElement is this backdrop — the
           contract ColorField press-swallow + the unit tests rely on. */}
@@ -354,7 +361,7 @@ export function Modal({
           className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg bg-elevated text-ink shadow-pop ring-1 ring-line outline-none animate-[capacitylens-pop_0.16s_ease-out]"
         >
           <header className="border-b px-4 py-3">
-            <DialogPrimitive.Title className="text-base font-semibold">{title}</DialogPrimitive.Title>
+            <DialogTitle className="text-base font-semibold">{title}</DialogTitle>
           </header>
           <FormDirtyContext.Provider value={markDirty}>
             <form
@@ -378,7 +385,7 @@ export function Modal({
           </FormDirtyContext.Provider>
         </DialogPrimitive.Content>
       </div>
-    </DialogPrimitive.Root>,
+    </Dialog>,
     document.body,
   )
 }
@@ -429,8 +436,8 @@ export function ListPage({
   onAdd?: () => void
   children?: ReactNode
 }) {
-  // A Viewer (P1.12) sees NO top create affordance — gating ListPage once covers every entity list's
-  // "Add X" button. The server 403 backstops anyway; this is the UX read-only signal.
+  // Gating here keeps every entity list's create affordance consistent for viewers. Server
+  // authorization remains the security boundary.
   const canEdit = useCanEdit()
   return (
     <div className="mx-auto max-w-3xl p-6">
@@ -460,30 +467,32 @@ export function EmptyState({
   description?: ReactNode
   action?: { label: string; onClick: () => void; icon?: IconName }
 }) {
-  // A Viewer (P1.12) sees no CREATE CTA, but navigation actions (e.g. "Clear filters", "Go to
-  // Resources") stay. A create CTA is the one carrying a leading `plus` icon (per this component's
+  // Viewers see navigation actions but not create actions. A create CTA carries a leading `plus`
+  // icon (per this component's
   // contract: create CTAs pass `icon: 'plus'`, navigation actions leave it unset), so drop ONLY
   // those for a non-editor. This also keeps the scheduler-empty "Clear filters" CTA focusable so the
   // grid stays axe-clean. The server 403 backstops a create regardless.
   const canEdit = useCanEdit()
   const showAction = action && (canEdit || action.icon !== 'plus')
   return (
-    <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line bg-surface px-4 py-12 text-center">
+    <Empty className="border border-line bg-surface">
+      <EmptyHeader>
       {icon && (
-        <span className="flex size-11 items-center justify-center rounded-full bg-canvas text-muted">
+        <EmptyMedia variant="icon">
           <Icon name={icon} size={20} />
-        </span>
+        </EmptyMedia>
       )}
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-ink">{children}</p>
-        {description && <p className="mx-auto max-w-xs text-sm text-muted">{description}</p>}
-      </div>
+        <EmptyTitle className="text-sm text-ink">{children}</EmptyTitle>
+        {description && <EmptyDescription className="text-muted">{description}</EmptyDescription>}
+      </EmptyHeader>
       {showAction && action && (
-        <Button onClick={action.onClick}>
-          {action.icon && <Icon name={action.icon} />}
-          {action.label}
-        </Button>
+        <EmptyContent>
+          <Button onClick={action.onClick}>
+            {action.icon && <Icon name={action.icon} />}
+            {action.label}
+          </Button>
+        </EmptyContent>
       )}
-    </div>
+    </Empty>
   )
 }

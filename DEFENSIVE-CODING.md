@@ -29,8 +29,8 @@ can see it. A `catch` block has exactly three legitimate jobs:
 3. **Degrade to a documented default** — and *only* for genuinely non-load-bearing state (see §5).
 
 There is **no fourth job.** `catch {}` that drops the error, or `catch { return null }` on a data
-path, is the anti-goal: it turns a loud, fixable failure into invisible corruption. **We are in the
-testing phase — prefer a loud, clearly-labelled crash over a quiet wrong answer.**
+path, is the anti-goal: it turns a loud, fixable failure into invisible corruption. Prefer a loud,
+clearly-labelled failure over a quiet wrong answer.
 
 A "soft swallow" counts too: catching a specific, already-authored message and replacing it with a
 generic one throws away information the user needed. Surface the real reason.
@@ -160,6 +160,11 @@ We comment for the **junior contributor reading this cold**, and we explain **wh
   `SchedulerGrid`'s virtualization + drag-freeze, `AuthProvider`'s "failure renders the app" policy).
 - **Keep docs honest.** A comment that describes behaviour the code doesn't implement is worse than
   none — fix or delete it (and pin fragile assumptions, like a library's error wording, with a test).
+- **Describe the current contract, not its implementation history.** Remove phase/ticket labels,
+  migration narratives and promises about future callers from source comments. Keep historical
+  context only when it remains operationally necessary, such as immutable migration provenance or
+  a compatibility deadline. Put architectural rationale in `DECISIONS.md` and let version control
+  retain superseded implementation stories.
 
 ---
 

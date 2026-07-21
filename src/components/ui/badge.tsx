@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 // — a quiet chip fill that's AA-safe in both themes. (NB: ui/button.tsx is stock — bg-primary /
 // bg-destructive — so this is a Badge-specific capacitylens treatment, not Button parity.) `secondary`
 // keeps shadcn's bg-secondary (a neutral chip, AA-safe in both themes). `warn` is capacitylens's amber
-// chip (the parked TemporaryTag look).
+// chip for advisory states.
 
 const badgeVariants = cva(
   "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow] overflow-hidden",

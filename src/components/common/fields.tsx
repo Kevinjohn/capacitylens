@@ -7,16 +7,14 @@ import { controlBase, inputClass, selectChevronClass, selectChevronStyle } from 
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
+import { Switch } from '../ui/switch'
 import { cn } from '@/lib/utils'
 import { m } from '@/i18n'
 import type { Weekday } from '@capacitylens/shared/types/entities'
 import { useMarkFormDirty } from './formDirty'
 
-// Form fields slice of the shared kit (re-exported from ./ui). The text/number/date
-// fields and the textarea are built on shadcn's Input/Textarea (../ui); the SelectField
-// stays a NATIVE <select> on purpose (32 e2e selectOption() calls + user.selectOptions
-// depend on it). Colours come from semantic tokens (see index.css), so everything adapts
-// to dark mode automatically.
+// Product field compositions built on shadcn primitives. SelectField remains native because the
+// browser control is part of the keyboard and test contract.
 
 const labelClass = 'mb-1 block text-xs font-medium text-muted'
 
@@ -35,8 +33,7 @@ function fieldAccent(invalid?: boolean, required?: boolean) {
   return ''
 }
 
-// The native <select> isn't a shadcn primitive (kept native by design), so it keeps
-// capacitylens's own full inputClass base plus the accent — unchanged from before.
+// The native <select> uses the product input base plus the same validation accent as shadcn fields.
 function selectClass(invalid?: boolean, required?: boolean) {
   if (invalid) return `${inputClass} border-danger ring-1 ring-danger`
   if (required) return `${inputClass} border-l-2 border-l-danger/60`
@@ -67,8 +64,7 @@ export function RequiredLegend() {
   )
 }
 
-/** Accessible on/off field using the same switch treatment as Settings. Kept in the shared field
- * kit so client/project privacy controls cannot drift in label, target size, or keyboard semantics. */
+/** Accessible on/off field shared by settings and privacy controls. */
 export function SwitchField({
   label,
   description,
@@ -90,27 +86,14 @@ export function SwitchField({
         <span className="block text-sm font-medium text-ink">{label}</span>
         {description && <span id={descriptionId} className="block text-xs text-muted">{description}</span>}
       </span>
-      <button
-        type="button"
-        role="switch"
+      <Switch
         data-form-dirty-managed
-        aria-checked={checked}
+        checked={checked}
         aria-label={label}
         aria-describedby={description ? descriptionId : undefined}
-        onClick={() => { markDirty(); onChange(!checked) }}
+        onCheckedChange={(next) => { markDirty(); onChange(next) }}
         disabled={disabled}
-        className={cn(
-          'relative h-6 w-10 shrink-0 rounded-full transition disabled:opacity-60',
-          checked ? 'bg-brand' : 'bg-line',
-        )}
-      >
-        <span
-          className={cn(
-            'absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all',
-            checked ? 'left-[18px]' : 'left-0.5',
-          )}
-        />
-      </button>
+      />
     </div>
   )
 }
@@ -395,8 +378,8 @@ export function ColorField({
   return (
     <div className="block">
       <span className={labelClass}>{label}</span>
-      {/* Radix Popover supplies ONLY the shell + anchored positioning (Phase 8 reskin). CapacityLens's
-          own dismiss collaboration is kept verbatim as the SINGLE dismiss path — the capture-phase
+      {/* Radix Popover supplies the shell and anchored positioning. CapacityLens owns dismissal through
+          the capture-phase
           mousedown above and the Escape onKeyDown below. Radix's competing dismissals are
           neutralised on the Content (onInteractOutside / onPointerDownOutside / onEscapeKeyDown →
           preventDefault) so it can never double-close or change ordering, and Radix's auto-focus is
@@ -437,8 +420,8 @@ export function ColorField({
             // portal={false} renders Content WITHOUT a Portal so the panel stays inside this
             // control's DOM subtree (and so inside the enclosing [role="dialog"]) — the capture-phase
             // listener walks up to that dialog to classify a backdrop press, which a portalled popup
-            // would escape. side="top" + avoidCollisions={false} reproduces the old bottom-full/left-0
-            // placement deterministically: the colour field is the last field in every form and the
+            // would escape. side="top" + avoidCollisions={false} keeps placement deterministic: the
+            // colour field is the last field in every form and the
             // Modal's overflow-y-auto would clip a downward popup, so the popup must ALWAYS open
             // upward — without avoidCollisions={false} Radix would flip it down when room is tight,
             // re-introducing exactly that clipping. forceMount-free: Radix only renders Content while
@@ -452,19 +435,17 @@ export function ColorField({
               align="start"
               sideOffset={4}
               avoidCollisions={false}
-              // CapacityLens's panel look (bg-elevated/ring-line/shadow-pop), NOT shadcn's bg-popover, so
-              // the swatch grid keeps its exact prior surface + the grid layout is unchanged. The
+              // The swatch grid uses the product's elevated panel tokens and fixed grid layout. The
               // capacitylens-pop motion matches CommandPalette/Modal (tw-animate-css isn't installed, so
               // shadcn's animate-in classes would be inert no-ops here).
               className="grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line animate-[capacitylens-pop_0.14s_ease-out]"
               style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
               // CapacityLens owns dismissal (the capture-phase mousedown + the Escape onKeyDown above), so
-              // neutralise every Radix dismiss path — one dismiss path, unchanged ordering.
+              // neutralise every Radix dismiss path so there is one dismissal owner.
               onInteractOutside={(e) => e.preventDefault()}
               onPointerDownOutside={(e) => e.preventDefault()}
               onEscapeKeyDown={(e) => e.preventDefault()}
-              // Don't let Radix's FocusScope move focus on open/close — the trigger keeps focus on
-              // open (matching the old hand-rolled popup, which never auto-focused the grid), so the
+              // Don't let Radix's FocusScope move focus on open/close. The trigger keeps focus, so the
               // "Escape while a swatch is focused" + outside-click tests behave exactly as before.
               onOpenAutoFocus={(e) => e.preventDefault()}
               onCloseAutoFocus={(e) => e.preventDefault()}

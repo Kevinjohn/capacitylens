@@ -10,6 +10,34 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.3] — 2026-07-21
+
+This patch release consolidates the browser UI on shadcn primitives and trims stale implementation
+history from source comments and architecture guidance. It does not change the portable export or
+SQLite schema versions.
+
+### Changed
+
+- Added shadcn Alert, Dialog, Empty and Switch primitives, then composed product callouts, empty
+  states, toggle fields and compatible modal behavior from them.
+- Replaced bespoke link-button styling with the shadcn Button composition API and clarified that
+  `components/ui` owns generic primitives while `components/common` owns product-specific behavior.
+- Updated access, persistence, tenancy, invitation and password-reset comments to describe their
+  current contracts without obsolete phase or ticket narratives.
+- Updated contributor guidance to keep implementation history in version control and reserve
+  source comments for current invariants, constraints and operationally necessary compatibility.
+
+### Removed
+
+- Removed the unused temporary-worker badge component and its tests, matching the standing product
+  decision not to display employment-type badges in the roster or schedule.
+
+### Verification
+
+- Passed the application and server gates, including 2,546 unit/integration tests, coverage,
+  type-checking, lint, production build and bundle budget.
+- Passed all 186 Playwright browser tests, including modal, empty-state and accessibility coverage.
+
 ## [0.25.0-alpha.2] — 2026-07-18
 
 This Alpha 2 minor release completes the provider-neutral account boundary, strict OIDC support and

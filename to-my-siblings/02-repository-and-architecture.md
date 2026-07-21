@@ -10,7 +10,7 @@ insufficient.
 | --- | --- | --- |
 | Web | React 19, TypeScript, Vite | Small SPA, fast iteration, familiar agent surface |
 | Styling | Tailwind CSS v4, semantic CSS variables | One design language across light/dark |
-| Components | Hand-owned common kit plus selected shadcn/Radix primitives | Accessible foundation without surrendering product semantics |
+| Components | shadcn/Radix primitives plus product-specific compositions | Accessible foundation with explicit product behavior |
 | State | Zustand | Small explicit store and easy external orchestration |
 | i18n | Paraglide | Typed message keys and deferred locale resolution |
 | Shared core | Pure TypeScript workspace | One domain authority for client and server |

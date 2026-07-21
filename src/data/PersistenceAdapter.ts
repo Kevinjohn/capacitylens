@@ -1,10 +1,8 @@
 import type { AppData } from '@capacitylens/shared/types/entities'
 
-// The seam that makes "local now, shared backend later" an adapter swap rather
-// than a rewrite. The async signature is deliberate: a fetch-based adapter must
-// drop in without touching any call site.
+// Persistence contract shared by the in-memory demo and server-backed application.
 export interface PersistenceAdapter {
-  /** Load the persisted dataset. `accountId` (P1.13, server adapter only) loads ONLY that account's
+  /** Load the persisted dataset. `accountId` (server adapter only) loads only that account's
    *  scoped slice and re-seeds the diff snapshot to it; OMITTED is the whole-tree read (OFF mode and
    *  the pre-pick bootstrap). The in-memory demo adapter ignores the argument. */
   loadAll(accountId?: string): Promise<AppData>

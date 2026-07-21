@@ -1,8 +1,5 @@
-// Icon adapter over lucide-react. Every glyph that used to be a hand-drawn inline
-// SVG (and before that a Unicode codepoint at the mercy of the system font) now maps
-// to a lucide component, drawn with currentColor at a consistent 16px box. The public
-// API — <Icon name=… size=… className=…/> — is unchanged, so no call site moved: the
-// `name` union and prop shape are identical to the old map. Icons are decorative
+// Product icon vocabulary backed by lucide-react. Icons use currentColor and a consistent
+// default size. They are decorative
 // (aria-hidden); icon-only buttons take their accessible name from the button's own
 // aria-label at the call site (e.g. the AppShell rail toggle), never from here.
 
@@ -55,7 +52,7 @@ export type IconName =
   | 'sliders'
   | 'shield-check'
   | 'panel-left'
-  // Read-only "View only" badge (P1.12 — a Viewer's sidebar footer).
+  // Read-only "View only" badge in the sidebar footer.
   | 'eye'
 
 const ICONS: Record<IconName, LucideIcon> = {

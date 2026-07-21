@@ -12,7 +12,8 @@ import { readApiError } from '../../lib/readApiError'
 import { useStore } from '../../store/useStore'
 import { authClient } from '../../auth/authClient'
 import { Button, FieldError } from '../common/ui'
-import { inputClass, linkButtonClass } from '../common/controls'
+import { inputClass } from '../common/controls'
+import { Button as ShadButton } from '../ui/button'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 import { validateText } from '../../lib/validation'
@@ -93,7 +94,7 @@ async function accountFailure(response: Response): Promise<{ code: string | null
 }
 
 /**
- * Invite-accept page for `/invite/:token` (P1.9).
+ * Invite-accept page for `/invite/:token`.
  *
  * In server mode it previews the invite, asks a signed-in person to accept explicitly, then renders
  * a "you've joined" success (with a continue link after switching to the joined company), the
@@ -469,9 +470,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             <>
               <p className="text-sm text-muted">{m.invite_review_prompt()}</p>
               <div className="flex flex-wrap justify-end gap-2">
-                <Link to="/" className={linkButtonClass}>
-                  {m.invite_go_to_app()}
-                </Link>
+                <ShadButton asChild size="sm">
+                  <Link to="/">{m.invite_go_to_app()}</Link>
+                </ShadButton>
                 <Button type="button" disabled={busy} onClick={() => void acceptInvite()}>
                   {m.invite_accept_action()}
                 </Button>
@@ -495,9 +496,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                   on the picker even when activation was about to succeed. */}
               {!state.activating && (
                 <div className="flex justify-end">
-                  <Link to="/" className={linkButtonClass}>
-                    {m.invite_continue()}
-                  </Link>
+                  <ShadButton asChild size="sm">
+                    <Link to="/">{m.invite_continue()}</Link>
+                  </ShadButton>
                 </div>
               )}
             </>
@@ -601,9 +602,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             <>
               <FieldError>{state.message}</FieldError>
               <div className="flex flex-wrap justify-end gap-2">
-                <Link to="/" className={linkButtonClass}>
-                  {m.invite_go_to_app()}
-                </Link>
+                <ShadButton asChild size="sm">
+                  <Link to="/">{m.invite_go_to_app()}</Link>
+                </ShadButton>
                 {state.retryAccept && preview && user && (
                   <Button type="button" disabled={busy} onClick={() => void acceptInvite()}>
                     Retry accept
@@ -616,9 +617,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             <>
               <p className="text-sm text-muted">{m.invite_local_mode({ app: APP_NAME })}</p>
               <div className="flex justify-end">
-                <Link to="/" className={linkButtonClass}>
-                  {m.invite_go_to_app()}
-                </Link>
+                <ShadButton asChild size="sm">
+                  <Link to="/">{m.invite_go_to_app()}</Link>
+                </ShadButton>
               </div>
             </>
           )}
