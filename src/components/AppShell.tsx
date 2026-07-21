@@ -58,7 +58,7 @@ export function AppShell() {
   const setSidebarOpen = useStore((s) => s.setSidebarOpen)
 
   const loader = (
-    <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
+    <div className="flex h-full items-center justify-center gap-2 text-sm text-muted-foreground" role="status">
       <Spinner role="presentation" aria-label={undefined} />
       {m.app_loading()}
     </div>

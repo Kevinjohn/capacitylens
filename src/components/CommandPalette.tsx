@@ -151,7 +151,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
           <div className="flex items-center gap-3 border-b px-4 py-3">
             {/* Magnifying glass icon */}
             <svg
-              className="h-4 w-4 shrink-0 text-faint"
+              className="size-4 shrink-0 text-faint"
               viewBox="0 0 16 16"
               fill="none"
               aria-hidden="true"
@@ -195,10 +195,10 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
                   >
                     <span className="flex-1 truncate">{item.label}</span>
                     {item.sublabel && (
-                      /* text-muted on the active brand-soft tint (text-faint fails AA at 4.08:1);
-                         text-muted clears 4.5:1 on brand-soft in both light and dark. */
+                      /* text-muted-foreground on the active brand-soft tint (text-faint fails AA at 4.08:1);
+                         text-muted-foreground clears 4.5:1 on brand-soft in both light and dark. */
                       <span
-                        className={cn('shrink-0 truncate text-xs', item.id === activeValue ? 'text-muted' : 'text-faint')}
+                        className={cn('shrink-0 truncate text-xs', item.id === activeValue ? 'text-muted-foreground' : 'text-faint')}
                       >
                         {item.sublabel}
                       </span>

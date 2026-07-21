@@ -4,8 +4,8 @@ import { useStore } from '../store/useStore'
 import { useActiveScopedData } from '../store/useScopedData'
 import { startTour } from '../lib/tour'
 import { deriveGettingStartedSteps, allStepsDone } from '../lib/gettingStarted'
-import { Button } from './common/ui'
-import { Icon } from './common/Icon'
+import { Check } from 'lucide-react'
+import { Button } from './ui/button'
 import { m } from '@/i18n'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card'
 
@@ -27,12 +27,12 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
   return (
     <li className="flex items-start gap-2 text-sm">
       {done ? (
-        <Icon name="check" className="mt-0.5 shrink-0 text-brand" />
+        <Check className="mt-0.5 shrink-0 text-brand" />
       ) : (
-        <span aria-hidden="true" className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border border-line" />
+        <span aria-hidden="true" className="mt-1 size-3.5 shrink-0 rounded-full border border-line" />
       )}
       {done ? (
-        <span className="text-muted line-through">
+        <span className="text-muted-foreground line-through">
           <span className="sr-only">{m.gs_step_done_sr()}</span>
           {label}
         </span>
@@ -43,7 +43,7 @@ function StepRow({ done, label, to, hint }: { done: boolean; label: string; to?:
       ) : (
         <span className="text-ink">
           {label}
-          {hint && <span className="block text-xs text-muted">{hint}</span>}
+          {hint && <span className="block text-xs text-muted-foreground">{hint}</span>}
         </span>
       )}
     </li>
@@ -97,15 +97,15 @@ function GettingStartedCard() {
             <Link to="/team" className="font-medium underline-offset-2 hover:text-brand hover:underline">
               {m.gs_invite_team()}
             </Link>{' '}
-            <span className="text-xs text-muted">{m.gs_invite_team_optional()}</span>
+            <span className="text-xs text-muted-foreground">{m.gs_invite_team_optional()}</span>
           </p>
         )}
       </CardContent>
       <CardFooter className="gap-2 px-4">
-        <Button onClick={() => void startTour()} testId="getting-started-tour">
+        <Button size="sm" onClick={() => void startTour()} data-testid="getting-started-tour">
           {m.gs_show_me_around()}
         </Button>
-        <Button variant="ghost" onClick={() => setDismissed(true)} testId="getting-started-dismiss">
+        <Button size="sm" variant="outline" onClick={() => setDismissed(true)} data-testid="getting-started-dismiss">
           {m.gs_dismiss()}
         </Button>
       </CardFooter>

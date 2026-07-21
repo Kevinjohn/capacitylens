@@ -504,5 +504,6 @@ describe('AllocationModal Enter key submission', () => {
     expect(onClose).not.toHaveBeenCalled()
     const activities = useStore.getState().data.activities
     expect(activities.some((t) => t.name === 'Brand new activity')).toBe(true)
+    expect(screen.getByRole('combobox', { name: 'Activity' })).toHaveTextContent('Brand new activity')
   })
 })

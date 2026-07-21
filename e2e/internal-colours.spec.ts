@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-SET-14: Internal work is neutral by default without discarding saved project colours.
 test('Internal work defaults grey and palette mode restores the project picker and colour', async ({ page }) => {
@@ -14,7 +14,7 @@ test('Internal work defaults grey and palette mode restores the project picker a
   await addDialog.getByRole('textbox', { name: 'Name', exact: true }).fill('Quarterly planning')
   // The picker starts visible while no client is selected, then hides as soon as Internal owns it.
   await expect(addDialog.getByRole('button', { name: /^Colour/ })).toBeVisible()
-  await addDialog.getByLabel('Client').selectOption({ label: 'Internal' })
+  await selectShadOption(addDialog.getByLabel('Client'), { label: 'Internal' })
   await expect(addDialog.getByRole('button', { name: /^Colour/ })).toHaveCount(0)
   await addDialog.getByRole('button', { name: 'Save' }).click()
 

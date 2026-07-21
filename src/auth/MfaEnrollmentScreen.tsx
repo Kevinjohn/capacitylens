@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { APP_NAME } from '@capacitylens/shared/brand'
-import { Button, FieldError } from '../components/common/ui'
+import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Checkbox } from '../components/ui/checkbox'
-import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from '../components/ui/field'
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from '../components/ui/field'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { authClient } from './authClient'
 
@@ -90,8 +90,8 @@ export function MfaEnrollmentScreen({ onEnrolled, onSignOut }: {
               </Field>
             <FieldError>{error}</FieldError>
             <div className="flex items-center justify-between">
-              <Button type="button" variant="ghost" onClick={onSignOut}>Sign out</Button>
-              <Button type="submit" disabled={busy}>Continue</Button>
+              <Button size="sm" type="button" variant="outline" onClick={onSignOut}>Sign out</Button>
+              <Button size="sm" type="submit" disabled={busy}>Continue</Button>
             </div>
             </FieldGroup>
           </form>
@@ -100,7 +100,7 @@ export function MfaEnrollmentScreen({ onEnrolled, onSignOut }: {
             <FieldGroup className="gap-4">
             <div>
               <h2 className="text-sm font-semibold text-ink">1. Add the authenticator entry</h2>
-              <p className="mt-1 text-xs text-muted">Open this URI in an authenticator app, or copy it into the app manually.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Open this URI in an authenticator app, or copy it into the app manually.</p>
               <a className="mt-2 block break-all rounded bg-canvas p-2 font-mono text-xs text-brand underline" href={setup.totpURI}>
                 {setup.totpURI}
               </a>
@@ -130,7 +130,7 @@ export function MfaEnrollmentScreen({ onEnrolled, onSignOut }: {
               />
             </Field>
             <FieldError>{error}</FieldError>
-            <Button type="submit" testId="mfa-enroll-submit" disabled={busy || !saved || code.length !== 6}>
+            <Button size="sm" type="submit" data-testid="mfa-enroll-submit" disabled={busy || !saved || code.length !== 6}>
               Enable MFA
             </Button>
             </FieldGroup>

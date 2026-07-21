@@ -228,9 +228,8 @@ test.describe('Command palette', () => {
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
     await expect(page.getByTestId('scheduler-empty')).not.toBeVisible()
 
-    // The project filter must be set to Project Lightning (value is its seeded id p-acme)
-    // and the stale search text must be gone
-    await expect(page.getByRole('combobox', { name: 'Filter by project' })).toHaveValue('p-acme')
+    // The project filter must show Project Lightning and the stale search text must be gone.
+    await expect(page.getByRole('combobox', { name: 'Filter by project' })).toHaveText('Project Lightning')
     await expect(page.getByPlaceholder('Search people…')).toHaveValue('')
   })
 

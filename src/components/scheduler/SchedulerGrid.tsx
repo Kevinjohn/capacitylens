@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ChevronDown, ChevronRight, Plus, SlidersHorizontal, Users } from 'lucide-react'
 import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
@@ -9,7 +10,6 @@ import { addDaysISO, todayISO } from '@capacitylens/shared/lib/dateMath'
 import { UTILIZATION_WINDOW_DAYS } from '../../lib/schedulerConfig'
 import { Avatar, EmptyState } from '../common/ui'
 import { resourceDisplayName } from '../../lib/metadata'
-import { Icon } from '../common/Icon'
 import { LAYOUT } from './layout'
 import { DateHeader } from './DateHeader'
 import { ResourceLane } from './ResourceLane'
@@ -258,12 +258,11 @@ export function SchedulerGrid() {
           aria-expanded={!ui.collapsedGroups.includes(group.key)}
           className="h-full w-full justify-start rounded-none px-3 text-xs font-semibold uppercase tracking-wide"
         >
-          <Icon
-            name={ui.collapsedGroups.includes(group.key) ? 'chevron-right' : 'chevron-down'}
-            className="text-faint"
-          />
+          {ui.collapsedGroups.includes(group.key)
+            ? <ChevronRight data-icon="inline-start" className="text-faint" />
+            : <ChevronDown data-icon="inline-start" className="text-faint" />}
           <span
-            className="inline-block h-2.5 w-2.5 rounded-full ring-1 ring-inset ring-black/10"
+            className="inline-block size-2.5 rounded-full ring-1 ring-inset ring-black/10"
             style={{ backgroundColor: group.color ?? 'var(--color-faint)' }}
           />
           <span className="truncate text-ink">{group.title}</span>
@@ -361,7 +360,7 @@ export function SchedulerGrid() {
                     slot — with its role/discipline shown as secondary text below. */}
                 {resourceDisplayName(resource)}
               </span>
-              <span className="block truncate text-xs text-muted">{resource.role}</span>
+              <span className="block truncate text-xs text-muted-foreground">{resource.role}</span>
             </div>
           </div>
           {/* Right column: the add button and (optionally) the allocation %, stacked.
@@ -383,9 +382,9 @@ export function SchedulerGrid() {
               }}
               aria-label={m.scheduler_add_allocation_for({ name: resourceDisplayName(resource) })}
               title={m.scheduler_add_allocation()}
-              className="h-auto w-11 flex-1 rounded-none text-muted"
+              className="h-auto w-11 flex-1 rounded-none text-muted-foreground"
             >
-              <Icon name="plus" />
+              <Plus />
             </Button>
             )}
             {utilizationPrefs.showPersonal && isCapacityTracked(resource) && (
@@ -528,7 +527,7 @@ export function SchedulerGrid() {
                 // is also the keyboard-focusable element that keeps the (scrollable) grid axe-clean when
                 // empty — without a focusable child, axe flags scrollable-region-focusable.
                 <EmptyState
-                  icon="sliders"
+                  icon={SlidersHorizontal}
                   description={m.scheduler_empty_filtered_desc()}
                   action={{ label: m.scheduler_empty_clear_filters(), onClick: () => clearFilters() }}
                 >
@@ -536,7 +535,7 @@ export function SchedulerGrid() {
                 </EmptyState>
               ) : (
                 <EmptyState
-                  icon="people"
+                  icon={Users}
                   description={m.scheduler_empty_desc()}
                   action={{ label: m.scheduler_empty_go_resources(), onClick: () => void navigate('/resources') }}
                 >

@@ -7,8 +7,6 @@ import { errorMessage } from '../../lib/errorMessage'
 import { validateText, validateWorkingDays } from '../../lib/validation'
 import { m } from '@/i18n'
 import {
-  Button,
-  FieldError,
   Modal,
   NumberField,
   RequiredLegend,
@@ -17,6 +15,8 @@ import {
   WeekdayPicker,
   type Option,
 } from '../common/ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { employmentTypeOptions } from '../../lib/metadata'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { MAX_HOURS_PER_DAY, type EmploymentType, type Resource, type ResourceKind, type Weekday } from '@capacitylens/shared/types/entities'
@@ -146,10 +146,10 @@ export function ResourceForm({ resource, kind: kindProp, onClose }: { resource?:
       onSubmit={submit}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">{m.form_save()}</Button>
         </>
       }
     >

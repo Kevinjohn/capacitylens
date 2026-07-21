@@ -12,7 +12,9 @@ test.describe('Clients', () => {
 
     // Available as a client filter on the schedule.
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await expect(page.getByLabel('Filter by client').getByRole('option', { name: 'Initech' })).toBeAttached()
+    await page.getByLabel('Filter by client').click()
+    await expect(page.getByRole('option', { name: 'Initech' })).toBeVisible()
+    await page.keyboard.press('Escape')
   })
 
   test('an owner can add a private client with a code name', async ({ page }) => {
@@ -59,7 +61,8 @@ test.describe('Clients', () => {
     // Project labels use "Client / Project".
     await page.getByRole('link', { name: 'Activities' }).click()
     await page.getByRole('button', { name: 'Add activity' }).click()
-    await expect(page.getByLabel('Project').getByRole('option', { name: /Acme Worldwide \/ Project Lightning/ })).toBeAttached()
+    await page.getByLabel('Project').click()
+    await expect(page.getByRole('option', { name: /Acme Worldwide \/ Project Lightning/ })).toBeVisible()
   })
 
   // P2.5b: the per-row destructive action ARCHIVES (hidden from the active list, fully retained — NOT
@@ -68,7 +71,7 @@ test.describe('Clients', () => {
   test('archiving a client hides it from the list, restorable with undo', async ({ page }) => {
     await openApp(page, 'Studio North', '/clients')
     await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Archive Acme Inc.' }).click()
-    await page.getByRole('dialog', { name: 'Archive client?' }).getByRole('button', { name: 'Archive', exact: true }).click()
+    await page.getByRole('alertdialog', { name: 'Archive client?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' })).toHaveCount(0)
 
     // Undo restores the archived client to the active list.

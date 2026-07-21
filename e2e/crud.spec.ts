@@ -53,7 +53,7 @@ test.describe('CRUD + demo lifecycle', () => {
 
     // Importing the file restores it — confirm the replace in the dialog first.
     await page.getByTestId('import-input').setInputFiles(file)
-    await expect(page.getByRole('dialog', { name: 'Import data?' })).toBeVisible()
+    await expect(page.getByRole('alertdialog', { name: 'Import data?' })).toBeVisible()
     await page.getByRole('button', { name: 'Replace data' }).click()
     await page.getByRole('link', { name: 'Clients' }).click()
     await expect(page.getByText('RoundTrip Co')).toBeVisible()

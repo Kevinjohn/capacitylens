@@ -53,6 +53,20 @@ export async function disableCssMotion(page: Page): Promise<void> {
   }))
 }
 
+/** Choose an option through a ShadCN Select's visible listbox, by stored value or visible label. */
+export async function selectShadOption(
+  trigger: Locator,
+  option: string | { label: string },
+): Promise<void> {
+  await trigger.click()
+  const content = trigger.page().locator('[data-slot="select-content"][data-state="open"]')
+  if (typeof option === 'string') {
+    await content.locator(`[role="option"][data-value="${option}"]`).click()
+  } else {
+    await content.getByRole('option', { name: option.label, exact: true }).click()
+  }
+}
+
 // KNOWN HARNESS GAP (deliberate, low priority): the suite has no global `page.on('pageerror')` /
 // `console.error` gate, so a route that throws but still renders the element a spec asserts on could
 // pass silently. Most specs assert specific post-navigation content and Vite forwards browser

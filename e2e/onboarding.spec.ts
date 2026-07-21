@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openNewCompanyForm, createCompany } from './helpers'
+import { openNewCompanyForm, createCompany, selectShadOption } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -18,14 +18,16 @@ test.describe('onboarding: capture-then-freeze language / week-start / time zone
     // The three frozen-after-creation fields are present with concrete defaults.
     await expect(page.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
     const tz = page.getByLabel('Timezone')
-    await expect(tz).toHaveValue('Etc/GMT')
-    await expect(tz.locator('option[value="Etc/GMT"]')).toHaveText('GMT (UTC+00:00)')
-    await expect(tz.locator('option[value="Europe/London"]')).toHaveText('Europe/London (UTC+01:00)')
+    await expect(tz).toHaveText('GMT (UTC+00:00)')
+    await tz.click()
+    await expect(page.getByRole('option', { name: 'GMT (UTC+00:00)' })).toBeVisible()
+    await expect(page.getByRole('option', { name: 'Europe/London (UTC+01:00)' })).toBeVisible()
+    await page.keyboard.press('Escape')
     await expect(page.getByTestId('create-language')).toHaveText('English')
 
     // Capture a non-default week-start and time zone, then create.
     await page.getByRole('radio', { name: 'Sunday' }).click()
-    await tz.selectOption('Europe/London')
+    await selectShadOption(tz, 'Europe/London')
     await createCompany(page, 'Onboarded Co')
 
     // Navigate to Settings via the in-app nav (a full reload would drop the never-persisted
@@ -35,7 +37,7 @@ test.describe('onboarding: capture-then-freeze language / week-start / time zone
     await expect(page.getByRole('radio', { name: 'Sunday' })).toBeDisabled()
     await expect(page.getByRole('radio', { name: 'Monday' })).toBeDisabled()
     await expect(page.getByLabel('Timezone')).toBeDisabled()
-    await expect(page.getByLabel('Timezone')).toHaveValue('Europe/London')
+    await expect(page.getByLabel('Timezone')).toHaveText('Europe/London (UTC+01:00)')
     await expect(page.getByTestId('settings-language')).toHaveText('English')
     await expect(page.getByText(/Set when the company was created and can't be changed/i)).toBeVisible()
   })

@@ -6,7 +6,7 @@ import {
   signUpUser as signUp,
   signUpUserWithId,
 } from './auth-helpers'
-import { dismissIntroIfPresent } from './helpers'
+import { dismissIntroIfPresent, selectShadOption } from './helpers'
 
 test.use({ reducedMotion: 'reduce' })
 
@@ -132,10 +132,10 @@ test.describe('member management (SMALLSASS_ACCOUNT_MODE=password)', () => {
 
     // B changes C from editor → viewer through the UI (C's row has a role select).
     const editorRow = rows.filter({ hasText: EDITOR })
-    await editorRow.getByTestId('member-role-select').locator('select').selectOption('viewer')
-    await expect(page.getByRole('dialog')).toContainText('will become Viewer')
-    await expect(page.getByRole('dialog')).toContainText('Read-only schedule access')
-    await page.getByRole('dialog').getByRole('button', { name: 'Change role' }).click()
+    await selectShadOption(editorRow.getByTestId('member-role-select').getByRole('combobox'), 'viewer')
+    await expect(page.getByRole('alertdialog')).toContainText('will become Viewer')
+    await expect(page.getByRole('alertdialog')).toContainText('Read-only schedule access')
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Change role' }).click()
     // The server confirms the change.
     await expect
       .poll(async () => {
@@ -148,7 +148,7 @@ test.describe('member management (SMALLSASS_ACCOUNT_MODE=password)', () => {
       .toBe('viewer')
 
     // B mints a viewer invite via the form; the link appears ONCE.
-    await page.getByTestId('invite-role').selectOption('viewer')
+    await selectShadOption(page.getByTestId('invite-role'), 'viewer')
     await page.getByTestId('invite-submit').click()
     await expect(page.getByTestId('invite-link')).toContainText('/invite/')
     const mintedInviteLink = await page.getByTestId('invite-link').textContent()
@@ -156,8 +156,8 @@ test.describe('member management (SMALLSASS_ACCOUNT_MODE=password)', () => {
     // Changing somebody else's role re-reads the directory but does not invalidate the caller's
     // membership projection or unmount this write-once link. The bearer must remain copyable until
     // the admin deliberately leaves the page.
-    await editorRow.getByTestId('member-role-select').locator('select').selectOption('editor')
-    await page.getByRole('dialog').getByRole('button', { name: 'Change role' }).click()
+    await selectShadOption(editorRow.getByTestId('member-role-select').getByRole('combobox'), 'editor')
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Change role' }).click()
     await expect(page.getByTestId('invite-link')).toHaveText(mintedInviteLink ?? '')
 
     // The new invite shows in the outstanding list (newest first); B revokes it. The earlier admin +
@@ -186,7 +186,7 @@ test.describe('member management (SMALLSASS_ACCOUNT_MODE=password)', () => {
 
     const ownerTarget = ownerPage.getByTestId('member-row').filter({ hasText: EDITOR })
     await ownerTarget.getByTestId('member-make-owner').click()
-    await ownerPage.getByRole('dialog').getByRole('button', { name: 'Transfer ownership' }).click()
+    await ownerPage.getByRole('alertdialog').getByRole('button', { name: 'Transfer ownership' }).click()
 
     await expect(ownerPage.getByTestId('current-access')).toContainText('Admin')
     await expect(ownerPage.getByTestId('active-role')).toContainText('Admin')

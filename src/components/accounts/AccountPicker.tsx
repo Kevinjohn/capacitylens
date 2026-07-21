@@ -13,7 +13,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
 import { validateName } from '../../lib/validation'
-import { AddButton, Avatar, Button, DeleteButton, FieldError, SegmentedControl, SelectField, TextField } from '../common/ui'
+import { AddButton, Avatar, DeleteButton, SegmentedControl, SelectField, TextField } from '../common/ui'
 import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
@@ -21,8 +21,9 @@ import type { AccountSummary } from '../../store/useStore'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 import { useOfflineState } from '../../data/useOfflineState'
-import { Button as ShadButton } from '../ui/button'
+import { Button } from '../ui/button'
 import { Alert, AlertDescription } from '../ui/alert'
+import { FieldError } from '../ui/field'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../ui/card'
 import { Item, ItemGroup } from '../ui/item'
 
@@ -311,26 +312,26 @@ export function AccountPicker() {
       <div className="w-full max-w-md">
         {demoAuthActive && (
           <div className="mb-4 flex items-center justify-between gap-2 text-sm">
-            <span className="truncate text-muted">
+            <span className="truncate text-muted-foreground">
               {m.picker_signed_in_as()}<span className="font-medium text-ink">{FAKE_USER.name}</span>
             </span>
-            <ShadButton
+            <Button
               variant="link"
               onClick={signOutDemo}
-              className="h-auto shrink-0 p-0 text-muted"
+              className="h-auto shrink-0 p-0 text-muted-foreground"
             >
               {m.picker_sign_out()}
-            </ShadButton>
+            </Button>
           </div>
         )}
         {previous && (
-          <ShadButton
+          <Button
             variant="link"
             onClick={() => setActiveAccount(previous.id)}
-            className="mb-4 h-auto p-0 text-sm text-muted"
+            className="mb-4 h-auto p-0 text-sm text-muted-foreground"
           >
             {m.picker_back({ name: previous.name })}
-          </ShadButton>
+          </Button>
         )}
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
@@ -339,7 +340,7 @@ export function AccountPicker() {
           </h1>
           {/* At the single-company cap the create affordance is hidden (see below), so the
               subtitle must not promise "or create a new one" — that copy would point at nothing. */}
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {accounts.length === 0
               ? canCreateAccount
                 ? m.picker_empty_subtitle()
@@ -376,7 +377,7 @@ export function AccountPicker() {
               })
               return (
               <Item key={a.id} role="listitem" className="gap-2 p-0">
-                <ShadButton
+                <Button
                   variant="outline"
                   aria-label={a.name}
                   aria-describedby={roleDescriptionId}
@@ -389,11 +390,11 @@ export function AccountPicker() {
                   <Avatar name={a.name} color={DEFAULT_COLORS.account} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{a.name}</span>
-                    <Badge id={roleDescriptionId} data-testid="company-role" variant="outline" className="mt-1 text-2xs text-muted">
+                    <Badge id={roleDescriptionId} data-testid="company-role" variant="outline" className="mt-1 text-2xs text-muted-foreground">
                       {accessLabel}
                     </Badge>
                   </span>
-                </ShadButton>
+                </Button>
                 {/* Company deletion is owner-only server-side, so every non-owner summary gets no
                     Delete affordance at all — offering one would let them type-to-confirm an
                     irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
@@ -443,15 +444,15 @@ export function AccountPicker() {
             <div>
               {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}
               <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_language()}</p>
-              <p className="text-sm text-muted" data-testid="create-language">{m.picker_language_english()}</p>
+              <p className="text-sm text-muted-foreground" data-testid="create-language">{m.picker_language_english()}</p>
             </div>
             <FieldError id={errorId}>{error}</FieldError>
             </CardContent>
             <CardFooter className="justify-end">
-              <Button variant="ghost" onClick={resetForm}>
+              <Button size="sm" type="button" variant="outline" onClick={resetForm}>
                 {m.picker_cancel()}
               </Button>
-              <Button type="submit" disabled={submitting}>{m.picker_create()}</Button>
+              <Button size="sm" type="submit" disabled={submitting}>{m.picker_create()}</Button>
             </CardFooter>
           </Card>
           </form>

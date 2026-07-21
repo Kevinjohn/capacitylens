@@ -4,7 +4,9 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateText } from '../../lib/validation'
 import { m } from '@/i18n'
-import { Button, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
+import { Modal, RequiredLegend, TextField } from '../common/ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { NEUTRAL_COLOR } from '../../lib/palette'
 import { externalCapacityDefaults } from '@capacitylens/shared/types/entities'
 import type { Resource } from '@capacitylens/shared/types/entities'
@@ -58,10 +60,10 @@ export function ExternalForm({ resource, onClose }: { resource?: Resource; onClo
       onSubmit={submit}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">{m.form_save()}</Button>
         </>
       }
     >

@@ -10,6 +10,29 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.8] — 2026-07-21
+
+This patch release completes the shadcn consolidation by removing overlapping UI abstractions and
+aligning form, feedback and scheduler controls on shared primitives. It does not change the portable
+export or SQLite database schema versions.
+
+### Changed
+
+- Unified shadcn primitives and CapacityLens UI compositions on one semantic colour system and
+  removed the parallel generic Button, feedback and string-icon APIs.
+- Simplified the colour picker around the standard shadcn Popover lifecycle and reused the shared
+  segmented-control composition in the scheduler toolbar.
+- Updated browser coverage to exercise Radix select, toggle-group, alert-dialog and portalled
+  popover behaviour through their accessible semantics.
+
+### Fixed
+
+- Restored visible invalid states for text inputs and text areas, and ensured Select-only edits
+  activate the unsaved-form guard.
+- Made empty-state edit permissions explicit instead of inferring them from presentation icons.
+- Preserved inline activity creation and selection inside allocation forms after adopting the
+  controlled shadcn Select lifecycle.
+
 ## [0.25.0-alpha.7] — 2026-07-21
 
 This patch release standardises the application navigation on the shadcn Sidebar while preserving

@@ -39,7 +39,7 @@ test.describe('Data import/export', () => {
     await openApp(page)
     await importFile(page, 'incoming.json', NONEMPTY_CAPACITYLENS)
 
-    const dialog = page.getByRole('dialog', { name: 'Import data?' })
+    const dialog = page.getByRole('alertdialog', { name: 'Import data?' })
     await expect(dialog).toBeVisible()
     await expect(dialog).toContainText(/replaces this company’s data/i)
     await dialog.getByRole('button', { name: 'Cancel' }).click()
@@ -52,7 +52,7 @@ test.describe('Data import/export', () => {
     await openApp(page)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
     await importFile(page, 'incoming.json', NONEMPTY_CAPACITYLENS)
-    await page.getByRole('dialog', { name: 'Import data?' }).getByRole('button', { name: 'Replace data' }).click()
+    await page.getByRole('alertdialog', { name: 'Import data?' }).getByRole('button', { name: 'Replace data' }).click()
 
     // Replaced → the imported resource shows and the seeded data is gone.
     await expect(page.getByText('Imported Person')).toBeVisible()
@@ -82,7 +82,7 @@ test.describe('Data import/export', () => {
     // empty file → would silently wipe the account), and the seeded data is preserved. The notice
     // is a Sonner error toast now; assert on its message text (Sonner-DOM-agnostic).
     await expect(page.getByText(/no CapacityLens records/i)).toBeVisible()
-    await expect(page.getByRole('dialog', { name: 'Import data?' })).toHaveCount(0)
+    await expect(page.getByRole('alertdialog', { name: 'Import data?' })).toHaveCount(0)
     await expect(page.getByText('Tyler Nix')).toBeVisible()
   })
 })

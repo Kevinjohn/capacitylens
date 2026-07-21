@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Button, FieldError, Modal } from '../components/common/ui'
+import { Modal } from '../components/common/ui'
+import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-import { Field, FieldLabel } from '../components/ui/field'
+import { Field, FieldError, FieldLabel } from '../components/ui/field'
 import { authClient } from './authClient'
 import { m } from '@/i18n'
 import type { AuthProviderInfo, AuthUser } from './authContext'
@@ -131,19 +132,19 @@ export function ReauthDialog({
         onClose={cancel}
         guardDirty={false}
         footer={
-          <Button variant="ghost" onClick={cancel}>
+          <Button size="sm" type="button" variant="outline" onClick={cancel}>
             {m.form_cancel()}
           </Button>
         }
       >
-        <p className="text-sm text-muted">{m.reauth_body_sso()}</p>
+        <p className="text-sm text-muted-foreground">{m.reauth_body_sso()}</p>
         <FieldError>{error}</FieldError>
         {providers.length > 0 ? (
           <div className="flex flex-col gap-2">
             {providers.map((provider) => (
-              <Button
+              <Button size="sm"
                 key={`${provider.kind}:${provider.id}`}
-                variant="ghost"
+                variant="outline"
                 onClick={() => void reauthWithProvider(provider)}
                 disabled={busy}
               >
@@ -168,16 +169,16 @@ export function ReauthDialog({
         guardDirty={false}
         footer={
           <>
-            <Button variant="ghost" onClick={cancel}>
+            <Button size="sm" type="button" variant="outline" onClick={cancel}>
               {m.form_cancel()}
             </Button>
-            <Button type="submit" testId="reauth-2fa-submit" disabled={busy || code.length === 0}>
+            <Button size="sm" type="submit" data-testid="reauth-2fa-submit" disabled={busy || code.length === 0}>
               {m.reauth_2fa_submit()}
             </Button>
           </>
         }
       >
-        <p className="text-sm text-muted">{m.reauth_2fa_body()}</p>
+        <p className="text-sm text-muted-foreground">{m.reauth_2fa_body()}</p>
         <Field>
           <FieldLabel htmlFor="reauth-2fa-code">{m.reauth_2fa_label()}</FieldLabel>
           <Input
@@ -205,16 +206,16 @@ export function ReauthDialog({
       guardDirty={false}
       footer={
         <>
-          <Button variant="ghost" onClick={cancel}>
+          <Button size="sm" type="button" variant="outline" onClick={cancel}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit" testId="reauth-submit" disabled={busy}>
+          <Button size="sm" type="submit" data-testid="reauth-submit" disabled={busy}>
             {m.reauth_submit()}
           </Button>
         </>
       }
     >
-      <p className="text-sm text-muted">{m.reauth_body()}</p>
+      <p className="text-sm text-muted-foreground">{m.reauth_body()}</p>
       <Field>
         <FieldLabel htmlFor="reauth-password">{m.login_password()}</FieldLabel>
         <Input

@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react'
+import { flushSync } from 'react-dom'
 import { format } from 'date-fns'
 import { useStore } from '../../store/useStore'
 import { useActiveScopedData } from '../../store/useScopedData'
@@ -9,12 +10,9 @@ import { validateAllocationAssignment } from '@capacitylens/shared/lib/integrity
 import { validateText } from '../../lib/validation'
 import { m } from '@/i18n'
 import { MAX_NAME_LENGTH } from '@capacitylens/shared/lib/strings'
+import { Plus } from 'lucide-react'
 import {
-  AddButton,
-  Button,
-  Callout,
   DateField,
-  FieldError,
   Modal,
   NumberField,
   RequiredLegend,
@@ -22,6 +20,9 @@ import {
   TextAreaField,
   type Option,
 } from '../common/ui'
+import { Alert, AlertDescription } from '../ui/alert'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { capacityAdvisory } from '../../lib/capacity'
 import { allocationStatusOptions, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource, MAX_HOURS_PER_DAY } from '@capacitylens/shared/types/entities'
@@ -97,6 +98,7 @@ export function AllocationModal(props: AllocationModalProps) {
     editing ? roundDays(daysOfWorkFor(editing.hoursPerDay, initialDaysOver, initialWhpd)) : initialDaysOver,
   )
   const [newActivityName, setNewActivityName] = useState('')
+  const [inlineActivityOption, setInlineActivityOption] = useState<(Option & { projectId?: string }) | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [errorField, setErrorField] = useState<string | null>(null)
   const errorId = useId()
@@ -179,7 +181,13 @@ export function AllocationModal(props: AllocationModalProps) {
   const activityOptions: Option[] = data.activities
     .filter((t) => (projectId ? t.projectId === projectId : !t.projectId))
     .map((t) => ({ value: t.id, label: t.name }))
-
+  if (
+    inlineActivityOption &&
+    inlineActivityOption.projectId === (projectId || undefined) &&
+    !activityOptions.some((option) => option.value === inlineActivityOption.value)
+  ) {
+    activityOptions.push(inlineActivityOption)
+  }
   const onAssigneeChange = (v: string) => {
     setResourceId(v)
     const r = data.resources.find((x) => x.id === v)
@@ -205,6 +213,10 @@ export function AllocationModal(props: AllocationModalProps) {
       const activity = projectId
         ? addActivity({ name: cleanActivityName, kind: 'project', projectId })
         : addActivity({ name: cleanActivityName, kind: 'repeatable' })
+      // Radix must register a newly inserted item before its controlled value can select it.
+      flushSync(() => {
+        setInlineActivityOption({ value: activity.id, label: activity.name, projectId: activity.projectId })
+      })
       setActivityId(activity.id)
       setNewActivityName('')
     } catch (error) {
@@ -376,26 +388,26 @@ export function AllocationModal(props: AllocationModalProps) {
         <>
           {editing && (
             <>
-              <Button variant="danger" onClick={() => { deleteAllocation(editing.id); onClose() }}>
+              <Button size="sm" type="button" variant="danger-soft" onClick={() => { deleteAllocation(editing.id); onClose() }}>
                 {m.form_delete()}
               </Button>
-              <Button variant="ghost" onClick={onDuplicate}>
+              <Button size="sm" type="button" variant="outline" onClick={onDuplicate}>
                 {m.form_allocation_duplicate()}
               </Button>
             </>
           )}
           <span className="flex-1" />
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">{m.form_save()}</Button>
         </>
       }
     >
       {!create && (
         <SelectField label={m.form_allocation_assignee_label()} value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder={m.form_allocation_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
       )}
-      {isPlaceholder && <p className="text-xs text-muted">{m.form_allocation_placeholder_locked()}</p>}
+      {isPlaceholder && <p className="text-xs text-muted-foreground">{m.form_allocation_placeholder_locked()}</p>}
 
       <SelectField
         label={m.form_allocation_project_label()}
@@ -414,7 +426,10 @@ export function AllocationModal(props: AllocationModalProps) {
           onChange={(e) => setNewActivityName(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); onAddActivity() } }}
         />
-        <AddButton label={m.form_allocation_add_activity()} variant="ghost" onClick={onAddActivity} />
+        <Button size="sm" type="button" variant="outline" onClick={onAddActivity}>
+          <Plus data-icon="inline-start" />
+          {m.form_allocation_add_activity()}
+        </Button>
       </Field>
 
       {isExternal ? (
@@ -437,7 +452,7 @@ export function AllocationModal(props: AllocationModalProps) {
             </div>
           </div>
           {startDate && endDateHint && (
-            <p className="text-xs text-muted">{m.form_allocation_ends_hint({ date: endDateHint })}</p>
+            <p className="text-xs text-muted-foreground">{m.form_allocation_ends_hint({ date: endDateHint })}</p>
           )}
         </>
       ) : isDays ? (
@@ -454,7 +469,7 @@ export function AllocationModal(props: AllocationModalProps) {
             </div>
           </div>
           {startDate && endDateHint && (
-            <p className="text-xs text-muted">{m.form_allocation_ends_hint_hours({ date: endDateHint, hours: round2(effHoursPerDay) })}</p>
+            <p className="text-xs text-muted-foreground">{m.form_allocation_ends_hint_hours({ date: endDateHint, hours: round2(effHoursPerDay) })}</p>
           )}
         </>
       ) : (
@@ -487,7 +502,11 @@ export function AllocationModal(props: AllocationModalProps) {
         </Field>
       )}
 
-      {advisory && <Callout>{m.form_allocation_advisory({ advisory })}</Callout>}
+      {advisory && (
+        <Alert variant="warn" role="status">
+          <AlertDescription>{m.form_allocation_advisory({ advisory })}</AlertDescription>
+        </Alert>
+      )}
       <FieldError id={errorId}>{error}</FieldError>
       <RequiredLegend />
     </Modal>

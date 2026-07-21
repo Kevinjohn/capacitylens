@@ -1,12 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-ALL-01..08. The allocation editor (modal) opened from the row "+" or by
 // clicking a bar. Seed bars live in June 2026 and are visible at 4w with scroll reset.
 test.describe('Allocation editor', () => {
   test.beforeEach(async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
   })
 
@@ -18,8 +18,8 @@ test.describe('Allocation editor', () => {
     // Assignee select — the dialog title names them instead.
     await expect(dialog.getByRole('heading')).toContainText('Nike Spiros')
     await expect(dialog.getByLabel('Assignee')).toHaveCount(0)
-    await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await dialog.getByLabel('Activity', { exact: true }).selectOption('t-wires')
+    await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme')
+    await selectShadOption(dialog.getByRole('combobox', { name: 'Activity', exact: true }), 't-wires')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1)
   })
@@ -51,17 +51,17 @@ test.describe('Allocation editor', () => {
   test('adds a new activity inline and uses it for the allocation', async ({ page }) => {
     await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
-    await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
+    await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme')
     await dialog.getByLabel('New activity name').fill('Inline Activity')
     await dialog.getByRole('button', { name: 'Add activity' }).click()
-    await expect(dialog.getByLabel('Activity', { exact: true })).toHaveValue(/.+/) // a real activity id is now selected
+    await expect(dialog.getByRole('combobox', { name: 'Activity', exact: true })).toHaveText('Inline Activity')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Inline Activity' })).toBeVisible()
   })
 
   test('reassigns an allocation to another resource via the dialog', async ({ page }) => {
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
-    await page.getByRole('dialog', { name: 'Edit allocation' }).getByLabel('Assignee').selectOption('r-nike')
+    await selectShadOption(page.getByRole('dialog', { name: 'Edit allocation' }).getByLabel('Assignee'), 'r-nike')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.locator('[data-resource-id="r-nike"]').getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
   })
@@ -72,27 +72,28 @@ test.describe('Allocation editor', () => {
     await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByRole('switch', { name: 'Show placeholders' }).click()
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     // Open create mode from the placeholder's OWN row (in create mode the assignee is fixed to the
     // clicked row). The seeded "Senior Designer" slot shows as "Placeholder" and is bound to p-acme.
     await page.getByRole('button', { name: 'Add allocation for Placeholder' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
     const project = dialog.getByLabel('Project', { exact: true })
-    await expect(project).toHaveValue('p-acme') // bound project preselected
+    await expect(project).toHaveText(/Project Lightning/) // bound project preselected
     // "Locked" = restricted to the bound project + the project-less option, but the select
     // stays ENABLED so a placeholder can still take project-less (internal/cross-project) activities. A
     // non-bound project ("Brand Themes") is not offered.
     await expect(project).toBeEnabled()
-    await expect(project.getByRole('option', { name: 'No project (internal / cross-project)' })).toBeAttached()
-    await expect(project.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
+    await project.click()
+    await expect(page.getByRole('option', { name: 'No project (internal / cross-project)' })).toBeVisible()
+    await expect(page.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
   })
 
   test('rejects empty dates and zero hours with a field-associated error', async ({ page }) => {
     await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
     const dialog = page.getByRole('dialog', { name: 'New allocation' })
-    await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await dialog.getByLabel('Activity', { exact: true }).selectOption('t-wires')
+    await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme')
+    await selectShadOption(dialog.getByRole('combobox', { name: 'Activity', exact: true }), 't-wires')
 
     await dialog.getByLabel('Start').fill('')
     await page.getByRole('button', { name: 'Save' }).click()

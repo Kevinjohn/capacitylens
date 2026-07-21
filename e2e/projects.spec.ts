@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-PRJ-01..04.
 test.describe('Projects', () => {
@@ -10,7 +10,7 @@ test.describe('Projects', () => {
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('alert')).toContainText(/must belong to a client/i)
 
-    await page.getByLabel('Client').selectOption({ label: 'Acme Inc.' })
+    await selectShadOption(page.getByLabel('Client'), { label: 'Acme Inc.' })
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByTestId('project-row').filter({ hasText: 'Apollo' })).toBeVisible()
   })
@@ -28,7 +28,7 @@ test.describe('Projects', () => {
   test('archiving a project hides it from the list, restorable with undo', async ({ page }) => {
     await openApp(page, 'Studio North', '/projects')
     await page.getByTestId('project-row').filter({ hasText: 'Project Lightning' }).getByRole('button', { name: 'Archive Project Lightning' }).click()
-    await page.getByRole('dialog', { name: 'Archive project?' }).getByRole('button', { name: 'Archive', exact: true }).click()
+    await page.getByRole('alertdialog', { name: 'Archive project?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('project-row').filter({ hasText: 'Project Lightning' })).toHaveCount(0)
 
     // Undo restores the archived project to the active list.

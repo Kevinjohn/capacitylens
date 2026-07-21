@@ -1,4 +1,4 @@
-import { Button } from './common/ui'
+import { Button } from './ui/button'
 import {
   introContinueLabel,
   introHeading,
@@ -33,20 +33,20 @@ export function IntroPage({ onContinue }: { onContinue: () => void }) {
             <CardTitle><h1>{introHeading()}</h1></CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {para1.before}
             <strong className="font-semibold text-ink">{para1.strong}</strong>
             {para1.after}
           </p>
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             {para2.before}
             <strong className="font-semibold text-ink">{para2.strong}</strong>
             {para2.after}
           </p>
-          <p className="text-sm text-muted">{introPara3()}</p>
+          <p className="text-sm text-muted-foreground">{introPara3()}</p>
           </CardContent>
           <CardFooter className="justify-end">
-            <Button onClick={onContinue} testId="intro-continue">
+            <Button size="sm" onClick={onContinue} data-testid="intro-continue">
               {introContinueLabel()}
             </Button>
           </CardFooter>

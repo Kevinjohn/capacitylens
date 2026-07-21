@@ -6,6 +6,7 @@ import { ActivityForm } from './ActivityForm'
 import type { Activity } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
 import { Fragment } from 'react'
+import { ClipboardCheck, Plus } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 export function ActivityList() {
@@ -37,7 +38,7 @@ export function ActivityList() {
       <ItemContent>
         <span className="font-medium">{activity.name}</span>
         {showLabel && (
-          <span className="text-sm text-muted">
+          <span className="text-sm text-muted-foreground">
             {' '}
             · {projectLabel(activity.projectId)}
           </span>
@@ -59,13 +60,13 @@ export function ActivityList() {
     showLabel: boolean,
     empty: string,
     testid: string,
-    enrich?: { description: string; action: { label: string; onClick: () => void; icon?: 'plus' } },
+    enrich?: { description: string; action: { label: string; onClick: () => void } },
   ) =>
     rows.length === 0 ? (
       <EmptyState
-        icon={enrich ? 'clipboard-check' : undefined}
+        icon={enrich ? ClipboardCheck : undefined}
         description={enrich?.description}
-        action={enrich?.action}
+        action={enrich?.action ? { ...enrich.action, icon: Plus, requiresEdit: true } : undefined}
       >
         {empty}
       </EmptyState>
@@ -87,7 +88,7 @@ export function ActivityList() {
       </div>
       {box(internalActivities, false, m.list_activities_internal_empty(), 'internal-activities', {
         description: m.list_activities_empty_desc(),
-        action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true), icon: 'plus' },
+        action: { label: m.list_activities_empty_action(), onClick: () => setCreating(true) },
       })}
 
       <div className="mb-4 mt-8 flex items-center justify-between">

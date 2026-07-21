@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox()
@@ -69,7 +69,7 @@ test.describe('Scheduler', () => {
 
   test('draws a new allocation on an empty part of a lane', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
 
     const before = await page.getByTestId('allocation-bar').count()
 
@@ -87,8 +87,8 @@ test.describe('Scheduler', () => {
     await page.mouse.up()
 
     await expect(page.getByRole('dialog', { name: 'New allocation' })).toBeVisible()
-    await page.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await page.getByLabel('Activity', { exact: true }).selectOption('t-wires')
+    await selectShadOption(page.getByLabel('Project', { exact: true }), 'p-acme')
+    await selectShadOption(page.getByRole('combobox', { name: 'Activity', exact: true }), 't-wires')
     await page.getByRole('button', { name: 'Save' }).click()
 
     await expect(page.getByTestId('allocation-bar')).toHaveCount(before + 1)
@@ -96,7 +96,7 @@ test.describe('Scheduler', () => {
 
   test('drags a bar to move it later', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
@@ -114,7 +114,7 @@ test.describe('Scheduler', () => {
 
   test('resizes a bar via its end handle', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
 
     // "Wireframes" (4 days) keeps its right edge on-screen, unlike the 9-day "Brand System".
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })
@@ -136,15 +136,15 @@ test.describe('Scheduler', () => {
     await expect(page.getByTestId('scheduler-grid')).toBeVisible()
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
 
-    await page.getByRole('button', { name: '1w', exact: true }).click()
-    await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByRole('button', { name: '4w', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
+    await expect(page.getByRole('radio', { name: '1w', exact: true })).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('radio', { name: '4w', exact: true })).toHaveAttribute('aria-checked', 'false')
     const wide = await box(bar)
     await page.screenshot({ path: 'test-results/capacitylens-1week.png' })
 
-    await page.getByRole('button', { name: '8w', exact: true }).click()
-    await expect(page.getByRole('button', { name: '8w', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await page.getByRole('radio', { name: '8w', exact: true }).click()
+    await expect(page.getByRole('radio', { name: '8w', exact: true })).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('radio', { name: '1w', exact: true })).toHaveAttribute('aria-checked', 'false')
     const narrow = await box(bar)
     await page.screenshot({ path: 'test-results/capacitylens-8week.png' })
 
@@ -155,7 +155,7 @@ test.describe('Scheduler', () => {
   test('clicking Today re-centres the timeline after scrolling away', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 })
     await openApp(page)
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
     const grid = page.getByTestId('scheduler-grid')
     await expect(grid).toBeVisible()
 
@@ -190,7 +190,7 @@ test.describe('Scheduler', () => {
 
   test('shows a detail popover on hover (US-SCH-15)', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).hover()
     const pop = page.getByTestId('allocation-popover')
@@ -227,8 +227,8 @@ test.describe('Scheduler', () => {
     // label to track the zoom, then poll BOTH numbers to a STABLE value (two equal reads in a row) —
     // the visible window re-anchors via a rAF after the scroll settles, so a bare read can race that.
     const readAtZoom = async (weeks: 1 | 2 | 4 | 8): Promise<{ overall: number; tyler: number }> => {
-      await page.getByRole('button', { name: `${weeks}w`, exact: true }).click()
-      await expect(page.getByRole('button', { name: `${weeks}w`, exact: true })).toHaveAttribute('aria-pressed', 'true')
+      await page.getByRole('radio', { name: `${weeks}w`, exact: true }).click()
+      await expect(page.getByRole('radio', { name: `${weeks}w`, exact: true })).toHaveAttribute('aria-checked', 'true')
       // The label tracks the zoom (no longer a fixed "next 2w").
       await expect(page.getByText(`Utilisation · ${weeks}w`)).toBeVisible()
       await expect(tylerUtil).toBeVisible() // selector resolves to exactly Tyler's per-person cell
@@ -271,7 +271,7 @@ test.describe('Scheduler', () => {
 
   test('stacks overlapping allocations onto a taller row (US-SCH-08)', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     // Tyler has two overlapping seed bars (3-4 June) -> 2 lanes; Nike has one -> 1 lane.
     const tylerBars = page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar')
@@ -288,7 +288,7 @@ test.describe('Scheduler', () => {
 
   test('allocation status and note are visually distinct on the bar (US-SCH-19)', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
 
     // Seed: Tyler's Visual Design bar is tentative (the placeholder also has a confirmed one).
@@ -299,7 +299,7 @@ test.describe('Scheduler', () => {
     // Mark Wireframes completed + add a note -> ✓ prefix and • marker.
     await page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit allocation' })
-    await dialog.getByLabel('Status').selectOption({ label: 'Completed' })
+    await selectShadOption(dialog.getByLabel('Status'), { label: 'Completed' })
     await dialog.getByLabel('Note').fill('Handed off to QA')
     await page.getByRole('button', { name: 'Save' }).click()
 
@@ -326,7 +326,7 @@ test.describe('Scheduler', () => {
     await expect(snap).toHaveAttribute('aria-checked', 'false')
 
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
 
     // Header day cells read "<dayNum><EEE>", e.g. "1Mon"; a minimised weekend collapses to "<n>S".
     // We assert on the weekday suffix, and capture the leading day NUMBER to prove the window moved.
@@ -346,7 +346,7 @@ test.describe('Scheduler', () => {
 
     // (1) ZOOM snaps even with the pref OFF.
     await nudgeOffMonday()
-    await page.getByRole('button', { name: '2w', exact: true }).click()
+    await page.getByRole('radio', { name: '2w', exact: true }).click()
     await expect.poll(async () => (await probe(page)).leftDate).toMatch(/Mon$/)
     const afterZoom = dayNum((await probe(page)).leftDate)
 

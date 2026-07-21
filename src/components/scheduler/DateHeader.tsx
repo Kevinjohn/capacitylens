@@ -107,7 +107,7 @@ export const DateHeader = memo(function DateHeader({
               <div
                 key={d}
                 className={`flex flex-col items-center justify-center py-1 text-xs leading-tight ${weekStart ? 'border-l border-line' : ''} ${
-                  isToday ? 'bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]' : weekend ? 'bg-weekend text-muted' : 'text-muted'
+                  isToday ? 'bg-brand-soft font-semibold text-ink shadow-[inset_0_2px_0_var(--color-brand)]' : weekend ? 'bg-weekend text-muted-foreground' : 'text-muted-foreground'
                 }`}
                 style={{ width: geom.widthOf(i) }}
               >
@@ -126,7 +126,7 @@ export const DateHeader = memo(function DateHeader({
           {weeks.map((b) => (
             <div
               key={b.key}
-              className="flex items-center overflow-hidden border-l border-line px-1 py-1 text-2xs text-muted"
+              className="flex items-center overflow-hidden border-l border-line px-1 py-1 text-2xs text-muted-foreground"
               style={{ width: spanWidth(b) }}
             >
               <span className="truncate font-medium">{b.label}</span>

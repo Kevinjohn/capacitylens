@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-SET-07. External / 3rd parties are a PER-ACCOUNT view pref (`externalEnabled` on the
 // active Account, absent = false), DEFAULT OFF — hidden everywhere out of the box, but their data is
@@ -56,7 +56,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
 
     // Schedule now shows the neutral External band at the very bottom.
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight })
     await expect(page.getByTestId('discipline-group').last()).toContainText('External / 3rd party')
@@ -93,7 +93,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     await openApp(page)
     await enableExternal(page)
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight })
 
@@ -106,8 +106,8 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     await expect(dialog.getByText('Include weekends as working days')).toHaveCount(0)
     await expect(dialog.getByLabel('Start Date')).toBeVisible()
 
-    await dialog.getByLabel('Project', { exact: true }).selectOption('p-acme')
-    await dialog.getByLabel('Activity', { exact: true }).selectOption('t-wires') // Wireframes
+    await selectShadOption(dialog.getByLabel('Project', { exact: true }), 'p-acme')
+    await selectShadOption(dialog.getByRole('combobox', { name: 'Activity', exact: true }), 't-wires') // Wireframes
     await page.getByRole('button', { name: 'Save' }).click()
 
     const newBar = page.locator('[data-resource-id="r-ext-northstar"]').getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })
@@ -123,9 +123,10 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     await page.getByRole('link', { name: 'Time off' }).click()
     await page.getByRole('button', { name: 'Add time off' }).click()
     const resource = page.getByRole('dialog').getByLabel('Resource')
-    await expect(resource.getByRole('option', { name: 'Northstar Partners' })).toHaveCount(0)
+    await resource.click()
+    await expect(page.getByRole('option', { name: 'Northstar Partners' })).toHaveCount(0)
     // Sanity: a real person IS offered.
-    await expect(resource.getByRole('option', { name: 'Tyler Nix' })).toBeAttached()
+    await expect(page.getByRole('option', { name: 'Tyler Nix' })).toBeVisible()
   })
 
   test('time-off draw mode is a no-op on an external lane (no orphan time-off)', async ({ page }) => {
@@ -133,13 +134,13 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     await openApp(page)
     await enableExternal(page)
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0
       ;(el as HTMLElement).scrollTop = (el as HTMLElement).scrollHeight
     })
     // Switch the draw mode from Work to Time off (the toolbar toggle, not the nav link).
-    await page.getByRole('button', { name: 'Time off', exact: true }).click()
+    await page.getByRole('radio', { name: 'Time off', exact: true }).click()
     // Draw a span on the empty far-left (back-buffer) of the external party's lane — a draw here on
     // a person's lane opens the time-off form; on an external it must be a no-op (no capacity).
     const lane = page.locator('[data-resource-id="r-ext-northstar"]')
@@ -163,7 +164,7 @@ test.describe('External / 3rd parties (per-account pref, default off)', () => {
     await page.getByRole('link', { name: 'Resources' }).click()
 
     await page.getByTestId('external-row').filter({ hasText: 'Northstar Partners' }).getByRole('button', { name: 'Archive Northstar Partners' }).click()
-    await page.getByRole('dialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
+    await page.getByRole('alertdialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('external-row').filter({ hasText: 'Northstar Partners' })).toHaveCount(0)
 
     await page.keyboard.press('Meta+z')

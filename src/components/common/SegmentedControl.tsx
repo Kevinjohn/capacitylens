@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react'
-import { cn } from '@/lib/utils'
 import { useMarkFormDirty } from './formDirty'
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
 
 /** One selectable segment: the value it sets and the label shown on its button. */
-export type SegmentedOption<T> = { value: T; label: ReactNode }
+export type SegmentedOption<T> = { value: T; label: ReactNode; title?: string }
 
 /** Single-select option group backed by ShadCN ToggleGroup. */
 export function SegmentedControl<T extends string | number>({
@@ -23,11 +22,7 @@ export function SegmentedControl<T extends string | number>({
   ariaLabel?: string
   /** Id of an existing visible label, as an alternative to `ariaLabel`. */
   ariaLabelledby?: string
-  /**
-   * Extra classes merged onto the wrapper via `cn()` (twMerge-resolved, so a conflicting
-   * utility passed here OVERRIDES the base rather than doubling it). The four current call
-   * sites pass none.
-   */
+  /** Optional layout classes for the group container. */
   className?: string
   /**
    * When true, every segment is a disabled button (native `disabled` + `aria-disabled`, muted +
@@ -44,7 +39,7 @@ export function SegmentedControl<T extends string | number>({
       size="sm"
       aria-label={ariaLabel}
       aria-labelledby={ariaLabelledby}
-      className={cn(className)}
+      className={className}
       value={String(value)}
       disabled={disabled}
       onValueChange={(next) => {
@@ -56,7 +51,7 @@ export function SegmentedControl<T extends string | number>({
       }}
     >
       {options.map((opt) => (
-        <ToggleGroupItem key={String(opt.value)} value={String(opt.value)} data-form-dirty-managed>
+        <ToggleGroupItem key={String(opt.value)} value={String(opt.value)} title={opt.title} data-form-dirty-managed>
           {opt.label}
         </ToggleGroupItem>
       ))}

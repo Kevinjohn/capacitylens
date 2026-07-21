@@ -21,7 +21,7 @@ test.describe('Archived & deleted (demo mode)', () => {
 
     // Archive it from the row (the old Delete affordance now ARCHIVES) → confirm dialog → Archive.
     await listRow.getByRole('button', { name: `Archive ${RESOURCE}` }).click()
-    const archiveDialog = page.getByRole('dialog', { name: 'Archive resource?' })
+    const archiveDialog = page.getByRole('alertdialog', { name: 'Archive resource?' })
     await expect(archiveDialog).toBeVisible()
     await archiveDialog.getByRole('button', { name: 'Archive', exact: true }).click()
 
@@ -48,7 +48,7 @@ test.describe('Archived & deleted (demo mode)', () => {
 
     // RE-ARCHIVE from the list.
     await page.getByTestId('resource-row').filter({ hasText: RESOURCE }).getByRole('button', { name: `Archive ${RESOURCE}` }).click()
-    await page.getByRole('dialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
+    await page.getByRole('alertdialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
 
     // In the admin view, DELETE (soft-delete) the archived row → confirm.
     await page.getByRole('link', { name: 'Settings' }).click()
@@ -56,7 +56,7 @@ test.describe('Archived & deleted (demo mode)', () => {
     const archivedRow2 = section2.getByTestId('archived-row').filter({ hasText: RESOURCE })
     await expect(archivedRow2).toBeVisible()
     await archivedRow2.getByRole('button', { name: `Delete ${RESOURCE}` }).click()
-    const deleteDialog = page.getByRole('dialog', { name: 'Delete this item?' })
+    const deleteDialog = page.getByRole('alertdialog', { name: 'Delete this item?' })
     await expect(deleteDialog).toBeVisible()
     await deleteDialog.getByRole('button', { name: 'Delete', exact: true }).click()
 

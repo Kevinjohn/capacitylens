@@ -22,7 +22,7 @@ test.describe('Disciplines', () => {
   test('deletes a discipline and ungroups its resources without deleting them', async ({ page }) => {
     await openApp(page, 'Studio North', '/disciplines')
     await page.getByTestId('discipline-row').filter({ hasText: 'Design' }).getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('dialog', { name: 'Delete discipline?' }).getByRole('button', { name: 'Delete' }).click()
+    await page.getByRole('alertdialog', { name: 'Delete discipline?' }).getByRole('button', { name: 'Delete' }).click()
     await expect(page.getByTestId('discipline-row').filter({ hasText: 'Design' })).toHaveCount(0)
 
     // Tyler (was in Design) still exists — just ungrouped.

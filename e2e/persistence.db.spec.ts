@@ -82,7 +82,7 @@ test.describe('database-backed persistence', () => {
     await settle(page)
 
     await row.getByRole('button', { name: 'Archive Doomed Co' }).click()
-    await page.getByRole('dialog', { name: 'Archive client?' }).getByRole('button', { name: 'Archive', exact: true }).click()
+    await page.getByRole('alertdialog', { name: 'Archive client?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     // Gone from the active UI list (the archive route ran + the post-archive reload re-hydrated).
     await expect(page.getByTestId('client-row').filter({ hasText: 'Doomed Co' })).toHaveCount(0)
 

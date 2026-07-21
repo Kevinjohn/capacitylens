@@ -1,11 +1,11 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
 import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strings'
 import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from '../../lib/palette'
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
 // be exported without tripping react-refresh/only-export-components on this file.
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
-import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover'
 import { Switch } from '../ui/switch'
 import {
   Field,
@@ -33,20 +33,17 @@ import { useMarkFormDirty } from './formDirty'
 // Product field APIs composed from ShadCN's Field family.
 function RequiredFieldLabel({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
   return (
-    <FieldLabel
-      htmlFor={htmlFor}
-      className={required ? "after:text-danger after:content-['_*']" : undefined}
-      title={required ? m.field_required() : undefined}
-    >
-      {label}
-    </FieldLabel>
+    <div className="flex items-center gap-1">
+      <FieldLabel htmlFor={htmlFor}>{label}</FieldLabel>
+      {required && <span aria-hidden="true" className="text-danger" title={m.field_required()}>*</span>}
+    </div>
   )
 }
 
 /** Place at the bottom of a form to explain the asterisk + red accent convention. */
 export function RequiredLegend() {
   return (
-    <p className="text-xs text-muted">
+    <p className="text-xs text-muted-foreground">
       <span className="font-medium text-danger">*</span> {m.field_required_legend()}
     </p>
   )
@@ -307,14 +304,21 @@ export function SelectField({
   testId?: string
 }) {
   const id = useId()
+  const markDirty = useMarkFormDirty()
   const hasEmptyOption = options.some((option) => option.value === '')
+  const selectedOption = options.find((option) => option.value === value)
   return (
     <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
       <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Select
         value={value === '' && hasEmptyOption ? EMPTY_SELECT_VALUE : value}
         disabled={disabled}
-        onValueChange={(next) => onChange(next === EMPTY_SELECT_VALUE ? '' : next)}
+        onValueChange={(next) => {
+          const resolved = next === EMPTY_SELECT_VALUE ? '' : next
+          if (resolved === value) return
+          markDirty()
+          onChange(resolved)
+        }}
       >
         <SelectTrigger
           id={id}
@@ -325,7 +329,7 @@ export function SelectField({
           aria-label={ariaLabel}
           data-testid={testId}
         >
-          <SelectValue placeholder={placeholder} />
+          <SelectValue placeholder={placeholder}>{selectedOption?.label}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectGroup>
@@ -359,132 +363,61 @@ export function ColorField({
 }) {
   const markDirty = useMarkFormDirty()
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  // Close on a click anywhere outside the control. The trigger lives inside `ref`, so
-  // its own click toggles via onClick rather than tripping this listener.
-  //
-  // Capture phase: an outside press is seen before it reaches its target. We swallow it
-  // ONLY when it landed outside the dialog panel (i.e. on the modal backdrop) — so
-  // dismissing the popup doesn't also arm the Modal's backdrop close. A press on ANOTHER
-  // control inside the SAME dialog is left to propagate, so the first click both closes
-  // the popup AND lands on that control (no swallowed "first click did nothing").
-  useEffect(() => {
-    if (!open) return
-    const onDown = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (ref.current?.contains(target)) return // inside the control — its own handler toggles
-      setOpen(false)
-      const panel = ref.current?.closest('[role="dialog"]')
-      if (panel && !panel.contains(target)) e.stopPropagation()
-    }
-    document.addEventListener('mousedown', onDown, true)
-    return () => document.removeEventListener('mousedown', onDown, true)
-  }, [open])
 
   return (
     <Field data-invalid={invalid || undefined}>
       <FieldLabel>{label}</FieldLabel>
-      {/* Radix Popover supplies the shell and anchored positioning. CapacityLens owns dismissal through
-          the capture-phase
-          mousedown above and the Escape onKeyDown below. Radix's competing dismissals are
-          neutralised on the Content (onInteractOutside / onPointerDownOutside / onEscapeKeyDown →
-          preventDefault) so it can never double-close or change ordering, and Radix's auto-focus is
-          suppressed so opening doesn't yank focus off the trigger. `open` (capacitylens's state) drives
-          Popover.Root; onOpenChange only mirrors a Radix-initiated close (none, since all of them
-          are neutralised) back into capacitylens's state as a backstop. */}
       <Popover open={open} onOpenChange={setOpen}>
-        <div
-          ref={ref}
-          // Escape anywhere within the control (trigger or a focused swatch) closes the popup
-          // and is consumed so it doesn't bubble up to the Modal's Escape-to-close.
-          onKeyDown={(e) => {
-            if (e.key === 'Escape' && open) {
-              e.stopPropagation()
-              setOpen(false)
-            }
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            aria-label={m.swatch_trigger_label({ label, color: colorName(value) })}
+            aria-invalid={invalid || undefined}
+            aria-describedby={invalid ? describedById : undefined}
+            className="w-full justify-between"
+          >
+            <span
+              className="size-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
+              style={{ backgroundColor: value }}
+            />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          role="group"
+          aria-label={m.swatch_group_label({ label })}
+          side="top"
+          align="start"
+          className="grid w-max gap-1.5 p-2"
+          style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
+          onPointerDownOutside={(event) => {
+            event.preventDefault()
+            setOpen(false)
           }}
         >
-          <PopoverAnchor asChild>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setOpen((o) => !o)}
-              aria-haspopup="true"
-              aria-expanded={open}
-              aria-label={m.swatch_trigger_label({ label, color: colorName(value) })}
-              aria-invalid={invalid || undefined}
-              aria-describedby={invalid ? describedById : undefined}
-              className="w-full justify-between"
-            >
-              <span
-                className="size-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
-                style={{ backgroundColor: value }}
+          {SWATCHES.map((hex, i) => {
+            const selected = hex.toLowerCase() === value.toLowerCase()
+            return (
+              <button
+                key={hex}
+                type="button"
+                aria-label={swatchLabel(i)}
+                data-form-dirty-managed
+                aria-pressed={selected}
+                onClick={() => {
+                  if (!selected) markDirty()
+                  onChange(hex)
+                  setOpen(false)
+                }}
+                className={cn(
+                  'size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110',
+                  selected && 'outline outline-2 outline-offset-1 outline-brand-strong',
+                )}
+                style={{ backgroundColor: hex }}
               />
-            </Button>
-          </PopoverAnchor>
-          {open && (
-            // portal={false} renders Content WITHOUT a Portal so the panel stays inside this
-            // control's DOM subtree (and so inside the enclosing [role="dialog"]) — the capture-phase
-            // listener walks up to that dialog to classify a backdrop press, which a portalled popup
-            // would escape. side="top" + avoidCollisions={false} keeps placement deterministic: the
-            // colour field is the last field in every form and the
-            // Modal's overflow-y-auto would clip a downward popup, so the popup must ALWAYS open
-            // upward — without avoidCollisions={false} Radix would flip it down when room is tight,
-            // re-introducing exactly that clipping. forceMount-free: Radix only renders Content while
-            // Root is open, and capacitylens's `open` already gates it, so mount/unmount tracks the popup
-            // exactly as before.
-            <PopoverContent
-              portal={false}
-              role="group"
-              aria-label={m.swatch_group_label({ label })}
-              side="top"
-              align="start"
-              sideOffset={4}
-              avoidCollisions={false}
-              // The swatch grid uses the product's elevated panel tokens and fixed grid layout. The
-              // capacitylens-pop motion matches CommandPalette/Modal (tw-animate-css isn't installed, so
-              // shadcn's animate-in classes would be inert no-ops here).
-              className="grid w-max gap-1.5 rounded-md border bg-elevated p-2 shadow-pop ring-1 ring-line animate-[capacitylens-pop_0.14s_ease-out]"
-              style={{ gridTemplateColumns: `repeat(${SWATCH_COLUMNS}, minmax(0, 1fr))` }}
-              // CapacityLens owns dismissal (the capture-phase mousedown + the Escape onKeyDown above), so
-              // neutralise every Radix dismiss path so there is one dismissal owner.
-              onInteractOutside={(e) => e.preventDefault()}
-              onPointerDownOutside={(e) => e.preventDefault()}
-              onEscapeKeyDown={(e) => e.preventDefault()}
-              // Don't let Radix's FocusScope move focus on open/close. The trigger keeps focus, so the
-              // "Escape while a swatch is focused" + outside-click tests behave exactly as before.
-              onOpenAutoFocus={(e) => e.preventDefault()}
-              onCloseAutoFocus={(e) => e.preventDefault()}
-            >
-              {SWATCHES.map((hex, i) => {
-                const selected = hex.toLowerCase() === value.toLowerCase()
-                return (
-                  <button
-                    key={hex}
-                    type="button"
-                    aria-label={swatchLabel(i)}
-                    // aria-pressed conveys selection; the explicit context signal below registers
-                    // only a real value change, while the marker prevents Modal's raw-toggle
-                    // compatibility fallback from treating the selected swatch as an edit.
-                    data-form-dirty-managed
-                    aria-pressed={selected}
-                    onClick={() => {
-                      if (!selected) markDirty()
-                      onChange(hex)
-                      setOpen(false)
-                    }}
-                    className={cn(
-                      'size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110',
-                      selected && 'outline outline-2 outline-offset-1 outline-brand-strong',
-                    )}
-                    style={{ backgroundColor: hex }}
-                  />
-                )
-              })}
-            </PopoverContent>
-          )}
-        </div>
+            )
+          })}
+        </PopoverContent>
       </Popover>
     </Field>
   )

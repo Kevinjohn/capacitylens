@@ -5,7 +5,9 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
 import { m } from '@/i18n'
-import { Button, FieldError, Modal, RequiredLegend, SegmentedControl, SelectField, TextField, type Option } from '../common/ui'
+import { Modal, RequiredLegend, SegmentedControl, SelectField, TextField, type Option } from '../common/ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import type { Activity, ActivityKind } from '@capacitylens/shared/types/entities'
 
 // Resolved at render (a getter, not a module-scope const) so the labels re-resolve on a locale
@@ -108,10 +110,10 @@ export function ActivityForm({ activity, onClose }: { activity?: Activity; onClo
       onSubmit={submit}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">{m.form_save()}</Button>
         </>
       }
     >

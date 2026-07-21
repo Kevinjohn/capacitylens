@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-TSK-01..04.
 test.describe('Activities', () => {
@@ -28,7 +28,7 @@ test.describe('Activities', () => {
     // labelled with its client / project.
     await page.getByRole('button', { name: 'Add activity' }).click()
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Spec review')
-    await page.getByLabel('Project').selectOption('p-acme')
+    await selectShadOption(page.getByLabel('Project'), 'p-acme')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(
       page.getByTestId('project-specific-activities').getByTestId('activity-row').filter({ hasText: 'Spec review' }),
@@ -45,17 +45,17 @@ test.describe('Activities', () => {
 
   test('deletes an activity and removes its allocation bars, restorable with undo', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })).toBeVisible()
 
     await page.getByRole('link', { name: 'Activities' }).click()
     await page.getByTestId('activity-row').filter({ hasText: 'Wireframes' }).getByRole('button', { name: 'Delete' }).click()
-    await page.getByRole('dialog', { name: 'Delete activity?' }).getByRole('button', { name: 'Delete' }).click()
+    await page.getByRole('alertdialog', { name: 'Delete activity?' }).getByRole('button', { name: 'Delete' }).click()
     await expect(page.getByTestId('activity-row').filter({ hasText: 'Wireframes' })).toHaveCount(0)
 
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })).toHaveCount(0)
   })

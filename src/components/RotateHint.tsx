@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { APP_NAME, STORAGE_KEY_PREFIX } from '@capacitylens/shared/brand'
-import { Button, Modal } from './common/ui'
+import { Modal } from './common/ui'
+import { Button } from './ui/button'
 import { m } from '@/i18n'
 
 // One-time-per-session nudge for portrait phones: the schedule is a wide
@@ -62,12 +63,12 @@ export function RotateHint() {
       onSubmit={dismiss}
       guardDirty={false}
       footer={
-        <Button type="submit" onClick={dismiss}>
+        <Button size="sm" type="submit" onClick={dismiss}>
           {m.rotate_dismiss()}
         </Button>
       }
     >
-      <p className="text-sm text-muted">{m.rotate_body({ app: APP_NAME })}</p>
+      <p className="text-sm text-muted-foreground">{m.rotate_body({ app: APP_NAME })}</p>
     </Modal>
   )
 }

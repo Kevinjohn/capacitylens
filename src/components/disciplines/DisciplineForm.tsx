@@ -5,7 +5,9 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateHex, validateName } from '../../lib/validation'
 import { m } from '@/i18n'
-import { Button, ColorField, FieldError, Modal, RequiredLegend, TextField } from '../common/ui'
+import { ColorField, Modal, RequiredLegend, TextField } from '../common/ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import type { Discipline } from '@capacitylens/shared/types/entities'
 
@@ -47,10 +49,10 @@ export function DisciplineForm({ discipline, onClose }: { discipline?: Disciplin
       onSubmit={submit}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">{m.form_save()}</Button>
         </>
       }
     >

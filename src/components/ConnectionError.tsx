@@ -1,6 +1,6 @@
-import { Button } from './common/ui'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
+import { Button } from './ui/button'
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card'
 
 // Shown when bootstrap could not load state from the server (it's down or
@@ -17,7 +17,7 @@ export function ConnectionError() {
           <CardDescription>{m.conn_body({ app: APP_NAME })}</CardDescription>
         </CardHeader>
         <CardFooter className="justify-end">
-          <Button variant="primary" onClick={() => window.location.reload()}>
+          <Button size="sm" onClick={() => window.location.reload()}>
             {m.conn_retry()}
           </Button>
         </CardFooter>

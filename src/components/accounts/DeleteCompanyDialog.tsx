@@ -12,7 +12,8 @@ import {
 import { downloadTextFile } from '../../lib/download'
 import { errorMessage } from '../../lib/errorMessage'
 import { m } from '@/i18n'
-import { Button, Modal, TextField } from '../common/ui'
+import { Modal, TextField } from '../common/ui'
+import { Button } from '../ui/button'
 import { SCOPED_KEYS } from '@capacitylens/shared/types/entities'
 import type { AppData, ID } from '@capacitylens/shared/types/entities'
 
@@ -140,25 +141,26 @@ export function DeleteCompanyDialog({
       guardDirty={false}
       footer={
         <>
-          <Button variant="ghost" onClick={onCancel}>
+          <Button size="sm" variant="outline" onClick={onCancel}>
             {m.form_cancel()}
           </Button>
           <Button
-            variant="danger"
+            size="sm"
+            variant="danger-soft"
             disabled={!matches || busy || exporting}
             onClick={onConfirm}
-            describedById={hintId}
+            aria-describedby={hintId}
           >
             {m.form_delete()}
           </Button>
         </>
       }
     >
-      <p className="text-sm text-muted">
+      <p className="text-sm text-muted-foreground">
         {m.dialog_delete_company_body_prefix()}<span className="font-medium text-ink">{account.name}</span>{m.dialog_delete_company_body_suffix()}
       </p>
       <div className="flex justify-start">
-        <Button variant="ghost" disabled={exporting} onClick={() => void exportFirst()}>
+        <Button size="sm" variant="outline" disabled={exporting} onClick={() => void exportFirst()}>
           {m.dialog_delete_company_export_first()}
         </Button>
       </div>
@@ -178,7 +180,7 @@ export function DeleteCompanyDialog({
         onChange={setTyped}
         autoFocus
       />
-      <p id={hintId} className="text-xs text-muted">
+      <p id={hintId} className="text-xs text-muted-foreground">
         {m.dialog_delete_company_hint()}
       </p>
     </Modal>

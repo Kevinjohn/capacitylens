@@ -2,11 +2,10 @@ import { useEffect, useId, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
-import { Button, FieldError } from '../components/common/ui'
+import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-import { Field, FieldGroup, FieldLabel } from '../components/ui/field'
+import { Field, FieldError, FieldGroup, FieldLabel } from '../components/ui/field'
 import { Card, CardContent } from '../components/ui/card'
-import { Button as ShadButton } from '../components/ui/button'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import { messageForFailure } from './resetPasswordFailure'
@@ -114,7 +113,7 @@ export function ResetPassword() {
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
           <h1 className="text-lg font-semibold text-ink">{m.reset_title()}</h1>
           {state.kind !== 'done' && state.kind !== 'local' && (
-            <p className="text-sm text-muted">{m.reset_subtitle()}</p>
+            <p className="text-sm text-muted-foreground">{m.reset_subtitle()}</p>
           )}
         </div>
         <Card className="gap-4 py-4">
@@ -149,12 +148,12 @@ export function ResetPassword() {
                 </Field>
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex justify-end">
-                <Button type="submit" testId="reset-submit" disabled={state.kind === 'working'}>
+                <Button size="sm" type="submit" data-testid="reset-submit" disabled={state.kind === 'working'}>
                   {m.reset_submit()}
                 </Button>
               </div>
               {state.kind === 'working' && (
-                <p role="status" className="text-sm text-muted">
+                <p role="status" className="text-sm text-muted-foreground">
                   {m.reset_working()}
                 </p>
               )}
@@ -171,14 +170,14 @@ export function ResetPassword() {
               <div className="flex justify-end">
                 {/* A FULL load, deliberately not a router <Link>: there is no session, and a clean
                     boot is what re-runs AuthProvider's /me check and lands on the login screen. */}
-                <ShadButton asChild size="sm">
+                <Button asChild size="sm">
                   <a href="/">{m.reset_go_signin()}</a>
-                </ShadButton>
+                </Button>
               </div>
             </div>
           )}
           {state.kind === 'local' && (
-            <p className="text-sm text-muted">{m.reset_local_mode({ app: APP_NAME })}</p>
+            <p className="text-sm text-muted-foreground">{m.reset_local_mode({ app: APP_NAME })}</p>
           )}
           </CardContent>
         </Card>

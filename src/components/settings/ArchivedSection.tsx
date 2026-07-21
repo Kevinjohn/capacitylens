@@ -10,7 +10,8 @@ import { useInactiveScopedData } from '../../store/useScopedData'
 import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { useRole } from '../../auth/permissionContext'
 import { errorMessage } from '../../lib/errorMessage'
-import { Button, ConfirmDialog } from '../common/ui'
+import { ConfirmDialog } from '../common/ui'
+import { Button } from '../ui/button'
 import { m } from '@/i18n'
 import { can } from '@capacitylens/shared/domain/access'
 import { canPurge, lifecycleStatus, PURGE_MIN_AGE_DAYS } from '@capacitylens/shared/domain/lifecycle'
@@ -180,7 +181,7 @@ export function ArchivedSection() {
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
 
-      {rows.length === 0 && <p className="py-2 text-sm text-muted">{m.settings_archived_empty()}</p>}
+      {rows.length === 0 && <p className="py-2 text-sm text-muted-foreground">{m.settings_archived_empty()}</p>}
 
       {/* Archived group — restore (→ active) or delete (→ tombstone). */}
       {archived.length > 0 && (
@@ -193,21 +194,23 @@ export function ArchivedSection() {
               <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="archived-row">
                 <ItemContent className="min-w-0">
                   <span className="text-sm text-ink">{r.name}</span>
-                  <span className="ml-2 text-xs text-muted">· {TYPE_LABEL[r.entity]()}</span>
+                  <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
                 </ItemContent>
                 <ItemActions>
                   <Button
-                    variant="ghost"
-                    testId="archived-restore"
-                    ariaLabel={m.settings_archived_restore_aria({ name: r.name })}
+                    size="sm"
+                    variant="outline"
+                    data-testid="archived-restore"
+                    aria-label={m.settings_archived_restore_aria({ name: r.name })}
                     onClick={() => void actions.unarchive(r.entity, r.id)}
                   >
                     {m.settings_archived_restore()}
                   </Button>
                   <Button
-                    variant="danger"
-                    testId="archived-delete"
-                    ariaLabel={m.settings_archived_delete_aria({ name: r.name })}
+                    size="sm"
+                    variant="danger-soft"
+                    data-testid="archived-delete"
+                    aria-label={m.settings_archived_delete_aria({ name: r.name })}
                     onClick={() => setConfirmingDelete(r)}
                   >
                     {m.settings_archived_delete()}
@@ -238,21 +241,22 @@ export function ArchivedSection() {
                 <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="deleted-row">
                   <ItemContent className="min-w-0">
                     <span className="text-sm text-ink">{r.name}</span>
-                    <span className="ml-2 text-xs text-muted">· {TYPE_LABEL[r.entity]()}</span>
+                    <span className="ml-2 text-xs text-muted-foreground">· {TYPE_LABEL[r.entity]()}</span>
                   </ItemContent>
                   {mayPurge && (
                     <ItemActions>
                       {!purgeable && (
-                        <span id={hintId} className="text-xs text-muted">
+                        <span id={hintId} className="text-xs text-muted-foreground">
                           {m.settings_archived_purge_locked_hint({ days: PURGE_MIN_AGE_DAYS })}
                         </span>
                       )}
                       <Button
-                        variant="danger"
-                        testId="archived-purge"
+                        size="sm"
+                        variant="danger-soft"
+                        data-testid="archived-purge"
                         disabled={!purgeable}
-                        ariaLabel={m.settings_archived_purge_aria({ name: r.name })}
-                        describedById={!purgeable ? hintId : undefined}
+                        aria-label={m.settings_archived_purge_aria({ name: r.name })}
+                        aria-describedby={!purgeable ? hintId : undefined}
                         onClick={() => setConfirmingPurge(r)}
                       >
                         {m.settings_archived_purge()}

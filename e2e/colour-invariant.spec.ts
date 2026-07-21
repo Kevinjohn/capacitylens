@@ -24,8 +24,8 @@ const PICK_RGB = 'rgb(27, 79, 152)'
  *  swatch buttons are labelled by swatchLabel(i) (e.g. "Blue dark"). */
 async function pickSwatch(scope: Locator, swatchLabel: string): Promise<void> {
   await scope.getByRole('button', { name: /^Colour/ }).click()
-  // The grid is a role="group" labelled "Colour swatches"; click the named swatch within it.
-  await scope.getByRole('group', { name: /Colour swatches/ }).getByRole('button', { name: swatchLabel, exact: true }).click()
+  // Popover content is portalled, so select the open swatch group from the page.
+  await scope.page().getByRole('group', { name: /Colour swatches/ }).getByRole('button', { name: swatchLabel, exact: true }).click()
 }
 
 /** The colour dot inside a scheduler discipline-group header (raw discipline colour). */
@@ -79,7 +79,7 @@ test.describe('Colour invariant (preset swatch → renders on the scheduler)', (
     // The "Wireframes" bar (a Project Lightning activity) must render the picked hex. Seed bars
     // sit in early June and are visible at 4w with the grid scrolled fully left.
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     const wireframesBar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })
     await expect(wireframesBar.first()).toBeVisible()

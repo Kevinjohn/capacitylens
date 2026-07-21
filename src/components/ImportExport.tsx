@@ -373,7 +373,7 @@ export function ImportExport() {
           focus lands on the status text for screen readers. */}
       {importBusy && (
         <Modal title={m.data_importing_title()} onClose={() => {}} guardDirty={false}>
-          <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted">
+          <p tabIndex={0} data-testid="import-busy" className="text-sm text-muted-foreground">
             {m.data_importing_body()}
           </p>
         </Modal>

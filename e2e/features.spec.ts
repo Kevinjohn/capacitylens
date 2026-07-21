@@ -1,5 +1,5 @@
 import { test, expect, type Locator } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox()
@@ -13,7 +13,7 @@ test.describe('Feature flows', () => {
     const bars = page.getByTestId('allocation-bar')
     expect(await bars.count()).toBeGreaterThan(1)
 
-    await page.getByLabel('Filter by project').selectOption('p-brand')
+    await selectShadOption(page.getByLabel('Filter by project'), 'p-brand')
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
 
     // Filtering hides non-matching resources by default, collapsing the schedule to
@@ -46,7 +46,7 @@ test.describe('Feature flows', () => {
 
     await page.getByRole('link', { name: 'Time off' }).click()
     await page.getByRole('button', { name: 'Add time off' }).click()
-    await page.getByLabel('Resource').selectOption({ label: 'Nike Spiros' })
+    await selectShadOption(page.getByLabel('Resource'), { label: 'Nike Spiros' })
     await page.getByLabel('Start').fill('2026-06-18')
     await page.getByLabel('End').fill('2026-06-20')
     await page.getByRole('button', { name: 'Save' }).click()
@@ -70,7 +70,7 @@ test.describe('Feature flows', () => {
     await openApp(page)
     // Zoom keeps the left-edge date anchored (the frozen "today"'s Monday), so the
     // early-June seed bars stay in view — no manual scroll reset needed.
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
@@ -95,9 +95,9 @@ test.describe('Feature flows', () => {
 
   test('drawing in Time off mode opens a prefilled time-off form', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
-    // Toolbar draw-mode toggle (a button — distinct from the "Time off" nav link).
-    await page.getByRole('button', { name: 'Time off', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
+    // Toolbar draw-mode radio, distinct from the "Time off" nav link.
+    await page.getByRole('radio', { name: 'Time off', exact: true }).click()
 
     const lane = page.locator('[data-resource-id="r-nike"]')
     const b = await box(lane)
@@ -115,7 +115,7 @@ test.describe('Feature flows', () => {
     // Opens the time-off form (not the allocation modal), prefilled with the row's resource.
     const dialog = page.getByRole('dialog', { name: 'Add time off' })
     await expect(dialog).toBeVisible()
-    await expect(dialog.getByLabel('Resource')).toHaveValue('r-nike')
+    await expect(dialog.getByLabel('Resource')).toHaveText('Nike Spiros')
     await page.getByRole('button', { name: 'Save' }).click()
     await expect(page.getByRole('dialog', { name: 'Add time off' })).toHaveCount(0)
   })
@@ -125,7 +125,7 @@ test.describe('Feature flows', () => {
     // Placeholders are hidden by default (per-account pref) — enable them so the lane renders.
     await page.getByRole('switch', { name: 'Show placeholders' }).click()
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => {
       ;(el as HTMLElement).scrollLeft = 0
     })
@@ -145,8 +145,9 @@ test.describe('Feature flows', () => {
     // "Locked" = the bound project is preselected and the choices are restricted to it
     // (+ the general option), but the select stays ENABLED so the placeholder can still
     // take general activities. A non-bound project ("Brand Themes") is not offered.
-    await expect(project).toHaveValue('p-acme')
+    await expect(project).toHaveText(/Project Lightning/)
     await expect(project).toBeEnabled()
-    await expect(project.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
+    await project.click()
+    await expect(page.getByRole('option', { name: /Brand Themes/ })).toHaveCount(0)
   })
 })

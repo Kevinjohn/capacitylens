@@ -259,21 +259,21 @@ export const AllocationBar = memo(function AllocationBar({
             style={{ left: pop.left, top: pop.top }}
           >
             <div className="mb-1 flex items-center gap-2">
-              <span className="inline-block h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bg }} />
+              <span className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bg }} />
               <span className="font-semibold">{bar.label}</span>
             </div>
             {(bar.project || bar.client) && (
-              <div className="mb-1 text-muted">
+              <div className="mb-1 text-muted-foreground">
                 {bar.project}
                 {bar.project && bar.client ? ' · ' : ''}
                 {bar.client}
               </div>
             )}
-            <div className="text-muted">
+            <div className="text-muted-foreground">
               {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
               {hideHours ? '' : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} · {allocationStatusLabels()[bar.allocation.status]}
             </div>
-            {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted">{bar.allocation.note}</div>}
+            {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>}
             <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">
               {m.scheduler_bar_pop_footer()}
             </div>

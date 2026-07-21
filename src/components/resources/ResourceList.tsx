@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react'
+import { Plus, Users } from 'lucide-react'
 import { useStore } from '../../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../../store/selectors'
 import { useActiveScopedData } from '../../store/useScopedData'
@@ -63,7 +64,7 @@ export function ResourceList() {
         {r.kind === 'placeholder' && (
           <Badge variant="outline">{m.list_resources_placeholder_badge()}</Badge>
         )}
-        <span className="text-sm text-muted">
+        <span className="text-sm text-muted-foreground">
           {` · ${r.role}${disciplinesEnabled ? ` · ${disciplineName(r.disciplineId)}` : ''} · ${m.list_resources_hours_per_day({ hours: r.workingHoursPerDay })}`}
         </span>
       </ItemContent>
@@ -80,10 +81,14 @@ export function ResourceList() {
   const box = (
     rows: Resource[],
     empty: string,
-    enrich?: { icon: 'people'; description: string; action: { label: string; onClick: () => void; icon?: 'plus' } },
+    enrich?: { description: string; action: { label: string; onClick: () => void } },
   ) =>
     rows.length === 0 ? (
-      <EmptyState icon={enrich?.icon} description={enrich?.description} action={enrich?.action}>
+      <EmptyState
+        icon={enrich ? Users : undefined}
+        description={enrich?.description}
+        action={enrich?.action ? { ...enrich.action, icon: Plus, requiresEdit: true } : undefined}
+      >
         {empty}
       </EmptyState>
     ) : (
@@ -100,9 +105,8 @@ export function ResourceList() {
   return (
     <ListPage title={m.list_resources_title()} addLabel={m.list_resources_add()} onAdd={() => setCreatingKind('person')}>
       {box(people, m.list_resources_empty(), {
-        icon: 'people',
         description: m.list_resources_empty_desc(),
-        action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind('person'), icon: 'plus' },
+        action: { label: m.list_resources_empty_action(), onClick: () => setCreatingKind('person') },
       })}
 
       {/* The whole placeholder feature is behind the per-account `placeholdersEnabled` pref
@@ -137,12 +141,12 @@ export function ResourceList() {
             <AddButton label={m.list_resources_add_external()} onClick={() => ext.setCreating(true)} />
           </div>
           {/* Explainer copy (editable, shared with Settings → External — see lib/externalCopy.ts). */}
-          <p className="mb-4 max-w-prose text-sm text-muted">{externalExplainer()}</p>
+          <p className="mb-4 max-w-prose text-sm text-muted-foreground">{externalExplainer()}</p>
           {externals.length === 0 ? (
             <EmptyState
-              icon="people"
+              icon={Users}
               description={m.list_resources_external_empty_desc()}
-              action={{ label: m.list_resources_external_empty_action(), onClick: () => ext.setCreating(true), icon: 'plus' }}
+              action={{ label: m.list_resources_external_empty_action(), onClick: () => ext.setCreating(true), icon: Plus, requiresEdit: true }}
             >
               {m.list_resources_external_empty()}
             </EmptyState>
@@ -155,7 +159,7 @@ export function ResourceList() {
                   <ItemContent className="flex-row flex-wrap items-center gap-2">
                     <ColorSwatch color={NEUTRAL_COLOR} />
                     <span className="font-medium">{r.name ?? r.role}</span>
-                    {r.name && r.role && <span className="text-sm text-muted">· {r.role}</span>}
+                    {r.name && r.role && <span className="text-sm text-muted-foreground">· {r.role}</span>}
                   </ItemContent>
                   <ItemActions>
                     <EditButton onClick={() => ext.setEditing(r)} />

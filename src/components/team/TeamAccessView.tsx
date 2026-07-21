@@ -7,9 +7,9 @@ import { accessExperienceFor } from '../../lib/accessMode'
 import { useOfflineState } from '../../data/useOfflineState'
 import { MembersSection } from '../settings/MembersSection'
 import { Badge } from '../ui/badge'
+import { Check, X } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
-import { Icon } from '../common/Icon'
 import { m } from '@/i18n'
 
 interface Capability {
@@ -61,7 +61,7 @@ export function TeamAccessView() {
     <div className="mx-auto flex max-w-4xl flex-col gap-5 p-6">
       <header>
         <h1 className="text-xl font-semibold text-ink">{m.access_title()}</h1>
-        <p className="mt-1 max-w-2xl text-sm text-muted">{m.access_intro()}</p>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">{m.access_intro()}</p>
       </header>
 
       <Card data-testid="current-access">
@@ -80,14 +80,13 @@ export function TeamAccessView() {
           <ul className="grid gap-2 sm:grid-cols-2" aria-label={m.access_capabilities_label()}>
             {capabilities(effectiveRole).map((capability) => (
               <li key={capability.label} className="flex items-center gap-2 text-sm text-ink">
-                <Icon
-                  name={capability.allowed ? 'check' : 'close'}
-                  className={capability.allowed ? 'text-brand' : 'text-muted'}
-                />
+                {capability.allowed
+                  ? <Check className="text-brand" />
+                  : <X className="text-muted-foreground" />}
                 <span className="sr-only">
                   {capability.allowed ? m.access_cap_allowed() : m.access_cap_not_allowed()}
                 </span>
-                <span className={capability.allowed ? undefined : 'text-muted'}>{capability.label}</span>
+                <span className={capability.allowed ? undefined : 'text-muted-foreground'}>{capability.label}</span>
               </li>
             ))}
           </ul>
@@ -105,7 +104,7 @@ export function TeamAccessView() {
             <CardTitle><h2>{m.access_members_heading()}</h2></CardTitle>
             <CardDescription>{m.access_members_explainer()}</CardDescription>
           </CardHeader>
-          {!authenticated && <CardContent className="text-xs font-medium text-muted">{m.access_members_demo_note()}</CardContent>}
+          {!authenticated && <CardContent className="text-xs font-medium text-muted-foreground">{m.access_members_demo_note()}</CardContent>}
         </Card>
         <Card>
           <CardHeader>

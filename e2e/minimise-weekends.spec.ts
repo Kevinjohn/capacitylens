@@ -85,7 +85,7 @@ async function openWithFreeScrollSnapOff(page: import('@playwright/test').Page) 
   await snap.click()
   await expect(snap).toHaveAttribute('aria-checked', 'false')
   await page.getByRole('link', { name: 'Schedule' }).click()
-  await page.getByRole('button', { name: '1w', exact: true }).click()
+  await page.getByRole('radio', { name: '1w', exact: true }).click()
 }
 
 // Covers US-SET-05. "Minimise weekends" (device-global, default ON) shrinks the
@@ -95,7 +95,7 @@ async function openWithFreeScrollSnapOff(page: import('@playwright/test').Page) 
 test.describe('Minimise weekends', () => {
   test('ON by default: weekend columns are narrow and labelled "S"', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
     const header = page.getByRole('columnheader', { name: 'Dates' })
 
     // Weekdays keep their three-letter label; both weekend days collapse to a single "S".
@@ -130,7 +130,7 @@ test.describe('Minimise weekends', () => {
     await expect(toggle).toHaveAttribute('aria-checked', 'false')
 
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
     const header = page.getByRole('columnheader', { name: 'Dates' })
 
     // Weekends now read Sat/Sun, and nothing is collapsed to "S".
@@ -157,7 +157,7 @@ test.describe('Minimise weekends', () => {
   test('a 1-week zoom shows ~1 week (weekend-aware fit), not ~1.5', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 800 })
     await openApp(page) // minimise on by default
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
     const { visibleDays } = await probe(page)
     // With the fit, the working week fills the viewport: ~7 days. The narrow-weekend under-fill
     // bug showed ~11–12. A 2-week zoom of the same width would show ~14, so <=9 pins "~1 week".
@@ -167,13 +167,13 @@ test.describe('Minimise weekends', () => {
 
   test('zoom flips preserve the left-edge date (no drift onto the weekend)', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
     // Read `before` only once the 1w zoom-click scroll has come to rest, so it's the real settled
     // Monday and not a transient mid-scroll cell (which the equality below would then chase forever).
     const before = await settledLeftDate(page)
     // Round-trip the zoom; the integer-pixel geometry must round-trip the left-edge date exactly.
-    await page.getByRole('button', { name: '2w', exact: true }).click()
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '2w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
     // After the flip settles, the left-edge date must return to `before` (the known-correct value),
     // so a genuinely drifted grid times out and fails — not vacuous. Replaces the bare single read
     // that flaked under parallel load on Firefox/WebKit.
@@ -184,12 +184,12 @@ test.describe('Minimise weekends', () => {
 
   test('a bar dragged across the narrowed weekend commits a later date (no crash)', async ({ page }) => {
     await openApp(page) // minimise on by default
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
 
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Wireframes' })
     await bar.click()
     let dialog = page.getByRole('dialog', { name: 'Edit allocation' })
-    const startBefore = await dialog.getByLabel('Start Date', { exact: true }).inputValue()
+    const startBefore = await dialog.getByLabel(/^Start Date/).inputValue()
     await dialog.getByRole('button', { name: 'Cancel' }).click()
 
     // Drag the body well to the right — far enough to cross the narrow Sat/Sun columns.
@@ -202,7 +202,7 @@ test.describe('Minimise weekends', () => {
 
     await bar.click()
     dialog = page.getByRole('dialog', { name: 'Edit allocation' })
-    const startAfter = await dialog.getByLabel('Start Date', { exact: true }).inputValue()
+    const startAfter = await dialog.getByLabel(/^Start Date/).inputValue()
     expect(startAfter > startBefore).toBe(true) // ISO dates sort chronologically
   })
 
@@ -241,7 +241,7 @@ test.describe('Minimise weekends', () => {
     await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByRole('switch', { name: 'Minimise weekends' }).click()
     await page.getByRole('link', { name: 'Schedule' }).click()
-    await page.getByRole('button', { name: '1w', exact: true }).click()
+    await page.getByRole('radio', { name: '1w', exact: true }).click()
 
     await nudge(page, 2.5) // → a mid-week weekday
     const leftDate = (await probe(page)).leftDate

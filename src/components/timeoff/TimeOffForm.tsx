@@ -6,7 +6,9 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { todayISO } from '@capacitylens/shared/lib/dateMath'
 import { validateText } from '../../lib/validation'
 import { m } from '@/i18n'
-import { Button, DateField, FieldError, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
+import { DateField, Modal, RequiredLegend, SelectField, TextAreaField, type Option } from '../common/ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { timeOffTypeOptions, resourceDisplayName } from '../../lib/metadata'
 import { isExternalResource } from '@capacitylens/shared/types/entities'
 import type { ISODate, TimeOff, TimeOffType } from '@capacitylens/shared/types/entities'
@@ -37,7 +39,7 @@ export function TimeOffForm({
   // External / 3rd parties have no capacity, so time off is meaningless for them — exclude them.
   // Placeholders are gated behind a per-account pref (default OFF); when off, drop them too —
   // EXCEPT the entry's currently-selected resource (risk A): keep a hidden placeholder in the
-  // options when it's the one already assigned, so editing shows the correct value in the <select>
+  // options when it's the one already assigned, so editing shows the correct value in the selector
   // instead of silently reassigning the time off to someone else on save.
   const resourceOptions: Option[] = resources
     .filter((r) => !isExternalResource(r))
@@ -80,10 +82,10 @@ export function TimeOffForm({
       onSubmit={submit}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">{m.form_save()}</Button>
         </>
       }
     >

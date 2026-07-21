@@ -4,7 +4,7 @@ import { Avatar as ShadAvatar, AvatarFallback } from '../ui/avatar'
 // CapacityLens colour and avatar compositions.
 
 export function ColorSwatch({ color }: { color: string }) {
-  return <span className="inline-block h-3 w-3 rounded-sm ring-1 ring-inset ring-black/10" style={{ backgroundColor: color }} />
+  return <span className="inline-block size-3 rounded-sm ring-1 ring-inset ring-black/10" style={{ backgroundColor: color }} />
 }
 
 // Placeholder avatars use a question mark instead of initials. The display name lives in

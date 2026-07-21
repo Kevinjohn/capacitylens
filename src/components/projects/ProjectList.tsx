@@ -11,6 +11,7 @@ import { resolveProjectColor } from '@capacitylens/shared/lib/color'
 import { useStore } from '../../store/useStore'
 import { internalColourModeFor } from '../../store/selectors'
 import { Fragment } from 'react'
+import { Folder, Plus } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 /** Build the archive-confirm message for a project, appending the allocation-count cascade warning
@@ -41,9 +42,9 @@ export function ProjectList() {
     <ListPage title={m.list_projects_title()} addLabel={m.list_projects_add()} onAdd={() => setCreating(true)}>
       {projects.length === 0 ? (
         <EmptyState
-          icon="folder"
+          icon={Folder}
           description={m.list_projects_empty_desc()}
-          action={{ label: m.list_projects_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
+          action={{ label: m.list_projects_empty_action(), onClick: () => setCreating(true), icon: Plus, requiresEdit: true }}
         >
           {m.list_projects_empty()}
         </EmptyState>
@@ -58,7 +59,7 @@ export function ProjectList() {
                   color={resolveProjectColor(p, clients.find((client) => client.id === p.clientId), internalColourMode)}
                 />
                 <span className="font-medium">{p.name}</span>
-                <span className="text-sm text-muted">· {clientName(p.clientId)}</span>
+                <span className="text-sm text-muted-foreground">· {clientName(p.clientId)}</span>
               </ItemContent>
               <ItemActions>
                 <EditButton onClick={() => setEditing(p)} />

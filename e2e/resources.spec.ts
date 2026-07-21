@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-RES-01..10 (Resources area). Each test starts from the seeded app
 // (Playwright gives every test a fresh page → fresh in-memory seed).
@@ -11,7 +11,7 @@ test.describe('Resources', () => {
 
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Dana Lee')
     await page.getByLabel('Role').fill('Motion Designer')
-    await page.getByLabel('Discipline').selectOption({ label: 'Design' })
+    await selectShadOption(page.getByLabel('Discipline'), { label: 'Design' })
     await page.getByRole('button', { name: 'Save' }).click()
 
     await expect(page.getByText('Dana Lee')).toBeVisible()
@@ -29,7 +29,7 @@ test.describe('Resources', () => {
     await page.getByRole('button', { name: 'Add placeholder' }).click()
 
     await page.getByLabel('Role').fill('Junior Dev')
-    await page.getByLabel('Bound project').selectOption('p-acme') // Acme Inc. / Project Lightning
+    await selectShadOption(page.getByLabel('Bound project'), 'p-acme') // Acme Inc. / Project Lightning
     await page.getByRole('button', { name: 'Save' }).click()
 
     await page.getByRole('link', { name: 'Schedule' }).click()
@@ -62,14 +62,14 @@ test.describe('Resources', () => {
   // not a hard cascade-delete. Archiving is undoable via the local store (it goes through mutate()).
   test('archiving a resource hides it from the list + schedule, and undo restores it', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByLabel('Jump to date').fill('2026-06-01')
     const tylerBars = page.locator('[data-resource-id="r-tyler"]').getByTestId('allocation-bar')
     expect(await tylerBars.count()).toBeGreaterThan(0)
 
     await page.getByRole('link', { name: 'Resources' }).click()
     await page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' }).getByRole('button', { name: 'Archive Tyler Nix' }).click()
-    await page.getByRole('dialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
+    await page.getByRole('alertdialog', { name: 'Archive resource?' }).getByRole('button', { name: 'Archive', exact: true }).click()
     await expect(page.getByTestId('resource-row').filter({ hasText: 'Tyler Nix' })).toHaveCount(0)
 
     // Undo restores the resource (back to active → reappears in the list + schedule).

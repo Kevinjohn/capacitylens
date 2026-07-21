@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { m } from '@/i18n'
-import { Button as ShadButton } from '../ui/button'
+import { Pencil, Plus, Trash2, type LucideIcon } from 'lucide-react'
+import { Button } from '../ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog'
 import {
   Empty,
@@ -22,93 +23,37 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog'
-import { Icon, type IconName } from './Icon'
 import { restoreFocus } from './focus'
 import { FormDirtyContext } from './formDirty'
 
 // Product dialog and page compositions. Modal adds the dirty-form guard used by editor forms.
 
-type ButtonVariant = 'primary' | 'ghost' | 'danger'
-
-const BUTTON_VARIANT: Record<ButtonVariant, 'default' | 'outline' | 'danger-soft'> = {
-  primary: 'default',
-  ghost: 'outline',
-  danger: 'danger-soft',
-}
-
-export function Button({
-  children,
-  onClick,
-  variant = 'primary',
-  type = 'button',
-  disabled,
-  title,
-  ariaLabel,
-  describedById,
-  testId,
-  className,
-}: {
-  children: ReactNode
-  onClick?: () => void
-  variant?: ButtonVariant
-  type?: 'button' | 'submit'
-  disabled?: boolean
-  title?: string
-  ariaLabel?: string
-  /** Id of an element that explains WHY the button is disabled (e.g. the type-to-confirm
-   *  hint on the delete-company dialog), so a screen reader announces the precondition. */
-  describedById?: string
-  /** Optional test hook, forwarded to the underlying <button> so the testid lands on the
-   *  interactive control itself (the house pattern) — not on a wrapping span. */
-  testId?: string
-  /** Extra classes merged AFTER the variant colours (via cn → twMerge), so a caller can
-   *  adjust a one-off (e.g. width) without forking the Button. The current callers pass none. */
-  className?: string
-}) {
-  return (
-    <ShadButton
-      size="sm"
-      variant={BUTTON_VARIANT[variant]}
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      aria-label={ariaLabel}
-      aria-describedby={describedById}
-      data-testid={testId}
-      className={className}
-    >
-      {children}
-    </ShadButton>
-  )
+function hasOpenNestedOverlay(): boolean {
+  return document.querySelector(
+    '[data-slot="popover-content"][data-state="open"], [data-slot="select-content"][data-state="open"]',
+  ) !== null
 }
 
 // ─── Row / create action buttons ────────────────────────────────────────────
-// The management lists share three tiny button shells so the iconography stays uniform:
-//  • AddButton    — a create affordance with a leading "+" glyph (e.g. "+ Add client").
+// The management lists share three small ShadCN Button compositions:
+//  • AddButton    — a create affordance with a leading plus glyph (e.g. "+ Add client").
 //  • EditButton   — an icon-only pencil; the label is the accessible name + hover title.
 //  • DeleteButton — an icon-only trash, in the danger variant.
-// The glyph is always decorative (aria-hidden, via Icon); the accessible NAME comes from the
-// label text (AddButton) or the aria-label (Edit/Delete), so existing
-// getByRole('button', { name: … }) selectors are unaffected by the text→icon swap.
+// Lucide glyphs are decorative; the accessible name comes from visible label text or aria-label.
 
-/** A create button with a leading "+" before the label. The label stays the accessible name
- *  (the plus is decorative), so `getByRole('button', { name: 'Add …' })` matches. Variant
- *  defaults to the solid primary fill; pass `ghost` for inline/secondary add affordances. */
+/** A create button with a decorative leading plus and a visible accessible label. */
 export function AddButton({
   label,
   onClick,
-  variant = 'primary',
   testId,
 }: {
   label: string
   onClick: () => void
-  variant?: ButtonVariant
   testId?: string
 }) {
   return (
-    <Button variant={variant} onClick={onClick} testId={testId}>
-      <Icon name="plus" />
+    <Button size="sm" type="button" onClick={onClick} data-testid={testId}>
+      <Plus data-icon="inline-start" />
       {label}
     </Button>
   )
@@ -129,8 +74,8 @@ export function EditButton({
 }) {
   if (!useCanEdit()) return null
   return (
-    <Button variant="ghost" ariaLabel={label} title={label} onClick={onClick} testId={testId}>
-      <Icon name="edit" />
+    <Button type="button" variant="outline" size="icon-sm" aria-label={label} title={label} onClick={onClick} data-testid={testId}>
+      <Pencil />
     </Button>
   )
 }
@@ -150,8 +95,8 @@ export function DeleteButton({
 }) {
   if (!useCanEdit()) return null
   return (
-    <Button variant="danger" ariaLabel={label} title={label} onClick={onClick} testId={testId}>
-      <Icon name="delete" />
+    <Button type="button" variant="danger-soft" size="icon-sm" aria-label={label} title={label} onClick={onClick} data-testid={testId}>
+      <Trash2 />
     </Button>
   )
 }
@@ -222,7 +167,6 @@ export function Modal({
     <Dialog open onOpenChange={(open) => { if (!open) requestClose() }}>
       <DialogContent
         showCloseButton={false}
-        overlayProps={{ onMouseDown: (event) => { event.preventDefault(); requestClose() } }}
         aria-describedby={undefined}
         className="max-h-[90vh] max-w-md gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
@@ -231,6 +175,7 @@ export function Modal({
         }}
         onPointerDownOutside={(event) => {
           event.preventDefault()
+          if (hasOpenNestedOverlay()) return
           requestClose()
         }}
         onCloseAutoFocus={(event) => event.preventDefault()}
@@ -264,14 +209,14 @@ export function ConfirmDialog({
   title,
   message,
   confirmLabel = m.form_delete(),
-  confirmVariant = 'danger',
+  confirmVariant = 'danger-soft',
   onConfirm,
   onCancel,
 }: {
   title: string
   message: ReactNode
   confirmLabel?: string
-  confirmVariant?: ButtonVariant
+  confirmVariant?: 'default' | 'outline' | 'danger-soft'
   onConfirm: () => void
   onCancel: () => void
 }) {
@@ -288,7 +233,7 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel>{m.form_cancel()}</AlertDialogCancel>
           <AlertDialogAction
-            variant={BUTTON_VARIANT[confirmVariant]}
+            variant={confirmVariant}
             onClick={() => { confirmingRef.current = true; onConfirm() }}
           >
             {confirmLabel}
@@ -324,12 +269,7 @@ export function ListPage({
   )
 }
 
-/** Empty-list placeholder. `children` stays the primary, load-bearing message (call sites +
- *  their getByText assertions depend on it); `icon`/`description`/`action` are optional polish.
- *  The action renders a single CTA — give it a label distinct from the page's top "Add X" button
- *  so the two don't collide as duplicate accessible names. An action may carry its own leading
- *  `icon` (e.g. `plus` for the "Add your first X" create CTAs); navigation actions like
- *  "Clear filters" leave it unset so they render label-only. */
+/** Product empty-state composition with an optional icon, description and single action. */
 export function EmptyState({
   children,
   icon,
@@ -337,32 +277,29 @@ export function EmptyState({
   action,
 }: {
   children: ReactNode
-  icon?: IconName
+  icon?: LucideIcon
   description?: ReactNode
-  action?: { label: string; onClick: () => void; icon?: IconName }
+  action?: { label: string; onClick: () => void; icon?: LucideIcon; requiresEdit?: boolean }
 }) {
-  // Viewers see navigation actions but not create actions. A create CTA carries a leading `plus`
-  // icon (per this component's
-  // contract: create CTAs pass `icon: 'plus'`, navigation actions leave it unset), so drop ONLY
-  // those for a non-editor. This also keeps the scheduler-empty "Clear filters" CTA focusable so the
-  // grid stays axe-clean. The server 403 backstops a create regardless.
   const canEdit = useCanEdit()
-  const showAction = action && (canEdit || action.icon !== 'plus')
+  const showAction = action && (canEdit || !action.requiresEdit)
+  const EmptyIcon = icon
+  const ActionIcon = action?.icon
   return (
-    <Empty className="border border-line bg-surface">
+    <Empty className="border">
       <EmptyHeader>
-      {icon && (
+      {EmptyIcon && (
         <EmptyMedia variant="icon">
-          <Icon name={icon} size={20} />
+          <EmptyIcon />
         </EmptyMedia>
       )}
-        <EmptyTitle className="text-sm text-ink">{children}</EmptyTitle>
-        {description && <EmptyDescription className="text-muted">{description}</EmptyDescription>}
+        <EmptyTitle>{children}</EmptyTitle>
+        {description && <EmptyDescription>{description}</EmptyDescription>}
       </EmptyHeader>
       {showAction && action && (
         <EmptyContent>
-          <Button onClick={action.onClick}>
-            {action.icon && <Icon name={action.icon} />}
+          <Button size="sm" type="button" onClick={action.onClick}>
+            {ActionIcon && <ActionIcon data-icon="inline-start" />}
             {action.label}
           </Button>
         </EmptyContent>

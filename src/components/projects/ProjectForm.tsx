@@ -11,7 +11,9 @@ import { validateProjectClient } from '@capacitylens/shared/lib/integrity'
 import { DEFAULT_COLORS } from '../../lib/palette'
 import { internalColourModeFor } from '../../store/selectors'
 import { m } from '@/i18n'
-import { Button, ColorField, FieldError, Modal, RequiredLegend, SelectField, SwitchField, TextField, type Option } from '../common/ui'
+import { ColorField, Modal, RequiredLegend, SelectField, SwitchField, TextField, type Option } from '../common/ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import type { Project } from '@capacitylens/shared/types/entities'
 
 /** Add (no `project`) or edit a project: name, REQUIRED client, preset colour. `onClose` fires on
@@ -91,15 +93,15 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
       onSubmit={submit}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>
+          <Button size="sm" type="button" variant="outline" onClick={onClose}>
             {m.form_cancel()}
           </Button>
-          <Button type="submit">{m.form_save()}</Button>
+          <Button size="sm" type="submit">{m.form_save()}</Button>
         </>
       }
     >
       <TextField label={m.form_project_name_label()} value={name} onChange={setName} autoFocus={!protectedName} required disabled={protectedName} invalid={errorField === 'name'} describedById={errorId} />
-      {protectedName && <p className="text-xs text-muted">{m.form_private_owner_only_hint()}</p>}
+      {protectedName && <p className="text-xs text-muted-foreground">{m.form_private_owner_only_hint()}</p>}
       {canManagePrivacy && (
         <SwitchField
           label={m.form_private_toggle_label()}
@@ -119,7 +121,7 @@ export function ProjectForm({ project, onClose }: { project?: Project; onClose: 
             invalid={errorField === 'codeName'}
             describedById={errorId}
           />
-          <p className="text-xs text-muted">{m.form_private_code_name_hint()}</p>
+          <p className="text-xs text-muted-foreground">{m.form_private_code_name_hint()}</p>
         </>
       )}
       <SelectField label={m.form_project_client_label()} value={clientId} onChange={setClientId} options={clientOptions} placeholder={m.form_project_select_client_placeholder()} required invalid={errorField === 'client'} describedById={errorId} />

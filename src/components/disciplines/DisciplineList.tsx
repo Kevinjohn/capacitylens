@@ -8,6 +8,7 @@ import { DisciplineForm } from './DisciplineForm'
 import type { Discipline } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
 import { Fragment } from 'react'
+import { Plus, Tag } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 export function DisciplineList() {
@@ -21,9 +22,9 @@ export function DisciplineList() {
     <ListPage title={m.list_disciplines_title()} addLabel={m.list_disciplines_add()} onAdd={() => setCreating(true)}>
       {sorted.length === 0 ? (
         <EmptyState
-          icon="tag"
+          icon={Tag}
           description={m.list_disciplines_empty_desc()}
-          action={{ label: m.list_disciplines_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
+          action={{ label: m.list_disciplines_empty_action(), onClick: () => setCreating(true), icon: Plus, requiresEdit: true }}
         >
           {m.list_disciplines_empty()}
         </EmptyState>

@@ -38,11 +38,11 @@ test('scheduler in dark mode has no serious or critical violations', async ({ pa
 async function openDrawMode(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page)
   await expect(page.getByTestId('scheduler-grid')).toBeVisible()
-  await page.getByRole('button', { name: '4w', exact: true }).click()
+  await page.getByRole('radio', { name: '4w', exact: true }).click()
   await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
-  await page.getByRole('button', { name: 'Time off', exact: true }).click()
+  await page.getByRole('radio', { name: 'Time off', exact: true }).click()
   await expect(page.getByTestId('scheduler-grid')).toHaveAttribute('data-draw-mode', 'timeoff')
-  // The toggle's pressed fill cross-fades (0.15s); let it settle so axe samples the final
+  // The selected segment's fill cross-fades (0.15s); let it settle so axe samples the final
   // brand-strong + white pairing, not a mid-fade blend that reads as false low-contrast.
   await page.waitForTimeout(350)
   await expect(page.getByTestId('allocation-bar').first()).toBeVisible()
@@ -75,7 +75,7 @@ test('scheduler in time-off draw mode (dark) has no serious or critical violatio
 async function openAllocationEditor(page: import('@playwright/test').Page): Promise<void> {
   await openApp(page)
   await disableCssMotion(page)
-  await page.getByRole('button', { name: '4w', exact: true }).click()
+  await page.getByRole('radio', { name: '4w', exact: true }).click()
   await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
   // Robust open (it timed out once under parallel load): wait for the bar to actually be present and
   // visible before acting, scroll it into the viewport (it can sit under the sticky chrome at the
@@ -133,7 +133,7 @@ test('a confirm dialog (dark) danger button has no serious or critical violation
   // P2.5b: the row's destructive action archives; the confirm dialog's "Archive" button is still the
   // danger variant (ConfirmDialog renders confirm as danger regardless of label), so this scan covers it.
   await page.getByTestId('client-row').filter({ hasText: 'Acme Inc.' }).getByRole('button', { name: 'Archive Acme Inc.' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Archive client?' })
+  const dialog = page.getByRole('alertdialog', { name: 'Archive client?' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Archive', exact: true })).toBeVisible() // the danger-variant confirm button
   await page.waitForTimeout(350) // let the entrance animation settle (mid-fade colours read as false low-contrast)
@@ -210,7 +210,7 @@ test('a focused allocation bar is not obscured by the sticky header or left colu
   await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'))
   await page.setViewportSize({ width: 1000, height: 420 })
   await openApp(page)
-  await page.getByRole('button', { name: '4w', exact: true }).click()
+  await page.getByRole('radio', { name: '4w', exact: true }).click()
   const grid = page.getByTestId('scheduler-grid')
   await expect(grid).toBeVisible()
 

@@ -79,7 +79,7 @@ function CommandItem({
         // AA-validated brand-soft tint + ink. Deliberately NO `hover:bg-canvas`: cmdk already
         // activates the hovered row, so a CSS :hover canvas tint would only ever flash a
         // `bg-canvas` row whose sublabel is still `text-faint` (4.43:1 on canvas — fails AA),
-        // whereas the active path swaps the sublabel to `text-muted`. No shadcn bg-accent.
+        // whereas the active path swaps the sublabel to `text-muted-foreground`. No shadcn bg-accent.
         "relative flex cursor-pointer items-center gap-3 px-4 py-2 text-sm text-ink outline-none transition-colors select-none data-[disabled=true]:pointer-events-none data-[disabled=true]:opacity-50 data-[selected=true]:bg-brand-soft data-[selected=true]:text-ink",
         className,
       )}

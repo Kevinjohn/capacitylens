@@ -11,14 +11,14 @@ async function box(locator: Locator) {
 test.describe('Toolbar', () => {
   test('zooms the timeline and tracks the active level', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '8w', exact: true }).click()
-    await expect(page.getByRole('button', { name: '8w', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByRole('button', { name: '1w', exact: true })).toHaveAttribute('aria-pressed', 'false')
+    await page.getByRole('radio', { name: '8w', exact: true }).click()
+    await expect(page.getByRole('radio', { name: '8w', exact: true })).toHaveAttribute('aria-checked', 'true')
+    await expect(page.getByRole('radio', { name: '1w', exact: true })).toHaveAttribute('aria-checked', 'false')
   })
 
   test('pans the window a week with Prev and Next', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     const bar = page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })
     const b0 = await box(bar)
@@ -53,12 +53,12 @@ test.describe('Toolbar', () => {
 
   test('switches draw mode between Work and Time off', async ({ page }) => {
     await openApp(page)
-    const work = page.getByRole('button', { name: 'Work', exact: true })
-    const timeoff = page.getByRole('button', { name: 'Time off', exact: true })
-    await expect(work).toHaveAttribute('aria-pressed', 'true')
+    const work = page.getByRole('radio', { name: 'Work', exact: true })
+    const timeoff = page.getByRole('radio', { name: 'Time off', exact: true })
+    await expect(work).toHaveAttribute('aria-checked', 'true')
     await timeoff.click()
-    await expect(timeoff).toHaveAttribute('aria-pressed', 'true')
-    await expect(work).toHaveAttribute('aria-pressed', 'false')
+    await expect(timeoff).toHaveAttribute('aria-checked', 'true')
+    await expect(work).toHaveAttribute('aria-checked', 'false')
 
     // The work bars go inert via a SINGLE ancestor layer (ResourceLane's BarsLayer), not a
     // per-bar attribute — so the bar carries no `inert` of its own, but its nearest [inert]
@@ -92,7 +92,7 @@ test.describe('Toolbar', () => {
     await expect(redoBtn).toBeDisabled()
 
     // Make a mutation (delete an allocation) → Undo becomes available.
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     const before = await page.getByTestId('allocation-bar').count()
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()
@@ -112,7 +112,7 @@ test.describe('Toolbar', () => {
 
   test('undoes/redoes with the keyboard and ignores the shortcut while typing', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     const before = await page.getByTestId('allocation-bar').count()
     await page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' }).click()

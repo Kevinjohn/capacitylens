@@ -11,8 +11,9 @@ import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { useStore } from '../../store/useStore'
 import { authClient } from '../../auth/authClient'
-import { Button, FieldError, TextField } from '../common/ui'
-import { Button as ShadButton } from '../ui/button'
+import { TextField } from '../common/ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 import { validateText } from '../../lib/validation'
@@ -447,7 +448,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           {preview && (
             <Item variant="muted" data-testid="invite-preview">
                 <ItemContent>
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted">{m.invite_company_label()}</p>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{m.invite_company_label()}</p>
                   <ItemTitle><h2>{preview.accountName}</h2></ItemTitle>
                   <ItemDescription>{roleSummary(preview.role)}</ItemDescription>
                   <ItemDescription>{m.invite_existing_role_note()}</ItemDescription>
@@ -455,32 +456,32 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                 </ItemContent>
                 <ItemActions className="self-start text-right">
                   <div>
-                  <p className="text-xs font-medium text-muted">{m.invite_proposed_role_label()}</p>
+                  <p className="text-xs font-medium text-muted-foreground">{m.invite_proposed_role_label()}</p>
                   <Badge>{roleLabel(preview.role)}</Badge>
                   </div>
                 </ItemActions>
             </Item>
           )}
           {state.kind === 'previewing' && (
-            <p role="status" className="text-sm text-muted">
+            <p role="status" className="text-sm text-muted-foreground">
               {m.invite_checking()}
             </p>
           )}
           {state.kind === 'ready' && (
             <>
-              <p className="text-sm text-muted">{m.invite_review_prompt()}</p>
+              <p className="text-sm text-muted-foreground">{m.invite_review_prompt()}</p>
               <div className="flex flex-wrap justify-end gap-2">
-                <ShadButton asChild size="sm">
+                <Button asChild size="sm">
                   <Link to="/">{m.invite_go_to_app()}</Link>
-                </ShadButton>
-                <Button type="button" disabled={busy} onClick={() => void acceptInvite()}>
+                </Button>
+                <Button size="sm" type="button" disabled={busy} onClick={() => void acceptInvite()}>
                   {m.invite_accept_action()}
                 </Button>
               </div>
             </>
           )}
           {state.kind === 'accepting' && (
-            <p role="status" className="text-sm text-muted">
+            <p role="status" className="text-sm text-muted-foreground">
               {m.invite_joining()}
             </p>
           )}
@@ -496,9 +497,9 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                   on the picker even when activation was about to succeed. */}
               {!state.activating && (
                 <div className="flex justify-end">
-                  <ShadButton asChild size="sm">
+                  <Button asChild size="sm">
                     <Link to="/">{m.invite_continue()}</Link>
-                  </ShadButton>
+                  </Button>
                 </div>
               )}
             </>
@@ -506,7 +507,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           {state.kind === 'auth' && (
             authMode === 'sso' ? (
               <div className="flex flex-col gap-3">
-                <p className="text-sm text-muted">
+                <p className="text-sm text-muted-foreground">
                   Sign in with the invited identity, then review and accept this invitation.
                 </p>
                 <FieldError id={errorId}>{state.message}</FieldError>
@@ -515,7 +516,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                 ) : (
                   <div className="flex flex-col gap-2">
                     {providers.map((provider) => (
-                      <Button
+                      <Button size="sm"
                         key={provider.id}
                         type="button"
                         className="w-full"
@@ -533,7 +534,7 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             {providers.length > 0 && (
               <div className="flex flex-col gap-2">
                 {providers.map((provider) => (
-                  <Button
+                  <Button size="sm"
                     key={provider.id}
                     type="button"
                     className="w-full"
@@ -543,11 +544,11 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
                     Continue with {provider.label}
                   </Button>
                 ))}
-                <p className="text-center text-xs text-muted">or use an email and password</p>
+                <p className="text-center text-xs text-muted-foreground">or use an email and password</p>
               </div>
             )}
             <form onSubmit={(event) => void signIn(event)} className="flex flex-col gap-3" noValidate>
-              <p className="text-sm text-muted">{m.invite_onboard_intro()}</p>
+              <p className="text-sm text-muted-foreground">{m.invite_onboard_intro()}</p>
               <TextField
                 label={m.invite_name()}
                 autoComplete="name"
@@ -580,10 +581,10 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
               />
               <FieldError id={errorId}>{state.message}</FieldError>
               <div className="flex flex-wrap justify-end gap-2">
-                <Button type="submit" variant="ghost" disabled={busy}>
+                <Button size="sm" type="submit" variant="outline" disabled={busy}>
                   {m.invite_sign_in_accept()}
                 </Button>
-                <Button type="button" disabled={busy} onClick={() => void createAccount()}>
+                <Button size="sm" type="button" disabled={busy} onClick={() => void createAccount()}>
                   {m.invite_create_account()}
                 </Button>
               </div>
@@ -595,11 +596,11 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             <>
               <FieldError>{state.message}</FieldError>
               <div className="flex flex-wrap justify-end gap-2">
-                <ShadButton asChild size="sm">
+                <Button asChild size="sm">
                   <Link to="/">{m.invite_go_to_app()}</Link>
-                </ShadButton>
+                </Button>
                 {state.retryAccept && preview && user && (
-                  <Button type="button" disabled={busy} onClick={() => void acceptInvite()}>
+                  <Button size="sm" type="button" disabled={busy} onClick={() => void acceptInvite()}>
                     Retry accept
                   </Button>
                 )}
@@ -608,11 +609,11 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
           )}
           {state.kind === 'local' && (
             <>
-              <p className="text-sm text-muted">{m.invite_local_mode({ app: APP_NAME })}</p>
+              <p className="text-sm text-muted-foreground">{m.invite_local_mode({ app: APP_NAME })}</p>
               <div className="flex justify-end">
-                <ShadButton asChild size="sm">
+                <Button asChild size="sm">
                   <Link to="/">{m.invite_go_to_app()}</Link>
-                </ShadButton>
+                </Button>
               </div>
             </>
           )}

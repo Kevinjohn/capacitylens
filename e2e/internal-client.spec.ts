@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-CLI-04 — the built-in "Internal" pseudo-client.
 test.describe('Internal client', () => {
@@ -21,7 +21,7 @@ test.describe('Internal client', () => {
     await page.getByRole('link', { name: 'Projects' }).click()
     await page.getByRole('button', { name: 'Add project' }).click()
     await page.getByRole('textbox', { name: 'Name', exact: true }).fill('Quarterly planning')
-    await page.getByLabel('Client').selectOption({ label: 'Internal' })
+    await selectShadOption(page.getByLabel('Client'), { label: 'Internal' })
     await page.getByRole('button', { name: 'Save' }).click()
 
     // …and it still functions as a binding target: a project bound to Internal resolves its client
@@ -48,7 +48,7 @@ test.describe('Internal client', () => {
     await openApp(page)
     // Widen + scroll to the origin so the seed's project-less cross-project "Design" booking (Alex,
     // 8–10 June) is on-screen.
-    await page.getByRole('button', { name: '4w', exact: true }).click()
+    await page.getByRole('radio', { name: '4w', exact: true }).click()
     await page.getByTestId('scheduler-grid').evaluate((el) => { (el as HTMLElement).scrollLeft = 0 })
     // A clearly project-owned bar (Globex / Brand Themes) is visible before filtering…
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toBeVisible()
@@ -57,7 +57,7 @@ test.describe('Internal client', () => {
     await expect(alexRow.getByTestId('allocation-bar')).not.toHaveCount(0)
     // Filtering by the Internal client KEEPS the project-less work (it derives client = Internal)
     // and HIDES project work owned by other clients (Brand System under Globex is gone).
-    await page.getByLabel('Filter by client').selectOption({ label: 'Internal' })
+    await selectShadOption(page.getByLabel('Filter by client'), { label: 'Internal' })
     await expect(page.getByTestId('allocation-bar').filter({ hasText: 'Brand System' })).toHaveCount(0)
     await expect(page.getByTestId('allocation-bar')).not.toHaveCount(0) // the Internal-bucketed Design remains
   })

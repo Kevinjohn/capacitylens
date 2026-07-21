@@ -9,6 +9,7 @@ import { TimeOffForm } from './TimeOffForm'
 import type { TimeOff } from '@capacitylens/shared/types/entities'
 import { m } from '@/i18n'
 import { Fragment } from 'react'
+import { Calendar, Plus } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 export function TimeOffList() {
@@ -35,9 +36,9 @@ export function TimeOffList() {
     <ListPage title={m.list_timeoff_title()} addLabel={m.list_timeoff_add()} onAdd={() => setCreating(true)}>
       {timeOff.length === 0 ? (
         <EmptyState
-          icon="calendar"
+          icon={Calendar}
           description={m.list_timeoff_empty_desc()}
-          action={{ label: m.list_timeoff_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
+          action={{ label: m.list_timeoff_empty_action(), onClick: () => setCreating(true), icon: Plus, requiresEdit: true }}
         >
           {m.list_timeoff_empty()}
         </EmptyState>
@@ -52,7 +53,7 @@ export function TimeOffList() {
                 {/* Deliberately spare: the start date (terse) and how many days. The end date, type
                     and note are stored (and surfaced on the schedule's time-off block) but left off
                     this list — it's a "who's away, from when, for how long" scan, not a detail view. */}
-                <span className="text-sm text-muted">
+                <span className="text-sm text-muted-foreground">
                   {' '}
                   · {formatShortDate(t.startDate)} · {formatDayCount(t.startDate, t.endDate)}
                 </span>

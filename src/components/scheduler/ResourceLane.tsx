@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { addDaysISO, weekdayOf } from '@capacitylens/shared/lib/dateMath'
 import { useStore } from '../../store/useStore'
 import { DAY_COLUMN_MIN_WIDTH } from '../../lib/schedulerConfig'
-import { Icon } from '../common/Icon'
+import { Plus } from 'lucide-react'
 import { AllocationBar } from './AllocationBar'
 import { LAYOUT } from './layout'
 import type { ColumnGeometry } from './columnGeometry'
@@ -288,7 +288,7 @@ export const ResourceLane = memo(function ResourceLane({
           // when the block is too narrow (<=44px) for the VISIBLE uppercase label to fit.
           // `scheduler-timeoff-block` is the semantic hook the time-off draw-mode CSS glows
           // (index.css), keyed by class — NOT by `data-testid` (which stays test-only selection).
-          className="scheduler-timeoff-block pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted"
+          className="scheduler-timeoff-block pointer-events-none absolute inset-y-1 flex items-center justify-center overflow-hidden rounded text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
           style={{
             left: b.x,
             width: b.width,
@@ -317,7 +317,7 @@ export const ResourceLane = memo(function ResourceLane({
           className="pointer-events-none absolute top-0 flex h-full items-center justify-center text-faint/50"
           style={{ left: geom.x(hoverDay), width: geom.widthOf(hoverDay) }}
         >
-          <Icon name="plus" size={14} />
+          <Plus />
         </div>
       )}
 

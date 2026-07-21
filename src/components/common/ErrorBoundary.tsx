@@ -10,7 +10,7 @@ export function ErrorFallback({ message }: { message?: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
       <h1 className="text-xl font-semibold">{m.boundary_title()}</h1>
-      <p className="max-w-md text-sm text-muted">{message || m.boundary_message()}</p>
+      <p className="max-w-md text-sm text-muted-foreground">{message || m.boundary_message()}</p>
       <Button onClick={() => window.location.reload()}>
         {m.boundary_reload()}
       </Button>

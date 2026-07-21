@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Redo2, Undo2 } from 'lucide-react'
 import { m } from '@/i18n'
 import { hasActiveFilters, useStore } from '../../store/useStore'
 import { useCanEdit } from '../../auth/permissionContext'
 import { disciplinesEnabledFor } from '../../store/selectors'
 import { useActiveScopedData } from '../../store/useScopedData'
 import { ZOOM_LEVELS } from '../../lib/schedulerConfig'
-import { Button } from '../common/ui'
-import { Icon } from '../common/Icon'
-import { cn } from '../../lib/utils'
+import { SegmentedControl } from '../common/ui'
+import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import { Field, FieldLabel } from '../ui/field'
 import { Input } from '../ui/input'
@@ -20,47 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../ui/select'
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
-
-/** Shared single-select radiogroup for the toolbar's Weeks-visible and Draw-mode choices.
- * Radix supplies the radio semantics and roving keyboard focus; this local wrapper keeps the two
- * toolbar groups on the same ShadCN composition without creating another product-wide control. */
-type ToolbarToggleOption<T> = { value: T; label: ReactNode; title?: string }
-
-function ToolbarToggleGroup<T extends string | number>({
-  value,
-  onChange,
-  options,
-  ariaLabel,
-  className,
-}: {
-  value: T
-  onChange: (value: T) => void
-  options: ToolbarToggleOption<T>[]
-  ariaLabel: string
-  className?: string
-}) {
-  return (
-    <ToggleGroup
-      type="single"
-      variant="outline"
-      size="sm"
-      value={String(value)}
-      onValueChange={(next) => {
-        const option = options.find((candidate) => String(candidate.value) === next)
-        if (option) onChange(option.value)
-      }}
-      aria-label={ariaLabel}
-      className={cn(className)}
-    >
-      {options.map((option) => (
-        <ToggleGroupItem key={String(option.value)} value={String(option.value)} title={option.title}>
-          {option.label}
-        </ToggleGroupItem>
-      ))}
-    </ToggleGroup>
-  )
-}
 
 export function SchedulerToolbar() {
   // Viewer read-only (P1.12): a viewer has nothing to draw / mutate / undo, so the draw-mode toggle
@@ -162,14 +121,14 @@ export function SchedulerToolbar() {
         <div className="mr-auto flex items-center gap-1">
           <h1 className="text-xl font-semibold">{m.scheduler_title()}</h1>
         </div>
-        <Button variant="ghost" onClick={() => panDays(-7)} title={m.scheduler_nav_prev_title()}>
-          <Icon name="chevron-left" /> {m.scheduler_nav_prev()}
+        <Button size="sm" variant="outline" onClick={() => panDays(-7)} title={m.scheduler_nav_prev_title()}>
+          <ChevronLeft data-icon="inline-start" /> {m.scheduler_nav_prev()}
         </Button>
-        <Button variant="ghost" onClick={goToToday}>
+        <Button size="sm" variant="outline" onClick={goToToday}>
           {m.scheduler_nav_today()}
         </Button>
-        <Button variant="ghost" onClick={() => panDays(7)} title={m.scheduler_nav_next_title()}>
-          {m.scheduler_nav_next()} <Icon name="chevron-right" />
+        <Button size="sm" variant="outline" onClick={() => panDays(7)} title={m.scheduler_nav_next_title()}>
+          {m.scheduler_nav_next()} <ChevronRight data-icon="inline-end" />
         </Button>
         <Input
           type="date"
@@ -179,7 +138,7 @@ export function SchedulerToolbar() {
           title={m.scheduler_jump_to_date()}
           className="w-auto"
         />
-        <ToolbarToggleGroup
+        <SegmentedControl
           className="ml-2"
           ariaLabel={m.scheduler_weeks_visible_aria()}
           value={zoom}
@@ -194,7 +153,7 @@ export function SchedulerToolbar() {
             draw toggle and the undo/redo affordances are hidden (nothing to switch / undo). */}
         {canEdit && (
           <>
-            <ToolbarToggleGroup
+            <SegmentedControl
               ariaLabel={m.scheduler_draw_mode_aria()}
               value={drawMode}
               onChange={setDrawMode}
@@ -203,29 +162,29 @@ export function SchedulerToolbar() {
                 { value: 'timeoff', label: m.scheduler_draw_timeoff(), title: m.scheduler_draw_timeoff_title() },
               ]}
             />
-            {/* Undo/redo — the visible counterpart to the global ⌘Z / ⌘⇧Z shortcuts. Always shown
-                (disabled when the stack is empty) so the affordance is discoverable; the icon stays
-                the lucide undo/redo glyph the IconName union already carries. */}
+            {/* Visible counterparts to the global undo/redo shortcuts. */}
             <div className="ml-2 flex items-center gap-1 border-l border-line pl-2">
               <Button
-                variant="ghost"
+                size="icon-sm"
+                variant="outline"
                 onClick={undo}
                 disabled={!canUndo}
-                ariaLabel={m.scheduler_undo()}
+                aria-label={m.scheduler_undo()}
                 title={m.scheduler_undo_title()}
-                testId="undo-button"
+                data-testid="undo-button"
               >
-                <Icon name="undo" />
+                <Undo2 />
               </Button>
               <Button
-                variant="ghost"
+                size="icon-sm"
+                variant="outline"
                 onClick={redo}
                 disabled={!canRedo}
-                ariaLabel={m.scheduler_redo()}
+                aria-label={m.scheduler_redo()}
                 title={m.scheduler_redo_title()}
-                testId="redo-button"
+                data-testid="redo-button"
               >
-                <Icon name="redo" />
+                <Redo2 />
               </Button>
             </div>
           </>
@@ -320,7 +279,7 @@ export function SchedulerToolbar() {
           </Field>
         )}
         {hasActiveFilters(filters) && (
-          <Button variant="ghost" onClick={onClear}>
+          <Button size="sm" variant="outline" onClick={onClear}>
             {m.scheduler_clear()}
           </Button>
         )}

@@ -1,8 +1,9 @@
 import { useEffect, useId, useState, type ComponentProps } from 'react'
 import type { FormEvent } from 'react'
-import { Button, Callout, FieldError } from '../components/common/ui'
+import { Alert, AlertDescription } from '../components/ui/alert'
+import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-import { Field, FieldGroup, FieldLabel } from '../components/ui/field'
+import { Field, FieldError, FieldGroup, FieldLabel } from '../components/ui/field'
 import { Card, CardContent } from '../components/ui/card'
 import { Separator } from '../components/ui/separator'
 import { authClient } from './authClient'
@@ -231,7 +232,7 @@ export function LoginScreen({
           <h1 className="text-lg font-semibold text-ink">
             {setup ? m.login_setup_heading() : m.login_sign_in()}
           </h1>
-          <p className="text-sm text-muted">{setup ? m.login_setup_subtitle() : m.login_subtitle()}</p>
+          <p className="text-sm text-muted-foreground">{setup ? m.login_setup_subtitle() : m.login_subtitle()}</p>
         </div>
         <Card className="gap-4 py-4">
           <CardContent className="px-4">
@@ -241,13 +242,15 @@ export function LoginScreen({
               AuthProvider.Status.degraded. */}
           {degraded && (
             <div className="mb-4">
-              <Callout>{m.login_degraded_notice()}</Callout>
+              <Alert variant="warn" role="status">
+                <AlertDescription>{m.login_degraded_notice()}</AlertDescription>
+              </Alert>
             </div>
           )}
           {twoFactorPending ? (
             <form onSubmit={(e) => void verifySecondFactor(e)} noValidate>
               <FieldGroup className="gap-3">
-              <p className="text-sm text-muted">
+              <p className="text-sm text-muted-foreground">
                 {useRecoveryCode
                   ? 'Enter one unused recovery code.'
                   : 'Enter the six-digit code from your authenticator app.'}
@@ -266,14 +269,14 @@ export function LoginScreen({
                 />
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex items-center justify-between gap-3">
-                <Button
+                <Button size="sm"
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   onClick={() => { setUseRecoveryCode((value) => !value); setTwoFactorCode(''); setError(null) }}
                 >
                   {useRecoveryCode ? 'Use authenticator code' : 'Use a recovery code'}
                 </Button>
-                <Button type="submit" testId="mfa-submit" disabled={busy || twoFactorCode.length === 0}>
+                <Button size="sm" type="submit" data-testid="mfa-submit" disabled={busy || twoFactorCode.length === 0}>
                   Verify
                 </Button>
               </div>
@@ -332,7 +335,7 @@ export function LoginScreen({
                 />
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex justify-end">
-                <Button type="submit" testId="owner-setup-submit" disabled={busy}>
+                <Button size="sm" type="submit" data-testid="owner-setup-submit" disabled={busy}>
                   {m.login_create_owner()}
                 </Button>
               </div>
@@ -366,7 +369,7 @@ export function LoginScreen({
                 />
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex justify-end">
-                <Button type="submit" disabled={busy}>
+                <Button size="sm" type="submit" disabled={busy}>
                   {m.login_sign_in()}
                 </Button>
               </div>
@@ -377,11 +380,11 @@ export function LoginScreen({
             <div className="mt-4 flex flex-col gap-3">
               <Separator />
               {providers.some((provider) => provider.experimental) ? (
-                <p className="text-xs text-muted">{m.login_external_experimental()}</p>
+                <p className="text-xs text-muted-foreground">{m.login_external_experimental()}</p>
               ) : null}
               <FieldError>{authMode === 'sso' ? error : null}</FieldError>
               {providers.map((provider) => (
-                <Button key={`${provider.kind}:${provider.id}`} variant="ghost" onClick={() => void signInWithProvider(provider)} disabled={busy}>
+                <Button size="sm" type="button" key={`${provider.kind}:${provider.id}`} variant="outline" onClick={() => void signInWithProvider(provider)} disabled={busy}>
                   {m.login_continue_with({ provider: provider.label })}
                 </Button>
               ))}

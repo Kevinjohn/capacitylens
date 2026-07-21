@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { openApp } from './helpers'
+import { openApp, selectShadOption } from './helpers'
 
 // Covers US-SCH-09 (weekend criteria): the per-day over-marker is weekend-aware. A bar that merely
 // SPANS a weekend adds no over-marker; opting the allocation into weekends turns those days red; and
@@ -19,14 +19,14 @@ test.describe('Weekend over-marker', () => {
 
   test('a spanned weekend is not over; include-weekends and time-off are', async ({ page }) => {
     await openApp(page)
-    await page.getByRole('button', { name: '2w', exact: true }).click()
+    await page.getByRole('radio', { name: '2w', exact: true }).click()
 
     const baseline = await nikeOverMarkers(page).count() // Nike has no seed over-days
 
     // A fresh allocation spanning the weekend, default (weekend-aware).
     await page.getByRole('button', { name: 'Add allocation for Nike Spiros' }).click()
     const create = page.getByRole('dialog', { name: 'New allocation' })
-    await create.getByLabel('Project', { exact: true }).selectOption('p-acme')
+    await selectShadOption(create.getByLabel('Project', { exact: true }), 'p-acme')
     await create.getByLabel('New activity name').fill('Weekend Verify')
     await create.getByRole('button', { name: 'Add activity' }).click()
     await create.getByLabel(/^Start/).fill('2026-06-12') // Fri
@@ -68,7 +68,7 @@ test.describe('Weekend over-marker', () => {
     await page.getByRole('link', { name: 'Time off' }).click()
     await page.getByRole('button', { name: 'Add time off' }).click()
     const timeOff = page.getByRole('dialog', { name: 'Add time off' })
-    await timeOff.getByLabel('Resource').selectOption({ label: 'Nike Spiros' })
+    await selectShadOption(timeOff.getByLabel('Resource'), { label: 'Nike Spiros' })
     await timeOff.getByLabel('Start').fill('2026-06-15')
     await timeOff.getByLabel('End').fill('2026-06-15')
     await page.getByRole('button', { name: 'Save' }).click()

@@ -9,6 +9,7 @@ import { useLifecycleActions } from '../../hooks/useLifecycleActions'
 import { m } from '@/i18n'
 import { nameForQuotedContext } from '@capacitylens/shared/domain/privateNames'
 import { Fragment } from 'react'
+import { Briefcase, Plus } from 'lucide-react'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 /** Build the archive-confirm message for a client, appending the descendant-count cascade warning
@@ -42,9 +43,9 @@ export function ClientList() {
     <ListPage title={m.list_clients_title()} addLabel={m.list_clients_add()} onAdd={() => setCreating(true)}>
       {clients.length === 0 ? (
         <EmptyState
-          icon="briefcase"
+          icon={Briefcase}
           description={m.list_clients_empty_desc()}
-          action={{ label: m.list_clients_empty_action(), onClick: () => setCreating(true), icon: 'plus' }}
+          action={{ label: m.list_clients_empty_action(), onClick: () => setCreating(true), icon: Plus, requiresEdit: true }}
         >
           {m.list_clients_empty()}
         </EmptyState>

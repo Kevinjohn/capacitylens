@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
-import { Button, ConfirmDialog, FieldError, SelectField, TextField } from '../common/ui'
+import { ConfirmDialog, SelectField, TextField } from '../common/ui'
 import { m } from '@/i18n'
 import {
   canManageMemberRole,
@@ -25,7 +25,8 @@ import { offlineStateSnapshot } from '../../data/offlineCache'
 import { useOfflineState } from '../../data/useOfflineState'
 import { useTeamDirectory } from './useTeamDirectory'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
-import { FieldSet, FieldLegend } from '../ui/field'
+import { Button } from '../ui/button'
+import { FieldError, FieldSet, FieldLegend } from '../ui/field'
 import { Item, ItemActions, ItemContent, ItemGroup, ItemSeparator } from '../ui/item'
 
 // Member-management section shown in Team & access on an auth-enabled, server-backed deploy.
@@ -85,7 +86,7 @@ function CopyableLinkBlock({
     </code>
   )
   const button = (
-    <Button variant="ghost" onClick={() => copyLink(link, copiedNotice)}>
+    <Button size="sm" variant="outline" onClick={() => copyLink(link, copiedNotice)}>
       {m.settings_invite_copy()}
     </Button>
   )
@@ -592,7 +593,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
 
       {/* Members list */}
       {members && members.length === 0 ? (
-        <p className="py-2 text-sm text-muted">{m.settings_members_empty()}</p>
+        <p className="py-2 text-sm text-muted-foreground">{m.settings_members_empty()}</p>
       ) : (
       <ItemGroup>
         {members?.map((mem, index) => {
@@ -616,8 +617,8 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
             <Item size="sm" role="listitem" className="rounded-none px-0" data-testid="member-row">
               <ItemContent className="min-w-0">
                 <span className="text-sm text-ink">{labelFor(mem)}</span>
-                {mem.isSelf && <span className="ml-1 text-xs text-muted">{m.settings_member_you()}</span>}
-                <span className="ml-2 text-xs text-muted">· {mem.status}</span>
+                {mem.isSelf && <span className="ml-1 text-xs text-muted-foreground">{m.settings_member_you()}</span>}
+                <span className="ml-2 text-xs text-muted-foreground">· {mem.status}</span>
               </ItemContent>
               <ItemActions className="flex-wrap justify-end">
                 {mayTouch ? (
@@ -633,32 +634,32 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                     />
                   </span>
                 ) : (
-                  <span className="text-sm capitalize text-muted">{mem.role}</span>
+                  <span className="text-sm capitalize text-muted-foreground">{mem.role}</span>
                 )}
                 {mayReset && (
-                  <Button variant="ghost" testId="member-reset-password" disabled={busyAction !== null} onClick={() => void resetPassword(mem)}>
+                  <Button size="sm" variant="outline" data-testid="member-reset-password" disabled={busyAction !== null} onClick={() => void resetPassword(mem)}>
                     {m.settings_member_reset_password()}
                   </Button>
                 )}
                 {mem.mayRevokeSessions && (
-                  <Button variant="ghost" testId="member-revoke-sessions" disabled={busyAction !== null} onClick={() => void revokeSessions(mem)}>
+                  <Button size="sm" variant="outline" data-testid="member-revoke-sessions" disabled={busyAction !== null} onClick={() => void revokeSessions(mem)}>
                     Revoke sessions
                   </Button>
                 )}
                 {mayRemove && (
-                  <Button variant="danger" testId="member-remove" disabled={busyAction !== null} onClick={() => void removeMember(mem)}>
+                  <Button size="sm" variant="danger-soft" data-testid="member-remove" disabled={busyAction !== null} onClick={() => void removeMember(mem)}>
                     {m.settings_member_remove()}
                   </Button>
                 )}
                 {/* Ownership has one path: a confirmed, atomic hand-over that promotes the target and
                     demotes the caller. Generic role selectors never offer Owner. */}
                 {myRole === 'owner' && !mem.isSelf && mem.role !== 'owner' && (
-                  <Button variant="ghost" testId="member-make-owner" disabled={busyAction !== null} onClick={() => setTransferTarget(mem)}>
+                  <Button size="sm" variant="outline" data-testid="member-make-owner" disabled={busyAction !== null} onClick={() => setTransferTarget(mem)}>
                     {m.settings_member_make_owner()}
                   </Button>
                 )}
                 {isOwner && (
-                  <span className="text-xs text-muted">{m.settings_member_sole_owner_protected()}</span>
+                  <span className="text-xs text-muted-foreground">{m.settings_member_sole_owner_protected()}</span>
                 )}
               </ItemActions>
             </Item>
@@ -678,7 +679,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
           copiedNotice={m.settings_members_reset_copied()}
           copyLink={copyLink}
           intro={
-            <p className="text-xs text-muted">
+            <p className="text-xs text-muted-foreground">
               {m.settings_members_reset_intro({
                 member: resetLink.member,
                 // Local date + TIME, not a bare UTC .slice(0,10): the link lives only 24h, so a
@@ -719,11 +720,11 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
               testId="invite-preauth"
             />
           </div>
-          <Button testId="invite-submit" disabled={busyAction !== null} onClick={() => void submitInvite()}>
+          <Button size="sm" data-testid="invite-submit" disabled={busyAction !== null} onClick={() => void submitInvite()}>
             {m.settings_invite_submit()}
           </Button>
         </div>
-        <p className="text-xs text-muted" data-testid="invite-role-summary" aria-live="polite">
+        <p className="text-xs text-muted-foreground" data-testid="invite-role-summary" aria-live="polite">
           {roleSummary(inviteRole)}
         </p>
         <FieldError id={errorId}>{errorField === 'invite' ? error : null}</FieldError>
@@ -752,7 +753,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
                   {inv.usedAt ? m.settings_invite_suffix_used() : m.settings_invite_suffix_expires({ date: inv.expiresAt.slice(0, 10) })}
                 </ItemContent>
                 <ItemActions>
-                <Button variant="ghost" testId="invite-revoke" disabled={busyAction !== null} onClick={() => void revokeInvite(inv.id)}>
+                <Button size="sm" variant="outline" data-testid="invite-revoke" disabled={busyAction !== null} onClick={() => void revokeInvite(inv.id)}>
                   {m.settings_invite_revoke()}
                 </Button>
                 </ItemActions>
@@ -781,7 +782,7 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       <ConfirmDialog
         title={m.settings_change_role_title()}
         confirmLabel={m.settings_change_role_confirm()}
-        confirmVariant="primary"
+        confirmVariant="default"
         message={m.settings_change_role_message({
           member: labelFor(roleChange.member),
           role: roleLabel(roleChange.nextRole),

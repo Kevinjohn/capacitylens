@@ -16,7 +16,7 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
-import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, SwitchField, TextField } from '../common/ui'
+import { ConfirmDialog, ListPage, SegmentedControl, SwitchField, TextField } from '../common/ui'
 import { SecuritySection } from './SecuritySection'
 import { ArchivedSection } from './ArchivedSection'
 import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
@@ -27,6 +27,8 @@ import type { InternalColourMode, SchedulingMode } from '@capacitylens/shared/ty
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { useCanEdit } from '../../auth/permissionContext'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
 import { Field, FieldLabel } from '../ui/field'
 
@@ -225,7 +227,7 @@ export function SettingsView() {
             />
             <FieldError id={errorId}>{error}</FieldError>
             <div className="flex justify-end">
-              <Button onClick={saveName} disabled={!canEdit || nameUnchanged}>
+              <Button size="sm" onClick={saveName} disabled={!canEdit || nameUnchanged}>
                 {m.settings_save()}
               </Button>
             </div>
@@ -233,7 +235,7 @@ export function SettingsView() {
         </SettingsCard>
 
         <SettingsCard title={m.settings_scheduling_heading()} description={m.settings_scheduling_intro()}>
-          <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-muted">
+          <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-muted-foreground">
             <li>
               <strong>{m.settings_scheduling_hours_strong()}</strong>{m.settings_scheduling_hours_rest()}
             </li>
@@ -257,7 +259,7 @@ export function SettingsView() {
           {/* P1.14: language/week-start/time zone are captured when the company is created and FROZEN
               thereafter (the server returns 409 on a change). Disabled here, not removed, so the
               chosen values stay visible. */}
-          <p className="text-xs text-muted">{m.settings_calendar_frozen_hint()}</p>
+          <p className="text-xs text-muted-foreground">{m.settings_calendar_frozen_hint()}</p>
           <div className="flex flex-col gap-3">
             <Field>
               <FieldLabel>{m.settings_week_start_label()}</FieldLabel>
@@ -292,7 +294,7 @@ export function SettingsView() {
               {/* Language is English-only until P1.5.1 (Paraglide); a read-only row, frozen like the
                   two above. Shown so the company's chosen language is visible even though it can't change. */}
               <FieldLabel>{m.settings_language_label()}</FieldLabel>
-              <p className="text-sm text-muted" data-testid="settings-language">{m.settings_language_value()}</p>
+              <p className="text-sm text-muted-foreground" data-testid="settings-language">{m.settings_language_value()}</p>
             </Field>
           </div>
         </SettingsCard>
@@ -414,7 +416,7 @@ export function SettingsView() {
           description={m.settings_clear_desc_server({ app: APP_NAME })}
           danger
         >
-          <Button variant="danger" testId="clear-local-storage" onClick={() => setConfirmingClear(true)}>
+          <Button size="sm" variant="danger-soft" data-testid="clear-local-storage" onClick={() => setConfirmingClear(true)}>
             {m.settings_clear_storage_button()}
           </Button>
         </SettingsCard>
@@ -434,8 +436,8 @@ export function SettingsView() {
         {authMode !== 'off' && (
           <SettingsCard title={m.settings_account_heading()}>
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted">{m.settings_signed_in_as({ who: user?.email ?? user?.name ?? m.settings_signed_in_unknown() })}</p>
-              <Button variant="ghost" onClick={() => void signOut()}>
+              <p className="text-sm text-muted-foreground">{m.settings_signed_in_as({ who: user?.email ?? user?.name ?? m.settings_signed_in_unknown() })}</p>
+              <Button size="sm" variant="outline" onClick={() => void signOut()}>
                 {m.settings_account_sign_out()}
               </Button>
             </div>
@@ -454,7 +456,7 @@ export function SettingsView() {
             deploy script stamps; absent (today's Settings exactly) when both env vars
             are unset. The mailto subject carries the stamp so reports arrive pinned. */}
         {(stamp || feedback) && (
-          <p className="flex items-center gap-3 text-xs text-muted">
+          <p className="flex items-center gap-3 text-xs text-muted-foreground">
             {stamp && <span data-testid="build-stamp">{stamp}</span>}
             {feedback && (
               <a

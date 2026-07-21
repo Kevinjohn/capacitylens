@@ -3,9 +3,9 @@ import type { FormEvent } from 'react'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
 import { authClient } from '../../auth/authClient'
 import { accountClient, accountCommandOutcomeUnknown } from '../../account/accountClient'
-import { Button, FieldError } from '../common/ui'
+import { Button } from '../ui/button'
 import { Input } from '../ui/input'
-import { Field, FieldGroup, FieldLabel } from '../ui/field'
+import { Field, FieldError, FieldGroup, FieldLabel } from '../ui/field'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Separator } from '../ui/separator'
 
@@ -178,23 +178,23 @@ export function SecuritySection() {
                 <Input id="security-confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
               </Field>
             </div>
-            <Button type="submit" disabled={busy || !currentPassword || !newPassword || !confirmPassword}>Change password</Button>
+            <Button size="sm" type="submit" disabled={busy || !currentPassword || !newPassword || !confirmPassword}>Change password</Button>
           </FieldGroup>
         </form>
 
         <Separator />
         <div>
         <h3 className="text-sm font-medium text-ink">Active sessions</h3>
-        <ul className="mt-2 space-y-2">
+        <ul className="mt-2 flex flex-col gap-2">
           {sessions.map((session) => (
             <li key={session.id} className="flex items-center justify-between gap-3 rounded bg-canvas p-2 text-xs">
-              <span className="min-w-0 text-muted">
+              <span className="min-w-0 text-muted-foreground">
                 <span className="block truncate text-ink">{session.current ? 'Current session' : 'Signed-in session'}</span>
                 created {new Date(session.createdAt).toLocaleString()} · {session.expiresAt
                   ? `expires ${new Date(session.expiresAt).toLocaleString()}`
                   : 'no fixed expiry'}
               </span>
-              <Button variant="ghost" disabled={busy} onClick={() => void revoke(session.id)}>Revoke</Button>
+              <Button size="sm" type="button" variant="outline" disabled={busy} onClick={() => void revoke(session.id)}>Revoke</Button>
             </li>
           ))}
         </ul>

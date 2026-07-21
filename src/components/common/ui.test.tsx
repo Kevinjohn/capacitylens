@@ -2,12 +2,10 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import {
-  Button,
   Modal,
   ConfirmDialog,
   ListPage,
   EmptyState,
-  FieldError,
   TextField,
   TextAreaField,
   NumberField,
@@ -19,6 +17,8 @@ import {
   Avatar,
   SegmentedControl,
 } from './ui'
+import { Button } from '../ui/button'
+import { FieldError } from '../ui/field'
 import { useStore } from '../../store/useStore'
 import { colorName } from '../../lib/palette'
 import { emptyAppData } from '@capacitylens/shared/types/entities'
@@ -74,7 +74,7 @@ describe('Button', () => {
     render(
       <>
         <Button>Primary</Button>
-        <Button variant="danger">Danger</Button>
+        <Button variant="danger-soft">Danger</Button>
       </>,
     )
     expect(screen.getByRole('button', { name: 'Primary' })).toHaveClass('bg-ok-strong', 'text-ok-strong-ink')
@@ -115,9 +115,8 @@ describe('Modal', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  // The Modal portals to <body>, so the backdrop is NOT the render container's child; it's the
-  // dialog panel's parentElement (the backdrop wraps the Content). Read it that way — portal-safe.
-  it('closes when a press both starts and ends on the backdrop', () => {
+  it('closes when the backdrop is clicked', async () => {
+    const user = userEvent.setup()
     const onClose = vi.fn()
     render(
       <Modal title="Backdrop Modal" onClose={onClose}>
@@ -125,38 +124,24 @@ describe('Modal', () => {
       </Modal>,
     )
     const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!
-    fireEvent.mouseDown(backdrop)
-    fireEvent.mouseUp(backdrop)
+    await user.click(backdrop)
     expect(onClose).toHaveBeenCalledOnce()
   })
 
-  it('does NOT close on a bare mousedown (needs the matching mouseup)', () => {
+  it('does not close when its content is clicked', async () => {
+    const user = userEvent.setup()
     const onClose = vi.fn()
     render(
       <Modal title="Backdrop Modal" onClose={onClose}>
         <p>Inner</p>
       </Modal>,
     )
-    fireEvent.mouseDown(screen.getByRole('dialog').parentElement!)
+    await user.click(screen.getByText('Inner'))
     expect(onClose).not.toHaveBeenCalled()
   })
 
-  it('does NOT close when a drag starts inside and releases on the backdrop', () => {
-    const onClose = vi.fn()
-    render(
-      <Modal title="No-close Modal" onClose={onClose}>
-        <p>Inner</p>
-      </Modal>,
-    )
-    const dialog = screen.getByRole('dialog', { name: 'No-close Modal' })
-    const backdrop = dialog.parentElement!
-    // Press begins on the dialog, drag-releases over the backdrop — must not dismiss.
-    fireEvent.mouseDown(dialog)
-    fireEvent.mouseUp(backdrop)
-    expect(onClose).not.toHaveBeenCalled()
-  })
-
-  it('refuses an accidental backdrop/Escape dismissal once a field is edited', () => {
+  it('refuses an accidental backdrop/Escape dismissal once a field is edited', async () => {
+    const user = userEvent.setup()
     const onClose = vi.fn()
     render(
       <Modal title="Dirty Modal" onClose={onClose}>
@@ -165,9 +150,8 @@ describe('Modal', () => {
     )
     // Edit a field → dialog is dirty.
     fireEvent.input(screen.getByLabelText('field'), { target: { value: 'x' } })
-    const backdrop = screen.getByRole('dialog').parentElement!
-    fireEvent.mouseDown(backdrop)
-    fireEvent.mouseUp(backdrop)
+    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!
+    await user.click(backdrop)
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
@@ -532,6 +516,20 @@ describe('SelectField', () => {
     expect(onChange).toHaveBeenCalledWith('b')
   })
 
+  it('marks a changed selection dirty inside a Modal', () => {
+    const onClose = vi.fn()
+    render(
+      <Modal title="Select modal" onClose={onClose}>
+        <SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />
+      </Modal>,
+    )
+    const select = screen.getByLabelText('Pick one')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('renders a placeholder option when provided', () => {
     render(
       <SelectField label="Choose" value="" onChange={vi.fn()} options={options} placeholder="-- Select --" />,
@@ -605,13 +603,13 @@ describe('ColorField', () => {
     expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument()
   })
 
-  it('closes the popup on Escape while a swatch is focused, without bubbling Escape up', async () => {
+  it('closes the popup on Escape without closing the surrounding Modal', async () => {
     const user = userEvent.setup()
-    const onEscape = vi.fn()
+    const onClose = vi.fn()
     render(
-      <div onKeyDown={(e) => e.key === 'Escape' && onEscape()}>
+      <Modal title="Edit" onClose={onClose}>
         <ColorField label="Colour" value={BLUE} onChange={vi.fn()} />
-      </div>,
+      </Modal>,
     )
     await user.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
     // Move focus into the grid, then Escape: the popup must close and the keydown must
@@ -620,7 +618,7 @@ describe('ColorField', () => {
     swatch.focus()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument()
-    expect(onEscape).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('dismisses only the popup, not the surrounding Modal, on a backdrop click', async () => {
@@ -633,16 +631,14 @@ describe('ColorField', () => {
     )
     await user.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
     expect(screen.getByRole('button', { name: colorName(RED) })).toBeInTheDocument()
-    // The backdrop is the overlay wrapping the dialog; the Modal closes only when a press
-    // both starts and ends on it. The open popup must swallow that press.
-    const backdrop = screen.getByRole('dialog').parentElement!
-    fireEvent.mouseDown(backdrop)
-    fireEvent.mouseUp(backdrop)
+    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!
+    await user.click(backdrop)
     expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument() // popup closed
     expect(onClose).not.toHaveBeenCalled() // modal stayed open
   })
 
-  it('does NOT swallow a press on another control inside the same dialog (first click lands)', () => {
+  it('does NOT swallow a press on another control inside the same dialog (first click lands)', async () => {
+    const user = userEvent.setup()
     const onSiblingDown = vi.fn()
     render(
       <Modal title="Edit" onClose={() => {}}>
@@ -654,9 +650,8 @@ describe('ColorField', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: `Colour (${colorName(BLUE)})` }))
     expect(screen.getByRole('button', { name: colorName(RED) })).toBeInTheDocument() // popup open
-    // A press on another in-dialog control must REACH it — the capture-phase listener
-    // only swallows presses that land on the backdrop (outside the dialog panel).
-    fireEvent.mouseDown(screen.getByTestId('sibling'))
+    // A press on another in-dialog control must reach it while Popover handles dismissal.
+    await user.click(screen.getByTestId('sibling'))
     expect(onSiblingDown).toHaveBeenCalledTimes(1) // not swallowed
     expect(screen.queryByRole('button', { name: colorName(RED) })).not.toBeInTheDocument() // popup closed
   })

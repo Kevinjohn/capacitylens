@@ -386,7 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       <main className="flex min-h-screen items-center justify-center p-6">
         <div className="max-w-md text-center">
           <h1 className="text-xl font-semibold">Unable to verify your session</h1>
-          <p className="mt-2 text-muted">{status.message}</p>
+          <p className="mt-2 text-muted-foreground">{status.message}</p>
           <Button variant="link" className="mt-4" onClick={() => { setStatus({ kind: 'checking' }); void checkAuth('fail-open') }}>
             Try again
           </Button>
