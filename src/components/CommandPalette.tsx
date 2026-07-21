@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
+import { useMemo, useRef, useState, useLayoutEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useStore, emptyFilters } from '../store/useStore'
 import { disciplinesEnabledFor, externalEnabledFor, placeholdersEnabledFor } from '../store/selectors'
@@ -17,8 +17,8 @@ import {
 } from './ui/command'
 import type { Filters } from '../store/useStore'
 import { cn } from '@/lib/utils'
-import { restoreFocus, wrapTabWithin } from './common/focus'
 import { LINKS } from '../lib/navLinks'
+import { Dialog, DialogContent, DialogTitle } from './ui/dialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,83 +56,6 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   // Refs into cmdk's input + list so we can repair `aria-activedescendant` (below).
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
-  // Ref onto the dialog panel for the Tab wrap below.
-  const panelRef = useRef<HTMLDivElement>(null)
-  // Ref onto the backdrop (the palette's own root node in the shell tree) so the inert effect
-  // below can find — and later un-inert — its siblings without reaching into AppShell.
-  const rootRef = useRef<HTMLDivElement>(null)
-
-  // Unlike the entity-edit Modal (dialogs.tsx), which deliberately leaves the background NOT
-  // aria-hidden/inert (an honest reflection that its backdrop doesn't fully occlude, and Escape
-  // there can be refused by the dirty-guard), the palette has no legitimate reason to expose
-  // background content: it always fully covers the app, and Escape/backdrop-click always close it
-  // outright. Make every sibling of the palette's own root `inert` while it's mounted — this is
-  // the same primitive ResourceLane's BarsLayer uses to pull the work bars out of the tree in
-  // "Time off" mode — so keyboard Tab AND screen-reader browse-mode virtual navigation both stay
-  // inside the dialog, not just the Tab-wrap below (which only covers real Tab key presses).
-  // Restored on unmount so the app is interactive again the instant the palette closes.
-  useEffect(() => {
-    const root = rootRef.current
-    const parent = root?.parentElement
-    if (!root || !parent) return
-    const siblings = Array.from(parent.children).filter((el): el is HTMLElement => el !== root && el instanceof HTMLElement)
-    for (const el of siblings) el.inert = true
-    return () => {
-      for (const el of siblings) el.inert = false
-    }
-  }, [])
-
-  // Focus restore: capture the invoker (whatever had focus when the palette opened — the ⌘K
-  // press leaves it on a toolbar button, the grid, etc.) and give focus back on unmount.
-  // Same policy as the Modal in common/dialogs.tsx (restoreFocus handles a since-detached
-  // invoker by falling back to <main>), so closing any overlay lands keyboard/SR users
-  // somewhere sensible instead of dropping focus to <body> (WCAG 2.4.3).
-  //
-  // ORDERING: the capture must run during RENDER, not in an effect. The CommandInput's
-  // `autoFocus` applies at COMMIT — before any passive effect runs — so an effect-time
-  // `document.activeElement` read would capture the palette's OWN input (detached by the
-  // unmount → restoreFocus falls back to <main>, never the real invoker). A lazy useState
-  // initializer runs exactly once, render-phase, before that autoFocus commits.
-  const [invoker] = useState(() => document.activeElement as HTMLElement | null)
-  // STRICTMODE: dev mounts run setup → cleanup → setup. A synchronous restoreFocus in the cleanup
-  // fires on that FAKE unmount — right after the input's autoFocus committed — yanking focus back
-  // to the invoker; with focus outside the panel, Escape never reaches the Command's onKeyDown and
-  // the palette can't be closed by keyboard (caught by e2e against the StrictMode dev server; the
-  // production build has no double-mount). Defer the restore a tick and let a re-running setup
-  // cancel it: only a REAL unmount lets the timer fire. restoreFocus itself handles the invoker
-  // having been detached in the meantime (falls back to <main>).
-  const restoreTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(() => {
-    if (restoreTimer.current !== null) {
-      clearTimeout(restoreTimer.current) // StrictMode remount — the fake unmount's restore is cancelled
-      restoreTimer.current = null
-    }
-    return () => {
-      restoreTimer.current = setTimeout(() => restoreFocus(invoker), 0)
-    }
-  }, [invoker])
-
-  // Tab containment via the shared wrapTabWithin (common/focus.ts — one wrap shared with the
-  // Modal in common/dialogs.tsx so the two overlays can't drift): the palette is visually
-  // overlaid on obscured content, so Tab/Shift-Tab must cycle within the panel — otherwise
-  // keyboard users tab out into controls they can't see. Usually the input is the only
-  // focusable (cmdk options are aria-activedescendant, not tabbable), so the wrap simply
-  // keeps focus on it. This is belt-and-braces alongside `aria-modal` + the sibling-`inert`
-  // effect above (which already make the background unreachable to both Tab and AT browse
-  // mode) — unlike dialogs.tsx's Modal, the palette's backdrop always fully occludes the app,
-  // so there's no honesty concern with claiming a true modal here. cmdk's own arrow/Enter
-  // handling is untouched — this listener acts on Tab only.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab') return
-      const node = panelRef.current
-      if (!node) return
-      wrapTabWithin(node, e)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
-
   // Build the full item list (kept verbatim — capacitylens's own fuzzyFilter drives results, not cmdk's
   // internal filter, hence `shouldFilter={false}` below). Memoized so the fuzzy filter over ALL data
   // does NOT re-run on every render: cmdk churns the controlled `value` on each pointer-move (→
@@ -206,40 +129,23 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
   })
 
   return (
-    // Backdrop — click outside to close
-    <div
-      ref={rootRef}
-      className="fixed inset-0 z-50 flex justify-center bg-black/40 pt-[15vh] backdrop-blur-sm animate-[capacitylens-fade_0.12s_ease-out]"
-      onMouseDown={(e) => {
-        // Only close if the mousedown was directly on the backdrop (not bubbled)
-        if (e.target === e.currentTarget) onClose()
-      }}
-      data-testid="command-palette"
-      role="presentation"
-    >
-      <div
-        ref={panelRef}
-        // The panel is a labelled, TRUE modal dialog: aria-modal (plus the inert siblings set up
-        // above) tells AT browse mode the rest of the page really is unreachable while this is open.
-        role="dialog"
-        aria-modal="true"
-        aria-label={m.palette_dialog_label()}
-        className="flex h-fit max-h-[60vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-elevated shadow-pop ring-1 ring-line animate-[capacitylens-pop_0.14s_ease-out]"
-        onMouseDown={(e) => e.stopPropagation()}
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent
+        data-testid="command-palette"
+        overlayProps={{
+          'data-testid': 'command-palette-overlay',
+          onMouseDown: (event) => { event.preventDefault(); onClose() },
+        }}
+        showCloseButton={false}
+        aria-describedby={undefined}
+        className="top-[15vh] max-h-[60vh] max-w-xl translate-y-0 gap-0 overflow-hidden p-0"
       >
+        <DialogTitle className="sr-only">{m.palette_dialog_label()}</DialogTitle>
         <Command
           shouldFilter={false}
           loop={false}
           value={activeValue}
           onValueChange={setActiveValue}
-          // cmdk doesn't close on Escape itself — wire it here (the keydown fires before cmdk's
-          // own arrow/enter switch). Mirror the prior hand-rolled handler's Escape→onClose.
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              e.preventDefault()
-              onClose()
-            }
-          }}
         >
           {/* Search input row */}
           <div className="flex items-center gap-3 border-b px-4 py-3">
@@ -303,8 +209,8 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
             ))}
           </CommandList>
         </Command>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   )
 }
 

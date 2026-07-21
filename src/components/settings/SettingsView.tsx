@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useAuth } from '../../auth/authContext'
 import { buildStamp, feedbackMailto } from '../../data/buildInfo'
 import { isServerConfigured } from '../../data/apiConfig'
@@ -16,17 +16,19 @@ import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { validateName } from '../../lib/validation'
-import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, TextField } from '../common/ui'
+import { Button, ConfirmDialog, FieldError, ListPage, SegmentedControl, SwitchField, TextField } from '../common/ui'
 import { SecuritySection } from './SecuritySection'
 import { ArchivedSection } from './ArchivedSection'
 import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
-import { cn } from '@/lib/utils'
 import { externalExplainer } from '../../lib/externalCopy'
 import { m } from '@/i18n'
 import type { ThemePref } from '../../lib/theme'
 import type { InternalColourMode, SchedulingMode } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { useCanEdit } from '../../auth/permissionContext'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
+import { Field, FieldLabel } from '../ui/field'
 
 // Module-scope option lists carry a `label` GETTER (`() => m.key()`), not a pre-resolved string —
 // the AppShell LINKS pattern (P1.5.2). Resolving `m.key()` at import would freeze the label to the
@@ -67,29 +69,29 @@ const BAR_LABEL_OPTIONS: { key: 'showClient' | 'showProject'; label: () => strin
 // The on/off switch row shared by the Allocation bars and Utilisation sections.
 function ToggleRow({ label, on, onToggle, disabled = false }: { label: string; on: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
-    <div className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
-      <span className="text-sm text-ink">{label}</span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        onClick={onToggle}
-        disabled={disabled}
-        // WCAG 2.5.8 (Target Size, AA): the switch must be ≥24×24px. h-6 (24px) hits the floor
-        // exactly; w-10 keeps a balanced pill. Thumb travel is recomputed for the new geometry —
-        // a 20px (h-5) thumb inset 2px (top-0.5) slides between left-0.5 (off) and left-[18px]
-        // (on = track 40 − thumb 20 − inset 2), so the 2px gap stays symmetric in both states.
-        className={cn('relative h-6 w-10 shrink-0 rounded-full transition', on ? 'bg-brand' : 'bg-line')}
-      >
-        <span
-          className={cn(
-            'absolute top-0.5 h-5 w-5 rounded-full bg-surface shadow transition-all',
-            on ? 'left-[18px]' : 'left-0.5',
-          )}
-        />
-      </button>
-    </div>
+    <SwitchField label={label} checked={on} onChange={onToggle} disabled={disabled} />
+  )
+}
+
+function SettingsCard({
+  title,
+  description,
+  children,
+  danger = false,
+}: {
+  title: string
+  description?: ReactNode
+  children: ReactNode
+  danger?: boolean
+}) {
+  return (
+    <Card className={danger ? 'border-danger/40' : undefined}>
+      <CardHeader className="gap-1">
+        <CardTitle className={danger ? 'text-danger' : undefined}><h2>{title}</h2></CardTitle>
+        {description && <CardDescription>{description}</CardDescription>}
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">{children}</CardContent>
+    </Card>
   )
 }
 
@@ -210,10 +212,9 @@ export function SettingsView() {
 
   return (
     <ListPage title={m.settings_title()}>
-      <div className="space-y-6">
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-3 text-sm font-semibold text-ink">{m.settings_company_heading()}</h2>
-          <div className="space-y-3">
+      <div className="flex flex-col gap-6">
+        <SettingsCard title={m.settings_company_heading()}>
+          <div className="flex flex-col gap-3">
             <TextField
               label={m.settings_company_name_label()}
               value={name}
@@ -229,12 +230,10 @@ export function SettingsView() {
               </Button>
             </div>
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_scheduling_heading()}</h2>
-          <p className="mb-2 text-xs text-muted">{m.settings_scheduling_intro()}</p>
-          <ul className="mb-3 list-disc space-y-1 pl-4 text-xs text-muted">
+        <SettingsCard title={m.settings_scheduling_heading()} description={m.settings_scheduling_intro()}>
+          <ul className="flex list-disc flex-col gap-1 pl-4 text-xs text-muted">
             <li>
               <strong>{m.settings_scheduling_hours_strong()}</strong>{m.settings_scheduling_hours_rest()}
             </li>
@@ -252,20 +251,16 @@ export function SettingsView() {
             options={SCHEDULING_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
             disabled={!canEdit}
           />
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_calendar_heading()}</h2>
-          <p className="mb-1 text-xs text-muted">
-            {m.settings_calendar_intro()}
-          </p>
+        <SettingsCard title={m.settings_calendar_heading()} description={m.settings_calendar_intro()}>
           {/* P1.14: language/week-start/time zone are captured when the company is created and FROZEN
               thereafter (the server returns 409 on a change). Disabled here, not removed, so the
               chosen values stay visible. */}
-          <p className="mb-3 text-xs text-muted">{m.settings_calendar_frozen_hint()}</p>
-          <div className="space-y-3">
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-ink">{m.settings_week_start_label()}</p>
+          <p className="text-xs text-muted">{m.settings_calendar_frozen_hint()}</p>
+          <div className="flex flex-col gap-3">
+            <Field>
+              <FieldLabel>{m.settings_week_start_label()}</FieldLabel>
               <SegmentedControl
                 ariaLabel={m.settings_week_start_label()}
                 value={weekStartsOn}
@@ -273,40 +268,37 @@ export function SettingsView() {
                 options={WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
                 disabled
               />
-            </div>
-            <div>
-              <label htmlFor="timezone-select" className="mb-1.5 block text-xs font-medium text-ink">
-                {m.settings_timezone_label()}
-              </label>
-              <select
-                id="timezone-select"
+            </Field>
+            <Field data-disabled>
+              <FieldLabel htmlFor="timezone-select">{m.settings_timezone_label()}</FieldLabel>
+              <Select
                 value={timezone}
                 disabled
-                onChange={(e) => updateAccount(activeAccount.id, { timezone: e.target.value })}
-                className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink disabled:cursor-not-allowed disabled:text-muted"
+                onValueChange={(value) => updateAccount(activeAccount.id, { timezone: value })}
               >
-                {tzOptions.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {timeZoneOptionLabel(tz, tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
+                <SelectTrigger id="timezone-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {tzOptions.map((tz) => (
+                      <SelectItem key={tz} value={tz}>
+                        {timeZoneOptionLabel(tz, tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz)}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
               {/* Language is English-only until P1.5.1 (Paraglide); a read-only row, frozen like the
                   two above. Shown so the company's chosen language is visible even though it can't change. */}
-              <p className="mb-1.5 text-xs font-medium text-ink">{m.settings_language_label()}</p>
+              <FieldLabel>{m.settings_language_label()}</FieldLabel>
               <p className="text-sm text-muted" data-testid="settings-language">{m.settings_language_value()}</p>
-            </div>
+            </Field>
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_disciplines_heading()}</h2>
-          <p className="mb-3 text-xs text-muted">
-            {m.settings_disciplines_intro()}
-          </p>
-          <div className="divide-y divide-line">
+        <SettingsCard title={m.settings_disciplines_heading()} description={m.settings_disciplines_intro()}>
+          <div>
             <ToggleRow
               label={m.settings_disciplines_toggle()}
               on={disciplinesEnabled}
@@ -314,14 +306,10 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_schedule_heading()}</h2>
-          <p className="mb-3 text-xs text-muted">
-            {m.settings_schedule_intro()}
-          </p>
-          <div className="divide-y divide-line">
+        <SettingsCard title={m.settings_schedule_heading()} description={m.settings_schedule_intro()}>
+          <div className="flex flex-col gap-3">
             <ToggleRow
               label={m.settings_schedule_minimise_weekends()}
               on={minimiseWeekends}
@@ -333,11 +321,9 @@ export function SettingsView() {
               onToggle={() => setSnapToWeekStart(!snapToWeekStart)}
             />
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_internal_colours_heading()}</h2>
-          <p className="mb-3 text-xs text-muted">{m.settings_internal_colours_intro()}</p>
+        <SettingsCard title={m.settings_internal_colours_heading()} description={m.settings_internal_colours_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_internal_colours_aria()}
             value={internalColourMode}
@@ -345,14 +331,10 @@ export function SettingsView() {
             options={INTERNAL_COLOUR_OPTIONS.map((option) => ({ value: option.value, label: option.label() }))}
             disabled={!canEdit}
           />
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_placeholders_heading()}</h2>
-          <p className="mb-3 text-xs text-muted">
-            {m.settings_placeholders_intro()}
-          </p>
-          <div className="divide-y divide-line">
+        <SettingsCard title={m.settings_placeholders_heading()} description={m.settings_placeholders_intro()}>
+          <div>
             <ToggleRow
               label={m.settings_placeholders_toggle()}
               on={placeholdersEnabled}
@@ -360,17 +342,20 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_external_heading()}</h2>
+        <SettingsCard
+          title={m.settings_external_heading()}
+          description={
+            <>
           {/* Explainer copy (editable, shared with the Resources-tab External section — see
               lib/externalCopy.ts). Set per company; off by default. */}
-          <p className="mb-3 max-w-prose text-xs text-muted">{externalExplainer()}</p>
-          <p className="mb-3 text-xs text-muted">
-            {m.settings_external_intro()}
-          </p>
-          <div className="divide-y divide-line">
+              <span className="block">{externalExplainer()}</span>
+              <span className="mt-2 block">{m.settings_external_intro()}</span>
+            </>
+          }
+        >
+          <div>
             <ToggleRow
               label={m.settings_external_toggle()}
               on={externalEnabled}
@@ -378,14 +363,10 @@ export function SettingsView() {
               disabled={!canEdit}
             />
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_bar_labels_heading()}</h2>
-          <p className="mb-3 text-xs text-muted">
-            {m.settings_bar_labels_intro()}
-          </p>
-          <div className="divide-y divide-line">
+        <SettingsCard title={m.settings_bar_labels_heading()} description={m.settings_bar_labels_intro()}>
+          <div className="flex flex-col gap-3">
             {BAR_LABEL_OPTIONS.map((opt) => (
               <ToggleRow
                 key={opt.key}
@@ -395,14 +376,10 @@ export function SettingsView() {
               />
             ))}
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_utilisation_heading()}</h2>
-          <p className="mb-3 text-xs text-muted">
-            {m.settings_utilisation_intro()}
-          </p>
-          <div className="divide-y divide-line">
+        <SettingsCard title={m.settings_utilisation_heading()} description={m.settings_utilisation_intro()}>
+          <div className="flex flex-col gap-3">
             {/* The per-discipline figure has nothing to attach to when disciplines are off. */}
             {UTILIZATION_OPTIONS.filter((opt) => disciplinesEnabled || opt.key !== 'showDiscipline').map((opt) => (
               <ToggleRow
@@ -413,40 +390,34 @@ export function SettingsView() {
               />
             ))}
           </div>
-        </section>
+        </SettingsCard>
 
-        <section className="rounded border border-line bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_appearance_heading()}</h2>
-          <p className="mb-3 text-xs text-muted">
-            {m.settings_appearance_intro()}
-          </p>
+        <SettingsCard title={m.settings_appearance_heading()} description={m.settings_appearance_intro()}>
           <SegmentedControl
             ariaLabel={m.settings_appearance_aria()}
             value={theme}
             onChange={setTheme}
             options={THEME_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
           />
-        </section>
+        </SettingsCard>
 
         {serverMode && authMode !== 'off' && user && (
-          <section className="rounded border border-line bg-surface p-4">
-            <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_offline_heading()}</h2>
-            <p className="mb-3 max-w-prose text-xs text-muted">{m.settings_offline_description()}</p>
+          <SettingsCard title={m.settings_offline_heading()} description={m.settings_offline_description()}>
             <ToggleRow label={m.settings_offline_toggle()} on={offlineEnabled} onToggle={() => void toggleOffline()} />
-          </section>
+          </SettingsCard>
         )}
 
         {/* Device data is limited to the opt-in offline snapshot and preferences. Scheduling data is
             server-owned or temporary demo memory, so this action never deletes company data. */}
-        <section className="rounded border border-danger/40 bg-surface p-4">
-          <h2 className="mb-1 text-sm font-semibold text-danger">{m.settings_device_data_heading()}</h2>
-          <p className="mb-3 max-w-prose text-xs text-muted">
-            {m.settings_clear_desc_server({ app: APP_NAME })}
-          </p>
+        <SettingsCard
+          title={m.settings_device_data_heading()}
+          description={m.settings_clear_desc_server({ app: APP_NAME })}
+          danger
+        >
           <Button variant="danger" testId="clear-local-storage" onClick={() => setConfirmingClear(true)}>
             {m.settings_clear_storage_button()}
           </Button>
-        </section>
+        </SettingsCard>
 
         {confirmingClear && (
           <ConfirmDialog
@@ -461,15 +432,14 @@ export function SettingsView() {
         {/* Account section (P3.3) — only on an auth-enabled deploy (authMode ≠ off, as
             reported by the server). Auth off and the demo build render nothing here. */}
         {authMode !== 'off' && (
-          <section className="rounded border border-line bg-surface p-4">
-            <h2 className="mb-1 text-sm font-semibold text-ink">{m.settings_account_heading()}</h2>
+          <SettingsCard title={m.settings_account_heading()}>
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-muted">{m.settings_signed_in_as({ who: user?.email ?? user?.name ?? m.settings_signed_in_unknown() })}</p>
               <Button variant="ghost" onClick={() => void signOut()}>
                 {m.settings_account_sign_out()}
               </Button>
             </div>
-          </section>
+          </SettingsCard>
         )}
 
         {authMode === 'password' && <SecuritySection />}

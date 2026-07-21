@@ -7,6 +7,7 @@ import { deriveGettingStartedSteps, allStepsDone } from '../lib/gettingStarted'
 import { Button } from './common/ui'
 import { Icon } from './common/Icon'
 import { m } from '@/i18n'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card'
 
 // First-run "Getting started" checklist, rendered at the top of the schedule. State-driven, not
 // scripted: each step ticks itself off by reading the ACTIVE account's scoped data (has a client /
@@ -75,36 +76,39 @@ function GettingStartedCard() {
   if (allStepsDone(steps)) return null
 
   return (
-    <section
+    <Card
       aria-label={m.gs_title()}
       data-testid="getting-started"
-      role="dialog"
-      className="getting-started-popover rounded-lg border border-line bg-surface p-4 shadow-lg ring-1 ring-line"
+      className="getting-started-popover gap-4 py-4"
     >
-      <h2 className="text-sm font-semibold text-ink">{m.gs_title()}</h2>
-      <p className="mb-3 mt-0.5 text-xs text-muted">{m.gs_subtitle()}</p>
-      <ol className="space-y-1.5">
-        <StepRow done={steps.client} label={m.gs_step_client()} to="/clients" />
-        <StepRow done={steps.project} label={m.gs_step_project()} to="/projects" />
-        <StepRow done={steps.person} label={m.gs_step_person()} to="/resources" />
-        <StepRow done={steps.assign} label={m.gs_step_assign()} hint={m.gs_step_assign_hint()} />
-      </ol>
-      {(activeRole === 'owner' || activeRole === 'admin') && (
-        <p className="mt-3 text-sm text-ink">
-          <Link to="/team" className="font-medium underline-offset-2 hover:text-brand hover:underline">
-            {m.gs_invite_team()}
-          </Link>{' '}
-          <span className="text-xs text-muted">{m.gs_invite_team_optional()}</span>
-        </p>
-      )}
-      <div className="mt-4 flex items-center gap-2">
+      <CardHeader className="px-4">
+        <CardTitle className="text-sm">{m.gs_title()}</CardTitle>
+        <CardDescription className="text-xs">{m.gs_subtitle()}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 px-4">
+        <ol className="flex flex-col gap-1.5">
+          <StepRow done={steps.client} label={m.gs_step_client()} to="/clients" />
+          <StepRow done={steps.project} label={m.gs_step_project()} to="/projects" />
+          <StepRow done={steps.person} label={m.gs_step_person()} to="/resources" />
+          <StepRow done={steps.assign} label={m.gs_step_assign()} hint={m.gs_step_assign_hint()} />
+        </ol>
+        {(activeRole === 'owner' || activeRole === 'admin') && (
+          <p className="text-sm text-ink">
+            <Link to="/team" className="font-medium underline-offset-2 hover:text-brand hover:underline">
+              {m.gs_invite_team()}
+            </Link>{' '}
+            <span className="text-xs text-muted">{m.gs_invite_team_optional()}</span>
+          </p>
+        )}
+      </CardContent>
+      <CardFooter className="gap-2 px-4">
         <Button onClick={() => void startTour()} testId="getting-started-tour">
           {m.gs_show_me_around()}
         </Button>
         <Button variant="ghost" onClick={() => setDismissed(true)} testId="getting-started-dismiss">
           {m.gs_dismiss()}
         </Button>
-      </div>
-    </section>
+      </CardFooter>
+    </Card>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import userEvent from '@testing-library/user-event'
@@ -129,13 +129,14 @@ describe('AccountPicker create + open + delete', () => {
     await user.click(screen.getByRole('button', { name: 'New company' }))
     // The three frozen-after-creation fields render with concrete defaults.
     expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
-    const tz = screen.getByLabelText('Timezone') as HTMLSelectElement
-    expect(tz.value).toBe('Etc/GMT')
+    const tz = screen.getByLabelText('Timezone')
+    expect(tz).toHaveTextContent('GMT')
     expect(screen.getByTestId('create-language')).toHaveTextContent('English')
 
     // Change the two editable-at-creation ones, then create.
     await user.click(screen.getByRole('radio', { name: 'Sunday' }))
-    await user.selectOptions(tz, 'Europe/London')
+    fireEvent.keyDown(tz, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: /Europe\/London/ }))
     await user.type(screen.getByLabelText('Company name'), 'Frozen Co')
     await user.click(screen.getByRole('button', { name: 'Create company' }))
 

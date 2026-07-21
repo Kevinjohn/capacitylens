@@ -10,6 +10,39 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.5] — 2026-07-21
+
+This patch release completes the alpha UI consolidation around shadcn primitives outside the
+scheduler's purpose-built dense editing surface. It reduces the amount of custom interaction code,
+standardises accessibility semantics and keeps product-specific wrappers focused on domain behavior.
+It does not change the portable export or SQLite database schema versions.
+
+### Added
+
+- Added shadcn Alert Dialog, Avatar, Card, Checkbox, Field, Label, Select, Spinner, Toggle and Toggle
+  Group primitives as the shared vocabulary for application UI composition.
+
+### Changed
+
+- Migrated authentication, onboarding, account selection, invitations, member administration,
+  settings, command palette, app-shell utilities and recovery screens to shadcn cards, fields,
+  controls and overlays.
+- Rebuilt shared form fields, segmented controls, confirmations and modal behavior as thin
+  compositions over shadcn and Radix primitives, including native alert-dialog, combobox, radio and
+  switch semantics.
+- Retained native selects only in the scheduler allocation workflow, where compact keyboard-heavy
+  editing benefits from the browser control and remains covered by the existing scheduler contract.
+- Simplified comments around the migrated UI foundations so they describe current constraints and
+  behavior instead of past implementation decisions.
+- Updated interaction tests to exercise the public shadcn/Radix semantics rather than native-select
+  internals or bespoke dialog markup.
+
+### Verification
+
+- Passed TypeScript compilation and ESLint with zero warnings.
+- Passed all 1,779 application tests across 114 test files.
+- Passed the production build and bundle budget at 151,198 bytes gzip for the main bundle.
+
 ## [0.25.0-alpha.4] — 2026-07-21
 
 This patch release removes the local SmallSass sibling handbook and extraction workspace from the

@@ -48,7 +48,7 @@ describe('DeleteCompanyDialog', () => {
 
     const input = screen.getByLabelText(/Type/i)
     fireEvent.change(input, { target: { value: 'Acme' } }) // partial — would trip the dirty guard
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(onCancel).toHaveBeenCalledOnce()
     expect(useStore.getState().notice).toBeNull() // not refused with a nonsensical "use Save" hint

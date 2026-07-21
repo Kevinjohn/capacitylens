@@ -13,6 +13,8 @@ import { Icon } from './common/Icon'
 import { RotateHint } from './RotateHint'
 import { Tooltip, TooltipTrigger, TooltipContent } from './ui/tooltip'
 import { Badge } from './ui/badge'
+import { Spinner } from './ui/spinner'
+import { Button } from './ui/button'
 import { cn } from '@/lib/utils'
 import { m } from '@/i18n'
 import { LINKS } from '../lib/navLinks'
@@ -62,10 +64,9 @@ export function AppShell() {
   const sidebarOpen = useStore((s) => s.sidebarOpen)
   const setSidebarOpen = useStore((s) => s.setSidebarOpen)
 
-
   const loader = (
     <div className="flex h-full items-center justify-center gap-2 text-sm text-muted" role="status">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden />
+      <Spinner role="presentation" aria-label={undefined} />
       {m.app_loading()}
     </div>
   )
@@ -99,27 +100,19 @@ export function AppShell() {
             sidebar collapses — only the labels and the "CapacityLens" wordmark come and go, the
             icon column never shifts. */}
         <div className="mb-2 flex items-center gap-1">
-          {/* Tooltips consistency pass (DONE): this FOCUSABLE toggle uses the shadcn Radix
-              Tooltip (ui/tooltip.tsx) — instant (delayDuration 0), restyled to capacitylens's
-              elevated-surface tokens — so its hover/focus label is the same mechanism the rest of
-              the shell aims for and there's no native `title` left here. The button keeps its own
-              aria-label as the accessible name (the tooltip is supplementary, never the sole name);
-              because the toggle is focusable, Radix surfaces the label on BOTH hover and keyboard
-              focus. The collapsed rail below is a DELIBERATE exception (see there): its buttons are
-              aria-hidden + non-focusable mouse-only decorations, so they keep the hand-rolled visual
-              hover span — the correct pattern for an out-of-a11y-tree element — and likewise carry no
-              native `title`. */}
+          {/* The accessible name is independent of the supplementary tooltip. */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 aria-expanded={sidebarOpen}
                 aria-label={sidebarOpen ? m.nav_collapse_menu() : m.nav_expand_menu()}
-                className="flex items-center rounded-md px-2 py-1.5 text-muted hover:bg-canvas hover:text-ink"
+                className="text-muted"
               >
                 <Icon name="panel-left" />
-              </button>
+              </Button>
             </TooltipTrigger>
             <TooltipContent>{sidebarOpen ? m.nav_collapse_menu() : m.nav_expand_menu()}</TooltipContent>
           </Tooltip>
@@ -168,57 +161,35 @@ export function AppShell() {
                   {activeAccount.name}
                 </div>
                 <ActiveRoleBadge />
-                <button
-                  type="button"
+                <Button
+                  variant="link"
+                  size="sm"
                   onClick={() => setActiveAccount(null)}
-                  className="mt-0.5 block text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+                  className="mt-0.5 h-auto p-0 text-xs text-muted"
                 >
                   {m.nav_switch_company()}
-                </button>
-                {/* Demo "Sign out" — only when the real auth seam is off (it owns sign-out
-                    otherwise, via Settings). `signOutDemo` drops the active company AND the
-                    "back" breadcrumb, so signing back in lands on a fresh picker: "log in
-                    first, THEN pick a company". */}
+                </Button>
                 {demoAuthActive && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="link"
+                    size="sm"
                     onClick={signOutDemo}
-                    className="mt-1 block text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+                    className="mt-1 h-auto p-0 text-xs text-muted"
                   >
                     {m.nav_sign_out()}
-                  </button>
+                  </Button>
                 )}
               </div>
             )}
           </>
         ) : (
-          /* Collapsed icon rail. The icons are deliberately NOT navigation: tapping
-             any of them just expands the menu (a narrow rail is a poor tap target for
-             nine destinations, and a mis-tap would navigate somewhere unintended).
-             They're hidden from the accessibility tree (aria-hidden + tabIndex -1) —
-             keyboard and screen-reader users get the single labelled toggle above.
-             Filtered through `navLinks`, so a discipline-disabled account drops the tag
-             icon here too.
-
-             Tooltips consistency pass (DONE) — rail decision = KEEP the hand-rolled visual
-             hover span, deliberately NOT the shadcn Radix Tooltip. Radix's TooltipTrigger is
-             built around a trigger that lives IN the a11y tree and is focusable; these buttons
-             are the opposite by design (aria-hidden + tabIndex -1, mouse-only — a mouse-only rail
-             supports no focus interaction to anchor a Radix tooltip to). A plain absolutely-
-             positioned span shown on `group-hover/rail` is the correct, well-understood pattern
-             for labelling an out-of-a11y-tree decorative element, with no risk of Radix fighting
-             aria-hidden or forcing focusability. So the shell ends up with TWO label mechanisms
-             on purpose: the focusable toggle above on the Radix Tooltip, this mouse-only rail on
-             a visual span — but NO native `title` anywhere on AppShell's icon buttons (the slow,
-             touch-absent default we were standardising away). The span reuses the SAME
-             elevated/ink/line/shadow-pop tokens as ui/tooltip.tsx, so the two look identical.
-             `data-label` carries the section label as the e2e selector hook (it replaced the old
-             `title`, which the mobile/disciplines specs keyed on). */
+          /* Collapsed rail items expand the labelled menu; they are decorative for assistive
+             technology because the accessible toggle above provides the same action. */
           <ul className="flex flex-col gap-1">
             {navLinks.map(([to, label, icon]) => (
               <li key={to} className="group/rail relative">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
                   tabIndex={-1}
                   aria-hidden="true"
                   data-label={label()}
@@ -228,10 +199,10 @@ export function AppShell() {
                   /* h-8 matches an expanded nav row's height (text-sm line + py-1.5), so the
                      icon-only rail keeps the SAME vertical rhythm as the open menu and the
                      icons don't bunch up / shift vertically when the sidebar collapses. */
-                  className="flex h-8 w-full items-center rounded-md px-2 text-muted hover:bg-canvas hover:text-ink"
+                  className="h-8 w-full justify-start px-2 text-muted"
                 >
                   <Icon name={icon} />
-                </button>
+                </Button>
                 <span
                   aria-hidden="true"
                   className="pointer-events-none absolute left-full top-1/2 z-50 ml-1 -translate-y-1/2 whitespace-nowrap rounded bg-elevated px-2 py-1 text-xs font-medium text-ink opacity-0 shadow-pop ring-1 ring-line transition-opacity group-hover/rail:opacity-100"

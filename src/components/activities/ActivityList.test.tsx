@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ActivityList } from './ActivityList'
 import { useStore } from '../../store/useStore'
@@ -60,7 +60,8 @@ describe('ActivityList', () => {
 
     // 'Project-specific' is the default kind, so the project picker is shown.
     await user.type(within(dialog).getByLabelText('Name'), 'My Activity')
-    await user.selectOptions(within(dialog).getByLabelText('Project'), project.id)
+    fireEvent.keyDown(within(dialog).getByLabelText('Project'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Acme / Lightning' }))
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -168,7 +169,7 @@ describe('ActivityList', () => {
 
     // Click Delete on the activity row — a confirm dialog appears
     await user.click(screen.getByRole('button', { name: 'Delete' }))
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(dialog).toHaveTextContent(/Delete activity\?/i)
 
     // Cancel keeps the activity
@@ -177,7 +178,7 @@ describe('ActivityList', () => {
 
     // Confirm removes the activity
     await user.click(screen.getByRole('button', { name: 'Delete' }))
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
 
     expect(useStore.getState().data.activities).toHaveLength(0)
     expect(screen.queryByTestId('activity-row')).not.toBeInTheDocument()

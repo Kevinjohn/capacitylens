@@ -1,7 +1,10 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useState, type ComponentProps } from 'react'
 import type { FormEvent } from 'react'
 import { Button, Callout, FieldError } from '../components/common/ui'
-import { inputClass } from '../components/common/controls'
+import { Input } from '../components/ui/input'
+import { Field, FieldGroup, FieldLabel } from '../components/ui/field'
+import { Card, CardContent } from '../components/ui/card'
+import { Separator } from '../components/ui/separator'
 import { authClient } from './authClient'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
@@ -14,6 +17,15 @@ import {
   externalSignInErrorUrl,
   hasExternalSignInError,
 } from './externalSignInError'
+
+function LoginField({ id, label, ...props }: ComponentProps<typeof Input> & { id: string; label: string }) {
+  return (
+    <Field>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input id={id} {...props} />
+    </Field>
+  )
+}
 
 // The flag-gated login wall (production plan P3.3; US-NAV-10). Only ever rendered when
 // the server reports authMode 'password' or 'sso' AND there is no session — the default
@@ -221,7 +233,8 @@ export function LoginScreen({
           </h1>
           <p className="text-sm text-muted">{setup ? m.login_setup_subtitle() : m.login_subtitle()}</p>
         </div>
-        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <Card className="gap-4 py-4">
+          <CardContent className="px-4">
           {/* Non-terminal advisory (§1 DEFENSIVE-CODING.md — surface, never swallow): the 401 body
               itself was untrustworthy, so this password form is a guess, not a confirmed signal.
               Never rendered for a well-formed password-mode 401 or a valid SSO body — see
@@ -232,19 +245,17 @@ export function LoginScreen({
             </div>
           )}
           {twoFactorPending ? (
-            <form onSubmit={(e) => void verifySecondFactor(e)} noValidate className="space-y-3">
+            <form onSubmit={(e) => void verifySecondFactor(e)} noValidate>
+              <FieldGroup className="gap-3">
               <p className="text-sm text-muted">
                 {useRecoveryCode
                   ? 'Enter one unused recovery code.'
                   : 'Enter the six-digit code from your authenticator app.'}
               </p>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">
-                  {useRecoveryCode ? 'Recovery code' : 'Authentication code'}
-                </span>
-                <input
+              <LoginField
+                  id="mfa-code"
+                  label={useRecoveryCode ? 'Recovery code' : 'Authentication code'}
                   data-testid="mfa-code"
-                  className={inputClass}
                   type="text"
                   inputMode={useRecoveryCode ? 'text' : 'numeric'}
                   autoComplete="one-time-code"
@@ -253,7 +264,6 @@ export function LoginScreen({
                   aria-describedby={error ? errorId : undefined}
                   autoFocus
                 />
-              </label>
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex items-center justify-between gap-3">
                 <Button
@@ -267,15 +277,15 @@ export function LoginScreen({
                   Verify
                 </Button>
               </div>
+              </FieldGroup>
             </form>
           ) : setup ? (
-            <form onSubmit={(e) => void createOwner(e)} noValidate className="space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_name()}</span>
-                <input
+            <form onSubmit={(e) => void createOwner(e)} noValidate>
+              <FieldGroup className="gap-3">
+                <LoginField
                   id={nameId}
+                  label={m.login_name()}
                   data-testid="owner-setup-name"
-                  className={inputClass}
                   type="text"
                   autoComplete="name"
                   value={name}
@@ -286,13 +296,10 @@ export function LoginScreen({
                   aria-describedby={error ? errorId : undefined}
                   autoFocus
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_email()}</span>
-                <input
+                <LoginField
                   id={emailId}
+                  label={m.login_email()}
                   data-testid="owner-setup-email"
-                  className={inputClass}
                   type="email"
                   autoComplete="email"
                   value={email}
@@ -300,13 +307,10 @@ export function LoginScreen({
                   onChange={(e) => setEmail(e.target.value)}
                   aria-describedby={error ? errorId : undefined}
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_password()}</span>
-                <input
+                <LoginField
                   id={passwordId}
+                  label={m.login_password()}
                   data-testid="owner-setup-password"
-                  className={inputClass}
                   type="password"
                   autoComplete="new-password"
                   value={password}
@@ -315,13 +319,10 @@ export function LoginScreen({
                   onChange={(e) => setPassword(e.target.value)}
                   aria-describedby={error ? errorId : undefined}
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_setup_token()}</span>
-                <input
+                <LoginField
                   id={setupTokenId}
+                  label={m.login_setup_token()}
                   data-testid="owner-setup-token"
-                  className={inputClass}
                   type="password"
                   autoComplete="off"
                   value={setupToken}
@@ -329,21 +330,20 @@ export function LoginScreen({
                   placeholder={m.login_setup_token_placeholder()}
                   aria-describedby={error ? errorId : undefined}
                 />
-              </label>
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex justify-end">
                 <Button type="submit" testId="owner-setup-submit" disabled={busy}>
                   {m.login_create_owner()}
                 </Button>
               </div>
+              </FieldGroup>
             </form>
           ) : authMode === 'password' ? (
-            <form onSubmit={(e) => void signInWithPassword(e)} noValidate className="space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_email()}</span>
-                <input
+            <form onSubmit={(e) => void signInWithPassword(e)} noValidate>
+              <FieldGroup className="gap-3">
+                <LoginField
                   id={emailId}
-                  className={inputClass}
+                  label={m.login_email()}
                   type="email"
                   autoComplete="email"
                   value={email}
@@ -354,12 +354,9 @@ export function LoginScreen({
                   aria-describedby={error ? errorId : undefined}
                   autoFocus
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_password()}</span>
-                <input
+                <LoginField
                   id={passwordId}
-                  className={inputClass}
+                  label={m.login_password()}
                   type="password"
                   autoComplete="current-password"
                   value={password}
@@ -367,17 +364,18 @@ export function LoginScreen({
                   onChange={(e) => setPassword(e.target.value)}
                   aria-describedby={error ? errorId : undefined}
                 />
-              </label>
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex justify-end">
                 <Button type="submit" disabled={busy}>
                   {m.login_sign_in()}
                 </Button>
               </div>
+              </FieldGroup>
             </form>
           ) : null}
           {!setup && providers.length > 0 && (
-            <div className="mt-4 flex flex-col gap-3 border-t border-line pt-4">
+            <div className="mt-4 flex flex-col gap-3">
+              <Separator />
               {providers.some((provider) => provider.experimental) ? (
                 <p className="text-xs text-muted">{m.login_external_experimental()}</p>
               ) : null}
@@ -392,7 +390,8 @@ export function LoginScreen({
           {!setup && authMode === 'sso' && providers.length === 0 && (
             <FieldError>{m.login_sso_unavailable()}</FieldError>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   )

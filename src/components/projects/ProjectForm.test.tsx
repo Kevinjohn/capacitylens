@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectForm } from './ProjectForm'
 import { useStore } from '../../store/useStore'
@@ -26,7 +26,8 @@ describe('ProjectForm', () => {
     await user.type(screen.getByLabelText('Name'), 'Secret Launch')
     await user.click(screen.getByRole('switch', { name: 'Use a code name' }))
     await user.type(screen.getByLabelText('Code name'), '"Aurora"')
-    await user.selectOptions(screen.getByLabelText('Client'), client.id)
+    fireEvent.keyDown(screen.getByLabelText('Client'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: client.name }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalledOnce()
@@ -46,7 +47,8 @@ describe('ProjectForm', () => {
     await user.type(screen.getByLabelText('Name'), 'Secret Launch')
     await user.click(screen.getByRole('switch', { name: 'Use a code name' }))
     await user.type(screen.getByLabelText('Code name'), '“”')
-    await user.selectOptions(screen.getByLabelText('Client'), client.id)
+    fireEvent.keyDown(screen.getByLabelText('Client'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: client.name }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getByLabelText('Code name')).toHaveAttribute('aria-invalid', 'true')
@@ -94,7 +96,8 @@ describe('ProjectForm', () => {
     render(<ProjectForm onClose={onClose} />)
 
     await user.type(screen.getByLabelText('Name'), 'New Project')
-    await user.selectOptions(screen.getByLabelText('Client'), client.id)
+    fireEvent.keyDown(screen.getByLabelText('Client'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: client.name }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalled()
@@ -103,12 +106,12 @@ describe('ProjectForm', () => {
   })
 
   it('hides the colour picker for an Internal-owned project in the default grey mode', async () => {
-    const user = userEvent.setup()
     const internal = installInternalClient()
     render(<ProjectForm onClose={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: /^Colour/ })).toBeInTheDocument()
-    await user.selectOptions(screen.getByLabelText('Client'), internal.id)
+    fireEvent.keyDown(screen.getByLabelText('Client'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: internal.name }))
     expect(screen.queryByRole('button', { name: /^Colour/ })).not.toBeInTheDocument()
   })
 
@@ -144,10 +147,11 @@ describe('ProjectForm', () => {
     render(<ProjectForm project={project} onClose={onClose} />)
 
     // The archived client renders as a disabled option, still selected as the current value.
-    const select = screen.getByLabelText('Client') as HTMLSelectElement
-    expect(select.value).toBe(client.id)
-    const option = screen.getByRole('option', { name: 'Acme (archived)' }) as HTMLOptionElement
-    expect(option.disabled).toBe(true)
+    const select = screen.getByLabelText('Client')
+    expect(select).toHaveTextContent('Acme (archived)')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Acme (archived)' })).toHaveAttribute('data-disabled')
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     await user.clear(screen.getByLabelText('Name'))
     await user.type(screen.getByLabelText('Name'), 'Alpha Renamed')

@@ -29,7 +29,8 @@ describe('ResourceForm placeholder binding', () => {
     render(<ResourceForm kind="placeholder" onClose={onClose} />)
 
     await user.type(screen.getByLabelText('Role'), 'Senior Designer')
-    await user.selectOptions(screen.getByLabelText('Bound project'), project.id)
+    fireEvent.keyDown(screen.getByLabelText('Bound project'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Acme / Lightning' }))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onClose).toHaveBeenCalled()
@@ -61,10 +62,11 @@ describe('ResourceForm placeholder binding', () => {
     render(<ResourceForm resource={placeholder} onClose={onClose} />)
 
     // The archived project renders as a disabled option, still selected as the current value.
-    const select = screen.getByLabelText('Bound project') as HTMLSelectElement
-    expect(select.value).toBe(project.id)
-    const option = screen.getByRole('option', { name: 'Acme / Lightning (archived)' }) as HTMLOptionElement
-    expect(option.disabled).toBe(true)
+    const select = screen.getByLabelText('Bound project')
+    expect(select).toHaveTextContent('Acme / Lightning (archived)')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Acme / Lightning (archived)' })).toHaveAttribute('data-disabled')
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     await user.clear(screen.getByLabelText('Role'))
     await user.type(screen.getByLabelText('Role'), 'Senior Designer')

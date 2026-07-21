@@ -15,6 +15,7 @@ import { ConfirmDialog, Modal } from './common/ui'
 import { m } from '@/i18n'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
+import { Button } from './ui/button'
 
 // Refuse files past this size before reading them into memory (self-DoS guard).
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024
@@ -311,27 +312,25 @@ export function ImportExport() {
     setNotice(imported === 1 ? m.data_imported_one({ count: imported, skipped: skippedNote }) : m.data_imported_other({ count: imported, skipped: skippedNote }))
   }
 
-  const linkClass = 'block w-full rounded-md px-2 py-1.5 text-left text-sm text-ink hover:bg-canvas'
-
   return (
     <div className="mt-6 border-t border-line pt-3">
       <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-faint">{m.data_menu_label()}</div>
       {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
           slice that is about to be obsolete, and a second import would race the first. */}
-      <button type="button" data-testid="export-data" onClick={() => void onExport()} disabled={importBusy} className={linkClass}>
+      <Button variant="ghost" data-testid="export-data" onClick={() => void onExport()} disabled={importBusy} className="h-auto w-full justify-start px-2 py-1.5">
         {m.data_export()}
-      </button>
+      </Button>
       {canImport && (
         <>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             data-testid="import-data"
             onClick={() => fileRef.current?.click()}
             disabled={importBusy}
-            className={linkClass}
+            className="h-auto w-full justify-start px-2 py-1.5"
           >
             {m.data_import()}
-          </button>
+          </Button>
           <input
             ref={fileRef}
             type="file"

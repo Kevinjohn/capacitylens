@@ -126,7 +126,7 @@ describe('ArchivedSection — demo build (store source)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Delete Archived Person' }))
     // Confirm the danger dialog.
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     const r = useStore.getState().data.resources.find((x) => x.id === 'r-arch')!
@@ -148,7 +148,7 @@ describe('ArchivedSection — demo build (store source)', () => {
     render(<ArchivedSection />)
 
     await user.click(screen.getByRole('button', { name: 'Delete "Northstar"' }))
-    const dialog = screen.getByRole('dialog', { name: 'Delete this item?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete this item?' })
     expect(dialog).toHaveTextContent('Delete "Northstar"?')
     expect(dialog).not.toHaveTextContent('""Northstar""')
   })
@@ -182,7 +182,7 @@ describe('ArchivedSection — demo build (store source)', () => {
     expect(purgeBtn).toBeEnabled()
 
     await user.click(purgeBtn)
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Delete permanently' }))
 
     // The tombstone is physically removed from the store.

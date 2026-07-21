@@ -18,7 +18,7 @@ import {
   Modal,
   NumberField,
   RequiredLegend,
-  SelectField,
+  NativeSelectField,
   TextAreaField,
   type Option,
 } from '../common/ui'
@@ -390,17 +390,17 @@ export function AllocationModal(props: AllocationModalProps) {
       }
     >
       {!create && (
-        <SelectField label={m.form_allocation_assignee_label()} value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder={m.form_allocation_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
+        <NativeSelectField label={m.form_allocation_assignee_label()} value={resourceId} onChange={onAssigneeChange} options={resourceOptions} placeholder={m.form_allocation_select_resource_placeholder()} required invalid={errorField === 'resource'} describedById={errorId} />
       )}
       {isPlaceholder && <p className="text-xs text-muted">{m.form_allocation_placeholder_locked()}</p>}
 
-      <SelectField
+      <NativeSelectField
         label={m.form_allocation_project_label()}
         value={projectId}
         onChange={onProjectChange}
         options={projectOptions}
       />
-      <SelectField label={m.form_allocation_activity_label()} value={activityId} onChange={setActivityId} options={activityOptions} placeholder={m.form_allocation_select_activity_placeholder()} required invalid={errorField === 'activity'} describedById={errorId} />
+      <NativeSelectField label={m.form_allocation_activity_label()} value={activityId} onChange={setActivityId} options={activityOptions} placeholder={m.form_allocation_select_activity_placeholder()} required invalid={errorField === 'activity'} describedById={errorId} />
       <div className="flex gap-2">
         <input
           className={inputClass}
@@ -469,7 +469,7 @@ export function AllocationModal(props: AllocationModalProps) {
           <NumberField label={m.form_allocation_hours_per_day_label()} value={hoursPerDay} onChange={setHoursPerDay} min={0} max={MAX_HOURS_PER_DAY} required invalid={errorField === 'hours'} describedById={errorId} />
         </>
       )}
-      <SelectField label={m.form_allocation_status_label()} value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={allocationStatusOptions()} />
+      <NativeSelectField label={m.form_allocation_status_label()} value={status} onChange={(v) => setStatus(v as AllocationStatus)} options={allocationStatusOptions()} />
       <TextAreaField label={m.form_allocation_note_label()} value={note} onChange={setNote} invalid={errorField === 'note'} describedById={errorId} />
 
       {/* Externals have no working week — their booking is a literal start/end span, so the weekend

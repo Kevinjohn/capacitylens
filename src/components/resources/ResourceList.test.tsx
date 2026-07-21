@@ -176,7 +176,7 @@ describe('ResourceList archive flow', () => {
     expect(screen.getByText('Alice')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Archive Alice' }))
 
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(dialog).toHaveTextContent(/Archive resource\?/i)
     expect(dialog).toHaveTextContent(/Alice/i)
 
@@ -193,7 +193,7 @@ describe('ResourceList archive flow', () => {
     render(<ResourceList />)
 
     await user.click(screen.getByRole('button', { name: 'Archive Alice' }))
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
     // Still in the data (archived, not destroyed) but hidden from the active-only list.
@@ -213,7 +213,7 @@ describe('ResourceList archive flow', () => {
     const bobRow = rows.find((r) => within(r).queryByText('Bob'))!
     await user.click(within(bobRow).getByRole('button', { name: 'Archive Bob' }))
 
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(dialog).toHaveTextContent(/Bob/i)
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
@@ -232,7 +232,7 @@ describe('ResourceList archive flow', () => {
     expect(screen.getByText('Bob')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Archive Bob' }))
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
     expect(useStore.getState().data.resources[0].archivedAt).toBeTruthy()
@@ -261,7 +261,7 @@ describe('ResourceList archive flow', () => {
     expect(screen.getByText('placeholder')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Archive Placeholder' }))
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     // The confirm dialog names the placeholder by its DISPLAY name ("Placeholder"), matching the
     // row above it — not its role ("Senior Designer"), which would read inconsistently.
     expect(dialog).toHaveTextContent(/Archive "Placeholder"/i)

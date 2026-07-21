@@ -111,7 +111,7 @@ describe('Modal', () => {
         <p>Body</p>
       </Modal>,
     )
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledOnce()
   })
 
@@ -124,7 +124,7 @@ describe('Modal', () => {
         <p>Inner</p>
       </Modal>,
     )
-    const backdrop = screen.getByRole('dialog').parentElement!
+    const backdrop = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')!
     fireEvent.mouseDown(backdrop)
     fireEvent.mouseUp(backdrop)
     expect(onClose).toHaveBeenCalledOnce()
@@ -168,7 +168,7 @@ describe('Modal', () => {
     const backdrop = screen.getByRole('dialog').parentElement!
     fireEvent.mouseDown(backdrop)
     fireEvent.mouseUp(backdrop)
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
 
@@ -195,7 +195,7 @@ describe('Modal', () => {
     )
 
     fireEvent.input(screen.getByLabelText('controlled field'), { target: { value: 'x' } })
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
 
@@ -211,7 +211,7 @@ describe('Modal', () => {
     // A button-driven toggle fires no input/change event, but the guard must still
     // catch it — otherwise editing working days then pressing Escape loses the change.
     fireEvent.click(screen.getByRole('button', { name: 'Mon' }))
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })
 
@@ -232,7 +232,7 @@ describe('Modal', () => {
     )
 
     fireEvent.click(screen.getByRole('radio', { name: 'Week' }))
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledOnce()
   })
 
@@ -247,7 +247,7 @@ describe('Modal', () => {
 
     fireEvent.click(screen.getByRole('button', { name: `Colour (${colorName(blue)})` }))
     fireEvent.click(screen.getByRole('button', { name: colorName(blue) }))
-    fireEvent.keyDown(window, { key: 'Escape' })
+    fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledOnce()
   })
 
@@ -308,7 +308,7 @@ describe('ConfirmDialog', () => {
         onCancel={vi.fn()}
       />,
     )
-    expect(screen.getByRole('dialog', { name: 'Really delete?' })).toBeInTheDocument()
+    expect(screen.getByRole('alertdialog', { name: 'Really delete?' })).toBeInTheDocument()
     expect(screen.getByText('This cannot be undone.')).toBeInTheDocument()
   })
 
@@ -516,16 +516,19 @@ describe('SelectField', () => {
     render(<SelectField label="Pick one" value="a" onChange={vi.fn()} options={options} />)
     const select = screen.getByLabelText('Pick one')
     expect(select).toBeInTheDocument()
-    expect(screen.getByText('Option A')).toBeInTheDocument()
-    expect(screen.getByText('Option B')).toBeInTheDocument()
-    expect(screen.getByText('Option C')).toBeInTheDocument()
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Option A' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Option B' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Option C' })).toBeInTheDocument()
   })
 
-  it('calls onChange when an option is selected', async () => {
-    const user = userEvent.setup()
+  it('calls onChange when an option is selected', () => {
     const onChange = vi.fn()
     render(<SelectField label="Pick one" value="a" onChange={onChange} options={options} />)
-    await user.selectOptions(screen.getByLabelText('Pick one'), 'b')
+    const select = screen.getByLabelText('Pick one')
+    select.focus()
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Option B' }))
     expect(onChange).toHaveBeenCalledWith('b')
   })
 

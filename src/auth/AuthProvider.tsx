@@ -9,6 +9,7 @@ import { validateAuthUser } from './validateAuthUser'
 import { reauthPending, subscribeReauth } from './reauthCoordinator'
 import { clearExternalSignInError, hasExternalSignInError } from './externalSignInError'
 import { m } from '@/i18n'
+import { Button } from '@/components/ui/button'
 import {
   cacheAuthSnapshot,
   clearOfflineDataForCurrentUser,
@@ -386,9 +387,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         <div className="max-w-md text-center">
           <h1 className="text-xl font-semibold">Unable to verify your session</h1>
           <p className="mt-2 text-muted">{status.message}</p>
-          <button className="mt-4 underline" type="button" onClick={() => { setStatus({ kind: 'checking' }); void checkAuth('fail-open') }}>
+          <Button variant="link" className="mt-4" onClick={() => { setStatus({ kind: 'checking' }); void checkAuth('fail-open') }}>
             Try again
-          </button>
+          </Button>
         </div>
       </main>
     )

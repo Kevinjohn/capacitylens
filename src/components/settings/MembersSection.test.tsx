@@ -235,11 +235,10 @@ describe('MembersSection — admin affordances', () => {
     renderSection()
     await screen.findByTestId('members-section')
 
-    const invitePicker = screen.getByTestId('invite-role') as HTMLSelectElement
-    const optionValues = Array.from(invitePicker.options).map((o) => o.value)
-    expect(optionValues).toContain('admin')
-    expect(optionValues).toContain('editor')
-    expect(optionValues).not.toContain('owner') // admin may never offer/grant owner
+    fireEvent.keyDown(screen.getByTestId('invite-role'), { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Admin' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Editor' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument()
   })
 
   it('shows no role control + no Remove on an OWNER row (admin can\'t touch an owner)', async () => {
@@ -269,8 +268,9 @@ describe('MembersSection — admin affordances', () => {
     const rows = await screen.findAllByTestId('member-row')
     const editorRow = rows.find((r) => within(r).queryByText(/theeditor@x\.io/))!
 
-    await user.selectOptions(within(editorRow).getByRole('combobox'), 'viewer')
-    const dialog = screen.getByRole('dialog')
+    fireEvent.keyDown(within(editorRow).getByRole('combobox'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Viewer' }))
+    const dialog = screen.getByRole('alertdialog')
     expect(within(dialog).getByText(/theeditor@x\.io will become Viewer/)).toBeInTheDocument()
     expect(within(dialog).getByText(/Read-only schedule access/)).toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith(expect.stringContaining('/members/theeditor'), expect.anything())
@@ -292,8 +292,9 @@ describe('MembersSection — admin affordances', () => {
 
     const selfRow = (await screen.findAllByTestId('member-row'))
       .find((row) => within(row).queryByText(/me@x\.io/))!
-    await user.selectOptions(within(selfRow).getByRole('combobox'), 'editor')
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change role' }))
+    fireEvent.keyDown(within(selfRow).getByRole('combobox'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Editor' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Change role' }))
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1))
     expect(refreshAuth).toHaveBeenCalledTimes(1)
@@ -311,8 +312,9 @@ describe('MembersSection — admin affordances', () => {
 
     const selfRow = (await screen.findAllByTestId('member-row'))
       .find((row) => within(row).queryByText(/me@x\.io/))!
-    await user.selectOptions(within(selfRow).getByRole('combobox'), 'editor')
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change role' }))
+    fireEvent.keyDown(within(selfRow).getByRole('combobox'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Editor' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Change role' }))
 
     await waitFor(() => expect(useStore.getState().activeAccountId).toBeNull())
     expect(useStore.getState().notice?.message).toMatch(/could not be safely refreshed/i)
@@ -321,6 +323,7 @@ describe('MembersSection — admin affordances', () => {
 
 describe('MembersSection — owner affordances', () => {
   it('never offers Owner as an ordinary role, even to the Owner', async () => {
+    const user = userEvent.setup()
     const members: RawMember[] = [
       { userId: 'me', role: 'owner', isSelf: true },
       { userId: 'ed', role: 'editor' },
@@ -329,13 +332,15 @@ describe('MembersSection — owner affordances', () => {
     renderSection()
     await screen.findByTestId('members-section')
 
-    const invitePicker = screen.getByTestId('invite-role') as HTMLSelectElement
-    expect(Array.from(invitePicker.options).map((o) => o.value)).not.toContain('owner')
+    fireEvent.keyDown(screen.getByTestId('invite-role'), { key: 'ArrowDown' })
+    expect(screen.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument()
+    await user.keyboard('{Escape}')
 
     const rows = await screen.findAllByTestId('member-row')
     const editorRow = rows.find((r) => within(r).queryByText(/ed@x\.io/))!
     expect(within(editorRow).getByRole('combobox')).toBeInTheDocument()
-    expect(Array.from(within(editorRow).getByRole('combobox').querySelectorAll('option')).map((o) => o.value)).not.toContain('owner')
+    fireEvent.keyDown(within(editorRow).getByRole('combobox'), { key: 'ArrowDown' })
+    expect(screen.queryByRole('option', { name: 'Owner' })).not.toBeInTheDocument()
   })
 
   it('keeps the single Owner outside ordinary role and removal controls', async () => {
@@ -403,7 +408,7 @@ describe('MembersSection — transfer ownership', () => {
       expect.stringContaining('/transfer-ownership'),
       expect.anything(),
     )
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer ownership' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Transfer ownership' }))
     expect(fetchMock).toHaveBeenCalledWith(
       `http://api.test/api/accounts/${DEFAULT_ACCOUNT_ID}/transfer-ownership`,
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ toUserId: 'ed' }) }),
@@ -443,7 +448,7 @@ describe('MembersSection — transfer ownership', () => {
 
     const edRow = (await screen.findAllByTestId('member-row')).find((r) => within(r).queryByText(/ed@x\.io/))!
     await user.click(within(edRow).getByTestId('member-make-owner'))
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer ownership' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Transfer ownership' }))
     // The server's own message is preferred over the generic fallback (body.error ?? …).
     expect(await screen.findByText('Only the owner can transfer ownership.')).toBeInTheDocument()
   })
@@ -495,8 +500,9 @@ describe('MembersSection — transfer ownership', () => {
 
     const self = (await screen.findAllByTestId('member-row'))
       .find((row) => within(row).queryByText(/me@x\.io/))!
-    await user.selectOptions(within(self).getByRole('combobox'), 'editor')
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Change role' }))
+    fireEvent.keyDown(within(self).getByRole('combobox'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Editor' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Change role' }))
 
     await waitFor(() => expect(useStore.getState().membershipRevision).toBe(revisionBefore + 1))
     expect(refreshAuth).toHaveBeenCalledTimes(1)
@@ -525,7 +531,7 @@ describe('MembersSection — transfer ownership', () => {
     const editorRow = (await screen.findAllByTestId('member-row')).find((row) => within(row).queryByText(/ed@x\.io/))!
 
     fireEvent.click(within(editorRow).getByTestId('member-make-owner'))
-    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Transfer ownership' }))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Transfer ownership' }))
     fireEvent.click(within(editorRow).getByTestId('member-remove'))
 
     const mutations = fetchMock.mock.calls.filter(([, init]) => init?.method && init.method !== 'GET')
@@ -538,13 +544,13 @@ describe('MembersSection — transfer ownership', () => {
 
 describe('MembersSection — invite mint', () => {
   it('shows the selected invite role consequences before creating the link', async () => {
-    const user = userEvent.setup()
     vi.stubGlobal('fetch', mockFetch([{ userId: 'me', role: 'owner', isSelf: true }]))
     renderSection()
     await screen.findByTestId('members-section')
 
     expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(/Can edit scheduling data/)
-    await user.selectOptions(screen.getByTestId('invite-role'), 'viewer')
+    fireEvent.keyDown(screen.getByTestId('invite-role'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Viewer' }))
     expect(screen.getByTestId('invite-role-summary')).toHaveTextContent(/Read-only schedule access/)
   })
 

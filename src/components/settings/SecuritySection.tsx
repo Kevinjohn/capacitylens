@@ -4,7 +4,10 @@ import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/d
 import { authClient } from '../../auth/authClient'
 import { accountClient, accountCommandOutcomeUnknown } from '../../account/accountClient'
 import { Button, FieldError } from '../common/ui'
-import { inputClass } from '../common/controls'
+import { Input } from '../ui/input'
+import { Field, FieldGroup, FieldLabel } from '../ui/field'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
+import { Separator } from '../ui/separator'
 
 interface SessionView {
   id: string
@@ -152,30 +155,35 @@ export function SecuritySection() {
   }
 
   return (
-    <section data-testid="security-section" className="rounded border border-line bg-surface p-4">
-      <h2 className="mb-1 text-sm font-semibold text-ink">Security</h2>
-      <p className="mb-4 text-xs text-muted">Change your password and review signed-in devices.</p>
+    <Card data-testid="security-section">
+      <CardHeader>
+        <CardTitle>Security</CardTitle>
+        <CardDescription>Change your password and review signed-in devices.</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
+        <form onSubmit={(event) => void changePassword(event)}>
+          <FieldGroup className="gap-3">
+            <h3 className="text-sm font-medium text-ink">Change password</h3>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field>
+                <FieldLabel htmlFor="security-current-password">Current password</FieldLabel>
+                <Input id="security-current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="security-new-password">New password</FieldLabel>
+                <Input id="security-new-password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="security-confirm-password">Confirm new password</FieldLabel>
+                <Input id="security-confirm-password" type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+              </Field>
+            </div>
+            <Button type="submit" disabled={busy || !currentPassword || !newPassword || !confirmPassword}>Change password</Button>
+          </FieldGroup>
+        </form>
 
-      <form className="space-y-3" onSubmit={(event) => void changePassword(event)}>
-        <h3 className="text-sm font-medium text-ink">Change password</h3>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted">Current password</span>
-            <input className={inputClass} type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted">New password</span>
-            <input className={inputClass} type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} maxLength={MAX_PASSWORD_LENGTH} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-xs text-muted">Confirm new password</span>
-            <input className={inputClass} type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
-          </label>
-        </div>
-        <Button type="submit" disabled={busy || !currentPassword || !newPassword || !confirmPassword}>Change password</Button>
-      </form>
-
-      <div className="mt-5 border-t border-line pt-4">
+        <Separator />
+        <div>
         <h3 className="text-sm font-medium text-ink">Active sessions</h3>
         <ul className="mt-2 space-y-2">
           {sessions.map((session) => (
@@ -190,10 +198,11 @@ export function SecuritySection() {
             </li>
           ))}
         </ul>
-      </div>
+        </div>
 
-      <FieldError id={errorId}>{error}</FieldError>
-      {message && <p role="status" className="mt-2 text-sm text-ok">{message}</p>}
-    </section>
+        <FieldError id={errorId}>{error}</FieldError>
+        {message && <p role="status" className="text-sm text-ok">{message}</p>}
+      </CardContent>
+    </Card>
   )
 }

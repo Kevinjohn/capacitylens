@@ -11,8 +11,7 @@ import { fetchAccountSummaries } from '../../auth/useAccountSummaries'
 import { readApiError } from '../../lib/readApiError'
 import { useStore } from '../../store/useStore'
 import { authClient } from '../../auth/authClient'
-import { Button, FieldError } from '../common/ui'
-import { inputClass } from '../common/controls'
+import { Button, FieldError, TextField } from '../common/ui'
 import { Button as ShadButton } from '../ui/button'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
@@ -548,43 +547,36 @@ function InviteAcceptForToken({ token }: { token: string | undefined }) {
             )}
             <form onSubmit={(event) => void signIn(event)} className="space-y-3" noValidate>
               <p className="text-sm text-muted">{m.invite_onboard_intro()}</p>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.invite_name()}</span>
-                <input
-                  className={inputClass}
-                  type="text"
-                  autoComplete="name"
-                  value={name}
-                  maxLength={MAX_NAME_LENGTH}
-                  onChange={(event) => setName(event.target.value)}
-                  aria-describedby={state.message ? errorId : undefined}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_email()}</span>
-                <input
-                  className={inputClass}
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  maxLength={MAX_EMAIL_LENGTH}
-                  onChange={(event) => setEmail(event.target.value)}
-                  aria-describedby={state.message ? errorId : undefined}
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.login_password()}</span>
-                <input
-                  className={inputClass}
-                  type="password"
-                  autoComplete="current-password"
-                  value={password}
-                  minLength={MIN_PASSWORD_LENGTH}
-                  maxLength={MAX_PASSWORD_LENGTH}
-                  onChange={(event) => setPassword(event.target.value)}
-                  aria-describedby={state.message ? errorId : undefined}
-                />
-              </label>
+              <TextField
+                label={m.invite_name()}
+                autoComplete="name"
+                value={name}
+                maxLength={MAX_NAME_LENGTH}
+                onChange={setName}
+                invalid={Boolean(state.message)}
+                describedById={errorId}
+              />
+              <TextField
+                label={m.login_email()}
+                type="email"
+                autoComplete="email"
+                value={email}
+                maxLength={MAX_EMAIL_LENGTH}
+                onChange={setEmail}
+                invalid={Boolean(state.message)}
+                describedById={errorId}
+              />
+              <TextField
+                label={m.login_password()}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                minLength={MIN_PASSWORD_LENGTH}
+                maxLength={MAX_PASSWORD_LENGTH}
+                onChange={setPassword}
+                invalid={Boolean(state.message)}
+                describedById={errorId}
+              />
               <FieldError id={errorId}>{state.message}</FieldError>
               <div className="flex flex-wrap justify-end gap-2">
                 <Button type="submit" variant="ghost" disabled={busy}>

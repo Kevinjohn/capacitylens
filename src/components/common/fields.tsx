@@ -3,55 +3,44 @@ import { MAX_NAME_LENGTH, MAX_NOTE_LENGTH } from '@capacitylens/shared/lib/strin
 import { SWATCHES, SWATCH_COLUMNS, swatchLabel, colorName } from '../../lib/palette'
 // Control styling lives in ./controls (a non-component module) so its style OBJECT can
 // be exported without tripping react-refresh/only-export-components on this file.
-import { controlBase, inputClass, selectChevronClass, selectChevronStyle } from './controls'
 import { Input } from '../ui/input'
 import { Textarea } from '../ui/textarea'
 import { Popover, PopoverAnchor, PopoverContent } from '../ui/popover'
 import { Switch } from '../ui/switch'
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '../ui/field'
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../ui/select'
+import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group'
+import { Button } from '../ui/button'
 import { cn } from '@/lib/utils'
 import { m } from '@/i18n'
 import type { Weekday } from '@capacitylens/shared/types/entities'
 import { useMarkFormDirty } from './formDirty'
+import { inputClass, selectChevronClass, selectChevronStyle } from './controls'
 
-// Product field compositions built on shadcn primitives. SelectField remains native because the
-// browser control is part of the keyboard and test contract.
-
-const labelClass = 'mb-1 block text-xs font-medium text-muted'
-
-// Two deliberately distinct red treatments so "required" never reads as "errored":
-//   required (at rest) → a thin red left-edge accent — a quiet marker.
-//   invalid (failed Save) → a full danger border + ring — the field you missed pops.
-// invalid wins when both apply, so a required field that fails shows the error state.
-// These are the capacitylens ACCENTS only; the shared `controlBase` (controls.ts) supplies the
-// bg-surface/text-ink/placeholder/px-2.5 py-1.5/shadow-sm field look (the SAME base the
-// native SelectField uses, so the migrated shadcn fields sit flush beside it), and twMerge
-// lets controlBase + these accents win over the shadcn Input/Textarea base where they
-// overlap (incl. dark mode — the base no longer carries bg-transparent/dark:bg-input/30).
-function fieldAccent(invalid?: boolean, required?: boolean) {
-  if (invalid) return 'border-danger ring-1 ring-danger'
-  if (required) return 'border-l-2 border-l-danger/60'
-  return ''
-}
-
-// The native <select> uses the product input base plus the same validation accent as shadcn fields.
-function selectClass(invalid?: boolean, required?: boolean) {
-  if (invalid) return `${inputClass} border-danger ring-1 ring-danger`
-  if (required) return `${inputClass} border-l-2 border-l-danger/60`
-  return inputClass
-}
-
-/** Field label with an optional red asterisk for required fields. The asterisk is
- *  decorative (the input carries aria-required); we still give it a title for hover. */
-function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+// Product field APIs composed from ShadCN's Field family.
+function RequiredFieldLabel({ label, required, htmlFor }: { label: string; required?: boolean; htmlFor: string }) {
   return (
-    <span className={labelClass}>
+    <FieldLabel
+      htmlFor={htmlFor}
+      className={required ? "after:text-danger after:content-['_*']" : undefined}
+      title={required ? m.field_required() : undefined}
+    >
       {label}
-      {required && (
-        <span className="text-danger" title={m.field_required()} aria-hidden>
-          {' *'}
-        </span>
-      )}
-    </span>
+    </FieldLabel>
   )
 }
 
@@ -80,21 +69,22 @@ export function SwitchField({
 }) {
   const markDirty = useMarkFormDirty()
   const descriptionId = useId()
+  const controlId = useId()
   return (
-    <div className="flex items-center justify-between gap-4 py-1">
-      <span>
-        <span className="block text-sm font-medium text-ink">{label}</span>
-        {description && <span id={descriptionId} className="block text-xs text-muted">{description}</span>}
-      </span>
+    <Field orientation="horizontal" data-disabled={disabled || undefined}>
+      <FieldContent>
+        <FieldLabel htmlFor={controlId}>{label}</FieldLabel>
+        {description && <FieldDescription id={descriptionId}>{description}</FieldDescription>}
+      </FieldContent>
       <Switch
+        id={controlId}
         data-form-dirty-managed
         checked={checked}
-        aria-label={label}
         aria-describedby={description ? descriptionId : undefined}
         onCheckedChange={(next) => { markDirty(); onChange(next) }}
         disabled={disabled}
       />
-    </div>
+    </Field>
   )
 }
 
@@ -109,6 +99,11 @@ export function TextField({
   describedById,
   disabled,
   maxLength = MAX_NAME_LENGTH,
+  type = 'text',
+  autoComplete,
+  minLength,
+  ariaLabel,
+  testId,
 }: {
   label: string
   value: string
@@ -120,34 +115,37 @@ export function TextField({
   describedById?: string
   disabled?: boolean
   maxLength?: number
+  type?: 'text' | 'email' | 'password'
+  autoComplete?: string
+  minLength?: number
+  ariaLabel?: string
+  testId?: string
 }) {
+  const id = useId()
   return (
-    <label className="block">
-      <FieldLabel label={label} required={required} />
+    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
-        // Reuse capacitylens's shared controlBase (the SAME field look the native SelectField
-        // carries) so this shadcn-backed input matches it exactly — bg-surface in BOTH
-        // themes, text-ink, placeholder:text-faint, px-2.5 py-1.5, shadow-sm — instead of
-        // shadcn's bg-transparent/text-base. The accent (required/invalid) layers on top.
-        className={cn(controlBase, fieldAccent(invalid, required))}
+        id={id}
+        type={type}
         value={value}
         placeholder={placeholder}
         autoFocus={autoFocus}
         // Mark the intended autofocus target so Modal's focus trap honours it instead of
         // grabbing the first focusable (often a leading button).
         data-autofocus={autoFocus ? '' : undefined}
-        // Native cap is a backstop; the form validator also rejects emoji/junk + length.
         maxLength={maxLength}
+        minLength={minLength}
+        autoComplete={autoComplete}
         disabled={disabled}
-        // Name the control off the bare label so the required asterisk (decorative,
-        // aria-hidden) never leaks into the accessible name. Mirrors SelectField.
-        aria-label={label}
+        aria-label={ariaLabel}
+        data-testid={testId}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}
       />
-    </label>
+    </Field>
   )
 }
 
@@ -166,24 +164,20 @@ export function TextAreaField({
   describedById?: string
   maxLength?: number
 }) {
+  const id = useId()
   return (
-    <label className="block">
-      <span className={labelClass}>{label}</span>
+    <Field data-invalid={invalid || undefined}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Textarea
-        // Shared controlBase (matches the native SelectField + the other fields); see TextField.
-        className={cn(controlBase, fieldAccent(invalid))}
+        id={id}
         rows={2}
         value={value}
         maxLength={maxLength}
-        // No aria-label: this field carries no required-asterisk (plain <span> label, not
-        // FieldLabel), so the wrapping <label> IS the accessible name with nothing to leak.
-        // The asterisk-bearing fields (TextField/Number/Date/Select) keep aria-label so the
-        // decorative " *" never bleeds into their name. (2.13 de-dup, conservative scope.)
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}
       />
-    </label>
+    </Field>
   )
 }
 
@@ -208,18 +202,17 @@ export function NumberField({
   required?: boolean
   describedById?: string
 }) {
+  const id = useId()
   return (
-    <label className="block">
-      <FieldLabel label={label} required={required} />
+    <Field data-invalid={invalid || undefined}>
+      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
+        id={id}
         type="number"
-        // Shared controlBase (matches the native SelectField + the other fields); see TextField.
-        className={cn(controlBase, fieldAccent(invalid, required))}
         value={value}
         min={min}
         max={max}
         step={step}
-        aria-label={label}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
@@ -242,7 +235,7 @@ export function NumberField({
           if (n !== value) onChange(n)
         }}
       />
-    </label>
+    </Field>
   )
 }
 
@@ -261,21 +254,20 @@ export function DateField({
   required?: boolean
   describedById?: string
 }) {
+  const id = useId()
   return (
-    <label className="block">
-      <FieldLabel label={label} required={required} />
+    <Field data-invalid={invalid || undefined}>
+      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <Input
+        id={id}
         type="date"
-        // Shared controlBase (matches the native SelectField + the other fields); see TextField.
-        className={cn(controlBase, fieldAccent(invalid, required))}
         value={value}
-        aria-label={label}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
         onChange={(e) => onChange(e.target.value)}
       />
-    </label>
+    </Field>
   )
 }
 
@@ -298,6 +290,66 @@ export function SelectField({
   invalid,
   required,
   describedById,
+  ariaLabel,
+  testId,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  options: Option[]
+  placeholder?: string
+  disabled?: boolean
+  invalid?: boolean
+  required?: boolean
+  describedById?: string
+  ariaLabel?: string
+  testId?: string
+}) {
+  const id = useId()
+  return (
+    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
+      <Select
+        value={value}
+        disabled={disabled}
+        onValueChange={onChange}
+      >
+        <SelectTrigger
+          id={id}
+          className="w-full"
+          aria-required={required || undefined}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? describedById : undefined}
+          aria-label={ariaLabel}
+          data-testid={testId}
+        >
+          <SelectValue placeholder={placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectGroup>
+            {options.map((o) => (
+              <SelectItem key={o.value} value={o.value} disabled={o.disabled}>
+                {o.label}
+              </SelectItem>
+            ))}
+          </SelectGroup>
+        </SelectContent>
+      </Select>
+    </Field>
+  )
+}
+
+/** Native select retained for the scheduler's dense editing surface. */
+export function NativeSelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  invalid,
+  required,
+  describedById,
 }: {
   label: string
   value: string
@@ -309,28 +361,29 @@ export function SelectField({
   required?: boolean
   describedById?: string
 }) {
+  const id = useId()
   return (
-    <label className="block">
-      <FieldLabel label={label} required={required} />
+    <Field data-invalid={invalid || undefined} data-disabled={disabled || undefined}>
+      <RequiredFieldLabel htmlFor={id} label={label} required={required} />
       <select
-        className={cn(selectClass(invalid, required), selectChevronClass, 'disabled:opacity-60')}
+        id={id}
+        className={cn(inputClass, selectChevronClass)}
         style={selectChevronStyle}
         value={value}
         disabled={disabled}
-        aria-label={label}
         aria-required={required || undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? describedById : undefined}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
       >
         {placeholder !== undefined && <option value="">{placeholder}</option>}
-        {options.map((o) => (
-          <option key={o.value} value={o.value} disabled={o.disabled}>
-            {o.label}
+        {options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
           </option>
         ))}
       </select>
-    </label>
+    </Field>
   )
 }
 
@@ -376,8 +429,8 @@ export function ColorField({
   }, [open])
 
   return (
-    <div className="block">
-      <span className={labelClass}>{label}</span>
+    <Field data-invalid={invalid || undefined}>
+      <FieldLabel>{label}</FieldLabel>
       {/* Radix Popover supplies the shell and anchored positioning. CapacityLens owns dismissal through
           the capture-phase
           mousedown above and the Escape onKeyDown below. Radix's competing dismissals are
@@ -399,22 +452,22 @@ export function ColorField({
           }}
         >
           <PopoverAnchor asChild>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setOpen((o) => !o)}
               aria-haspopup="true"
               aria-expanded={open}
               aria-label={m.swatch_trigger_label({ label, color: colorName(value) })}
               aria-invalid={invalid || undefined}
               aria-describedby={invalid ? describedById : undefined}
-              className={cn(selectClass(invalid), selectChevronClass, 'flex items-center gap-2 text-left')}
-              style={selectChevronStyle}
+              className="w-full justify-between"
             >
               <span
-                className="h-4 w-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
+                className="size-4 shrink-0 rounded ring-1 ring-inset ring-black/10"
                 style={{ backgroundColor: value }}
               />
-            </button>
+            </Button>
           </PopoverAnchor>
           {open && (
             // portal={false} renders Content WITHOUT a Portal so the panel stays inside this
@@ -467,9 +520,10 @@ export function ColorField({
                       onChange(hex)
                       setOpen(false)
                     }}
-                    className={`size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110 ${
-                      selected ? 'outline outline-2 outline-offset-1 outline-brand-strong' : ''
-                    }`}
+                    className={cn(
+                      'size-6 rounded ring-1 ring-inset ring-black/10 transition hover:scale-110',
+                      selected && 'outline outline-2 outline-offset-1 outline-brand-strong',
+                    )}
                     style={{ backgroundColor: hex }}
                   />
                 )
@@ -478,7 +532,7 @@ export function ColorField({
           )}
         </div>
       </Popover>
-    </div>
+    </Field>
   )
 }
 
@@ -524,40 +578,26 @@ export function WeekdayPicker({
   describedById?: string
 }) {
   const markDirty = useMarkFormDirty()
-  const toggle = (day: Weekday) => {
-    markDirty()
-    onChange(value.includes(day) ? value.filter((d) => d !== day) : [...value, day])
-  }
   return (
-    // A real <fieldset>/<legend> groups the day toggles. Each day is a plain <button>
-    // (NOT a Radix ToggleGroup): the Weekday[] model (0–6, Sun=0) is the source of truth
-    // and aria-pressed reflects it directly. Plain buttons keep every chip individually
-    // Tab-reachable — a roving-tabindex toolbar would put only ONE of the seven in the tab
-    // order, regressing keyboard reach for no gain (capacitylens drives the model, not Radix).
-    <fieldset className="block" aria-invalid={invalid || undefined} aria-describedby={invalid ? describedById : undefined}>
-      <legend className={labelClass}>{label}</legend>
-      <div className="flex flex-wrap gap-2">
-        {WEEKDAY_ORDER.map((day) => {
-          const dl = weekdayShortLabel(day)
-          const on = value.includes(day)
-          return (
-            <button
-              key={day}
-              type="button"
-              data-form-dirty-managed
-              aria-label={dl}
-              aria-pressed={on}
-              onClick={() => toggle(day)}
-              className={cn(
-                'w-12 rounded-md border px-2 py-1 text-center text-xs font-medium transition',
-                on ? 'border-brand bg-brand-strong text-white' : 'bg-surface text-muted hover:bg-canvas',
-              )}
-            >
-              {dl}
-            </button>
-          )
-        })}
-      </div>
-    </fieldset>
+    <FieldSet aria-invalid={invalid || undefined} aria-describedby={invalid ? describedById : undefined}>
+      <FieldLegend variant="label">{label}</FieldLegend>
+      <ToggleGroup
+        type="multiple"
+        variant="outline"
+        size="sm"
+        spacing={2}
+        value={value.map(String)}
+        onValueChange={(next) => {
+          markDirty()
+          onChange(next.map(Number) as Weekday[])
+        }}
+      >
+        {WEEKDAY_ORDER.map((day) => (
+          <ToggleGroupItem key={day} value={String(day)} aria-label={weekdayShortLabel(day)}>
+            {weekdayShortLabel(day)}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+    </FieldSet>
   )
 }

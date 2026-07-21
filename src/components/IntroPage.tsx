@@ -6,6 +6,7 @@ import {
   introPara2,
   introPara3,
 } from '../lib/introCopy'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from './ui/card'
 
 // Post-login "What CapacityLens is" intermediary page. A minimal full-screen gate shown once per device
 // (the `capacitylens/introSeen` flag) after the viewer lands on a company, before the app proper —
@@ -27,25 +28,29 @@ export function IntroPage({ onContinue }: { onContinue: () => void }) {
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
-        <div className="rounded-lg border border-line bg-surface p-6 shadow-sm">
-          <h1 className="mb-3 text-xl font-semibold text-ink">{introHeading()}</h1>
-          <p className="mb-3 text-sm text-muted">
+        <Card>
+          <CardHeader>
+            <CardTitle><h1>{introHeading()}</h1></CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+          <p className="text-sm text-muted">
             {para1.before}
             <strong className="font-semibold text-ink">{para1.strong}</strong>
             {para1.after}
           </p>
-          <p className="mb-3 text-sm text-muted">
+          <p className="text-sm text-muted">
             {para2.before}
             <strong className="font-semibold text-ink">{para2.strong}</strong>
             {para2.after}
           </p>
-          <p className="mb-5 text-sm text-muted">{introPara3()}</p>
-          <div className="flex justify-end">
+          <p className="text-sm text-muted">{introPara3()}</p>
+          </CardContent>
+          <CardFooter className="justify-end">
             <Button onClick={onContinue} testId="intro-continue">
               {introContinueLabel()}
             </Button>
-          </div>
-        </div>
+          </CardFooter>
+        </Card>
       </main>
     </div>
   )

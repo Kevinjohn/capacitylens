@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button, FieldError, Modal } from '../components/common/ui'
-import { inputClass } from '../components/common/controls'
+import { Input } from '../components/ui/input'
+import { Field, FieldLabel } from '../components/ui/field'
 import { authClient } from './authClient'
 import { m } from '@/i18n'
 import type { AuthProviderInfo, AuthUser } from './authContext'
@@ -177,11 +178,11 @@ export function ReauthDialog({
         }
       >
         <p className="text-sm text-muted">{m.reauth_2fa_body()}</p>
-        <label className="block">
-          <span className="mb-1 block text-xs font-medium text-ink">{m.reauth_2fa_label()}</span>
-          <input
+        <Field>
+          <FieldLabel htmlFor="reauth-2fa-code">{m.reauth_2fa_label()}</FieldLabel>
+          <Input
+            id="reauth-2fa-code"
             data-testid="reauth-2fa-code"
-            className={inputClass}
             type="text"
             inputMode="numeric"
             autoComplete="one-time-code"
@@ -189,7 +190,7 @@ export function ReauthDialog({
             onChange={(e) => setCode(e.target.value.trim())}
             autoFocus
           />
-        </label>
+        </Field>
         <FieldError>{error}</FieldError>
       </Modal>
     )
@@ -214,18 +215,18 @@ export function ReauthDialog({
       }
     >
       <p className="text-sm text-muted">{m.reauth_body()}</p>
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium text-ink">{m.login_password()}</span>
-        <input
+      <Field>
+        <FieldLabel htmlFor="reauth-password">{m.login_password()}</FieldLabel>
+        <Input
+          id="reauth-password"
           data-testid="reauth-password"
-          className={inputClass}
           type="password"
           autoComplete="current-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoFocus
         />
-      </label>
+      </Field>
       <FieldError>{error}</FieldError>
     </Modal>
   )

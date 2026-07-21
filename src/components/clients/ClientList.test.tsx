@@ -47,7 +47,7 @@ describe('ClientList archive flow', () => {
 
     // Open the row's archive -> a confirm dialog appears.
     await user.click(screen.getByRole('button', { name: 'Archive Acme' }))
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(dialog).toHaveTextContent(/Archive client\?/i)
 
     // Cancel keeps it active.
@@ -56,7 +56,7 @@ describe('ClientList archive flow', () => {
 
     // Confirm archives it (children retained — archiving is reversible, not a cascade-delete).
     await user.click(screen.getByRole('button', { name: 'Archive Acme' }))
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive' }))
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Archive' }))
 
     expect(useStore.getState().data.clients).toHaveLength(1)
     expect(useStore.getState().data.clients[0].archivedAt).toBeTruthy()
@@ -77,7 +77,7 @@ describe('ClientList archive flow', () => {
     render(<ClientList />)
 
     await user.click(screen.getByRole('button', { name: 'Archive "Northstar"' }))
-    const dialog = screen.getByRole('dialog', { name: 'Archive client?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Archive client?' })
     expect(dialog).toHaveTextContent('Archive "Northstar"?')
     expect(dialog).not.toHaveTextContent('""Northstar""')
   })

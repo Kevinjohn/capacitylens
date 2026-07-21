@@ -2,7 +2,10 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { Button, FieldError } from '../components/common/ui'
-import { inputClass } from '../components/common/controls'
+import { Input } from '../components/ui/input'
+import { Checkbox } from '../components/ui/checkbox'
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from '../components/ui/field'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { authClient } from './authClient'
 
 type Setup = { totpURI: string; backupCodes: string[] }
@@ -64,34 +67,37 @@ export function MfaEnrollmentScreen({ onEnrolled, onSignOut }: {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-canvas p-6">
-      <div className="w-full max-w-lg rounded-lg border border-line bg-surface p-5 shadow-sm">
-        <h1 className="text-xl font-semibold text-ink">Secure your account</h1>
-        <p className="mt-2 text-sm text-muted">
-          CapacityLens requires a time-based code in addition to your sign-in method.
-        </p>
-
+      <Card className="w-full max-w-lg">
+        <CardHeader>
+          <CardTitle><h1>Secure your account</h1></CardTitle>
+          <CardDescription>CapacityLens requires a time-based code in addition to your sign-in method.</CardDescription>
+        </CardHeader>
+        <CardContent>
         {!setup ? (
-          <form className="mt-5 space-y-3" onSubmit={(event) => void start(event)}>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink">Current password</span>
-              <input
+          <form onSubmit={(event) => void start(event)}>
+            <FieldGroup className="gap-3">
+              <Field>
+                <FieldLabel htmlFor="mfa-enroll-password">Current password</FieldLabel>
+                <Input
+                id="mfa-enroll-password"
                 data-testid="mfa-enroll-password"
-                className={inputClass}
                 type="password"
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
               />
-              <span className="mt-1 block text-xs text-muted">Leave blank if you sign in only through SSO.</span>
-            </label>
+                <FieldDescription>Leave blank if you sign in only through SSO.</FieldDescription>
+              </Field>
             <FieldError>{error}</FieldError>
             <div className="flex items-center justify-between">
               <Button type="button" variant="ghost" onClick={onSignOut}>Sign out</Button>
               <Button type="submit" disabled={busy}>Continue</Button>
             </div>
+            </FieldGroup>
           </form>
         ) : (
-          <form className="mt-5 space-y-4" onSubmit={(event) => void finish(event)}>
+          <form onSubmit={(event) => void finish(event)}>
+            <FieldGroup className="gap-4">
             <div>
               <h2 className="text-sm font-semibold text-ink">1. Add the authenticator entry</h2>
               <p className="mt-1 text-xs text-muted">Open this URI in an authenticator app, or copy it into the app manually.</p>
@@ -104,30 +110,34 @@ export function MfaEnrollmentScreen({ onEnrolled, onSignOut }: {
               <ul className="mt-2 grid grid-cols-2 gap-1 rounded bg-canvas p-3 font-mono text-xs text-ink">
                 {setup.backupCodes.map((backupCode) => <li key={backupCode}>{backupCode}</li>)}
               </ul>
-              <label className="mt-2 flex items-start gap-2 text-sm text-ink">
-                <input type="checkbox" checked={saved} onChange={(event) => setSaved(event.target.checked)} />
-                I stored the recovery codes somewhere safe.
-              </label>
+              <Field orientation="horizontal">
+                <Checkbox id="mfa-codes-saved" checked={saved} onCheckedChange={(checked) => setSaved(checked === true)} />
+                <FieldContent>
+                  <FieldLabel htmlFor="mfa-codes-saved">I stored the recovery codes somewhere safe.</FieldLabel>
+                </FieldContent>
+              </Field>
             </div>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink">3. Authentication code</span>
-              <input
+            <Field>
+              <FieldLabel htmlFor="mfa-enroll-code">3. Authentication code</FieldLabel>
+              <Input
+                id="mfa-enroll-code"
                 data-testid="mfa-enroll-code"
-                className={inputClass}
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 value={code}
                 onChange={(event) => setCode(event.target.value.trim())}
               />
-            </label>
+            </Field>
             <FieldError>{error}</FieldError>
             <Button type="submit" testId="mfa-enroll-submit" disabled={busy || !saved || code.length !== 6}>
               Enable MFA
             </Button>
+            </FieldGroup>
           </form>
         )}
-      </div>
+        </CardContent>
+      </Card>
     </main>
   )
 }

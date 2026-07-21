@@ -216,19 +216,13 @@ describe('SettingsView — Schedule (minimise weekends)', () => {
 })
 
 describe('SettingsView — switch target size (WCAG 2.5.8 AA, ≥24px)', () => {
-  // The preferences toggle is a shared <ToggleRow> button; every preference switch (Minimise
-  // weekends, Snap, Show placeholders, …) renders the same one, so checking one covers all.
-  // jsdom doesn't run layout, so getBoundingClientRect() is 0×0 here — assert the height UTILITY
-  // that resolves to ≥24px instead (h-6 = 1.5rem = 24px), which is what the build ships. The REAL
-  // rendered ≥24px geometry is measured in e2e/minimise-weekends.spec.ts (Playwright boundingBox).
+  // The shared ShadCN Switch uses the default 24×40px size. Real geometry is also covered by E2E.
   it('renders the role="switch" control at the h-6 (24px) target-size floor', () => {
     render(<SettingsView />)
     const sw = screen.getByRole('switch', { name: 'Minimise weekends' })
-    // h-6 (1.5rem = 24px) hits the 24px minimum exactly; h-5 (20px) was 4px under and failed 2.5.8.
-    expect(sw).toHaveClass('h-6')
-    expect(sw).not.toHaveClass('h-5')
-    // Width is at least the height — a non-degenerate target (pill is wider than tall).
-    expect(sw).toHaveClass('w-10')
+    expect(sw).toHaveAttribute('data-size', 'default')
+    expect(sw.className).toContain('data-[size=default]:h-6')
+    expect(sw.className).toContain('data-[size=default]:w-10')
   })
 })
 
@@ -259,10 +253,10 @@ describe('SettingsView — Clear local storage', () => {
     const button = screen.getByTestId('clear-local-storage')
     expect(button).toHaveTextContent('Clear device data')
     // No modal until clicked.
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
 
     await user.click(button)
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(dialog).toHaveTextContent(/Clear device data\?/i)
     expect(dialog).toHaveTextContent(/cannot be undone/i)
   })
@@ -276,7 +270,7 @@ describe('SettingsView — Clear local storage', () => {
     await user.click(screen.getByTestId('clear-local-storage'))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(localStorage.getItem('capacitylens/offlineRead')).toBe('on')
     expect(localStorage.getItem('capacitylens/theme')).toBe('dark')
     expect(reload).not.toHaveBeenCalled()
@@ -290,8 +284,8 @@ describe('SettingsView — Clear local storage', () => {
     render(<SettingsView />)
 
     await user.click(screen.getByTestId('clear-local-storage'))
-    // Scope to the dialog — the section button and the modal's confirm share the label.
-    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Clear device data' }))
+    // Scope to the alert dialog — the section button and confirm action share the label.
+    await user.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Clear device data' }))
 
     expect(localStorage.getItem('capacitylens/offlineRead')).toBeNull()
     expect(localStorage.getItem('capacitylens/theme')).toBeNull()
@@ -305,7 +299,7 @@ describe('SettingsView — Calendar section (frozen after creation, P1.14)', () 
     render(<SettingsView />)
     expect(screen.getByRole('radiogroup', { name: 'Week starts on' })).toBeInTheDocument()
     expect(screen.getByRole('radio', { name: 'Monday' })).toHaveAttribute('aria-checked', 'true')
-    expect((screen.getByLabelText('Timezone') as HTMLSelectElement).value).toBe('Etc/GMT')
+    expect(screen.getByRole('combobox', { name: 'Timezone' })).toHaveTextContent('GMT')
     expect(screen.getByTestId('settings-language')).toHaveTextContent('English')
   })
 

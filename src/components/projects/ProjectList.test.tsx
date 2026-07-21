@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { ProjectList } from './ProjectList'
 import { useStore } from '../../store/useStore'
@@ -46,7 +46,8 @@ describe('ProjectList', () => {
 
     // Fill in Name and Client
     await user.type(within(dialog).getByLabelText('Name'), 'New Project')
-    await user.selectOptions(within(dialog).getByLabelText('Client', { exact: true }), client.id)
+    fireEvent.keyDown(within(dialog).getByLabelText('Client', { exact: true }), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: 'Acme Corp' }))
 
     await user.click(within(dialog).getByRole('button', { name: 'Save' }))
 
@@ -73,7 +74,7 @@ describe('ProjectList', () => {
 
     await user.click(screen.getByRole('button', { name: 'Archive Doomed Project' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Archive project?' })
     expect(dialog).toBeInTheDocument()
     expect(dialog).toHaveTextContent(/Archive "Doomed Project"/)
     expect(dialog).toHaveTextContent(/Archived & deleted/)
@@ -92,7 +93,7 @@ describe('ProjectList', () => {
     render(<ProjectList />)
 
     await user.click(screen.getByRole('button', { name: 'Archive "Aurora"' }))
-    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Archive project?' })
     expect(dialog).toHaveTextContent('Archive "Aurora"?')
     expect(dialog).not.toHaveTextContent('""Aurora""')
   })
@@ -106,10 +107,10 @@ describe('ProjectList', () => {
 
     await user.click(screen.getByRole('button', { name: 'Archive Kept Project' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Archive project?' })
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(useStore.getState().data.projects[0].archivedAt).toBeUndefined()
     expect(screen.getByText('Kept Project')).toBeInTheDocument()
   })
@@ -124,10 +125,10 @@ describe('ProjectList', () => {
 
     await user.click(screen.getByRole('button', { name: 'Archive Doomed Project' }))
 
-    const dialog = screen.getByRole('dialog', { name: 'Archive project?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Archive project?' })
     await user.click(within(dialog).getByRole('button', { name: 'Archive' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     // Retained in the data (archived, reversible), but gone from the active-only list.
     expect(useStore.getState().data.projects).toHaveLength(1)
     expect(useStore.getState().data.projects[0].archivedAt).toBeTruthy()

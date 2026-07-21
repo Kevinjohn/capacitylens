@@ -1,4 +1,5 @@
 import { ensureBarColors } from '@capacitylens/shared/lib/color'
+import { Avatar as ShadAvatar, AvatarFallback } from '../ui/avatar'
 
 // CapacityLens colour and avatar compositions.
 
@@ -33,12 +34,14 @@ export function Avatar({
   // Keep the initials legible (white-on-mid-tone often fails AA) by nudging the fill.
   const { bg, ink } = ensureBarColors(color)
   return (
-    <span
+    <ShadAvatar
       aria-hidden
       style={{ width: size, height: size, backgroundColor: bg, color: ink }}
-      className="inline-flex shrink-0 items-center justify-center rounded-full text-2xs font-semibold ring-2 ring-surface"
+      className="ring-2 ring-surface"
     >
-      {initials}
-    </span>
+      <AvatarFallback className="bg-transparent text-2xs font-semibold text-inherit">
+        {initials}
+      </AvatarFallback>
+    </ShadAvatar>
   )
 }

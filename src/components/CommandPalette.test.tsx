@@ -165,11 +165,9 @@ describe('CommandPalette', () => {
     let closed = false
     renderPalette(() => { closed = true })
 
-    // The backdrop is the outer div with data-testid="command-palette"
-    const backdrop = screen.getByTestId('command-palette')
-    // Simulate a click where target === currentTarget (direct click on backdrop)
+    const overlay = screen.getByTestId('command-palette-overlay')
     act(() => {
-      fireEvent.mouseDown(backdrop, { target: backdrop })
+      fireEvent.mouseDown(overlay)
     })
 
     expect(closed).toBe(true)

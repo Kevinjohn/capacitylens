@@ -3,7 +3,9 @@ import type { FormEvent } from 'react'
 import { useParams } from 'react-router-dom'
 import { API_BASE, isServerConfigured } from '../data/apiConfig'
 import { Button, FieldError } from '../components/common/ui'
-import { inputClass } from '../components/common/controls'
+import { Input } from '../components/ui/input'
+import { Field, FieldGroup, FieldLabel } from '../components/ui/field'
+import { Card, CardContent } from '../components/ui/card'
 import { Button as ShadButton } from '../components/ui/button'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH } from '@capacitylens/shared/domain/password'
@@ -115,15 +117,16 @@ export function ResetPassword() {
             <p className="text-sm text-muted">{m.reset_subtitle()}</p>
           )}
         </div>
-        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <Card className="gap-4 py-4">
+          <CardContent className="px-4">
           {(state.kind === 'form' || state.kind === 'working') && (
-            <form onSubmit={(e) => void submit(e)} noValidate className="space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.reset_new_password()}</span>
-                <input
+            <form onSubmit={(e) => void submit(e)} noValidate>
+              <FieldGroup className="gap-3">
+                <Field>
+                  <FieldLabel htmlFor={passwordId}>{m.reset_new_password()}</FieldLabel>
+                  <Input
                   id={passwordId}
                   data-testid="reset-new-password"
-                  className={inputClass}
                   type="password"
                   autoComplete="new-password"
                   value={password}
@@ -131,20 +134,19 @@ export function ResetPassword() {
                   aria-describedby={error ? errorId : undefined}
                   autoFocus
                 />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-ink">{m.reset_confirm_password()}</span>
-                <input
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor={confirmId}>{m.reset_confirm_password()}</FieldLabel>
+                  <Input
                   id={confirmId}
                   data-testid="reset-confirm-password"
-                  className={inputClass}
                   type="password"
                   autoComplete="new-password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   aria-describedby={error ? errorId : undefined}
                 />
-              </label>
+                </Field>
               <FieldError id={errorId}>{error}</FieldError>
               <div className="flex justify-end">
                 <Button type="submit" testId="reset-submit" disabled={state.kind === 'working'}>
@@ -156,10 +158,11 @@ export function ResetPassword() {
                   {m.reset_working()}
                 </p>
               )}
+              </FieldGroup>
             </form>
           )}
           {(state.kind === 'done' || state.kind === 'unknown') && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3">
               <p role="status" data-testid="reset-success" className="text-sm font-medium text-ink">
                 {state.kind === 'done'
                   ? m.reset_success()
@@ -177,7 +180,8 @@ export function ResetPassword() {
           {state.kind === 'local' && (
             <p className="text-sm text-muted">{m.reset_local_mode({ app: APP_NAME })}</p>
           )}
-        </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   )

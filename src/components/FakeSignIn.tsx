@@ -2,6 +2,9 @@ import avatarUrl from '../assets/avatar-demo.svg'
 import { FAKE_USER } from '../lib/fakeAuth'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { Button } from './ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 
 // COSMETIC demo sign-in — a Google-account-chooser look shown BEFORE the account picker so
 // a viewer sees the intended "log in first, then pick a company" flow. There is NO real
@@ -46,36 +49,39 @@ export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {
   return (
     <div className="flex min-h-full items-center justify-center bg-canvas p-6">
       <main className="w-full max-w-sm">
-        <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
-          <div className="flex flex-col items-center gap-2 px-6 pb-5 pt-7 text-center">
+        <Card className="overflow-hidden py-0">
+          <CardHeader className="items-center gap-2 px-6 pb-5 pt-7 text-center">
             <GoogleMark />
-            <h1 className="text-xl font-semibold text-ink">{m.fake_title()}</h1>
+            <CardTitle><h1>{m.fake_title()}</h1></CardTitle>
             <p className="text-sm text-muted">
               {m.fake_continue_to()}<span className="font-medium text-ink">{APP_NAME}</span>
             </p>
-          </div>
+          </CardHeader>
 
-          <ul className="border-t border-line-faint">
+          <CardContent className="border-t border-line-faint p-0">
+          <ul>
             <li>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 data-testid="fake-sign-in"
                 onClick={onSignIn}
-                className="flex w-full items-center gap-3 px-6 py-3 text-left transition hover:bg-canvas"
+                className="h-auto w-full justify-start rounded-none px-6 py-3 text-left"
               >
-                <img src={avatarUrl} alt="" className="h-9 w-9 shrink-0 rounded-full" />
+                <Avatar>
+                  <AvatarImage src={avatarUrl} alt="" />
+                  <AvatarFallback>{FAKE_USER.name.slice(0, 1)}</AvatarFallback>
+                </Avatar>
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium text-ink">{FAKE_USER.name}</span>
                   <span className="block truncate text-xs text-muted">{FAKE_USER.email}</span>
                 </span>
-              </button>
+              </Button>
             </li>
             <li className="border-t border-line-faint">
-              {/* Not a dead control: in the fake, any choice just proceeds to the picker. */}
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={onSignIn}
-                className="flex w-full items-center gap-3 px-6 py-3 text-left text-muted transition hover:bg-canvas"
+                className="h-auto w-full justify-start rounded-none px-6 py-3 text-left text-muted"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-muted">
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -84,10 +90,11 @@ export function FakeSignIn({ onSignIn }: { onSignIn: () => void }) {
                   </svg>
                 </span>
                 <span className="text-sm">{m.fake_use_another()}</span>
-              </button>
+              </Button>
             </li>
           </ul>
-        </div>
+          </CardContent>
+        </Card>
       </main>
     </div>
   )

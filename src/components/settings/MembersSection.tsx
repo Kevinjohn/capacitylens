@@ -4,7 +4,7 @@ import { useAuth } from '../../auth/authContext'
 import { useStore } from '../../store/useStore'
 import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
-import { Button, ConfirmDialog, FieldError, SelectField } from '../common/ui'
+import { Button, ConfirmDialog, FieldError, SelectField, TextField } from '../common/ui'
 import { m } from '@/i18n'
 import {
   canManageMemberRole,
@@ -689,40 +689,29 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
       <div className="mb-4 flex flex-col gap-2 rounded border border-line p-3">
         <h3 className="text-xs font-semibold text-ink">{m.settings_invite_heading()}</h3>
         <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-32">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink">{m.settings_invite_role_label()}</span>
-              <select
-                data-testid="invite-role"
-                aria-label={m.settings_invite_role_aria()}
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as InvitationRole)}
-                disabled={busyAction !== null}
-                className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
-              >
-                {roleOptions().map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+          <div className="min-w-40">
+            <SelectField
+              label={m.settings_invite_role_label()}
+              ariaLabel={m.settings_invite_role_aria()}
+              value={inviteRole}
+              onChange={(value) => setInviteRole(value as InvitationRole)}
+              disabled={busyAction !== null}
+              options={roleOptions()}
+              testId="invite-role"
+            />
           </div>
           <div className="min-w-48 flex-1">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink">{m.settings_invite_preauth_label()}</span>
-              <input
-                data-testid="invite-preauth"
-                aria-label={m.settings_invite_preauth_aria()}
-                type="email"
-                value={invitePreauth}
-                maxLength={MAX_EMAIL_LENGTH}
-                onChange={(e) => setInvitePreauth(e.target.value)}
-                disabled={busyAction !== null}
-                placeholder={m.settings_invite_preauth_placeholder()}
-                className="w-full rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
-              />
-            </label>
+            <TextField
+              label={m.settings_invite_preauth_label()}
+              ariaLabel={m.settings_invite_preauth_aria()}
+              type="email"
+              value={invitePreauth}
+              maxLength={MAX_EMAIL_LENGTH}
+              onChange={setInvitePreauth}
+              disabled={busyAction !== null}
+              placeholder={m.settings_invite_preauth_placeholder()}
+              testId="invite-preauth"
+            />
           </div>
           <Button testId="invite-submit" disabled={busyAction !== null} onClick={() => void submitInvite()}>
             {m.settings_invite_submit()}

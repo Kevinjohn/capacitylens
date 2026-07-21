@@ -13,7 +13,7 @@ import { useFieldError } from '../../hooks/useFieldError'
 import { errorMessage } from '../../lib/errorMessage'
 import { FAKE_USER, useDemoAuthActive } from '../../lib/fakeAuth'
 import { validateName } from '../../lib/validation'
-import { AddButton, Avatar, Button, DeleteButton, FieldError, SegmentedControl, TextField } from '../common/ui'
+import { AddButton, Avatar, Button, DeleteButton, FieldError, SegmentedControl, SelectField, TextField } from '../common/ui'
 import { supportedTimeZones, timeZoneOptionLabel } from '../../lib/timezones'
 import { DeleteCompanyDialog } from './DeleteCompanyDialog'
 import { DEFAULT_COLORS } from '../../lib/palette'
@@ -21,6 +21,8 @@ import type { AccountSummary } from '../../store/useStore'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { m } from '@/i18n'
 import { useOfflineState } from '../../data/useOfflineState'
+import { Button as ShadButton } from '../ui/button'
+import { Card } from '../ui/card'
 
 // Onboarding capture (P1.14): the create-company form sets language, week-start and time zone —
 // the three fields the server FREEZES after creation (a later change → 409). They're captured here,
@@ -310,23 +312,23 @@ export function AccountPicker() {
             <span className="truncate text-muted">
               {m.picker_signed_in_as()}<span className="font-medium text-ink">{FAKE_USER.name}</span>
             </span>
-            <button
-              type="button"
+            <ShadButton
+              variant="link"
               onClick={signOutDemo}
-              className="shrink-0 text-muted underline-offset-2 hover:text-ink hover:underline"
+              className="h-auto shrink-0 p-0 text-muted"
             >
               {m.picker_sign_out()}
-            </button>
+            </ShadButton>
           </div>
         )}
         {previous && (
-          <button
-            type="button"
+          <ShadButton
+            variant="link"
             onClick={() => setActiveAccount(previous.id)}
-            className="mb-4 text-sm text-muted underline-offset-2 hover:text-ink hover:underline"
+            className="mb-4 h-auto p-0 text-sm text-muted"
           >
             {m.picker_back({ name: previous.name })}
-          </button>
+          </ShadButton>
         )}
         <div className="mb-6 text-center">
           <div className="mb-1 text-2xl font-bold text-brand">{APP_NAME}</div>
@@ -349,10 +351,10 @@ export function AccountPicker() {
         {accounts.length === 0 && !creating ? (
           <div data-testid="company-empty-options" className="mt-4 space-y-2">
             {canCreateAccount && (
-              <div className="rounded-lg border border-line bg-surface p-3 shadow-sm">
+              <Card className="gap-0 p-3">
                 <AddButton label={m.picker_new()} onClick={() => setCreating(true)} testId="new-company-button" />
                 <p className="mt-2 text-xs text-muted">{m.picker_empty_create_hint()}</p>
-              </div>
+              </Card>
             )}
             <div className="rounded-lg border border-line bg-surface px-3 py-3 text-sm text-muted shadow-sm">
               {m.picker_empty_invite()}
@@ -370,12 +372,12 @@ export function AccountPicker() {
               })
               return (
               <li key={a.id} className="flex items-center gap-2">
-                <button
-                  type="button"
+                <ShadButton
+                  variant="outline"
                   aria-label={a.name}
                   aria-describedby={roleDescriptionId}
                   onClick={() => setActiveAccount(a.id)}
-                  className="flex flex-1 items-center gap-3 rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-ink shadow-sm transition hover:bg-canvas"
+                  className="h-auto flex-1 justify-start gap-3 px-3 py-2.5 text-left"
                 >
                   {/* AccountSummary carries no colour (it's the minimal server-sourced shape — P1.13), so
                       the picker swatch uses the default account colour. The real per-account colour shows
@@ -387,7 +389,7 @@ export function AccountPicker() {
                       {accessLabel}
                     </Badge>
                   </span>
-                </button>
+                </ShadButton>
                 {/* Company deletion is owner-only server-side, so every non-owner summary gets no
                     Delete affordance at all — offering one would let them type-to-confirm an
                     irreversible-looking action that then just 403s. Demo summaries are always 'owner'. */}
@@ -420,23 +422,15 @@ export function AccountPicker() {
                 options={WEEK_START_OPTIONS.map((o) => ({ value: o.value, label: o.label() }))}
               />
             </div>
-            <div>
-              <label htmlFor="create-timezone-select" className="mb-1.5 block text-xs font-medium text-ink">
-                {m.picker_timezone()}
-              </label>
-              <select
-                id="create-timezone-select"
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                className="rounded border border-line bg-surface px-2 py-1.5 text-sm text-ink"
-              >
-                {tzOptions.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {timeZoneOptionLabel(tz, tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <SelectField
+              label={m.picker_timezone()}
+              value={timezone}
+              onChange={setTimezone}
+              options={tzOptions.map((tz) => ({
+                value: tz,
+                label: timeZoneOptionLabel(tz, tz === 'Etc/GMT' ? m.settings_timezone_gmt() : tz),
+              }))}
+            />
             <div>
               {/* Language is English-only until P1.5.1 (Paraglide), so a fixed display, not a chooser. */}
               <p className="mb-1.5 text-xs font-medium text-ink">{m.picker_language()}</p>

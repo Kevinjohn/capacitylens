@@ -60,7 +60,8 @@ describe('TimeOffList', () => {
     const dialog = screen.getByRole('dialog', { name: 'Add time off' })
 
     // Select the resource first (otherwise validation stops at "choose a resource")
-    await user.selectOptions(within(dialog).getByLabelText('Resource'), resource.id)
+    fireEvent.keyDown(within(dialog).getByLabelText('Resource'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: resource.name }))
 
     // Set start to a later date and end to an earlier date
     fireEvent.change(within(dialog).getByLabelText('Start'), { target: { value: '2026-06-10' } })
@@ -81,7 +82,8 @@ describe('TimeOffList', () => {
     await user.click(screen.getByRole('button', { name: 'Add time off' }))
     const dialog = screen.getByRole('dialog', { name: 'Add time off' })
 
-    await user.selectOptions(within(dialog).getByLabelText('Resource'), resource.id)
+    fireEvent.keyDown(within(dialog).getByLabelText('Resource'), { key: 'ArrowDown' })
+    fireEvent.click(screen.getByRole('option', { name: resource.name }))
     fireEvent.change(within(dialog).getByLabelText('Start'), { target: { value: '2026-07-01' } })
     fireEvent.change(within(dialog).getByLabelText('End'), { target: { value: '2026-07-05' } })
 
@@ -140,7 +142,7 @@ describe('TimeOffList', () => {
     await user.click(screen.getByRole('button', { name: 'Delete' }))
 
     // Confirm dialog appears
-    const dialog = screen.getByRole('dialog', { name: 'Delete time off?' })
+    const dialog = screen.getByRole('alertdialog', { name: 'Delete time off?' })
     expect(dialog).toBeInTheDocument()
 
     // Cancel keeps the entry
@@ -150,7 +152,7 @@ describe('TimeOffList', () => {
 
     // Delete again and confirm
     await user.click(screen.getByRole('button', { name: 'Delete' }))
-    await user.click(within(screen.getByRole('dialog', { name: 'Delete time off?' })).getByRole('button', { name: 'Delete' }))
+    await user.click(within(screen.getByRole('alertdialog', { name: 'Delete time off?' })).getByRole('button', { name: 'Delete' }))
 
     expect(useStore.getState().data.timeOff).toHaveLength(0)
     expect(screen.queryByTestId('timeoff-row')).not.toBeInTheDocument()
@@ -200,18 +202,19 @@ describe('TimeOffList', () => {
 })
 
 describe('TimeOffForm resource picker (placeholder gating)', () => {
-  it('EXCLUDES placeholders from the picker when the pref is OFF', () => {
+  it('EXCLUDES placeholders from the picker when the pref is OFF', async () => {
     setPlaceholdersEnabled(false)
     useStore.getState().addResource(resourceDraft) // a person, should appear
     useStore.getState().addResource(placeholderDraft) // a placeholder, should be omitted
     render(<TimeOffForm onClose={() => {}} />)
 
     const select = screen.getByLabelText('Resource')
-    expect(within(select).getByRole('option', { name: 'Alice' })).toBeInTheDocument()
-    expect(within(select).queryByRole('option', { name: 'Placeholder' })).not.toBeInTheDocument()
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Alice' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Placeholder' })).not.toBeInTheDocument()
   })
 
-  it('risk A: editing a time-off entry already ON a hidden placeholder still offers that placeholder', () => {
+  it('risk A: editing a time-off entry already ON a hidden placeholder still offers that placeholder', async () => {
     setPlaceholdersEnabled(true)
     const ph = useStore.getState().addResource(placeholderDraft)
     const entry = useStore.getState().addTimeOff({ resourceId: ph.id, startDate: '2026-09-01', endDate: '2026-09-05', type: 'holiday' })
@@ -223,8 +226,8 @@ describe('TimeOffForm resource picker (placeholder gating)', () => {
     render(<TimeOffForm timeOff={entry} onClose={() => {}} />)
 
     const select = screen.getByLabelText('Resource')
-    const option = within(select).getByRole('option', { name: 'Placeholder' })
-    expect(option).toBeInTheDocument()
-    expect((select as HTMLSelectElement).value).toBe(ph.id) // and it's the selected value
+    expect(select).toHaveTextContent('Placeholder')
+    fireEvent.keyDown(select, { key: 'ArrowDown' })
+    expect(screen.getByRole('option', { name: 'Placeholder' })).toBeInTheDocument()
   })
 })

@@ -87,14 +87,14 @@ describe('DisciplineList', () => {
     const row = screen.getByTestId('discipline-row')
     await user.click(within(row).getByRole('button', { name: 'Delete' }))
 
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     expect(dialog).toBeInTheDocument()
     expect(dialog).toHaveTextContent(/delete discipline\?/i)
     expect(dialog).toHaveTextContent(/ToDelete/)
 
     await user.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(screen.queryByText('ToDelete')).not.toBeInTheDocument()
     expect(useStore.getState().data.disciplines).toHaveLength(0)
   })
@@ -107,10 +107,10 @@ describe('DisciplineList', () => {
     const row = screen.getByTestId('discipline-row')
     await user.click(within(row).getByRole('button', { name: 'Delete' }))
 
-    const dialog = screen.getByRole('dialog')
+    const dialog = screen.getByRole('alertdialog')
     await user.click(within(dialog).getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(screen.getByText('KeepMe')).toBeInTheDocument()
     expect(useStore.getState().data.disciplines).toHaveLength(1)
   })

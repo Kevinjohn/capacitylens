@@ -3,14 +3,8 @@ import { Command as CommandPrimitive } from "cmdk"
 
 import { cn } from "@/lib/utils"
 
-// CapacityLens rebuild of the shadcn `command` primitives (cmdk). The generated file shipped a
-// `CommandDialog` wrapper that imports `@/components/ui/dialog` — deleted in the dialog phase —
-// so that export (and its Dialog/DialogContent import) is intentionally removed. Only the bare
-// cmdk primitives remain, restyled with CapacityLens tokens (bg-elevated / text-ink / text-faint /
-// bg-brand-soft) rather than the shadcn defaults (bg-popover / bg-accent /
-// text-muted-foreground), which don't exist in capacitylens and risk the AA / --color-muted ink issue.
-// The outer backdrop, panel chrome, search-icon and "esc" kbd live in CommandPalette.tsx; these
-// stay layout-light so the palette owns that frame.
+// ShadCN/cmdk primitives with CapacityLens colour tokens. CommandPalette composes these inside
+// the shared ShadCN Dialog.
 
 function Command({
   className,
