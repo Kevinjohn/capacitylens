@@ -1,7 +1,6 @@
 // Product icon vocabulary backed by lucide-react. Icons use currentColor and a consistent
-// default size. They are decorative
-// (aria-hidden); icon-only buttons take their accessible name from the button's own
-// aria-label at the call site (e.g. the AppShell rail toggle), never from here.
+// default size. They are decorative (aria-hidden); icon-only buttons take their accessible
+// name from the button's own aria-label at the call site, never from here.
 
 import {
   Briefcase,
@@ -11,15 +10,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardCheck,
-  Eye,
   Folder,
-  PanelLeft,
   Pencil,
   Plus,
   Redo2,
-  ShieldCheck,
   SlidersHorizontal,
-  Sun,
   Tag,
   Trash2,
   Undo2,
@@ -41,19 +36,13 @@ export type IconName =
   // button's aria-label carries the accessible name, see EditButton/DeleteButton in ./dialogs).
   | 'edit'
   | 'delete'
-  // Sidebar navigation icons (one per section — see AppShell LINKS) plus the rail toggle.
-  | 'calendar'
-  | 'people'
-  | 'tag'
   | 'briefcase'
-  | 'folder'
+  | 'calendar'
   | 'clipboard-check'
-  | 'sun'
+  | 'folder'
+  | 'people'
   | 'sliders'
-  | 'shield-check'
-  | 'panel-left'
-  // Read-only "View only" badge in the sidebar footer.
-  | 'eye'
+  | 'tag'
 
 const ICONS: Record<IconName, LucideIcon> = {
   close: X,
@@ -66,17 +55,13 @@ const ICONS: Record<IconName, LucideIcon> = {
   plus: Plus,
   edit: Pencil,
   delete: Trash2,
-  calendar: Calendar,
-  people: Users,
-  tag: Tag,
   briefcase: Briefcase,
-  folder: Folder,
+  calendar: Calendar,
   'clipboard-check': ClipboardCheck,
-  sun: Sun,
+  folder: Folder,
+  people: Users,
   sliders: SlidersHorizontal,
-  'shield-check': ShieldCheck,
-  'panel-left': PanelLeft,
-  eye: Eye,
+  tag: Tag,
 }
 
 export function Icon({ name, size = 16, className }: { name: IconName; size?: number; className?: string }) {

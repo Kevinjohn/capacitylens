@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen, act, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, act, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { AppShell } from './AppShell'
 import { useStore } from '../store/useStore'
@@ -142,42 +142,36 @@ describe('AppShell sidebar collapse', () => {
     renderAppShell()
 
     expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument()
-    const toggle = screen.getByRole('button', { name: 'Collapse menu' })
+    const toggle = within(screen.getByTestId('app-sidebar')).getByRole('button', { name: 'Collapse menu' })
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
-    expect(screen.queryAllByTestId('nav-rail-item')).toHaveLength(0)
   })
 
-  it('collapsing swaps links for an icon rail, persists the choice, and hides Data tools', () => {
+  it('collapsing keeps the navigation links usable and persists the choice', () => {
     renderAppShell()
 
     act(() => {
-      screen.getByRole('button', { name: 'Collapse menu' }).click()
+      within(screen.getByTestId('app-sidebar')).getByRole('button', { name: 'Collapse menu' }).click()
     })
 
-    // The skip-to-content link survives; the nine NAV links must be gone (External moved into the
-    // Resources tab, so it's no longer a standalone nav link).
-    expect(screen.queryByRole('link', { name: 'Schedule' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'Settings' })).not.toBeInTheDocument()
-    expect(screen.getAllByTestId('nav-rail-item')).toHaveLength(9)
-    expect(screen.getByRole('button', { name: 'Expand menu' })).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByTestId('export-data')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Schedule' })).toHaveAttribute('href', '/')
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
+    expect(screen.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed')
+    expect(within(screen.getByTestId('app-sidebar')).getByRole('button', { name: 'Expand menu' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
     expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed')
   })
 
-  it('rail icons do not navigate — they just reopen the menu', () => {
+  it('collapsed destinations remain real links instead of reopening the menu', () => {
     renderAppShell()
     act(() => {
       useStore.getState().setSidebarOpen(false)
     })
 
-    // Rail buttons are decorative for AT (aria-hidden, tabIndex -1); the single
-    // accessible control is the toggle. Click one by test id.
-    act(() => {
-      screen.getAllByTestId('nav-rail-item')[3].click()
-    })
-
-    expect(screen.getByRole('link', { name: 'Schedule' })).toBeInTheDocument()
-    expect(localStorage.getItem('capacitylens/sidebar')).toBe('open')
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveAttribute('href', '/projects')
+    expect(screen.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed')
+    expect(localStorage.getItem('capacitylens/sidebar')).toBe('closed')
   })
 
   it('nav links carry icons without changing their accessible names', () => {

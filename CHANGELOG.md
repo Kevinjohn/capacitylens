@@ -10,6 +10,32 @@ new features and **patch** versions carry fixes.
 
 ## [Unreleased]
 
+## [0.25.0-alpha.7] — 2026-07-21
+
+This patch release standardises the application navigation on the shadcn Sidebar while preserving
+CapacityLens's existing destinations, account controls and compact scheduler layout. It does not
+change the portable export or SQLite database schema versions.
+
+### Added
+
+- Added the shadcn Sidebar, Sheet and Skeleton primitives as the shared application-navigation
+  foundation.
+- Added focused browser coverage for desktop collapse, compact landscape navigation and the
+  portrait off-canvas menu.
+
+### Changed
+
+- Rebuilt the application menu with shadcn groups, menu items, semantic tokens and tooltips while
+  retaining import/export, account switching, sign-out and permission context.
+- Kept collapsed destinations as real links and moved portrait navigation into an off-canvas Sheet
+  that closes after selecting a destination.
+
+### Fixed
+
+- Ensured the mobile menu toggle reports the Sheet's actual expanded state to assistive technology.
+- Updated sidebar comments and tests to describe the current navigation model instead of the
+  retired icon-rail implementation.
+
 ## [0.25.0-alpha.6] — 2026-07-21
 
 This patch release completes the alpha UI alignment around shadcn primitives while preserving the

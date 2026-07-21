@@ -16,12 +16,19 @@ import { m } from '@/i18n'
 import type { AppData } from '@capacitylens/shared/types/entities'
 import { APP_NAME } from '@capacitylens/shared/brand'
 import { Button } from './ui/button'
+import {
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+} from './ui/sidebar'
 
 // Refuse files past this size before reading them into memory (self-DoS guard).
 const MAX_IMPORT_BYTES = 5 * 1024 * 1024
 
 // Order + labels for the "what's in this file" import summary. Each `label` is a render-time
-// GETTER (`() => m.key()`), not a pre-resolved string (the AppShell LINKS / option-getter pattern,
+// GETTER (`() => m.key()`), not a pre-resolved string (the nav LINKS / option-getter pattern,
 // P1.5.2): this list is module-scope, so resolving `m.key()` here would freeze the label to the
 // load-time locale. The getter defers it to render — summarize() calls each at its call site.
 const SUMMARY: [keyof AppData, () => string][] = [
@@ -313,24 +320,38 @@ export function ImportExport() {
   }
 
   return (
-    <div className="mt-6 border-t border-line pt-3">
-      <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-faint">{m.data_menu_label()}</div>
-      {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
-          slice that is about to be obsolete, and a second import would race the first. */}
-      <Button variant="ghost" data-testid="export-data" onClick={() => void onExport()} disabled={importBusy} className="h-auto w-full justify-start px-2 py-1.5">
-        {m.data_export()}
-      </Button>
-      {canImport && (
-        <>
-          <Button
-            variant="ghost"
-            data-testid="import-data"
-            onClick={() => fileRef.current?.click()}
-            disabled={importBusy}
-            className="h-auto w-full justify-start px-2 py-1.5"
-          >
-            {m.data_import()}
-          </Button>
+    <SidebarGroup className="group-data-[collapsible=icon]:hidden" data-testid="sidebar-data-tools">
+      <SidebarGroupLabel>{m.data_menu_label()}</SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {/* Disabled while a server import is in flight: an export mid-replacement would snapshot a
+              slice that is about to be obsolete, and a second import would race the first. */}
+          <SidebarMenuItem>
+            <Button
+              variant="ghost"
+              data-testid="export-data"
+              onClick={() => void onExport()}
+              disabled={importBusy}
+              className="h-8 w-full justify-start px-2"
+            >
+              {m.data_export()}
+            </Button>
+          </SidebarMenuItem>
+          {canImport && (
+            <SidebarMenuItem>
+              <Button
+                variant="ghost"
+                data-testid="import-data"
+                onClick={() => fileRef.current?.click()}
+                disabled={importBusy}
+                className="h-8 w-full justify-start px-2"
+              >
+                {m.data_import()}
+              </Button>
+            </SidebarMenuItem>
+          )}
+        </SidebarMenu>
+        {canImport && (
           <input
             ref={fileRef}
             type="file"
@@ -343,8 +364,7 @@ export function ImportExport() {
               e.target.value = ''
             }}
           />
-        </>
-      )}
+        )}
 
       {/* The import UI LOCK (see importBusy above): a non-dismissable blocking dialog for the few
           seconds of POST + re-hydrate. onClose is a deliberate no-op — visibility is owned by
@@ -376,6 +396,7 @@ export function ImportExport() {
           onCancel={() => setPendingImport(null)}
         />
       )}
-    </div>
+      </SidebarGroupContent>
+    </SidebarGroup>
   )
 }

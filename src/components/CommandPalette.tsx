@@ -281,7 +281,7 @@ function buildItems({
     : actions
 
   // ── Pages ──────────────────────────────────────────────────────────────────
-  // Derive page destinations from the same source as both sidebar renderings. New first-class
+  // Derive page destinations from the same source as the sidebar navigation. New first-class
   // routes therefore cannot silently appear in navigation while being absent from the palette.
   const pages: PaletteItem[] = LINKS
     .filter(([to]) => disciplinesEnabled || to !== '/disciplines')

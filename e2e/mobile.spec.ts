@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { openApp } from './helpers'
 
-// Light mobile affordances (owner, 2026-06-12): the sidebar collapses to an icon
-// rail (closed by default on small screens), rail icons only reopen the menu, and
-// portrait phones get a dismissable session-scoped "rotate to landscape" hint.
+// Light mobile affordances: portrait phones use the ShadCN off-canvas Sidebar,
+// compact landscape layouts use its icon mode, and portrait phones get a
+// dismissable session-scoped "rotate to landscape" hint.
 // Full mobile workflows remain a non-goal — these specs cover the affordances only.
 
 const WCAG = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
@@ -35,10 +35,10 @@ test.describe('portrait phone', () => {
     // did not apply in this describe-scoped setup — emulate explicitly instead.
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/')
-    // Settle first: hydration swaps the loading shell for the demo sign-in (now the first
-    // screen), which remounts the hint — sample the final mount, not a transitional one.
-    // This also audits the demo sign-in screen itself for a11y violations.
-    await expect(page.getByRole('heading', { name: 'Choose an account' })).toBeVisible()
+    // Settle first: hydration swaps the loading shell for the demo sign-in, which remounts
+    // the hint. The modal makes that underlying screen inaccessible, so wait for its test id
+    // to be attached rather than querying a hidden accessible role.
+    await expect(page.getByTestId('fake-sign-in')).toBeAttached()
     const dialog = page.getByRole('dialog', { name: 'Best in landscape' })
     await expect(dialog).toBeVisible()
     await expect(dialog).toHaveCSS('opacity', '1')
@@ -46,37 +46,44 @@ test.describe('portrait phone', () => {
     const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
     expect(blocking, JSON.stringify(blocking.map((v) => ({ id: v.id, nodes: v.nodes.length })), null, 2)).toEqual([])
   })
+
+  test('opens the off-canvas sidebar and closes it after navigation', async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.setItem('capacitylens/rotateHintDismissed', '1'))
+    await openApp(page)
+
+    const trigger = page.locator('[data-sidebar="trigger"]')
+    await expect(trigger).toBeVisible()
+    await trigger.click()
+
+    const sidebar = page.getByRole('dialog', { name: 'Sidebar' })
+    await expect(sidebar).toBeVisible()
+    const collapse = sidebar.getByRole('button', { name: 'Collapse menu' })
+    await expect(collapse).toBeVisible()
+    await expect(collapse).toHaveAttribute('aria-expanded', 'true')
+    await sidebar.getByRole('link', { name: 'Projects' }).click()
+    await expect(page).toHaveURL(/\/projects$/)
+    await expect(sidebar).toBeHidden()
+  })
 })
 
 test.describe('landscape phone', () => {
   test.use({ viewport: { width: 844, height: 390 } })
 
-  test('sidebar starts collapsed; rail icons reopen the menu instead of navigating', async ({ page }) => {
+  test('sidebar starts in icon mode and its destinations still navigate', async ({ page }) => {
     await openApp(page)
 
-    // Collapsed by default on a small screen: icon rail, no nav links (the hint
-    // itself stays hidden — landscape is the recommended orientation).
     await expect(page.getByRole('dialog', { name: 'Best in landscape' })).toBeHidden()
-    await expect(page.getByRole('link', { name: 'Projects' })).toBeHidden()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
-
-    // A rail icon is not navigation: tapping "Projects" expands the menu, URL unchanged.
-    await page.locator('[data-testid="nav-rail-item"][data-label="Projects"]').click()
-    await expect(page).toHaveURL('/')
     const projects = page.getByRole('link', { name: 'Projects' })
     await expect(projects).toBeVisible()
-
-    // The real link navigates as normal once the menu is open.
+    await expect(page.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed')
     await projects.click()
     await expect(page).toHaveURL(/\/projects$/)
 
-    // Collapsing persists device-globally: still a rail after reload + re-pick.
-    await page.getByRole('button', { name: 'Collapse menu' }).click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
+    // Icon mode remains device-global after reload and account selection.
     await page.reload()
     await page.getByRole('button', { name: 'Studio North', exact: true }).click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
-    await expect(page.getByRole('link', { name: 'Projects' })).toBeHidden()
+    await expect(page.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed')
+    await expect(page.getByRole('link', { name: 'Projects' })).toBeVisible()
   })
 })
 
@@ -84,7 +91,6 @@ test.describe('desktop', () => {
   test('sidebar is open by default, every nav link carries an icon, toggle collapses it', async ({ page }) => {
     await openApp(page)
 
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(0)
     for (const name of ['Schedule', 'Resources', 'Team & access', 'Disciplines', 'Clients', 'Projects', 'Activities', 'Time off', 'Settings']) {
       const link = page.getByRole('link', { name, exact: true })
       await expect(link).toBeVisible()
@@ -94,7 +100,8 @@ test.describe('desktop', () => {
     const toggle = page.getByRole('button', { name: 'Collapse menu' })
     await expect(toggle).toHaveAttribute('aria-expanded', 'true')
     await toggle.click()
-    await expect(page.getByTestId('nav-rail-item')).toHaveCount(9)
+    await expect(page.getByTestId('app-sidebar')).toHaveAttribute('data-state', 'collapsed')
+    await expect(page.getByRole('link', { name: 'Projects' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Expand menu' })).toHaveAttribute('aria-expanded', 'false')
   })
 })

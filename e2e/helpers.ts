@@ -70,8 +70,8 @@ export async function disableCssMotion(page: Page): Promise<void> {
  *  screen. A generic `role=main` / `<main>` locator also matches interstitial pages (the invite
  *  page renders its own main), so a main-based wait resolves BEFORE the navigation lands and the
  *  intro check races. In-app callers use the AppShell's `#main` landmark (the only id="main" in
- *  the tree, present on every route and in both sidebar states — unlike the "Schedule" nav LINK,
- *  which a collapsed/small-viewport sidebar replaces with aria-hidden `nav-rail-item` buttons);
+ *  the tree and present on every route regardless of whether the Sidebar is expanded, in icon mode,
+ *  or rendered as the mobile Sheet);
  *  flows that start OUTSIDE the shell first wait for destination navigation, then pass `#main`;
  *  invite previews can already contain the joined company's name before navigation. */
 export async function dismissIntroIfPresent(page: Page, landedOn: Locator): Promise<void> {
