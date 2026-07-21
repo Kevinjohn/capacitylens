@@ -168,7 +168,7 @@ export function Modal({
       <DialogContent
         showCloseButton={false}
         aria-describedby={undefined}
-        className="max-h-[90vh] max-w-md gap-0 overflow-y-auto p-0"
+        className="max-h-[90dvh] max-w-md gap-0 overflow-y-auto p-0"
         onEscapeKeyDown={(event) => {
           event.preventDefault()
           requestClose()

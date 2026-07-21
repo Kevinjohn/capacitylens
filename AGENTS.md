@@ -47,6 +47,23 @@ timesheets, hour-by-hour workflows and mobile scheduling are non-goals.
 - Password/session reset authority is identity-global: enforce it across every account the target
   can enter, and never render bearer session tokens.
 
+## Frontend conventions
+
+- Browser baseline is "Baseline widely available" as of Q3 2026. The verified matrix is Chromium by
+  default, with WebKit/Firefox behind the `CAPACITYLENS_WEBKIT`/`CAPACITYLENS_FIREFOX` flags in
+  `playwright.config.ts`. `color-mix(in oklab)`, `:has()`, `@container`, `svh`/`dvh` units,
+  `field-sizing` and `text-wrap: balance` are already in use and considered safe. CSS anchor
+  positioning (`anchor-name`/`position-anchor`) is not yet Baseline across that matrix; use Radix
+  positioning instead.
+- Icon-only buttons and simple hover hints use the native `title=` attribute by default. Reserve the
+  Radix-based `Tooltip` in `ui/tooltip.tsx` for cases needing styled, delayed, or keyboard-accessible
+  rich content (e.g. the collapsed sidebar rail in `AppSidebar`). This split is deliberate.
+- `src/components/ui/button.tsx` and `ui/badge.tsx` carry deliberate local extensions over upstream
+  shadcn (button: `danger-soft` variant, `xs`/`icon-xs`/`icon-sm`/`icon-lg` sizes, a retinted
+  `default` variant onto project ok-strong tokens; badge: AA-tuned `danger`/`warn` variants).
+  Re-pulling either via `npx shadcn add` must diff and re-merge, never overwrite.
+- Use the z-index tokens in `src/index.css` rather than ad hoc `z-[N]` values for global layers.
+
 ## Documentation
 
 - `DECISIONS.md` holds standing decisions.

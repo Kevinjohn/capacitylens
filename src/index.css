@@ -63,6 +63,14 @@
   --radius-lg: 0.75rem;
 
   --shadow-pop: 0 10px 30px -10px rgb(0 0 0 / 0.3);
+
+  /* Small named z-index scale for the few elements that need to sit above ordinary
+     document flow outside a local stacking context (see the getting-started popover
+     below). Named for role, not raw layer count, so new call sites pick a tier by intent:
+     sticky chrome < an in-progress drag < a floating popover/overlay. */
+  --z-index-sticky: 40;
+  --z-index-drag: 50;
+  --z-index-popover: 60;
 }
 
 :root {
@@ -284,7 +292,7 @@ input[type="radio"] {
    it, and its links/buttons are the only controls that need to be reached before dismissing it. */
 .getting-started-popover {
   position: absolute;
-  z-index: 40;
+  z-index: var(--z-index-sticky);
   top: 0.75rem;
   right: 0.75rem;
   width: min(28rem, calc(100% - 1.5rem));
@@ -356,7 +364,8 @@ input[type="radio"] {
 
 [data-draw-mode="timeoff"] .scheduler-timeoff-block {
   /* Lift above the work bars, which paint later in DOM order, so the glow isn't behind
-     the (now-dimmed) bars. */
+     the (now-dimmed) bars. Local to the lane's own stacking context, not the global
+     scale above — it only needs to beat sibling bars, not compete with page chrome. */
   z-index: 3;
   color: var(--color-ink);
   /* !important: the block sets its hatch gradient via an inline `style`, which an

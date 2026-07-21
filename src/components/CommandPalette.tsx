@@ -138,7 +138,7 @@ export function CommandPalette({ onClose }: { onClose: () => void }) {
         }}
         showCloseButton={false}
         aria-describedby={undefined}
-        className="top-[15vh] max-h-[60vh] max-w-xl translate-y-0 gap-0 overflow-hidden p-0"
+        className="top-[15svh] max-h-[60dvh] max-w-xl translate-y-0 gap-0 overflow-hidden p-0"
       >
         <DialogTitle className="sr-only">{m.palette_dialog_label()}</DialogTitle>
         <Command

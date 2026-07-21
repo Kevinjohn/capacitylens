@@ -1,5 +1,4 @@
-import { memo, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { memo, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { m } from '@/i18n'
 import { useStore } from '../../store/useStore'
@@ -12,6 +11,7 @@ import type { ColumnGeometry } from './columnGeometry'
 import type { ID } from '@capacitylens/shared/types/entities'
 import type { BarLayout } from './schedulerModel'
 import { useAllocationGesture } from './useAllocationGesture'
+import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
 
 /** Hours/day for display: days-mode rescaling can yield a repeating decimal
  *  (e.g. 24h over 7 working days = 3.4285…), so round to 2 dp for labels/popovers.
@@ -61,7 +61,6 @@ export const AllocationBar = memo(function AllocationBar({
   // no edit modal, no keyboard move. The popover (a read) still works. null/owner/admin/editor (incl.
   // OFF/local) → fully interactive, byte-identical to today. The server 403 backstops a write anyway.
   const canEdit = useCanEdit()
-  const barRef = useRef<HTMLDivElement>(null)
   const { isBlocks, dragging, left, width, translateY, onPointerDown, nudge } =
     useAllocationGesture({ bar, geom, indexAtClientX, onEdit })
   // External / 3rd-party work carries no hours either (hoursPerDay 0); hide the load the same way
@@ -70,12 +69,13 @@ export const AllocationBar = memo(function AllocationBar({
   const hideHours = isBlocks || bar.external
   const barLabelPrefs = useStore((s) => s.barLabelPrefs)
   // Hover/focus detail popover (real card, available to keyboard too — replaces the title tooltip).
-  const [pop, setPop] = useState<{ left: number; top: number } | null>(null)
-  const showPopover = () => {
-    const r = barRef.current?.getBoundingClientRect()
-    if (r) setPop({ left: r.left, top: r.bottom + 6 })
-  }
-  const hidePopover = () => setPop(null)
+  // Radix Tooltip owns positioning/collision/portal-layering now; we only own the open flag so the
+  // exact open-on-enter/focus, close-on-leave/blur behaviour (and the drag suppression below) is
+  // preserved. Open is gated on `!dragging` at render (Radix `open` prop) so a popover never shows
+  // mid-drag, and the pointerdown that starts a drag also calls hidePopover() first.
+  const [popoverOpen, setPopoverOpen] = useState(false)
+  const showPopover = () => setPopoverOpen(true)
+  const hidePopover = () => setPopoverOpen(false)
 
   // Inset the bar by a few px on each side so it sits inside the day cell rather than flush
   // against the gridlines. Visual only — drag/resize deltas come from the pointer, not these
@@ -111,9 +111,13 @@ export const AllocationBar = memo(function AllocationBar({
   const gripLine = <span aria-hidden className="pointer-events-none h-4 w-0.5 rounded-full bg-current opacity-0 transition-opacity group-hover:opacity-60" />
 
   return (
-    <>
+    // Radix Tooltip: controlled `open` so we keep the hand-tuned enter/focus/leave/blur behaviour
+    // AND the drag suppression, while positioning, collision-flipping and body-portal layering come
+    // from Radix instead of getBoundingClientRect + fixed inline coords. The bar div IS the trigger
+    // (asChild), so its data-testid / data-alloc-id / role / aria-label are untouched.
+    <Tooltip open={popoverOpen && !dragging} onOpenChange={(o) => { if (!dragging) setPopoverOpen(o) }}>
+      <TooltipTrigger asChild>
       <div
-        ref={barRef}
         data-testid="allocation-bar"
         data-alloc-id={bar.allocation.id}
         data-status={bar.allocation.status}
@@ -240,46 +244,42 @@ export const AllocationBar = memo(function AllocationBar({
         </span>
         )}
       </div>
-
-      {pop &&
-        !dragging &&
-        // No `inert` guard here: the bar layer goes inert in time-off mode, which BLOCKS the
-        // mouseenter/focus that opens a popover — so a NEW one can't appear while inert. The only
-        // residual case is a popover already open at the instant of toggle; that's unreachable in
-        // practice (any path to the Time-off toggle blurs/leaves the bar first, firing hidePopover),
-        // and the portaled popover sits OUTSIDE the inert layer, so a CSS net in index.css
-        // (`[data-draw-mode] :has` rule) hides it defensively without re-subscribing every bar.
-        createPortal(
-          <div
-            data-testid="allocation-popover"
-            aria-hidden
-            // `scheduler-alloc-popover` is the semantic hook the time-off draw-mode net hides
-            // (index.css `:has()` rule), keyed by class — not by `data-testid` (test-only).
-            className="scheduler-alloc-popover pointer-events-none fixed z-[60] w-60 rounded-lg bg-elevated p-3 text-xs text-ink shadow-pop ring-1 ring-line"
-            style={{ left: pop.left, top: pop.top }}
-          >
-            <div className="mb-1 flex items-center gap-2">
-              <span className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bg }} />
-              <span className="font-semibold">{bar.label}</span>
-            </div>
-            {(bar.project || bar.client) && (
-              <div className="mb-1 text-muted-foreground">
-                {bar.project}
-                {bar.project && bar.client ? ' · ' : ''}
-                {bar.client}
-              </div>
-            )}
-            <div className="text-muted-foreground">
-              {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
-              {hideHours ? '' : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} · {allocationStatusLabels()[bar.allocation.status]}
-            </div>
-            {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>}
-            <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">
-              {m.scheduler_bar_pop_footer()}
-            </div>
-          </div>,
-          document.body,
+      </TooltipTrigger>
+      {/* Radix portals this to <body> (TooltipPrimitive.Portal), so the time-off draw-mode net in
+          index.css (`body:has([data-draw-mode="timeoff"]) .scheduler-alloc-popover`) still matches —
+          it's keyed off the `.scheduler-alloc-popover` class (a body descendant), not the DOM nesting.
+          Belt-and-braces with the bar-layer `inert` (which blocks the enter/focus that opens it) and
+          the `!dragging` open gate above. `aria-hidden`: the trigger's own aria-label already speaks
+          the humanised status/dates/note, so the tooltip stays a purely visual read (no double SR
+          announcement). Side/align/offset reproduce the old below-the-bar, left-aligned placement. */}
+      <TooltipContent
+        side="bottom"
+        align="start"
+        sideOffset={6}
+        data-testid="allocation-popover"
+        aria-hidden
+        className="scheduler-alloc-popover pointer-events-none w-60 rounded-lg p-3 font-normal"
+      >
+        <div className="mb-1 flex items-center gap-2">
+          <span className="inline-block size-2.5 shrink-0 rounded-full ring-1 ring-inset ring-black/10" style={{ backgroundColor: bg }} />
+          <span className="font-semibold">{bar.label}</span>
+        </div>
+        {(bar.project || bar.client) && (
+          <div className="mb-1 text-muted-foreground">
+            {bar.project}
+            {bar.project && bar.client ? ' · ' : ''}
+            {bar.client}
+          </div>
         )}
-    </>
+        <div className="text-muted-foreground">
+          {fmt(bar.allocation.startDate)} – {fmt(bar.allocation.endDate)}
+          {hideHours ? '' : m.scheduler_bar_pop_hours({ hours: hoursLabel(bar.allocation.hoursPerDay) })} · {allocationStatusLabels()[bar.allocation.status]}
+        </div>
+        {bar.allocation.note && <div className="mt-1 border-t border-line pt-1 text-muted-foreground">{bar.allocation.note}</div>}
+        <div className="mt-1 border-t border-line pt-1 text-2xs text-faint">
+          {m.scheduler_bar_pop_footer()}
+        </div>
+      </TooltipContent>
+    </Tooltip>
   )
 })
