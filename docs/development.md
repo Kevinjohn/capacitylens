@@ -58,9 +58,10 @@ only when repeated gate results show stable headroom. The canonical policy is re
 parallel, bounded shards, each with one forked Vitest worker. Process isolation prevents native
 SQLite and AsyncLocalStorage state from leaking across test files, while the shard boundary limits
 contention and turns a stuck worker into a named failure within four minutes rather than a silent
-whole-job timeout. The process-heavy migration regression runs separately in a dedicated
-single-worker fork, so a native resource failure remains isolated and reports its assertion instead
-of stranding the complete unit run.
+whole-job timeout. The AsyncLocalStorage/lock-heavy account-flow conformance file runs alone in the
+independent account-conformance process pool. The process-heavy migration regression likewise runs
+separately in a dedicated single-worker fork, so a native resource failure remains isolated and
+reports its assertion instead of stranding the complete unit run.
 Default E2E runs demo, database-backed and password-auth flows in Chromium.
 Both root and shared Vitest projects pin `TZ=UTC`; timezone-specific helper coverage must set its
 zone deliberately in an isolated child process rather than inheriting a maintainer's machine.
