@@ -6,16 +6,18 @@ import { EXPORT_SCHEMA_VERSION } from "../types/entities";
 describe("data transfer", () => {
   it("round-trips through serialize -> parse (deep equal)", () => {
     const data = seed();
-    expect(parseData(serializeData(data))).toEqual(data);
+    const serialized = serializeData(data);
+    expect(JSON.parse(serialized).schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
+    expect(parseData(serialized)).toEqual(data);
   });
 
   it("rejects JSON that is not CapacityLens-shaped (so import never silently wipes data)", () => {
-    expect(() => parseData("[1,2,3]")).toThrow();
-    expect(() => parseData('{"data":5}')).toThrow();
-    expect(() => parseData("5")).toThrow();
-    expect(() => parseData('{"foo":"bar"}')).toThrow();
-    expect(() => parseData('"hello"')).toThrow();
-    expect(() => parseData('{"resources":"oops"}')).toThrow();
+    expect(() => parseData("[1,2,3]")).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('{"data":5}')).toThrow(/not CapacityLens data/i);
+    expect(() => parseData("5")).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('{"foo":"bar"}')).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('"hello"')).toThrow(/not CapacityLens data/i);
+    expect(() => parseData('{"resources":"oops"}')).toThrow(/data table is not a list/i);
   });
 
   it("reports a known non-list table as damaged CapacityLens data", () => {

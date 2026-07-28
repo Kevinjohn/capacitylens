@@ -2,6 +2,37 @@ import { describe, expect, it, vi } from "vitest";
 import { BoundedWorkQueue, WorkQueueFullError } from "./workQueue";
 
 describe("BoundedWorkQueue", () => {
+  it.each([
+    [0, 0, {}, /maxActive/],
+    [1, -1, {}, /maxQueued/],
+    [1, 0, { maxWaitMs: 0 }, /maxWaitMs/],
+  ] as const)("rejects invalid constructor bounds", (active, queued, options, message) => {
+    expect(() => new BoundedWorkQueue(active, queued, "busy", options)).toThrow(message);
+  });
+
+  it("supports a zero-depth queue and preserves FIFO order after queued failure", async () => {
+    const zeroDepth = new BoundedWorkQueue(1, 0, "busy");
+    let release!: () => void;
+    const active = zeroDepth.run(() => new Promise<void>((resolve) => (release = resolve)));
+    await expect(zeroDepth.run(async () => undefined)).rejects.toMatchObject({ reason: "full" });
+    release();
+    await active;
+
+    const queue = new BoundedWorkQueue(1, 2, "busy");
+    const order: string[] = [];
+    let firstRelease!: () => void;
+    const first = queue.run(() => new Promise<void>((resolve) => (firstRelease = resolve)));
+    const failed = queue.run(async () => {
+      order.push("failed");
+      throw new Error("queued failure");
+    });
+    const last = queue.run(async () => order.push("last"));
+    firstRelease();
+    await first;
+    await expect(failed).rejects.toThrow("queued failure");
+    await last;
+    expect(order).toEqual(["failed", "last"]);
+  });
   it("bounds active work, preserves the queue and refuses overflow", async () => {
     const queue = new BoundedWorkQueue(2, 1, "busy");
     const releases: (() => void)[] = [];

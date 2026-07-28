@@ -1,5 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { MAX_DAY_WIDTH, MIN_DAY_WIDTH, resolveDayWidth, ZOOM_LEVELS } from "./schedulerConfig";
+import {
+  DAY_COLUMN_MIN_WIDTH,
+  DEFAULT_RANGE_DAYS,
+  DEFAULT_ZOOM,
+  FALLBACK_TIMELINE_WIDTH,
+  MAX_DAY_WIDTH,
+  MIN_DAY_WIDTH,
+  PAST_BUFFER_DAYS,
+  resolveDayWidth,
+  UTILIZATION_WINDOW_DAYS,
+  WEEKDAY_LABEL_MIN_WIDTH,
+  WEEKEND_COLUMN_REM,
+  WEEK_SNAP_IDLE_MS,
+  ZOOM_LEVELS,
+} from "./schedulerConfig";
 
 describe("resolveDayWidth", () => {
   it("fits the requested number of weeks into the available width", () => {
@@ -46,5 +60,17 @@ describe("resolveDayWidth", () => {
 
   it("exposes the expected zoom levels", () => {
     expect(ZOOM_LEVELS).toEqual([1, 2, 4, 6, 8]);
+    expect(DEFAULT_ZOOM).toBe(2);
+  });
+
+  it("keeps geometry and time-window constants internally coherent", () => {
+    expect(MIN_DAY_WIDTH).toBeLessThan(DAY_COLUMN_MIN_WIDTH);
+    expect(DAY_COLUMN_MIN_WIDTH).toBeLessThan(WEEKDAY_LABEL_MIN_WIDTH);
+    expect(WEEKDAY_LABEL_MIN_WIDTH).toBeLessThan(MAX_DAY_WIDTH);
+    expect(FALLBACK_TIMELINE_WIDTH).toBeGreaterThan(MAX_DAY_WIDTH);
+    expect(WEEKEND_COLUMN_REM).toBeGreaterThan(0);
+    expect(WEEK_SNAP_IDLE_MS).toBeGreaterThan(0);
+    expect(DEFAULT_RANGE_DAYS).toBeGreaterThan(UTILIZATION_WINDOW_DAYS);
+    expect(PAST_BUFFER_DAYS % 7).toBe(0);
   });
 });

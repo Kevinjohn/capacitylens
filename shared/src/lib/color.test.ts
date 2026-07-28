@@ -26,6 +26,14 @@ function maps(
   };
 }
 
+describe("canonical palette", () => {
+  it("pins every persisted swatch and its tie-break order", () => {
+    expect(PRESET_COLORS.join(",")).toBe(
+      "#f5bcbc,#f7caba,#f9d9b8,#f9e6b8,#f9f1b8,#d9f2c0,#c2f0d1,#c0edf2,#bed4f4,#ccc0f2,#e0c2f0,#f4bedd,#d8b397,#eb7272,#ef906e,#f3ae6a,#f3ca6a,#f3e16a,#aee37a,#7edf9e,#7adae3,#76a5e7,#947ae3,#be7edf,#e776b8,#c38c61,#e02727,#e65621,#ed841b,#edae1b,#edd11b,#84d434,#3ace6b,#34c7d4,#2d75da,#5c34d4,#9c3ace,#da2d92,#9e663c,#9c1616,#a13812,#a5590d,#a5780d,#a5910d,#59931f,#248f47,#1f8a93,#1b4f98,#3c1f93,#6b248f,#981b64,#684327",
+    );
+  });
+});
+
 const TS = "t";
 const alloc = (resourceId: string, activityId: string): Allocation => ({
   id: "a",

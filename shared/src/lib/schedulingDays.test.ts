@@ -13,6 +13,10 @@ import type { Weekday } from "../types/entities";
 const MON_FRI: Weekday[] = [1, 2, 3, 4, 5];
 // 2026-06-01 is a Monday; 06-05 Fri, 06-06/07 weekend, 06-08 Mon.
 
+it("pins the public maximum scheduling span independently of its implementation", () => {
+  expect(MAX_SPAN_DAYS).toBe(36_500);
+});
+
 describe("spanDays", () => {
   it("counts working days when weekend-aware", () => {
     expect(spanDays("2026-06-01", "2026-06-05", { workingDays: MON_FRI })).toBe(5);

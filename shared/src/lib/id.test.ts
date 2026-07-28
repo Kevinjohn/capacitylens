@@ -2,6 +2,23 @@ import { describe, it, expect, afterEach, vi } from "vitest";
 import { newId } from "./id";
 
 describe("newId", () => {
+  it("delegates every id to the platform CSPRNG instead of synthesising a counter", () => {
+    const randomUUID = vi
+      .fn()
+      .mockReturnValueOnce("11111111-1111-4111-8111-111111111111")
+      .mockReturnValueOnce("22222222-2222-4222-8222-222222222222");
+    vi.stubGlobal("crypto", { randomUUID });
+    try {
+      expect([newId(), newId()]).toEqual([
+        "11111111-1111-4111-8111-111111111111",
+        "22222222-2222-4222-8222-222222222222",
+      ]);
+      expect(randomUUID).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("returns a v4-style uuid string", () => {
     expect(newId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });

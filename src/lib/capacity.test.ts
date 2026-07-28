@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  capacityAllocationsForMode,
   allocatedHoursOnDay,
   availableHoursOnDay,
   capacityAdvisory,
@@ -53,6 +54,16 @@ const makeTimeOff = (over: Partial<TimeOff> = {}): TimeOff => ({
   endDate: "2026-06-03",
   type: "holiday",
   ...over,
+});
+
+describe("capacityAllocationsForMode", () => {
+  it("preserves hourly allocations and projects blocks to zero load without mutating input", () => {
+    const allocations = [makeAlloc({ hoursPerDay: 7 })];
+    expect(capacityAllocationsForMode(allocations, false)).toBe(allocations);
+    const blocks = capacityAllocationsForMode(allocations, true);
+    expect(blocks).toEqual([{ ...allocations[0], hoursPerDay: 0 }]);
+    expect(allocations[0].hoursPerDay).toBe(7);
+  });
 });
 
 describe("availability", () => {

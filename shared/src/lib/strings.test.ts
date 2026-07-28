@@ -13,6 +13,10 @@ const VS16 = String.fromCodePoint(0xfe0f); // emoji variation selector-16 (Mn)
 const KEYCAP = String.fromCodePoint(0x20e3); // combining enclosing keycap (Me)
 const ACUTE = String.fromCodePoint(0x0301); // combining acute accent (Mn — legitimate)
 const UNASSIGNED = String.fromCodePoint(0x0378); // unassigned in the supported runtime baseline
+const PRIVATE_USE = String.fromCodePoint(0xe000); // Co
+const LONE_SURROGATE = String.fromCharCode(0xd800); // Cs
+const VS_SUPPLEMENT = String.fromCodePoint(0xe0100); // variation-selector supplement
+const DOUBLE_EXCLAMATION = String.fromCodePoint(0x203c); // Extended_Pictographic, category Po rather than So
 
 describe("hasDisallowedChars", () => {
   it("accepts ordinary names incl. accents, CJK and punctuation", () => {
@@ -43,6 +47,15 @@ describe("hasDisallowedChars", () => {
     expect(/^\p{Cn}$/u.test(UNASSIGNED)).toBe(true);
     expect(hasDisallowedChars(`a${UNASSIGNED}b`)).toBe(true);
     expect(cleanText(`a${UNASSIGNED}b`)).toBe("ab");
+  });
+
+  it("independently rejects private-use, surrogate, supplementary variation and pictographic classes", () => {
+    for (const disallowed of [PRIVATE_USE, LONE_SURROGATE, VS_SUPPLEMENT, DOUBLE_EXCLAMATION]) {
+      expect(hasDisallowedChars(`a${disallowed}b`)).toBe(true);
+      expect(cleanText(`a${disallowed}b`)).toBe("ab");
+    }
+    expect(/^\p{Po}$/u.test(DOUBLE_EXCLAMATION)).toBe(true);
+    expect(/^\p{So}$/u.test(DOUBLE_EXCLAMATION)).toBe(false);
   });
 
   it("rejects keycap emoji and the emoji variation selector (U+FE0F / U+20E3)", () => {
