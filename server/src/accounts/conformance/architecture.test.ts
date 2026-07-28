@@ -100,10 +100,10 @@ describe('account-boundary architecture', () => {
     const productThresholds = productPolicy.match(/const MIN_TIER = \{[\s\S]*?\n\}/)?.[0] ?? ''
     expect(productThresholds).not.toMatch(/manageMembers|manageInvites|deleteAccount|transferOwnership/)
     expect(productPolicy).toContain('canAdministerAccount(role, accountAction)')
-    expect(accountPolicy).toMatch(/'manage-members':\s*'admin'/)
-    expect(accountPolicy).toMatch(/'manage-invitations':\s*'admin'/)
-    expect(accountPolicy).toMatch(/'transfer-ownership':\s*'owner'/)
-    expect(accountPolicy).toMatch(/'erase-workspace':\s*'owner'/)
+    expect(accountPolicy).toMatch(/['"]manage-members['"]:\s*['"]admin['"]/)
+    expect(accountPolicy).toMatch(/['"]manage-invitations['"]:\s*['"]admin['"]/)
+    expect(accountPolicy).toMatch(/['"]transfer-ownership['"]:\s*['"]owner['"]/)
+    expect(accountPolicy).toMatch(/['"]erase-workspace['"]:\s*['"]owner['"]/)
   })
 
   it('makes account and identity storage ownership deny-by-default across production source', () => {
@@ -167,8 +167,10 @@ describe('account-boundary architecture', () => {
       '/api/accounts/:accountId/invites/:id',
     ]
     for (const path of extractedPaths) {
-      expect(accountRoutes, path).toContain(`'${path}'`)
-      expect(productRoutes, path).not.toContain(`'${path}'`)
+      // Match either quote style: the route string is the invariant, not how the formatter quotes it.
+      const quoted = new RegExp(`['"]${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}['"]`)
+      expect(accountRoutes, path).toMatch(quoted)
+      expect(productRoutes, path).not.toMatch(quoted)
     }
     expect(accountRoutes).not.toMatch(/from ['"].*(?:betterAuthIdentityPort|better-auth|controlTables)/)
     expect(accountRoutes).not.toMatch(/\.prepare\s*\(|\b(?:SELECT|INSERT|UPDATE|DELETE FROM)\b/)
