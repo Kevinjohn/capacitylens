@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { openNewCompanyForm, createCompany, selectShadOption } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Onboarding capture (P1.14): the create-company form captures week-start, time zone and language
 // (the three fields the server FREEZES after creation), then lands in the app; Settings shows those

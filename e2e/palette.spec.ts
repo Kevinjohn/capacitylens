@@ -5,7 +5,7 @@ import { disableCssMotion, openApp } from "./helpers";
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
 test.describe("Command palette", () => {
-  test.use({ reducedMotion: "reduce" });
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
 
   test("opens with Control+K, shows Actions and Pages, closes with Escape", async ({ page }) => {
     await openApp(page);

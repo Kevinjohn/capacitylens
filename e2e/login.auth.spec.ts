@@ -9,7 +9,7 @@ import {
   signUpUser,
 } from "./auth-helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // US-NAV-10: the flag-gated login wall, against the auth-backed project's server
 // (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). The default deploy keeps

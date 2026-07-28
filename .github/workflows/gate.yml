@@ -41,6 +41,21 @@ jobs:
           echo "$ACTIONLINT_SHA256  $archive" | sha256sum --check
           tar -xzf "$archive" -C "$tool_dir"
           "$tool_dir/actionlint"
+      - name: Validate Dependabot configuration
+        run: |
+          ruby -e '
+            require "yaml"
+            doc = YAML.safe_load_file(".github/dependabot.yml")
+            abort "Dependabot version must be 2" unless doc["version"] == 2
+            updates = doc["updates"]
+            abort "Dependabot updates must be a non-empty list" unless updates.is_a?(Array) && !updates.empty?
+            updates.each do |entry|
+              abort "Dependabot entry needs package-ecosystem" unless entry["package-ecosystem"].is_a?(String)
+              abort "Dependabot entry needs directory" unless entry["directory"].is_a?(String)
+              interval = entry.dig("schedule", "interval")
+              abort "Invalid Dependabot schedule" unless %w[daily weekly monthly].include?(interval)
+            end
+          '
 
   dco:
     name: DCO sign-off

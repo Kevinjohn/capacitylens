@@ -8,7 +8,7 @@ import {
 } from "./auth-helpers";
 import { dismissIntroIfPresent, selectShadOption } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.11 — Owner/Admin member management, against the auth-backed project's server
 // (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A bootstraps an org and

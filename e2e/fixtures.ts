@@ -3,7 +3,7 @@ import { expect, test as base, type APIRequestContext, type Locator, type Page }
 export { expect, type APIRequestContext, type Locator, type Page };
 
 /** Every browser spec fails if application code raises an uncaught exception at any point. */
-export const test = base.extend({
+export const test: typeof base = base.extend({
   page: async ({ page }, use) => {
     const errors: Error[] = [];
     const recordError = (error: Error) => errors.push(error);

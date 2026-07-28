@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { openApp } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Covers US-SET-02. The bar label reads Client · Project · Activity; the two parts are
 // device-global Settings toggles (Allocation bars section), both on by default.

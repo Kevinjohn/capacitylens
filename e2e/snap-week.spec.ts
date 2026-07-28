@@ -8,7 +8,7 @@ import {
   waitForWeekSnap,
 } from "./helpers";
 
-test.use({ reducedMotion: "reduce", viewport: { width: 1440, height: 800 } });
+test.use({ contextOptions: { reducedMotion: "reduce" }, viewport: { width: 1440, height: 800 } });
 
 // Covers US-SET-09. "Snap to week start" (device-global, default ON) floors the schedule's left
 // edge back to the current week's first day after a FREE scroll settles, so a stray nudge can't

@@ -17,7 +17,7 @@ export default defineConfig([
     // top-level `return` is legal — they parse as errors as standalone JS.
     ".claude/workflows/**",
     // Internal copy-ready sibling snapshots are documentation, not CapacityLens source inputs.
-    "to-my-siblings/reference-kit/**",
+    "to-my-siblings/**",
     // Paraglide-generated i18n output (P1.5.1) — machine-generated, never hand-edited or linted.
     "src/paraglide",
     // Stryker mutation-testing sandbox + report (`pnpm run mutation`) — copies of the whole repo;
@@ -25,6 +25,22 @@ export default defineConfig([
     ".stryker-tmp",
     "reports",
   ]),
+
+  // Gate and public runtime scripts are production code too. Keep them on the recommended JS
+  // rules with Node globals; previously the .mjs files matched no config at all.
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    extends: [js.configs.recommended],
+    languageOptions: { globals: globals.node },
+  },
+  {
+    files: ["public/auth-error-init.js", "public/theme-init.js"],
+    languageOptions: { globals: globals.browser },
+  },
+  {
+    files: ["public/offline-worker.js"],
+    languageOptions: { globals: globals.serviceworker },
+  },
 
   // Baseline for every TS file in every package (web, shared, server).
   {

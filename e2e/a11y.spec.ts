@@ -1,19 +1,24 @@
-import { test, expect } from "./fixtures";
+import { test, expect, type Page } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { disableCssMotion, openApp } from "./helpers";
 
 const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
+async function settledAxe(page: Page) {
+  await disableCssMotion(page);
+  return new AxeBuilder({ page }).withTags(WCAG).analyze();
+}
+
 // Disable entrance animations so axe samples settled colours (mid-fade reads as
 // false low-contrast). The app honours prefers-reduced-motion.
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Axe is the a11y oracle: getByRole proves an attribute exists, not that the
 // structure/contrast is valid. This guards the whole a11y pass against regressions.
 test("scheduler has no serious or critical accessibility violations", async ({ page }) => {
   await openApp(page);
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -32,7 +37,7 @@ test("scheduler in dark mode has no serious or critical violations", async ({ pa
   await openApp(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.getByTestId("scheduler-grid")).toBeVisible();
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -67,7 +72,7 @@ async function openDrawMode(page: import("@playwright/test").Page): Promise<void
 
 test("scheduler in time-off draw mode has no serious or critical violations", async ({ page }) => {
   await openDrawMode(page);
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -83,7 +88,7 @@ test("scheduler in time-off draw mode (dark) has no serious or critical violatio
   await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
   await openDrawMode(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -121,7 +126,7 @@ async function openAllocationEditor(page: import("@playwright/test").Page): Prom
 
 test("the allocation editor modal has no serious or critical violations", async ({ page }) => {
   await openAllocationEditor(page);
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -137,7 +142,7 @@ test("the allocation editor modal (dark) has no serious or critical violations",
   await page.addInitScript(() => localStorage.setItem("capacitylens/theme", "dark"));
   await openAllocationEditor(page);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -154,7 +159,7 @@ test("a resource form modal has no serious or critical violations", async ({ pag
   await page.getByRole("button", { name: "Add resource" }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
   await page.waitForTimeout(350); // let the entrance animation settle (mid-fade colours read as false low-contrast)
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -186,7 +191,7 @@ test("a confirm dialog (dark) danger button has no serious or critical violation
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Archive", exact: true })).toBeVisible(); // the danger-variant confirm button
   await page.waitForTimeout(350); // let the entrance animation settle (mid-fade colours read as false low-contrast)
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -207,7 +212,7 @@ test("the empty schedule has no serious or critical violations", async ({ page }
   await page.getByLabel("Search people").fill("zzznobody");
   await expect(page.getByTestId("scheduler-empty")).toBeVisible();
   await page.waitForTimeout(200);
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,
@@ -226,7 +231,7 @@ test("the empty schedule (dark) has no serious or critical violations", async ({
   await page.getByLabel("Search people").fill("zzznobody");
   await expect(page.getByTestId("scheduler-empty")).toBeVisible();
   await page.waitForTimeout(200);
-  const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+  const results = await settledAxe(page);
   const blocking = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
   expect(
     blocking,

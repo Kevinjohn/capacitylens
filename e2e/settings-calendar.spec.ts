@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { openApp } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.14 inverted this contract: week-start and time zone used to be EDITABLE in Settings; they are
 // now CAPTURED at company creation and FROZEN thereafter (the server returns 409 on a change). These

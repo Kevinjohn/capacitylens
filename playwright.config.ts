@@ -67,7 +67,11 @@ const devWebServer = {
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
-  forbidOnly: !!process.env.CI,
+  // A committed test.only is equally dangerous locally and in CI; reject it in every invocation.
+  forbidOnly: true,
+  // These are measured suite budgets, stated explicitly instead of inheriting Playwright defaults.
+  timeout: 30_000,
+  expect: { timeout: 5_000 },
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: process.env.CI

@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { openApp, openNewCompany } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // First-run "Getting started" checklist + "Show me around" tour (US-NAV-13). The card is
 // state-driven: it shows only while the ACTIVE account still has an onboarding step to do, so the

@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser as signUp } from "./auth-helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.12 — Viewer read-only mode, against the auth-backed project's server (SMALLSASS_ACCOUNT_MODE=password
 // on :8887 — see playwright.config.ts). Owner A bootstraps an org and invites a VIEWER V + an EDITOR

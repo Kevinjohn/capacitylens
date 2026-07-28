@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { AUTH_API as API, AUTH_PASSWORD as PASSWORD, BOOTSTRAP_TOKEN, signUpUser } from "./auth-helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.18 — admin-issued password-reset links, against the auth-backed project's server
 // (SMALLSASS_ACCOUNT_MODE=password on :8887 — see playwright.config.ts). Owner A signs up, bootstraps an

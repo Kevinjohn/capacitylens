@@ -1,7 +1,7 @@
 import { test, expect } from "./fixtures";
 import { openApp } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // P1.7 + P5.2: the build stamp and the Send-feedback link only exist in builds made with
 // VITE_CAPACITYLENS_BUILD_SHA / VITE_CAPACITYLENS_FEEDBACK_MAILTO set (the deploy script does that).

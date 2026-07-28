@@ -170,6 +170,7 @@ for (const signal of Object.keys(signalExitCodes)) {
   process.once(signal, () => stopForSignal(signal));
 }
 
+const phaseFailures = [];
 try {
   run("docker", [
     "run",
@@ -189,24 +190,33 @@ try {
   dexStarted = true;
   await waitForDiscovery();
   await listenForDiscoveryFaults();
-  discoveryFault = "healthy";
-  await playwright("healthy", ["--grep-invert", "@discovery-fault"]);
-  discoveryFault = "malformed";
-  await playwright("malformed-discovery", ["--grep", "@malformed-discovery"]);
-  discoveryFault = "unavailable";
-  await playwright("unavailable-discovery", ["--grep", "@unavailable-discovery"]);
+  for (const phase of [
+    { fault: "healthy", name: "healthy", args: ["--grep-invert", "@discovery-fault"] },
+    { fault: "malformed", name: "malformed-discovery", args: ["--grep", "@malformed-discovery"] },
+    { fault: "unavailable", name: "unavailable-discovery", args: ["--grep", "@unavailable-discovery"] },
+  ]) {
+    discoveryFault = phase.fault;
+    try {
+      await playwright(phase.name, phase.args);
+    } catch (error) {
+      phaseFailures.push(error);
+    }
+  }
 } catch (error) {
   primaryFailure = error;
-} finally {
-  let cleanupFailure = null;
-  try {
-    await cleanup();
-  } catch (error) {
-    cleanupFailure = error;
-  }
-  if (primaryFailure && cleanupFailure) {
-    throw new AggregateError([primaryFailure, cleanupFailure], "OIDC conformance and cleanup failed.");
-  }
-  if (primaryFailure) throw primaryFailure;
-  if (cleanupFailure) throw cleanupFailure;
 }
+
+let cleanupFailure = null;
+try {
+  await cleanup();
+} catch (error) {
+  cleanupFailure = error;
+}
+
+const failures = [
+  ...(primaryFailure ? [primaryFailure] : []),
+  ...phaseFailures,
+  ...(cleanupFailure ? [cleanupFailure] : []),
+];
+if (failures.length === 1) throw failures[0];
+if (failures.length > 1) throw new AggregateError(failures, "OIDC conformance phases or cleanup failed.");

@@ -20,7 +20,9 @@ export async function resetServer(request: APIRequestContext, withSeed = true): 
  *  hard-deleting it (P2.5b). */
 export async function serverState(
   request: APIRequestContext,
-): Promise<Record<string, { id: string; name?: string; archivedAt?: string; deletedAt?: string }[]>> {
+): Promise<
+  Record<string, Array<{ id: string; name?: string; archivedAt?: string; deletedAt?: string; language?: string }>>
+> {
   const res = await request.get(`${API}/api/state`);
   expect(res.ok()).toBeTruthy();
   return res.json();

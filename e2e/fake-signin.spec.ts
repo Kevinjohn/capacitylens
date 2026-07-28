@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 import AxeBuilder from "@axe-core/playwright";
 import { freezeBrowserDate } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // US-NAV-11: a COSMETIC demo "fake sign-in" gate shown before the company picker in the
 // default (auth-off) deploy, to preview the intended "log in first, then pick a company"

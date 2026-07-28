@@ -7,7 +7,7 @@ import {
   waitForWeekSnap,
 } from "./helpers";
 
-test.use({ reducedMotion: "reduce" });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 async function box(locator: Locator) {
   const b = await locator.boundingBox();
