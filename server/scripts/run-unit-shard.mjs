@@ -31,7 +31,9 @@ function parseShard(value) {
   return { index, total }
 }
 
-const [shardValue = '1/1', ...options] = process.argv.slice(2)
+const [shardValue = '1/1', ...options] = process.argv
+  .slice(2)
+  .filter((argument) => argument !== '--')
 const { index, total } = parseShard(shardValue)
 const files = collectTestFiles(sourceDirectory)
   .filter((file) => !isolatedSuites.has(file))
@@ -65,4 +67,3 @@ for (const file of files) {
   }
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
-
