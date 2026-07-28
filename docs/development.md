@@ -54,15 +54,17 @@ before/after coverage or raw+gzip entry size and explain why the added tested be
 cost is justified; changing a number only to restore green is not acceptable. Tighten a boundary
 only when repeated gate results show stable headroom. The canonical policy is recorded in
 `DECISIONS.md`.
-`gate:server` checks the Node/SQLite workspace. GitHub CI divides ordinary server tests into four
-parallel, bounded shards, each with one forked Vitest worker. Process isolation prevents native
-SQLite and AsyncLocalStorage state from leaking across test files, while the shard boundary limits
-contention and turns a stuck worker into a named failure within four minutes rather than a silent
-whole-job timeout. The AsyncLocalStorage/lock-heavy account-flow conformance file runs alone in the
-independent account-conformance process pool. The credential-onboarding crash harness and the
-process-heavy migration regression likewise run separately in dedicated single-worker forks, so
-their intentional child-process termination and native resource failures remain isolated and report
-their assertions instead of stranding the complete unit run.
+`gate:server` checks the Node/SQLite workspace. GitHub CI divides ordinary server test files into
+four parallel, bounded shards and launches each file in a fresh Vitest process. A file therefore
+cannot leak native SQLite, authentication or AsyncLocalStorage state into the next file; each child
+has a 90-second limit, while each shard has a four-minute circuit breaker. The
+AsyncLocalStorage/lock-heavy account-flow conformance file runs alone in the independent
+account-conformance process pool. The credential-onboarding crash harness and the process-heavy
+migration regression likewise run separately in dedicated single-worker forks, so their intentional
+child-process termination and native resource failures remain isolated and report their assertions
+instead of stranding the complete unit run. Migration regression subprocesses have a 30-second
+execution limit and a 45-second Vitest assertion budget, leaving enough room to report a child
+timeout even when a shared runner is contended.
 Default E2E runs demo, database-backed and password-auth flows in Chromium.
 Both root and shared Vitest projects pin `TZ=UTC`; timezone-specific helper coverage must set its
 zone deliberately in an isolated child process rather than inheriting a maintainer's machine.

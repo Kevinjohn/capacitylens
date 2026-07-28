@@ -141,11 +141,8 @@ jobs:
       - name: Run server unit shard
         run: >-
           timeout --signal=TERM --kill-after=30s 4m
-          pnpm --filter capacitylens-server exec vitest run
-          --exclude src/rehearseMigrations.test.ts
-          --exclude src/accounts/conformance/accountFlows.conformance.test.ts
-          --exclude src/credentialOnboardingDurability.test.ts
-          --pool=forks --maxWorkers=1 --shard=${{ matrix.shard }}/4
+          pnpm --filter capacitylens-server test:unit-shard --
+          ${{ matrix.shard }}/4
 
   server-process-durability:
     name: Credential onboarding crash durability
