@@ -8,7 +8,10 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+
+const tsxCli = fileURLToPath(import.meta.resolve("tsx/cli"));
 
 function boot(overrides: NodeJS.ProcessEnv) {
   const env = {
@@ -29,7 +32,7 @@ function boot(overrides: NodeJS.ProcessEnv) {
     // keep a stdio pipe open after the entrypoint has already exited with its refusal status.
     const result = spawnSync(
       process.execPath,
-      ["--import", "tsx", "src/index.ts"],
+      [tsxCli, "src/index.ts"],
       {
         cwd: process.cwd(),
         env,
