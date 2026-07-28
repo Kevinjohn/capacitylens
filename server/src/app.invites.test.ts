@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { FastifyInstance } from "fastify";
-import { buildApp } from "./app";
-import { openDb, insertAll, loadState, type Db } from "./db";
+import { buildApp as buildAppRaw } from "./app";
+import { openDb as openDbRaw, insertAll, loadState, type Db } from "./db";
 import {
   createInvite,
   getInvite,
@@ -11,7 +11,13 @@ import {
   preauthInviteAllows,
 } from "./controlTables";
 import { authFromEnv, runAuthMigrations, DEMO_USER } from "./auth";
-import { PASSWORD_ENV, call, cookiesOf, signUp } from "./testHelpers";
+import {
+  PASSWORD_ENV,
+  call,
+  cookiesOf,
+  signUp,
+  registerServerFixtureCleanup,
+} from "./testHelpers";
 import {
   emptyAppData,
   type AppData,
@@ -29,6 +35,11 @@ import {
 // reuse 409; expired 410; unknown 404; OFF mode; and the AppData-EXCLUSION guarantee.
 
 const TS = "2026-01-01T00:00:00.000Z";
+const fixtures = registerServerFixtureCleanup();
+const openDb = (...args: Parameters<typeof openDbRaw>) =>
+  fixtures.trackDb(openDbRaw(...args));
+const buildApp = (...args: Parameters<typeof buildAppRaw>) =>
+  fixtures.trackApp(buildAppRaw(...args));
 const meta = () => ({ createdAt: TS, updatedAt: TS });
 const validFractionalExpiry = (() => {
   const expiry = new Date(Date.now() + 24 * 60 * 60 * 1000);

@@ -74,16 +74,6 @@ import {
 
 export type Db = DatabaseSync;
 
-type DatabaseOpenObserver = (db: Db) => void;
-let databaseOpenObserver: DatabaseOpenObserver | undefined;
-
-/** Install per-process database ownership tracking for the Vitest environment. */
-export function setDatabaseOpenObserverForTests(
-  observer: DatabaseOpenObserver | undefined,
-): void {
-  databaseOpenObserver = observer;
-}
-
 /** Physical SQLite schema version. Independent from the portable JSON/export schema version. */
 export const DB_SCHEMA_VERSION = 23;
 
@@ -313,7 +303,6 @@ export function openDbConnection(path: string): Db {
   // Also set the pragma explicitly: constructor timeout is the primary Node 24 path; the pragma
   // pins the behavior if the driver construction path changes later.
   db.exec("PRAGMA busy_timeout = 5000;");
-  databaseOpenObserver?.(db);
   return db;
 }
 

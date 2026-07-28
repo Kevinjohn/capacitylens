@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 import { DatabaseSync } from 'node:sqlite'
-import { initializeOpenDb, openDb, planDatabaseMigrations } from './db'
+import { initializeOpenDb, openDb as openDbRaw, planDatabaseMigrations } from './db'
 import {
   authFromEnv,
   ensureAuthControlTables,
@@ -11,6 +11,7 @@ import {
 import { assertBootstrapClaimCurrent } from './bootstrapClaim'
 import { localExternalIdentityAdmission } from './accounts/externalIdentityAdmission'
 import { TENANT_ENTITY_ACCOUNT_INDEXES_V21 } from './tenantIndexes'
+import { registerServerFixtureCleanup } from './testHelpers'
 
 // P1.16 — session-cookie + session-lifetime hardening, asserted by INTROSPECTING the resolved
 // betterAuth options (auth.options is the exact object we passed; same robust point P1.7 uses for
@@ -22,6 +23,10 @@ const PASSWORD_ENV = {
   BETTER_AUTH_SECRET: 'unit-test-secret-0123456789abcdef-0123', // 32+ chars (MIN_BETTER_AUTH_SECRET_LENGTH)
   BETTER_AUTH_URL: 'http://localhost:8787',
 }
+
+const fixtures = registerServerFixtureCleanup()
+const openDb = (...args: Parameters<typeof openDbRaw>) =>
+  fixtures.trackDb(openDbRaw(...args))
 
 describe('startup configuration before database migration', () => {
   afterEach(() => {

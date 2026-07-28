@@ -1,9 +1,10 @@
-import { expect } from "vitest";
+import { afterEach, expect } from "vitest";
 import type {
   FastifyInstance,
   InjectOptions,
   LightMyRequestResponse,
 } from "fastify";
+import type { Db } from "./db";
 
 // Shared scaffolding for the auth-backed server test suites (app.*.test.ts). The inject wrapper,
 // Set-Cookie collapse, sign-up-and-resolve-userId flow, and the password-mode env were duplicated
@@ -19,6 +20,50 @@ export const PASSWORD_ENV = {
   BETTER_AUTH_URL: "http://localhost:8787",
   CAPACITYLENS_ALLOW_OPEN_SIGNUP: "1",
 };
+
+/** Own every Fastify/SQLite fixture created by one test file and close it after each test. */
+export function registerServerFixtureCleanup(): {
+  trackApp: <T extends FastifyInstance>(app: T) => T;
+  trackDb: <T extends Db>(db: T) => T;
+} {
+  const apps = new Set<FastifyInstance>();
+  const databases = new Set<Db>();
+
+  afterEach(async () => {
+    const errors: unknown[] = [];
+    for (const app of apps) {
+      try {
+        await app.close();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    for (const db of databases) {
+      if (!db.isOpen) continue;
+      try {
+        db.close();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+    apps.clear();
+    databases.clear();
+    if (errors.length > 0) {
+      throw new AggregateError(errors, "Server fixture cleanup failed.");
+    }
+  });
+
+  return {
+    trackApp: <T extends FastifyInstance>(app: T): T => {
+      apps.add(app);
+      return app;
+    },
+    trackDb: <T extends Db>(db: T): T => {
+      databases.add(db);
+      return db;
+    },
+  };
+}
 
 /** `app.inject` typed as the light response the suites assert against. */
 export const call = (

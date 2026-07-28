@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import type { FastifyInstance } from 'fastify'
-import { buildApp } from './app'
-import { openDb, insertAll, type Db } from './db'
+import { buildApp as buildAppRaw } from './app'
+import { openDb as openDbRaw, insertAll, type Db } from './db'
 import { upsertMember } from './controlTables'
 import { authFromEnv, runAuthMigrations } from './auth'
-import { PASSWORD_ENV, call, signUp } from './testHelpers'
+import { PASSWORD_ENV, call, signUp, registerServerFixtureCleanup } from './testHelpers'
 import type { Role } from '@capacitylens/shared/domain/access'
 import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 
@@ -15,6 +15,11 @@ import { emptyAppData, type AppData } from '@capacitylens/shared/types/entities'
 // single-use guarantee, session revocation on reset, and the mode gates (sso/off → 400, no crash).
 
 const TS = '2026-01-01T00:00:00.000Z'
+const fixtures = registerServerFixtureCleanup()
+const openDb = (...args: Parameters<typeof openDbRaw>) =>
+  fixtures.trackDb(openDbRaw(...args))
+const buildApp = (...args: Parameters<typeof buildAppRaw>) =>
+  fixtures.trackApp(buildAppRaw(...args))
 const meta = () => ({ createdAt: TS, updatedAt: TS })
 const account = (id: string) => ({
   id,

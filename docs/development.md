@@ -60,9 +60,6 @@ turns a stuck worker into a named shard failure within four minutes rather than 
 timeout. The process-heavy migration regression runs separately in a dedicated single-worker fork,
 so a native resource failure remains isolated and reports its assertion instead of stranding the
 complete unit run.
-The server test setup owns and closes every connection opened through the database factory at the
-end of each test file. Tests that construct a bare `DatabaseSync` directly must register and close
-those handles in their own suite cleanup.
 Default E2E runs demo, database-backed and password-auth flows in Chromium.
 Both root and shared Vitest projects pin `TZ=UTC`; timezone-specific helper coverage must set its
 zone deliberately in an isolated child process rather than inheriting a maintainer's machine.
