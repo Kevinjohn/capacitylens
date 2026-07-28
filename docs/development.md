@@ -54,11 +54,12 @@ before/after coverage or raw+gzip entry size and explain why the added tested be
 cost is justified; changing a number only to restore green is not acceptable. Tighten a boundary
 only when repeated gate results show stable headroom. The canonical policy is recorded in
 `DECISIONS.md`.
-`gate:server` checks the Node/SQLite workspace. Ordinary server tests use at most two Vitest worker
-threads, which bounds SQLite contention and lets Vitest terminate a worker even if failed test
-cleanup strands a native handle. The process-heavy migration regression runs afterward in a
-dedicated single-worker fork, so a native resource failure remains isolated and reports its
-assertion instead of stranding the complete unit run.
+`gate:server` checks the Node/SQLite workspace. GitHub CI divides ordinary server tests into four
+parallel, bounded shards, each with one Vitest worker thread. This bounds SQLite contention and
+turns a stuck worker into a named shard failure within four minutes rather than a silent whole-job
+timeout. The process-heavy migration regression runs separately in a dedicated single-worker fork,
+so a native resource failure remains isolated and reports its assertion instead of stranding the
+complete unit run.
 The server test setup owns and closes every connection opened through the database factory at the
 end of each test file. Tests that construct a bare `DatabaseSync` directly must register and close
 those handles in their own suite cleanup.
