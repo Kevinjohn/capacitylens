@@ -268,8 +268,8 @@ export function buildSchedulerModel({
     if (disciplinesEnabled && filters.disciplineId && r.disciplineId !== filters.disciplineId) return false;
     // Search the DISPLAY name too, so a placeholder (shown as "Placeholder") is findable by what the
     // user sees — matching the command palette — as well as by its underlying role/name.
-    if (search && ![resourceDisplayName(r), r.name, r.role].some((field) => searchable(field).includes(search)))
-      return false;
+    const resourceSearchText = [resourceDisplayName(r), r.name, r.role].map(searchable).join(" ");
+    if (search && !resourceSearchText.includes(search)) return false;
     return true;
   };
 

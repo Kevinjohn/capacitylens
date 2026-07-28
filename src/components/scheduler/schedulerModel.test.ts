@@ -668,6 +668,21 @@ describe("buildSchedulerModel", () => {
     expect(model.map((g) => g.title)).toEqual(["Development"]);
   });
 
+  it("matches a search phrase spanning the displayed name and role", () => {
+    const d = dataset();
+    d.resources[0] = { ...d.resources[0], name: "Dana", role: "Senior Designer" };
+    const model = buildSchedulerModel({
+      data: d,
+      geom,
+      days,
+      visibleWindow: { start, end },
+      overSoonWindow: { start, end },
+      filters: { ...emptyFilters(), search: "dana senior" },
+      preferences: { disciplinesEnabled: true, placeholdersEnabled: true, externalEnabled: true },
+    });
+    expect(model.flatMap((group) => group.rows).map((row) => row.resource.id)).toContain("r1");
+  });
+
   it("disciplines off → one flat group holding every resource (no discipline bands)", () => {
     const model = build(emptyFilters(), false);
     expect(model).toHaveLength(1);

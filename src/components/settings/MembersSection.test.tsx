@@ -1245,6 +1245,42 @@ describe("MembersSection — invite mint", () => {
     expect((localDate.mock.contexts[0] as Date).toISOString()).toBe(expiresAt);
   });
 
+  it("marks an invitation expired and removes its action without remounting Settings", async () => {
+    const expiresAt = new Date(Date.now() + 50).toISOString();
+    const reads = mockFetch([{ userId: "me", role: "owner", isSelf: true }]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const target = String(url);
+        const isRead = !init || init.method === undefined || init.method === "GET";
+        if (target.endsWith("/invites") && isRead) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => ({
+              invites: [
+                {
+                  id: "inv-expiring",
+                  role: "viewer",
+                  preauthEmail: "expiring@example.test",
+                  expiresAt,
+                  usedAt: null,
+                  createdAt: "2026-07-17T00:00:00.000Z",
+                },
+              ],
+            }),
+          } as Response;
+        }
+        return reads(url, init);
+      }),
+    );
+
+    renderSection();
+    expect(await screen.findByTestId("invite-revoke")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/expired/i)).toBeInTheDocument());
+    expect(screen.queryByTestId("invite-revoke")).not.toBeInTheDocument();
+  });
+
   it("keeps the last authoritative invite list when a same-account invite reload fails", async () => {
     const existingInvite = {
       id: "inv-existing",

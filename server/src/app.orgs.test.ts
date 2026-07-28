@@ -6,6 +6,7 @@ import { getMemberRole, upsertMember } from "./controlTables";
 import { authFromEnv, runAuthMigrations, DEMO_USER } from "./auth";
 import { PASSWORD_ENV, call, signUp } from "./testHelpers";
 import { emptyAppData, type AppData } from "@capacitylens/shared/types/entities";
+import type { AuditSink } from "./audit";
 
 // P1.8 — constrained org-creation (POST /api/orgs). The endpoint allows iff ANY of: zero accounts
 // (first-run bootstrap), OFF mode (trusted-local), the caller is an ACTIVE owner/admin of SOME
@@ -31,13 +32,19 @@ function seedOne(db: Db): void {
  *  that deliberately provisions a 2nd/3rd org on the SAME instance — the cap otherwise 403s any
  *  create once ≥1 account exists, regardless of `allowed`'s authz outcome (see app.ts's GATE 0). */
 async function appWithAuth(
-  opts: { bootstrapToken?: string; multiAccount?: boolean } = {},
+  opts: { bootstrapToken?: string; multiAccount?: boolean; audit?: AuditSink } = {},
 ): Promise<{ app: FastifyInstance; db: Db }> {
   const db = openDb(":memory:");
   const { mode, auth } = authFromEnv(db, PASSWORD_ENV);
   await runAuthMigrations(auth!);
   return {
-    app: buildApp(db, { authMode: mode, auth, bootstrapToken: opts.bootstrapToken, multiAccount: opts.multiAccount }),
+    app: buildApp(db, {
+      authMode: mode,
+      auth,
+      bootstrapToken: opts.bootstrapToken,
+      multiAccount: opts.multiAccount,
+      audit: opts.audit,
+    }),
     db,
   };
 }
@@ -56,6 +63,29 @@ function assertUsableOrg(db: Db, accountId: string, userId: string): void {
 }
 
 describe("POST /api/orgs (P1.8) — auth-on", () => {
+  it("assigns a unique durable audit delivery id to every company creation", async () => {
+    const audit: AuditSink = { append: () => false, degraded: true };
+    const { app, db } = await appWithAuth({ multiAccount: true, audit });
+    const { cookie } = await signUp(app, "audit-founder@capacitylens.dev");
+    for (const [index, name] of ["Audit One", "Audit Two"].entries()) {
+      const response = await createOrg(
+        app,
+        { name },
+        {
+          cookie,
+          "idempotency-key": `org-audit-idempotency-0${index}`,
+          "x-account-command-id": `org-audit-command-00000${index}`,
+        },
+      );
+      expect(response.statusCode, response.body).toBe(201);
+    }
+    const rows = db.prepare("SELECT id FROM capacitylens_audit_outbox ORDER BY sequence").all() as Array<{
+      id: string;
+    }>;
+    expect(rows).toHaveLength(2);
+    expect(new Set(rows.map((row) => row.id)).size).toBe(2);
+  });
+
   it("replays a server-id/default-timestamp create with the same command after the cap is full", async () => {
     const { app, db } = await appWithAuth();
     const { cookie, userId } = await signUp(app, "replay-founder@capacitylens.dev");

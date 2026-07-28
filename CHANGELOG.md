@@ -40,6 +40,10 @@ new features and **patch** versions carry fixes.
   and reduced the colour palette to one keyboard Tab stop with arrow-key navigation.
 - Improved rolling-version API compatibility, bounded operational diagnostics and dependency
   auditing, and reduced persistence acknowledgement work to the tables that actually changed.
+- Preserved unique durable audit evidence for every company creation and forced authoritative
+  reconciliation when an older server commits a batch without returning every row revision.
+- Rejected non-round-trippable year-zero dates, restored phrase searches spanning resource names
+  and roles, and made outstanding invitations expire live while Team & access remains open.
 
 ## [0.27.1-alpha.1] — 2026-07-28
 

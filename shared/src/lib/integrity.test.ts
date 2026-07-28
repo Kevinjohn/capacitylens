@@ -177,6 +177,7 @@ describe("isValidISODate", () => {
     expect(isValidISODate("2026-06-01x")).toBe(false); // suffix must not be ignored
     expect(isValidISODate("2026-13-01")).toBe(false); // month 13 — round-trips to a different string
     expect(isValidISODate("2026-02-30")).toBe(false); // 30 Feb — never a real date
+    expect(isValidISODate("0000-01-01")).toBe(false); // date-fns formats year zero as year one
   });
 
   it("rejects a NON-STRING even when it stringifies to a valid-looking date", () => {

@@ -325,7 +325,9 @@ amber — so a lane draw books time off without the bars intercepting the gestur
 over an existing allocation falls through to the lane). The grid carries
 `data-draw-mode="work"|"timeoff"`; nothing about the underlying data changes.** Undo/redo run
 from BOTH the toolbar **Undo**/**Redo** buttons (above) AND the global `⌘Z` / `⌘⇧Z` shortcut. Filter row:
-`Search people…`, `Filter by discipline`, `Filter by client`, `Filter by project`,
+`Search people…` matches accent-insensitively across the displayed name, stored name and role as
+one phrase, so a query may span those fields. The remaining controls are `Filter by discipline`,
+`Filter by client`, `Filter by project`,
 `Filter by activity` (a grouped dropdown — `All activities`, then an `Internal` optgroup with
 `Internal — All` + each internal activity, then a `Cross-project` optgroup with `Cross-project — All` +
 each cross-project activity; shown only when the account has internal/cross-project activities. Project-specific activities
@@ -596,7 +598,8 @@ The management section has three parts:
   only a successfully decoded terminal rejection permits a later retry to mint a new identity.
 - **Outstanding invites** — a row per invite (`data-testid="invite-row"`) with role / preauth-email
   or "link" / expiry-or-used and a **Revoke** button (`data-testid="invite-revoke"`). The list never
-  carries the secret token.
+  carries the secret token. When an invite expires while this page remains open, its row updates to
+  **Expired** and the unusable Revoke action disappears without requiring navigation or reload.
 
 The Owner row has no role selector and no Remove action for anyone: each company has exactly one
 Owner, and ownership is changed only by explicit transfer. The Owner sees **Transfer ownership**

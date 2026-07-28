@@ -1054,9 +1054,8 @@ export class ServerSyncAdapter implements PersistenceAdapter {
       compatibleRevisions.push(revision);
     }
     if (received.size !== expected.size) {
-      warnCompatibilityOnce(
-        "batch-incomplete-revisions",
-        "ServerSyncAdapter: the batch receipt omitted some server revisions; continuing without those translations.",
+      throw new BatchCommitUncertainError(
+        "Batch sync committed without complete server revisions; authoritative reload is required.",
       );
     }
     return { revisions: compatibleRevisions, superseded: receipt.superseded === true };

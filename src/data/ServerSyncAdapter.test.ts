@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { IDBFactory } from "fake-indexeddb";
 import {
   ServerSyncAdapter,
+  BatchCommitUncertainError,
   BatchConflictError,
   BatchTooLargeError,
   BatchValidationError,
@@ -881,38 +882,52 @@ describe("ServerSyncAdapter.saveAll", () => {
         revisions: [revisionFor(ops[0]), revisionFor(ops[0])],
       }),
     ],
-    [
-      "extra",
-      (ops: ReceiptOp[]) => ({
-        revisions: [...ops.map(revisionFor), { ...revisionFor(ops[0]), id: "unexpected" }],
-      }),
-    ],
-  ])("accepts a committed receipt with %s revision coverage", async (_case, revisionFields) => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
-      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
-      return new Response(
-        JSON.stringify({
-          ok: true,
-          applied: ops.length,
-          ...revisionFields(ops),
-        }),
-        { status: 200 },
+  ])(
+    "requires an authoritative reload for committed receipts with %s revision coverage",
+    async (_case, revisionFields) => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+        const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            applied: ops.length,
+            ...revisionFields(ops),
+          }),
+          { status: 200 },
+        );
+      }) as unknown as typeof fetch;
+      const a = new ServerSyncAdapter("http://x", fetchImpl);
+
+      await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).rejects.toThrow(
+        BatchCommitUncertainError,
       );
-    }) as unknown as typeof fetch;
-    const a = new ServerSyncAdapter("http://x", fetchImpl);
+    },
+  );
 
-    await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).resolves.toBeUndefined();
-  });
-
-  it("accepts a legacy successful receipt that omits applied and revisions", async () => {
+  it("requires reconciliation for a legacy successful receipt that omits applied and revisions", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const fetchImpl = vi.fn(async () => Response.json({ ok: true })) as unknown as typeof fetch;
     const a = new ServerSyncAdapter("http://x", fetchImpl);
 
-    await expect(a.saveAll(withData({ clients: [client("c1")] }))).resolves.toBeUndefined();
+    await expect(a.saveAll(withData({ clients: [client("c1")] }))).rejects.toThrow(BatchCommitUncertainError);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("omitted 'applied'"));
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("omitted server revisions"));
+  });
+
+  it("drops an extra revision when every written row still has authoritative coverage", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const fetchImpl = vi.fn(async (_url: string, init?: RequestInit) => {
+      const ops = (JSON.parse(init?.body as string) as { ops: ReceiptOp[] }).ops;
+      return Response.json({
+        ok: true,
+        applied: ops.length,
+        revisions: [...ops.map(revisionFor), { ...revisionFor(ops[0]), id: "unexpected" }],
+      });
+    }) as unknown as typeof fetch;
+    const a = new ServerSyncAdapter("http://x", fetchImpl);
+
+    await expect(a.saveAll(withData({ clients: [client("c1"), client("c2")] }))).resolves.toBeUndefined();
   });
 
   it("coalesces overlapping saves to the latest state", async () => {

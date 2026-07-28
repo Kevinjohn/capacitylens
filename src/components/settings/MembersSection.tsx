@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
 import { isServerConfigured } from "../../data/apiConfig";
 import { useAuth } from "../../auth/authContext";
 import { useStore } from "../../store/useStore";
@@ -152,7 +152,7 @@ export function MembersSection() {
 /** Account-keyed implementation. Changing companies remounts this boundary, which discards
  * account-local drafts, confirmations, action locks and write-once bearer links together. */
 function AccountMembersSection({ activeAccountId }: { activeAccountId: string | null }) {
-  const [renderedAt] = useState(() => Date.now());
+  const [renderedAt, setRenderedAt] = useState(() => Date.now());
   const { authMode, refreshAuth } = useAuth();
   const offline = useOfflineState();
   const setActiveAccount = useStore((s) => s.setActiveAccount);
@@ -200,6 +200,19 @@ function AccountMembersSection({ activeAccountId }: { activeAccountId: string | 
     fail,
     onInvitesLoaded: reconcileMintedInvite,
   });
+  useEffect(() => {
+    const nextExpiry = invites
+      .filter((invite) => invite.usedAt === null)
+      .map((invite) => Date.parse(invite.expiresAt))
+      .filter((expiry) => Number.isFinite(expiry) && expiry > renderedAt)
+      .reduce((nearest, expiry) => Math.min(nearest, expiry), Number.POSITIVE_INFINITY);
+    if (!Number.isFinite(nextExpiry)) return;
+    const timer = window.setTimeout(
+      () => setRenderedAt(Date.now()),
+      Math.min(nextExpiry - Date.now() + 1, 2_147_483_647),
+    );
+    return () => window.clearTimeout(timer);
+  }, [invites, renderedAt]);
   const requestAccountId = (): string => {
     if (!activeAccountId) throw new Error(m.settings_members_err_no_active_account());
     return activeAccountId;

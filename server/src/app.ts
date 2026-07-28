@@ -1803,19 +1803,15 @@ export function buildApp(db: Db, opts: AppOptions = {}): FastifyInstance {
             validateWrite(store.readSlice(id, FULL_SLICE_READ), "accounts", accountRow);
             insertRow(db, "accounts", accountRow);
             insertRow(db, "clients", buildInternalClient(id, now) as unknown as Record<string, unknown>);
-            enqueueAudit(
-              db,
-              {
-                ts: String(accountRow.createdAt),
-                userId: req.user!.id,
-                accountId: id,
-                action: "create",
-                entity: "accounts",
-                id,
-                changedFields: acceptedFieldNames("accounts", accountRow),
-              },
-              "immediate",
-            );
+            enqueueAudit(db, {
+              ts: String(accountRow.createdAt),
+              userId: req.user!.id,
+              accountId: id,
+              action: "create",
+              entity: "accounts",
+              id,
+              changedFields: acceptedFieldNames("accounts", accountRow),
+            });
             return accountRow;
           },
         });
