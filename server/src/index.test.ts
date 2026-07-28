@@ -1,4 +1,13 @@
 import { spawnSync } from "node:child_process";
+import {
+  closeSync,
+  mkdtempSync,
+  openSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 function boot(overrides: NodeJS.ProcessEnv) {
@@ -10,12 +19,38 @@ function boot(overrides: NodeJS.ProcessEnv) {
     SMALLSASS_ACCOUNT_MODE: "off",
     ...overrides,
   };
-  return spawnSync(process.execPath, ["--import", "tsx", "src/index.ts"], {
-    cwd: process.cwd(),
-    env,
-    encoding: "utf8",
-    timeout: 10_000,
-  });
+  const directory = mkdtempSync(join(tmpdir(), "capacitylens-index-test-"));
+  const stdoutPath = join(directory, "stdout.log");
+  const stderrPath = join(directory, "stderr.log");
+  let stdout = openSync(stdoutPath, "w");
+  let stderr = openSync(stderrPath, "w");
+  try {
+    // tsx may start an esbuild helper. Capture through files so a short-lived descendant cannot
+    // keep a stdio pipe open after the entrypoint has already exited with its refusal status.
+    const result = spawnSync(
+      process.execPath,
+      ["--import", "tsx", "src/index.ts"],
+      {
+        cwd: process.cwd(),
+        env,
+        stdio: ["ignore", stdout, stderr],
+        timeout: 10_000,
+      },
+    );
+    closeSync(stdout);
+    stdout = -1;
+    closeSync(stderr);
+    stderr = -1;
+    return {
+      ...result,
+      stdout: readFileSync(stdoutPath, "utf8"),
+      stderr: readFileSync(stderrPath, "utf8"),
+    };
+  } finally {
+    if (stdout !== -1) closeSync(stdout);
+    if (stderr !== -1) closeSync(stderr);
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
 
 describe("server entrypoint startup refusals", () => {
